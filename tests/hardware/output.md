@@ -8,6 +8,7 @@ par on its XLR.
 - [ ] Daemon log reports the interface as **ENTTEC Pro**, not Open DMX (OUT-09)
 - [ ] With the demo fader breathing, the par follows smoothly; no flicker, no stepping
 - [ ] Art-Net monitor shows universe 0 (line 1) packets at ~40 Hz with the same values (OUT-03)
-- [ ] Switch node to unicast to the monitor's IP; packets still arrive (OUT-04)
+- [ ] Restart the daemon with `--artnet-target <monitor-ip>` (unicast); packets still arrive (OUT-04)
+- [ ] Restart with `--no-artnet`; the monitor shows no more ColourmotionDMX packets (OUT-15)
 - [ ] sACN monitor shows universe 1, priority 100, source name "ColourmotionDMX" (OUT-06/07)
 - [ ] Unplug the Eurolite mid-run: daemon logs one `Degraded` line, keeps ticking, Art-Net/sACN unaffected; replug: output resumes without restart (OUT-12)
