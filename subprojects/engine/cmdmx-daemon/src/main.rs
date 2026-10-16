@@ -19,8 +19,6 @@ use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::{FaderMode, Playback, Priority};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::UNIVERSE_SIZE;
-use cmdmx_protocols::{artnet, enttec, sacn};
-
 const TICK: Duration = Duration::from_millis(25);
 
 fn main() {
@@ -147,22 +145,10 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     Ok(engine)
 }
 
-/// Show that all three transports can frame the current universe. Nothing is
-/// sent yet; this is the seam where the output threads plug in.
+/// Once a second: channel 1 of each universe, so a human can see the tick runs.
 fn report(engine: &Engine) {
     for (universe, frame) in engine.universes() {
-        let slots = frame.slots();
-        let art = artnet::art_dmx(universe.saturating_sub(1), 1, 0, slots).map(|p| p.len());
-        let acn = sacn::data_packet(&[0u8; 16], "ColourmotionDMX", 100, 1, *universe, slots)
-            .map(|p| p.len());
-        let pro = enttec::send_dmx_frame(slots).map(|p| p.len());
-        eprintln!(
-            "universe {universe}: ch1={} | framed bytes art-net={:?} sacn={:?} enttec={:?}",
-            frame.channel(1).unwrap_or(0),
-            art,
-            acn,
-            pro
-        );
+        eprintln!("universe {universe}: ch1={}", frame.channel(1).unwrap_or(0));
     }
 }
 

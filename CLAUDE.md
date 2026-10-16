@@ -14,10 +14,11 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
    Write the failing test before the implementation.
 3. **Code third.** Smallest change that turns the test green. Run `cargo test` in
    `subprojects/engine` and `cargo clippy --all-targets -- -D warnings`.
-4. **Review.** Open a PR per task; the owner reviews (gate 2). Hardware-touching tasks ship with
+4. **Review.** One branch per task; the owner reviews the diff against `main` (gate 2) and
+   on approval it is merged with `git merge --no-ff`. Open PRs instead once the repo has a remote. Hardware-touching tasks ship with
    a checklist in `tests/hardware/` that only the owner can tick (gate 3).
 5. **Close the loop.** Update the subproject `STATE.md`, root `STATE.md` and `BACKLOG.md`
-   in the same PR. A decision made along the way goes in `DECISIONS.md` (and an ADR if it is
+   on the same branch. A decision made along the way goes in `DECISIONS.md` (and an ADR if it is
    structural).
 
 Use the project-management conventions from the `project-manage` skill when available
@@ -66,4 +67,4 @@ Use the project-management conventions from the `project-manage` skill when avai
 ## Commit style
 
 `<area>: <imperative summary>` — e.g. `core: implement HTP merge (ENG-01..03)`.
-Reference criterion ids in the body. One task per PR.
+Reference criterion ids in the body. One task per branch.

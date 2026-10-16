@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-16 — Local review instead of PRs while there is no remote
+
+**Decision:** One branch per task; the owner reviews `git diff main...<branch>` and approves; merge with `--no-ff` so the merge commit marks the review.
+
+**Alternatives considered:** push to GitHub and use PRs now.
+
+**Reasoning:** The repo is local only; a PR adds nothing until there is a remote and CI to run.
+
+**Reversal trigger:** a GitHub remote is added — switch back to one PR per task.
+
 ## 2026-10-16 — Fixture format: GDTF as internal format, OFL/QLC+ import later
 
 **Decision:** Fixture profiles are GDTF files plus a small JSON overlay for Titan-specific fields (attribute group, locate values, virtual dimmer, highlight). See ADR-004.
