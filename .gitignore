@@ -1,0 +1,12 @@
+# Rust
+subprojects/engine/target/
+# Swift
+subprojects/app/.build/
+subprojects/app/.swiftpm/
+*.xcodeproj
+*.xcworkspace
+# macOS
+.DS_Store
+# local
+tests/hardware/runs/*.tmp
+*.cmdmx.json.tmp

@@ -1,0 +1,17 @@
+{
+  "spec": "ENG-03",
+  "profiles": { "dimmer": { "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 } ] } },
+  "patch": [ { "id": 5, "profile": "dimmer", "universe": 1, "address": 5 } ],
+  "playbacks": [
+    { "id": 1, "priority": "High", "fader_mode": 0, "values": { "5": { "Dimmer": 0.5 } } },
+    { "id": 2, "priority": "Normal", "fader_mode": 0, "values": { "5": { "Dimmer": 1.0 } } }
+  ],
+  "actions": [
+    { "t": 0.0, "fader": { "playback": 1, "level": 1.0 } },
+    { "t": 1.0, "fader": { "playback": 2, "level": 1.0 } }
+  ],
+  "expect": [
+    { "t": 0.1, "universe": 1, "channels": { "5": 128 } },
+    { "t": 1.1, "universe": 1, "channels": { "5": 128 } }
+  ]
+}

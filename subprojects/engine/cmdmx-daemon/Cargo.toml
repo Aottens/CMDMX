@@ -1,0 +1,18 @@
+[package]
+name = "cmdmx-daemon"
+description = "ColourmotionDMX engine daemon: owns the tick loop, DMX output, MIDI and the show file. The only crate with I/O."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "cmdmx-daemon"
+path = "src/main.rs"
+
+[dependencies]
+cmdmx-core = { path = "../cmdmx-core" }
+cmdmx-protocols = { path = "../cmdmx-protocols" }
+cmdmx-control = { path = "../cmdmx-control" }
+
+[lints]
+workspace = true

@@ -1,0 +1,13 @@
+# Output checklist (OUT-03/04/06/09) — template
+
+Setup: Mac on the same subnet as an Art-Net/sACN monitor (e.g. sACNView, Art-Net
+monitor app, or a node), Eurolite USB-DMX512 PRO MK2 on USB with a dimmer or LED
+par on its XLR.
+
+- [ ] `ls /dev/cu.usbserial-*` shows the Eurolite; `system_profiler SPUSBDataType` shows product string "Eurolite DMX512 Pro"
+- [ ] Daemon log reports the interface as **ENTTEC Pro**, not Open DMX (OUT-09)
+- [ ] With the demo fader breathing, the par follows smoothly; no flicker, no stepping
+- [ ] Art-Net monitor shows universe 0 (line 1) packets at ~40 Hz with the same values (OUT-03)
+- [ ] Switch node to unicast to the monitor's IP; packets still arrive (OUT-04)
+- [ ] sACN monitor shows universe 1, priority 100, source name "ColourmotionDMX" (OUT-06/07)
+- [ ] Unplug the Eurolite mid-run: daemon logs one `Degraded` line, keeps ticking, Art-Net/sACN unaffected; replug: output resumes without restart (OUT-12)

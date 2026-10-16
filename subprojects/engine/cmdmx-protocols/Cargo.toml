@@ -1,0 +1,12 @@
+[package]
+name = "cmdmx-protocols"
+description = "Byte-exact DMX transport framing: Art-Net ArtDmx, sACN E1.31 data packets, ENTTEC Pro serial frames. No sockets."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

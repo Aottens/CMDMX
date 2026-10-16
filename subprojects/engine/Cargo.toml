@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = ["cmdmx-core", "cmdmx-protocols", "cmdmx-control", "cmdmx-daemon"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "TBD"
+repository = "https://github.com/colourmotion/ColourmotionDMX"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+# Show-proof lints shared by every crate (see CLAUDE.md).
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+todo = "deny"
+unreachable = "deny"
+unimplemented = "deny"
+
+[profile.release]
+panic = "unwind"   # we catch panics at thread boundaries; abort would kill output
+lto = "thin"

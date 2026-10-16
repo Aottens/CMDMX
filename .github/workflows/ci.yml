@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  engine:
+    name: engine (Rust)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: subprojects/engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: subprojects/engine
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - name: daemon smoke run
+        run: cargo run -q -p cmdmx-daemon -- --ticks 20
+
+  app:
+    name: app (Swift, macOS)
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: subprojects/app
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - run: swift build
+      - run: swift test
+      - run: scripts/bundle-app.sh debug
