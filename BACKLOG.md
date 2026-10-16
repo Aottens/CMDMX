@@ -30,5 +30,4 @@ Status: `todo` · `doing` · `review` · `done` · `blocked`.
 
 ## Open questions (owner decides)
 - Licence: MIT or GPL-3.0?
-- Public repo from day one, or after vertical slice 1?
 - IPC transport: raw TCP with length-prefixed JSON, or WebSocket (easier for future web/iPad clients)?
