@@ -3,13 +3,13 @@
 _Last updated: 2026-10-16_
 
 ## Current step
-Skeleton only: a SwiftPM executable with one window, `faders_per_page` placeholder faders and an "engine offline" banner. **Not yet compiled** — the scaffold environment had no Swift toolchain. First job on the owner's Mac: `swift build` (Command Line Tools only).
+Skeleton: a SwiftPM executable with one window, `faders_per_page` placeholder faders and an "engine offline" banner. **Builds and runs on the owner's Mac** (2026-10-16, Command Line Tools only). No test target: XCTest/Swift Testing are not in the CLT; the engine holds the tests.
 
 ## Working
-- `Package.swift`, `Sources/ColourmotionDMX/*.swift`, `scripts/bundle-app.sh`.
+- `swift build`, `scripts/bundle-app.sh`, `open .build/ColourmotionDMX.app` → window with offline banner, placeholder grid, 8 faders + GM.
 
 ## In progress
 - nothing
 
 ## Resume with
-`cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`, then VS1-05/VS1-06 from `BACKLOG.md`.
+VS1-05 (IPC client) and VS1-06 (faders bound to engine playbacks) from `BACKLOG.md`; verify with `swift build` + `scripts/bundle-app.sh`.

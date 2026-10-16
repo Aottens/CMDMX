@@ -11,10 +11,9 @@ let package = Package(
             name: "ColourmotionDMX",
             path: "Sources/ColourmotionDMX"
         ),
-        .testTarget(
-            name: "ColourmotionDMXTests",
-            dependencies: ["ColourmotionDMX"],
-            path: "Tests/ColourmotionDMXTests"
-        ),
+        // No test target: neither XCTest nor Swift Testing ships with the Command
+        // Line Tools. The app is a thin client; behaviour is tested in the engine.
+        // Add a test target again only with a toolchain that provides one
+        // (Xcode.app, or a swift.org toolchain) — see CLAUDE.md.
     ]
 )

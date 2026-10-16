@@ -54,6 +54,11 @@ Use the project-management conventions from the `project-manage` skill when avai
 - Swift: the app builds with Xcode Command Line Tools only (`xcode-select --install`), via
   `swift build` in `subprojects/app`. Do not introduce an `.xcodeproj`. `scripts/bundle-app.sh`
   wraps the binary into a `.app`.
+- **No Swift unit tests for now.** Neither XCTest nor Swift Testing is available with the
+  Command Line Tools alone (verified 2026-10-16 on the owner's Mac). The app is a thin client;
+  all behaviour tests live in the Rust engine. `swift build` is the app's gate. If Swift tests
+  become necessary, install a swift.org toolchain (ships XCTest + Testing, ~1.5 GB, no
+  Xcode.app) and add a test target with `import Testing`.
 - Hardware on the owner's desk: Behringer BCF2000 (Mackie Control mode), Eurolite USB-DMX512 PRO
   Interface MK2 (ENTTEC Pro protocol over FTDI serial; identifies as "Eurolite DMX512 Pro",
   VID/PID 0403:6001 — detect by product string, never treat as Open DMX).

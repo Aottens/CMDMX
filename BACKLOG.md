@@ -8,7 +8,7 @@ Status: `todo` · `doing` · `review` · `done` · `blocked`.
 
 | Id | Task (one sentence, verifiable) | Spec ids | Size | Status |
 | --- | --- | --- | --- | --- |
-| VS1-01 | `cargo test` is green on a fresh clone, `swift build` produces a binary in `subprojects/app` on the owner's Mac. | — | S | todo |
+| VS1-01 | `cargo test` is green on a fresh clone, `swift build` produces a binary in `subprojects/app` on the owner's Mac. | — | S | done (2026-10-16; no Swift test target, see CLAUDE.md) |
 | VS1-02 | Daemon opens an Art-Net broadcast socket and emits the current frame of universe 1 at 40 Hz; owner sees it in an Art-Net monitor. | OUT-01..04 | M | todo |
 | VS1-03 | Daemon emits sACN universe 1 (priority 100) alongside Art-Net; owner sees it in sACNView. | OUT-05..07 | S | todo |
 | VS1-04 | Daemon detects the Eurolite MK2 by USB product string, opens its serial port and sends ENTTEC-Pro frames; owner's dimmer follows a fader. | OUT-08..09, hardware checklist | M | todo |

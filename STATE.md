@@ -11,7 +11,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
 - `cmdmx-daemon`: compiles, runs a 40 Hz tick loop, no IPC yet
-- `subprojects/app`: SwiftPM skeleton with a window and 8 placeholder faders — NOT yet compiled anywhere (no Swift toolchain in the scaffold environment)
+- `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
 - nothing (scaffold just landed)
@@ -25,4 +25,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Resume next session with
-Run `cd subprojects/engine && cargo test` to confirm green, then `cd ../app && swift build` to verify the Swift toolchain; then pick task ENG-01 from `BACKLOG.md`.
+Commit the uncommitted scaffold fixes (Swift test target removed, docs updated), then take VS1-02 from `BACKLOG.md`.

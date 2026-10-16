@@ -10,6 +10,7 @@ ColourmotionDMX must be show-proof ("may not crash during a show") and the owner
 - Engine, protocols and control-surface logic: **Rust** (stable, edition 2021), as a Cargo workspace.
 - macOS app: **Swift/SwiftUI**, built with **SwiftPM and Xcode Command Line Tools only** (no Xcode.app, which the owner removed for disk space). A script produces the `.app` bundle.
 - The two talk over local IPC (see ADR-002); there is no in-process FFI.
+- No app unit tests for now: XCTest and Swift Testing are absent from the Command Line Tools. Behaviour is tested in the engine; `swift build` gates the app. Revisit with a swift.org toolchain if needed.
 
 ## Alternatives
 - All-Swift: one language and the Apple frameworks are nearby, but a force-unwrap or out-of-bounds index is a hard crash with no recovery, and the ecosystem lacks sACN/Art-Net/GDTF libraries.
