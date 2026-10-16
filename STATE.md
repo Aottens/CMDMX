@@ -10,11 +10,11 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: compiles, runs a 40 Hz tick loop, no IPC yet
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (port-address 0, default 255.255.255.255) from its own thread, `--artnet-target`/`--no-artnet` (VS1-02, in review). No IPC yet
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS1-02 on branch `vs1-02-artnet-output`: spec approved (OUT-01..04, 11, 12, 15), no tests/code yet
+- VS1-02 in review (branch `vs1-02-artnet-output`): code + tests done; waiting on owner review and the Art-Net lines of `tests/hardware/output.md`
 
 ## Blocked
 - nothing
@@ -25,4 +25,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Resume next session with
-On branch `vs1-02-artnet-output`: write failing tests `out_03`/`out_04` (loopback UDP, bytes + sequence), `out_11` (non-blocking hand-off), `out_12` (log once per state change), `out_15` (CLI flags), then the Art-Net output thread in `cmdmx-daemon` (std only, no new crates). Then STATE/BACKLOG update and PR.
+Owner: review the VS1-02 PR and tick the Art-Net lines of `tests/hardware/output.md` in `tests/hardware/runs/2026-10-16-VS1-02.md`. Then VS1-03 (sACN, OUT-05..07) on a new branch.
