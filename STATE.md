@@ -10,11 +10,11 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (port-address 0, default 255.255.255.255) from its own thread, `--artnet-target`/`--no-artnet` (VS1-02, in review). No IPC yet
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (port-address 0, default 255.255.255.255) from its own thread, `--artnet-target`/`--no-artnet` (VS1-02 done). No IPC yet
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS1-02 in review (branch `vs1-02-artnet-output`): code + tests done; Art-Net hardware checklist passed (`tests/hardware/runs/2026-10-16-VS1-02.md`); waiting on PR review (no git remote yet)
+- nothing
 
 ## Blocked
 - nothing
@@ -25,4 +25,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Resume next session with
-Add a GitHub remote, push `vs1-02-artnet-output` and open the VS1-02 PR for owner review. Then VS1-03 (sACN, OUT-05..07) on a new branch.
+VS1-03 (sACN, OUT-05..07) on a new branch `vs1-03-sacn-output`: spec check, failing tests, sACN node next to `artnet_out.rs`.
