@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-16 — Public GitHub repo, back to one PR per task
+
+**Decision:** The repo is public at github.com/Aottens/ColourmotionDMX from now on (answers the "public from day one?" question). Work goes through one PR per task again; this reverses the local-review entry below.
+
+**Alternatives considered:** keep local review; private repo until vertical slice 1.
+
+**Reasoning:** The owner created a public remote; PRs give CI on every task.
+
+**Reversal trigger:** none expected.
+
 ## 2026-10-16 — Local review instead of PRs while there is no remote
 
 **Decision:** One branch per task; the owner reviews `git diff main...<branch>` and approves; merge with `--no-ff` so the merge commit marks the review.

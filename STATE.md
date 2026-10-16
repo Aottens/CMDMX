@@ -24,5 +24,8 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, ENTTEC Pro protocol, product string "Eurolite DMX512 Pro")
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
+## Repo
+- Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
+
 ## Resume next session with
 VS1-03 (sACN, OUT-05..07) on a new branch `vs1-03-sacn-output`: spec check, failing tests, sACN node next to `artnet_out.rs`.
