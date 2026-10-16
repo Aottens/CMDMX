@@ -1,14 +1,16 @@
 //! cmdmx-daemon — the ColourmotionDMX engine process.
 //!
 //! Runs the deterministic core at 40 Hz with a demo patch and sends line 1 as
-//! Art-Net from its own thread (OUT-11). sACN, serial and MIDI arrive with
-//! VS1-03..VS1-07 and must also stay off the tick thread.
+//! Art-Net and sACN, each node on its own thread (OUT-11). Serial and MIDI
+//! arrive with VS1-04..VS1-07 and must also stay off the tick thread.
 //!
-//! Usage: `cmdmx-daemon [--ticks N] [--artnet-target IPV4 | --no-artnet]`.
+//! Usage: `cmdmx-daemon [--ticks N] [--artnet-target IPV4 | --no-artnet]
+//!        [--sacn-unicast IPV4] [--sacn-priority 0..200] [--no-sacn]`.
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 
 mod artnet_out;
 mod output;
+mod sacn_out;
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
@@ -31,13 +33,24 @@ fn main() {
         }
     };
     let ticks_limit = cli.ticks;
-    // OUT-15: slice-only output config until node config lives in the show file.
-    let artnet_tx = cli.artnet.map(|target| {
+    // OUT-15/16: slice-only output config until node config lives in the show file.
+    // Each entry: (name, hand-off to its thread, thread still alive).
+    let mut outputs = Vec::new();
+    if let Some(target) = cli.artnet {
         eprintln!("art-net: line 1 → port-address 0 at {target}");
         let mut node = artnet_out::ArtNetNode::new(target, 0);
-        output::spawn("art-net", move |f| node.send(f))
-    });
-    let mut artnet_alive = true;
+        outputs.push((
+            "art-net",
+            output::spawn("art-net", move |f| node.send(f)),
+            true,
+        ));
+    }
+    if cli.sacn_enabled {
+        let (target, priority) = (cli.sacn_target, cli.sacn_priority);
+        eprintln!("sacn: line 1 → universe 1 at {target}, priority {priority}");
+        let mut node = sacn_out::SacnNode::new(target, 1, priority);
+        outputs.push(("sacn", output::spawn("sacn", move |f| node.send(f)), true));
+    }
 
     let mut engine = match demo_engine() {
         Ok(e) => e,
@@ -61,11 +74,11 @@ fn main() {
             eprintln!("warning: {e}");
         }
         engine.tick(now);
-        if let Some(tx) = &artnet_tx {
-            let frame = engine.frame(1).map_or([0; UNIVERSE_SIZE], |f| *f.slots());
-            if !output::publish(tx, &frame) && artnet_alive {
-                eprintln!("art-net output thread stopped; tick continues");
-                artnet_alive = false;
+        let frame = engine.frame(1).map_or([0; UNIVERSE_SIZE], |f| *f.slots());
+        for (name, tx, alive) in &mut outputs {
+            if !output::publish(tx, &frame) && *alive {
+                eprintln!("{name} output thread stopped; tick continues");
+                *alive = false;
             }
         }
         for w in engine.drain_warnings() {
@@ -94,23 +107,39 @@ struct Cli {
     ticks: Option<u64>,
     /// `None` = Art-Net disabled (`--no-artnet`).
     artnet: Option<SocketAddrV4>,
+    sacn_enabled: bool,
+    sacn_target: SocketAddrV4,
+    sacn_priority: u8,
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
     let mut cli = Cli {
         ticks: None,
         artnet: Some(artnet_out::default_target()),
+        sacn_enabled: true,
+        sacn_target: sacn_out::multicast_target(1),
+        sacn_priority: cmdmx_protocols::sacn::DEFAULT_PRIORITY,
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--ticks" => cli.ticks = args.next().and_then(|v| v.parse().ok()),
             "--no-artnet" => cli.artnet = None,
             "--artnet-target" => {
-                let v = args.next().unwrap_or_default();
-                let ip: Ipv4Addr = v
-                    .parse()
-                    .map_err(|_| format!("--artnet-target: '{v}' is not an IPv4 address"))?;
+                let ip = parse_ipv4("--artnet-target", args.next())?;
                 cli.artnet = Some(SocketAddrV4::new(ip, cmdmx_protocols::artnet::PORT));
+            }
+            "--no-sacn" => cli.sacn_enabled = false,
+            "--sacn-unicast" => {
+                let ip = parse_ipv4("--sacn-unicast", args.next())?;
+                cli.sacn_target = SocketAddrV4::new(ip, cmdmx_protocols::sacn::PORT);
+            }
+            "--sacn-priority" => {
+                let v = args.next().unwrap_or_default();
+                cli.sacn_priority = v
+                    .parse()
+                    .ok()
+                    .filter(|p| *p <= 200)
+                    .ok_or(format!("--sacn-priority: '{v}' is not 0..200"))?;
             }
             _ => {}
         }
@@ -145,6 +174,12 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
         values: BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0)]))]),
     });
     Ok(engine)
+}
+
+fn parse_ipv4(flag: &str, value: Option<String>) -> Result<Ipv4Addr, String> {
+    let v = value.unwrap_or_default();
+    v.parse()
+        .map_err(|_| format!("{flag}: '{v}' is not an IPv4 address"))
 }
 
 /// Once a second: channel 1 of each universe, so a human can see the tick runs.
@@ -182,5 +217,30 @@ mod tests {
     fn out_15_bad_target_is_an_error_not_a_fallback() {
         assert!(parse_args(args("--artnet-target 300.1.1.1")).is_err());
         assert!(parse_args(args("--artnet-target")).is_err());
+    }
+
+    #[test]
+    fn out_16_sacn_is_on_by_default_multicast_priority_100() {
+        let cli = parse_args(args("")).unwrap();
+        assert!(cli.sacn_enabled);
+        assert_eq!(cli.sacn_target, sacn_out::multicast_target(1));
+        assert_eq!(cli.sacn_priority, 100);
+    }
+
+    #[test]
+    fn out_16_sacn_flags() {
+        let cli = parse_args(args("--sacn-unicast 10.0.0.5 --sacn-priority 200")).unwrap();
+        assert_eq!(cli.sacn_target, "10.0.0.5:5568".parse().unwrap());
+        assert_eq!(cli.sacn_priority, 200);
+        let cli = parse_args(args("--no-sacn")).unwrap();
+        assert!(!cli.sacn_enabled);
+        assert!(cli.artnet.is_some(), "Art-Net unaffected");
+    }
+
+    #[test]
+    fn out_07_out_16_bad_sacn_values_are_errors() {
+        assert!(parse_args(args("--sacn-priority 201")).is_err());
+        assert!(parse_args(args("--sacn-priority -1")).is_err());
+        assert!(parse_args(args("--sacn-unicast nope")).is_err());
     }
 }
