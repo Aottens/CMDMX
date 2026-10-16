@@ -14,7 +14,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- nothing (scaffold just landed)
+- VS1-02 on branch `vs1-02-artnet-output`: spec approved (OUT-01..04, 11, 12, 15), no tests/code yet
 
 ## Blocked
 - nothing
@@ -25,4 +25,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Resume next session with
-Commit the uncommitted scaffold fixes (Swift test target removed, docs updated), then take VS1-02 from `BACKLOG.md`.
+On branch `vs1-02-artnet-output`: write failing tests `out_03`/`out_04` (loopback UDP, bytes + sequence), `out_11` (non-blocking hand-off), `out_12` (log once per state change), `out_15` (CLI flags), then the Art-Net output thread in `cmdmx-daemon` (std only, no new crates). Then STATE/BACKLOG update and PR.
