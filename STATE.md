@@ -14,7 +14,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS1-02 in review (branch `vs1-02-artnet-output`): code + tests done; waiting on owner review and the Art-Net lines of `tests/hardware/output.md`
+- VS1-02 in review (branch `vs1-02-artnet-output`): code + tests done; Art-Net hardware checklist passed (`tests/hardware/runs/2026-10-16-VS1-02.md`); waiting on PR review (no git remote yet)
 
 ## Blocked
 - nothing
@@ -25,4 +25,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Resume next session with
-Owner: review the VS1-02 PR and tick the Art-Net lines of `tests/hardware/output.md` in `tests/hardware/runs/2026-10-16-VS1-02.md`. Then VS1-03 (sACN, OUT-05..07) on a new branch.
+Add a GitHub remote, push `vs1-02-artnet-output` and open the VS1-02 PR for owner review. Then VS1-03 (sACN, OUT-05..07) on a new branch.
