@@ -1,40 +1,15 @@
-//! Art-Net output node and its thread (OUT-03/04/11/12).
+//! Art-Net output node (OUT-03/04); threading and health live in `output`.
 
 use std::io;
 use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
-use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 
-use cmdmx_core::UNIVERSE_SIZE;
 use cmdmx_protocols::{artnet, ArtSequence};
 
-pub type FrameData = [u8; UNIVERSE_SIZE];
+use crate::output::{open_udp, Health};
 
 /// OUT-04: limited broadcast on 6454 unless `--artnet-target` says otherwise.
 pub fn default_target() -> SocketAddrV4 {
     SocketAddrV4::new(Ipv4Addr::BROADCAST, artnet::PORT)
-}
-
-/// OUT-12: node state; a message is returned only when the state flips.
-#[derive(Debug, Default)]
-pub struct Health {
-    degraded: bool,
-}
-
-impl Health {
-    pub fn record(&mut self, result: &io::Result<()>) -> Option<String> {
-        match (self.degraded, result) {
-            (false, Err(e)) => {
-                self.degraded = true;
-                Some(format!("Degraded: {e}"))
-            }
-            (true, Ok(())) => {
-                self.degraded = false;
-                Some("Ok again".into())
-            }
-            _ => None,
-        }
-    }
 }
 
 pub struct ArtNetNode {
@@ -73,7 +48,11 @@ impl ArtNetNode {
             .map_err(io::Error::other)?;
         let socket = match self.socket.take() {
             Some(s) => s,
-            None => open_socket()?,
+            None => {
+                let s = open_udp()?;
+                s.set_broadcast(true)?;
+                s
+            }
         };
         let sent = socket.send_to(&packet, self.target);
         self.socket = Some(socket);
@@ -81,44 +60,12 @@ impl ArtNetNode {
     }
 }
 
-/// Ephemeral source port so a local monitor can own 6454 (OUT-04).
-fn open_socket() -> io::Result<UdpSocket> {
-    let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))?;
-    socket.set_broadcast(true)?;
-    Ok(socket)
-}
-
-/// OUT-11: run the node on its own thread; panics are caught per frame.
-pub fn spawn(mut node: ArtNetNode) -> SyncSender<FrameData> {
-    let (tx, rx) = sync_channel(1);
-    std::thread::spawn(move || run(&mut node, &rx));
-    tx
-}
-
-fn run(node: &mut ArtNetNode, rx: &Receiver<FrameData>) {
-    while let Ok(frame) = rx.recv() {
-        match catch_unwind(AssertUnwindSafe(|| node.send(&frame))) {
-            Ok(Some(msg)) => eprintln!("{msg}"),
-            Ok(None) => {}
-            Err(_) => eprintln!("art-net output: panic caught, continuing"),
-        }
-    }
-}
-
-/// OUT-11: hand a frame to the output thread without blocking. A full
-/// channel drops this frame; `false` means the thread is gone.
-pub fn publish(tx: &SyncSender<FrameData>, frame: &FrameData) -> bool {
-    !matches!(tx.try_send(*frame), Err(TrySendError::Disconnected(_)))
-}
-
 #[cfg(test)]
 #[allow(clippy::indexing_slicing, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use std::io;
     use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
-    use std::sync::mpsc::sync_channel;
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     fn receiver() -> (UdpSocket, SocketAddrV4) {
         let rx = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
@@ -153,9 +100,10 @@ mod tests {
     #[test]
     fn out_03_thread_sends_every_published_frame() {
         let (rx, target) = receiver();
-        let tx = spawn(ArtNetNode::new(target, 0));
+        let mut node = ArtNetNode::new(target, 0);
+        let tx = crate::output::spawn("art-net", move |f| node.send(f));
         for v in [1u8, 2, 3] {
-            assert!(publish(&tx, &[v; 512]));
+            assert!(crate::output::publish(&tx, &[v; 512]));
             assert_eq!(recv(&rx)[18], v);
         }
     }
@@ -178,33 +126,5 @@ mod tests {
             default_target(),
             SocketAddrV4::new(Ipv4Addr::BROADCAST, 6454)
         );
-    }
-
-    #[test]
-    fn out_11_publish_never_blocks_when_output_is_not_consuming() {
-        let (tx, _rx) = sync_channel(1);
-        let start = Instant::now();
-        for _ in 0..1000 {
-            assert!(publish(&tx, &[0; 512]));
-        }
-        assert!(start.elapsed() < Duration::from_millis(100));
-    }
-
-    #[test]
-    fn out_11_publish_reports_a_dead_output_thread() {
-        let (tx, rx) = sync_channel(1);
-        drop(rx);
-        assert!(!publish(&tx, &[0; 512]));
-    }
-
-    #[test]
-    fn out_12_logs_once_per_state_change() {
-        let err = || Err(io::Error::other("no route"));
-        let mut h = Health::default();
-        assert_eq!(h.record(&Ok(())), None);
-        assert!(h.record(&err()).unwrap().contains("Degraded"));
-        assert_eq!(h.record(&err()), None, "still degraded: silent");
-        assert!(h.record(&Ok(())).unwrap().contains("Ok"));
-        assert_eq!(h.record(&Ok(())), None);
     }
 }

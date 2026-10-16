@@ -8,6 +8,7 @@
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 
 mod artnet_out;
+mod output;
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
@@ -33,7 +34,8 @@ fn main() {
     // OUT-15: slice-only output config until node config lives in the show file.
     let artnet_tx = cli.artnet.map(|target| {
         eprintln!("art-net: line 1 → port-address 0 at {target}");
-        artnet_out::spawn(artnet_out::ArtNetNode::new(target, 0))
+        let mut node = artnet_out::ArtNetNode::new(target, 0);
+        output::spawn("art-net", move |f| node.send(f))
     });
     let mut artnet_alive = true;
 
@@ -61,7 +63,7 @@ fn main() {
         engine.tick(now);
         if let Some(tx) = &artnet_tx {
             let frame = engine.frame(1).map_or([0; UNIVERSE_SIZE], |f| *f.slots());
-            if !artnet_out::publish(tx, &frame) && artnet_alive {
+            if !output::publish(tx, &frame) && artnet_alive {
                 eprintln!("art-net output thread stopped; tick continues");
                 artnet_alive = false;
             }
