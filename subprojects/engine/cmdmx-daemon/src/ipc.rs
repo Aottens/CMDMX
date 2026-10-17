@@ -1,7 +1,8 @@
 //! IPC v0: WebSocket server, JSON messages and per-tick deltas (IPC-01..07), plus the
 //! programmer snapshot, deltas and commands (IPC-10..13, VS2-07), and the fixture library
 //! requests (LIB-14, VS2-11), the patch commands and `fixtures` delta (PAT-09, VS2-12), and
-//! the output node states in the snapshot and the `outputs` delta (IPC-20).
+//! the output node states in the snapshot and the `outputs` delta (IPC-20), and the programmer
+//! contents, picker colour and `programmer.colour` command (IPC-21..23).
 //!
 //! One thread per client. The tick only talks to clients through channels and
 //! never blocks: commands arrive on an unbounded channel, outgoing messages
@@ -68,6 +69,11 @@ pub enum Command {
         steps: i32,
         resolution: Resolution,
     },
+    /// IPC-23
+    Colour {
+        hue: f32,
+        saturation: f32,
+    },
     /// IPC-18
     ColourModel {
         model: ColourModel,
@@ -132,6 +138,15 @@ fn uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<T, String> 
         .and_then(|n| n.as_u64())
         .and_then(|n| T::try_from(n).ok())
         .ok_or_else(|| format!("missing or invalid \"{key}\""))
+}
+
+/// A number field in 0.0..=1.0.
+fn unit(v: &serde_json::Value, key: &str) -> Result<f32, String> {
+    v.get(key)
+        .and_then(|n| n.as_f64())
+        .map(|n| n as f32)
+        .filter(|n| (0.0..=1.0).contains(n))
+        .ok_or_else(|| format!("missing or invalid \"{key}\" (expected 0.0 to 1.0)"))
 }
 
 /// A string field.
@@ -204,6 +219,10 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 .get("model")
                 .and_then(|m| serde_json::from_value(m.clone()).ok())
                 .ok_or("missing or invalid \"model\" (expected Hsi, Rgb or Cmy)")?,
+        }),
+        Some("programmer.colour") => Ok(Command::Colour {
+            hue: unit(&v, "hue")?,
+            saturation: unit(&v, "saturation")?,
         }),
         Some("programmer.wheel") => Ok(Command::Wheel {
             attribute: v
@@ -316,6 +335,8 @@ struct FixtureInfo<'a> {
     footprint: u16,
     virtual_dimmer: bool,
     handle: Option<Handle>,
+    /// IPC-21: attribute name to group, for placing programmer values.
+    attributes: BTreeMap<&'a str, AttributeGroup>,
 }
 
 #[derive(Serialize)]
@@ -469,6 +490,10 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
                 footprint: mode.map_or(0, |m| m.footprint),
                 virtual_dimmer: mode.is_some_and(|m| m.has_virtual_dimmer()),
                 handle: f.handle,
+                attributes: (mode.iter())
+                    .flat_map(|m| m.logical_attributes())
+                    .map(|l| (l.name, l.group))
+                    .collect(),
             }
         })
         .collect()
@@ -951,14 +976,16 @@ mod tests {
         assert_eq!(
             v["programmer"],
             json!({"selection":[],"targets":[],"active_group":"I",
-                   "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi"})
+                   "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
+                   "contents":[],"colour":null})
         );
     }
 
     /// PAT-09: the test engine's one dimmer as a snapshot entry.
     fn dimmer_entry() -> Value {
         json!({"id":1,"number":1,"name":"","profile":"dimmer","mode":"default","universe":1,
-               "address":1,"footprint":1,"virtual_dimmer":false,"handle":{"page":1,"slot":1}})
+               "address":1,"footprint":1,"virtual_dimmer":false,"handle":{"page":1,"slot":1},
+               "attributes":{"Dimmer":"I"}})
     }
 
     /// Showtec LED Par 56 "6 Channel" with a virtual dimmer (PAT-01's example).
@@ -985,7 +1012,8 @@ mod tests {
             json!([dimmer_entry(),
                    {"id":2,"number":221,"name":"Front left","profile":"Showtec/LED Par 56",
                     "mode":"6 Channel","universe":1,"address":37,"footprint":6,
-                    "virtual_dimmer":true,"handle":{"page":1,"slot":2}}])
+                    "virtual_dimmer":true,"handle":{"page":1,"slot":2},
+                    "attributes":{"Dimmer":"I","Colour":"C","Mode":"S","Speed":"S","Strobe":"I"}}])
         );
     }
 
@@ -1161,7 +1189,7 @@ mod tests {
             json!({"selection":[1],"targets":[1],"active_group":"I",
                    "attribute_groups": no_values(true),
                    "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false}],
-                   "in_programmer":[],"colour_model":"Hsi"})
+                   "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(&e, &[]));
@@ -1170,6 +1198,11 @@ mod tests {
             json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false}])
         );
         assert_eq!(v["programmer"]["in_programmer"], json!([1]));
+        // IPC-21: programmer values per fixture.
+        assert_eq!(
+            v["programmer"]["contents"],
+            json!([{"fixture":1,"values":{"Dimmer":1.0}}])
+        );
         assert_eq!(v["programmer"]["attribute_groups"][0]["has_values"], true);
     }
 
@@ -1288,6 +1321,26 @@ mod tests {
             r#"{"v":0,"cmd":"programmer.colour_model"}"#,
             r#"{"v":0,"cmd":"programmer.colour_model","model":"Lab"}"#,
             r#"{"v":0,"cmd":"programmer.colour_model","model":2}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_23_colour_command_parses_and_checks_its_range() {
+        assert_eq!(
+            parse_command(r#"{"v":0,"cmd":"programmer.colour","hue":0.66,"saturation":1.0}"#),
+            Ok(Command::Colour {
+                hue: 0.66,
+                saturation: 1.0
+            })
+        );
+        for bad in [
+            r#"{"v":0,"cmd":"programmer.colour","hue":0.66}"#,
+            r#"{"v":0,"cmd":"programmer.colour","saturation":1.0}"#,
+            r#"{"v":0,"cmd":"programmer.colour","hue":1.2,"saturation":1.0}"#,
+            r#"{"v":0,"cmd":"programmer.colour","hue":0.5,"saturation":-0.1}"#,
+            r#"{"v":0,"cmd":"programmer.colour","hue":"red","saturation":1.0}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }

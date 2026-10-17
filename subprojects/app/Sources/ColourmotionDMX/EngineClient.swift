@@ -34,9 +34,11 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     let footprint: Int
     let virtualDimmer: Bool
     let handle: Handle?
+    /// Attribute name → group letter (IPC-21); places programmer values in the I/P/C/B columns.
+    let attributes: [String: String]
 
     private enum CodingKeys: String, CodingKey {
-        case id, number, name, profile, mode, universe, address, footprint, handle
+        case id, number, name, profile, mode, universe, address, footprint, handle, attributes
         case virtualDimmer = "virtual_dimmer"
     }
 
@@ -52,6 +54,7 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
         footprint = (try? c.decode(Int.self, forKey: .footprint)) ?? 0
         virtualDimmer = (try? c.decode(Bool.self, forKey: .virtualDimmer)) ?? false
         handle = try? c.decode(Handle.self, forKey: .handle)
+        attributes = (try? c.decode([String: String].self, forKey: .attributes)) ?? [:]
     }
 }
 
@@ -146,6 +149,48 @@ struct WheelState: Decodable, Identifiable, Equatable {
     }
 }
 
+/// One programmer value (IPC-21): a level 0...1 or an sRGB colour 0...1.
+enum ProgrammerValue: Decodable, Equatable {
+    case level(Double)
+    case colour(r: Double, g: Double, b: Double)
+
+    private struct RGB: Decodable { let r, g, b: Double }
+
+    init(from decoder: Decoder) throws {
+        if let level = try? decoder.singleValueContainer().decode(Double.self) {
+            self = .level(level)
+        } else {
+            let c = try RGB(from: decoder)
+            self = .colour(r: c.r, g: c.g, b: c.b)
+        }
+    }
+}
+
+/// The programmer values of one fixture, by attribute name (IPC-21).
+struct ProgrammerContent: Decodable, Identifiable, Equatable {
+    let fixture: Int
+    let values: [String: ProgrammerValue]
+    var id: Int { fixture }
+
+    private enum CodingKeys: String, CodingKey { case fixture, values }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fixture = try c.decode(Int.self, forKey: .fixture)
+        let raw = (try? c.decode([String: Tolerant<ProgrammerValue>].self, forKey: .values)) ?? [:]
+        values = raw.compactMapValues(\.value)
+    }
+}
+
+/// The first target's colour as HSI hue and saturation plus sRGB, all 0...1 (IPC-22).
+struct TargetColour: Decodable, Equatable {
+    let hue: Double
+    let saturation: Double
+    let r: Double
+    let g: Double
+    let b: Double
+}
+
 /// Mirror of the engine's programmer state (IPC-11). Fields missing from a
 /// message fall back to empty so a malformed message cannot drop a snapshot.
 struct ProgrammerState: Decodable, Equatable {
@@ -157,11 +202,14 @@ struct ProgrammerState: Decodable, Equatable {
     var inProgrammer: [Int] = []
     /// `Hsi`, `Rgb` or `Cmy` (IPC-11, PRG-30).
     var colourModel: String = "Hsi"
+    /// IPC-21: programmer values per fixture; IPC-22: the first target's colour, nil without one.
+    var contents: [ProgrammerContent] = []
+    var colour: TargetColour?
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case selection, targets, wheels
+        case selection, targets, wheels, contents, colour
         case activeGroup = "active_group"
         case attributeGroups = "attribute_groups"
         case inProgrammer = "in_programmer"
@@ -177,6 +225,8 @@ struct ProgrammerState: Decodable, Equatable {
         wheels = (try? c.decode([WheelState].self, forKey: .wheels)) ?? []
         inProgrammer = (try? c.decode([Int].self, forKey: .inProgrammer)) ?? []
         colourModel = (try? c.decode(String.self, forKey: .colourModel)) ?? "Hsi"
+        contents = ((try? c.decode([Tolerant<ProgrammerContent>].self, forKey: .contents)) ?? []).compactMap(\.value)
+        colour = try? c.decode(TargetColour.self, forKey: .colour)
     }
 }
 
@@ -285,6 +335,10 @@ final class EngineClient: ObservableObject {
     func clearProgrammer() { sendJSON("programmer.clear") }
     func setAttributeGroup(_ group: String) { sendJSON("programmer.attribute_group", ["group": group]) }
     func setColourModel(_ model: String) { sendJSON("programmer.colour_model", ["model": model]) }
+    /// IPC-23: hue and saturation 0...1 under the pointer; the engine maps them to every colour target.
+    func setColour(hue: Double, saturation: Double) {
+        sendJSON("programmer.colour", ["hue": hue.clamped01, "saturation": saturation.clamped01])
+    }
     func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
 
     func wheel(attribute: String, steps: Int, resolution: WheelResolution) {

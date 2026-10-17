@@ -31,14 +31,14 @@ Early, under active development, not yet for real shows. What works today:
   are refused, and you can move, renumber, rename, change mode and remove.
 - Programmer: select fixtures and groups (tap again to deselect), Fix ±1, odd/even, a Titan-style command line
   (`201 Thro 205 @ 50`) and wheels.
-- Colour as one value per fixture. You set it with HSI, RGB or CMY wheels, and extra emitters
-  (White, Lime, …) are driven directly.
+- Colour as one value per fixture. You set it with HSI, RGB or CMY wheels or a colour picker,
+  and extra emitters (White, Lime, …) are driven directly.
 - The app has its real main screen. It runs full screen, with a status bar that shows the
   engine and every output. There are four workspaces of fixtures, groups and other windows, and
   a dark and a day theme.
 
-Next: filling the rest of the main screen. That means the attribute bar with a colour picker,
-then the keypad and softkeys, then the playback area. The design is a clickable sketch in
+Next: filling the rest of the main screen. That means the keypad and softkeys, then the
+playback area. The design is a clickable sketch in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes, playbacks
 and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

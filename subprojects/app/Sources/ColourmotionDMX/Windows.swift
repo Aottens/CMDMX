@@ -217,7 +217,7 @@ struct GroupsWindow: View {
     }
 }
 
-// MARK: - Placeholders for later specs (UI-13, UI-14, UI-15)
+// MARK: - Placeholders for later specs (UI-13)
 
 /// Colours, Positions or Gobos & Beams: 32 empty, numbered, disabled cells.
 struct PaletteWindow: View {
@@ -259,23 +259,6 @@ struct TablePlaceholderWindow: View {
     }
 }
 
-/// Programmer or Colour picker: title and the sketch's note; filled in UX-02b.
-struct NoteWindow: View {
-    @Environment(\.theme) private var t
-    let title: String
-    let note: String
-
-    var body: some View {
-        PanelWindow(title: title, info: "UX-02b", accessory: { EmptyView() }) {
-            ScrollView {
-                Text(note).font(Typo.ui()).foregroundStyle(t.fg2)
-                    .frame(maxWidth: 330, alignment: .leading).padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-}
-
 // MARK: - Workspaces (UI-08)
 
 enum WindowKind {
@@ -288,10 +271,8 @@ enum WindowKind {
         case .colours: PaletteWindow(title: "Colours", first: 1)
         case .positions: PaletteWindow(title: "Positions", first: 41)
         case .beams: PaletteWindow(title: "Gobos & Beams", first: 81)
-        case .programmer:
-            NoteWindow(title: "Programmer", note: "Only attributes you touch land here, in red. Values from a palette show the palette name in cyan. Locate and Highlight never land here.")
-        case .picker:
-            NoteWindow(title: "Colour picker", note: "Select fixtures that mix colour. The picker sets one target colour; each fixture type maps it to its own emitters (RGBW, RGB+Lime, RGB). Gel book: LEE first.")
+        case .programmer: ProgrammerWindow()
+        case .picker: ColourPickerWindow()
         case .cues: TablePlaceholderWindow(title: "Cue list", spec: "Cue lists · P1-08", columns: ["Q", "Name", "Delay", "Fade", "Link"])
         case .active: TablePlaceholderWindow(title: "Active playbacks", spec: "Playbacks · P1-04", columns: ["Pg", "Playback", "Level", "Groups"])
         }

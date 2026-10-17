@@ -238,6 +238,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             steps,
             resolution,
         } => engine.turn_wheel(&attribute, steps, resolution),
+        Colour { hue, saturation } => engine.set_colour(hue, saturation),
         ColourModel { model } => {
             engine.set_colour_model(model);
             Ok(())
@@ -835,6 +836,23 @@ mod tests {
             engine.fixture(201).unwrap().mode.as_deref(),
             Some("default")
         );
+    }
+
+    #[test]
+    fn ipc_23_colour_command_reaches_the_engine() {
+        let mut engine = demo_engine().unwrap();
+        engine.execute_command(&["201", "Enter"]).unwrap();
+        apply(
+            &mut engine,
+            ipc::Command::Colour {
+                hue: 2.0 / 3.0,
+                saturation: 1.0,
+            },
+            0.0,
+        )
+        .unwrap();
+        let c = engine.programmer_view().colour.unwrap();
+        assert_eq!((c.r, c.g, c.b), (0.0, 0.0, 1.0));
     }
 
     #[test]

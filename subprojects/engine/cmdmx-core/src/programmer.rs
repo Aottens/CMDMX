@@ -2,7 +2,7 @@
 //!
 //! Implements `specs/modules/programmer.md` PRG-01..07 and PRG-14; the merge
 //! reads its values at `Priority::Programmer` (PRG-12/13). Palette references
-//! come later.
+//! come later. The view also carries the values and the picker colour (IPC-21, IPC-22).
 
 use std::collections::BTreeMap;
 
@@ -56,6 +56,23 @@ pub struct WheelState {
     pub sixteen_bit: bool,
 }
 
+/// IPC-21: one fixture's programmer values.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FixtureValues {
+    pub fixture: FixtureId,
+    pub values: BTreeMap<String, Value>,
+}
+
+/// IPC-22: the first colour target's colour as hue/saturation (0.0-1.0) and sRGB as stored.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ColourView {
+    pub hue: f32,
+    pub saturation: f32,
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+}
+
 /// PRG-35 / IPC-11: everything the UI renders of the programmer.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProgrammerView {
@@ -66,6 +83,8 @@ pub struct ProgrammerView {
     pub wheels: Vec<WheelState>,
     pub in_programmer: Vec<FixtureId>,
     pub colour_model: ColourModel,
+    pub contents: Vec<FixtureValues>,
+    pub colour: Option<ColourView>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]

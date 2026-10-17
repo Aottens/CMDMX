@@ -59,3 +59,38 @@ Setup: daemon `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`;
       or bouncing, and on release it stays where you let go (UI-22)
 - [ ] Nothing that worked before is lost: faders 1–8, GM, the attribute bar wheels and command
       line, Record + group still work (`tests/manual/app-programmer.md` spot checks)
+
+## UX-02b — attribute bar, Programmer window, colour picker
+
+### Attribute bar (UI-20)
+- [ ] Two rows. Row 1: eight IPCGBES FX tabs (30 pt wide, group-hue underline), the HSI/RGB/CMY
+      switch on the C tab, the wheels. Row 2: the command line with its message zone, the
+      programmer summary with Undo (disabled) and Clear
+- [ ] Select group 3, C tab (Hue, Saturation, White, Lime): no wheel is cut off, also in a
+      1280 pt wide window (Console off, make it as small as it goes)
+- [ ] Select 101: tabs I, P, C, B available, the rest greyed; the active tab is inverted; turn
+      Dimmer: a red dot on the I tab
+- [ ] Wheels look like rolling encoders: uppercase name, "enc 1/2/3", the value in large
+      monospace (red when touched), a roller strip that scrolls while you drag, a position tick.
+      At least three slots, empty ones show "—"
+- [ ] Drag, scroll, Option (fine) and Shift (coarse) work as before (IPC-16); Hue shows degrees
+- [ ] Programmer summary: "4 fx · I C" in red with values, "empty" in grey without; Clear glows
+      red while something is selected or in the programmer
+- [ ] The command line shows a `›` prompt in monospace; typing + Return still works; the message
+      zone shows a refusal in amber (`201 Banana`)
+
+### Programmer window (UI-14, IPC-21)
+- [ ] Workspace 2: empty programmer shows the note; select 201–204 `@ 50`, then give 201 a blue
+      colour: rows 201–204 with # and fixture, I column "50 %" in red, C column a blue swatch
+      and its hex for 201, "·" where a fixture lacks an attribute (e.g. P for the pars)
+- [ ] Clear twice: the table empties again
+
+### Colour picker (UI-15, IPC-22, IPC-23)
+- [ ] Workspace 3: with no colour fixture selected the picker shows its note
+- [ ] Select group 3 (pars): a hue/saturation field with a marker at the first target's colour
+      (top = full saturation, bottom = white); next to it bars for the current model (HSI: H, S;
+      RGB: R G B; CMY: C M Y) plus White and Lime
+- [ ] Click in the field on blue: all pars go blue on Art-Net, the marker jumps there, the wheels
+      follow; drag around: the colour follows the pointer
+- [ ] Drag the White bar: only the RGBW pars' white channel moves (PRG-34)
+- [ ] The gel row is there but disabled (IDEA-02)

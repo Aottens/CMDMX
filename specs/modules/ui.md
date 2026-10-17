@@ -30,7 +30,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 ### Frame and theme (UX-02a)
 - **UI-01 [now]** One main window with the six zones in the sketch's arrangement: status bar on
   top (26 pt), rail on the left (78 pt), the 2×2 window grid in the centre with the side column to
-  its right, the attribute bar (64 pt) and the playback area (232 pt) along the bottom. Zones
+  its right, the attribute bar (96 pt: wheels row and command-line row, UI-20) and the playback
+  area (232 pt) along the bottom. Zones
   are flush, separated by hairlines, with no outer margins. Resizing the window only resizes the
   window grid. The other zones keep their size, and content never reflows into another zone. The
   minimum window size is 1280 × 800 pt.
@@ -179,17 +180,26 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   Space = Go comes with P1-08. Keys never fire while a text field (Patch, legends) has focus.
 
 ### Attribute bar (UX-02b)
-- **UI-20 [now]** Left to right:
+- **UI-20 [now]** Two rows (owner, UX-02b run 2026-10-17: the command line gets its own row, so the
+  wheels have the full width, up to the BCF2000's eight encoders).
+
+  Row 1 (64 pt), left to right:
   - **Tabs:** eight IPCGBES FX tabs, 30 × 34 pt, each with its group hue underline. The active
     tab is inverted, available tabs have normal text, unavailable ones are disabled, and a red
     dot means the group has programmer values (IPC-11).
   - **Wheels:** a rolling encoder per `wheels` entry, at least three slots, with "enc n" labels.
+    They share the rest of the row: 168 pt each when there is room, narrower down to 110 pt,
+    so eight wheels fit at the 1280 pt minimum window. A wheel is never clipped or scrolled.
     Each shows the uppercase name and the value (SF Mono 15 pt, red when touched), and a roller
     strip that scrolls with the value plus a position tick.
   - **Colour model:** on the C tab, the HSI / RGB / CMY switch sits left of the wheels (IPC-19).
-  - **Command line:** the command line and message zone (UI-19).
+
+  Row 2 (32 pt), left to right:
+  - **Command line:** the command line takes the free width, with the message zone (UI-19) on
+    the same row to its right, truncated.
   - **Programmer summary:** "n fx · I P C" in red (from `in_programmer` and `attribute_groups`),
-    "empty" in grey, with Undo (disabled until P1-10) and Clear.
+    "empty" in grey, with Undo (disabled until P1-10) and Clear. The interim Fix ±1, Odd/Even and
+    All buttons sit here until UX-02c moves them to the keypad and softkeys.
 
   Dragging and scrolling a wheel keep IPC-16's steps and modifiers. Values stay in % (Hue in
   degrees); Pan and Tilt in degrees come with the profile's ranges [later].

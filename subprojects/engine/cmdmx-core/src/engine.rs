@@ -21,7 +21,8 @@ use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values};
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
-    AttributeGroupState, GroupId, Programmer, ProgrammerView, Resolution, WheelState,
+    AttributeGroupState, ColourView, FixtureValues, GroupId, Programmer, ProgrammerView,
+    Resolution, WheelState,
 };
 use crate::value::Value;
 use crate::{CoreError, Timestamp, UniverseId, Warning, UNIVERSE_SIZE};
@@ -870,6 +871,37 @@ impl Engine {
         Ok(())
     }
 
+    /// IPC-23: set Colour of every target that has it to `hue`/`saturation` (0.0-1.0), keeping
+    /// each one's brightest component like the HSI wheels (PRG-31, PRG-32).
+    pub fn set_colour(&mut self, hue: f32, saturation: f32) -> Result<(), CoreError> {
+        if let Some(bad) = [hue, saturation]
+            .into_iter()
+            .find(|x| !(0.0..=1.0).contains(x))
+        {
+            return Err(CoreError::InvalidLevel(bad));
+        }
+        let targets = self.programmer.targets();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let mut new = Vec::new();
+        for id in targets {
+            if let Some(l) = self.mode_of(id).and_then(|m| m.logical(COLOUR)) {
+                if let Value::Colour(c) = self.start_value(id, &l) {
+                    let (_, _, v) = c.to_hsv();
+                    new.push((id, TargetColour::from_hsv(hue, saturation, v)));
+                }
+            }
+        }
+        if new.is_empty() {
+            return Err(CoreError::AttributeNotInTargets(COLOUR.to_string()));
+        }
+        for (id, c) in new {
+            self.set_programmer_value(id, COLOUR, c)?;
+        }
+        Ok(())
+    }
+
     /// PRG-20: programmer value, else what is on the output, else the held value.
     fn start_value(&self, id: FixtureId, l: &LogicalAttribute) -> Value {
         self.programmer
@@ -930,6 +962,21 @@ impl Engine {
                 })
             })
             .collect();
+        // IPC-22: the first target that has Colour speaks for the picker.
+        let colour = targets.iter().find_map(|&id| {
+            let l = self.mode_of(id)?.logical(COLOUR)?;
+            let Value::Colour(c) = self.start_value(id, &l) else {
+                return None;
+            };
+            let (hue, saturation, _) = c.to_hsv();
+            Some(ColourView {
+                hue,
+                saturation,
+                r: c.r,
+                g: c.g,
+                b: c.b,
+            })
+        });
         ProgrammerView {
             selection: self.programmer.selection().to_vec(),
             targets,
@@ -938,6 +985,13 @@ impl Engine {
             wheels,
             in_programmer: self.programmer.values().keys().copied().collect(),
             colour_model: self.colour_model,
+            contents: (self.programmer.values().iter())
+                .map(|(&fixture, values)| FixtureValues {
+                    fixture,
+                    values: values.clone(),
+                })
+                .collect(),
+            colour,
         }
     }
 
