@@ -10,11 +10,11 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05, in review)
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS1-05 (IPC) in review on branch `vs1-05-ipc`; owner: PR review + `tests/manual/app-ipc.md`
+- nothing
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -28,4 +28,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-Start a fresh session (context hygiene). After the VS1-05 PR is merged: VS1-06 (on-screen faders bound to playbacks of page 1 — needs the PBK paging subset) or UX-01 (clickable main-screen sketch). Code is written by Sonnet subagents from failing tests (CLAUDE.md).
+Start a fresh session (context hygiene). Next: UX-01 (clickable Titan-style main-screen sketch, recommended — it shapes the programmer specs) or VS1-06 (on-screen faders bound to playbacks of page 1 — needs the PBK paging subset). Code is written by Sonnet subagents from failing tests (CLAUDE.md).
