@@ -52,7 +52,7 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
 }
 ```
 
-Values are 0.0–1.0 in profiles/cues; expected channels are raw DMX 0–255 (`round(v * 255)`). The runner in `cmdmx-core/tests/scenarios.rs` loads every file, replays actions in time order with a virtual clock, ticks at 40 Hz, and asserts each expectation.
+Profiles use the model of `fixture-library.md` (full shape with `modes`, or the minimal `{ "attributes": [...] }` above = one mode "default"); a patch entry may name a `mode` (default: the first). Values are 0.0–1.0 in profiles/cues; expected channels are raw DMX 0–255 (`round(v * 255)`). The runner in `cmdmx-core/tests/scenarios.rs` loads every file, replays actions in time order with a virtual clock, ticks at 40 Hz, and asserts each expectation.
 
 ## Out of scope here
 Fade curves, fixture overlap, shapes (own specs). 16-bit attributes are covered in `patch.md` (coarse/fine channel pairs) and must be respected by the frame writer (ENG tests use 8-bit only).

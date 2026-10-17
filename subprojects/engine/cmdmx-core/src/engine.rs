@@ -15,7 +15,7 @@ use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::command::{self, Item, Kind};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values};
-use crate::profile::Profile;
+use crate::profile::{Mode, Profile};
 use crate::programmer::{
     AttributeGroupState, GroupId, Programmer, ProgrammerView, Resolution, WheelState,
 };
@@ -45,6 +45,16 @@ impl Frame {
         address
             .checked_sub(1)
             .and_then(|i| self.slots.get(usize::from(i)).copied())
+    }
+
+    /// Write one attribute (coarse and optional fine byte) of a fixture at `address`.
+    fn set_attribute(&mut self, address: u16, attr: &AttributeDef, value: f32) {
+        let (coarse, fine) = attr.to_dmx(value);
+        let base = address.saturating_sub(1);
+        self.set(base.saturating_add(attr.channel), coarse);
+        if let (Some(fine_ch), Some(fine_v)) = (attr.fine_channel, fine) {
+            self.set(base.saturating_add(fine_ch), fine_v);
+        }
     }
 
     fn set(&mut self, address: u16, value: u8) {
@@ -128,26 +138,48 @@ impl Engine {
 
     // ---- setup -----------------------------------------------------------
 
-    pub fn add_profile(&mut self, key: impl Into<String>, profile: Profile) {
+    /// LIB-02: an invalid profile is refused and never reaches the patch.
+    pub fn add_profile(
+        &mut self,
+        key: impl Into<String>,
+        profile: Profile,
+    ) -> Result<(), CoreError> {
+        profile.validate()?;
         self.profiles.insert(key.into(), profile);
+        Ok(())
     }
 
-    /// Patch a fixture. Rejected (not panicking) when the profile is unknown or
-    /// the footprint runs past slot 512.
+    /// Patch a fixture. Rejected (not panicking) when the profile or mode is unknown
+    /// or the mode's footprint runs past slot 512. LTP attributes start at their
+    /// default (LIB-03).
     pub fn patch(&mut self, fixture: Fixture) -> Result<(), CoreError> {
         let profile = self
             .profiles
             .get(&fixture.profile)
             .ok_or_else(|| CoreError::UnknownProfile(fixture.profile.clone()))?;
-        let last = u32::from(fixture.address) + u32::from(profile.footprint()) - 1;
-        if fixture.address == 0 || last > UNIVERSE_SIZE as u32 {
+        let mode = profile
+            .mode(fixture.mode.as_deref())
+            .ok_or_else(|| CoreError::UnknownMode {
+                profile: fixture.profile.clone(),
+                mode: fixture.mode.clone().unwrap_or_default(),
+            })?;
+        if fixture.address == 0
+            || u32::from(fixture.address) + u32::from(mode.footprint) > UNIVERSE_SIZE as u32 + 1
+        {
             return Err(CoreError::AddressOutOfRange {
                 fixture: fixture.id,
                 universe: fixture.universe,
                 address: fixture.address,
             });
         }
-        self.frames.entry(fixture.universe).or_default();
+        let frame = self.frames.entry(fixture.universe).or_default();
+        for attr in mode
+            .attributes
+            .iter()
+            .filter(|a| a.kind == AttributeKind::Ltp)
+        {
+            frame.set_attribute(fixture.address, attr, attr.default);
+        }
         self.fixtures.insert(fixture.id, fixture);
         Ok(())
     }
@@ -287,11 +319,10 @@ impl Engine {
             .fixtures
             .get(&fixture)
             .ok_or(CoreError::UnknownFixture(fixture))?;
-        let profile = self
-            .profiles
-            .get(&fx.profile)
+        let mode = self
+            .mode_of(fixture)
             .ok_or_else(|| CoreError::UnknownProfile(fx.profile.clone()))?;
-        if profile.attribute(attribute).is_none() {
+        if mode.attribute(attribute).is_none() {
             return Err(CoreError::UnknownAttribute {
                 fixture,
                 attribute: attribute.to_string(),
@@ -321,8 +352,8 @@ impl Engine {
         let targets = self.programmer.targets();
         let has = |g: AttributeGroup| {
             targets.iter().any(|id| {
-                self.profile_of(*id)
-                    .is_some_and(|p| p.attributes.iter().any(|a| a.group == g))
+                self.mode_of(*id)
+                    .is_some_and(|m| m.attributes.iter().any(|a| a.group == g))
             })
         };
         if targets.is_empty() || has(self.active_group) {
@@ -334,10 +365,11 @@ impl Engine {
         }
     }
 
-    fn profile_of(&self, id: FixtureId) -> Option<&Profile> {
+    /// The mode a fixture is patched in; `None` when the fixture or its profile is gone.
+    fn mode_of(&self, id: FixtureId) -> Option<&Mode> {
         self.fixtures
             .get(&id)
-            .and_then(|f| self.profiles.get(&f.profile))
+            .and_then(|f| resolve_mode(&self.profiles, f))
     }
 
     /// PRG-17: names of the active group's attributes that at least one
@@ -346,8 +378,8 @@ impl Engine {
         let mut names: Vec<String> = Vec::new();
         for id in self.programmer.targets() {
             for a in self
-                .profile_of(id)
-                .map(|p| p.attributes.as_slice())
+                .mode_of(id)
+                .map(|m| m.attributes.as_slice())
                 .unwrap_or_default()
             {
                 if a.group == self.active_group && !names.contains(&a.name) {
@@ -380,11 +412,7 @@ impl Engine {
             let Some(fixture) = self.fixtures.get(&id) else {
                 continue;
             };
-            let Some(attr) = self
-                .profiles
-                .get(&fixture.profile)
-                .and_then(|p| p.attribute(attribute))
-            else {
+            let Some(attr) = self.mode_of(id).and_then(|m| m.attribute(attribute)) else {
                 continue;
             };
             let start = self.start_value(id, fixture, attr);
@@ -417,14 +445,14 @@ impl Engine {
             .map(|group| AttributeGroupState {
                 group,
                 available: targets.iter().any(|&id| {
-                    self.profile_of(id)
-                        .is_some_and(|p| p.attributes.iter().any(|a| a.group == group))
+                    self.mode_of(id)
+                        .is_some_and(|m| m.attributes.iter().any(|a| a.group == group))
                 }),
                 has_values: targets.iter().any(|&id| {
                     let values = self.programmer.values().get(&id);
-                    values.zip(self.profile_of(id)).is_some_and(|(v, p)| {
+                    values.zip(self.mode_of(id)).is_some_and(|(v, m)| {
                         v.keys()
-                            .any(|n| p.attribute(n).is_some_and(|a| a.group == group))
+                            .any(|n| m.attribute(n).is_some_and(|a| a.group == group))
                     })
                 }),
             })
@@ -436,7 +464,7 @@ impl Engine {
             .filter_map(|attribute| {
                 let (id, fixture, attr) = targets.iter().find_map(|&id| {
                     let fixture = self.fixtures.get(&id)?;
-                    let attr = self.profiles.get(&fixture.profile)?.attribute(&attribute)?;
+                    let attr = self.mode_of(id)?.attribute(&attribute)?;
                     Some((id, fixture, attr))
                 })?;
                 Some(WheelState {
@@ -475,11 +503,11 @@ impl Engine {
     pub fn contents(&self, mask: &[AttributeGroup]) -> Values {
         let mut out = Values::new();
         for (id, attrs) in self.programmer.values() {
-            let Some(profile) = self.profile_of(*id) else {
+            let Some(mode) = self.mode_of(*id) else {
                 continue;
             };
             for (name, value) in attrs {
-                if profile
+                if mode
                     .attribute(name)
                     .is_some_and(|a| mask.contains(&a.group))
                 {
@@ -523,11 +551,8 @@ impl Engine {
                 return Err(CoreError::EmptySelection);
             }
             for id in targets {
-                let profile = self
-                    .fixtures
-                    .get(&id)
-                    .and_then(|f| self.profiles.get(&f.profile));
-                for a in profile.map(|p| p.attributes.as_slice()).unwrap_or_default() {
+                let mode = self.mode_of(id);
+                for a in mode.map(|m| m.attributes.as_slice()).unwrap_or_default() {
                     if a.group == AttributeGroup::I && a.kind == AttributeKind::Htp {
                         touched.push((id, a.name.clone()));
                     }
@@ -578,17 +603,17 @@ impl Engine {
     pub fn tick(&mut self, now: Timestamp) {
         self.last_tick = Some(now);
         for (fixture_id, fixture) in &self.fixtures {
-            let Some(profile) = self.profiles.get(&fixture.profile) else {
+            let Some(mode) = resolve_mode(&self.profiles, fixture) else {
                 self.warnings.push(Warning {
                     at: now,
                     message: format!(
-                        "fixture {fixture_id}: profile '{}' missing, holding last values",
+                        "fixture {fixture_id}: profile '{}' or its mode missing, holding last values",
                         fixture.profile
                     ),
                 });
                 continue;
             };
-            for attr in &profile.attributes {
+            for attr in &mode.attributes {
                 let merged = merge_attribute(
                     *fixture_id,
                     attr,
@@ -606,13 +631,8 @@ impl Engine {
                     AttributeKind::Htp => value * self.grand_master,
                     AttributeKind::Ltp => value,
                 };
-                let (coarse, fine) = attr.to_dmx(scaled);
-                let base = fixture.address.saturating_sub(1);
                 if let Some(frame) = self.frames.get_mut(&fixture.universe) {
-                    frame.set(base.saturating_add(attr.channel), coarse);
-                    if let (Some(fine_ch), Some(fine_v)) = (attr.fine_channel, fine) {
-                        frame.set(base.saturating_add(fine_ch), fine_v);
-                    }
+                    frame.set_attribute(fixture.address, attr, scaled);
                 }
             }
         }
@@ -667,6 +687,16 @@ impl Engine {
     pub fn drain_warnings(&mut self) -> Vec<Warning> {
         std::mem::take(&mut self.warnings)
     }
+}
+
+/// The fixture's mode: the named one, or the profile's first.
+fn resolve_mode<'a>(
+    profiles: &'a BTreeMap<String, Profile>,
+    fixture: &Fixture,
+) -> Option<&'a Mode> {
+    profiles
+        .get(&fixture.profile)
+        .and_then(|p| p.mode(fixture.mode.as_deref()))
 }
 
 /// Merge one attribute of one fixture across all active playbacks and the programmer.
@@ -773,23 +803,21 @@ mod tests {
     use crate::attribute::{AttributeGroup, AttributeKind};
 
     fn dimmer_profile() -> Profile {
-        Profile {
-            attributes: vec![AttributeDef {
-                name: "Dimmer".into(),
-                group: AttributeGroup::I,
-                kind: AttributeKind::Htp,
-                channel: 1,
-                fine_channel: None,
-            }],
-        }
+        Profile::from_attributes(vec![AttributeDef::new(
+            "Dimmer",
+            AttributeGroup::I,
+            AttributeKind::Htp,
+            1,
+        )])
     }
 
     fn engine_with_dimmer() -> Engine {
         let mut e = Engine::new(Settings::default());
-        e.add_profile("dimmer", dimmer_profile());
+        assert_eq!(e.add_profile("dimmer", dimmer_profile()), Ok(()));
         let patched = e.patch(Fixture {
             id: 1,
             profile: "dimmer".into(),
+            mode: None,
             universe: 1,
             address: 1,
         });
@@ -803,6 +831,7 @@ mod tests {
         let r = e.patch(Fixture {
             id: 1,
             profile: "nope".into(),
+            mode: None,
             universe: 1,
             address: 1,
         });
@@ -812,10 +841,11 @@ mod tests {
     #[test]
     fn patch_rejects_address_past_universe_end() {
         let mut e = Engine::new(Settings::default());
-        e.add_profile("dimmer", dimmer_profile());
+        assert_eq!(e.add_profile("dimmer", dimmer_profile()), Ok(()));
         let r = e.patch(Fixture {
             id: 1,
             profile: "dimmer".into(),
+            mode: None,
             universe: 1,
             address: 513,
         });

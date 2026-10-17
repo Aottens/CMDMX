@@ -104,7 +104,7 @@ pub fn build_engine(scenario: &Scenario) -> Result<Engine, CoreError> {
     }
     let mut engine = Engine::new(settings);
     for (key, profile) in &scenario.profiles {
-        engine.add_profile(key.clone(), profile.clone());
+        engine.add_profile(key.clone(), profile.clone())?;
     }
     for fixture in &scenario.patch {
         engine.patch(fixture.clone())?;

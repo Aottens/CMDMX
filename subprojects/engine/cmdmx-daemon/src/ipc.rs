@@ -489,19 +489,18 @@ mod tests {
         let mut e = Engine::new(Settings::default());
         e.add_profile(
             "dimmer",
-            Profile {
-                attributes: vec![AttributeDef {
-                    name: "Dimmer".into(),
-                    group: AttributeGroup::I,
-                    kind: AttributeKind::Htp,
-                    channel: 1,
-                    fine_channel: None,
-                }],
-            },
-        );
+            Profile::from_attributes(vec![AttributeDef::new(
+                "Dimmer",
+                AttributeGroup::I,
+                AttributeKind::Htp,
+                1,
+            )]),
+        )
+        .unwrap();
         e.patch(Fixture {
             id: 1,
             profile: "dimmer".into(),
+            mode: None,
             universe: 1,
             address: 1,
         })

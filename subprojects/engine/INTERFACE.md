@@ -12,7 +12,7 @@
 ## Consumes
 - IPC commands from clients: `fader.set {playback, level}`, `grand_master.set {level}`, later `palette.apply`, `record.*`, `page.select`, `patch.*`.
 - MIDI in from control surfaces (raw bytes → `cmdmx-control::mcu::decode`).
-- Fixture profiles: GDTF archives + overlay JSON (ADR-004); minimal JSON profile in tests only.
+- Fixture profiles in the own model (ADR-006, `fixture-library.md`): `cmdmx_core::profile::Profile::from_json` (validated, LIB-02); importers (QLC+, channel list, GDTF) convert into it. Scenario files may use the minimal `{ "attributes": [...] }` shape (one mode "default").
 
 ## Owns
 - All lighting state: patch, programmer, palettes, cues, playbacks, pages, masters, output mapping, control mapping.

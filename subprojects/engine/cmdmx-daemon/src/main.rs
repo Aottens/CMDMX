@@ -268,21 +268,19 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     let mut engine = Engine::new(Settings::default());
     engine.add_profile(
         "dimmer",
-        Profile {
-            attributes: vec![AttributeDef {
-                name: "Dimmer".into(),
-                group: AttributeGroup::I,
-                kind: AttributeKind::Htp,
-                channel: 1,
-                fine_channel: None,
-            }],
-        },
-    );
+        Profile::from_attributes(vec![AttributeDef::new(
+            "Dimmer",
+            AttributeGroup::I,
+            AttributeKind::Htp,
+            1,
+        )]),
+    )?;
     // IPC-09: one dimmer per fader, playback n -> fixture n at address n.
     for n in 1..=u32::from(Settings::default().faders_per_page) {
         engine.patch(Fixture {
             id: n,
             profile: "dimmer".into(),
+            mode: None,
             universe: 1,
             address: n as u16,
         })?;
@@ -294,12 +292,13 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
         });
     }
     // IPC-14: the church rig on universe 1, after the demo dimmers.
-    engine.add_profile("wash", wash_profile());
+    engine.add_profile("wash", wash_profile())?;
     let mut address = 9;
     for id in 101..=104 {
         engine.patch(Fixture {
             id,
             profile: "wash".into(),
+            mode: None,
             universe: 1,
             address,
         })?;
@@ -310,6 +309,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
         engine.patch(Fixture {
             id,
             profile: "dimmer".into(),
+            mode: None,
             universe: 1,
             address,
         })?;
@@ -341,20 +341,15 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
 /// IPC-14: Dimmer, 16-bit Pan, Tilt and Zoom on five channels.
 fn wash_profile() -> Profile {
     let attr = |name: &str, group, kind, channel, fine_channel| AttributeDef {
-        name: name.into(),
-        group,
-        kind,
-        channel,
         fine_channel,
+        ..AttributeDef::new(name, group, kind, channel)
     };
-    Profile {
-        attributes: vec![
-            attr("Dimmer", AttributeGroup::I, AttributeKind::Htp, 1, None),
-            attr("Pan", AttributeGroup::P, AttributeKind::Ltp, 2, Some(3)),
-            attr("Tilt", AttributeGroup::P, AttributeKind::Ltp, 4, None),
-            attr("Zoom", AttributeGroup::B, AttributeKind::Ltp, 5, None),
-        ],
-    }
+    Profile::from_attributes(vec![
+        attr("Dimmer", AttributeGroup::I, AttributeKind::Htp, 1, None),
+        attr("Pan", AttributeGroup::P, AttributeKind::Ltp, 2, Some(3)),
+        attr("Tilt", AttributeGroup::P, AttributeKind::Ltp, 4, None),
+        attr("Zoom", AttributeGroup::B, AttributeKind::Ltp, 5, None),
+    ])
 }
 
 fn parse_ipv4(flag: &str, value: Option<String>) -> Result<Ipv4Addr, String> {

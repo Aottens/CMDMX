@@ -3,7 +3,7 @@
 _Last updated: 2026-10-17_
 
 ## Current step
-Scaffold landed; vertical slice 1 starts with VS1-02 (Art-Net socket on its own thread).
+VS2-08 profile model v2 in review; next VS2-06, VS2-09, VS2-10 (each needs VS2-08).
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
@@ -14,6 +14,7 @@ Scaffold landed; vertical slice 1 starts with VS1-02 (Art-Net socket on its own 
 - `cmdmx-core::command` (VS2-03): Titan keypad parser (`Fixture`/`Group`/`Thro`/`And`/`Not`/`@`/`Enter`) + `Engine::execute_command`: typed selection replaces, `@ v` sets I/HTP attributes, parse-then-apply. 16 tests in `cmdmx-core/tests/command_line.rs`; shared rig in `tests/common/mod.rs`.
 - Programmer in the merge (VS2-04): manual values are a candidate at `Priority::Programmer` (ENG-04); `turn_wheel` (relative, clamped, start from programmer → merged → frame → 0; steps from `Settings::wheel_step_*`), `wheel_layout`, stored `active_group` (PRG-18), `contents(mask)`. Scenario runner has a `prg` action (select / wheel / command). 16 tests in `tests/wheels.rs`, scenarios PRG-12/13.
 - VS2-07: `Engine::programmer_view()` (PRG-35) and `clear()` (PRG-29 default); daemon IPC-10..13 (snapshot fixtures/groups/programmer, programmer + groups deltas, ten programmer commands mapped by `apply` in `main.rs`) and the IPC-14 church demo rig with groups 1–4.
+- Profile model v2 (VS2-08): `profile.rs` — `Profile{manufacturer, model, source, modes}`, `Mode{footprint, attributes, colour, virtual_dimmer, cells, pan/tilt/zoom degrees}`, `AttributeDef` + `default/locate/highlight/emitter/slots`; `from_json` validates (LIB-02, 17), legacy `{attributes}` = mode "default"; `Fixture.mode` (None = first); `Engine::add_profile` returns `Result`; `patch` writes LTP defaults (LIB-03). Colour components and cells are model-only until VS2-06. 19 tests in `tests/profile.rs`.
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress
@@ -23,4 +24,4 @@ Scaffold landed; vertical slice 1 starts with VS1-02 (Art-Net socket on its own 
 - Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, show file (SHW-*), IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with
-`cargo test && cargo clippy --all-targets -- -D warnings`, then VS1-07 (MCU driver in the daemon via `midir`) or VS1-05 (IPC).
+`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-06 (colour value), VS2-09 (QLC+ importer) or VS2-10 (patch core).
