@@ -153,7 +153,7 @@ pub fn import(xml: &str, source: &str) -> Result<Import, CoreError> {
         .iter()
         .map(|m| convert_mode(&def, m, &mut report))
         .collect::<Result<Vec<_>, String>>()
-        .map_err(&fail)?;
+        .map_err(fail)?;
     let profile = Profile {
         manufacturer: def.manufacturer.clone(),
         model: def.model.clone(),
