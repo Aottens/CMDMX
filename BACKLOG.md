@@ -32,9 +32,9 @@ after the specs are added when each spec is approved (no sizing of code before i
 | P1-02 | Write `programmer.md` from the Titan analysis (ordered selection, groups, touched attributes, colour picker RGB/CMY/HSI, Clear options, Locate/Highlight). | PRG | M | done (2026-10-17; PRG-01..37 approved) |
 | P1-03 | Write `palettes.md` (Global/Shared/Normal auto-detection, quick record masks, quick palette, fade/overlap). | PAL | M | todo |
 | VS2-02 | Selection, sub-selection, patterns and groups in `cmdmx-core::programmer`, unit tested. | PRG-01..07, 14 | M | done (2026-10-17; `cmdmx-core/tests/programmer.rs`) |
-| VS2-03 | Command-line parser and executor for the Titan keypad subset, unit tested. | PRG-08..11 | M | todo |
+| VS2-03 | Command-line parser and executor for the Titan keypad subset, unit tested (PRG-10 moves: `Locate` ending to VS2-05, `Palette n` to the palette tasks after P1-03). | PRG-08, 09, 11 | M | done (2026-10-17; `cmdmx-core/tests/command_line.rs`) |
 | VS2-04 | Programmer contents as a merge source, relative wheels with Normal/Fine/Coarse steps, palette references per attribute; scenarios show untouched attributes coming from playbacks. | PRG-12, 13, 15..22, 36, 37 | L | todo |
-| VS2-05 | Locate, Highlight/lowlight, Off, Rem Dim and Clear (precedence, mask; timed per ENG-10); scenarios on the frame. Uses locate/highlight values from the minimal test profile until P1-01. | PRG-23..29 | M | todo |
+| VS2-05 | Locate, Highlight/lowlight, Off, Rem Dim and Clear (precedence, mask; timed per ENG-10); scenarios on the frame. Uses locate/highlight values from the minimal test profile until P1-01. | PRG-10 (Locate), 23..29 | M | todo |
 | VS2-06 | Colour models HSI/RGB/CMY on one colour value and direct W/Lime emitter wheels. | PRG-30..34 | M | blocked (needs ADR-005, P1-07) |
 | VS2-07 | Programmer state and commands over IPC (extend `ipc.md` first), app attribute bar, fixtures and groups windows driven by it. | PRG-35, IPC | L | todo |
 | VS2-01 | Demo: patch the church rig, select the LED pars, set a colour and intensity, record a palette and a playback, bring it up on an on-screen fader; Art-Net shows the right values on every fixture type. | PAT, PRG, PAL, PBK | — | todo (split after specs) |

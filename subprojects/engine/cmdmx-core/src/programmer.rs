@@ -90,6 +90,13 @@ impl Programmer {
         }
     }
 
+    /// PRG-08: a typed selection replaces the selection and ends any sub-selection.
+    pub(crate) fn replace_selection(&mut self, selection: Vec<FixtureId>) {
+        self.selection = selection;
+        self.sub = Sub::None;
+        self.changed = false;
+    }
+
     pub(crate) fn clear_selection(&mut self) {
         self.selection.clear();
         self.sub = Sub::None;

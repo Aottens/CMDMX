@@ -19,7 +19,8 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
 4. **Review.** One branch and one PR per task on `github.com/Aottens/ColourmotionDMX`; the owner
    reviews and merges (gate 2). Hardware-touching tasks ship with
    a checklist in `tests/hardware/` that only the owner can tick (gate 3).
-5. **Close the loop.** Update the subproject `STATE.md`, root `STATE.md` and `BACKLOG.md`
+5. **Close the loop.** Update the subproject `STATE.md`, root `STATE.md`, `BACKLOG.md` and
+   `README.md` (status line, and the description whenever the project's direction has moved)
    in the same PR. A decision made along the way goes in `DECISIONS.md` (and an ADR if it is
    structural).
 
