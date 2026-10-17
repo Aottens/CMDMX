@@ -21,7 +21,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 
 ## Hardware available for testing
 - Behringer BCF2000 (use in Mackie Control mode)
-- Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, ENTTEC Pro protocol, product string "Eurolite DMX512 Pro")
+- Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, ENTTEC Pro protocol, product string "Eurolite DMX512 Pro") — **at the church, not on the desk**; its hardware checks wait for a visit
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Repo
