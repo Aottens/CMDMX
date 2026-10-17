@@ -102,6 +102,9 @@ awkward; browsing manufacturer → model must be possible too.
 - Touches now: `cmdmx-core::library::Index` (already keyed by manufacturer + model), the daemon's
   library requests, the Add panel.
 **Outcome (2026-10-17):** owner: phase 1. Spec task P1-14 in `BACKLOG.md`.
+**Note (UX-02a run, 2026-10-17):** the owner is not yet sure about the search field plus result list
+itself; P1-14 should rethink the whole Add panel (browse columns, search, picking a mode), ideally
+with a quick sketch first.
 
 ### IDEA-09 — Multi-select in the patch table (2026-10-17, VS2-12 run)
 **Owner's intent:** select several rows in the patch table and edit them at once.
@@ -124,3 +127,16 @@ outputs right now (intensity × colour), so the screen shows the stage at a glan
   tick stays cheap.
 - Touches now: only a disabled stripe on the fixture cells (UI-11).
 **Open questions:** the owner confirms the phase.
+
+### IDEA-11 — Tap a selected group again to deselect it (2026-10-17, UX-02a run)
+**Owner's intent:** clicking the group you just selected a second time should deselect it, as a
+fixture tap already does (PRG-01).
+**Triage:**
+- Proposed phase 1, a small engine task. Amend PRG-02: selecting a group whose fixtures are all
+  in the selection removes them from it (the rest of the selection keeps its order). With only
+  some of them selected, the tap appends the missing ones, as today. Titan's group buttons
+  behave like this.
+- Touches now: `cmdmx-core::programmer` (`select_group`), one scenario/unit test, no IPC change
+  (`programmer.select_group` stays), and the Groups window shows it through the existing
+  selection state.
+**Outcome (2026-10-17):** owner: phase 1. Task VS2-15 in `BACKLOG.md`.
