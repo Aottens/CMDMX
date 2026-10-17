@@ -8,6 +8,7 @@
 //! - [`profile`]    fixture profiles (minimal JSON profile now, GDTF later — ADR-004)
 //! - [`patch`]      fixtures on universes/addresses
 //! - [`playback`]   playbacks: priority, fader mode, values, runtime level
+//! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
 //! - [`engine`]     the merge (`specs/modules/engine-merge.md`)
 //! - [`scenario`]   JSON scenario format used by `tests/scenarios/*.json`
 
@@ -16,6 +17,7 @@ pub mod engine;
 pub mod patch;
 pub mod playback;
 pub mod profile;
+pub mod programmer;
 pub mod scenario;
 
 /// Seconds on the caller's clock. Never read from the system clock inside core.
@@ -45,6 +47,14 @@ pub enum CoreError {
     },
     #[error("invalid value {0} (expected 0.0..=1.0)")]
     InvalidLevel(f32),
+    #[error("unknown group id {0}")]
+    UnknownGroup(u32),
+    #[error("fixture {fixture} has no attribute '{attribute}'")]
+    UnknownAttribute { fixture: u32, attribute: String },
+    #[error("nothing is selected")]
+    EmptySelection,
+    #[error("invalid pattern of {0} stages (expected at least 2)")]
+    InvalidPattern(usize),
 }
 
 /// A non-fatal condition surfaced to the UI. The engine never stops for a warning.
