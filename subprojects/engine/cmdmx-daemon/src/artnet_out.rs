@@ -5,7 +5,7 @@ use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
 
 use cmdmx_protocols::{artnet, ArtSequence};
 
-use crate::output::{open_udp, Health};
+use crate::output::{open_udp, Health, OutputState};
 
 /// OUT-04: limited broadcast on 6454 unless `--artnet-target` says otherwise.
 pub fn default_target() -> SocketAddrV4 {
@@ -41,6 +41,11 @@ impl ArtNetNode {
         self.health
             .record(&result)
             .map(|m| format!("art-net {}: {m}", self.target))
+    }
+
+    /// IPC-20.
+    pub fn state(&self) -> OutputState {
+        self.health.state()
     }
 
     fn try_send(&mut self, data: &[u8]) -> io::Result<()> {
@@ -101,7 +106,7 @@ mod tests {
     fn out_03_thread_sends_every_published_frame() {
         let (rx, target) = receiver();
         let mut node = ArtNetNode::new(target, 0);
-        let tx = crate::output::spawn("art-net", move |f| node.send(f));
+        let (tx, _status) = crate::output::spawn("art-net", move |f| (node.send(f), node.state()));
         for v in [1u8, 2, 3] {
             assert!(crate::output::publish(&tx, &[v; 512]));
             assert_eq!(recv(&rx)[18], v);

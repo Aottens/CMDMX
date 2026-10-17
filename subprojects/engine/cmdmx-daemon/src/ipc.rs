@@ -1,6 +1,7 @@
 //! IPC v0: WebSocket server, JSON messages and per-tick deltas (IPC-01..07), plus the
 //! programmer snapshot, deltas and commands (IPC-10..13, VS2-07), and the fixture library
-//! requests (LIB-14, VS2-11), and the patch commands and `fixtures` delta (PAT-09, VS2-12).
+//! requests (LIB-14, VS2-11), the patch commands and `fixtures` delta (PAT-09, VS2-12), and
+//! the output node states in the snapshot and the `outputs` delta (IPC-20).
 //!
 //! One thread per client. The tick only talks to clients through channels and
 //! never blocks: commands arrive on an unbounded channel, outgoing messages
@@ -30,6 +31,7 @@ use tungstenite::http::StatusCode;
 use tungstenite::{Error as WsError, Message};
 
 use crate::library::Library;
+use crate::output::OutputState;
 
 /// Messages a client may have queued before it is disconnected (IPC-07).
 const QUEUE: usize = 64;
@@ -333,6 +335,50 @@ struct Snapshot<'a> {
     fixtures: Vec<FixtureInfo<'a>>,
     groups: Vec<GroupInfo<'a>>,
     programmer: &'a ProgrammerView,
+    outputs: Vec<OutputJson>,
+}
+
+/// IPC-20: one output node as the daemon's tick sees it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct OutputStatus {
+    pub name: &'static str,
+    pub state: OutputState,
+}
+
+#[derive(Serialize)]
+struct OutputJson {
+    name: &'static str,
+    state: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    detail: Option<&'static str>,
+}
+
+impl From<&OutputStatus> for OutputJson {
+    fn from(o: &OutputStatus) -> Self {
+        let (state, detail) = match o.state {
+            OutputState::Ok => ("Ok", None),
+            OutputState::Degraded => ("Degraded", None),
+            OutputState::NoInterface => ("Degraded", Some("no interface")),
+            OutputState::Stopped => ("Stopped", None),
+        };
+        OutputJson {
+            name: o.name,
+            state,
+            detail,
+        }
+    }
+}
+
+fn output_jsons(outputs: &[OutputStatus]) -> Vec<OutputJson> {
+    outputs.iter().map(OutputJson::from).collect()
+}
+
+#[derive(Serialize)]
+struct OutputsDelta {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    outputs: Vec<OutputJson>,
 }
 
 #[derive(Serialize)]
@@ -428,8 +474,8 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
         .collect()
 }
 
-/// IPC-03/10: full state for a freshly connected client.
-pub fn snapshot(engine: &Engine) -> String {
+/// IPC-03/10/20: full state for a freshly connected client.
+pub fn snapshot(engine: &Engine, outputs: &[OutputStatus]) -> String {
     to_json(&Snapshot {
         v: 0,
         kind: "snapshot",
@@ -439,6 +485,7 @@ pub fn snapshot(engine: &Engine) -> String {
         fixtures: fixture_infos(engine),
         groups: group_infos(engine.groups()),
         programmer: &engine.programmer_view(),
+        outputs: output_jsons(outputs),
     })
 }
 
@@ -465,20 +512,22 @@ pub struct Published {
     programmer: ProgrammerView,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
     fixtures: Vec<Fixture>,
+    outputs: Vec<OutputStatus>,
 }
 
 impl Published {
-    pub fn new(engine: &Engine) -> Self {
+    pub fn new(engine: &Engine, outputs: &[OutputStatus]) -> Self {
         Self {
             playbacks: infos(engine).map(|i| (i.id, (i.level, i.active))).collect(),
             grand_master: engine.grand_master(),
             programmer: engine.programmer_view(),
             groups: engine.groups().clone(),
             fixtures: engine.fixtures().cloned().collect(),
+            outputs: outputs.to_vec(),
         }
     }
 
-    pub fn diff(&mut self, engine: &Engine) -> Vec<String> {
+    pub fn diff(&mut self, engine: &Engine, outputs: &[OutputStatus]) -> Vec<String> {
         let mut out = Vec::new();
         for info in infos(engine) {
             let now = (info.level, info.active);
@@ -524,6 +573,15 @@ impl Published {
                 v: 0,
                 kind: "fixtures",
                 fixtures: fixture_infos(engine),
+            }));
+        }
+        // IPC-20: the whole list, once, after any node changed state.
+        if outputs != self.outputs.as_slice() {
+            self.outputs = outputs.to_vec();
+            out.push(to_json(&OutputsDelta {
+                v: 0,
+                kind: "outputs",
+                outputs: output_jsons(outputs),
             }));
         }
         out
@@ -814,12 +872,61 @@ mod tests {
 
     #[test]
     fn ipc_03_snapshot_has_settings_grand_master_and_playbacks() {
-        let v = parse(&snapshot(&engine()));
+        let v = parse(&snapshot(&engine(), &[]));
         assert_eq!(v["v"], 0);
         assert_eq!(v["type"], "snapshot");
         assert_eq!(v["faders_per_page"], 8);
         assert_eq!(v["grand_master"], 1.0);
         assert_eq!(v["playbacks"], json!([{"id":1,"level":0.0,"active":false}]));
+    }
+
+    /// IPC-20: three nodes in three states.
+    fn outputs() -> Vec<OutputStatus> {
+        use crate::output::OutputState;
+        vec![
+            OutputStatus {
+                name: "art-net",
+                state: OutputState::Ok,
+            },
+            OutputStatus {
+                name: "sacn",
+                state: OutputState::Degraded,
+            },
+            OutputStatus {
+                name: "serial",
+                state: OutputState::NoInterface,
+            },
+        ]
+    }
+
+    #[test]
+    fn ipc_20_snapshot_lists_the_output_nodes() {
+        let v = parse(&snapshot(&engine(), &outputs()));
+        assert_eq!(
+            v["outputs"],
+            json!([{"name":"art-net","state":"Ok"},
+                   {"name":"sacn","state":"Degraded"},
+                   {"name":"serial","state":"Degraded","detail":"no interface"}])
+        );
+        assert_eq!(parse(&snapshot(&engine(), &[]))["outputs"], json!([]));
+    }
+
+    #[test]
+    fn ipc_20_outputs_delta_only_when_a_state_changes() {
+        use crate::output::OutputState;
+        let e = engine();
+        let mut outs = outputs();
+        let mut published = Published::new(&e, &outs);
+        assert!(published.diff(&e, &outs).is_empty());
+        outs[0].state = OutputState::Stopped;
+        let d = published.diff(&e, &outs);
+        assert_eq!(d.len(), 1);
+        let v = parse(&d[0]);
+        assert_eq!(v["v"], 0);
+        assert_eq!(v["type"], "outputs");
+        assert_eq!(v["outputs"][0], json!({"name":"art-net","state":"Stopped"}));
+        assert_eq!(v["outputs"].as_array().unwrap().len(), 3);
+        assert!(published.diff(&e, &outs).is_empty(), "no change, no delta");
     }
 
     fn no_values(available_i: bool) -> Value {
@@ -838,7 +945,7 @@ mod tests {
         e.select_fixture(1).unwrap();
         e.record_group(1).unwrap();
         e.clear();
-        let v = parse(&snapshot(&e));
+        let v = parse(&snapshot(&e, &[]));
         assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
         assert_eq!(
@@ -872,7 +979,7 @@ mod tests {
         })
         .unwrap();
         e.patch_name(2, "Front left").unwrap();
-        let v = parse(&snapshot(&e));
+        let v = parse(&snapshot(&e, &[]));
         assert_eq!(
             v["fixtures"],
             json!([dimmer_entry(),
@@ -885,13 +992,13 @@ mod tests {
     #[test]
     fn pat_09_fixtures_delta_after_a_patch_change_only() {
         let mut e = engine();
-        let mut published = Published::new(&e);
+        let mut published = Published::new(&e, &[]);
         e.tick(0.0);
-        assert!(published.diff(&e).is_empty());
+        assert!(published.diff(&e, &[]).is_empty());
         e.patch_renumber(1, 42).unwrap();
         e.tick(0.025);
         let d: Vec<Value> = published
-            .diff(&e)
+            .diff(&e, &[])
             .iter()
             .map(|m| parse(m))
             .filter(|m| m["type"] == "fixtures")
@@ -900,9 +1007,9 @@ mod tests {
         assert_eq!(d[0]["v"], 0);
         assert_eq!(d[0]["fixtures"][0]["number"], 42);
         e.tick(0.05);
-        assert!(published.diff(&e).is_empty(), "no change, no delta");
+        assert!(published.diff(&e, &[]).is_empty(), "no change, no delta");
         e.patch_move(1, 2, 100).unwrap();
-        let d = published.diff(&e);
+        let d = published.diff(&e, &[]);
         assert_eq!(d.len(), 1);
         assert_eq!(parse(&d[0])["fixtures"][0]["universe"], 2);
         assert_eq!(parse(&d[0])["fixtures"][0]["address"], 100);
@@ -1048,7 +1155,7 @@ mod tests {
     fn ipc_11_programmer_state_object() {
         let mut e = engine();
         e.select_fixture(1).unwrap();
-        let v = parse(&snapshot(&e));
+        let v = parse(&snapshot(&e, &[]));
         assert_eq!(
             v["programmer"],
             json!({"selection":[1],"targets":[1],"active_group":"I",
@@ -1057,7 +1164,7 @@ mod tests {
                    "in_programmer":[],"colour_model":"Hsi"})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
-        let v = parse(&snapshot(&e));
+        let v = parse(&snapshot(&e, &[]));
         assert_eq!(
             v["programmer"]["wheels"],
             json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false}])
@@ -1069,13 +1176,13 @@ mod tests {
     #[test]
     fn ipc_12_programmer_and_groups_deltas_only_on_change() {
         let mut e = engine();
-        let mut published = Published::new(&e);
+        let mut published = Published::new(&e, &[]);
         e.tick(0.0);
-        assert!(published.diff(&e).is_empty());
+        assert!(published.diff(&e, &[]).is_empty());
 
         e.select_fixture(1).unwrap();
         e.tick(0.025);
-        let d = published.diff(&e);
+        let d = published.diff(&e, &[]);
         assert_eq!(d.len(), 1);
         let p = parse(&d[0]);
         assert_eq!(p["v"], 0);
@@ -1084,11 +1191,11 @@ mod tests {
         assert_eq!(p["wheels"][0]["attribute"], "Dimmer");
 
         e.tick(0.05);
-        assert!(published.diff(&e).is_empty(), "no change, no delta");
+        assert!(published.diff(&e, &[]).is_empty(), "no change, no delta");
 
         e.record_group(4).unwrap();
         e.tick(0.075);
-        let d = published.diff(&e);
+        let d = published.diff(&e, &[]);
         assert_eq!(d.len(), 1);
         assert_eq!(
             parse(&d[0]),
@@ -1189,12 +1296,12 @@ mod tests {
     #[test]
     fn ipc_18_colour_model_change_is_a_programmer_delta() {
         let mut e = engine();
-        let mut published = Published::new(&e);
+        let mut published = Published::new(&e, &[]);
         e.tick(0.0);
-        assert!(published.diff(&e).is_empty());
+        assert!(published.diff(&e, &[]).is_empty());
         e.set_colour_model(ColourModel::Cmy);
         e.tick(0.025);
-        let d = published.diff(&e);
+        let d = published.diff(&e, &[]);
         assert_eq!(d.len(), 1);
         let p = parse(&d[0]);
         assert_eq!(p["type"], "programmer");
@@ -1347,23 +1454,23 @@ mod tests {
     #[test]
     fn ipc_05_deltas_only_for_changed_items() {
         let mut e = engine();
-        let mut published = Published::new(&e);
+        let mut published = Published::new(&e, &[]);
         e.tick(0.0);
-        assert!(published.diff(&e).is_empty());
+        assert!(published.diff(&e, &[]).is_empty());
 
         e.set_fader(1, 0.5, 0.025).unwrap();
         e.tick(0.025);
-        let d = published.diff(&e);
+        let d = published.diff(&e, &[]);
         assert_eq!(d.len(), 1);
         assert_eq!(
             parse(&d[0]),
             json!({"v":0,"type":"playback","id":1,"level":0.5,"active":true})
         );
         e.tick(0.05);
-        assert!(published.diff(&e).is_empty(), "no change, no delta");
+        assert!(published.diff(&e, &[]).is_empty(), "no change, no delta");
 
         e.set_grand_master(0.25).unwrap();
-        let d = published.diff(&e);
+        let d = published.diff(&e, &[]);
         assert_eq!(
             parse(&d[0]),
             json!({"v":0,"type":"grand_master","level":0.25})
@@ -1406,7 +1513,7 @@ mod tests {
         let Event::Connected(tx) = next_event(&rx) else {
             panic!("expected Connected")
         };
-        tx.send(snapshot(&engine())).unwrap();
+        tx.send(snapshot(&engine(), &[])).unwrap();
         let msg = ws.read().unwrap();
         assert_eq!(parse(msg.to_text().unwrap())["type"], "snapshot");
 

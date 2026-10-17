@@ -4,6 +4,7 @@ import SwiftUI
 // check, address or number logic lives here; the engine decides and refuses with a warning.
 
 struct PatchView: View {
+    @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     @State private var selection: Int?
 
@@ -14,13 +15,13 @@ struct PatchView: View {
                 AddPanel()
                 SelectedPanel(fixture: rows.first { $0.id == selection })
                 if let message = engine.lastMessage {
-                    Text(message).font(.caption).foregroundStyle(.red)
+                    Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Spacer(minLength: 0)
             }
             .frame(width: 320)
-            PanelWindow(title: "Patch", accessory: { Text("\(rows.count) fixtures").font(.caption2).foregroundStyle(.secondary) }) {
+            PanelWindow(title: "Patch", info: "\(rows.count) fixtures", framed: true, accessory: { EmptyView() }) {
                 Table(rows, selection: $selection) {
                     TableColumn("No") { Text("\($0.number)").monospacedDigit() }.width(min: 40, ideal: 50, max: 70)
                     TableColumn("Name") { Text($0.name) }.width(min: 60, ideal: 120)
@@ -35,6 +36,7 @@ struct PatchView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(t.bg)
         .onChange(of: selection) { _, _ in engine.clearMessage() }
     }
 }
@@ -68,7 +70,7 @@ private struct AddPanel: View {
         let countValue = Int(count), universeValue = Int(universe)
         let addressValue = optionalInt(address), numberValue = optionalInt(number)
 
-        PanelWindow(title: "Add", accessory: { EmptyView() }) {
+        PanelWindow(title: "Add", framed: true, accessory: { EmptyView() }) {
             VStack(alignment: .leading, spacing: 6) {
                 TextField("Search library, e.g. showtec par 56", text: $query)
                     .textFieldStyle(.roundedBorder)
@@ -132,7 +134,7 @@ private struct SelectedPanel: View {
     private enum Armed { case remove, mode }
 
     var body: some View {
-        PanelWindow(title: fixture.map { "Selected · \($0.number)" } ?? "Selected", accessory: { EmptyView() }) {
+        PanelWindow(title: fixture.map { "Selected · \($0.number)" } ?? "Selected", framed: true, accessory: { EmptyView() }) {
             if let fixture {
                 VStack(alignment: .leading, spacing: 6) {
                     labelled("Move") {

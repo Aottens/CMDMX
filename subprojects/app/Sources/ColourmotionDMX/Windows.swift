@@ -1,0 +1,338 @@
+import SwiftUI
+
+// The windows of the 2x2 grid (UI-08..13) and the one cell view they share (UI-05).
+// Pure rendering of `EngineClient` state plus command sending: selection order, targets and
+// groups come from the engine; the only thing computed here is display order and lookups.
+
+// MARK: - Cell (UI-05)
+
+/// One button of the fixed 8-column grid: 54 pt high, number top-left, tag or selection order
+/// top-right, condensed legend. State never changes the fill.
+struct Cell: View {
+    @Environment(\.theme) private var t
+    let number: Int
+    var tag: String?
+    var legend = ""
+    /// 1-based selection order, shown top-right in blue (replaces the tag).
+    var order: Int?
+    var empty = false
+    var selected = false
+    /// Current target during a sub-selection: a double blue border.
+    var current = false
+    var inProgrammer = false
+    /// Record armed: empty cells show a red number.
+    var armed = false
+    /// Disabled output lamp stripe (fixtures, IDEA-10) / empty IPCGBES mask strip (groups).
+    var lamp = false
+    var mask = false
+    var action: (() -> Void)?
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Rectangle().fill(empty ? Color.clear : t.surf)
+
+            Text("\(number)").font(Typo.mono(Typo.small))
+                .foregroundStyle(selected ? t.blue : empty ? (armed ? t.red : t.fg3) : t.fg2)
+                .padding(.leading, 4).padding(.top, 4)
+
+            if !empty {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    Text(legend).font(Typo.legend()).foregroundStyle(t.fg)
+                        .lineLimit(2).multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4).padding(.bottom, 10)
+                }
+            }
+            if lamp {
+                Rectangle().fill(Color.black).frame(height: 4)
+                    .overlay(Rectangle().strokeBorder(t.line, lineWidth: 1))
+                    .padding(.horizontal, 4).padding(.bottom, 3)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+            }
+            if mask {
+                HStack(spacing: 1) { ForEach(0..<8, id: \.self) { _ in Rectangle().fill(t.line).frame(height: 3) } }
+                    .padding(.horizontal, 3).padding(.bottom, 2)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+            }
+        }
+        .frame(maxWidth: .infinity).frame(height: 54)
+        .overlay(alignment: .topTrailing) {
+            if let order {
+                Text("\(order)").font(Typo.mono(Typo.small, .semibold)).foregroundStyle(t.blue).padding(4)
+            } else if let tag {
+                Text(tag.uppercased()).font(Typo.mono(9, .medium)).tracking(0.5).foregroundStyle(t.fg2).padding(4)
+            }
+        }
+        .overlay(alignment: .top) {
+            if inProgrammer { Rectangle().fill(t.red).frame(height: 3) }
+        }
+        .overlay {
+            if current {
+                // inset 2 blue, 2 background, 1 blue (the sketch's .cur)
+                ZStack {
+                    Rectangle().strokeBorder(t.blue, lineWidth: 2)
+                    Rectangle().inset(by: 2).strokeBorder(t.bg, lineWidth: 2)
+                    Rectangle().inset(by: 4).strokeBorder(t.blue, lineWidth: 1)
+                }
+            } else {
+                Rectangle().strokeBorder(selected ? t.blue : t.line, lineWidth: selected ? 2 : 1)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: radius))
+        .contentShape(Rectangle())
+        .onTapGesture { action?() }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(action == nil ? [] : .isButton)
+    }
+}
+
+/// A scrolling area holding the 8-column cell grid with 2 pt gaps.
+private struct CellScroll<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) { content }
+                .padding(3)
+        }
+    }
+}
+
+// MARK: - Fixtures (UI-11)
+
+struct FixturesWindow: View {
+    @EnvironmentObject private var engine: EngineClient
+    @State private var page = 0
+
+    // ponytail: `handles_per_page` is a setting (PAT-14) that is not on the wire yet; 40 is its default.
+    private let handlesPerPage = 40
+
+    /// Display order only: by handle (page, slot); fixtures without a handle last, by number.
+    private static func handleOrder(_ a: FixtureInfo, _ b: FixtureInfo) -> Bool {
+        switch (a.handle, b.handle) {
+        case let (x?, y?): return (x.page, x.slot) < (y.page, y.slot)
+        case (_?, nil): return true
+        case (nil, _?): return false
+        case (nil, nil): return a.number < b.number
+        }
+    }
+
+    /// The legend is the fixture's name, else the model part of `manufacturer/model`.
+    private static func legend(_ f: FixtureInfo) -> String {
+        if !f.name.isEmpty { return f.name }
+        guard let slash = f.profile.firstIndex(of: "/") else { return f.profile }
+        return String(f.profile[f.profile.index(after: slash)...])
+    }
+
+    var body: some View {
+        let programmer = engine.programmer
+        // Display lookups only: 1-based position in the engine's selection order.
+        let order = Dictionary(programmer.selection.enumerated().map { ($1, $0 + 1) }, uniquingKeysWith: { a, _ in a })
+        // Double outline only while the engine's targets differ from its selection (sub-selection).
+        let subSelection = programmer.targets != programmer.selection
+        let targets = Set(programmer.targets)
+        let inProgrammer = Set(programmer.inProgrammer)
+
+        let sorted = engine.fixtures.sorted(by: Self.handleOrder)
+        let pageCount = max(1, (sorted.count + handlesPerPage - 1) / handlesPerPage)
+        let shown = min(page, pageCount - 1)
+        let visible = sorted.dropFirst(shown * handlesPerPage).prefix(handlesPerPage)
+
+        PanelWindow(
+            title: "Fixtures",
+            info: programmer.selection.isEmpty ? "\(sorted.count) fixtures" : "\(programmer.selection.count) selected · order shown",
+            accessory: {
+                if pageCount > 1 {
+                    HStack(spacing: 2) {
+                        ForEach(0..<pageCount, id: \.self) { p in
+                            Button("\(p + 1)") { page = p }.buttonStyle(FlatButton(fill: p == shown ? .blue : nil, compact: true))
+                        }
+                    }
+                }
+            }
+        ) {
+            CellScroll {
+                ForEach(visible) { fixture in
+                    Cell(number: fixture.number,
+                         legend: Self.legend(fixture),
+                         order: order[fixture.id],
+                         selected: order[fixture.id] != nil,
+                         current: subSelection && targets.contains(fixture.id),
+                         inProgrammer: inProgrammer.contains(fixture.id),
+                         lamp: true) { engine.selectFixture(fixture.id) }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Groups (UI-12)
+
+struct GroupsWindow: View {
+    @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
+
+    var body: some View {
+        let byId = Dictionary(engine.groups.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        // 24 cells, or more (whole rows of 8) when the show has higher group numbers.
+        let cells = max(24, ((engine.groups.map(\.id).max() ?? 0) + 7) / 8 * 8)
+        let selection = Set(engine.programmer.selection)
+
+        PanelWindow(
+            title: "Groups",
+            info: "\(engine.groups.count) groups",
+            accessory: {
+                // Moves to the Record function button in UX-02c (UI-16).
+                Button("Record") { ui.recordArmed.toggle() }
+                    .buttonStyle(FlatButton(fill: ui.recordArmed ? .red : nil, compact: true))
+            }
+        ) {
+            CellScroll {
+                ForEach(1...cells, id: \.self) { id in
+                    if let group = byId[id] {
+                        Cell(number: id, tag: "\(group.fixtures.count)", legend: "Group \(id)",
+                             selected: !group.fixtures.isEmpty && group.fixtures.allSatisfy(selection.contains),
+                             mask: true) { tap(id, exists: true) }
+                    } else {
+                        // Empty cells only react while Record is armed.
+                        Cell(number: id, empty: true, armed: ui.recordArmed,
+                             action: ui.recordArmed ? { tap(id, exists: false) } : nil)
+                    }
+                }
+            }
+        }
+    }
+
+    /// While armed, the next group tap records instead of selecting.
+    private func tap(_ id: Int, exists: Bool) {
+        if ui.recordArmed {
+            engine.recordGroup(id)
+            ui.recordArmed = false
+        } else if exists {
+            engine.selectGroup(id)
+        }
+    }
+}
+
+// MARK: - Placeholders for later specs (UI-13, UI-14, UI-15)
+
+/// Colours, Positions or Gobos & Beams: 32 empty, numbered, disabled cells.
+struct PaletteWindow: View {
+    let title: String
+    let first: Int
+
+    var body: some View {
+        PanelWindow(title: title, info: "Palettes · P1-03", accessory: { EmptyView() }) {
+            CellScroll {
+                ForEach(first..<(first + 32), id: \.self) { Cell(number: $0, empty: true) }
+            }
+            .help("Palettes · P1-03")
+        }
+    }
+}
+
+/// Cue list or Active playbacks: the sketch's column headers over an empty table.
+struct TablePlaceholderWindow: View {
+    @Environment(\.theme) private var t
+    let title: String
+    let spec: String
+    let columns: [String]
+
+    var body: some View {
+        PanelWindow(title: title, info: spec, accessory: { EmptyView() }) {
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    ForEach(Array(columns.enumerated()), id: \.offset) { index, name in
+                        Text(name.uppercased()).font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3)
+                            .frame(maxWidth: index == 0 ? 34 : .infinity, alignment: .leading)
+                    }
+                }
+                .padding(.horizontal, 7).padding(.vertical, 2)
+                HLine()
+                Spacer(minLength: 0)
+            }
+            .help(spec)
+        }
+    }
+}
+
+/// Programmer or Colour picker: title and the sketch's note; filled in UX-02b.
+struct NoteWindow: View {
+    @Environment(\.theme) private var t
+    let title: String
+    let note: String
+
+    var body: some View {
+        PanelWindow(title: title, info: "UX-02b", accessory: { EmptyView() }) {
+            ScrollView {
+                Text(note).font(Typo.ui()).foregroundStyle(t.fg2)
+                    .frame(maxWidth: 330, alignment: .leading).padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
+
+// MARK: - Workspaces (UI-08)
+
+enum WindowKind {
+    case groups, fixtures, colours, positions, beams, programmer, picker, cues, active
+
+    @ViewBuilder var view: some View {
+        switch self {
+        case .groups: GroupsWindow()
+        case .fixtures: FixturesWindow()
+        case .colours: PaletteWindow(title: "Colours", first: 1)
+        case .positions: PaletteWindow(title: "Positions", first: 41)
+        case .beams: PaletteWindow(title: "Gobos & Beams", first: 81)
+        case .programmer:
+            NoteWindow(title: "Programmer", note: "Only attributes you touch land here, in red. Values from a palette show the palette name in cyan. Locate and Highlight never land here.")
+        case .picker:
+            NoteWindow(title: "Colour picker", note: "Select fixtures that mix colour. The picker sets one target colour; each fixture type maps it to its own emitters (RGBW, RGB+Lime, RGB). Gel book: LEE first.")
+        case .cues: TablePlaceholderWindow(title: "Cue list", spec: "Cue lists · P1-08", columns: ["Q", "Name", "Delay", "Fade", "Link"])
+        case .active: TablePlaceholderWindow(title: "Active playbacks", spec: "Playbacks · P1-04", columns: ["Pg", "Playback", "Level", "Groups"])
+        }
+    }
+}
+
+struct Workspace {
+    let name: String
+    let windows: [WindowKind]
+
+    static let all = [
+        Workspace(name: "Groups + Palettes", windows: [.groups, .colours, .positions, .beams]),
+        Workspace(name: "Fixtures + Groups", windows: [.fixtures, .groups, .colours, .programmer]),
+        Workspace(name: "Colour", windows: [.fixtures, .picker, .colours, .programmer]),
+        Workspace(name: "Playbacks", windows: [.cues, .active, .fixtures, .programmer]),
+    ]
+}
+
+/// The fixed 2x2 grid of one workspace, separated by 1 px hairlines.
+struct WindowGrid: View {
+    let workspace: Workspace
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = (geo.size.width - 1) / 2, h = (geo.size.height - 1) / 2
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    cell(0, w, h); VLine(); cell(1, w, h)
+                }
+                HLine()
+                HStack(spacing: 0) {
+                    cell(2, w, h); VLine(); cell(3, w, h)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func cell(_ i: Int, _ w: CGFloat, _ h: CGFloat) -> some View {
+        if let kind = workspace.windows[safe: i] {
+            kind.view.frame(width: max(0, w), height: max(0, h)).clipped()
+        }
+    }
+}
+
+extension Array {
+    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
+}

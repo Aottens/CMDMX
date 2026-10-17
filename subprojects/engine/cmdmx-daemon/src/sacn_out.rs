@@ -5,7 +5,7 @@ use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
 
 use cmdmx_protocols::sacn;
 
-use crate::output::{open_udp, Health};
+use crate::output::{open_udp, Health, OutputState};
 
 pub const SOURCE_NAME: &str = "ColourmotionDMX";
 
@@ -53,6 +53,11 @@ impl SacnNode {
         self.health
             .record(&result)
             .map(|m| format!("sacn {}: {m}", self.target))
+    }
+
+    /// IPC-20.
+    pub fn state(&self) -> OutputState {
+        self.health.state()
     }
 
     fn try_send(&mut self, data: &[u8]) -> io::Result<()> {

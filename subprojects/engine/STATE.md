@@ -3,7 +3,7 @@
 _Last updated: 2026-10-17_
 
 ## Current step
-VS2-12 (patch over IPC) in review; next VS2-13 (church patch).
+IPC-20 (output health, UX-02a) in review; next UX-02b's IPC-21..23 and VS2-13 (church patch).
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
@@ -21,6 +21,7 @@ VS2-12 (patch over IPC) in review; next VS2-13 (church patch).
 - QLC+ importer (VS2-09): `library/qlcplus.rs` (quick-xml serde) → `Import { profile, report }`, `CoreError::ImportFailed`; church files + expected profiles in `tests/fixtures/qlcplus/`. 15 tests in `tests/qlcplus.rs`.
 - Library (VS2-11): core `library::{Entry, Index}` (word search, user hides QLC+), `library::channel_list` (LIB-11, same rules as the importer), `qlcplus::header`; daemon `library.rs` (`Library::load/search/import_report/profile/save_profile/save_channel_list`, atomic user files) loaded on its own thread; `library.*` IPC answered in the client thread. `scripts/fetch-qlcplus.sh` fetches the QLC+ set (commit 3d832ce) into the git-ignored `vendor/qlcplus`; `tests/qlcplus_library.rs` imports all of it: 1779 of 1781 (two Eurolite files name a head channel outside their mode).
 - Patch over IPC (VS2-12, PAT-09): snapshot/delta `fixtures` entries `{id, number, name, profile, mode, universe, address, footprint, virtual_dimmer, handle}`, `patch.*` commands mapped 1:1 in `apply`; `ipc::attach_profile` fetches a `Manufacturer/Model` profile from the library in the client thread, the tick installs it only when the show has no profile under that key (`Engine::has_profile`); `Engine::patch_name`.
+- Output health over IPC (IPC-20, UX-02a): `output::OutputState` (Ok/Degraded/NoInterface/Stopped) and a lock-free `Status` per node thread; nodes report `state()`; snapshot `outputs` + `outputs` delta; the tick marks a dead node thread Stopped.
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress

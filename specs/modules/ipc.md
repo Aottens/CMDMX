@@ -94,5 +94,9 @@ The patch messages (snapshot `fixtures` entries, `fixtures` delta, `patch.*` com
 Patch screen are specified in `patch.md` PAT-09 and PAT-10; IPC-10's `fixtures` entries grow to
 the PAT-09 shape.
 
+### Main screen (UX-02)
+IPC-20..23 (output health, programmer contents, the first target's colour, absolute hue and
+saturation for the colour picker) are specified in `ui.md`, approved by the owner 2026-10-17.
+
 ## Out of scope (this version)
 Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), a colour picker or swatch (UX-02), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.

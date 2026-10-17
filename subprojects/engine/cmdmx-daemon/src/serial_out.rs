@@ -8,7 +8,7 @@ use serialport::{
     DataBits, FlowControl, Parity, SerialPort, SerialPortInfo, SerialPortType, StopBits,
 };
 
-use crate::output::Health;
+use crate::output::{Health, OutputState};
 
 const RESCAN: Duration = Duration::from_secs(1);
 const WRITE_TIMEOUT: Duration = Duration::from_millis(100);
@@ -79,6 +79,14 @@ impl SerialNode {
             }
         }
         self.write(data)
+    }
+
+    /// IPC-20: no port and not degraded = no interface found (yet).
+    pub fn state(&self) -> OutputState {
+        match (self.health.state(), &self.port) {
+            (OutputState::Ok, None) => OutputState::NoInterface,
+            (state, _) => state,
+        }
     }
 
     fn write(&mut self, data: &[u8]) -> Option<String> {
@@ -195,6 +203,20 @@ mod tests {
         let mut got = vec![0u8; expected.len()];
         master.read_exact(&mut got).unwrap();
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn ipc_20_serial_state_no_interface_ok_and_degraded() {
+        use crate::output::OutputState;
+        assert_eq!(SerialNode::new(None).state(), OutputState::NoInterface);
+        let (_master, slave) = TTYPort::pair().unwrap();
+        let mut node = SerialNode::new(None);
+        node.port = Some(Box::new(slave));
+        assert_eq!(node.send(&[0; 512], Instant::now()), None);
+        assert_eq!(node.state(), OutputState::Ok);
+        let mut missing = SerialNode::new(Some("/dev/cu.does-not-exist".into()));
+        missing.send(&[0; 512], Instant::now());
+        assert_eq!(missing.state(), OutputState::Degraded);
     }
 
     #[test]

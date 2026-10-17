@@ -75,6 +75,36 @@ struct LibraryItem: Decodable, Identifiable, Equatable {
     }
 }
 
+/// One output node as reported by the daemon (IPC-20). Every field falls back to a default,
+/// so an odd entry cannot drop the snapshot it came in.
+struct OutputStatus: Decodable, Identifiable, Equatable {
+    enum State { case ok, degraded, stopped }
+
+    let name: String
+    let state: State
+    let detail: String?
+    var id: String { name }
+
+    private enum CodingKeys: String, CodingKey { case name, state, detail }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = (try? c.decode(String.self, forKey: .name)) ?? "?"
+        switch try? c.decode(String.self, forKey: .state) {
+        case "Ok": state = .ok
+        case "Stopped": state = .stopped
+        default: state = .degraded   // "Degraded" or something newer: show it as a warning
+        }
+        detail = try? c.decode(String.self, forKey: .detail)
+    }
+}
+
+/// Decodes to nil instead of throwing, for fields that must never drop a whole message.
+private struct Tolerant<T: Decodable>: Decodable {
+    let value: T?
+    init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+}
+
 /// One recorded group; `fixtures` are in group order (IPC-10).
 struct GroupInfo: Decodable, Identifiable, Equatable {
     let id: Int
@@ -176,6 +206,8 @@ final class EngineClient: ObservableObject {
     /// Reply to the last `library.search` (this client only).
     @Published private(set) var libraryResults: [LibraryItem] = []
     @Published private(set) var programmer = ProgrammerState()
+    /// IPC-20: one entry per output node; empty while offline (the state is unknown then).
+    @Published private(set) var outputs: [OutputStatus] = []
 
     private let url = URL(string: "ws://127.0.0.1:7319")
     private var socket: URLSessionWebSocketTask?
@@ -291,6 +323,7 @@ final class EngineClient: ObservableObject {
             await runOneConnection()
             socket = nil
             connection = .offline
+            outputs = []
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
     }
@@ -332,9 +365,10 @@ final class EngineClient: ObservableObject {
         let groups: [GroupInfo]?
         let programmer: ProgrammerState?
         let items: [LibraryItem]?
+        fileprivate let outputs: Tolerant<[OutputStatus]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, playbacks, id, level, active, message, fixtures, groups, programmer, items
+            case type, playbacks, id, level, active, message, fixtures, groups, programmer, items, outputs
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
         }
@@ -357,12 +391,15 @@ final class EngineClient: ObservableObject {
             fixtures = incoming.fixtures ?? []
             groups = incoming.groups ?? []
             programmer = incoming.programmer ?? ProgrammerState()
+            outputs = incoming.outputs?.value ?? []
             connection = .online
         case "programmer":
             // IPC-12: the delta carries the IPC-11 fields at top level.
             if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }
         case "fixtures":
             if let fixtures = incoming.fixtures { self.fixtures = fixtures }
+        case "outputs":
+            if let outputs = incoming.outputs?.value { self.outputs = outputs }
         case "library.results":
             libraryResults = incoming.items ?? []
         case "groups":

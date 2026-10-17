@@ -1,261 +1,226 @@
 import AppKit
 import SwiftUI
 
-// Programmer workspace (IPC-15..17). Pure rendering of `EngineClient` state plus
-// command sending: no selection order, targets or wheel layout is computed here.
+// Shared controls and the attribute bar (IPC-16, IPC-17, IPC-19). Pure rendering of
+// `EngineClient` state plus command sending: no selection order, targets or wheel layout
+// is computed here. The Fixtures and Groups windows live in Windows.swift.
 
 let hairline: CGFloat = 1
-let radius: CGFloat = 3
+let radius: CGFloat = 2
 
-/// Flat 1 px button; `fill` is a state colour (blue = selected, red = armed / touched).
+/// Flat 1 px button; `fill` is a state tone (blue = selected, red = armed / touched).
 struct FlatButton: ButtonStyle {
-    var fill: Color?
+    enum Tone { case blue, red }
+    var fill: Tone?
+    /// Small variant for title rows.
+    var compact = false
+
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.caption)
-            .padding(.horizontal, 8).padding(.vertical, 3)
-            .foregroundStyle(fill == nil ? Color.primary : Color.white)
-            .background(RoundedRectangle(cornerRadius: radius).fill(fill ?? Color.secondary.opacity(0.12)))
-            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(Color.secondary.opacity(0.4), lineWidth: hairline))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+        FlatButtonBody(configuration: configuration, tone: fill, compact: compact)
     }
 }
 
-/// A window with a small title bar and an optional accessory (e.g. Record).
+private struct FlatButtonBody: View {
+    @Environment(\.theme) private var t
+    @Environment(\.isEnabled) private var enabled
+    let configuration: ButtonStyle.Configuration
+    let tone: FlatButton.Tone?
+    let compact: Bool
+
+    var body: some View {
+        let fill = tone.map { $0 == .blue ? t.blue : t.red }
+        configuration.label
+            .font(Typo.ui(compact ? Typo.small : 11))
+            .padding(.horizontal, compact ? 6 : 8).padding(.vertical, compact ? 1 : 3)
+            .foregroundStyle(fill == nil ? t.fg : Color.white)
+            .background(RoundedRectangle(cornerRadius: radius).fill(fill ?? t.surf2))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line2, lineWidth: hairline))
+            .opacity(!enabled ? 0.3 : configuration.isPressed ? 0.7 : 1)
+    }
+}
+
+/// A window with a 22 pt title row (UI-09): uppercase condensed title on the left, an optional
+/// accessory (e.g. Record, page tabs) and SF Mono info on the right. Content scrolls inside.
 struct PanelWindow<Accessory: View, Content: View>: View {
+    @Environment(\.theme) private var t
     let title: String
+    var info = ""
+    /// Draws a hairline around the window (side panels of the Patch screen).
+    var framed = false
     @ViewBuilder var accessory: Accessory
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text(title.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                Spacer()
+            HStack(spacing: 8) {
+                Text(title.uppercased()).font(Typo.legend(Typo.body, .semibold)).tracking(0.7)
+                    .foregroundStyle(t.fg).lineLimit(1)
+                Spacer(minLength: 0)
                 accessory
+                Text(info).font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1)
             }
-            .padding(.horizontal, 8).frame(height: 24)
-            .background(Color.secondary.opacity(0.12))
-            Divider()
+            .padding(.horizontal, 8).frame(height: 22)
+            HLine()
             content
         }
-        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(Color.secondary.opacity(0.4), lineWidth: hairline))
-        .clipShape(RoundedRectangle(cornerRadius: radius))
+        .background(t.bg)
+        .overlay { if framed { Rectangle().strokeBorder(t.line, lineWidth: hairline) } }
     }
 }
 
-// MARK: - Fixtures window (IPC-15)
+// MARK: - Attribute bar (IPC-16, IPC-17, IPC-19)
 
-struct FixturesWindow: View {
-    @EnvironmentObject private var engine: EngineClient
-
-    /// Display order only: by handle (page, slot); fixtures without a handle last, by number.
-    private static func handleOrder(_ a: FixtureInfo, _ b: FixtureInfo) -> Bool {
-        switch (a.handle, b.handle) {
-        case let (x?, y?): return (x.page, x.slot) < (y.page, y.slot)
-        case (_?, nil): return true
-        case (nil, _?): return false
-        case (nil, nil): return a.number < b.number
-        }
-    }
-
-    var body: some View {
-        let programmer = engine.programmer
-        // Display lookups only: 1-based position in the engine's selection order.
-        let order = Dictionary(programmer.selection.enumerated().map { ($1, $0 + 1) }, uniquingKeysWith: { a, _ in a })
-        // Thick outline only while the engine's targets differ from its selection (sub-selection).
-        let subSelection = programmer.targets != programmer.selection
-        let targets = Set(programmer.targets)
-        let inProgrammer = Set(programmer.inProgrammer)
-
-        PanelWindow(title: "Fixtures", accessory: { EmptyView() }) {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 60, maximum: 80), spacing: 4)], spacing: 4) {
-                    ForEach(engine.fixtures.sorted(by: Self.handleOrder)) { fixture in
-                        FixtureButton(
-                            fixture: fixture,
-                            position: order[fixture.id],
-                            isTarget: subSelection && targets.contains(fixture.id),
-                            inProgrammer: inProgrammer.contains(fixture.id)
-                        ) { engine.selectFixture(fixture.id) }
-                    }
-                }
-                .padding(6)
-            }
-        }
-    }
-}
-
-private struct FixtureButton: View {
-    let fixture: FixtureInfo
-    let position: Int?       // selection order, nil = not selected
-    let isTarget: Bool
-    let inProgrammer: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 1) {
-                Text("\(fixture.number)").font(.title3.weight(.semibold).monospacedDigit())
-                Text(fixture.profile).font(.caption2).lineLimit(1).minimumScaleFactor(0.6)
-                    .foregroundStyle(position == nil ? Color.secondary : Color.white.opacity(0.85))
-            }
-            .foregroundStyle(position == nil ? Color.primary : Color.white)
-            .frame(maxWidth: .infinity).frame(height: 46)
-            .background(position == nil ? Color.secondary.opacity(0.12) : Color.blue)
-            .contentShape(Rectangle())
-            .overlay(alignment: .top) {
-                if inProgrammer { Rectangle().fill(Color.red).frame(height: 4) }
-            }
-            .overlay(alignment: .topTrailing) {
-                if let position {
-                    Text("\(position)").font(.system(size: 9, weight: .bold).monospacedDigit())
-                        .padding(.horizontal, 3).background(Capsule().fill(Color.black.opacity(0.35)))
-                        .padding(2).padding(.top, inProgrammer ? 4 : 0)
-                }
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: radius)
-                    .strokeBorder(isTarget ? Color.primary : Color.secondary.opacity(0.4), lineWidth: isTarget ? 3 : hairline)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: radius))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Groups window (IPC-15)
-
-struct GroupsWindow: View {
-    @EnvironmentObject private var engine: EngineClient
-    /// While armed, the next group tap records instead of selecting.
-    @State private var recordArmed = false
-
-    var body: some View {
-        let byId = Dictionary(engine.groups.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        // Empty cells up to 16 (or one past the last group) so Record has a target.
-        let ids = Array(1...max(16, (engine.groups.map(\.id).max() ?? 0) + 1))
-
-        PanelWindow(title: "Groups", accessory: {
-            Button("Record") { recordArmed.toggle() }
-                .buttonStyle(FlatButton(fill: recordArmed ? .red : nil))
-                .controlSize(.small)
-        }) {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 56, maximum: 80), spacing: 4)], spacing: 4) {
-                    ForEach(ids, id: \.self) { id in
-                        GroupButton(id: id, count: byId[id]?.fixtures.count, armed: recordArmed) {
-                            if recordArmed {
-                                engine.recordGroup(id)
-                                recordArmed = false
-                            } else if byId[id] != nil {
-                                engine.selectGroup(id)
-                            }
-                        }
-                    }
-                }
-                .padding(6)
-            }
-        }
-    }
-}
-
-private struct GroupButton: View {
-    let id: Int
-    let count: Int?   // nil = empty cell
-    let armed: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 1) {
-                Text("\(id)").font(.title3.weight(.semibold).monospacedDigit())
-                Text(count.map { "\($0) fix" } ?? " ").font(.caption2).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity).frame(height: 46)
-            .background(count == nil ? Color.clear : Color.secondary.opacity(0.12))
-            .contentShape(Rectangle())
-            .overlay(
-                RoundedRectangle(cornerRadius: radius)
-                    .strokeBorder(armed ? Color.red : Color.secondary.opacity(count == nil ? 0.2 : 0.4),
-                                  lineWidth: armed ? 2 : hairline)
-            )
-            .opacity(count == nil && !armed ? 0.6 : 1)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Attribute bar (IPC-16, IPC-17)
-
+/// 64 pt zone: tabs, wheels (with the colour model switch), command line, programmer summary.
 struct AttributeBar: View {
+    @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     @State private var command = ""
 
     var body: some View {
         let programmer = engine.programmer
         let dirty = !programmer.selection.isEmpty || !programmer.inProgrammer.isEmpty
+        let touchedGroups = programmer.attributeGroups.filter(\.hasValues).map(\.group).joined(separator: " ")
 
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
+        HStack(spacing: 10) {
+            HStack(spacing: 2) {
                 ForEach(programmer.attributeGroups) { tab in
-                    Button(tab.group) { engine.setAttributeGroup(tab.group) }
-                        .buttonStyle(FlatButton(fill: tab.group == programmer.activeGroup ? .blue : nil))
-                        .disabled(!tab.available)
-                        .opacity(tab.available ? 1 : 0.35)
-                        .overlay(alignment: .topTrailing) {
-                            if tab.hasValues { Circle().fill(Color.red).frame(width: 6, height: 6).offset(x: -2, y: 2) }
+                    AttributeTab(tab: tab, active: tab.group == programmer.activeGroup) {
+                        engine.setAttributeGroup(tab.group)
+                    }
+                }
+            }
+
+            ViewThatFits(in: .horizontal) {
+                wheelRow(programmer)
+                ScrollView(.horizontal, showsIndicators: false) { wheelRow(programmer) }
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text("›").font(Typo.mono(13)).foregroundStyle(t.fg3)
+                    // Only keyboard-driven control in the app: no global key handlers (IPC-17).
+                    TextField("Command, e.g. 201 Thro 205 @ 50", text: $command)
+                        .textFieldStyle(.plain)
+                        .font(Typo.mono(13))
+                        .foregroundStyle(t.fg)
+                        .onSubmit {
+                            let words = command.split(whereSeparator: \.isWhitespace).map(String.init)
+                            if !words.isEmpty { engine.command(words: words) }
+                            command = ""
                         }
                 }
-                Spacer()
-                Button("Fix −1") { engine.step(-1) }.buttonStyle(FlatButton())
-                Button("Fix +1") { engine.step(1) }.buttonStyle(FlatButton())
-                Button("Odd/Even") { engine.pattern(2) }.buttonStyle(FlatButton())
-                Button("All") { engine.selectAll() }.buttonStyle(FlatButton())
-                Button("Clear") { engine.clearProgrammer() }.buttonStyle(FlatButton(fill: dirty ? .red : nil))
+                .padding(.horizontal, 8).frame(height: 26)
+                .background(RoundedRectangle(cornerRadius: radius).fill(t.bg))
+                .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+                Text(engine.lastMessage ?? " ").font(Typo.ui(11)).foregroundStyle(t.amber).lineLimit(1)
             }
+            .frame(minWidth: 200, maxWidth: .infinity)
 
-            HStack(spacing: 4) {
-                if programmer.activeGroup == "C" {
-                    // IPC-19: wire values are the engine's ColourModel names.
+            VStack(alignment: .leading, spacing: 0) {
+                Text(!programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
+                    .font(Typo.mono(13)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
+                Text("programmer").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
+            }
+            .frame(minWidth: 96, alignment: .leading)
+
+            VStack(spacing: 3) {
+                HStack(spacing: 3) {
+                    Button("Fix −1") { engine.step(-1) }
+                    Button("Fix +1") { engine.step(1) }
+                    Button("Odd/Even") { engine.pattern(2) }
+                }
+                HStack(spacing: 3) {
+                    Button("All") { engine.selectAll() }
+                    Button("Clear") { engine.clearProgrammer() }
+                        .buttonStyle(FlatButton(fill: dirty ? .red : nil, compact: true))
+                }
+            }
+            .buttonStyle(FlatButton(compact: true))
+        }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(t.bg)
+    }
+
+    /// The colour model switch (C tab only), then the wheels; at least three slots like the encoders.
+    private func wheelRow(_ programmer: ProgrammerState) -> some View {
+        HStack(spacing: 6) {
+            if programmer.activeGroup == "C" {
+                // IPC-19: wire values are the engine's ColourModel names.
+                VStack(spacing: 2) {
                     ForEach([("HSI", "Hsi"), ("RGB", "Rgb"), ("CMY", "Cmy")], id: \.1) { label, model in
                         Button(label) { engine.setColourModel(model) }
-                            .buttonStyle(FlatButton(fill: programmer.colourModel == model ? .blue : nil))
+                            .buttonStyle(ModeButton(on: programmer.colourModel == model))
                     }
-                    Divider().frame(height: 30)
                 }
-                ForEach(programmer.wheels) { wheel in
-                    WheelView(wheel: wheel)
-                }
-                if programmer.wheels.isEmpty {
-                    Text("No wheels").font(.caption).foregroundStyle(.secondary)
-                        .frame(height: 44)
-                }
-                Spacer()
             }
-
-            HStack(spacing: 8) {
-                // Only keyboard-driven control in the app: no global key handlers (IPC-17).
-                TextField("Command, e.g. 201 Thro 205 @ 50", text: $command)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.body.monospaced())
-                    .onSubmit {
-                        let words = command.split(whereSeparator: \.isWhitespace).map(String.init)
-                        if !words.isEmpty { engine.command(words: words) }
-                        command = ""
-                    }
-                if let message = engine.lastMessage {
-                    Text(message).font(.caption).foregroundStyle(.red).lineLimit(2)
-                        .frame(maxWidth: 320, alignment: .leading)
-                }
+            ForEach(programmer.wheels) { WheelView(wheel: $0) }
+            ForEach(programmer.wheels.count..<max(3, programmer.wheels.count), id: \.self) { slot in
+                EmptyWheel(slot: slot + 1)
             }
         }
-        .padding(8)
+    }
+}
+
+private struct AttributeTab: View {
+    @Environment(\.theme) private var t
+    let tab: AttributeGroupState
+    let active: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(tab.group).font(Typo.legend(13, .semibold))
+                .foregroundStyle(active ? t.bg : tab.available ? t.fg : t.fg2)
+                .frame(width: 30, height: 34)
+                .background(RoundedRectangle(cornerRadius: radius).fill(active ? t.fg : t.surf))
+                .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Theme.groupHue(tab.group).opacity(0.7)).frame(height: 2).padding(.horizontal, 4).padding(.bottom, 3)
+                }
+                .overlay(alignment: .topTrailing) {
+                    if tab.hasValues { Circle().fill(t.red).frame(width: 5, height: 5).padding(3) }
+                }
+                .opacity(tab.available ? 1 : 0.3)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!tab.available)
+    }
+}
+
+/// HSI / RGB / CMY switch next to the wheels.
+private struct ModeButton: ButtonStyle {
+    @Environment(\.theme) private var t
+    let on: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(Typo.mono(9))
+            .foregroundStyle(on ? t.bg : t.fg2)
+            .padding(.horizontal, 5).frame(height: 14)
+            .background(RoundedRectangle(cornerRadius: radius).fill(on ? t.fg : Color.clear))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}
+
+private struct EmptyWheel: View {
+    @Environment(\.theme) private var t
+    let slot: Int
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Text("enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
+                .frame(maxWidth: .infinity, alignment: .trailing).padding(.horizontal, 6).padding(.top, 4)
+            Text("—").font(Typo.mono(15, .medium)).foregroundStyle(t.fg3).padding(.leading, 6).padding(.top, 17)
+        }
+        .frame(width: 110, height: 46)
+        .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
+        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
     }
 }
 
 /// One wheel: name, value %, drag or scroll to send `programmer.wheel`.
 private struct WheelView: View {
+    @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     let wheel: WheelState
     /// Whole steps already sent during the current drag (remainder stays in the translation).
@@ -265,17 +230,19 @@ private struct WheelView: View {
     private let pointsPerStep: CGFloat = 4
 
     var body: some View {
-        VStack(spacing: 1) {
-            Text(wheel.attribute).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        ZStack(alignment: .topLeading) {
+            Text(wheel.attribute.uppercased()).font(Typo.legend(11)).tracking(0.6).foregroundStyle(t.fg2).lineLimit(1)
+                .padding(.leading, 6).padding(.top, 4)
             Text(wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
                  : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
                  ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value))
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(wheel.touched ? Color.red : Color.primary)
+                .font(Typo.mono(15, .medium))
+                .foregroundStyle(wheel.touched ? t.red : t.fg)
+                .padding(.leading, 6).padding(.top, 17)
         }
-        .frame(width: 76, height: 44)
-        .background(RoundedRectangle(cornerRadius: radius).fill(Color.secondary.opacity(0.12)))
-        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(Color.secondary.opacity(0.4), lineWidth: hairline))
+        .frame(width: 110, height: 46, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
+        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
         .background(ScrollCatcher { steps, flags in
             engine.wheel(attribute: wheel.attribute, steps: steps, resolution: resolution(flags))
         })
