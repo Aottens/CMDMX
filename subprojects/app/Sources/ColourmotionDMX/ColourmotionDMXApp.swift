@@ -6,9 +6,12 @@ import SwiftUI
 /// subprojects/app/INTERFACE.md and CLAUDE.md).
 @main
 struct ColourmotionDMXApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var engine = EngineClient()
 
     init() {
+        // Console mode is on by default (UI-26); the theme starts dark (UI-02).
+        UserDefaults.standard.register(defaults: ["consoleMode": true, "dayTheme": false, "keypadVisible": true])
         // `swift run` launches us without an app bundle; make sure we still get
         // a menu bar, a Dock icon and keyboard focus.
         NSApplication.shared.setActivationPolicy(.regular)
@@ -16,11 +19,13 @@ struct ColourmotionDMXApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("ColourmotionDMX") {
-            ContentView()
+        // One window only: the main screen.
+        Window("ColourmotionDMX", id: "main") {
+            MainScreen()
                 .environmentObject(engine)
-                .frame(minWidth: 960, minHeight: 600)
+                .frame(minWidth: 1280, minHeight: 800)
         }
+        .defaultSize(width: 1440, height: 900)
         .windowResizability(.contentMinSize)
     }
 }

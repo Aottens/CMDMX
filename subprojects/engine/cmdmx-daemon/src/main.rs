@@ -2,6 +2,7 @@
 //!
 //! Runs the deterministic core at 40 Hz with a demo patch and sends line 1 as
 //! Art-Net, sACN and ENTTEC Pro serial, each node on its own thread (OUT-11).
+//! Node states reach the app in the snapshot and the `outputs` delta (IPC-20).
 //! MIDI arrives with VS1-07 and must also stay off the tick thread.
 //!
 //! Usage: `cmdmx-daemon [--ticks N] [--artnet-target IPV4 | --no-artnet]
@@ -48,27 +49,40 @@ fn main() {
     };
     let ticks_limit = cli.ticks;
     // OUT-15/16/22: slice-only output config until node config lives in the show file.
-    // Each entry: (name, hand-off to its thread, thread still alive).
+    // Each entry: (hand-off to its thread, its shared state). `statuses` is the IPC-20 view
+    // of the same nodes, built once and updated in place each tick.
     let mut outputs = Vec::new();
+    let mut statuses: Vec<ipc::OutputStatus> = Vec::new();
     if let Some(target) = cli.artnet {
         eprintln!("art-net: line 1 → port-address 0 at {target}");
         let mut node = artnet_out::ArtNetNode::new(target, 0);
-        outputs.push((
-            "art-net",
-            output::spawn("art-net", move |f| node.send(f)),
-            true,
-        ));
+        let send = move |f: &output::FrameData| (node.send(f), node.state());
+        outputs.push(output::spawn("art-net", send));
+        statuses.push(ipc::OutputStatus {
+            name: "art-net",
+            state: output::OutputState::Ok,
+        });
     }
     if cli.sacn_enabled {
         let (target, priority) = (cli.sacn_target, cli.sacn_priority);
         eprintln!("sacn: line 1 → universe 1 at {target}, priority {priority}");
         let mut node = sacn_out::SacnNode::new(target, 1, priority);
-        outputs.push(("sacn", output::spawn("sacn", move |f| node.send(f)), true));
+        let send = move |f: &output::FrameData| (node.send(f), node.state());
+        outputs.push(output::spawn("sacn", send));
+        statuses.push(ipc::OutputStatus {
+            name: "sacn",
+            state: output::OutputState::Ok,
+        });
     }
     if cli.serial_enabled {
         let mut node = serial_out::SerialNode::new(cli.serial_path);
-        let send = move |f: &output::FrameData| node.send(f, Instant::now());
-        outputs.push(("serial", output::spawn("serial", send), true));
+        let send = move |f: &output::FrameData| (node.send(f, Instant::now()), node.state());
+        outputs.push(output::spawn("serial", send));
+        // Not scanned yet, so no interface until the thread says otherwise (IPC-20).
+        statuses.push(ipc::OutputStatus {
+            name: "serial",
+            state: output::OutputState::NoInterface,
+        });
     }
 
     let mut engine = match demo_engine() {
@@ -115,7 +129,7 @@ fn main() {
         eprintln!("library: cannot start the loader thread: {e}");
     }
     let mut clients = ipc::Clients::default();
-    let mut published = ipc::Published::new(&engine);
+    let mut published = ipc::Published::new(&engine, &statuses);
 
     eprintln!("cmdmx-daemon 0.1.0 — 40 Hz tick loop running.");
     let started = Instant::now();
@@ -130,7 +144,7 @@ fn main() {
         while let Ok(event) = events.try_recv() {
             let result = match event {
                 ipc::Event::Connected(tx) => {
-                    clients.add(tx, &ipc::snapshot(&engine));
+                    clients.add(tx, &ipc::snapshot(&engine, &statuses));
                     Ok(())
                 }
                 ipc::Event::Command(cmd) => apply(&mut engine, cmd, now),
@@ -149,17 +163,18 @@ fn main() {
         }
         engine.tick(now);
         let frame = engine.frame(1).map_or([0; UNIVERSE_SIZE], |f| *f.slots());
-        for (name, tx, alive) in &mut outputs {
-            if !output::publish(tx, &frame) && *alive {
-                eprintln!("{name} output thread stopped; tick continues");
-                *alive = false;
+        for ((tx, status), out) in outputs.iter().zip(&mut statuses) {
+            if !output::publish(tx, &frame) && status.get() != output::OutputState::Stopped {
+                eprintln!("{} output thread stopped; tick continues", out.name);
+                status.set(output::OutputState::Stopped);
             }
+            out.state = status.get();
         }
         for w in engine.drain_warnings() {
             eprintln!("warning @{:.3}: {}", w.at, w.message);
             clients.broadcast(&ipc::warning(&w.message));
         }
-        for msg in published.diff(&engine) {
+        for msg in published.diff(&engine, &statuses) {
             clients.broadcast(&msg);
         }
 
