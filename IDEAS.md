@@ -28,6 +28,7 @@ the backlog, not the whole idea.
 | IDEA-04 | Phase 1 = programming the building blocks of any show (robust programmer); cue lists and busking both run on them | accepted 2026-10-17 | 1 | PRD, PRG, new `cuelists.md` |
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
+| IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | triaged | 1 (with VS2-05), owner to confirm | PRG, app |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -71,3 +72,20 @@ the backlog, not the whole idea.
 
 ### Decision these ideas force now
 IDEA-02 and IDEA-03 only work if palettes and cues store a colour as a **target colour** (device-independent) and not as raw DMX channel values. The palettes spec (P1-03) and the show file fix that format, so this decision must come **before** P1-03, otherwise phase 2 means rewriting palettes and show files. → `BACKLOG.md` P1-07.
+
+### IDEA-07 — Double-click a wheel to clear that attribute (2026-10-17, VS2-14 run)
+**Owner's intent:** turning White back to 0 % still leaves "White 0 %" in the programmer, so it
+would record as a value. Often you want the attribute *out* of the programmer instead, so it
+shows through from the playbacks again. Double-clicking the wheel (or the parameter) should do that.
+**Triage:**
+- The engine side already exists as a concept: PRG-27 **Off** removes touched values by attribute
+  group mask (VS2-05, not built yet). This idea is the same action for one attribute of the
+  targets, plus a quick gesture in the app.
+- Proposed: a PRG criterion "Off for one attribute" next to PRG-27 (`programmer.off {attribute}`
+  over IPC), built with VS2-05; double-click on a wheel in the app sends it. The BCF2000 and
+  later remotes get their own gesture (e.g. Off + touch the encoder, as consoles do).
+- Touches nothing built so far; the Colour wheels (Hue/Saturation/Red/…) would take Colour out
+  as a whole, since it is one value (ADR-005).
+**Open questions:** double-click on the wheel, or on its name only (a double-click while dragging
+could misfire)? Should it clear for all targets or only the fixture whose value the wheel shows
+(all targets, consistent with how wheels work)?

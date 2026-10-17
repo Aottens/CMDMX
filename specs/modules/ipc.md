@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -56,10 +56,17 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   `programmer.command {"tokens":["201","Thro","205","Enter"]}` (PRG-08..11) ·
   `group.record {"group":3}` (PRG-07). Missing or ill-typed fields → `error` to the sender.
 - **IPC-14** Demo show: after the eight demo dimmers (fixtures 1–8 on channels 1–8, IPC-09 unchanged)
-  the daemon patches the church rig on universe 1: washes 101–104 (Dimmer, Pan 16-bit, Tilt, Zoom;
-  5 channels each from address 9), pars 201–208 and 221–226 and spots 301–306 as one-channel
-  dimmers from address 29 (201 = 29 … 306 = 48), and records groups 1 All church fixtures,
-  2 Washes, 3 Pars, 4 Front spots. Colour attributes follow with ADR-005 (VS2-06).
+  the daemon patches the church rig on universe 1, each fixture right after the previous one:
+  washes 101–104 (Dimmer, Pan 16-bit, Tilt, Zoom, R, G, B, White; 9 channels from 9), RGBW pars
+  201–208 (Dimmer, R, G, B, White; 5 channels from 45), RGB+Lime pars 211–216 (R, G, B, Lime,
+  virtual dimmer; 4 channels from 85), RGB pars 221–226 (Showtec LED Par 56 "6 Channel": R, G, B,
+  Mode, Speed, Strobe, virtual dimmer; from 109) and front spots 301–306 as one-channel dimmers
+  (145–150); and records groups 1 All church fixtures, 2 Washes, 3 Pars (201–208, 211–216,
+  221–226), 4 Front spots. White and Lime are emitters (LIB-17).
+
+- **IPC-18** `programmer.colour_model {"model":"Rgb"}` (`Hsi`, `Rgb`, `Cmy`) sets the colour model
+  (PRG-30); the change reaches every client as a `programmer` delta (IPC-12). Another model name
+  or a missing field → `error` to the sender.
 
 ### App programmer workspace (verified by `swift build` + `tests/manual/app-programmer.md`)
 - **IPC-15** The palette placeholder above the faders becomes two windows. Fixtures: one button per
@@ -78,6 +85,9 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   `"Enter"` as `programmer.command` and empties the field. Next to it a message line shows the
   latest `warning` or `error` until the next command is sent. While the field has focus, keys
   never trigger anything else.
+- **IPC-19** On the C tab the attribute bar shows three buttons HSI, RGB and CMY, the one in
+  `colour_model` highlighted; a click sends `programmer.colour_model`. The Hue wheel shows its
+  value in degrees (`value × 360`, no decimals); every other wheel stays in %.
 
 ## Out of scope (this version)
-Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), colour (VS2-06), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.
+Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), a colour picker or swatch (UX-02), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.

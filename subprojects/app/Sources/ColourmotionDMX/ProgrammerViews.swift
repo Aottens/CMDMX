@@ -206,6 +206,14 @@ struct AttributeBar: View {
             }
 
             HStack(spacing: 4) {
+                if programmer.activeGroup == "C" {
+                    // IPC-19: wire values are the engine's ColourModel names.
+                    ForEach([("HSI", "Hsi"), ("RGB", "Rgb"), ("CMY", "Cmy")], id: \.1) { label, model in
+                        Button(label) { engine.setColourModel(model) }
+                            .buttonStyle(FlatButton(fill: programmer.colourModel == model ? .blue : nil))
+                    }
+                    Divider().frame(height: 30)
+                }
                 ForEach(programmer.wheels) { wheel in
                     WheelView(wheel: wheel)
                 }
@@ -249,7 +257,8 @@ private struct WheelView: View {
     var body: some View {
         VStack(spacing: 1) {
             Text(wheel.attribute).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            Text(wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
+            Text(wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
+                 : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
                  ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value))
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(wheel.touched ? Color.red : Color.primary)
