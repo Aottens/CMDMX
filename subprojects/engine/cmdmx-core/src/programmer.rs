@@ -155,6 +155,26 @@ impl Programmer {
         self.changed = false;
     }
 
+    /// PAT-05: the fixture is gone; drop it from the selection (ending any sub-selection) and the values.
+    pub(crate) fn remove_fixture(&mut self, fixture: FixtureId) {
+        self.values.remove(&fixture);
+        let before = self.selection.len();
+        self.selection.retain(|&f| f != fixture);
+        if self.selection.len() != before {
+            self.sub = Sub::None;
+        }
+    }
+
+    /// PAT-13: drop one attribute value of a fixture.
+    pub(crate) fn remove_value(&mut self, fixture: FixtureId, attribute: &str) {
+        if let Some(attrs) = self.values.get_mut(&fixture) {
+            attrs.remove(attribute);
+            if attrs.is_empty() {
+                self.values.remove(&fixture);
+            }
+        }
+    }
+
     /// PRG-29: empty the programmer's values.
     pub(crate) fn clear_values(&mut self) {
         self.values.clear();

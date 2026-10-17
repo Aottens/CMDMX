@@ -89,6 +89,9 @@ fn rig() -> Engine {
     ] {
         e.patch(Fixture {
             id,
+            number: 0,
+            name: String::new(),
+            handle: None,
             profile: profile.into(),
             mode: None,
             universe: 1,

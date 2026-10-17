@@ -47,7 +47,7 @@ to end up with two fixtures on the same channel by accident.
   by name; programmer values and recorded data for attributes the new mode lacks are dropped with
   a warning; a bigger footprint is checked as in PAT-02 and refused on a clash.
 - **PAT-14** Handles (Titan fixture buttons): a patch assigns each new fixture the next free slot in
-  the Fixtures window in patch order; `patch.handle {id, page, slot}` moves a button to a free slot
+  the Fixtures window in patch order (pages of `handles_per_page` slots, a setting, default 40); `patch.handle {id, page, slot}` moves a button to a free slot
   (or swaps with the occupant). The Fixtures window (IPC-15) shows fixtures by handle.
 - **PAT-07** A fixture patched with a mode that has `virtual_dimmer` gets a Dimmer attribute
   without a channel (LIB-04); the patch list shows it as "virtual dimmer".

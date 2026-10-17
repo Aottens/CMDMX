@@ -283,6 +283,9 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     for n in 1..=u32::from(Settings::default().faders_per_page) {
         engine.patch(Fixture {
             id: n,
+            number: 0,
+            name: String::new(),
+            handle: None,
             profile: "dimmer".into(),
             mode: None,
             universe: 1,
@@ -315,6 +318,9 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
         for id in ids {
             engine.patch(Fixture {
                 id,
+                number: 0,
+                name: String::new(),
+                handle: None,
                 profile: key.into(),
                 mode: None,
                 universe: 1,

@@ -511,6 +511,9 @@ mod tests {
         .unwrap();
         e.patch(Fixture {
             id: 1,
+            number: 0,
+            name: String::new(),
+            handle: None,
             profile: "dimmer".into(),
             mode: None,
             universe: 1,
