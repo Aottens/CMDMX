@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::patch::FixtureId;
+use crate::value::Value;
 
 pub type PlaybackId = u32;
 
@@ -55,8 +56,8 @@ impl From<FaderMode> for u8 {
     }
 }
 
-/// Attribute values a playback proposes: fixture → attribute name → 0.0..=1.0.
-pub type Values = BTreeMap<FixtureId, BTreeMap<String, f32>>;
+/// Attribute values a playback proposes: fixture → attribute name → level or colour.
+pub type Values = BTreeMap<FixtureId, BTreeMap<String, Value>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Playback {

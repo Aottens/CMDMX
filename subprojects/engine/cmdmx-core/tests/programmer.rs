@@ -10,6 +10,7 @@ mod common;
 
 use cmdmx_core::engine::Engine;
 use cmdmx_core::patch::FixtureId;
+use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
 use common::{church, select};
 
@@ -69,7 +70,7 @@ fn prg_03_selecting_after_a_change_starts_a_new_selection() {
     e.set_programmer_value(201, "Dimmer", 0.5).unwrap();
     e.select_fixture(202).unwrap();
     assert_eq!(selection(&e), vec![202]);
-    assert_eq!(e.programmer().value(201, "Dimmer"), Some(0.5));
+    assert_eq!(e.programmer().value(201, "Dimmer"), Some(Value::Level(0.5)));
 }
 
 #[test]

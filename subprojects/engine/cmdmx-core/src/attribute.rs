@@ -99,14 +99,18 @@ impl AttributeDef {
     /// DMX bytes. 8-bit attributes round to the nearest step; 16-bit attributes
     /// use the full 0..=65535 range.
     pub fn to_dmx(&self, value: f32) -> (u8, Option<u8>) {
-        let v = value.clamp(0.0, 1.0);
-        match self.fine_channel {
-            None => ((v * 255.0).round() as u8, None),
-            Some(_) => {
-                let wide = (v * 65535.0).round() as u16;
-                ((wide >> 8) as u8, Some((wide & 0xFF) as u8))
-            }
-        }
+        split_dmx(value, self.fine_channel.is_some())
+    }
+}
+
+/// [`AttributeDef::to_dmx`] for anything with an optional fine byte (colour components too).
+pub(crate) fn split_dmx(value: f32, sixteen_bit: bool) -> (u8, Option<u8>) {
+    let v = value.clamp(0.0, 1.0);
+    if sixteen_bit {
+        let wide = (v * 65535.0).round() as u16;
+        ((wide >> 8) as u8, Some((wide & 0xFF) as u8))
+    } else {
+        ((v * 255.0).round() as u8, None)
     }
 }
 

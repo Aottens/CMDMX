@@ -9,7 +9,9 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
+use crate::colour::ColourModel;
 use crate::patch::FixtureId;
+use crate::value::Value;
 
 pub type GroupId = u32;
 
@@ -63,6 +65,7 @@ pub struct ProgrammerView {
     pub attribute_groups: Vec<AttributeGroupState>,
     pub wheels: Vec<WheelState>,
     pub in_programmer: Vec<FixtureId>,
+    pub colour_model: ColourModel,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -71,7 +74,7 @@ pub struct Programmer {
     sub: Sub,
     /// Set by a value change; the next select starts a new selection (PRG-03).
     changed: bool,
-    values: BTreeMap<FixtureId, BTreeMap<String, f32>>,
+    values: BTreeMap<FixtureId, BTreeMap<String, Value>>,
     /// Engine activation counter at the last value change: orders the
     /// programmer against other sources in LTP ties (ENG-04).
     activated: u64,
@@ -97,11 +100,11 @@ impl Programmer {
         }
     }
 
-    pub fn value(&self, fixture: FixtureId, attribute: &str) -> Option<f32> {
+    pub fn value(&self, fixture: FixtureId, attribute: &str) -> Option<Value> {
         self.values.get(&fixture)?.get(attribute).copied()
     }
 
-    pub fn values(&self) -> &BTreeMap<FixtureId, BTreeMap<String, f32>> {
+    pub fn values(&self) -> &BTreeMap<FixtureId, BTreeMap<String, Value>> {
         &self.values
     }
 
@@ -204,7 +207,7 @@ impl Programmer {
         &mut self,
         fixture: FixtureId,
         attribute: &str,
-        value: f32,
+        value: Value,
         activated: u64,
     ) {
         self.activated = activated;

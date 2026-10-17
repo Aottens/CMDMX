@@ -13,6 +13,7 @@ mod common;
 
 use cmdmx_core::attribute::AttributeGroup::{self, *};
 use cmdmx_core::programmer::{AttributeGroupState, ProgrammerView, WheelState};
+use cmdmx_core::value::Value;
 use common::{church, select};
 
 fn group_state(view: &ProgrammerView, g: AttributeGroup) -> &AttributeGroupState {
@@ -28,7 +29,7 @@ fn prg_29_first_clear_deselects_second_empties_the_programmer() {
         .unwrap();
     e.clear();
     assert!(e.programmer().selection().is_empty());
-    assert_eq!(e.programmer().value(201, "Dimmer"), Some(0.5));
+    assert_eq!(e.programmer().value(201, "Dimmer"), Some(Value::Level(0.5)));
     e.clear();
     assert!(e.programmer().is_empty());
     e.clear(); // already empty: harmless
@@ -146,7 +147,10 @@ fn eng_07_htp_falls_to_zero_when_the_last_source_is_killed_ltp_holds() {
         fader_mode: FaderMode::Mode0,
         values: BTreeMap::from([(
             101,
-            BTreeMap::from([("Dimmer".to_string(), 1.0), ("Tilt".to_string(), 0.6)]),
+            BTreeMap::from([
+                ("Dimmer".to_string(), 1.0.into()),
+                ("Tilt".to_string(), 0.6.into()),
+            ]),
         )]),
     });
     e.set_fader(1, 1.0, 0.0).unwrap();
