@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Colour as a target colour plus direct emitters (ADR-005, proposed)
+
+**Decision:** One `Colour` attribute per fixture holds a linear RGB target colour in the BT.2020 reference space; White, Lime and other extra emitters are ordinary attributes the operator drives directly; phase 1 maps the target colour nominally onto each fixture's RGB or CMY channels; a colour palette with a target colour zeroes the emitters it does not mention. See `specs/ADRs/ADR-005-target-colour-and-direct-emitters.md`.
+
+**Alternatives considered:** raw DMX per emitter; CIE xyY storage; sRGB reference space; automatic white/lime extraction.
+
+**Reasoning:** Palettes must work across the church's three LED colour systems now and accept gels and calibration later without rewriting shows; the owner wants White and Lime under direct control.
+
+**Reversal trigger:** nominal mapping makes the mixed pars unusable side by side, or direct-only emitters are too much work for everyday whites.
+
+---
+
 ## 2026-10-17 — Programmer behaviour choices (P1-02)
 
 **Decision:** Clear defaults to selection-then-programmer (Titan's one-press Clear is a setting); Locate removes the located attributes from the programmer; a typed command-line selection replaces the selection while tapping adds; Fan and Blind stay out of phase 1 (greyed in UI v0.1); undo gets its own item (P1-10). Spec: `specs/modules/programmer.md`.

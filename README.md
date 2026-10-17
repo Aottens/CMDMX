@@ -13,7 +13,8 @@ washes, mixed LED pars, theatre spots) on ColourmotionDMX instead of Lightkey.
 serial at 40 Hz, and the app's faders drive DMX over a local WebSocket. The programmer is being
 built: selection, groups, stepping, patterns, the keypad command line, wheels and programmer
 output work, and the app drives them (fixtures and groups windows, attribute bar, command line)
-against a demo of the church rig. The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
+against a demo of the church rig. Colour model: proposed in ADR-005 (one target colour per
+fixture, White/Lime driven directly). The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
 Details in `STATE.md` and `BACKLOG.md`.
 
 ## Layout
