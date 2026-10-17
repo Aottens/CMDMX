@@ -13,7 +13,7 @@ Scaffold landed; vertical slice 1 starts with VS1-02 (Art-Net socket on its own 
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress
-- VS1-05 in review
+- nothing
 
 ## Known gaps (by design, each waits for its spec)
 - Programmer (ENG-04), release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, show file (SHW-*), IPC (IPC-*), GDTF (LIB-*).
