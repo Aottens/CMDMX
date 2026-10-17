@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 draft for owner approval (VS2-07)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -32,5 +32,51 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 - **IPC-08** The app connects to `ws://127.0.0.1:7319` on launch. While not connected it shows the "engine offline" banner and retries every second; on (re)connect it rebuilds its state from the snapshot.
 - **IPC-09** Moving an on-screen fader sends `fader.set` (slot n → playback n for now; paging is VS1-06) and the grand master sends `grand_master.set`; the displayed levels follow the deltas. To make this testable the daemon's demo show has one dimmer per fader (playback n → channel n of universe 1), and the breathing demo on playback 1 only runs with `--demo` (so it does not fight the app's fader).
 
+### Programmer (VS2-07; behaviour in `programmer.md`)
+- **IPC-10** The snapshot gains three keys: `"fixtures":[{"id":101,"profile":"wash"}]` (every patched
+  fixture, sorted by id), `"groups":[{"id":2,"fixtures":[101,102,103,104]}]` (sorted by id, members
+  in group order) and `"programmer":{…}` (IPC-11).
+- **IPC-11** The programmer state object:
+  `{"selection":[203,201],"targets":[203],"active_group":"P","attribute_groups":[{"group":"I","available":true,"has_values":false},…],"wheels":[{"attribute":"Pan","value":0.5,"touched":true}],"in_programmer":[201,203]}`.
+  `attribute_groups` has eight entries in I P C G B E S FX order: `available` = some target has an
+  attribute in that group, `has_values` = some target has a programmer value in it. `wheels` is
+  the wheel layout (PRG-17) with, per attribute, the value of the first target that has it
+  (programmer value if touched, else the current output, PRG-20) and whether that value is
+  touched. `in_programmer` lists fixtures with programmer values, sorted.
+- **IPC-12** Deltas: `{"v":0,"type":"programmer",…IPC-11 fields}` to every client after a tick in
+  which any of those fields changed, and `{"v":0,"type":"groups","groups":[…]}` after a tick in
+  which a group was recorded. At most one of each per tick.
+- **IPC-13** Commands, each mapped 1:1 onto the engine (refusals are warnings, IPC-06):
+  `programmer.select {"fixture":201}` (PRG-01) · `programmer.select_group {"group":3}` (PRG-02) ·
+  `programmer.step {"direction":1}` / `-1` (Fix ±1, PRG-04/05) · `programmer.pattern {"stages":2}`
+  (PRG-05) · `programmer.all` (PRG-06) · `programmer.clear` (PRG-29, default behaviour only) ·
+  `programmer.attribute_group {"group":"P"}` (PRG-18) ·
+  `programmer.wheel {"attribute":"Pan","steps":-3,"resolution":"Fine"}` (PRG-19..21; integer
+  steps, `resolution` Normal/Fine/Coarse, default Normal) ·
+  `programmer.command {"tokens":["201","Thro","205","Enter"]}` (PRG-08..11) ·
+  `group.record {"group":3}` (PRG-07). Missing or ill-typed fields → `error` to the sender.
+- **IPC-14** Demo show: after the eight demo dimmers (fixtures 1–8 on channels 1–8, IPC-09 unchanged)
+  the daemon patches the church rig on universe 1: washes 101–104 (Dimmer, Pan 16-bit, Tilt, Zoom;
+  5 channels each from address 9), pars 201–208 and 221–226 and spots 301–306 as one-channel
+  dimmers from address 29 (201 = 29 … 306 = 48), and records groups 1 All church fixtures,
+  2 Washes, 3 Pars, 4 Front spots. Colour attributes follow with ADR-005 (VS2-06).
+
+### App programmer workspace (verified by `swift build` + `tests/manual/app-programmer.md`)
+- **IPC-15** The palette placeholder above the faders becomes two windows. Fixtures: one button per
+  fixture (number and profile); selected = blue with its selection-order number, target = bold
+  outline, in programmer = red top strip. Groups: one button per group (number and fixture
+  count); a tap sends `programmer.select_group`; a Record button arms, and the next group tap
+  (empty or used) sends `group.record`. Every state shown comes from IPC-10..12.
+- **IPC-16** An attribute bar between the windows and the faders: eight tabs I P C G B E S FX
+  (active, available, has values; unavailable tabs disabled) sending
+  `programmer.attribute_group`; one wheel per `wheels` entry with name and value in %, red when
+  touched; dragging it vertically (1 step per 4 pt) or scrolling (1 step per tick) sends
+  `programmer.wheel`, with Option = Fine and Shift = Coarse; buttons Fix −1, Fix +1, Odd/Even
+  (pattern 2), All and Clear (Clear red while the selection or programmer is non-empty).
+- **IPC-17** A command line in the attribute bar: one text field; Return sends its words plus
+  `"Enter"` as `programmer.command` and empties the field. Next to it a message line shows the
+  latest `warning` or `error` until the next command is sent. While the field has focus, keys
+  never trigger anything else.
+
 ## Out of scope (this version)
-Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), programmer and palette messages, command acknowledgements, binary encoding.
+Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), colour (VS2-06), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.
