@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **draft for owner approval (P1-01)**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **draft for owner approval (P1-01)**; revised 2026-10-17 (no church-driven cuts). Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -15,14 +15,17 @@ model, and a show carries the profiles it uses.
 - **Profile:** one fixture type: `manufacturer`, `model`, `source` (e.g. `qlcplus:Shehds/…qxf`,
   `channel-list`), and one or more **modes**. Identified by `manufacturer/model`.
 - **Mode:** `name`, `footprint` (channels), **attributes**, an optional **colour mixing system**,
-  and `virtual_dimmer` (true when the mode mixes colour but has no dimmer channel).
+  `virtual_dimmer` (true when the mode mixes colour but has no dimmer channel), optional
+  **cells** and optional physical ranges (`pan_degrees`, `tilt_degrees`, `zoom_degrees`).
+- **Cell:** one head of a multi-head mode, with its own colour components, emitters and
+  optionally its own dimmer channel.
 - **Attribute:** `name` (Dimmer, Pan, Tilt, Strobe, Zoom, Focus, White, Lime, …), `group`
-  (I P C G B E S FX), `kind` (HTP/LTP), `channels` (1-based offsets; more than one when several
-  heads share it, phase 1), optional `fine` offsets, `default` (0.0–1.0, default 0), optional
+  (I P C G B E S FX), `kind` (HTP/LTP), `channel` (1-based offset), optional `fine` offset,
+  optional `slots` for wheel-type channels (ranges with a name and, for colour wheels, a colour), `default` (0.0–1.0, default 0), optional
   `locate` and `highlight` values.
-- **Colour mixing system (ADR-005):** `RGB` or `CMY`, with the channel offsets of each component
-  (several per component when several heads mix). It is the fixture's one `Colour` attribute
-  (group C, LTP). Extra emitters (White, Amber, Lime, UV, Indigo) are ordinary C attributes.
+- **Colour mixing system (ADR-005):** `RGB` or `CMY`, with the channel offset of each component.
+  It is the fixture's one `Colour` attribute (group C, LTP). Extra emitters (White, Amber, Lime,
+  UV, Indigo) are ordinary C attributes. A multi-cell mode has them per cell.
 - **Import report:** per source channel: what it became (attribute, colour component, emitter) or
   "kept as a plain channel", plus warnings.
 
@@ -56,10 +59,18 @@ model, and a show carries the profiles it uses.
   attribute takes the channel's name, LTP, default 0, and the report marks it "kept as a plain
   channel". A channel whose QLC+ colour hint names a colour (Red, Green, …) is treated like the
   matching preset.
-- **LIB-07** Heads: channels with the same role in several heads of one mode become one attribute
-  (or one colour component) driving all of them. Shehds 19x15 "24 Channel" (three RGBW heads) →
-  one Colour with three channels per component and one White with three channels; whole-fixture
-  control only in phase 1.
+- **LIB-07** Heads become cells: Shehds 19x15 "24 Channel" (three RGBW heads) → a mode with three
+  cells, each with its own RGB components and White. The fixture as a whole still has one Colour
+  and one White: setting them drives every cell (the master), so the fixture works before
+  per-cell control exists. Per-cell selection (`201.2`, Unfold) is a programmer task with its own
+  PRG criteria; the model does not change for it.
+- **LIB-15** Wheel-type channels keep their slots: for each QLC+ capability range its name, and for
+  colour-wheel slots its colour (QLC+ `Res1`/colour hint) converted to a target colour (ADR-005),
+  so a target colour can later pick the nearest slot. `ColorWheel` → Colour Wheel (C) with slots;
+  `GoboWheel` → Gobo (G) with slot names.
+- **LIB-16** Physical ranges are imported where the source has them (QLC+ `Focus PanMax/TiltMax`,
+  `Lens DegreesMin/Max`): Shehds 19x15 → pan 540°, tilt 180°, zoom 8–55°. They are stored for
+  degree display on the wheels and position palettes; nothing depends on them yet.
 - **LIB-08** A mode that mixes colour but has no Dimmer gets `virtual_dimmer = true` (Showtec LED
   Par 56 "6 Channel"). A mode with both a master dimmer and colour channels does not.
 - **LIB-09** Every mode of the file is imported with its QLC+ name and footprint. Scenario test:
@@ -91,11 +102,12 @@ model, and a show carries the profiles it uses.
   (at most 50 items); `library.import_report {"manufacturer","model"}` → the report;
   `library.save_channel_list {...}` → creates a user profile (LIB-11). Errors as IPC-06.
 
-## Out of scope (phase 1)
-GDTF and OFL importers (ADR-006 order), Lightkey profile import (checked once a file is available),
-per-cell control of multi-head fixtures (heads are merged, LIB-07), colour-wheel slot selection by
-colour, physical units (degrees, beam angle) on the wheels, a graphical profile editor beyond
-LIB-12's fields.
+## Out of scope (this spec)
+The GDTF importer (its own spec section and task after QLC+, phase 1, ADR-006) and the OFL
+importer (later: QLC+ already covers most of OFL's budget fixtures); Lightkey profile import
+(checked once a file is available); per-cell selection (PRG task, LIB-07); picking a colour-wheel
+slot from a target colour (VS2-06 follow-up, LIB-15 provides the data); showing degrees on the
+wheels (UX); a graphical profile editor beyond LIB-12's fields.
 
 ## Open questions for the owner
 1. Shehds 19x15: QLC+ calls the zoom channel **Focus** (`BeamFocusNearFar`). If Lightkey calls it

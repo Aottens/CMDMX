@@ -31,9 +31,10 @@ The owner's view: do not reinvent the library.
    1. **QLC+ `.qxf`** (phase 1): covers almost the whole church rig.
    2. **Profile from a channel list** (phase 1): typed in for fixtures no library has (the church's
       U'King RGB+Lime pars) or where a library profile is wrong.
-   3. **GDTF** (when a rig needs it, likely phase 2) via the `gdtf` crate (MIT): for brand-name
-      fixtures and the per-emitter colour data calibration needs (IDEA-03).
-   4. **OFL JSON** (on demand).
+   3. **GDTF** (phase 1, after QLC+) via the `gdtf` crate (MIT): for brand-name fixtures and the
+      per-emitter colour data calibration needs (IDEA-03). The church is the playground, not the
+      limit: a Titan-class console must take manufacturer profiles.
+   4. **OFL JSON** (later): QLC+ already covers most of OFL's budget fixtures.
    Importing the owner's own Lightkey custom profiles (`.lightkeyfxt`) is checked once a file is
    available; Lightkey's own library is theirs and is not imported.
 3. **The QLC+ library ships with the app**, fetched at build time from a pinned commit of the

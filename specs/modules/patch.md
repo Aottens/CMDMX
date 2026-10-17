@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **draft for owner approval (P1-11)**. Builds on `fixture-library.md` (profile + mode).
+Status: **draft for owner approval (P1-11)**; owner decisions folded in 2026-10-17. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -11,9 +11,11 @@ overlaps. The patch is what the programmer, palettes and cues refer to, so it mu
 to end up with two fixtures on the same channel by accident.
 
 ## Definitions
-- **Fixture:** `number` (the user number the operator types and every other part of the show
-  refers to; unique), `name` (optional legend), `profile` (`manufacturer/model`), `mode`,
-  `universe` (1-based), `address` (1–512).
+- **Fixture:** `id` (internal, assigned by the engine at patch time, never shown, never reused;
+  every reference in the show — selection, programmer, groups, palettes, cues — uses it),
+  `number` (the user number the operator types and sees; unique; changeable), `name` (optional
+  legend), `profile` (`manufacturer/model`), `mode`, `universe` (1-based), `address` (1–512),
+  `handle` (its button position in the Fixtures window: page and slot).
 - **Footprint:** the mode's channel count; a fixture occupies `address … address + footprint − 1`.
 
 ## Acceptance criteria
@@ -29,14 +31,24 @@ to end up with two fixtures on the same channel by accident.
   after the highest used. Refused if no such run exists.
 - **PAT-04** `patch.move` gives one fixture a new universe/address under the same checks as PAT-02
   (its own old channels do not count as a clash). Programmer values, groups and recorded data
-  follow the fixture because they refer to its number.
-- **PAT-05** `patch.remove` removes fixtures by number. They leave the selection, the programmer and
+  follow the fixture because they refer to its id.
+- **PAT-05** `patch.remove` removes fixtures. They leave the selection, the programmer and
   every group; the frame channels they used drop to 0 at the next tick. Removal is always allowed
   in phase 1; recorded data referring to a removed number is ignored with a warning on load
   (SHW-08 rule for dangling references).
-- **PAT-06** `patch.renumber` changes a fixture's number to an unused one and rewrites every
-  reference in the engine (selection, programmer, groups; later palettes and cues) in the same
-  step.
+- **PAT-06** `patch.renumber` changes a fixture's user number to an unused one; nothing else
+  changes, because every reference uses the id. Renumbering 201–208 to 1201–1208 leaves groups,
+  programmer values and recorded data untouched; `1201 Enter` now selects what `201` did.
+- **PAT-12** User numbers are resolved to ids at the edges: the command line (PRG-08) and remote
+  surfaces take user numbers; IPC messages and the show file carry ids, and the snapshot's
+  `fixtures` list maps id → number for display. Internal ids are never reused after removal, so a
+  stale reference can never point at a different fixture.
+- **PAT-13** `patch.change_mode` gives a fixture another mode of its profile. Attributes are matched
+  by name; programmer values and recorded data for attributes the new mode lacks are dropped with
+  a warning; a bigger footprint is checked as in PAT-02 and refused on a clash.
+- **PAT-14** Handles (Titan fixture buttons): a patch assigns each new fixture the next free slot in
+  the Fixtures window in patch order; `patch.handle {id, page, slot}` moves a button to a free slot
+  (or swaps with the occupant). The Fixtures window (IPC-15) shows fixtures by handle.
 - **PAT-07** A fixture patched with a mode that has `virtual_dimmer` gets a Dimmer attribute
   without a channel (LIB-04); the patch list shows it as "virtual dimmer".
 - **PAT-08** The patch is part of the show file (`patch` key, SHW-01) together with the profiles
@@ -44,16 +56,17 @@ to end up with two fixtures on the same channel by accident.
   warnings instead of refusing the show.
 
 ### IPC and app
-- **PAT-09** IPC (extends `ipc.md`): the snapshot's `fixtures` entries gain `name`, `mode`,
-  `universe`, `address`, `footprint` and `virtual_dimmer`; a `fixtures` delta is sent after any
-  patch change. Commands: `patch.add {profile, mode, count, universe, address?, number?}`,
-  `patch.move {number, universe, address}`, `patch.remove {numbers}`, `patch.renumber {number,
-  to}`, `patch.name {number, name}`. Refusals are warnings (IPC-06).
+- **PAT-09** IPC (extends `ipc.md`): the snapshot's `fixtures` entries become `{id, number, name,
+  profile, mode, universe, address, footprint, virtual_dimmer, handle}`; a `fixtures` delta is
+  sent after any patch change. Commands: `patch.add {profile, mode, count, universe, address?,
+  number?}`, `patch.move {id, universe, address}`, `patch.remove {ids}`, `patch.renumber {id,
+  number}`, `patch.name {id, name}`, `patch.change_mode {id, mode}`, `patch.handle {id, page,
+  slot}`. Refusals are warnings (IPC-06).
 - **PAT-10** A Patch screen (full screen from the workspace rail, UI v0.1): a table of the patch
   (number, name, manufacturer/model, mode, universe.address, footprint), sorted by number; an Add
   panel with library search (LIB-14), mode, count, universe, start address and start number
-  (both optional, PAT-03); Move, Renumber, Name and Remove on a selected row, Remove with a
-  two-step confirm. A refused action shows the warning in the panel. Verified by
+  (both optional, PAT-03); Move, Renumber, Name, Change Mode and Remove on a selected row, Remove
+  and Change Mode with a two-step confirm. A refused action shows the warning in the panel. Verified by
   `tests/manual/app-patch.md`.
 
 ### The church
@@ -61,14 +74,13 @@ to end up with two fixtures on the same channel by accident.
   (or a one-off script that calls them) into the church show; the result is listed in
   `tests/hardware/church.md` (VS4-01) so the patch can be checked against the real fixtures.
 
-## Out of scope (phase 1)
-Changing a patched fixture's mode (remove and re-add), multiple universes per fixture, cells/heads
-as separate fixtures (LIB-07), DMX address offsets per line beyond OUT's line → node mapping,
-patching from a visual plot.
+## Out of scope (this spec)
+Per-cell selection and Unfold (cells exist in the model, LIB-07; selecting them is a PRG task),
+a fixture spanning several universes (pixel products, with the pixel mapper), patching from a
+visual plot (with the visualiser).
 
-## Open questions for the owner
-1. Number and internal id are the same thing here (PAT-06 rewrites references when renumbering).
-   Titan keeps an internal handle next to the user number; for a church-sized rig one number is
-   simpler. OK?
-2. PAT-05: removal is always allowed and dangling data is ignored with a warning. Titan asks before
-   removing a fixture that is used in cues; we can add that once cues exist (P1-08).
+## Owner decisions (2026-10-17)
+1. Internal id and user number are separate, as on Titan (PAT-06, PAT-12): the church is the
+   playground, not the limit.
+2. PAT-05: removal is always allowed and dangling data is ignored with a warning; a confirm
+   for fixtures used in cues comes with cue lists (P1-08).
