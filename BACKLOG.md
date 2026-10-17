@@ -26,7 +26,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 ### VS2 — Programming: select, set, record, play back (screen only, output visible via Art-Net)
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
-| UX-01 | Clickable HTML sketch of the Titan-style main screen (fixtures/groups, palette grid, programmer + encoders, playback faders, cue list), max two iterations; owner says it feels right. Guides the SwiftUI work. | — | M | todo |
+| UX-01 | Clickable HTML sketch of the Titan-style main screen (fixtures/groups, palette grid, programmer + encoders, playback faders, cue list), max two iterations; owner says it feels right. Guides the SwiftUI work. | — | M | review (iteration 1: `specs/ux/main-screen.html`) |
 | P1-01 | Write `fixture-library.md`: GDTF subset + overlay, **and a profile from a plain channel list** for fixtures without GDTF (the church's Chinese pars); owner approves. | LIB | M | todo |
 | P1-07 | ADR-005: colour is stored as a device-independent target colour and mapped per fixture to RGB/RGBW/RGB+Lime/CMY; owner approves before P1-03. | PAL, SHW | S | todo |
 | P1-02 | Write `programmer.md` from the Titan analysis (ordered selection, groups, touched attributes, colour picker RGB/CMY/HSI, Clear options, Locate/Highlight). | PRG | M | todo |

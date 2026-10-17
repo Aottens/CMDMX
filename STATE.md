@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-16_
+_Last updated: 2026-10-17_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -14,7 +14,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- nothing
+- UX-01 iteration 1: clickable main-screen sketch `specs/ux/main-screen.html` (Artifact: https://claude.ai/artifact/YNEG3JsZAnjWhG1793MDUd), waiting for owner feedback; one more iteration allowed
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -28,4 +28,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-Start a fresh session (context hygiene). Next: UX-01 (clickable Titan-style main-screen sketch, recommended — it shapes the programmer specs) or VS1-06 (on-screen faders bound to playbacks of page 1 — needs the PBK paging subset). Code is written by Sonnet subagents from failing tests (CLAUDE.md).
+UX-01: process the owner's feedback on iteration 1 (max one more iteration), then close it. Next: VS1-06 (on-screen faders bound to playbacks of page 1 — needs the PBK paging subset) or start the programmer spec P1-02 using the sketch. Code is written by Sonnet subagents from failing tests (CLAUDE.md).

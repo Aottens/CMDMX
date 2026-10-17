@@ -1,0 +1,596 @@
+<title>ColourmotionDMX Main Screen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* UX-01 sketch, iteration 1. Layout: one Titan workspace — fixtures + groups left,
+   three palette windows centre, attribute editor + programmer + cue list right,
+   playback faders across the bottom. Dark only, by choice: it runs in a dark church. */
+:root {
+  --bg: #0c0f13; --panel: #141920; --raise: #1c232b; --line: #2a333d;
+  --fg: #dfe5ea; --mute: #8693a0;
+  --accent: #f2a33a;   /* selection, armed handles */
+  --prog: #ff5d73;     /* values in the programmer */
+  --live: #4ad07d;     /* active playbacks, engine online */
+  --rec: #ff3b30; --swop: #3d8bff;
+  --f-label: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-ui: "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 13px/1.4 var(--f-ui); padding: 0 12px 12px; }
+button { font: inherit; color: inherit; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* top bar */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-block: 10px; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 5; }
+.brand { font: 700 18px/1 var(--f-label); letter-spacing: .04em; text-transform: uppercase; }
+.brand small { font: 500 12px var(--f-ui); color: var(--mute); text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); color: var(--mute); font-size: 12px; }
+.pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--live); }
+.pill i.off { background: var(--mute); }
+.cmd { flex: 1 1 320px; min-width: 0; padding: 6px 10px; background: #07090c; border: 1px solid var(--line); border-radius: 4px; font: 12px var(--f-num); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.keys { display: flex; gap: 6px; flex-wrap: wrap; }
+.key { min-width: 64px; padding: 7px 10px; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); font: 600 13px var(--f-label); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.key:hover { border-color: var(--mute); }
+.key.on { background: var(--accent); color: #1a1206; border-color: var(--accent); }
+.key.rec.on { background: var(--rec); color: #fff; border-color: var(--rec); }
+
+/* workspace */
+.ws { display: grid; grid-template-columns: minmax(280px, 330px) minmax(0, 1fr) minmax(300px, 360px); gap: 10px; }
+.col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.win { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.win > h2 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--line); font: 600 13px var(--f-label); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.win > h2 .tag { margin-left: auto; font: 11px var(--f-num); letter-spacing: 0; text-transform: none; }
+.body { padding: 8px; }
+
+/* fixtures */
+.ftype { font: 600 11px var(--f-label); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin: 6px 2px 4px; }
+.ftype:first-child { margin-top: 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: 4px; }
+.fx { position: relative; height: 36px; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); cursor: pointer; padding: 3px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; }
+.fx .n { font: 10px var(--f-num); color: var(--mute); }
+.fx .lamp { height: 7px; border-radius: 2px; background: #000; }
+.fx.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.fx .ord { position: absolute; top: -6px; right: -5px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: var(--accent); color: #1a1206; font: 600 10px/16px var(--f-num); text-align: center; }
+.fx .p { position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--prog); }
+.fx .l { position: absolute; bottom: 14px; right: 4px; font: 600 9px var(--f-num); color: var(--live); }
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px; }
+.btn { padding: 7px 6px; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); cursor: pointer; font: 500 13px var(--f-label); letter-spacing: .03em; text-align: left; }
+.btn:hover { border-color: var(--mute); }
+.btn small { display: block; font: 10px var(--f-num); color: var(--mute); }
+
+/* palettes */
+.pal { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+.pb { position: relative; height: 46px; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); cursor: pointer; padding: 4px 5px; display: flex; flex-direction: column; justify-content: flex-end; text-align: left; overflow: hidden; }
+.pb .sw { position: absolute; inset: 0 0 auto 0; height: 18px; }
+.pb .nm { font: 500 12px/1.1 var(--f-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb .k { position: absolute; top: 2px; right: 4px; font: 600 9px var(--f-num); color: #000; background: rgba(255,255,255,.75); border-radius: 2px; padding: 0 2px; }
+.pb .k.dark { color: var(--mute); background: none; }
+.pb.empty { background: transparent; border-style: dashed; }
+.pb.empty .nm { color: var(--line); }
+.pb.dim { opacity: .3; }
+.pb.lit { box-shadow: inset 0 0 0 2px var(--prog); border-color: var(--prog); }
+.rec-armed .pb.empty { border-color: var(--rec); }
+.rec-armed .pb.empty .nm { color: var(--rec); }
+
+/* attribute editor */
+.tabs { display: flex; gap: 3px; margin-bottom: 8px; }
+.tab { flex: 1; padding: 5px 0; border-radius: 3px; background: var(--raise); border: 1px solid var(--line); font: 600 13px var(--f-label); cursor: pointer; }
+.tab.on { background: var(--fg); color: var(--bg); }
+.tab.has { box-shadow: inset 0 -2px 0 var(--prog); }
+.tab:disabled { opacity: .3; cursor: not-allowed; }
+.modes { display: flex; gap: 3px; margin-bottom: 8px; }
+.modes .tab { flex: 0 0 52px; font-size: 12px; }
+.encs { display: flex; gap: 10px; justify-content: space-around; min-height: 104px; }
+.enc { display: flex; flex-direction: column; align-items: center; gap: 4px; touch-action: none; cursor: ns-resize; user-select: none; }
+.knob { width: 62px; height: 62px; border-radius: 50%; background: conic-gradient(var(--c, var(--accent)) var(--a, 0deg), var(--line) 0); display: grid; place-items: center; }
+.knob::after { content: ""; width: 48px; height: 48px; border-radius: 50%; background: var(--raise); }
+.enc .lab { font: 600 12px var(--f-label); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.enc .val { font: 12px var(--f-num); }
+.enc.touched .val { color: var(--prog); }
+.hint { color: var(--mute); font-size: 12px; text-align: center; align-self: center; }
+canvas.picker[hidden] { display: none; }
+canvas.picker { display: block; width: 100%; height: 90px; border-radius: 4px; margin-top: 8px; cursor: crosshair; touch-action: none; }
+
+/* programmer + cue list */
+.prog { max-height: 190px; overflow: auto; font: 12px var(--f-num); }
+.prow { display: flex; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: 1px solid var(--line); }
+.prow b { font-weight: 400; width: 82px; flex: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; border-radius: 3px; background: var(--raise); color: var(--prog); white-space: nowrap; }
+.chip .dot { width: 8px; height: 8px; border-radius: 2px; }
+.empty-note { color: var(--mute); font-size: 12px; padding: 6px 2px; }
+.cues { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cues td { padding: 4px 4px; border-bottom: 1px solid var(--line); }
+.cues td.num { font: 12px var(--f-num); color: var(--mute); width: 30px; font-variant-numeric: tabular-nums; }
+.cues td.t { font: 12px var(--f-num); color: var(--mute); text-align: right; }
+.cues tr.cur td { background: rgba(74, 208, 125, .12); }
+.cues tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--live); }
+.cues tr.next td.num::after { content: " ▸"; color: var(--accent); }
+.golist { display: flex; gap: 6px; margin-top: 8px; }
+.golist .key { flex: 1; }
+.key.go { background: var(--live); color: #04140a; border-color: var(--live); }
+
+/* faders */
+.fwin { margin-top: 10px; position: sticky; bottom: env(safe-area-inset-bottom, 0px); z-index: 4; box-shadow: 0 -8px 16px var(--bg); }
+@media (max-height: 640px), (max-width: 700px) { .fwin { position: static; box-shadow: none; } }
+.frow { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
+.fader { flex: 1 0 88px; display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--raise); }
+.fader.active { border-color: var(--live); }
+.fader.armed { border-color: var(--rec); }
+.fleg { position: relative; display: block; width: 100%; padding: 6px 4px 4px; border-radius: 3px; background: #0a0d10; border: 0; cursor: pointer; text-align: left; font: 600 13px/1.1 var(--f-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fleg::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--halo, var(--line)); }
+.fleg small { display: block; font: 10px var(--f-num); color: var(--mute); }
+.track { position: relative; height: 120px; width: 34px; align-self: center; border-radius: 4px; background: #07090c; border: 1px solid var(--line); touch-action: none; cursor: ns-resize; }
+.track .fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 3px; background: linear-gradient(to top, rgba(74, 208, 125, .35), rgba(74, 208, 125, .1)); }
+.track .cap { position: absolute; left: -6px; right: -6px; height: 16px; margin-bottom: -8px; border-radius: 3px; background: #c9d1d8; box-shadow: 0 2px 4px rgba(0, 0, 0, .6); }
+.track .cap::after { content: ""; position: absolute; left: 4px; right: 4px; top: 7px; height: 2px; background: #333; }
+.flv { text-align: center; font: 12px var(--f-num); font-variant-numeric: tabular-nums; }
+.fbtns { display: flex; gap: 4px; }
+.fbtns button { flex: 1; padding: 5px 0; border-radius: 3px; border: 1px solid var(--line); font: 600 11px var(--f-label); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; user-select: none; touch-action: none; }
+.swp { background: #12233f; color: #9cc3ff; }
+.fls { background: #2a3038; }
+.fbtns button.held { background: var(--fg); color: var(--bg); }
+.fader.gm { flex: 0 0 88px; border-color: var(--mute); }
+.fader.empty-h .fleg { color: var(--line); }
+.pagebar { display: flex; align-items: center; gap: 8px; }
+.pagebar .key { min-width: 0; padding: 2px 8px; }
+.pagebar select { background: var(--raise); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; font: 11px var(--f-num); }
+
+.note { margin: 10px 2px 0; color: var(--mute); font-size: 12px; max-width: 900px; }
+
+@media (max-width: 1100px) { .ws { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .ws > .col:last-child { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .ws { grid-template-columns: minmax(0, 1fr); } .pal { grid-template-columns: repeat(4, minmax(0, 1fr)); } body { padding-inline: 16px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="brand">ColourmotionDMX<small>Sunday service.cmdmx · sketch v1</small></div>
+  <span class="pill"><i></i>Engine online</span>
+  <span class="pill"><i></i>Art-Net · sACN</span>
+  <span class="pill"><i class="off"></i>USB: no interface</span>
+  <div class="cmd" id="cmd" role="status" aria-live="polite"></div>
+  <div class="keys">
+    <button class="key rec" id="kRec">Record</button>
+    <button class="key" id="kLocate">Locate</button>
+    <button class="key" id="kHigh">Highlight</button>
+    <button class="key" id="kClear">Clear</button>
+  </div>
+</header>
+
+<main class="ws" id="ws">
+  <div class="col">
+    <section class="win"><h2>Fixtures <span class="tag" id="selTag"></span></h2><div class="body" id="fixtures"></div></section>
+    <section class="win"><h2>Groups</h2><div class="body groups" id="groups"></div></section>
+  </div>
+  <div class="col">
+    <section class="win"><h2>Colours <span class="tag">mask C</span></h2><div class="body pal" id="palC"></div></section>
+    <section class="win"><h2>Positions <span class="tag">mask P</span></h2><div class="body pal" id="palP"></div></section>
+    <section class="win"><h2>Gobos &amp; Beams <span class="tag">mask IGBES</span></h2><div class="body pal" id="palB"></div></section>
+  </div>
+  <div class="col">
+    <section class="win"><h2>Attributes <span class="tag" id="firstTag"></span></h2>
+      <div class="body">
+        <div class="tabs" id="tabs"></div>
+        <div class="modes" id="modes"></div>
+        <div class="encs" id="encs"></div>
+        <canvas class="picker" id="picker" width="600" height="150" hidden></canvas>
+      </div>
+    </section>
+    <section class="win"><h2>Programmer <span class="tag" id="progTag"></span></h2><div class="body prog" id="prog"></div></section>
+    <section class="win"><h2>Cue list · Service <span class="tag">on playback 1</span></h2>
+      <div class="body"><table class="cues" id="cues"></table>
+        <div class="golist"><button class="key" id="kBack">Back</button><button class="key go" id="kGo">Go</button></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<section class="win fwin">
+  <h2>Playbacks
+    <span class="pagebar">
+      <button class="key" id="pgDown" aria-label="Previous page">◀</button>
+      <span id="pgName"></span>
+      <button class="key" id="pgUp" aria-label="Next page">▶</button>
+      <label>faders_per_page <select id="fpp"><option>8</option><option>10</option></select></label>
+    </span>
+  </h2>
+  <div class="frow" id="faders"></div>
+</section>
+
+<p class="note">Clickable sketch for UX-01, iteration 1. Fake data, no engine behind it; it shows how the screen should feel, not how the merge works. Try: tap a group, turn a wheel, then tap a fixture (a new selection starts). Tap a colour with nothing selected (quick palette). Record, then tap an empty palette button or a fader legend. Clear twice.</p>
+
+<script>
+// ---- rig: the church (PROJECT.md) -------------------------------------------------
+const TYPES = {
+  wash: { label: "Washes 19×15 W", short: "Wash", attrs: ["dim", "str", "pan", "tilt", "col", "zoom"] },
+  rgbw: { label: "Pars RGBW", short: "RGBW", attrs: ["dim", "str", "col"] },
+  rgbl: { label: "Pars RGB+Lime", short: "RGBL", attrs: ["dim", "col"] },
+  rgb:  { label: "Pars RGB · virtual dimmer", short: "RGB", attrs: ["dim", "col"] },
+  spot: { label: "Front spots", short: "Spot", attrs: ["dim"] },
+};
+const FIX = [];
+const add = (type, n, from) => { for (let i = 0; i < n; i++) FIX.push({ id: from + i, type, name: `${TYPES[type].short} ${from + i}` }); };
+add("wash", 4, 101); add("rgbw", 8, 201); add("rgbl", 6, 211); add("rgb", 6, 221); add("spot", 6, 301);
+const F = Object.fromEntries(FIX.map(f => [f.id, f]));
+const has = (f, a) => TYPES[f.type].attrs.includes(a);
+const ids = pred => FIX.filter(pred).map(f => f.id);
+const PARS = ids(f => ["rgbw", "rgbl", "rgb"].includes(f.type));
+const WASH = ids(f => f.type === "wash");
+const SPOT = ids(f => f.type === "spot");
+const GROUPS = [
+  ["All", ids(() => true)], ["Washes", WASH], ["All pars", PARS], ["Pars RGBW", ids(f => f.type === "rgbw")],
+  ["Odd pars", PARS.filter((_, i) => i % 2 === 0)], ["Even pars", PARS.filter((_, i) => i % 2 === 1)],
+  ["Front spots", SPOT], ["Stage wash", [...WASH, ...PARS]],
+];
+const GROUP_OF = { dim: "I", str: "I", pan: "P", tilt: "P", col: "C", zoom: "B" };
+const ATTR_GROUPS = ["I", "P", "C", "G", "B", "E", "S", "FX"];
+
+// ---- colour: one device-independent target colour (P1-07), shown in three models --
+const rgbHex = c => "#" + [c.r, c.g, c.b].map(v => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, "0")).join("");
+function toHS(c) { const mx = Math.max(c.r, c.g, c.b), mn = Math.min(c.r, c.g, c.b), d = mx - mn; let h = 0;
+  if (d) h = mx === c.r ? ((c.g - c.b) / d) % 6 : mx === c.g ? (c.b - c.r) / d + 2 : (c.r - c.g) / d + 4;
+  return { h: (h * 60 + 360) % 360, s: mx ? d / mx : 0 }; }
+function fromHS(h, s) { const f = n => { const k = (n + h / 60) % 6; return 1 - s * Math.max(0, Math.min(k, 4 - k, 1)); }; return { r: f(5), g: f(3), b: f(1) }; }
+const C = (r, g, b) => ({ r, g, b });
+
+// ---- show data ------------------------------------------------------------------
+const look = (fids, v) => Object.fromEntries(fids.map(id => [id, Object.fromEntries(Object.entries(v).filter(([a]) => has(F[id], a)))]));
+const merge = (...ls) => Object.assign({}, ...ls);
+const WARM = C(1, .72, .42), BLUE = C(.1, .3, 1), DEEP = C(.05, .05, .8);
+const CUES = [
+  { n: 1, name: "Walk-in", t: 3, look: look(PARS, { dim: .45, col: WARM }) },
+  { n: 2, name: "Welcome", t: 2, look: merge(look(PARS, { dim: .6, col: WARM }), look(SPOT, { dim: .8 })) },
+  { n: 3, name: "Worship", t: 4, look: merge(look(PARS, { dim: .7, col: BLUE }), look(WASH, { dim: .8, col: C(.8, 0, 1), pan: .5, tilt: .3 })) },
+  { n: 4, name: "Prayer", t: 6, look: look(PARS, { dim: .3, col: DEEP }) },
+  { n: 5, name: "Sermon", t: 3, look: merge(look(PARS, { dim: .35, col: WARM }), look(SPOT, { dim: 1 })) },
+  { n: 6, name: "Video", t: 2, look: look(PARS, { dim: .15, col: DEEP }) },
+  { n: 7, name: "Walk-out", t: 5, look: look(PARS, { dim: .6, col: WARM }) },
+];
+const PAGES = [
+  { name: "Page 1 · Sunday", pbs: [
+    { name: "Service", sub: "cue list", list: true },
+    { name: "Warm wash", look: look(PARS, { dim: .8, col: WARM }) },
+    { name: "Front spots", look: look(SPOT, { dim: 1 }) },
+    { name: "Blue wash", look: merge(look(PARS, { dim: .7, col: BLUE }), look(WASH, { dim: .7, col: BLUE })) },
+    { name: "Washes stage", look: look(WASH, { dim: 1, col: C(1, 1, 1), pan: .5, tilt: .4, zoom: .6 }) },
+    { name: "Purple", look: look(PARS, { dim: .7, col: C(.55, 0, 1) }) },
+    { name: "House", look: look(PARS, { dim: 1, col: C(1, 1, 1) }) },
+    null,
+  ] },
+  { name: "Page 2 · Band", pbs: [
+    { name: "Red", look: look([...PARS, ...WASH], { dim: .8, col: C(1, 0, 0) }) },
+    { name: "Cyan", look: look([...PARS, ...WASH], { dim: .8, col: C(0, .9, 1) }) },
+    { name: "Washes band", look: look(WASH, { dim: 1, pan: .3, tilt: .6 }) },
+    null, null, null, null, null,
+  ] },
+];
+PAGES.forEach((pg, pi) => pg.pbs.forEach((p, i) => { if (p) { p.id = pi * 100 + i + 1; p.halo = p.list ? "#4ad07d" : haloOf(p.look); } }));
+function haloOf(l) { const v = Object.values(l).find(x => x.col); return v ? rgbHex(v.col) : "#c9d1d8"; }
+
+const mkPal = (name, kind, v) => ({ name, kind, ...v });
+const PAL = {
+  C: [["White", C(1, 1, 1)], ["Warm", WARM], ["Amber", C(1, .5, .05)], ["Red", C(1, 0, 0)], ["Magenta", C(1, 0, .6)], ["Purple", C(.55, 0, 1)],
+      ["Deep blue", DEEP], ["Blue", BLUE], ["Cyan", C(0, .9, 1)], ["Green", C(0, 1, .2)], ["Lime", C(.6, 1, 0)], ["Pink", C(1, .45, .7)]]
+      .map(([n, c]) => mkPal(n, "G", { all: { col: c } })),
+  P: [["Stage", .5, .4], ["Pulpit", .38, .45], ["Band", .62, .5], ["Audience", .5, .75], ["Cross", .5, .2], ["Ceiling", .5, .05]]
+      .map(([n, pan, tilt]) => mkPal(n, "N", { byFix: Object.fromEntries(WASH.map((id, i) => [id, { pan: pan + (i - 1.5) * .04, tilt }])) })),
+  B: [mkPal("Zoom narrow", "S", { byType: { wash: { zoom: .1 } } }), mkPal("Zoom mid", "S", { byType: { wash: { zoom: .5 } } }),
+      mkPal("Zoom wide", "S", { byType: { wash: { zoom: .95 } } }), mkPal("Full", "G", { all: { dim: 1 } }),
+      mkPal("Half", "G", { all: { dim: .5 } }), mkPal("Out", "G", { all: { dim: 0 } })],
+};
+const SLOTS = 16;
+const MASK = { C: ["col"], P: ["pan", "tilt"], B: ["dim", "str", "zoom"] };
+const WIN_NAME = { C: "Colours", P: "Positions", B: "Gobos & Beams" };
+const palVals = (p, f) => p.all || p.byType?.[f.type] || p.byFix?.[f.id];
+
+// ---- console state ----------------------------------------------------------------
+const S = {
+  sel: [], changed: false, prog: {}, located: {}, group: "C", cmode: "HSI",
+  rec: false, high: false, page: 0, fpp: 8, gm: 1, cue: 0,
+  level: { 1: 1 }, raised: { 1: 1 }, order: 1, flash: null, swop: null, clearArmed: false,
+};
+
+// ---- the fake output: only so the sketch shows something; real merge is ENG ----
+function output(f) {
+  const o = { dim: 0, col: C(1, 1, 1), pan: .5, tilt: .5, zoom: .5 };
+  if (S.located[f.id]) o.dim = 1;
+  const live = allPbs().filter(p => lvl(p) > 0).sort((a, b) => (S.raised[a.id] || 0) - (S.raised[b.id] || 0));
+  for (const p of live) {
+    const v = lookOf(p)[f.id]; if (!v) continue;
+    if (v.dim != null) o.dim = Math.max(o.dim, v.dim * lvl(p));
+    for (const a of ["col", "pan", "tilt", "zoom"]) if (v[a] != null) o[a] = v[a];
+  }
+  if (S.swop && !lookOf(S.swop)[f.id]) o.dim = 0;
+  const pr = S.prog[f.id];
+  if (pr) for (const a of ["dim", "col", "pan", "tilt", "zoom"]) if (pr[a] != null) o[a] = pr[a];
+  if (S.high && S.sel.includes(f.id)) { o.dim = 1; o.col = C(1, 1, 1); }
+  o.dim *= S.gm;
+  return o;
+}
+const allPbs = () => PAGES.flatMap(pg => pg.pbs.filter(Boolean));
+const lookOf = p => p.list ? CUES[S.cue].look : p.look;
+const lvl = p => (S.flash === p || S.swop === p) ? 1 : (S.level[p.id] || 0);
+
+// ---- actions ----------------------------------------------------------------------
+const say = t => { $("cmd").textContent = "› " + t; };
+function selectFix(list, toggle) {
+  if (S.changed) { S.sel = []; S.changed = false; }
+  S.clearArmed = false;
+  for (const id of list) {
+    const i = S.sel.indexOf(id);
+    if (i >= 0 && toggle) S.sel.splice(i, 1); else if (i < 0) S.sel.push(id);
+  }
+}
+function touch(id) { return S.prog[id] || (S.prog[id] = { ref: {} }); }
+function setAttr(ids, a, fn) {
+  let n = 0;
+  for (const id of ids) { const f = F[id]; if (!has(f, a)) continue; const pr = touch(id); pr[a] = fn(pr[a] ?? output(f)[a] ?? 0, f); delete pr.ref[GROUP_OF[a]]; n++; }
+  if (n) { S.changed = true; S.clearArmed = false; }
+  return n;
+}
+function applyPal(w, i) {
+  const p = PAL[w][i];
+  const quick = S.sel.length === 0;
+  const targets = quick ? FIX.map(f => f.id) : S.sel;
+  let n = 0;
+  for (const id of targets) {
+    const v = palVals(p, F[id]); if (!v) continue;
+    const pr = touch(id); let hit = false;
+    for (const [a, val] of Object.entries(v)) if (has(F[id], a)) { pr[a] = typeof val === "object" ? { ...val } : val; pr.ref[GROUP_OF[a]] = p.name; hit = true; }
+    if (hit) n++; else if (Object.keys(pr).length === 1) delete S.prog[id];
+  }
+  S.changed = n > 0 || S.changed;
+  say(n ? `${quick ? "Quick palette" : "Palette"} ${p.name} → ${n} fixture${n > 1 ? "s" : ""}${quick ? " (nothing selected, so every fixture it fits)" : ""}. The programmer keeps a reference, not the values.`
+        : `${p.name} does not fit the selected fixtures.`);
+}
+function recordPal(w, i) {
+  const mask = MASK[w];
+  const fids = Object.keys(S.prog).map(Number).filter(id => mask.some(a => S.prog[id][a] != null));
+  if (!fids.length) { say(`Nothing in the programmer for ${WIN_NAME[w]} (mask ${w === "B" ? "IGBES" : w}). Set a value first.`); return; }
+  const vals = id => Object.fromEntries(mask.filter(a => S.prog[id][a] != null).map(a => [a, S.prog[id][a]]));
+  const key = id => JSON.stringify(vals(id));
+  const same = fids.every(id => key(id) === key(fids[0]));
+  const types = [...new Set(fids.map(id => F[id].type))];
+  const sameByType = types.every(t => { const ts = fids.filter(id => F[id].type === t); return ts.every(id => key(id) === key(ts[0])); });
+  let p;
+  if (same && (w === "C" || w === "B")) p = mkPal("", "G", { all: vals(fids[0]) });
+  else if (sameByType && w !== "P") p = mkPal("", "S", { byType: Object.fromEntries(types.map(t => [t, vals(fids.find(id => F[id].type === t))])) });
+  else p = mkPal("", "N", { byFix: Object.fromEntries(fids.map(id => [id, vals(id)])) });
+  const any = vals(fids[0]);
+  p.name = w === "C" ? `Colour ${i + 1}` : w === "P" ? `Position ${i + 1}` : any.zoom != null ? `Zoom ${Math.round(any.zoom * 100)}` : `Beam ${i + 1}`;
+  PAL[w][i] = p;
+  const kind = { G: "Global", S: "Shared", N: "Normal" }[p.kind];
+  S.rec = false;
+  say(`Recorded ${WIN_NAME[w]} ${i + 1} as ${kind} from ${fids.length} fixture${fids.length > 1 ? "s" : ""} (Quick Record: mask ${w === "B" ? "IGBES" : w} from the window).`);
+}
+function recordPb(slot) {
+  const fids = Object.keys(S.prog).map(Number);
+  if (!fids.length) { say("The programmer is empty: nothing to record onto a playback."); S.rec = false; return; }
+  const l = Object.fromEntries(fids.map(id => [id, Object.fromEntries(["dim", "col", "pan", "tilt", "zoom"].filter(a => S.prog[id][a] != null).map(a => [a, S.prog[id][a]]))]));
+  const pg = PAGES[S.page];
+  const p = { id: S.page * 100 + slot + 1, name: `Playback ${slot + 1}`, look: l };
+  p.halo = haloOf(l);
+  pg.pbs[slot] = p;
+  S.rec = false;
+  say(`Recorded a cue on ${pg.name.split(" · ")[0]}, fader ${slot + 1}: ${fids.length} fixtures, touched attributes only (palette references kept).`);
+  buildFaders();
+}
+
+// ---- rendering --------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+const pct = v => Math.round(v * 100) + "%";
+function lampStyle(f) { const o = output(f); const k = o.dim; return `background:${rgbHex({ r: o.col.r * k, g: o.col.g * k, b: o.col.b * k })}`; }
+
+function renderFixtures() {
+  let h = "";
+  for (const t of Object.keys(TYPES)) {
+    h += `<div class="ftype">${TYPES[t].label}</div><div class="grid">`;
+    for (const f of FIX.filter(x => x.type === t)) {
+      const o = S.sel.indexOf(f.id);
+      h += `<button class="fx${o >= 0 ? " sel" : ""}" data-f="${f.id}" aria-pressed="${o >= 0}" title="${f.name}">
+        <span class="n">${f.id}</span><span class="lamp" style="${lampStyle(f)}"></span>
+        ${o >= 0 ? `<span class="ord">${o + 1}</span>` : ""}${S.prog[f.id] ? `<span class="p" title="in programmer"></span>` : ""}${S.located[f.id] ? `<span class="l">L</span>` : ""}</button>`;
+    }
+    h += "</div>";
+  }
+  $("fixtures").innerHTML = h;
+  $("selTag").textContent = S.sel.length ? `${S.sel.length} selected` : "";
+}
+function renderGroups() {
+  $("groups").innerHTML = GROUPS.map(([n, l], i) => `<button class="btn" data-g="${i}">${n}<small>${l.length} fixtures</small></button>`).join("");
+}
+function renderPalettes() {
+  document.body.classList.toggle("rec-armed", S.rec);
+  const lit = new Set(Object.values(S.prog).flatMap(pr => Object.values(pr.ref)));
+  for (const w of ["C", "P", "B"]) {
+    let h = "";
+    for (let i = 0; i < SLOTS; i++) {
+      const p = PAL[w][i];
+      if (!p) { h += `<button class="pb empty" data-w="${w}" data-i="${i}"><span class="nm">${S.rec ? "record" : i + 1}</span></button>`; continue; }
+      const fits = !S.sel.length || S.sel.some(id => palVals(p, F[id]) && Object.keys(palVals(p, F[id])).some(a => has(F[id], a)));
+      const sw = p.all?.col || p.byType && Object.values(p.byType)[0].col || p.byFix && Object.values(p.byFix)[0].col;
+      h += `<button class="pb${fits ? "" : " dim"}${lit.has(p.name) ? " lit" : ""}" data-w="${w}" data-i="${i}" title="${p.name} (${p.kind})">
+        ${sw ? `<span class="sw" style="background:${rgbHex(sw)}"></span>` : ""}<span class="k${sw ? "" : " dark"}">${p.kind}</span><span class="nm">${p.name}</span></button>`;
+    }
+    $("pal" + w).innerHTML = h;
+  }
+}
+function selAttrs() { return new Set(S.sel.flatMap(id => TYPES[F[id].type].attrs)); }
+const ENC = {
+  I: [["dim", "Dimmer"], ["str", "Strobe"]], P: [["pan", "Pan"], ["tilt", "Tilt"]], B: [["zoom", "Zoom"]],
+  C: { HSI: [["h", "Hue"], ["s", "Sat"]], RGB: [["r", "Red"], ["g", "Green"], ["b", "Blue"]], CMY: [["c", "Cyan"], ["m", "Magenta"], ["y", "Yellow"]] },
+};
+function buildAttr() {
+  const av = selAttrs();
+  const groupHas = g => [...av].some(a => GROUP_OF[a] === g);
+  const progHas = g => S.sel.some(id => S.prog[id] && Object.keys(S.prog[id]).some(a => GROUP_OF[a] === g));
+  if (S.sel.length && !groupHas(S.group)) S.group = ["I", "P", "C", "B"].find(groupHas) || S.group;
+  $("tabs").innerHTML = ATTR_GROUPS.map(g => `<button class="tab${g === S.group ? " on" : ""}${progHas(g) ? " has" : ""}" data-t="${g}" ${(S.sel.length && !groupHas(g)) || g === "FX" || ["G", "E", "S"].includes(g) ? "disabled" : ""} title="${{ I: "Intensity", P: "Position", C: "Colour", G: "Gobo (no fixture in this rig has one)", B: "Beam", E: "Effect (none in this rig)", S: "Special (none in this rig)", FX: "Shapes: phase 2" }[g]}">${g}</button>`).join("");
+  $("modes").innerHTML = S.group === "C" ? ["HSI", "RGB", "CMY"].map(m => `<button class="tab${m === S.cmode ? " on" : ""}" data-m="${m}">${m}</button>`).join("") : "";
+  $("picker").hidden = S.group !== "C" || !S.sel.length;
+  if (!S.sel.length) { $("encs").innerHTML = `<div class="hint">Select fixtures or a group to get wheels.<br>Locate and Highlight work on the selection without touching the programmer.</div>`; $("firstTag").textContent = ""; return; }
+  const list = S.group === "C" ? ENC.C[S.cmode] : (ENC[S.group] || []).filter(([a]) => av.has(a));
+  $("encs").innerHTML = list.map(([k, n]) => `<div class="enc" data-e="${k}" tabindex="0" role="slider" aria-label="${n}"><div class="knob"></div><span class="lab">${n}</span><span class="val"></span></div>`).join("");
+  updateEncs();
+  drawPicker();
+}
+function encValue(k) {
+  const f = F[S.sel.find(id => has(F[id], S.group === "C" ? "col" : k)) ?? S.sel[0]];
+  const o = output(f), c = o.col;
+  const touched = S.group === "C" ? S.prog[f.id]?.col != null : S.prog[f.id]?.[k] != null;
+  const hs = toHS(c);
+  const v = { h: hs.h / 360, s: hs.s, r: c.r, g: c.g, b: c.b, c: 1 - c.r, m: 1 - c.g, y: 1 - c.b }[k] ?? o[k] ?? S.prog[f.id]?.[k] ?? 0;
+  const txt = k === "h" ? Math.round(hs.h) + "°" : k === "pan" ? Math.round((v - .5) * 540) + "°" : k === "tilt" ? Math.round((v - .5) * 270) + "°" : pct(v);
+  return { v, txt, touched, ref: S.prog[f.id]?.ref[S.group], name: f.name };
+}
+function updateEncs() {
+  for (const el of document.querySelectorAll(".enc")) {
+    const e = encValue(el.dataset.e);
+    el.classList.toggle("touched", e.touched);
+    el.querySelector(".knob").style.setProperty("--a", e.v * 360 + "deg");
+    el.querySelector(".knob").style.setProperty("--c", e.touched ? "var(--prog)" : "var(--accent)");
+    el.querySelector(".val").textContent = e.ref ? `${e.ref}` : e.txt;
+    el.setAttribute("aria-valuetext", e.txt);
+    $("firstTag").textContent = `showing ${e.name}`;
+  }
+}
+function turn(k, d) {
+  const n = S.group === "C" ? setAttr(S.sel, "col", c => {
+    const hs = toHS(c);
+    if (k === "h") return fromHS((hs.h + d * 360 + 360) % 360, hs.s);
+    if (k === "s") return fromHS(hs.h, Math.max(0, Math.min(1, hs.s + d)));
+    const map = { r: "r", g: "g", b: "b", c: "r", m: "g", y: "b" }, ch = map[k], sign = "cmy".includes(k) ? -1 : 1;
+    return { ...c, [ch]: Math.max(0, Math.min(1, c[ch] + sign * d)) };
+  }) : setAttr(S.sel, k, v => Math.max(0, Math.min(1, v + d)));
+  if (n) say(`${S.group} wheel → ${n} fixture${n > 1 ? "s" : ""}, relative (offsets between fixtures are kept). Shift = fine.`);
+  refresh(true);
+}
+function drawPicker() {
+  const cv = $("picker"); if (cv.hidden) return;
+  const x = cv.getContext("2d"), w = cv.width, h = cv.height;
+  const g1 = x.createLinearGradient(0, 0, w, 0);
+  for (let i = 0; i <= 6; i++) g1.addColorStop(i / 6, `hsl(${i * 60},100%,50%)`);
+  x.fillStyle = g1; x.fillRect(0, 0, w, h);
+  const g2 = x.createLinearGradient(0, 0, 0, h); g2.addColorStop(0, "rgba(255,255,255,0)"); g2.addColorStop(1, "rgba(255,255,255,1)");
+  x.fillStyle = g2; x.fillRect(0, 0, w, h);
+  const f = F[S.sel.find(id => has(F[id], "col"))]; if (!f) return;
+  const hs = toHS(output(f).col);
+  x.strokeStyle = "#000"; x.lineWidth = 3; x.beginPath(); x.arc(hs.h / 360 * w, (1 - hs.s) * h, 8, 0, 7); x.stroke();
+  x.strokeStyle = "#fff"; x.lineWidth = 1.5; x.stroke();
+}
+function renderProg() {
+  const rows = Object.entries(S.prog);
+  $("progTag").textContent = rows.length ? `${rows.length} fixtures` : "empty";
+  if (!rows.length) { $("prog").innerHTML = `<div class="empty-note">Only attributes you touch go in here. Locate and Highlight never do.</div>`; return; }
+  $("prog").innerHTML = rows.map(([id, pr]) => {
+    const chips = [];
+    if (pr.dim != null || pr.str != null) chips.push(pr.ref.I ? `I ${pr.ref.I}` : `I ${pct(pr.dim ?? 0)}`);
+    if (pr.pan != null) chips.push(pr.ref.P ? `P ${pr.ref.P}` : `P ${Math.round((pr.pan - .5) * 540)}°/${Math.round((pr.tilt - .5) * 270)}°`);
+    if (pr.col) chips.push(`<span class="dot" style="background:${rgbHex(pr.col)}"></span>C ${pr.ref.C || rgbHex(pr.col)}`);
+    if (pr.zoom != null) chips.push(`B ${pr.ref.B || "zoom " + pct(pr.zoom)}`);
+    return `<div class="prow"><b>${F[id].name}</b>${chips.map(c => `<span class="chip">${c}</span>`).join("")}</div>`;
+  }).join("");
+}
+function renderCues() {
+  $("cues").innerHTML = CUES.map((c, i) => `<tr class="${i === S.cue ? "cur" : ""}${i === S.cue + 1 ? " next" : ""}"><td class="num">${c.n}</td><td>${c.name}</td><td class="t">${c.t}s</td></tr>`).join("");
+}
+function buildFaders() {
+  const pg = PAGES[S.page];
+  $("pgName").textContent = pg.name;
+  let h = "";
+  for (let i = 0; i < S.fpp; i++) {
+    const p = pg.pbs[i];
+    h += p ? `<div class="fader" data-p="${p.id}" style="--halo:${p.halo}">
+        <button class="fleg" data-slot="${i}">${p.name}<small>${i + 1}${p.sub ? " · " + p.sub : ""}</small></button>
+        <div class="track" data-p="${p.id}"><div class="fill"></div><div class="cap"></div></div>
+        <div class="flv"></div>
+        <div class="fbtns"><button class="swp" data-swop="${p.id}">Swop</button><button class="fls" data-flash="${p.id}">Flash</button></div></div>`
+      : `<div class="fader empty-h"><button class="fleg" data-slot="${i}">empty<small>${i + 1}</small></button><div class="track"></div><div class="flv">—</div><div class="fbtns"><button class="swp" disabled>Swop</button><button class="fls" disabled>Flash</button></div></div>`;
+  }
+  h += `<div class="fader gm"><button class="fleg" style="--halo:#fff">Grand Master<small>GM</small></button><div class="track" data-p="gm"><div class="fill"></div><div class="cap"></div></div><div class="flv"></div><div class="fbtns"><button class="fls" disabled>DBO</button></div></div>`;
+  $("faders").innerHTML = h;
+  updateFaders();
+}
+function updateFaders() {
+  for (const el of document.querySelectorAll(".fader")) {
+    const t = el.querySelector(".track[data-p]"); if (!t) continue;
+    const id = t.dataset.p;
+    const v = id === "gm" ? S.gm : lvl(allPbs().find(p => String(p.id) === id));
+    t.querySelector(".fill").style.height = pct(v);
+    t.querySelector(".cap").style.bottom = pct(v);
+    el.querySelector(".flv").textContent = pct(v);
+    if (id !== "gm") el.classList.toggle("active", v > 0);
+    el.classList.toggle("armed", S.rec && !el.classList.contains("gm"));
+  }
+}
+function refresh(keepAttr) {
+  renderFixtures(); renderPalettes(); renderProg(); renderCues(); updateFaders();
+  if (keepAttr) { updateEncs(); drawPicker(); } else buildAttr();
+  $("kRec").classList.toggle("on", S.rec); $("kHigh").classList.toggle("on", S.high);
+  $("kClear").classList.toggle("on", S.clearArmed);
+}
+
+// ---- input ------------------------------------------------------------------------
+document.addEventListener("click", e => {
+  const t = e.target.closest("button,[data-f]"); if (!t) return;
+  if (t.dataset.f) { selectFix([+t.dataset.f], true); say(`${S.sel.length} selected, in this order. After you change a value, the next fixture you tap starts a new selection.`); return refresh(); }
+  if (t.dataset.g) { const [n, l] = GROUPS[+t.dataset.g]; selectFix(l, false); say(`Group ${n}: ${l.length} fixtures added in group order.`); return refresh(); }
+  if (t.dataset.w) { const w = t.dataset.w, i = +t.dataset.i; if (S.rec) recordPal(w, i); else if (PAL[w][i]) applyPal(w, i); else say("Empty button. Press Record first, then tap it."); return refresh(); }
+  if (t.dataset.t) { S.group = t.dataset.t; return refresh(); }
+  if (t.dataset.m) { S.cmode = t.dataset.m; say(`Colour wheels in ${S.cmode}. The stored colour is one target colour; each fixture type maps it to its own emitters (P1-07).`); return refresh(); }
+  if (t.dataset.slot != null) { if (S.rec) recordPb(+t.dataset.slot); else say("Tap Record first to record the programmer onto this fader."); return refresh(true); }
+  switch (t.id) {
+    case "kRec": S.rec = !S.rec; say(S.rec ? "Record: tap an empty palette button (mask from its window) or a fader legend." : "Record cancelled."); break;
+    case "kLocate": if (!S.sel.length) { say("Locate needs a selection."); break; } S.sel.forEach(id => S.located[id] = true); say(`Located ${S.sel.length} fixtures: open white, centred, full. Not in the programmer, so not recorded.`); break;
+    case "kHigh": S.high = !S.high; say(S.high ? "Highlight: the selection shows full white on stage, outside the programmer." : "Highlight off."); break;
+    case "kClear":
+      if (S.sel.length) { S.sel = []; S.changed = false; S.clearArmed = true; say("Selection cleared. Press Clear again to clear the programmer."); }
+      else { S.prog = {}; S.located = {}; S.clearArmed = false; say("Programmer cleared: values go back to the playbacks."); }
+      break;
+    case "kGo": S.cue = Math.min(CUES.length - 1, S.cue + 1); say(`Go: cue ${CUES[S.cue].n} ${CUES[S.cue].name}, fade ${CUES[S.cue].t}s (snaps in the sketch).`); break;
+    case "kBack": S.cue = Math.max(0, S.cue - 1); say(`Back: cue ${CUES[S.cue].n} ${CUES[S.cue].name}.`); break;
+    case "pgUp": case "pgDown": S.page = (S.page + (t.id === "pgUp" ? 1 : PAGES.length - 1)) % PAGES.length; buildFaders(); say(`${PAGES[S.page].name}. A fader that is up keeps its old playback until you pull it through the new value.`); break;
+    default: return;
+  }
+  refresh(t.id !== "kLocate" && t.id !== "kClear" ? true : false);
+});
+$("fpp").addEventListener("change", e => { S.fpp = +e.target.value; buildFaders(); say(`faders_per_page = ${S.fpp}. It is configuration; pages are multiples of it.`); });
+
+// drag: faders, wheels, colour picker
+let drag = null;
+document.addEventListener("pointerdown", e => {
+  const tr = e.target.closest(".track[data-p]"), en = e.target.closest(".enc"), pk = e.target.closest("#picker");
+  const hold = e.target.closest("[data-flash],[data-swop]");
+  if (hold) { const p = allPbs().find(x => x.id === +(hold.dataset.flash || hold.dataset.swop)); if (hold.dataset.flash) S.flash = p; else S.swop = p; hold.classList.add("held"); drag = { hold }; refresh(true); return; }
+  if (!tr && !en && !pk) return;
+  drag = { tr, en, pk, y: e.clientY };
+  e.target.setPointerCapture?.(e.pointerId);
+  move(e);
+});
+document.addEventListener("pointermove", e => drag && move(e));
+document.addEventListener("pointerup", () => {
+  if (drag?.hold) { drag.hold.classList.remove("held"); S.flash = S.swop = null; refresh(true); }
+  drag = null;
+});
+function move(e) {
+  if (drag.tr) {
+    const r = drag.tr.getBoundingClientRect(), v = Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)), id = drag.tr.dataset.p;
+    if (id === "gm") S.gm = v; else { if (!(S.level[id] > 0) && v > 0) S.raised[id] = ++S.order; S.level[id] = v; }
+    return refresh(true);
+  }
+  if (drag.en) { const d = (drag.y - e.clientY) / (e.shiftKey ? 1200 : 200); drag.y = e.clientY; if (d) turn(drag.en.dataset.e, d); return; }
+  if (drag.pk) {
+    const r = drag.pk.getBoundingClientRect();
+    const h = Math.max(0, Math.min(359.9, (e.clientX - r.left) / r.width * 360)), s = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
+    const n = setAttr(S.sel, "col", () => fromHS(h, s));
+    if (n) say(`Colour picker → ${n} fixtures (absolute). Hue ${Math.round(h)}°, saturation ${pct(s)}.`);
+    refresh(true);
+  }
+}
+document.addEventListener("wheel", e => { const en = e.target.closest(".enc"); if (!en) return; e.preventDefault(); turn(en.dataset.e, -e.deltaY / (e.shiftKey ? 3000 : 600)); }, { passive: false });
+document.addEventListener("keydown", e => { const en = e.target.closest?.(".enc"); if (!en) return; const d = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02 }[e.key]; if (d) { e.preventDefault(); turn(en.dataset.e, e.shiftKey ? d / 10 : d); } });
+
+renderGroups(); buildFaders(); refresh();
+say("Service is running cue 1 Walk-in on fader 1. Tap a group to start programming.");
+</script>
