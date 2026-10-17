@@ -309,6 +309,7 @@ mod tests {
     use cmdmx_core::patch::Fixture;
     use cmdmx_core::playback::{FaderMode, Playback, Priority};
     use cmdmx_core::profile::Profile;
+    use cmdmx_core::programmer::Resolution;
     use serde_json::{json, Value};
     use std::collections::BTreeMap;
     use std::net::TcpStream;
@@ -354,11 +355,175 @@ mod tests {
     #[test]
     fn ipc_03_snapshot_has_settings_grand_master_and_playbacks() {
         let v = parse(&snapshot(&engine()));
+        assert_eq!(v["v"], 0);
+        assert_eq!(v["type"], "snapshot");
+        assert_eq!(v["faders_per_page"], 8);
+        assert_eq!(v["grand_master"], 1.0);
+        assert_eq!(v["playbacks"], json!([{"id":1,"level":0.0,"active":false}]));
+    }
+
+    fn no_values(available_i: bool) -> Value {
+        let groups = ["I", "P", "C", "G", "B", "E", "S", "FX"];
+        Value::Array(
+            groups
+                .iter()
+                .map(|g| json!({"group": g, "available": available_i && *g == "I", "has_values": false}))
+                .collect(),
+        )
+    }
+
+    #[test]
+    fn ipc_10_snapshot_has_fixtures_groups_and_programmer() {
+        let mut e = engine();
+        e.select_fixture(1).unwrap();
+        e.record_group(1).unwrap();
+        e.clear();
+        let v = parse(&snapshot(&e));
+        assert_eq!(v["fixtures"], json!([{"id":1,"profile":"dimmer"}]));
+        assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
         assert_eq!(
-            v,
-            json!({"v":0,"type":"snapshot","faders_per_page":8,"grand_master":1.0,
-                   "playbacks":[{"id":1,"level":0.0,"active":false}]})
+            v["programmer"],
+            json!({"selection":[],"targets":[],"active_group":"I",
+                   "attribute_groups": no_values(false),"wheels":[],"in_programmer":[]})
         );
+    }
+
+    #[test]
+    fn ipc_11_programmer_state_object() {
+        let mut e = engine();
+        e.select_fixture(1).unwrap();
+        let v = parse(&snapshot(&e));
+        assert_eq!(
+            v["programmer"],
+            json!({"selection":[1],"targets":[1],"active_group":"I",
+                   "attribute_groups": no_values(true),
+                   "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false}],
+                   "in_programmer":[]})
+        );
+        e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
+        let v = parse(&snapshot(&e));
+        assert_eq!(
+            v["programmer"]["wheels"],
+            json!([{"attribute":"Dimmer","value":1.0,"touched":true}])
+        );
+        assert_eq!(v["programmer"]["in_programmer"], json!([1]));
+        assert_eq!(v["programmer"]["attribute_groups"][0]["has_values"], true);
+    }
+
+    #[test]
+    fn ipc_12_programmer_and_groups_deltas_only_on_change() {
+        let mut e = engine();
+        let mut published = Published::new(&e);
+        e.tick(0.0);
+        assert!(published.diff(&e).is_empty());
+
+        e.select_fixture(1).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e);
+        assert_eq!(d.len(), 1);
+        let p = parse(&d[0]);
+        assert_eq!(p["v"], 0);
+        assert_eq!(p["type"], "programmer");
+        assert_eq!(p["selection"], json!([1]));
+        assert_eq!(p["wheels"][0]["attribute"], "Dimmer");
+
+        e.tick(0.05);
+        assert!(published.diff(&e).is_empty(), "no change, no delta");
+
+        e.record_group(4).unwrap();
+        e.tick(0.075);
+        let d = published.diff(&e);
+        assert_eq!(d.len(), 1);
+        assert_eq!(
+            parse(&d[0]),
+            json!({"v":0,"type":"groups","groups":[{"id":4,"fixtures":[1]}]})
+        );
+    }
+
+    #[test]
+    fn ipc_13_programmer_commands_parse() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.select","fixture":201}"#),
+            Command::Select { fixture: 201 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.select_group","group":3}"#),
+            Command::SelectGroup { group: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.step","direction":-1}"#),
+            Command::Step { forward: false }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.step","direction":1}"#),
+            Command::Step { forward: true }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.pattern","stages":2}"#),
+            Command::Pattern { stages: 2 }
+        );
+        assert_eq!(ok(r#"{"v":0,"cmd":"programmer.all"}"#), Command::All);
+        assert_eq!(ok(r#"{"v":0,"cmd":"programmer.clear"}"#), Command::Clear);
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.attribute_group","group":"P"}"#),
+            Command::AttributeGroup {
+                group: AttributeGroup::P
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.attribute_group","group":"FX"}"#),
+            Command::AttributeGroup {
+                group: AttributeGroup::Fx
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":-3,"resolution":"Fine"}"#
+            ),
+            Command::Wheel {
+                attribute: "Pan".into(),
+                steps: -3,
+                resolution: Resolution::Fine
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":2}"#),
+            Command::Wheel {
+                attribute: "Pan".into(),
+                steps: 2,
+                resolution: Resolution::Normal
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"programmer.command","tokens":["201","Thro","205","Enter"]}"#),
+            Command::Line {
+                tokens: vec!["201".into(), "Thro".into(), "205".into(), "Enter".into()]
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"group.record","group":3}"#),
+            Command::RecordGroup { group: 3 }
+        );
+    }
+
+    #[test]
+    fn ipc_13_bad_programmer_commands_are_errors() {
+        for bad in [
+            r#"{"v":0,"cmd":"programmer.select"}"#,
+            r#"{"v":0,"cmd":"programmer.select","fixture":"201"}"#,
+            r#"{"v":0,"cmd":"programmer.step","direction":2}"#,
+            r#"{"v":0,"cmd":"programmer.pattern","stages":-1}"#,
+            r#"{"v":0,"cmd":"programmer.attribute_group","group":"Q"}"#,
+            r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":1.5}"#,
+            r#"{"v":0,"cmd":"programmer.wheel","steps":1}"#,
+            r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":1,"resolution":"Huge"}"#,
+            r#"{"v":0,"cmd":"programmer.command","tokens":"201 Enter"}"#,
+            r#"{"v":0,"cmd":"programmer.command","tokens":[201]}"#,
+            r#"{"v":0,"cmd":"group.record"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

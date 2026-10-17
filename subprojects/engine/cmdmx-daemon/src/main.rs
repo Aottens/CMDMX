@@ -346,6 +346,58 @@ mod tests {
     }
 
     #[test]
+    fn ipc_14_demo_show_patches_the_church_rig_and_groups() {
+        let engine = demo_engine().unwrap();
+        let ids: Vec<u32> = engine.fixtures().map(|f| f.id).collect();
+        let church: Vec<u32> = (101..=104)
+            .chain(201..=208)
+            .chain(221..=226)
+            .chain(301..=306)
+            .collect();
+        let expected: Vec<u32> = (1..=8).chain(church.iter().copied()).collect();
+        assert_eq!(ids, expected);
+        let address = |id: u32| engine.fixtures().find(|f| f.id == id).unwrap().address;
+        assert_eq!(
+            (
+                address(101),
+                address(104),
+                address(201),
+                address(221),
+                address(306)
+            ),
+            (9, 24, 29, 37, 48)
+        );
+        let wash = engine.fixtures().find(|f| f.id == 101).unwrap();
+        assert_eq!(wash.profile, "wash");
+        assert_eq!(engine.group(1), Some(church.as_slice()));
+        assert_eq!(engine.group(2), Some(&[101, 102, 103, 104][..]));
+        let pars: Vec<u32> = (201..=208).chain(221..=226).collect();
+        assert_eq!(engine.group(3), Some(pars.as_slice()));
+        assert_eq!(engine.group(4), Some(&[301, 302, 303, 304, 305, 306][..]));
+        assert!(engine.programmer().selection().is_empty());
+        assert!(engine.programmer().is_empty());
+    }
+
+    #[test]
+    fn ipc_14_demo_wash_has_dimmer_16_bit_pan_tilt_zoom() {
+        let mut engine = demo_engine().unwrap();
+        engine.execute_command(&["101", "Enter"]).unwrap();
+        engine.set_active_group(cmdmx_core::attribute::AttributeGroup::P);
+        assert_eq!(
+            engine.wheel_layout(),
+            vec!["Pan".to_string(), "Tilt".to_string()]
+        );
+        engine.set_programmer_value(101, "Pan", 1.0).unwrap();
+        engine.tick(0.0);
+        let frame = engine.frame(1).unwrap();
+        // Pan coarse + fine at offsets 2 and 3 of the wash at address 9.
+        assert_eq!(
+            (frame.channel(10), frame.channel(11)),
+            (Some(255), Some(255))
+        );
+    }
+
+    #[test]
     fn ipc_09_demo_show_has_one_dimmer_per_fader() {
         let engine = demo_engine().unwrap();
         let ids: Vec<_> = engine.playback_states().map(|(id, _)| *id).collect();
