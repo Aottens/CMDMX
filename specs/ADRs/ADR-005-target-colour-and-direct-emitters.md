@@ -1,6 +1,6 @@
 # ADR-005: Colour is a device-independent target colour, extra emitters are driven directly
 
-**Status:** proposed (P1-07, owner approval before P1-03)
+**Status:** accepted (owner, 2026-10-17; automatic white/lime extraction stays a later opt-in)
 **Date:** 2026-10-17
 
 ## Context

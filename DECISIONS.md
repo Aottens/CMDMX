@@ -5,7 +5,7 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
-## 2026-10-17 — Colour as a target colour plus direct emitters (ADR-005, proposed)
+## 2026-10-17 — Colour as a target colour plus direct emitters (ADR-005, accepted)
 
 **Decision:** One `Colour` attribute per fixture holds a linear RGB target colour in the BT.2020 reference space; White, Lime and other extra emitters are ordinary attributes the operator drives directly; phase 1 maps the target colour nominally onto each fixture's RGB or CMY channels; a colour palette with a target colour zeroes the emitters it does not mention. See `specs/ADRs/ADR-005-target-colour-and-direct-emitters.md`.
 
