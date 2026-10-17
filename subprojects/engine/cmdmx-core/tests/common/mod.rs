@@ -12,45 +12,42 @@ use cmdmx_core::patch::{Fixture, FixtureId};
 use cmdmx_core::profile::Profile;
 
 fn attr(name: &str, group: AttributeGroup, kind: AttributeKind, channel: u16) -> AttributeDef {
-    AttributeDef {
-        name: name.into(),
-        group,
-        kind,
-        channel,
-        fine_channel: None,
-    }
+    AttributeDef::new(name, group, kind, channel)
 }
 
 pub fn wash_profile() -> Profile {
     use AttributeGroup::*;
     use AttributeKind::*;
-    Profile {
-        attributes: vec![
-            attr("Dimmer", I, Htp, 1),
-            AttributeDef {
-                fine_channel: Some(3),
-                ..attr("Pan", P, Ltp, 2)
-            },
-            attr("Tilt", P, Ltp, 4),
-            attr("Zoom", B, Ltp, 5),
-        ],
-    }
+    Profile::from_attributes(vec![
+        attr("Dimmer", I, Htp, 1),
+        AttributeDef {
+            fine_channel: Some(3),
+            ..attr("Pan", P, Ltp, 2)
+        },
+        attr("Tilt", P, Ltp, 4),
+        attr("Zoom", B, Ltp, 5),
+    ])
 }
 
 pub fn church() -> Engine {
     let mut e = Engine::new(Settings::default());
-    e.add_profile("wash", wash_profile());
+    e.add_profile("wash", wash_profile()).unwrap();
     e.add_profile(
         "dimmer",
-        Profile {
-            attributes: vec![attr("Dimmer", AttributeGroup::I, AttributeKind::Htp, 1)],
-        },
-    );
+        Profile::from_attributes(vec![attr(
+            "Dimmer",
+            AttributeGroup::I,
+            AttributeKind::Htp,
+            1,
+        )]),
+    )
+    .unwrap();
     let mut address = 1;
     for id in 101..=104 {
         e.patch(Fixture {
             id,
             profile: "wash".into(),
+            mode: None,
             universe: 1,
             address,
         })
@@ -61,6 +58,7 @@ pub fn church() -> Engine {
         e.patch(Fixture {
             id,
             profile: "dimmer".into(),
+            mode: None,
             universe: 1,
             address,
         })

@@ -5,7 +5,7 @@
 //!
 //! Module map (phase 1):
 //! - [`attribute`]  attribute groups (I P C G B E S FX) and HTP/LTP kind
-//! - [`profile`]    fixture profiles (minimal JSON profile now, GDTF later — ADR-004)
+//! - [`profile`]    fixture profiles with modes (own model, importers later — ADR-006, `specs/modules/fixture-library.md`)
 //! - [`patch`]      fixtures on universes/addresses
 //! - [`playback`]   playbacks: priority, fader mode, values, runtime level
 //! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
@@ -41,6 +41,10 @@ pub enum CoreError {
     UnknownPlayback(u32),
     #[error("unknown profile '{0}'")]
     UnknownProfile(String),
+    #[error("profile '{profile}' has no mode '{mode}'")]
+    UnknownMode { profile: String, mode: String },
+    #[error("invalid profile (mode '{mode}'): {problem}")]
+    InvalidProfile { mode: String, problem: String },
     #[error("fixture {fixture} at universe {universe} address {address} exceeds the universe")]
     AddressOutOfRange {
         fixture: u32,

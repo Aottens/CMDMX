@@ -6,6 +6,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::profile::Slot;
+
 /// Titan's attribute banks, in console order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum AttributeGroup {
@@ -48,11 +50,51 @@ pub struct AttributeDef {
     /// 1-based DMX channel offset within the fixture's footprint (coarse byte).
     pub channel: u16,
     /// Optional 1-based offset of the fine (low) byte for 16-bit attributes.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fine_channel: Option<u16>,
+    /// What the attribute outputs until some source proposes a value (LIB-03), 0.0..=1.0.
+    #[serde(default)]
+    pub default: f32,
+    /// Value Locate drives it to, if any (LIB-01).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locate: Option<f32>,
+    /// Value Highlight drives it to, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub highlight: Option<f32>,
+    /// An extra colour emitter (White, Amber, UV, …; LIB-17). Must be group C.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub emitter: bool,
+    /// Named DMX ranges: wheel slots, macros (LIB-15).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub slots: Vec<Slot>,
+}
+
+pub(crate) fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 impl AttributeDef {
+    /// An attribute with no fine byte, default 0 and nothing optional set.
+    pub fn new(
+        name: impl Into<String>,
+        group: AttributeGroup,
+        kind: AttributeKind,
+        channel: u16,
+    ) -> Self {
+        AttributeDef {
+            name: name.into(),
+            group,
+            kind,
+            channel,
+            fine_channel: None,
+            default: 0.0,
+            locate: None,
+            highlight: None,
+            emitter: false,
+            slots: Vec::new(),
+        }
+    }
+
     /// Convert a normalised value (0.0..=1.0) to the coarse and optional fine
     /// DMX bytes. 8-bit attributes round to the nearest step; 16-bit attributes
     /// use the full 0..=65535 range.
@@ -74,11 +116,8 @@ mod tests {
 
     fn dimmer(fine: Option<u16>) -> AttributeDef {
         AttributeDef {
-            name: "Dimmer".into(),
-            group: AttributeGroup::I,
-            kind: AttributeKind::Htp,
-            channel: 1,
             fine_channel: fine,
+            ..AttributeDef::new("Dimmer", AttributeGroup::I, AttributeKind::Htp, 1)
         }
     }
 

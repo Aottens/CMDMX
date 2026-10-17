@@ -1,0 +1,35 @@
+{
+  "spec": "LIB-03",
+  "profiles": {
+    "spot": {
+      "manufacturer": "Test",
+      "model": "Spot",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "Standard",
+          "footprint": 5,
+          "attributes": [
+            { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1, "default": 0.0 },
+            { "name": "Pan", "group": "P", "kind": "Ltp", "channel": 2, "fine_channel": 3, "default": 0.5 },
+            { "name": "Control", "group": "S", "kind": "Ltp", "channel": 4, "default": 0.4 },
+            { "name": "Zoom", "group": "B", "kind": "Ltp", "channel": 5 }
+          ]
+        }
+      ]
+    }
+  },
+  "patch": [ { "id": 1, "profile": "spot", "mode": "Standard", "universe": 1, "address": 1 } ],
+  "playbacks": [
+    { "id": 1, "priority": "Normal", "fader_mode": 0, "values": { "1": { "Control": 1.0, "Dimmer": 1.0 } } }
+  ],
+  "actions": [
+    { "t": 1.0, "fader": { "playback": 1, "level": 1.0 } },
+    { "t": 2.0, "fader": { "playback": 1, "level": 0.0 } }
+  ],
+  "expect": [
+    { "t": 0.0, "universe": 1, "channels": { "1": 0, "2": 128, "3": 0, "4": 102, "5": 0 } },
+    { "t": 1.1, "universe": 1, "channels": { "1": 255, "4": 255 } },
+    { "t": 2.1, "universe": 1, "channels": { "1": 0, "4": 255, "2": 128 } }
+  ]
+}
