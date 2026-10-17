@@ -12,7 +12,8 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
 - `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
 - ADR-006 accepted, `fixture-library.md` LIB-01..17 and `patch.md` PAT-01..14 approved; build tasks VS2-08..13 in BACKLOG. LIB-17 (owner, 2026-10-17): emitters are generic — recognised by an `emitter` flag, never by name, any number (Amber, Warm/Cold White, UV, Royal Blue, …)
-- Colour as one value (VS2-06, in review): `Value::Level | Value::Colour` through programmer, playbacks and merge; HSI (default) / RGB / CMY wheels as views of one target colour, emitter wheels; nominal RGB/CMY mapping; virtual dimmer scales colour and emitters (GM included); Colour defaults to open white and LTP values are held; cells follow the fixture's Colour/White/Dimmer (owner decisions 2026-10-17)
+- Colour in the app (VS2-14, in review): demo rig = church rig with RGBW washes, RGBW / RGB+Lime / RGB (virtual dimmer) pars and front spots (IPC-14 amended); `programmer.colour_model` (IPC-18); HSI/RGB/CMY buttons and Hue in degrees in the app (IPC-19)
+- Colour as one value (VS2-06, merged): `Value::Level | Value::Colour` through programmer, playbacks and merge; HSI (default) / RGB / CMY wheels as views of one target colour, emitter wheels; nominal RGB/CMY mapping; virtual dimmer scales colour and emitters (GM included); Colour defaults to open white and LTP values are held; cells follow the fixture's Colour/White/Dimmer (owner decisions 2026-10-17)
 - Profile model v2 (VS2-08, merged): `cmdmx-core::profile` with modes, cells, colour mixing system, emitter flag, defaults/locate/highlight, slots, physical ranges; validated on load (LIB-02, 17); fixtures are patched in a mode; unproposed LTP attributes output their default (LIB-03); scenario `{attributes}` profiles still load
 - ADR-005 accepted: one BT.2020 linear target colour per fixture, White/Lime as direct attributes, nominal mapping in phase 1
 - Programmer spec `specs/modules/programmer.md` PRG-01..37 approved (P1-02); tasks VS2-02..07 in BACKLOG
@@ -21,7 +22,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS2-06 in review (PR); owner exports the church patch from Lightkey on 2026-10-18
+- VS2-14 in review (PR): owner runs the Colour section of `tests/manual/app-programmer.md`; owner exports the church patch from Lightkey on 2026-10-18
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -35,4 +36,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-Start a fresh session (read PROJECT/STATE/ARCHITECTURE/DECISIONS, CLAUDE.md). After the owner merges VS2-06, in dependency order: VS2-14 (colour in the app) and VS2-09 (QLC+ importer) and VS2-10 (patch core), then VS2-11, VS2-12, VS2-13 (church patch from the owner's Lightkey export, expected 2026-10-18; the owner may also hand over a Lightkey show file to decode). Still open: VS2-05 (Locate/Highlight/Off/Rem Dim/Clear options incl. freeze/release), P1-09 show file (needed for PAT-08 persistence), P1-12 GDTF importer spec, P1-13 per-cell selection spec, UX-02 (UI v0.1 layout, split first). Every PR updates README (CLAUDE.md step 5). The church is the playground, not the limit (owner): no church-driven feature cuts.
+Start a fresh session (read PROJECT/STATE/ARCHITECTURE/DECISIONS, CLAUDE.md). After the owner's VS2-14 run and merge, in dependency order: VS2-09 (QLC+ importer) and VS2-10 (patch core), then VS2-11, VS2-12, VS2-13 (church patch from the owner's Lightkey export, expected 2026-10-18; the owner may also hand over a Lightkey show file to decode). Still open: VS2-05 (Locate/Highlight/Off/Rem Dim/Clear options incl. freeze/release), P1-09 show file (needed for PAT-08 persistence), P1-12 GDTF importer spec, P1-13 per-cell selection spec, UX-02 (UI v0.1 layout, split first). Every PR updates README (CLAUDE.md step 5). The church is the playground, not the limit (owner): no church-driven feature cuts.
