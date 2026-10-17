@@ -6,8 +6,10 @@
 //!
 //! Usage: `cmdmx-daemon [--ticks N] [--artnet-target IPV4 | --no-artnet]
 //!        [--sacn-unicast IPV4] [--sacn-priority 0..200] [--no-sacn]
-//!        [--serial PATH | --no-serial]`.
+//!        [--serial PATH | --no-serial] [--ipc-port N] [--demo]`.
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
+//! The app talks to the daemon over WebSocket on `--ipc-port` (default 7319);
+//! `--demo` lets fader 1 breathe.
 
 mod artnet_out;
 mod ipc;
@@ -68,6 +70,18 @@ fn main() {
         }
     };
 
+    // IPC-01: a bound port that is already taken most likely means another daemon runs.
+    let (events, ipc_addr) = match ipc::spawn_server(cli.ipc_port) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("cmdmx-daemon: cannot open IPC port {}: {e}", cli.ipc_port);
+            std::process::exit(2);
+        }
+    };
+    eprintln!("ipc: listening on ws://{ipc_addr}");
+    let mut clients = ipc::Clients::default();
+    let mut published = ipc::Published::new(&engine);
+
     eprintln!("cmdmx-daemon 0.1.0 — 40 Hz tick loop running.");
     let started = Instant::now();
     let mut next = started;
@@ -76,10 +90,31 @@ fn main() {
 
     loop {
         let now = started.elapsed().as_secs_f64();
-        // Demo motion: fader 1 breathes so the output visibly changes.
-        let level = ((now * 0.5).sin() * 0.5 + 0.5) as f32;
-        if let Err(e) = engine.set_fader(1, level, now) {
-            eprintln!("warning: {e}");
+        // IPC-07: commands and new clients are drained here, never waited for.
+        while let Ok(event) = events.try_recv() {
+            let result = match event {
+                ipc::Event::Connected(tx) => {
+                    clients.add(tx, &ipc::snapshot(&engine));
+                    Ok(())
+                }
+                ipc::Event::Command(ipc::Command::FaderSet { playback, level }) => {
+                    engine.set_fader(playback, level, now)
+                }
+                ipc::Event::Command(ipc::Command::GrandMasterSet { level }) => {
+                    engine.set_grand_master(level)
+                }
+            };
+            if let Err(e) = result {
+                eprintln!("warning: {e}");
+                clients.broadcast(&ipc::warning(&e.to_string()));
+            }
+        }
+        if cli.demo {
+            // Demo motion: fader 1 breathes so the output visibly changes.
+            let level = ((now * 0.5).sin() * 0.5 + 0.5) as f32;
+            if let Err(e) = engine.set_fader(1, level, now) {
+                eprintln!("warning: {e}");
+            }
         }
         engine.tick(now);
         let frame = engine.frame(1).map_or([0; UNIVERSE_SIZE], |f| *f.slots());
@@ -91,6 +126,10 @@ fn main() {
         }
         for w in engine.drain_warnings() {
             eprintln!("warning @{:.3}: {}", w.at, w.message);
+            clients.broadcast(&ipc::warning(&w.message));
+        }
+        for msg in published.diff(&engine) {
+            clients.broadcast(&msg);
         }
 
         if last_report.elapsed() >= Duration::from_secs(1) {
@@ -121,6 +160,10 @@ struct Cli {
     serial_enabled: bool,
     /// `--serial <path>`; `None` = detect the interface (OUT-09).
     serial_path: Option<String>,
+    /// `--ipc-port <n>`: WebSocket port on 127.0.0.1 (IPC-01).
+    ipc_port: u16,
+    /// `--demo`: fader 1 breathes (IPC-09).
+    demo: bool,
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
@@ -132,6 +175,8 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
         sacn_priority: cmdmx_protocols::sacn::DEFAULT_PRIORITY,
         serial_enabled: true,
         serial_path: None,
+        ipc_port: 7319,
+        demo: false,
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -158,6 +203,13 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
             "--serial" => {
                 cli.serial_path = Some(args.next().ok_or("--serial: missing device path")?);
             }
+            "--ipc-port" => {
+                let v = args.next().unwrap_or_default();
+                cli.ipc_port = v
+                    .parse()
+                    .map_err(|_| format!("--ipc-port: '{v}' is not a port number"))?;
+            }
+            "--demo" => cli.demo = true,
             _ => {}
         }
     }
@@ -178,18 +230,21 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             }],
         },
     );
-    engine.patch(Fixture {
-        id: 1,
-        profile: "generic-dimmer".into(),
-        universe: 1,
-        address: 1,
-    })?;
-    engine.add_playback(Playback {
-        id: 1,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0)]))]),
-    });
+    // IPC-09: one dimmer per fader, playback n -> fixture n at address n.
+    for n in 1..=u32::from(Settings::default().faders_per_page) {
+        engine.patch(Fixture {
+            id: n,
+            profile: "generic-dimmer".into(),
+            universe: 1,
+            address: n as u16,
+        })?;
+        engine.add_playback(Playback {
+            id: n,
+            priority: Priority::Normal,
+            fader_mode: FaderMode::Mode0,
+            values: BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0)]))]),
+        });
+    }
     Ok(engine)
 }
 

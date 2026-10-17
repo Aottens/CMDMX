@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 draft for owner approval (VS1-05)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.

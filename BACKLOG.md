@@ -13,7 +13,7 @@ Software first (owner, 2026-10-17): VS1-05/06 next; VS1-07 and the VS1-04 hardwa
 | VS1-02 | Daemon opens an Art-Net broadcast socket and emits the current frame of universe 1 at 40 Hz; owner sees it in an Art-Net monitor. | OUT-01..04, 11, 12, 15 | M | done (2026-10-16; hardware run `tests/hardware/runs/2026-10-16-VS1-02.md`) |
 | VS1-03 | Daemon emits sACN universe 1 (priority 100) alongside Art-Net; owner sees it in sACNView. | OUT-05..07, 16, 17 | S | done (2026-10-17; hardware run `tests/hardware/runs/2026-10-17-VS1-03.md`) |
 | VS1-04 | Daemon detects the Eurolite MK2 by USB product string, opens its serial port and sends ENTTEC-Pro frames; owner's dimmer follows a fader. | OUT-08, 09, 12, 20..22, hardware checklist | M | blocked (code merged; gate 3 at the church, see VS4-02) |
-| VS1-05 | IPC contract v0: app connects, receives state snapshot, sends `fader.set`, receives delta; reconnect after daemon restart. | IPC-01..09 | M | doing (spec awaiting approval) |
+| VS1-05 | IPC contract v0: app connects, receives state snapshot, sends `fader.set`, receives delta; reconnect after daemon restart. | IPC-01..09 | M | review (owner: `tests/manual/app-ipc.md`) |
 | VS1-06 | App shows `faders_per_page` on-screen faders bound to playbacks of page 1; moving one changes DMX. | PBK (subset) | M | todo |
 | VS1-07 | MCU driver: BCF2000 fader 1 pitchbend moves playback 1; engine echoes level back and the motor follows after a page change. | CTL-01..04 | M | parked (hardware track: BCF2000 not at hand) |
 | VS1-08 | Supervisor-less resilience check: kill the app while output runs; DMX keeps streaming; app reconnects and shows the live state. | ADR-002 | S | todo |
