@@ -25,7 +25,7 @@ the backlog, not the whole idea.
 | IDEA-01 | More USB-DMX interfaces than the ENTTEC Pro family | triaged | 2 | OUT |
 | IDEA-02 | Colour picking in several models: RGB, CMY, HSL/HSI, gel numbers (LEE first) | triaged | 1 (basic) / 2 (gels) | PRG, PAL |
 | IDEA-03 | Colour calibration so different fixtures match each other | triaged | 2 | LIB, PAT, core |
-| IDEA-04 | Programming and running big shows (cue lists) is the main use; busking is secondary | **scope change, awaiting owner** | 1? | PRD, new `cuelists.md` |
+| IDEA-04 | Phase 1 = programming the building blocks of any show (robust programmer); cue lists and busking both run on them | accepted 2026-10-17 | 1 | PRD, PRG, new `cuelists.md` |
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
@@ -56,7 +56,7 @@ the backlog, not the whole idea.
 **Owner's intent:** not only busking: cue lists and running whole shows; "very big shows" must be programmable. Busking must work but is not the main thing.
 **Triage:** this changes the phase-1 goal in `PROJECT.md` and `specs/PRD.md` ("one evening of busking", cue lists with tracking in phase 3+). Proposal: phase 1 becomes "program and run a show": cue lists (Titan cue list behaviour: cues with fade/delay, go/back, link/follow) move into phase 1; busking (palettes on a grid, playbacks, fader modes) stays. Tracking is the open point — it is what makes big shows editable, and it is a large engine feature.
 **What it touches now:** the playbacks spec (P1-04) and the show file; the engine merge already has priorities and playback states that cue lists build on.
-**Open questions:** does tracking belong in phase 1? How big is "big" (fixtures, universes, cues) — this sets performance targets.
+**Outcome (2026-10-17):** owner: phase 1 is *programming* — set up the building blocks for any type of show; the focus moves to a robust programmer. `PROJECT.md` and `specs/PRD.md` updated: cue lists (no tracking) join phase 1, tracking goes to phase 2, cues store touched attributes only so tracking can follow. Provisional design target 16 universes / 500 fixtures / 1000 cues, owner to confirm.
 
 ### IDEA-05 — Timeline synced to Ableton (2026-10-17)
 **Owner's intent:** a timeline that syncs to e.g. Ableton, so timecoded shows are easy to make by dragging presets onto it.

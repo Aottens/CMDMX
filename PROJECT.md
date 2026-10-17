@@ -2,28 +2,32 @@
 
 Open-source, native macOS lighting console built on the Avolites Titan operating
 model (handles, programmer, IPCGBES palettes, fader modes, release masks, playback
-groups), designed fader-first for busking with a MIDI controller.
+groups), built around a robust programmer: program the building blocks once, then run
+them as cue lists, busking pages or (later) a timeline.
 
 ## Client / Stakeholder
 - Owner: Aernout Ottens (Colourmotion). Product owner, reviewer, hardware tester.
 - Users (later): lighting operators who know Avolites and work from a Mac.
 
 ## Scope (in scope)
-- Phase 1 "one evening of busking":
+- Phase 1 "program the building blocks of any show" (decided 2026-10-17, see DECISIONS):
   - Fixture library via GDTF import (thin overlay for attribute group, locate values, virtual dimmer)
-  - Patch, attribute groups (IPCGBES-FX), programmer, wheels (encoders)
+  - Patch, groups, attribute groups (IPCGBES-FX)
+  - **Programmer as the core:** ordered selection, touched attributes only, wheels (encoders), colour picker in RGB/CMY/HSI, Locate/Highlight, Clear options, 16-bit
   - Palettes (Global/Shared/Normal, reference model, quick palette, fade + overlap)
-  - Cues, chases (BPM, tap), playbacks with fader modes 0/1/2, priority, release mask/time, kill point
+  - Recording cues onto playbacks and into cue lists; chases (BPM, tap)
+  - Running what you programmed: playbacks with fader modes 0/1/2, priority, release mask/time, kill point; cue lists with Go/Back, fade/delay per cue, link/follow (no tracking yet — cues store only touched attributes, so tracking can follow without changing the show file)
   - Pages of N faders (8 default, configurable), Grand Master, BPM master, group masters, playback groups
   - HTP/LTP engine with 5 priority levels
   - Output: Art-Net, sACN, ENTTEC-Pro-compatible USB (Eurolite USB-DMX512 PRO MK2 as reference)
   - Input: Mackie Control driver (BCF2000 in MC mode, X-Touch), free MIDI note/CC mapping, OSC schema
   - Show file: one readable JSON file, autosave, git-friendly
-- Phase 2: shape generator, fader mode 3, nested/time palettes, fan/align, virtual faders, scene master
-- Phase 3+: cue lists with tracking, pixel mapper, key frame shapes, set list, sACN input, visualiser
+- Phase 2: cue-list tracking and show-running depth, shape generator, fader mode 3, nested/time palettes, fan/align, virtual faders, scene master, gel picker + colour calibration (IDEA-02/03), more USB interfaces (IDEA-01)
+- Phase 3+: timeline synced to Ableton/timecode (IDEA-05), pixel mapper, key frame shapes, set list, sACN input, visualiser
+- Ideas not yet placed: `IDEAS.md`
 
 ## Out of scope (for this milestone)
-- Media server, Synergy/Ai, Capture visualiser, TitanNet multi-console, timelines, NDI
+- Media server, Synergy/Ai, Capture visualiser, TitanNet multi-console, NDI
 - Windows/Linux UI (the engine is portable; the UI is macOS only)
 - Any licensing dongle or paywall
 

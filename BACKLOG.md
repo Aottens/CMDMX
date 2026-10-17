@@ -5,6 +5,7 @@ criterion; T-shirt size (S ≤ 2 h, M ≤ half day, L ≤ day, XL = split it); o
 Status: `todo` · `doing` · `review` · `done` · `blocked`.
 
 ## Vertical slice 1
+Software first (owner, 2026-10-17): VS1-05/06 next; VS1-07 and the VS1-04 hardware check form a hardware track for when the hardware is at hand.
 
 | Id | Task (one sentence, verifiable) | Spec ids | Size | Status |
 | --- | --- | --- | --- | --- |
@@ -14,7 +15,7 @@ Status: `todo` · `doing` · `review` · `done` · `blocked`.
 | VS1-04 | Daemon detects the Eurolite MK2 by USB product string, opens its serial port and sends ENTTEC-Pro frames; owner's dimmer follows a fader. | OUT-08, 09, 12, 20..22, hardware checklist | M | blocked (code in review; gate 3 needs the Eurolite at the church) |
 | VS1-05 | IPC contract v0: app connects, receives state snapshot, sends `fader.set`, receives delta; reconnect after daemon restart. | IPC-01..03 | M | todo |
 | VS1-06 | App shows `faders_per_page` on-screen faders bound to playbacks of page 1; moving one changes DMX. | PBK (subset) | M | todo |
-| VS1-07 | MCU driver: BCF2000 fader 1 pitchbend moves playback 1; engine echoes level back and the motor follows after a page change. | CTL-01..04 | M | todo |
+| VS1-07 | MCU driver: BCF2000 fader 1 pitchbend moves playback 1; engine echoes level back and the motor follows after a page change. | CTL-01..04 | M | parked (hardware track: BCF2000 not at hand) |
 | VS1-08 | Supervisor-less resilience check: kill the app while output runs; DMX keeps streaming; app reconnects and shows the live state. | ADR-002 | S | todo |
 
 ## Phase 1 modules (after the slice)
@@ -27,6 +28,8 @@ Status: `todo` · `doing` · `review` · `done` · `blocked`.
 | P1-04 | Write `playbacks.md` spec (fader modes 0/1/2, priority, release mask/time, kill point, locks, playback groups, chases, masters). | PBK | L | todo |
 | P1-05 | Write `control-surfaces.md` spec (MCU map, generic MIDI map, OSC schema). | CTL | M | todo |
 | P1-06 | Write `ipc.md` spec (message schema, versioning, snapshot/delta, reconnect). | IPC | M | todo |
+| P1-08 | Write `cuelists.md` spec (Titan cue list: record, Go/Back, fade/delay, link/follow; touched attributes only so tracking can follow in phase 2). | CUE | M | todo |
+| UX-01 | Clickable HTML sketch of the Titan-style main screen (fixtures/groups, palette grid, programmer + encoders, playback faders, cue list); owner iterates until it feels right. Guides the SwiftUI work. | — | M | todo |
 | P1-07 | ADR-005 on how colour is stored in palettes/cues/show file (device-independent target colour vs raw channel values); owner approves before P1-03. Forced by IDEA-02/03. | PAL, SHW | S | todo |
 
 ## Later phases
