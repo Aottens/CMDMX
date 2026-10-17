@@ -10,6 +10,16 @@ struct PatchView: View {
     var body: some View {
         let rows = engine.fixtures.sorted { $0.number < $1.number }
         HStack(spacing: 8) {
+            VStack(spacing: 8) {
+                AddPanel()
+                SelectedPanel(fixture: rows.first { $0.id == selection })
+                if let message = engine.lastMessage {
+                    Text(message).font(.caption).foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(width: 320)
             PanelWindow(title: "Patch", accessory: { Text("\(rows.count) fixtures").font(.caption2).foregroundStyle(.secondary) }) {
                 Table(rows, selection: $selection) {
                     TableColumn("No") { Text("\($0.number)").monospacedDigit() }.width(min: 40, ideal: 50, max: 70)
@@ -22,19 +32,10 @@ struct PatchView: View {
                     TableColumn("Ch") { Text("\($0.footprint)").monospacedDigit() }.width(min: 30, ideal: 40, max: 60)
                 }
             }
-            VStack(spacing: 8) {
-                AddPanel()
-                SelectedPanel(fixture: rows.first { $0.id == selection })
-                if let message = engine.lastMessage {
-                    Text(message).font(.caption).foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(width: 320)
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: selection) { _, _ in engine.clearMessage() }
     }
 }
 

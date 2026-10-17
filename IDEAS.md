@@ -90,3 +90,27 @@ shows through from the playbacks again. Double-clicking the wheel (or the parame
 **name** only, not on the wheel itself, so a drag can never trigger it ("safe, but functional").
 Clears the attribute for all targets, as wheels act on all targets. The PRG criterion is written
 at the start of VS2-05.
+
+### IDEA-08 — Browse the library by manufacturer, then model (2026-10-17, VS2-12 run)
+**Owner's intent:** in the Patch screen's Add panel, picking a fixture by search alone is sometimes
+awkward; browsing manufacturer → model must be possible too.
+**Triage:**
+- Proposed phase 1 (the patch screen is phase 1). Needs one LIB criterion: a manufacturer list
+  and the models of one manufacturer over IPC (e.g. `library.manufacturers`,
+  `library.models {manufacturer}`), answered in the client thread like `library.search`
+  (LIB-14); the app shows two columns next to the search field.
+- Touches now: `cmdmx-core::library::Index` (already keyed by manufacturer + model), the daemon's
+  library requests, the Add panel.
+**Open questions:** none yet; the owner confirms the phase.
+
+### IDEA-09 — Multi-select in the patch table (2026-10-17, VS2-12 run)
+**Owner's intent:** select several rows in the patch table and edit them at once.
+**Triage:**
+- Proposed phase 1. `patch.remove {ids}` already takes many; move, renumber and change mode of a
+  range need PAT criteria for what "at once" means (e.g. renumber 1221–1226 from 1301 keeps the
+  order; move a range back to back from one start address, checked as a whole like PAT-02;
+  change mode for all, refused as a whole if one does not fit).
+- Touches now: the PAT-09 commands (new multi-fixture forms or a new command), the Patch screen's
+  Selected panel.
+**Open questions:** which edits besides remove does the owner need for a range — move, renumber,
+change mode, name (e.g. "Par 1…6")?

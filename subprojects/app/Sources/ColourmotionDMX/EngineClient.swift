@@ -243,6 +243,9 @@ final class EngineClient: ObservableObject {
     func patchName(id: Int, name: String) { patch("patch.name", ["id": id, "name": name]) }
     func patchChangeMode(id: Int, mode: String) { patch("patch.change_mode", ["id": id, "mode": mode]) }
 
+    /// Hides the last engine message (e.g. when the operator selects another row).
+    func clearMessage() { lastMessage = nil }
+
     private func patch(_ cmd: String, _ fields: [String: Any]) {
         lastMessage = nil
         sendJSON(cmd, fields)

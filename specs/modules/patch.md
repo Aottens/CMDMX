@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11)**. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
