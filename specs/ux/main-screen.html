@@ -12,23 +12,24 @@
   --fg: #d8dadc; --fg2: #8a8e93; --fg3: #55595e;
   --red: #e5484d; --blue: #3e8ef7; --green: #46a758; --amber: #f5a524; --cyan: #3fb7d9; --violet: #8e4ec6;
   --gI: #bdb38c; --gP: #8fa3b5; --gC: #b58fa8; --gG: #8fb59c; --gB: #b59e8f; --gE: #9c8fb5; --gS: #8f9396; --gFX: #b5a98f;
+  --chassis: #08090a; --panel: #16181a;
   --f-leg: "IBM Plex Sans Condensed", "SF Pro Display", "Arial Narrow", sans-serif;
   --f-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   --f-num: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, monospace;
   color-scheme: dark;
 }
-.app.day { --bg: #e9eaeb; --surf: #f7f7f8; --surf2: #ffffff; --line: #c9cbce; --line2: #a9acb0; --fg: #111213; --fg2: #4d5156; --fg3: #9a9ea3;
+.app.day { --chassis: #c4c7cb; --panel: #dfe1e3; --bg: #e9eaeb; --surf: #f7f7f8; --surf2: #ffffff; --line: #c9cbce; --line2: #a9acb0; --fg: #111213; --fg2: #4d5156; --fg3: #9a9ea3;
   --red: #d1242f; --blue: #0b63d6; --green: #1f7a35; --amber: #b36b00; --cyan: #0a7ea4; color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-body { margin: 0; background: #121314; color: #d8dadc; font: 12px/1.3 var(--f-ui); }
+body { margin: 0; background: #08090a; color: #d8dadc; font: 12px/1.3 var(--f-ui); }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 button:disabled { cursor: default; }
 button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 
 .app { height: 100%; display: grid; background: var(--bg); color: var(--fg); user-select: none; -webkit-user-select: none;
   grid-template-columns: 78px minmax(0, 1fr) auto; grid-template-rows: 26px minmax(0, 1fr) 64px 232px;
-  grid-template-areas: "status status status" "rail grid side" "attr attr attr" "play play play"; gap: 1px; }
+  grid-template-areas: "status status status" "rail grid side" "attr attr attr" "play play play"; gap: 5px; background: var(--chassis); }
 .app > * { background: var(--bg); min-width: 0; min-height: 0; }
 .app.blind { box-shadow: inset 0 0 0 3px var(--violet); }
 
@@ -117,12 +118,16 @@ table.t { width: 100%; border-collapse: collapse; font: 11px var(--f-num); font-
 .gel i { height: 5px; border-radius: 1px; display: block; }
 
 /* side: function buttons, keypad, softkeys */
-.side { grid-area: side; display: flex; gap: 1px; background: var(--line); }
+.side { grid-area: side; display: flex; gap: 5px; background: var(--chassis); }
 .side > div { background: var(--bg); padding: 4px; display: grid; gap: 2px; align-content: start; overflow: auto; }
-.func { grid-template-columns: repeat(2, 64px); }
-.kp { grid-template-columns: repeat(4, 48px); }
+.func { grid-template-columns: repeat(2, 68px); }
+.func .k { text-align: left; padding: 0 7px; font-size: 13px; box-shadow: inset 0 0 0 1px var(--line), inset 0 -2px 0 var(--line2); }
+.kp { grid-template-columns: repeat(4, 50px); background: var(--panel) !important; }
+.kp .k { background: var(--surf2); box-shadow: inset 0 0 0 1px var(--line2); border-radius: 3px; }
+.kp .k.cmdk { background: var(--bg); color: var(--fg2); font-size: 11px; }
+.kp .k.ent { background: var(--fg); color: var(--bg); }
 .kp.hide { display: none !important; }
-.soft { grid-template-columns: 112px; grid-template-rows: 16px; grid-auto-rows: minmax(44px, 1fr); align-content: stretch !important; }
+.soft { grid-template-columns: 112px; grid-template-rows: 24px; grid-auto-rows: minmax(44px, 1fr); align-content: stretch !important; }
 .k { height: 40px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); font: 500 12px/1.05 var(--f-leg); text-align: center; padding: 0 3px; }
 .k:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--line2); }
 .k:active:not(:disabled) { background: var(--fg); color: var(--bg); }
@@ -131,14 +136,16 @@ table.t { width: 100%; border-collapse: collapse; font: 11px var(--f-num); font-
 .k.rec.on { box-shadow: inset 0 0 0 2px var(--red); color: var(--red); }
 .k.blind.on { box-shadow: inset 0 0 0 2px var(--violet); color: #c9a3ef; }
 .k.clr.has { box-shadow: inset 0 0 0 2px var(--red); color: var(--red); }
-.k.num { font: 15px var(--f-num); }
+.k.num { font: 18px var(--f-num); }
 .kp .k { height: 38px; }
-.hd2 { grid-column: 1 / -1; font: 500 10px var(--f-leg); letter-spacing: .08em; color: var(--fg3); text-transform: uppercase; padding: 1px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sk { position: relative; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); text-align: left; padding: 6px 8px 6px 22px; font: 500 12px/1.15 var(--f-leg); }
-.sk b { position: absolute; left: 7px; top: 6px; font: 600 11px var(--f-num); color: var(--fg3); }
+.hd2 { grid-column: 1 / -1; font: 600 11px var(--f-leg); letter-spacing: .1em; color: var(--fg2); text-transform: uppercase; padding: 2px 2px 4px; margin-bottom: 2px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.soft { background: var(--panel) !important; }
+.sk { position: relative; border-radius: 2px; background: var(--surf2); box-shadow: none; clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%); text-align: left; padding: 6px 8px 6px 28px; font: 500 12px/1.15 var(--f-leg); }
+.sk b { position: absolute; left: 14px; top: 6px; font: 600 11px var(--f-num); color: var(--fg3); }
 .sk small { display: block; font: 10px var(--f-num); color: var(--fg2); margin-top: 2px; }
 .sk:disabled { opacity: .3; }
-.sk.warn { box-shadow: inset 0 0 0 2px var(--red); color: var(--red); }
+.sk.warn { background: var(--red); color: #fff; }
+.sk.warn b, .sk.warn small { color: #fff; }
 .sk input { width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--line2); border-radius: 2px; font: 12px var(--f-leg); padding: 3px 4px; user-select: text; }
 
 /* attribute bar */
@@ -154,7 +161,7 @@ table.t { width: 100%; border-collapse: collapse; font: 11px var(--f-num); font-
 .modes { display: flex; flex-direction: column; gap: 2px; }
 .modes button { height: 16px; padding: 0 5px; border-radius: 2px; font: 9px var(--f-num); color: var(--fg2); box-shadow: inset 0 0 0 1px var(--line); }
 .modes button.on { color: var(--bg); background: var(--fg); }
-.wh { width: 168px; height: 46px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); position: relative; cursor: ew-resize; touch-action: none; overflow: hidden; }
+.wh { width: 168px; flex: none; height: 46px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); position: relative; cursor: ew-resize; touch-action: none; overflow: hidden; }
 .wh .nm { position: absolute; top: 4px; left: 6px; font: 500 11px var(--f-leg); letter-spacing: .06em; text-transform: uppercase; color: var(--fg2); }
 .wh .bk { position: absolute; top: 4px; right: 6px; font: 9px var(--f-num); color: var(--fg3); }
 .wh .vl { position: absolute; top: 17px; left: 6px; right: 6px; font: 500 15px var(--f-num); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -162,6 +169,7 @@ table.t { width: 100%; border-collapse: collapse; font: 11px var(--f-num); font-
 .wh.pal .vl { color: var(--cyan); }
 .wh .roll { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background-image: repeating-linear-gradient(90deg, var(--line2) 0 1px, transparent 1px 6px); background-position-x: var(--x, 0); }
 .wh .pos { position: absolute; bottom: 0; height: 8px; width: 2px; background: var(--fg); left: var(--p, 0%); }
+.wheels.many .wh { width: 124px; }
 .wh.none { cursor: default; }
 .wh.none .vl { color: var(--fg3); }
 .cmdz { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -179,7 +187,7 @@ table.t { width: 100%; border-collapse: collapse; font: 11px var(--f-num); font-
 .pz .k { height: 46px; width: 60px; }
 
 /* playback zone */
-.play { grid-area: play; display: grid; grid-template-columns: 64px minmax(0, 1fr) 210px 70px; gap: 1px; background: var(--line); }
+.play { grid-area: play; display: grid; grid-template-columns: 64px minmax(0, 1fr) 210px 70px; gap: 5px; background: var(--chassis); }
 .play > div { background: var(--bg); min-width: 0; }
 .pages { display: flex; flex-direction: column; gap: 2px; padding: 4px; }
 .pages button { height: 30px; border-radius: 2px; font: 500 11px/1 var(--f-leg); text-align: left; padding: 0 5px; color: var(--fg2); box-shadow: inset 0 0 0 1px var(--line); }
@@ -259,9 +267,9 @@ table.t { width: 100%; border-collapse: collapse; font: 11px var(--f-num); font-
 // UX-01 sketch. Fake engine: the merge below only lights the tiles; real behaviour is specced in ENG/PRG/PAL/PBK/CUE.
 // ---------------------------------------------------------------- rig (the church, PROJECT.md)
 const TYPES = {
-  wash: { label: "Washes 19×15 W", short: "Wash", attrs: ["dim", "str", "pan", "tilt", "col", "zoom"] },
-  rgbw: { label: "Pars RGBW", short: "RGBW", attrs: ["dim", "str", "col"] },
-  rgbl: { label: "Pars RGB+Lime", short: "RGB+L", attrs: ["dim", "col"] },
+  wash: { label: "Washes 19×15 W RGBW", short: "Wash", attrs: ["dim", "str", "pan", "tilt", "col", "w", "zoom"] },
+  rgbw: { label: "Pars RGBW", short: "RGBW", attrs: ["dim", "str", "col", "w"] },
+  rgbl: { label: "Pars RGB+Lime", short: "RGB+L", attrs: ["dim", "col", "l"] },
   rgb:  { label: "Pars RGB · virtual dimmer", short: "RGB", attrs: ["dim", "col"] },
   spot: { label: "Front spots", short: "Spot", attrs: ["dim"] },
 };
@@ -277,12 +285,13 @@ const GROUPS = [
   { name: "Pars RGBW", ids: pick(f => f.type === "rgbw") }, { name: "Odd pars", ids: PARS.filter((_, i) => i % 2 === 0) },
   { name: "Even pars", ids: PARS.filter((_, i) => i % 2 === 1) }, { name: "Front spots", ids: SPOT }, { name: "Stage wash", ids: [...WASH, ...PARS] },
 ];
-const GROUP_OF = { dim: "I", str: "I", pan: "P", tilt: "P", col: "C", zoom: "B" };
+const GROUP_OF = { dim: "I", str: "I", pan: "P", tilt: "P", col: "C", w: "C", l: "C", zoom: "B" };
 const AG = ["I", "P", "C", "G", "B", "E", "S", "FX"];
 const AG_NAME = { I: "Intensity", P: "Position", C: "Colour", G: "Gobo (none in this rig)", B: "Beam", E: "Effect (none in this rig)", S: "Special (none in this rig)", FX: "Shapes (phase 2)" };
 
 // ---------------------------------------------------------------- colour: one target colour (P1-07)
 const C = (r, g, b) => ({ r, g, b });
+const EXTRA = { w: ["White", C(1, .95, .85)], l: ["Lime", C(.75, 1, 0)] }; // emitters beyond RGB, driven directly on top of the target colour
 const clamp = v => Math.max(0, Math.min(1, v));
 const hex = c => "#" + [c.r, c.g, c.b].map(v => Math.round(clamp(v) * 255).toString(16).padStart(2, "0")).join("");
 function toHS(c) { const mx = Math.max(c.r, c.g, c.b), mn = Math.min(c.r, c.g, c.b), d = mx - mn; let h = 0;
@@ -326,7 +335,7 @@ const PAL = { C: Array(SLOTS).fill(null), P: Array(SLOTS).fill(null), B: Array(S
   PAL.P[i] = mkPal(n, "N", { byFix: Object.fromEntries(WASH.map((id, k) => [id, { pan: pan + (k - 1.5) * .04, tilt }])) }));
 [["Zoom narrow", "S", { byType: { wash: { zoom: .1 } } }], ["Zoom mid", "S", { byType: { wash: { zoom: .5 } } }], ["Zoom wide", "S", { byType: { wash: { zoom: .95 } } }],
  ["Full", "G", { all: { dim: 1 } }], ["Half", "G", { all: { dim: .5 } }], ["Out", "G", { all: { dim: 0 } }]].forEach(([n, k, v], i) => PAL.B[i] = mkPal(n, k, v));
-const MASK = { C: ["col"], P: ["pan", "tilt"], B: ["dim", "str", "zoom"] };
+const MASK = { C: ["col", "w", "l"], P: ["pan", "tilt"], B: ["dim", "str", "zoom"] };
 const MASK_TXT = { C: "C", P: "P", B: "IGBES" };
 const WIN_TITLE = { C: "Colours", P: "Positions", B: "Gobos & Beams" };
 const palVals = (p, f) => p.all || p.byType?.[f.type] || p.byFix?.[f.id];
@@ -362,17 +371,17 @@ function undo() {
 
 // ---------------------------------------------------------------- fake output (only to light the tiles)
 function output(f) {
-  const o = { dim: 0, col: C(1, 1, 1), pan: .5, tilt: .5, zoom: .5 };
+  const o = { dim: 0, col: C(1, 1, 1), w: 0, l: 0, pan: .5, tilt: .5, zoom: .5 };
   if (S.located[f.id]) o.dim = 1;
   const live = allPbs().filter(p => lvl(p) > 0).sort((a, b) => (S.raised[a.id] || 0) - (S.raised[b.id] || 0));
   for (const p of live) {
     const v = lookOf(p)?.[f.id]; if (!v) continue;
     if (v.dim != null) o.dim = Math.max(o.dim, v.dim * lvl(p));
-    for (const a of ["col", "pan", "tilt", "zoom"]) if (v[a] != null) o[a] = v[a];
+    for (const a of ["col", "w", "l", "pan", "tilt", "zoom"]) if (v[a] != null) o[a] = v[a];
   }
   if (S.swop && !lookOf(pbById(S.swop))?.[f.id]) o.dim = 0;
   const pr = S.prog[f.id];
-  if (pr && !S.blind) for (const a of ["dim", "col", "pan", "tilt", "zoom"]) if (pr[a] != null) o[a] = pr[a];
+  if (pr && !S.blind) for (const a of ["dim", "col", "w", "l", "pan", "tilt", "zoom"]) if (pr[a] != null) o[a] = pr[a];
   if (S.high && S.sel.includes(f.id) && (S.cur < 0 || S.sel[S.cur] === f.id)) { o.dim = 1; o.col = C(1, 1, 1); }
   o.dim *= S.dbo ? 0 : S.gm;
   return o;
@@ -405,6 +414,7 @@ function applyPal(w, i) {
     const v = palVals(p, F[id]); if (!v) continue;
     let hit = false;
     for (const [a, val] of Object.entries(v)) if (has(F[id], a)) { const pr = touch(id); pr[a] = typeof val === "object" ? { ...val } : val; pr.ref[GROUP_OF[a]] = p.name; hit = true; }
+    if (hit && v.col) for (const e of ["w", "l"]) if (has(F[id], e) && v[e] == null) S.prog[id][e] = 0;
     if (hit) n++;
   }
   if (n) S.changed = true;
@@ -430,7 +440,7 @@ function recordPal(w, i) {
   PAL[w][i] = p; S.mode = null;
   say(`${old ? (S.recMerge ? "Merged into" : "Replaced") : "Recorded"} ${WIN_TITLE[w]} ${palNum(w, i)} as ${{ G: "Global", S: "Shared", N: "Normal" }[p.kind]} from ${fids.length} fixture${fids.length > 1 ? "s" : ""}. Mask ${MASK_TXT[w]} comes from the window (Quick Record).`);
 }
-const progLook = () => Object.fromEntries(Object.entries(S.prog).map(([id, pr]) => [id, Object.fromEntries(["dim", "col", "pan", "tilt", "zoom"].filter(a => pr[a] != null).map(a => [a, pr[a]]))]));
+const progLook = () => Object.fromEntries(Object.entries(S.prog).map(([id, pr]) => [id, Object.fromEntries(["dim", "col", "w", "l", "pan", "tilt", "zoom"].filter(a => pr[a] != null).map(a => [a, pr[a]]))]));
 function recordPb(slot) {
   if (!Object.keys(S.prog).length) { S.mode = null; return say("The programmer is empty: nothing to record onto a playback.", true); }
   snapshot(`Record playback ${slot + 1}`);
@@ -644,7 +654,8 @@ const $ = id => document.getElementById(id);
 const pct = v => Math.round(v * 100);
 function setHTML(el, h) { if (el._h !== h) { el.innerHTML = h; el._h = h; } }
 const maskStrip = gs => `<span class="mask">${AG.map(g => `<i style="${gs.has(g) ? `background:var(--g${g})` : ""}"></i>`).join("")}</span>`;
-function lamp(f) { const o = output(f), k = o.dim; return hex(C(o.col.r * k, o.col.g * k, o.col.b * k)); }
+function mixed(o) { const c = { ...o.col }; for (const e of ["w", "l"]) { const x = EXTRA[e][1]; c.r += x.r * o[e] * .6; c.g += x.g * o[e] * .6; c.b += x.b * o[e] * .6; } return c; }
+function lamp(f) { const o = output(f), k = o.dim, c = mixed(o); return hex(C(c.r * k, c.g * k, c.b * k)); }
 function glyph(p) {
   const v = (p.all ? [p.all] : Object.values(p.byType || p.byFix))[0];
   if (v.col) return `<span class="sw" style="background:${hex(v.col)}"></span>`;
@@ -694,7 +705,7 @@ function winProgrammer() {
   const body = rows.map(([id, pr]) => `<tr><td class="n">${id}</td><td>${F[id].name}</td>
     ${cell(pr, "I", pr.dim != null ? pct(pr.dim) + "%" : null)}
     ${cell(pr, "P", pr.pan != null ? `${Math.round((pr.pan - .5) * 540)}°/${Math.round(((pr.tilt ?? .5) - .5) * 270)}°` : pr.tilt != null ? "tilt" : null)}
-    ${pr.col && !pr.ref.C ? `<td class="man"><span class="dotc" style="background:${hex(pr.col)}"></span>${hex(pr.col)}</td>` : cell(pr, "C", null)}
+    ${(pr.col || pr.w != null || pr.l != null) && !pr.ref.C ? `<td class="man">${pr.col ? `<span class="dotc" style="background:${hex(pr.col)}"></span>${hex(pr.col)}` : ""}${pr.w ? ` W${pct(pr.w)}` : ""}${pr.l ? ` L${pct(pr.l)}` : ""}</td>` : cell(pr, "C", null)}
     ${cell(pr, "B", pr.zoom != null ? "zoom " + pct(pr.zoom) + "%" : null)}</tr>`).join("");
   return ["Programmer", `${rows.length} fixtures${S.blind ? " · blind" : ""}`, `<table class="t"><thead><tr><th>#</th><th>Fixture</th><th>I</th><th>P</th><th>C</th><th>B</th></tr></thead><tbody>${body}</tbody></table>`];
 }
@@ -714,7 +725,8 @@ function winPicker() {
   const f = F[targets().find(id => has(F[id], "col"))];
   const c = f ? output(f).col : C(1, 1, 1), hs = toHS(c);
   const models = { RGB: [["R", c.r, "#e5484d"], ["G", c.g, "#46a758"], ["B", c.b, "#3e8ef7"]], CMY: [["C", 1 - c.r, "#3fb7d9"], ["M", 1 - c.g, "#d6409f"], ["Y", 1 - c.b, "#e5c20a"]], HSI: [["H", hs.h / 360, "#8a8e93"], ["S", hs.s, "#8a8e93"]] };
-  const rows = models[S.cmode].map(([k, v, col]) => `<div class="mrow"><span>${k}</span><div class="mbar" data-mix="${k}"><i style="width:${pct(v)}%;background:${col}"></i></div><span>${pct(v)}</span></div>`).join("");
+  const extra = Object.keys(EXTRA).filter(e => targets().some(id => has(F[id], e))).map(e => [e.toUpperCase(), output(F[targets().find(id => has(F[id], e))])[e], hex(EXTRA[e][1])]);
+  const rows = [...models[S.cmode], ...extra].map(([k, v, col]) => `<div class="mrow"><span>${k}</span><div class="mbar" data-mix="${k}"><i style="width:${pct(v)}%;background:${col}"></i></div><span>${pct(v)}</span></div>`).join("");
   const gels = GELS.map(([n, nm, gc], i) => `<button class="gel" data-gel="${i}" title="${n} ${nm}"><span>${n}</span><i style="background:${hex(gc)}"></i></button>`).join("");
   return ["Colour picker", f ? `${S.cmode} · showing ${f.name}` : "select colour fixtures",
     f ? `<div class="picker"><canvas id="pk" width="600" height="300"></canvas><div class="mix">${rows}<div class="gels">${gels}</div></div></div>`
@@ -749,9 +761,9 @@ function render() {
   drawPicker();
   setHTML($("func"), `<div class="hd2">Functions</div>` + FUNCS.map(([n, k]) => `<button class="k${k === "rec" ? " rec" : ""}${k === "blind" ? " blind" : ""}${(S.mode === n || (n === "Blind" && S.blind) || (n === "Fan" && S.fan)) ? " on" : ""}" data-fn="${n}" ${k === "later" ? "disabled title=\"later\"" : ""}>${n}</button>`).join(""));
   $("kp").classList.toggle("hide", !S.kp);
-  setHTML($("kp"), `<div class="hd2">Keypad${S.keys ? " · Mac keys live" : ""}</div>` + KP.map(k => `<button class="k${/^[0-9.]$/.test(k) ? " num" : ""}${k === "Clear" && (Object.keys(S.prog).length || S.sel.length) ? " clr has" : ""}${k === "Highlight" && S.high ? " on" : ""}" data-kp="${k}" ${["Avo", "View"].includes(k) ? "disabled" : ""}>${k}</button>`).join(""));
+  setHTML($("kp"), `<div class="hd2">Keypad${S.keys ? " · Mac keys live" : ""}</div>` + KP.map(k => `<button class="k${/^[0-9.]$/.test(k) ? " num" : k === "Enter" ? " ent" : ["Fix -1", "Fix +1", "Odd/Even", "View", "Avo", "Exit"].includes(k) ? " cmdk" : ""}${k === "Clear" && (Object.keys(S.prog).length || S.sel.length) ? " clr has" : ""}${k === "Highlight" && S.high ? " on" : ""}" data-kp="${k}" ${["Avo", "View"].includes(k) ? "disabled" : ""}>${k}</button>`).join(""));
   const [sh, keys] = softkeys(); S._soft = keys;
-  setHTML($("soft"), `<div class="hd2">${sh}</div>` + keys.map((s, i) => {
+  setHTML($("soft"), `<div class="hd2">Softkeys · ${sh}</div>` + keys.map((s, i) => {
     const L = "ABCDEFG"[i];
     if (!s) return `<button class="sk" disabled><b>${L}</b></button>`;
     if (s.label === "legend-input") return `<div class="sk"><b>${L}</b><input id="legIn" value="${S.target.get().replace(/"/g, "&quot;")}" aria-label="Legend"><small>Enter to set</small></div>`;
@@ -764,7 +776,7 @@ function render() {
 const WHEELS = { I: [["dim", "Dimmer"], ["str", "Strobe"]], P: [["pan", "Pan"], ["tilt", "Tilt"]], B: [["zoom", "Zoom"]],
   C: { HSI: [["h", "Hue"], ["s", "Saturation"]], RGB: [["r", "Red"], ["g", "Green"], ["b", "Blue"]], CMY: [["c", "Cyan"], ["m", "Magenta"], ["y", "Yellow"]] } };
 function wheelVal(k) {
-  const attr = S.group === "C" ? "col" : k, id = targets().find(i => has(F[i], attr)); if (id == null) return null;
+  const attr = S.group === "C" && !EXTRA[k] ? "col" : k, id = targets().find(i => has(F[i], attr)); if (id == null) return null;
   const o = output(F[id]), c = o.col, hs = toHS(c), pr = S.prog[id];
   const v = { h: hs.h / 360, s: hs.s, r: c.r, g: c.g, b: c.b, c: 1 - c.r, m: 1 - c.g, y: 1 - c.b }[k] ?? o[k] ?? pr?.[k] ?? 0;
   const txt = k === "h" ? Math.round(hs.h) + "°" : k === "pan" ? Math.round((v - .5) * 540) + "°" : k === "tilt" ? Math.round((v - .5) * 270) + "°" : pct(v) + "%";
@@ -777,15 +789,15 @@ function renderAttr() {
   const gProg = g => targets().some(id => S.prog[id] && Object.keys(S.prog[id]).some(a => GROUP_OF[a] === g));
   if (any && !gHas(S.group)) S.group = ["I", "P", "C", "B"].find(gHas) || S.group;
   const tabs = AG.map(g => `<button class="tab${g === S.group ? " on" : ""}${any && gHas(g) ? " av" : ""}${gProg(g) ? " has" : ""}" style="--gc:var(--g${g})" data-t="${g}" title="${AG_NAME[g]}" ${(any && !gHas(g)) || ["G", "E", "S", "FX"].includes(g) ? "disabled" : ""}>${g}</button>`).join("");
-  const list = !any ? [] : S.group === "C" ? WHEELS.C[S.cmode] : (WHEELS[S.group] || []).filter(([a]) => av.has(a));
-  const wheels = [0, 1, 2].map(i => {
+  const list = !any ? [] : S.group === "C" ? [...WHEELS.C[S.cmode], ...Object.keys(EXTRA).filter(e => av.has(e)).map(e => [e, EXTRA[e][0]])] : (WHEELS[S.group] || []).filter(([a]) => av.has(a));
+  const wheels = Array.from({ length: Math.max(3, list.length) }, (_, i) => i).map(i => {
     const w = list[i], v = w && wheelVal(w[0]);
     if (!v) return `<div class="wh none"><span class="nm">${w ? w[1] : any ? "" : "select fixtures"}</span><span class="bk">enc ${i + 1}</span><span class="vl">—</span><span class="roll"></span></div>`;
     return `<div class="wh ${v.state}" data-e="${w[0]}" role="slider" tabindex="0" aria-label="${w[1]}" aria-valuetext="${v.txt}" style="--x:${(-v.v * 300).toFixed(1)}px;--p:${(v.v * 100).toFixed(1)}%"><span class="nm">${w[1]}</span><span class="bk">enc ${i + 1}</span><span class="vl">${v.txt}</span><span class="roll"></span><span class="pos"></span></div>`;
   }).join("");
   const modes = S.group === "C" && any ? `<div class="modes">${["HSI", "RGB", "CMY"].map(m => `<button class="${m === S.cmode ? "on" : ""}" data-m="${m}">${m}</button>`).join("")}</div>` : "";
   const n = Object.keys(S.prog).length, groupsIn = AG.filter(g => Object.values(S.prog).some(pr => Object.keys(pr).some(a => GROUP_OF[a] === g)));
-  setHTML($("attr"), `<div class="tabs">${tabs}</div><div class="wheels">${modes}${wheels}${S.fan ? `<span class="tagx" style="color:var(--amber)">FAN ${S.fan.toUpperCase()}</span>` : ""}</div>
+  setHTML($("attr"), `<div class="tabs">${tabs}</div><div class="wheels${list.length > 3 ? " many" : ""}">${modes}${wheels}${S.fan ? `<span class="tagx" style="color:var(--amber)">FAN ${S.fan.toUpperCase()}</span>` : ""}</div>
     <div class="cmdz"><div class="cmd"><span class="pr">${S.mode ? S.mode.toUpperCase() + " ›" : "›"}</span><span>${S.cmd.join(" ")}</span><span class="curs"></span></div><div class="msg${S.warn ? " warn" : ""}" role="status">${S.msg}</div></div>
     <div class="pz"><div class="sum${n ? "" : " empty"}"><b>${n ? `${n} fx · ${groupsIn.join(" ")}` : "empty"}</b>programmer</div>
       <button class="k" data-x="undo" ${S.undo.length ? "" : "disabled"} title="${S.undo.at(-1)?.label || ""}">Undo</button>
@@ -841,14 +853,15 @@ function drawPicker() {
 function turn(k, d) {
   const ids = targets(); if (!ids.length) return;
   if (!S._turning) { snapshot(`${S.group} wheel`); S._turning = true; }
-  const n = S.group === "C" ? setAttr(ids, "col", (c, f) => {
+  const n = S.group === "C" && !EXTRA[k] ? setAttr(ids, "col", (c, f) => {
     const hs = toHS(c), dd = d * f;
     if (k === "h") return fromHS((hs.h + dd * 360 + 720) % 360, hs.s);
     if (k === "s") return fromHS(hs.h, clamp(hs.s + dd));
     const ch = { r: "r", g: "g", b: "b", c: "r", m: "g", y: "b" }[k], sign = "cmy".includes(k) ? -1 : 1;
     return { ...c, [ch]: clamp(c[ch] + sign * dd) };
   }) : setAttr(ids, k, (v, f) => clamp(v + d * f));
-  if (n) say(`${AG_NAME[S.group]} → ${n} fixture${n > 1 ? "s" : ""}${S.fan ? `, fanned (${S.fan})` : ", relative: offsets stay"}. Option = fine, Shift = coarse.`);
+  if (n && EXTRA[k]) say(`${EXTRA[k][0]} emitter → ${n} fixtures, directly on top of the target colour (how this is stored is P1-07).`);
+  else if (n) say(`${AG_NAME[S.group]} → ${n} fixture${n > 1 ? "s" : ""}${S.fan ? `, fanned (${S.fan})` : ", relative: offsets stay"}. Option = fine, Shift = coarse.`);
 }
 
 // ---------------------------------------------------------------- input
@@ -973,6 +986,7 @@ function move(e) {
   if (drag.mx) {
     const el = document.querySelector(`.mbar[data-mix="${drag.mx}"]`); if (!el) return;
     const r = el.getBoundingClientRect(), v = clamp((e.clientX - r.left) / r.width), k = drag.mx;
+    if (k === "W" || k === "L") { setAttr(targets(), k.toLowerCase(), () => v); say(`${EXTRA[k.toLowerCase()][0]} emitter → ${pct(v)}%, on top of the target colour.`); return render(); }
     setAttr(targets(), "col", c => {
       if (k === "H") return fromHS(v * 359.9, toHS(c).s); if (k === "S") return fromHS(toHS(c).h, v);
       const ch = { R: "r", G: "g", B: "b", C: "r", M: "g", Y: "b" }[k]; return { ...c, [ch]: "CMY".includes(k) ? 1 - v : v };
