@@ -9,7 +9,9 @@
 //!        [--serial PATH | --no-serial] [--ipc-port N] [--demo]`.
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 //! The app talks to the daemon over WebSocket on `--ipc-port` (default 7319);
-//! `--demo` lets fader 1 breathe.
+//! `--demo` lets fader 1 breathe. The demo show (IPC-09, IPC-14) has eight dimmers on
+//! faders 1..8 plus the church rig and its groups; the programmer travels over the same
+//! socket (IPC-10..13).
 
 mod artnet_out;
 mod ipc;
@@ -26,7 +28,7 @@ use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::{FaderMode, Playback, Priority};
 use cmdmx_core::profile::Profile;
-use cmdmx_core::UNIVERSE_SIZE;
+use cmdmx_core::{CoreError, UNIVERSE_SIZE};
 const TICK: Duration = Duration::from_millis(25);
 
 fn main() {
@@ -87,6 +89,7 @@ fn main() {
     let mut next = started;
     let mut tick: u64 = 0;
     let mut last_report = started;
+    let mut last_printed: Vec<(u16, u8)> = Vec::new();
 
     loop {
         let now = started.elapsed().as_secs_f64();
@@ -97,12 +100,7 @@ fn main() {
                     clients.add(tx, &ipc::snapshot(&engine));
                     Ok(())
                 }
-                ipc::Event::Command(ipc::Command::FaderSet { playback, level }) => {
-                    engine.set_fader(playback, level, now)
-                }
-                ipc::Event::Command(ipc::Command::GrandMasterSet { level }) => {
-                    engine.set_grand_master(level)
-                }
+                ipc::Event::Command(cmd) => apply(&mut engine, cmd, now),
             };
             if let Err(e) = result {
                 eprintln!("warning: {e}");
@@ -133,7 +131,15 @@ fn main() {
         }
 
         if last_report.elapsed() >= Duration::from_secs(1) {
-            report(&engine);
+            // Finding 3: print only when channel 1 changed since the last print.
+            let now_ch1: Vec<_> = engine
+                .universes()
+                .map(|(u, f)| (*u, f.channel(1).unwrap_or(0)))
+                .collect();
+            if now_ch1 != last_printed {
+                report(&engine);
+                last_printed = now_ch1;
+            }
             last_report = Instant::now();
         }
 
@@ -147,6 +153,48 @@ fn main() {
         next += TICK;
         let wait = next.saturating_duration_since(Instant::now());
         std::thread::sleep(wait);
+    }
+}
+
+/// IPC-04/13: every command maps 1:1 onto an engine method; refusals come back as `Err`.
+fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreError> {
+    use ipc::Command::*;
+    match cmd {
+        FaderSet { playback, level } => engine.set_fader(playback, level, now),
+        GrandMasterSet { level } => engine.set_grand_master(level),
+        Select { fixture } => engine.select_fixture(fixture),
+        SelectGroup { group } => engine.select_group(group),
+        Step { forward: true } => {
+            engine.next_fixture();
+            Ok(())
+        }
+        Step { forward: false } => {
+            engine.prev_fixture();
+            Ok(())
+        }
+        Pattern { stages } => engine.select_pattern(stages),
+        All => {
+            engine.select_all();
+            Ok(())
+        }
+        Clear => {
+            engine.clear();
+            Ok(())
+        }
+        AttributeGroup { group } => {
+            engine.set_active_group(group);
+            Ok(())
+        }
+        Wheel {
+            attribute,
+            steps,
+            resolution,
+        } => engine.turn_wheel(&attribute, steps, resolution),
+        Line { tokens } => {
+            let tokens: Vec<&str> = tokens.iter().map(String::as_str).collect();
+            engine.execute_command(&tokens)
+        }
+        RecordGroup { group } => engine.record_group(group),
     }
 }
 
@@ -219,7 +267,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
 fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     let mut engine = Engine::new(Settings::default());
     engine.add_profile(
-        "generic-dimmer",
+        "dimmer",
         Profile {
             attributes: vec![AttributeDef {
                 name: "Dimmer".into(),
@@ -234,7 +282,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     for n in 1..=u32::from(Settings::default().faders_per_page) {
         engine.patch(Fixture {
             id: n,
-            profile: "generic-dimmer".into(),
+            profile: "dimmer".into(),
             universe: 1,
             address: n as u16,
         })?;
@@ -245,7 +293,68 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             values: BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0)]))]),
         });
     }
+    // IPC-14: the church rig on universe 1, after the demo dimmers.
+    engine.add_profile("wash", wash_profile());
+    let mut address = 9;
+    for id in 101..=104 {
+        engine.patch(Fixture {
+            id,
+            profile: "wash".into(),
+            universe: 1,
+            address,
+        })?;
+        address += 5;
+    }
+    address = 29;
+    for id in (201..=208).chain(221..=226).chain(301..=306) {
+        engine.patch(Fixture {
+            id,
+            profile: "dimmer".into(),
+            universe: 1,
+            address,
+        })?;
+        address += 1;
+    }
+    // Groups 1 All, 2 Washes, 3 Pars, 4 Front spots; the demo starts with nothing selected.
+    let all = || {
+        (101..=104)
+            .chain(201..=208)
+            .chain(221..=226)
+            .chain(301..=306)
+    };
+    let groups: [Vec<u32>; 4] = [
+        all().collect(),
+        (101..=104).collect(),
+        (201..=208).chain(221..=226).collect(),
+        (301..=306).collect(),
+    ];
+    for (group, members) in (1..).zip(groups) {
+        for id in members {
+            engine.select_fixture(id)?;
+        }
+        engine.record_group(group)?;
+        engine.clear_selection();
+    }
     Ok(engine)
+}
+
+/// IPC-14: Dimmer, 16-bit Pan, Tilt and Zoom on five channels.
+fn wash_profile() -> Profile {
+    let attr = |name: &str, group, kind, channel, fine_channel| AttributeDef {
+        name: name.into(),
+        group,
+        kind,
+        channel,
+        fine_channel,
+    };
+    Profile {
+        attributes: vec![
+            attr("Dimmer", AttributeGroup::I, AttributeKind::Htp, 1, None),
+            attr("Pan", AttributeGroup::P, AttributeKind::Ltp, 2, Some(3)),
+            attr("Tilt", AttributeGroup::P, AttributeKind::Ltp, 4, None),
+            attr("Zoom", AttributeGroup::B, AttributeKind::Ltp, 5, None),
+        ],
+    }
 }
 
 fn parse_ipv4(flag: &str, value: Option<String>) -> Result<Ipv4Addr, String> {
@@ -343,6 +452,63 @@ mod tests {
     fn ipc_09_breathing_demo_only_with_demo_flag() {
         assert!(!parse_args(args("")).unwrap().demo);
         assert!(parse_args(args("--demo")).unwrap().demo);
+    }
+
+    #[test]
+    fn ipc_14_demo_show_patches_the_church_rig_and_groups() {
+        let engine = demo_engine().unwrap();
+        let ids: Vec<u32> = engine.fixtures().map(|f| f.id).collect();
+        let church: Vec<u32> = (101..=104)
+            .chain(201..=208)
+            .chain(221..=226)
+            .chain(301..=306)
+            .collect();
+        let expected: Vec<u32> = (1..=8).chain(church.iter().copied()).collect();
+        assert_eq!(ids, expected);
+        let address = |id: u32| engine.fixtures().find(|f| f.id == id).unwrap().address;
+        assert_eq!(
+            (
+                address(101),
+                address(104),
+                address(201),
+                address(221),
+                address(306)
+            ),
+            (9, 24, 29, 37, 48)
+        );
+        let wash = engine.fixtures().find(|f| f.id == 101).unwrap();
+        assert_eq!(wash.profile, "wash");
+        // VS2-07 run, finding 1: a short profile key that fits a fixture button.
+        assert!(engine
+            .fixtures()
+            .filter(|f| f.profile != "wash")
+            .all(|f| f.profile == "dimmer"));
+        assert_eq!(engine.group(1), Some(church.as_slice()));
+        assert_eq!(engine.group(2), Some(&[101, 102, 103, 104][..]));
+        let pars: Vec<u32> = (201..=208).chain(221..=226).collect();
+        assert_eq!(engine.group(3), Some(pars.as_slice()));
+        assert_eq!(engine.group(4), Some(&[301, 302, 303, 304, 305, 306][..]));
+        assert!(engine.programmer().selection().is_empty());
+        assert!(engine.programmer().is_empty());
+    }
+
+    #[test]
+    fn ipc_14_demo_wash_has_dimmer_16_bit_pan_tilt_zoom() {
+        let mut engine = demo_engine().unwrap();
+        engine.execute_command(&["101", "Enter"]).unwrap();
+        engine.set_active_group(cmdmx_core::attribute::AttributeGroup::P);
+        assert_eq!(
+            engine.wheel_layout(),
+            vec!["Pan".to_string(), "Tilt".to_string()]
+        );
+        engine.set_programmer_value(101, "Pan", 1.0).unwrap();
+        engine.tick(0.0);
+        let frame = engine.frame(1).unwrap();
+        // Pan coarse + fine at offsets 2 and 3 of the wash at address 9.
+        assert_eq!(
+            (frame.channel(10), frame.channel(11)),
+            (Some(255), Some(255))
+        );
     }
 
     #[test]

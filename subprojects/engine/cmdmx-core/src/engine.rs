@@ -16,7 +16,9 @@ use crate::command::{self, Item, Kind};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values};
 use crate::profile::Profile;
-use crate::programmer::{GroupId, Programmer, Resolution};
+use crate::programmer::{
+    AttributeGroupState, GroupId, Programmer, ProgrammerView, Resolution, WheelState,
+};
 use crate::{CoreError, Timestamp, UniverseId, Warning, UNIVERSE_SIZE};
 
 /// One universe's output, 512 slots. Start code is added by the transport.
@@ -227,6 +229,16 @@ impl Engine {
         self.follow_active_group();
     }
 
+    /// PRG-29 (default `SelectionThenProgrammer`): the first Clear deselects, the next
+    /// empties the programmer.
+    pub fn clear(&mut self) {
+        if self.programmer.selection().is_empty() {
+            self.programmer.clear_values();
+        } else {
+            self.clear_selection();
+        }
+    }
+
     /// PRG-04: step to the next fixture (or pattern stage).
     pub fn next_fixture(&mut self) {
         self.programmer.step(true);
@@ -375,15 +387,7 @@ impl Engine {
             else {
                 continue;
             };
-            // PRG-20: programmer value, else what is on the output, else 0.
-            let start = self
-                .programmer
-                .value(id, attribute)
-                .or_else(|| {
-                    merge_attribute(id, attr, &self.playbacks, &self.states, &self.programmer)
-                })
-                .or_else(|| self.frame_value(fixture, attr))
-                .unwrap_or(0.0);
+            let start = self.start_value(id, fixture, attr);
             new.push((id, (start + steps as f32 * step).clamp(0.0, 1.0)));
         }
         if new.is_empty() {
@@ -393,6 +397,64 @@ impl Engine {
             self.set_programmer_value(id, attribute, value)?;
         }
         Ok(())
+    }
+
+    /// PRG-20: programmer value, else what is on the output, else 0.
+    fn start_value(&self, id: FixtureId, fixture: &Fixture, attr: &AttributeDef) -> f32 {
+        self.programmer
+            .value(id, &attr.name)
+            .or_else(|| merge_attribute(id, attr, &self.playbacks, &self.states, &self.programmer))
+            .or_else(|| self.frame_value(fixture, attr))
+            .unwrap_or(0.0)
+    }
+
+    /// PRG-35 / IPC-11: the programmer state for rendering.
+    pub fn programmer_view(&self) -> ProgrammerView {
+        use AttributeGroup::*;
+        let targets = self.programmer.targets();
+        let attribute_groups = [I, P, C, G, B, E, S, Fx]
+            .into_iter()
+            .map(|group| AttributeGroupState {
+                group,
+                available: targets.iter().any(|&id| {
+                    self.profile_of(id)
+                        .is_some_and(|p| p.attributes.iter().any(|a| a.group == group))
+                }),
+                has_values: targets.iter().any(|&id| {
+                    let values = self.programmer.values().get(&id);
+                    values.zip(self.profile_of(id)).is_some_and(|(v, p)| {
+                        v.keys()
+                            .any(|n| p.attribute(n).is_some_and(|a| a.group == group))
+                    })
+                }),
+            })
+            .collect();
+        // Per wheel: the first target that has the attribute speaks for all.
+        let wheels = self
+            .wheel_layout()
+            .into_iter()
+            .filter_map(|attribute| {
+                let (id, fixture, attr) = targets.iter().find_map(|&id| {
+                    let fixture = self.fixtures.get(&id)?;
+                    let attr = self.profiles.get(&fixture.profile)?.attribute(&attribute)?;
+                    Some((id, fixture, attr))
+                })?;
+                Some(WheelState {
+                    value: self.start_value(id, fixture, attr),
+                    touched: self.programmer.value(id, &attribute).is_some(),
+                    sixteen_bit: attr.fine_channel.is_some(),
+                    attribute,
+                })
+            })
+            .collect();
+        ProgrammerView {
+            selection: self.programmer.selection().to_vec(),
+            targets,
+            active_group: self.active_group,
+            attribute_groups,
+            wheels,
+            in_programmer: self.programmer.values().keys().copied().collect(),
+        }
     }
 
     /// The fixture's current frame slot(s) decoded back to 0.0..=1.0.
@@ -534,7 +596,12 @@ impl Engine {
                     &self.states,
                     &self.programmer,
                 );
-                let Some(value) = merged else { continue };
+                // ENG-07: an HTP attribute nobody proposes is 0; LTP keeps its slot.
+                let value = match (merged, attr.kind) {
+                    (Some(v), _) => v,
+                    (None, AttributeKind::Htp) => 0.0,
+                    (None, AttributeKind::Ltp) => continue,
+                };
                 let scaled = match attr.kind {
                     AttributeKind::Htp => value * self.grand_master,
                     AttributeKind::Ltp => value,
@@ -574,6 +641,16 @@ impl Engine {
         &self.programmer
     }
 
+    /// Patched fixtures, sorted by id.
+    pub fn fixtures(&self) -> impl Iterator<Item = &Fixture> {
+        self.fixtures.values()
+    }
+
+    /// Recorded groups, sorted by id, members in group order.
+    pub fn groups(&self) -> &BTreeMap<GroupId, Vec<FixtureId>> {
+        &self.groups
+    }
+
     pub fn group(&self, id: GroupId) -> Option<&[FixtureId]> {
         self.groups.get(&id).map(Vec::as_slice)
     }
@@ -594,9 +671,8 @@ impl Engine {
 
 /// Merge one attribute of one fixture across all active playbacks and the programmer.
 ///
-/// Returns `None` when no active source proposes a value, in which case the
-/// caller leaves the slot as it was (LTP "stays where it is" semantics; HTP
-/// will be revisited by release handling, ENG-07).
+/// Returns `None` when no active source proposes a value. `tick` then writes 0
+/// for an HTP attribute and leaves an LTP slot as it was (ENG-07).
 fn merge_attribute(
     fixture: FixtureId,
     attr: &AttributeDef,

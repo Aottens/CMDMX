@@ -16,18 +16,107 @@ struct PlaybackSlot: Identifiable, Equatable {
     var isActive: Bool
 }
 
+/// One patched fixture (IPC-10).
+struct FixtureInfo: Decodable, Identifiable, Equatable {
+    let id: Int
+    let profile: String
+}
+
+/// One recorded group; `fixtures` are in group order (IPC-10).
+struct GroupInfo: Decodable, Identifiable, Equatable {
+    let id: Int
+    let fixtures: [Int]
+}
+
+/// One attribute-group tab I P C G B E S FX (IPC-11).
+struct AttributeGroupState: Decodable, Identifiable, Equatable {
+    let group: String
+    let available: Bool
+    let hasValues: Bool
+    var id: String { group }
+
+    enum CodingKeys: String, CodingKey {
+        case group, available
+        case hasValues = "has_values"
+    }
+}
+
+/// One wheel of the current layout; `value` is 0.0...1.0 (IPC-11).
+struct WheelState: Decodable, Identifiable, Equatable {
+    let attribute: String
+    let value: Double
+    let touched: Bool
+    let sixteenBit: Bool
+    var id: String { attribute }
+
+    private enum CodingKeys: String, CodingKey {
+        case attribute, value, touched
+        case sixteenBit = "sixteen_bit"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        attribute = try c.decode(String.self, forKey: .attribute)
+        value = try c.decode(Double.self, forKey: .value)
+        touched = try c.decode(Bool.self, forKey: .touched)
+        sixteenBit = (try? c.decode(Bool.self, forKey: .sixteenBit)) ?? false
+    }
+}
+
+/// Mirror of the engine's programmer state (IPC-11). Fields missing from a
+/// message fall back to empty so a malformed message cannot drop a snapshot.
+struct ProgrammerState: Decodable, Equatable {
+    var selection: [Int] = []
+    var targets: [Int] = []
+    var activeGroup: String = ""
+    var attributeGroups: [AttributeGroupState] = []
+    var wheels: [WheelState] = []
+    var inProgrammer: [Int] = []
+
+    init() {}
+
+    enum CodingKeys: String, CodingKey {
+        case selection, targets, wheels
+        case activeGroup = "active_group"
+        case attributeGroups = "attribute_groups"
+        case inProgrammer = "in_programmer"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        selection = (try? c.decode([Int].self, forKey: .selection)) ?? []
+        targets = (try? c.decode([Int].self, forKey: .targets)) ?? []
+        activeGroup = (try? c.decode(String.self, forKey: .activeGroup)) ?? ""
+        attributeGroups = (try? c.decode([AttributeGroupState].self, forKey: .attributeGroups)) ?? []
+        wheels = (try? c.decode([WheelState].self, forKey: .wheels)) ?? []
+        inProgrammer = (try? c.decode([Int].self, forKey: .inProgrammer)) ?? []
+    }
+}
+
+/// `programmer.wheel` resolution (IPC-13); raw values are the wire strings.
+enum WheelResolution: String {
+    case normal = "Normal", fine = "Fine", coarse = "Coarse"
+}
+
 /// Thin IPC client: WebSocket to cmdmx-daemon (specs/modules/ipc.md, IPC-03..09).
 /// Holds no lighting logic; local state is a mirror of the engine's snapshot and deltas.
 @MainActor
 final class EngineClient: ObservableObject {
     @Published private(set) var connection: EngineConnection = .offline
+    /// Attributes a Fine step was sent on since the app started (IPC-16: one decimal).
+    @Published private(set) var fineUsed: Set<String> = []
     /// From the engine's settings snapshot. Never hard-code 8 or 10.
     @Published private(set) var fadersPerPage: Int = 8
     @Published private(set) var pageLegend: String = "Page 1"
     @Published private(set) var slots: [PlaybackSlot] = []
     @Published private(set) var grandMaster: Double = 1.0
-    /// Latest `warning` / `error` message from the engine (no UI yet).
+    /// Latest `warning` / `error` message from the engine; cleared when a
+    /// `programmer.command` is sent (IPC-17).
     @Published private(set) var lastMessage: String?
+    /// IPC-10..12: all straight from the snapshot / deltas.
+    @Published private(set) var fixtures: [FixtureInfo] = []
+    @Published private(set) var groups: [GroupInfo] = []
+    @Published private(set) var programmer = ProgrammerState()
 
     private let url = URL(string: "ws://127.0.0.1:7319")
     private var socket: URLSessionWebSocketTask?
@@ -51,6 +140,38 @@ final class EngineClient: ObservableObject {
     func setGrandMaster(_ level: Double) {
         grandMaster = level.clamped01
         send(GrandMasterSet(level: level.clamped01))
+    }
+
+    // Programmer commands (IPC-13). One-liners; the engine decides what they mean.
+
+    func selectFixture(_ id: Int) { sendJSON("programmer.select", ["fixture": id]) }
+    func selectGroup(_ id: Int) { sendJSON("programmer.select_group", ["group": id]) }
+    func step(_ direction: Int) { sendJSON("programmer.step", ["direction": direction]) }
+    func pattern(_ stages: Int) { sendJSON("programmer.pattern", ["stages": stages]) }
+    func selectAll() { sendJSON("programmer.all") }
+    func clearProgrammer() { sendJSON("programmer.clear") }
+    func setAttributeGroup(_ group: String) { sendJSON("programmer.attribute_group", ["group": group]) }
+    func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
+
+    func wheel(attribute: String, steps: Int, resolution: WheelResolution) {
+        guard steps != 0 else { return }
+        if resolution == .fine { fineUsed.insert(attribute) }
+        sendJSON("programmer.wheel", ["attribute": attribute, "steps": steps, "resolution": resolution.rawValue])
+    }
+
+    /// Sends the words plus `Enter` and clears the previous message (IPC-17).
+    func command(words: [String]) {
+        lastMessage = nil
+        sendJSON("programmer.command", ["tokens": words + ["Enter"]])
+    }
+
+    private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
+        guard let socket,
+              let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": 0, "cmd": cmd]) { a, _ in a }),
+              let text = String(data: data, encoding: .utf8) else { return }
+        socket.send(.string(text)) { error in
+            if error != nil { socket.cancel(with: .goingAway, reason: nil) }
+        }
     }
 
     private struct FaderSet: Encodable {
@@ -121,9 +242,12 @@ final class EngineClient: ObservableObject {
         let level: Double?
         let active: Bool?
         let message: String?
+        let fixtures: [FixtureInfo]?
+        let groups: [GroupInfo]?
+        let programmer: ProgrammerState?
 
         enum CodingKeys: String, CodingKey {
-            case type, playbacks, id, level, active, message
+            case type, playbacks, id, level, active, message, fixtures, groups, programmer
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
         }
@@ -131,7 +255,8 @@ final class EngineClient: ObservableObject {
 
     private func handle(_ message: URLSessionWebSocketTask.Message) {
         guard case .string(let text) = message,
-              let incoming = try? JSONDecoder().decode(Incoming.self, from: Data(text.utf8))
+              case let data = Data(text.utf8),
+              let incoming = try? JSONDecoder().decode(Incoming.self, from: data)
         else { return }
 
         switch incoming.type {
@@ -142,7 +267,15 @@ final class EngineClient: ObservableObject {
                 applyPlayback(id: pb.id, level: pb.level, active: pb.active)
             }
             grandMaster = (incoming.grandMaster ?? grandMaster).clamped01
+            fixtures = incoming.fixtures ?? []
+            groups = incoming.groups ?? []
+            programmer = incoming.programmer ?? ProgrammerState()
             connection = .online
+        case "programmer":
+            // IPC-12: the delta carries the IPC-11 fields at top level.
+            if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }
+        case "groups":
+            if let groups = incoming.groups { self.groups = groups }
         case "playback":
             if let id = incoming.id, let level = incoming.level, let active = incoming.active {
                 applyPlayback(id: id, level: level, active: active)

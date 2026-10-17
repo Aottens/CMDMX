@@ -22,7 +22,7 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
 - **ENG-06** Grand Master scales all `Htp` output after merge: GM 50 % with merged dimmer 80 % → 40 %.
 
 ### Release
-- **ENG-07** When a playback is killed, `Htp` attributes it owned fall to the next source's value or to 0; `Ltp` attributes it owned keep their last value unless the playback's release mask includes that attribute's group.
+- **ENG-07** An `Htp` attribute that no active source proposes outputs 0 (programmer cleared, last playback killed): only `Ltp` attributes hold their last value. When a playback is killed, `Htp` attributes it owned fall to the next source's value or to 0; `Ltp` attributes it owned keep their last value unless the playback's release mask includes that attribute's group.
 - **ENG-08** With the release mask including Intensity (Titan strobe-cue pattern), killing the playback returns shutter/strobe to the previous owner's value or the locate value.
 - **ENG-09** Release fades over the playback's `release_time` when set, otherwise over the global release time.
 - **ENG-10** `Clear` with a typed time fades `Htp` values in the programmer to 0 over that time; `Ltp` values follow the user setting `freeze_current_values` (keep) or `release_to_playback_values` (return to playback).

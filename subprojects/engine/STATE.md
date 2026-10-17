@@ -13,6 +13,7 @@ Scaffold landed; vertical slice 1 starts with VS1-02 (Art-Net socket on its own 
 - `cmdmx-core::programmer` (VS2-02): ordered selection with toggle, groups (record/select, order kept), new selection after a change (PRG-03), Fix ±1 stepping, n-stage patterns, All; `Engine::set_programmer_value` stores manual values (not in the merge yet). 21 tests in `cmdmx-core/tests/programmer.rs`.
 - `cmdmx-core::command` (VS2-03): Titan keypad parser (`Fixture`/`Group`/`Thro`/`And`/`Not`/`@`/`Enter`) + `Engine::execute_command`: typed selection replaces, `@ v` sets I/HTP attributes, parse-then-apply. 16 tests in `cmdmx-core/tests/command_line.rs`; shared rig in `tests/common/mod.rs`.
 - Programmer in the merge (VS2-04): manual values are a candidate at `Priority::Programmer` (ENG-04); `turn_wheel` (relative, clamped, start from programmer → merged → frame → 0; steps from `Settings::wheel_step_*`), `wheel_layout`, stored `active_group` (PRG-18), `contents(mask)`. Scenario runner has a `prg` action (select / wheel / command). 16 tests in `tests/wheels.rs`, scenarios PRG-12/13.
+- VS2-07: `Engine::programmer_view()` (PRG-35) and `clear()` (PRG-29 default); daemon IPC-10..13 (snapshot fixtures/groups/programmer, programmer + groups deltas, ten programmer commands mapped by `apply` in `main.rs`) and the IPC-14 church demo rig with groups 1–4.
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress

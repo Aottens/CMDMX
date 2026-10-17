@@ -24,6 +24,7 @@ pub enum AttributeGroup {
     /// Motor speeds, control channels.
     S,
     /// Shapes and pixel mapper (own layer; not a DMX attribute as such).
+    #[serde(rename = "FX")] // IPC-11: the wire name is "FX"
     Fx,
 }
 

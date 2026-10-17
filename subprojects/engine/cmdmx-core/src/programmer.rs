@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::attribute::AttributeGroup;
 use crate::patch::FixtureId;
 
 pub type GroupId = u32;
@@ -30,6 +31,38 @@ enum Sub {
         stages: usize,
         stage: usize,
     },
+}
+
+/// PRG-35 / IPC-11: one attribute group as the attribute bar shows it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct AttributeGroupState {
+    pub group: AttributeGroup,
+    /// Some target has an attribute in this group.
+    pub available: bool,
+    /// Some target has a programmer value in this group.
+    pub has_values: bool,
+}
+
+/// PRG-35 / IPC-11: one wheel of the active group.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct WheelState {
+    pub attribute: String,
+    pub value: f32,
+    /// The value is a programmer value (else it is the current output, PRG-20).
+    pub touched: bool,
+    /// The attribute has a fine channel in its profile.
+    pub sixteen_bit: bool,
+}
+
+/// PRG-35 / IPC-11: everything the UI renders of the programmer.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProgrammerView {
+    pub selection: Vec<FixtureId>,
+    pub targets: Vec<FixtureId>,
+    pub active_group: AttributeGroup,
+    pub attribute_groups: Vec<AttributeGroupState>,
+    pub wheels: Vec<WheelState>,
+    pub in_programmer: Vec<FixtureId>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -117,6 +150,11 @@ impl Programmer {
         self.selection = selection;
         self.sub = Sub::None;
         self.changed = false;
+    }
+
+    /// PRG-29: empty the programmer's values.
+    pub(crate) fn clear_values(&mut self) {
+        self.values.clear();
     }
 
     pub(crate) fn clear_selection(&mut self) {

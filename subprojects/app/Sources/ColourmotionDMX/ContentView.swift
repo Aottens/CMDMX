@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One Titan-style workspace: preset grid on top, fader row at the bottom.
+/// One Titan-style workspace: fixture and group windows on top, attribute bar, fader row at the bottom.
 /// Everything shown comes from `EngineClient`; nothing is computed here.
 struct ContentView: View {
     @EnvironmentObject private var engine: EngineClient
@@ -10,8 +10,14 @@ struct ContentView: View {
             if engine.connection != .online {
                 OfflineBanner(state: engine.connection)
             }
-            PresetGridPlaceholder()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack(spacing: 8) {
+                FixturesWindow()
+                GroupsWindow().frame(width: 280)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Divider()
+            AttributeBar()
             Divider()
             FaderRow()
                 .frame(height: 260)
@@ -31,23 +37,6 @@ private struct OfflineBanner: View {
         }
         .padding(8)
         .background(Color.orange.opacity(0.25))
-    }
-}
-
-private struct PresetGridPlaceholder: View {
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 8)
-    var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 6) {
-                ForEach(0..<32, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.secondary.opacity(0.15))
-                        .frame(height: 56)
-                        .overlay(Text("Palette \(i + 1)").font(.caption).foregroundStyle(.secondary))
-                }
-            }
-            .padding(12)
-        }
     }
 }
 
