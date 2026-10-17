@@ -13,6 +13,7 @@ use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender, TryRe
 use std::time::Duration;
 
 use cmdmx_core::attribute::AttributeGroup;
+use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::patch::FixtureId;
 use cmdmx_core::playback::PlaybackId;
@@ -56,6 +57,10 @@ pub enum Command {
         attribute: String,
         steps: i32,
         resolution: Resolution,
+    },
+    /// IPC-18
+    ColourModel {
+        model: ColourModel,
     },
     Line {
         tokens: Vec<String>,
@@ -126,6 +131,12 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 .get("group")
                 .and_then(|g| serde_json::from_value(g.clone()).ok())
                 .ok_or("missing or invalid \"group\" (expected I P C G B E S FX)")?,
+        }),
+        Some("programmer.colour_model") => Ok(Command::ColourModel {
+            model: v
+                .get("model")
+                .and_then(|m| serde_json::from_value(m.clone()).ok())
+                .ok_or("missing or invalid \"model\" (expected Hsi, Rgb or Cmy)")?,
         }),
         Some("programmer.wheel") => Ok(Command::Wheel {
             attribute: v
@@ -472,6 +483,7 @@ fn serve_client(stream: TcpStream, events: &Sender<Event>) {
 mod tests {
     use super::*;
     use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
+    use cmdmx_core::colour::ColourModel;
     use cmdmx_core::engine::{Engine, Settings};
     use cmdmx_core::patch::Fixture;
     use cmdmx_core::playback::{FaderMode, Playback, Priority};
@@ -671,6 +683,44 @@ mod tests {
             ok(r#"{"v":0,"cmd":"group.record","group":3}"#),
             Command::RecordGroup { group: 3 }
         );
+    }
+
+    #[test]
+    fn ipc_18_colour_model_command_parses() {
+        for (name, model) in [
+            ("Hsi", ColourModel::Hsi),
+            ("Rgb", ColourModel::Rgb),
+            ("Cmy", ColourModel::Cmy),
+        ] {
+            assert_eq!(
+                parse_command(&format!(
+                    r#"{{"v":0,"cmd":"programmer.colour_model","model":"{name}"}}"#
+                )),
+                Ok(Command::ColourModel { model })
+            );
+        }
+        for bad in [
+            r#"{"v":0,"cmd":"programmer.colour_model"}"#,
+            r#"{"v":0,"cmd":"programmer.colour_model","model":"Lab"}"#,
+            r#"{"v":0,"cmd":"programmer.colour_model","model":2}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_18_colour_model_change_is_a_programmer_delta() {
+        let mut e = engine();
+        let mut published = Published::new(&e);
+        e.tick(0.0);
+        assert!(published.diff(&e).is_empty());
+        e.set_colour_model(ColourModel::Cmy);
+        e.tick(0.025);
+        let d = published.diff(&e);
+        assert_eq!(d.len(), 1);
+        let p = parse(&d[0]);
+        assert_eq!(p["type"], "programmer");
+        assert_eq!(p["colour_model"], "Cmy");
     }
 
     #[test]

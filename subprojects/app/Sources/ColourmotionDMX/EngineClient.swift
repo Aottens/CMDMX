@@ -72,6 +72,8 @@ struct ProgrammerState: Decodable, Equatable {
     var attributeGroups: [AttributeGroupState] = []
     var wheels: [WheelState] = []
     var inProgrammer: [Int] = []
+    /// `Hsi`, `Rgb` or `Cmy` (IPC-11, PRG-30).
+    var colourModel: String = "Hsi"
 
     init() {}
 
@@ -80,6 +82,7 @@ struct ProgrammerState: Decodable, Equatable {
         case activeGroup = "active_group"
         case attributeGroups = "attribute_groups"
         case inProgrammer = "in_programmer"
+        case colourModel = "colour_model"
     }
 
     init(from decoder: Decoder) throws {
@@ -90,6 +93,7 @@ struct ProgrammerState: Decodable, Equatable {
         attributeGroups = (try? c.decode([AttributeGroupState].self, forKey: .attributeGroups)) ?? []
         wheels = (try? c.decode([WheelState].self, forKey: .wheels)) ?? []
         inProgrammer = (try? c.decode([Int].self, forKey: .inProgrammer)) ?? []
+        colourModel = (try? c.decode(String.self, forKey: .colourModel)) ?? "Hsi"
     }
 }
 
@@ -151,6 +155,7 @@ final class EngineClient: ObservableObject {
     func selectAll() { sendJSON("programmer.all") }
     func clearProgrammer() { sendJSON("programmer.clear") }
     func setAttributeGroup(_ group: String) { sendJSON("programmer.attribute_group", ["group": group]) }
+    func setColourModel(_ model: String) { sendJSON("programmer.colour_model", ["model": model]) }
     func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
 
     func wheel(attribute: String, steps: Int, resolution: WheelResolution) {

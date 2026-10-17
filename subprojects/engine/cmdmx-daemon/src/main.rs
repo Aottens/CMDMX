@@ -10,8 +10,8 @@
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 //! The app talks to the daemon over WebSocket on `--ipc-port` (default 7319);
 //! `--demo` lets fader 1 breathe. The demo show (IPC-09, IPC-14) has eight dimmers on
-//! faders 1..8 plus the church rig and its groups; the programmer travels over the same
-//! socket (IPC-10..13).
+//! faders 1..8 plus the church rig (RGBW washes, RGBW, RGB+Lime and RGB pars, front spots)
+//! and its groups; the programmer travels over the same socket (IPC-10..13, IPC-18).
 
 mod artnet_out;
 mod ipc;
@@ -190,6 +190,10 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             steps,
             resolution,
         } => engine.turn_wheel(&attribute, steps, resolution),
+        ColourModel { model } => {
+            engine.set_colour_model(model);
+            Ok(())
+        }
         Line { tokens } => {
             let tokens: Vec<&str> = tokens.iter().map(String::as_str).collect();
             engine.execute_command(&tokens)
@@ -291,41 +295,46 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             values: BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
         });
     }
-    // IPC-14: the church rig on universe 1, after the demo dimmers.
-    engine.add_profile("wash", wash_profile())?;
+    // IPC-14: the church rig on universe 1, each fixture right after the previous one.
     let mut address = 9;
-    for id in 101..=104 {
-        engine.patch(Fixture {
-            id,
-            profile: "wash".into(),
-            mode: None,
-            universe: 1,
-            address,
-        })?;
-        address += 5;
-    }
-    address = 29;
-    for id in (201..=208).chain(221..=226).chain(301..=306) {
-        engine.patch(Fixture {
-            id,
-            profile: "dimmer".into(),
-            mode: None,
-            universe: 1,
-            address,
-        })?;
-        address += 1;
+    for (key, ids, json) in [
+        ("wash", 101..=104, WASH),
+        ("rgbw", 201..=208, RGBW_PAR),
+        ("rgbl", 211..=216, RGBL_PAR),
+        ("rgb", 221..=226, RGB_PAR),
+        ("dimmer", 301..=306, ""),
+    ] {
+        let footprint = if json.is_empty() {
+            1
+        } else {
+            let profile = Profile::from_json(json)?;
+            let footprint = profile.modes.first().map_or(1, |m| m.footprint);
+            engine.add_profile(key, profile)?;
+            footprint
+        };
+        for id in ids {
+            engine.patch(Fixture {
+                id,
+                profile: key.into(),
+                mode: None,
+                universe: 1,
+                address,
+            })?;
+            address += footprint;
+        }
     }
     // Groups 1 All, 2 Washes, 3 Pars, 4 Front spots; the demo starts with nothing selected.
     let all = || {
         (101..=104)
             .chain(201..=208)
+            .chain(211..=216)
             .chain(221..=226)
             .chain(301..=306)
     };
     let groups: [Vec<u32>; 4] = [
         all().collect(),
         (101..=104).collect(),
-        (201..=208).chain(221..=226).collect(),
+        (201..=208).chain(211..=216).chain(221..=226).collect(),
         (301..=306).collect(),
     ];
     for (group, members) in (1..).zip(groups) {
@@ -338,19 +347,17 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     Ok(engine)
 }
 
-/// IPC-14: Dimmer, 16-bit Pan, Tilt and Zoom on five channels.
-fn wash_profile() -> Profile {
-    let attr = |name: &str, group, kind, channel, fine_channel| AttributeDef {
-        fine_channel,
-        ..AttributeDef::new(name, group, kind, channel)
-    };
-    Profile::from_attributes(vec![
-        attr("Dimmer", AttributeGroup::I, AttributeKind::Htp, 1, None),
-        attr("Pan", AttributeGroup::P, AttributeKind::Ltp, 2, Some(3)),
-        attr("Tilt", AttributeGroup::P, AttributeKind::Ltp, 4, None),
-        attr("Zoom", AttributeGroup::B, AttributeKind::Ltp, 5, None),
-    ])
-}
+/// IPC-14: Dimmer, 16-bit Pan, Tilt, Zoom, RGB mixing and a White emitter on nine channels.
+const WASH: &str = r#"{"manufacturer":"Demo","model":"Wash","source":"demo","modes":[{"name":"default","footprint":9,"colour":{"system":"RGB","components":[{"channel":6},{"channel":7},{"channel":8}]},"attributes":[{"name":"Dimmer","group":"I","kind":"Htp","channel":1},{"name":"Pan","group":"P","kind":"Ltp","channel":2,"fine_channel":3},{"name":"Tilt","group":"P","kind":"Ltp","channel":4},{"name":"Zoom","group":"B","kind":"Ltp","channel":5},{"name":"White","group":"C","kind":"Ltp","channel":9,"emitter":true}]}]}"#;
+
+/// IPC-14: Dimmer, RGB mixing and a White emitter on five channels.
+const RGBW_PAR: &str = r#"{"manufacturer":"Demo","model":"RGBW Par","source":"demo","modes":[{"name":"default","footprint":5,"colour":{"system":"RGB","components":[{"channel":2},{"channel":3},{"channel":4}]},"attributes":[{"name":"Dimmer","group":"I","kind":"Htp","channel":1},{"name":"White","group":"C","kind":"Ltp","channel":5,"emitter":true}]}]}"#;
+
+/// IPC-14: RGB mixing and a Lime emitter on four channels, with a virtual dimmer.
+const RGBL_PAR: &str = r#"{"manufacturer":"Demo","model":"RGB+Lime Par","source":"demo","modes":[{"name":"default","footprint":4,"virtual_dimmer":true,"colour":{"system":"RGB","components":[{"channel":1},{"channel":2},{"channel":3}]},"attributes":[{"name":"Lime","group":"C","kind":"Ltp","channel":4,"emitter":true}]}]}"#;
+
+/// IPC-14: Showtec LED Par 56 "6 Channel": RGB, Mode, Speed and Strobe, with a virtual dimmer.
+const RGB_PAR: &str = r#"{"manufacturer":"Showtec","model":"LED Par 56 6 Channel","source":"demo","modes":[{"name":"default","footprint":6,"virtual_dimmer":true,"colour":{"system":"RGB","components":[{"channel":1},{"channel":2},{"channel":3}]},"attributes":[{"name":"Mode","group":"S","kind":"Ltp","channel":4},{"name":"Speed","group":"S","kind":"Ltp","channel":5},{"name":"Strobe","group":"I","kind":"Ltp","channel":6}]}]}"#;
 
 fn parse_ipv4(flag: &str, value: Option<String>) -> Result<Ipv4Addr, String> {
     let v = value.unwrap_or_default();
@@ -369,6 +376,8 @@ fn report(engine: &Engine) {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use cmdmx_core::colour::ColourModel;
+    use cmdmx_core::programmer::Resolution;
 
     fn args(s: &str) -> impl Iterator<Item = String> + '_ {
         s.split_whitespace().map(String::from)
@@ -449,42 +458,110 @@ mod tests {
         assert!(parse_args(args("--demo")).unwrap().demo);
     }
 
+    fn church() -> Vec<u32> {
+        (101..=104)
+            .chain(201..=208)
+            .chain(211..=216)
+            .chain(221..=226)
+            .chain(301..=306)
+            .collect()
+    }
+
     #[test]
     fn ipc_14_demo_show_patches_the_church_rig_and_groups() {
         let engine = demo_engine().unwrap();
         let ids: Vec<u32> = engine.fixtures().map(|f| f.id).collect();
-        let church: Vec<u32> = (101..=104)
-            .chain(201..=208)
-            .chain(221..=226)
-            .chain(301..=306)
-            .collect();
-        let expected: Vec<u32> = (1..=8).chain(church.iter().copied()).collect();
+        let expected: Vec<u32> = (1..=8).chain(church()).collect();
         assert_eq!(ids, expected);
-        let address = |id: u32| engine.fixtures().find(|f| f.id == id).unwrap().address;
-        assert_eq!(
-            (
-                address(101),
-                address(104),
-                address(201),
-                address(221),
-                address(306)
-            ),
-            (9, 24, 29, 37, 48)
-        );
-        let wash = engine.fixtures().find(|f| f.id == 101).unwrap();
-        assert_eq!(wash.profile, "wash");
-        // VS2-07 run, finding 1: a short profile key that fits a fixture button.
-        assert!(engine
-            .fixtures()
-            .filter(|f| f.profile != "wash")
-            .all(|f| f.profile == "dimmer"));
-        assert_eq!(engine.group(1), Some(church.as_slice()));
+        let fixture = |id: u32| engine.fixtures().find(|f| f.id == id).unwrap();
+        let addresses: Vec<u16> = [101, 104, 201, 208, 211, 216, 221, 226, 301, 306]
+            .iter()
+            .map(|&id| fixture(id).address)
+            .collect();
+        assert_eq!(addresses, [9, 36, 45, 80, 85, 105, 109, 139, 145, 150]);
+        // VS2-07 run, finding 1: short profile keys that fit a fixture button.
+        for (id, profile) in [
+            (101, "wash"),
+            (201, "rgbw"),
+            (211, "rgbl"),
+            (221, "rgb"),
+            (301, "dimmer"),
+        ] {
+            assert_eq!(fixture(id).profile, profile, "fixture {id}");
+        }
+        assert_eq!(engine.group(1), Some(church().as_slice()));
         assert_eq!(engine.group(2), Some(&[101, 102, 103, 104][..]));
-        let pars: Vec<u32> = (201..=208).chain(221..=226).collect();
+        let pars: Vec<u32> = (201..=208).chain(211..=216).chain(221..=226).collect();
         assert_eq!(engine.group(3), Some(pars.as_slice()));
         assert_eq!(engine.group(4), Some(&[301, 302, 303, 304, 305, 306][..]));
         assert!(engine.programmer().selection().is_empty());
         assert!(engine.programmer().is_empty());
+    }
+
+    #[test]
+    fn ipc_14_demo_pars_mix_colour_on_every_colour_system() {
+        let mut engine = demo_engine().unwrap();
+        engine
+            .execute_command(&["201", "And", "211", "And", "221", "@", "100", "Enter"])
+            .unwrap();
+        engine.set_active_group(cmdmx_core::attribute::AttributeGroup::C);
+        // White and Lime are emitters with their own wheels (LIB-17, PRG-34).
+        assert_eq!(
+            engine.wheel_layout(),
+            ["Hue", "Saturation", "White", "Lime"]
+        );
+        // Blue: full saturation (red), then hue to 240°.
+        engine
+            .turn_wheel("Saturation", 255, Resolution::Normal)
+            .unwrap();
+        engine.turn_wheel("Hue", 170, Resolution::Normal).unwrap();
+        engine.tick(0.0);
+        let frame = engine.frame(1).unwrap();
+        let slots = |from: u16, to: u16| -> Vec<u8> {
+            (from..=to).map(|a| frame.channel(a).unwrap()).collect()
+        };
+        assert_eq!(
+            slots(45, 49),
+            [255, 0, 0, 255, 0],
+            "RGBW par: Dimmer R G B W"
+        );
+        assert_eq!(
+            slots(85, 88),
+            [0, 0, 255, 0],
+            "RGB+Lime par, virtual dimmer"
+        );
+        assert_eq!(
+            slots(109, 114),
+            [0, 0, 255, 0, 0, 0],
+            "Showtec RGB par, virtual dimmer"
+        );
+    }
+
+    #[test]
+    fn ipc_14_demo_wash_is_rgbw_and_starts_white() {
+        let mut engine = demo_engine().unwrap();
+        engine
+            .execute_command(&["101", "@", "100", "Enter"])
+            .unwrap();
+        engine.tick(0.0);
+        let frame = engine.frame(1).unwrap();
+        // Dimmer 9, Pan 10/11, Tilt 12, Zoom 13, R G B 14–16, White 17.
+        let slots: Vec<u8> = (9..=17).map(|a| frame.channel(a).unwrap()).collect();
+        assert_eq!(slots, [255, 0, 0, 0, 0, 255, 255, 255, 0]);
+    }
+
+    #[test]
+    fn ipc_18_colour_model_command_reaches_the_engine() {
+        let mut engine = demo_engine().unwrap();
+        apply(
+            &mut engine,
+            ipc::Command::ColourModel {
+                model: ColourModel::Rgb,
+            },
+            0.0,
+        )
+        .unwrap();
+        assert_eq!(engine.colour_model(), ColourModel::Rgb);
     }
 
     #[test]
