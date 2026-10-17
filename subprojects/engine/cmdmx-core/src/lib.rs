@@ -6,6 +6,7 @@
 //! Module map (phase 1):
 //! - [`attribute`]  attribute groups (I P C G B E S FX) and HTP/LTP kind
 //! - [`profile`]    fixture profiles with modes (own model, importers later — ADR-006, `specs/modules/fixture-library.md`)
+//! - [`library`]    fixture library importers: QLC+ `.qxf` (LIB-05..10, 15..18)
 //! - [`colour`]     colour as one value: target RGB, HSI/RGB/CMY wheel views (ADR-005)
 //! - [`value`]      what an attribute holds: a level or a colour
 //! - [`patch`]      fixtures on universes/addresses
@@ -19,6 +20,7 @@ pub mod attribute;
 pub mod colour;
 pub mod command;
 pub mod engine;
+pub mod library;
 pub mod patch;
 pub mod playback;
 pub mod profile;
@@ -90,6 +92,12 @@ pub enum CoreError {
     AttributeNotInTargets(String),
     #[error("invalid pattern of {0} stages (expected at least 2)")]
     InvalidPattern(usize),
+    #[error("import of '{source}' failed: {problem}")]
+    ImportFailed {
+        // `r#` keeps thiserror from treating this String as an error source.
+        r#source: String,
+        problem: String,
+    },
     #[error("invalid command: {0}")]
     InvalidCommand(String),
 }

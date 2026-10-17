@@ -1,0 +1,79 @@
+{
+  "manufacturer": "Pro-Lights",
+  "model": "LumiPar 7QPro",
+  "source": "qlcplus:Pro-Lights/Pro-Lights-LumiPar-7QPro.qxf",
+  "modes": [
+    {
+      "name": "10 Ch Mode",
+      "footprint": 10,
+      "colour": { "system": "RGB", "components": [ { "channel": 2 }, { "channel": 3 }, { "channel": 4 } ] },
+      "attributes": [
+        { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+        { "name": "White", "group": "C", "kind": "Ltp", "channel": 5, "emitter": true },
+        { "name": "Color Macro", "group": "C", "kind": "Ltp", "channel": 6, "slots": [
+          { "name": "No function", "from": 0, "to": 10 },
+          { "name": "R: 100% / G: 0-100% / B: 0%", "from": 11, "to": 30 },
+          { "name": "R: 100-0% / G: 100% / B: 0%", "from": 31, "to": 50 },
+          { "name": "R: 0% / G: 100% / B: 0-100%", "from": 51, "to": 70 },
+          { "name": "R: 0% / G: 100-0% / B: 100%", "from": 71, "to": 90 },
+          { "name": "R: 0-100% / G: 0% / B: 100%", "from": 91, "to": 110 },
+          { "name": "R: 100% / G: 0% / B: 100-0%", "from": 111, "to": 130 },
+          { "name": "R: 100% - G: 0-100% - B: 0-100%", "from": 131, "to": 150 },
+          { "name": "R: 100-0% / G: 100-0% / B: 100%", "from": 151, "to": 170 },
+          { "name": "R: 100% / G: 100% / B: 100% / W: 100%", "from": 171, "to": 200, "colour": { "r": 1.0, "g": 1.0, "b": 1.0 } },
+          { "name": "Color Temperature 1", "from": 201, "to": 205 },
+          { "name": "Color Temperature 2", "from": 206, "to": 210 },
+          { "name": "Color Temperature 3", "from": 211, "to": 215 },
+          { "name": "Color Temperature 4", "from": 216, "to": 220 },
+          { "name": "Color Temperature 5", "from": 221, "to": 225 },
+          { "name": "Color Temperature 6", "from": 226, "to": 230 },
+          { "name": "Color Temperature 7", "from": 231, "to": 235 },
+          { "name": "Color Temperature 8", "from": 236, "to": 240 },
+          { "name": "Color Temperature 9", "from": 241, "to": 245 },
+          { "name": "Color Temperature 10", "from": 246, "to": 250 },
+          { "name": "Color Temperature 11", "from": 251, "to": 255 } ] },
+        { "name": "Strobe", "group": "I", "kind": "Ltp", "channel": 7, "slots": [
+          { "name": "No function", "from": 0, "to": 10 },
+          { "name": "Strobe: 1 > 20 Hz", "from": 11, "to": 255 } ] },
+        { "name": "Auto", "group": "S", "kind": "Ltp", "channel": 8, "slots": [
+          { "name": "No function", "from": 0, "to": 51 },
+          { "name": "Show 1 (Pulse In/Out - All Colors)", "from": 52, "to": 101 },
+          { "name": "Show 2 (Pulse In - All Colors)", "from": 102, "to": 152 },
+          { "name": "Show 3 (Pulse Out - All Colors)", "from": 153, "to": 203 },
+          { "name": "Show 4 (Fader In/Out - All Colors)", "from": 204, "to": 254 },
+          { "name": "Show 5 (All Programs in Sequence)", "from": 255, "to": 255 } ] },
+        { "name": "Auto Speed Adjustment", "group": "S", "kind": "Ltp", "channel": 9 },
+        { "name": "Dimmer Speed", "group": "S", "kind": "Ltp", "channel": 10, "slots": [
+          { "name": "Built-in Dimmer", "from": 0, "to": 51 },
+          { "name": "Dimmer OFF", "from": 52, "to": 101 },
+          { "name": "Non-linear Dimmer 1", "from": 102, "to": 152 },
+          { "name": "Non-linear Dimmer 2", "from": 153, "to": 203 },
+          { "name": "Non-linear Dimmer 3", "from": 204, "to": 255 } ] }
+      ],
+      "zoom_degrees": [18.0, 18.0]
+    },
+    {
+      "name": "6 Ch Mode",
+      "footprint": 6,
+      "colour": { "system": "RGB", "components": [ { "channel": 2 }, { "channel": 3 }, { "channel": 4 } ] },
+      "attributes": [
+        { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+        { "name": "White", "group": "C", "kind": "Ltp", "channel": 5, "emitter": true },
+        { "name": "Strobe", "group": "I", "kind": "Ltp", "channel": 6, "slots": [
+          { "name": "No function", "from": 0, "to": 10 },
+          { "name": "Strobe: 1 > 20 Hz", "from": 11, "to": 255 } ] }
+      ],
+      "zoom_degrees": [18.0, 18.0]
+    },
+    {
+      "name": "4 Ch Mode",
+      "footprint": 4,
+      "virtual_dimmer": true,
+      "colour": { "system": "RGB", "components": [ { "channel": 1 }, { "channel": 2 }, { "channel": 3 } ] },
+      "attributes": [
+        { "name": "White", "group": "C", "kind": "Ltp", "channel": 4, "emitter": true }
+      ],
+      "zoom_degrees": [18.0, 18.0]
+    }
+  ]
+}

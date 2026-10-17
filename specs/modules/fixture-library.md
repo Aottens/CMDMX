@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters)**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions)**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -85,7 +85,7 @@ model, and a show carries the profiles it uses.
   name and the same-named attribute of every cell; Colour drives the mode's and every cell's
   mixing channels. Per-cell selection (`201.2`, Unfold) is a programmer task with its own
   PRG criteria; the model does not change for it.
-- **LIB-15** Wheel-type channels keep their slots: for each QLC+ capability range its name, and for
+- **LIB-15** Wheel-type channels keep their slots (and, by LIB-18, every channel with two or more ranges): for each QLC+ capability range its name, and for
   colour-wheel slots its colour (QLC+ `Res1`/colour hint) converted to a target colour (ADR-005),
   so a target colour can later pick the nearest slot. `ColorWheel` → Colour Wheel (C) with slots;
   `GoboWheel` → Gobo (G) with slot names.
@@ -98,6 +98,28 @@ model, and a show carries the profiles it uses.
   the QLC+ files for Shehds LED Beam+Wash 19x15W RGBW Zoom, Showtec LED Par 56 and Pro-Lights
   LumiPar 7QPro are checked into `tests/fixtures/qlcplus/` with their expected profiles; the
   importer reproduces them exactly.
+- **LIB-18** Import conventions (VS2-09, approved by owner 2026-10-17):
+  - *Names.* A preset gives the attribute name of LIB-05; a channel without one keeps its QLC+
+    name. When two attributes of one mode (or cell) would share a name, each takes its channel
+    name; if that still clashes, ` 2`, ` 3`, … is appended.
+  - *Slots.* Every channel with two or more capability ranges keeps them as slots (Mode,
+    Program, Strobe ranges, not only wheels), so the operator sees "RGB Control" on the Showtec
+    Mode channel. A slot gets a colour only from a single colour (`Res1="#rrggbb"`, or the older
+    `Color` attribute); two-colour ranges (`ColorDoubleMacro`) get none.
+  - *Colours.* QLC+ hex colours are sRGB: decoded to linear and taken as nominal primaries, as
+    ADR-005 decision 3 does for fixtures (`#ff0000` → (1, 0, 0), `#808080` → 0.216 grey).
+    Calibration (IDEA-03) replaces this, not the stored data.
+  - *Defaults.* A channel's QLC+ `Default` value becomes the attribute default (n / 255);
+    otherwise 0 (LIB-03).
+  - *Heads.* A head's colour channels and emitters form a cell; any other channel of a head
+    (its own dimmer, strobe) is a cell attribute too. Colour channels outside heads form the
+    mode's colour system.
+  - *Colour systems.* Red, Green and Blue together form an RGB system; Cyan, Magenta and Yellow
+    form a CMY system only without RGB (LIB-17); an incomplete set becomes emitters named by
+    colour.
+  - *Physical.* A range of 0 (QLC+ "unknown") is not stored; a fixed lens stores min = max.
+  - *Footprint.* A mode's footprint is its number of channels; channel numbers must be unique
+    and below it (LIB-10).
 - **LIB-10** Malformed XML, a mode referencing an unknown channel, or a channel number outside
   the mode → the import fails with an error naming the file and the problem; nothing is added to
   the library. Unknown presets are imported as plain channels with a warning, not a failure.
