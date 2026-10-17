@@ -1,211 +1,267 @@
 <title>ColourmotionDMX Main Screen</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
 <style>
-/* UX-01 sketch, iteration 1. Layout: one Titan workspace — fixtures + groups left,
-   three palette windows centre, attribute editor + programmer + cue list right,
-   playback faders across the bottom. Dark only, by choice: it runs in a dark church. */
+/* UX-01 sketch, iteration 2 — built from specs/ux/research.md ("Design brief for iteration 2").
+   Layout: status strip / workspace rail · fixed 2x2 window grid · function buttons, keypad, softkeys /
+   attribute bar / pages · playback strips · cue-list Go block · GM. Zones never reflow.
+   Colour means state only: red programmer, blue selection, green running, amber fading/warning,
+   cyan from palette, violet blind. Attribute-group hues are muted tags only. */
 :root {
-  --bg: #0c0f13; --panel: #141920; --raise: #1c232b; --line: #2a333d;
-  --fg: #dfe5ea; --mute: #8693a0;
-  --accent: #f2a33a;   /* selection, armed handles */
-  --prog: #ff5d73;     /* values in the programmer */
-  --live: #4ad07d;     /* active playbacks, engine online */
-  --rec: #ff3b30; --swop: #3d8bff;
-  --f-label: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --f-ui: "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
-  --f-num: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --bg: #121314; --surf: #1a1c1e; --surf2: #222427; --line: #2a2c2f; --line2: #3a3d41;
+  --fg: #d8dadc; --fg2: #8a8e93; --fg3: #55595e;
+  --red: #e5484d; --blue: #3e8ef7; --green: #46a758; --amber: #f5a524; --cyan: #3fb7d9; --violet: #8e4ec6;
+  --gI: #bdb38c; --gP: #8fa3b5; --gC: #b58fa8; --gG: #8fb59c; --gB: #b59e8f; --gE: #9c8fb5; --gS: #8f9396; --gFX: #b5a98f;
+  --f-leg: "IBM Plex Sans Condensed", "SF Pro Display", "Arial Narrow", sans-serif;
+  --f-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --f-num: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, monospace;
   color-scheme: dark;
 }
+.app.day { --bg: #e9eaeb; --surf: #f7f7f8; --surf2: #ffffff; --line: #c9cbce; --line2: #a9acb0; --fg: #111213; --fg2: #4d5156; --fg3: #9a9ea3;
+  --red: #d1242f; --blue: #0b63d6; --green: #1f7a35; --amber: #b36b00; --cyan: #0a7ea4; color-scheme: light; }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--fg); font: 13px/1.4 var(--f-ui); padding: 0 12px 12px; }
-button { font: inherit; color: inherit; }
-button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+html, body { height: 100%; }
+body { margin: 0; background: #121314; color: #d8dadc; font: 12px/1.3 var(--f-ui); }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button:disabled { cursor: default; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 
-/* top bar */
-.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-block: 10px; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 5; }
-.brand { font: 700 18px/1 var(--f-label); letter-spacing: .04em; text-transform: uppercase; }
-.brand small { font: 500 12px var(--f-ui); color: var(--mute); text-transform: none; letter-spacing: 0; margin-left: 6px; }
-.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); color: var(--mute); font-size: 12px; }
-.pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--live); }
-.pill i.off { background: var(--mute); }
-.cmd { flex: 1 1 320px; min-width: 0; padding: 6px 10px; background: #07090c; border: 1px solid var(--line); border-radius: 4px; font: 12px var(--f-num); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.keys { display: flex; gap: 6px; flex-wrap: wrap; }
-.key { min-width: 64px; padding: 7px 10px; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); font: 600 13px var(--f-label); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
-.key:hover { border-color: var(--mute); }
-.key.on { background: var(--accent); color: #1a1206; border-color: var(--accent); }
-.key.rec.on { background: var(--rec); color: #fff; border-color: var(--rec); }
+.app { height: 100%; display: grid; background: var(--bg); color: var(--fg); user-select: none; -webkit-user-select: none;
+  grid-template-columns: 78px minmax(0, 1fr) auto; grid-template-rows: 26px minmax(0, 1fr) 64px 232px;
+  grid-template-areas: "status status status" "rail grid side" "attr attr attr" "play play play"; gap: 1px; }
+.app > * { background: var(--bg); min-width: 0; min-height: 0; }
+.app.blind { box-shadow: inset 0 0 0 3px var(--violet); }
 
-/* workspace */
-.ws { display: grid; grid-template-columns: minmax(280px, 330px) minmax(0, 1fr) minmax(300px, 360px); gap: 10px; }
-.col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.win { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
-.win > h2 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--line); font: 600 13px var(--f-label); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
-.win > h2 .tag { margin-left: auto; font: 11px var(--f-num); letter-spacing: 0; text-transform: none; }
-.body { padding: 8px; }
+/* status strip */
+.status { grid-area: status; display: flex; align-items: center; gap: 14px; padding: 0 10px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--fg2); white-space: nowrap; overflow: hidden; }
+.status b { font: 600 12px var(--f-leg); color: var(--fg); letter-spacing: .02em; }
+.st { display: inline-flex; align-items: center; gap: 5px; }
+.st i { width: 6px; height: 6px; border-radius: 50%; background: var(--fg3); }
+.st.ok i { background: var(--green); }
+.tagx { padding: 1px 6px; border-radius: 2px; font: 600 10px var(--f-num); letter-spacing: .08em; }
+.tag-blind { background: var(--violet); color: #fff; }
+.tag-dbo { background: var(--amber); color: #000; }
+.status .sp { flex: 1; }
+.status button { padding: 2px 7px; border: 1px solid var(--line); border-radius: 2px; font-size: 11px; color: var(--fg2); }
+.status button.on { color: var(--fg); border-color: var(--fg2); }
+.clock { font: 11px var(--f-num); color: var(--fg); }
 
-/* fixtures */
-.ftype { font: 600 11px var(--f-label); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin: 6px 2px 4px; }
-.ftype:first-child { margin-top: 0; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: 4px; }
-.fx { position: relative; height: 36px; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); cursor: pointer; padding: 3px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; }
-.fx .n { font: 10px var(--f-num); color: var(--mute); }
-.fx .lamp { height: 7px; border-radius: 2px; background: #000; }
-.fx.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.fx .ord { position: absolute; top: -6px; right: -5px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: var(--accent); color: #1a1206; font: 600 10px/16px var(--f-num); text-align: center; }
-.fx .p { position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--prog); }
-.fx .l { position: absolute; bottom: 14px; right: 4px; font: 600 9px var(--f-num); color: var(--live); }
-.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px; }
-.btn { padding: 7px 6px; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); cursor: pointer; font: 500 13px var(--f-label); letter-spacing: .03em; text-align: left; }
-.btn:hover { border-color: var(--mute); }
-.btn small { display: block; font: 10px var(--f-num); color: var(--mute); }
+/* rail */
+.rail { grid-area: rail; display: flex; flex-direction: column; gap: 1px; padding: 4px; border-right: 1px solid var(--line); overflow: auto; }
+.rail button { min-height: 44px; padding: 5px 6px; border-radius: 2px; text-align: left; font: 500 12px/1.1 var(--f-leg); color: var(--fg2); display: flex; flex-direction: column; gap: 2px; }
+.rail button small { font: 9px var(--f-num); color: var(--fg3); }
+.rail button:hover:not(:disabled) { background: var(--surf); color: var(--fg); }
+.rail button.on { background: var(--surf2); color: var(--fg); box-shadow: inset 2px 0 0 var(--fg); }
+.rail button:disabled { opacity: .35; }
+.rail hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
 
-/* palettes */
-.pal { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
-.pb { position: relative; height: 46px; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); cursor: pointer; padding: 4px 5px; display: flex; flex-direction: column; justify-content: flex-end; text-align: left; overflow: hidden; }
-.pb .sw { position: absolute; inset: 0 0 auto 0; height: 18px; }
-.pb .nm { font: 500 12px/1.1 var(--f-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pb .k { position: absolute; top: 2px; right: 4px; font: 600 9px var(--f-num); color: #000; background: rgba(255,255,255,.75); border-radius: 2px; padding: 0 2px; }
-.pb .k.dark { color: var(--mute); background: none; }
-.pb.empty { background: transparent; border-style: dashed; }
-.pb.empty .nm { color: var(--line); }
-.pb.dim { opacity: .3; }
-.pb.lit { box-shadow: inset 0 0 0 2px var(--prog); border-color: var(--prog); }
-.rec-armed .pb.empty { border-color: var(--rec); }
-.rec-armed .pb.empty .nm { color: var(--rec); }
+/* window grid */
+.grid { grid-area: grid; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1px; background: var(--line); }
+.win { background: var(--bg); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.win > header { flex: none; display: flex; align-items: baseline; gap: 8px; height: 22px; padding: 4px 8px 0; border-bottom: 1px solid var(--line); }
+.win > header h2 { margin: 0; font: 600 12px var(--f-leg); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.win > header span { font: 10px var(--f-num); color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win > header .r { margin-left: auto; }
+.wb { flex: 1; overflow: auto; padding: 3px; min-height: 0; }
+.cells { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; }
+.trow { grid-column: 1 / -1; font: 500 10px var(--f-leg); letter-spacing: .08em; text-transform: uppercase; color: var(--fg3); padding: 4px 2px 1px; }
 
-/* attribute editor */
-.tabs { display: flex; gap: 3px; margin-bottom: 8px; }
-.tab { flex: 1; padding: 5px 0; border-radius: 3px; background: var(--raise); border: 1px solid var(--line); font: 600 13px var(--f-label); cursor: pointer; }
+/* one button anatomy for fixtures, groups and palettes */
+.cell { position: relative; height: 54px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); text-align: left; overflow: hidden; }
+.cell:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--line2); }
+.cell .num { position: absolute; top: 4px; left: 4px; font: 10px var(--f-num); color: var(--fg2); font-variant-numeric: tabular-nums; }
+.cell .kind { position: absolute; top: 4px; right: 4px; font: 500 9px var(--f-num); color: var(--fg2); letter-spacing: .06em; }
+.cell .lg { position: absolute; left: 4px; right: 4px; bottom: 9px; font: 500 12px/1.05 var(--f-leg); max-height: 26px; overflow: hidden; }
+.cell .ic { position: absolute; top: 16px; left: 4px; right: 4px; height: 12px; display: flex; align-items: center; }
+.cell .sw { height: 8px; width: 100%; border-radius: 1px; }
+.cell .mask { position: absolute; left: 3px; right: 3px; bottom: 2px; display: flex; gap: 1px; }
+.cell .mask i { flex: 1; height: 3px; background: var(--line); }
+.cell.empty { background: transparent; }
+.cell.empty .num { color: var(--fg3); }
+.cell.dim { opacity: .38; }
+.cell.sel { box-shadow: inset 0 0 0 2px var(--blue); }
+.cell.sel .num { color: var(--blue); }
+.cell.inprog::before, .cell.lit::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--red); }
+.cell.src { box-shadow: inset 0 0 0 2px var(--amber); }
+.armed .cell.empty:not(:disabled) .num { color: var(--red); }
+.cell .ord { position: absolute; top: 4px; right: 4px; font: 600 10px var(--f-num); color: var(--blue); }
+.cell .lamp { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 4px; border-radius: 1px; background: #000; box-shadow: inset 0 0 0 1px var(--line); }
+.cell .loc { position: absolute; top: 17px; right: 4px; font: 600 9px var(--f-num); color: var(--fg2); }
+.cell.cur { box-shadow: inset 0 0 0 2px var(--blue), inset 0 0 0 4px var(--bg), inset 0 0 0 5px var(--blue); }
+
+/* tables: programmer, cue list, active */
+table.t { width: 100%; border-collapse: collapse; font: 11px var(--f-num); font-variant-numeric: tabular-nums; }
+.t th { text-align: left; font: 500 10px var(--f-leg); letter-spacing: .08em; color: var(--fg3); padding: 2px 4px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); }
+.t td { padding: 3px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.t td.n { color: var(--fg2); width: 34px; }
+.t .man { color: var(--red); }
+.t .pal { color: var(--cyan); }
+.t .off { color: var(--fg3); }
+.t tr.cur td { box-shadow: inset 0 1px 0 var(--green), inset 0 -1px 0 var(--green); }
+.t tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--green), inset 0 1px 0 var(--green), inset 0 -1px 0 var(--green); }
+.t tr.next td.n { color: var(--green); }
+.t tr.click { cursor: pointer; }
+.t tr.click:hover td { background: var(--surf); }
+.note { color: var(--fg2); padding: 8px; margin: 0; font-size: 12px; max-width: 46ch; }
+.dotc { display: inline-block; width: 8px; height: 8px; border-radius: 1px; margin-right: 4px; vertical-align: -1px; }
+
+/* colour picker window */
+.picker { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 6px; height: 100%; }
+.picker canvas { width: 100%; height: 100%; min-height: 80px; border-radius: 2px; cursor: crosshair; touch-action: none; }
+.mix { display: flex; flex-direction: column; gap: 3px; }
+.mrow { display: grid; grid-template-columns: 14px 1fr 26px; align-items: center; gap: 4px; font: 10px var(--f-num); color: var(--fg2); }
+.mbar { height: 14px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); position: relative; cursor: ew-resize; touch-action: none; }
+.mbar i { position: absolute; inset: 0 auto 0 0; }
+.gels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin-top: 4px; }
+.gel { height: 28px; border-radius: 2px; box-shadow: inset 0 0 0 1px var(--line); font: 9px var(--f-num); text-align: left; padding: 3px; display: flex; flex-direction: column; justify-content: space-between; }
+.gel i { height: 5px; border-radius: 1px; display: block; }
+
+/* side: function buttons, keypad, softkeys */
+.side { grid-area: side; display: flex; gap: 1px; background: var(--line); }
+.side > div { background: var(--bg); padding: 4px; display: grid; gap: 2px; align-content: start; overflow: auto; }
+.func { grid-template-columns: repeat(2, 64px); }
+.kp { grid-template-columns: repeat(4, 48px); }
+.kp.hide { display: none !important; }
+.soft { grid-template-columns: 112px; grid-template-rows: 16px; grid-auto-rows: minmax(44px, 1fr); align-content: stretch !important; }
+.k { height: 40px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); font: 500 12px/1.05 var(--f-leg); text-align: center; padding: 0 3px; }
+.k:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--line2); }
+.k:active:not(:disabled) { background: var(--fg); color: var(--bg); }
+.k:disabled { opacity: .3; }
+.k.on { box-shadow: inset 0 0 0 2px var(--fg); }
+.k.rec.on { box-shadow: inset 0 0 0 2px var(--red); color: var(--red); }
+.k.blind.on { box-shadow: inset 0 0 0 2px var(--violet); color: #c9a3ef; }
+.k.clr.has { box-shadow: inset 0 0 0 2px var(--red); color: var(--red); }
+.k.num { font: 15px var(--f-num); }
+.kp .k { height: 38px; }
+.hd2 { grid-column: 1 / -1; font: 500 10px var(--f-leg); letter-spacing: .08em; color: var(--fg3); text-transform: uppercase; padding: 1px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk { position: relative; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); text-align: left; padding: 6px 8px 6px 22px; font: 500 12px/1.15 var(--f-leg); }
+.sk b { position: absolute; left: 7px; top: 6px; font: 600 11px var(--f-num); color: var(--fg3); }
+.sk small { display: block; font: 10px var(--f-num); color: var(--fg2); margin-top: 2px; }
+.sk:disabled { opacity: .3; }
+.sk.warn { box-shadow: inset 0 0 0 2px var(--red); color: var(--red); }
+.sk input { width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--line2); border-radius: 2px; font: 12px var(--f-leg); padding: 3px 4px; user-select: text; }
+
+/* attribute bar */
+.attr { grid-area: attr; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 0 8px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tabs { display: grid; grid-template-columns: repeat(8, 30px); gap: 2px; }
+.tab { position: relative; height: 34px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); font: 600 13px var(--f-leg); color: var(--fg2); }
+.tab::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: 3px; height: 2px; background: var(--gc); opacity: .7; }
+.tab.av { color: var(--fg); }
 .tab.on { background: var(--fg); color: var(--bg); }
-.tab.has { box-shadow: inset 0 -2px 0 var(--prog); }
-.tab:disabled { opacity: .3; cursor: not-allowed; }
-.modes { display: flex; gap: 3px; margin-bottom: 8px; }
-.modes .tab { flex: 0 0 52px; font-size: 12px; }
-.encs { display: flex; gap: 10px; justify-content: space-around; min-height: 104px; }
-.enc { display: flex; flex-direction: column; align-items: center; gap: 4px; touch-action: none; cursor: ns-resize; user-select: none; }
-.knob { width: 62px; height: 62px; border-radius: 50%; background: conic-gradient(var(--c, var(--accent)) var(--a, 0deg), var(--line) 0); display: grid; place-items: center; }
-.knob::after { content: ""; width: 48px; height: 48px; border-radius: 50%; background: var(--raise); }
-.enc .lab { font: 600 12px var(--f-label); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
-.enc .val { font: 12px var(--f-num); }
-.enc.touched .val { color: var(--prog); }
-.hint { color: var(--mute); font-size: 12px; text-align: center; align-self: center; }
-canvas.picker[hidden] { display: none; }
-canvas.picker { display: block; width: 100%; height: 90px; border-radius: 4px; margin-top: 8px; cursor: crosshair; touch-action: none; }
+.tab.has::before { content: ""; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--red); }
+.tab:disabled { opacity: .3; }
+.wheels { display: flex; gap: 6px; align-items: center; }
+.modes { display: flex; flex-direction: column; gap: 2px; }
+.modes button { height: 16px; padding: 0 5px; border-radius: 2px; font: 9px var(--f-num); color: var(--fg2); box-shadow: inset 0 0 0 1px var(--line); }
+.modes button.on { color: var(--bg); background: var(--fg); }
+.wh { width: 168px; height: 46px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); position: relative; cursor: ew-resize; touch-action: none; overflow: hidden; }
+.wh .nm { position: absolute; top: 4px; left: 6px; font: 500 11px var(--f-leg); letter-spacing: .06em; text-transform: uppercase; color: var(--fg2); }
+.wh .bk { position: absolute; top: 4px; right: 6px; font: 9px var(--f-num); color: var(--fg3); }
+.wh .vl { position: absolute; top: 17px; left: 6px; right: 6px; font: 500 15px var(--f-num); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wh.man .vl { color: var(--red); }
+.wh.pal .vl { color: var(--cyan); }
+.wh .roll { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background-image: repeating-linear-gradient(90deg, var(--line2) 0 1px, transparent 1px 6px); background-position-x: var(--x, 0); }
+.wh .pos { position: absolute; bottom: 0; height: 8px; width: 2px; background: var(--fg); left: var(--p, 0%); }
+.wh.none { cursor: default; }
+.wh.none .vl { color: var(--fg3); }
+.cmdz { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cmd { height: 26px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 2px; background: #0b0c0d; box-shadow: inset 0 0 0 1px var(--line); font: 13px var(--f-num); color: var(--fg); overflow: hidden; white-space: nowrap; }
+.app.day .cmd { background: #fff; }
+.cmd .pr { color: var(--fg3); }
+.cmd .curs { width: 7px; height: 14px; background: var(--fg2); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.msg { font-size: 11px; color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg.warn { color: var(--amber); }
+.pz { display: flex; gap: 4px; align-items: stretch; }
+.pz .sum { display: flex; flex-direction: column; justify-content: center; padding: 0 8px; font: 11px var(--f-num); color: var(--fg2); min-width: 108px; }
+.pz .sum b { font-weight: 500; color: var(--red); font-size: 13px; }
+.pz .sum.empty b { color: var(--fg3); }
+.pz .k { height: 46px; width: 60px; }
 
-/* programmer + cue list */
-.prog { max-height: 190px; overflow: auto; font: 12px var(--f-num); }
-.prow { display: flex; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: 1px solid var(--line); }
-.prow b { font-weight: 400; width: 82px; flex: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; border-radius: 3px; background: var(--raise); color: var(--prog); white-space: nowrap; }
-.chip .dot { width: 8px; height: 8px; border-radius: 2px; }
-.empty-note { color: var(--mute); font-size: 12px; padding: 6px 2px; }
-.cues { width: 100%; border-collapse: collapse; font-size: 12px; }
-.cues td { padding: 4px 4px; border-bottom: 1px solid var(--line); }
-.cues td.num { font: 12px var(--f-num); color: var(--mute); width: 30px; font-variant-numeric: tabular-nums; }
-.cues td.t { font: 12px var(--f-num); color: var(--mute); text-align: right; }
-.cues tr.cur td { background: rgba(74, 208, 125, .12); }
-.cues tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--live); }
-.cues tr.next td.num::after { content: " ▸"; color: var(--accent); }
-.golist { display: flex; gap: 6px; margin-top: 8px; }
-.golist .key { flex: 1; }
-.key.go { background: var(--live); color: #04140a; border-color: var(--live); }
+/* playback zone */
+.play { grid-area: play; display: grid; grid-template-columns: 64px minmax(0, 1fr) 210px 70px; gap: 1px; background: var(--line); }
+.play > div { background: var(--bg); min-width: 0; }
+.pages { display: flex; flex-direction: column; gap: 2px; padding: 4px; }
+.pages button { height: 30px; border-radius: 2px; font: 500 11px/1 var(--f-leg); text-align: left; padding: 0 5px; color: var(--fg2); box-shadow: inset 0 0 0 1px var(--line); }
+.pages button.on { color: var(--bg); background: var(--fg); }
+.pages .pg-n { font: 10px var(--f-num); display: block; margin-bottom: 2px; }
+.pages select { margin-top: auto; background: var(--surf); color: var(--fg); border: 1px solid var(--line); border-radius: 2px; font: 10px var(--f-num); padding: 2px; }
+.pages label { font: 9px var(--f-num); color: var(--fg3); }
+.strips { display: flex; gap: 2px; padding: 4px; overflow-x: auto; }
+.bank { display: flex; gap: 2px; position: relative; padding: 13px 3px 3px; box-shadow: inset 0 0 0 1px var(--line2); border-radius: 2px; }
+.bank > span { position: absolute; top: 1px; left: 5px; font: 9px var(--f-num); color: var(--fg2); letter-spacing: .06em; }
+.loose { display: flex; gap: 2px; padding-top: 13px; }
+.strip { position: relative; width: 92px; flex: none; display: grid; grid-template-rows: 44px minmax(0, 1fr) 24px 24px; gap: 2px; padding: 2px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); }
+.strip.sel { box-shadow: inset 0 0 0 2px var(--blue); }
+.strip.run::after, .strip.rel::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: 0; height: 3px; background: var(--green); }
+.strip.rel::after { background: var(--amber); }
+.strip.empty { background: transparent; }
+.leg { position: relative; text-align: left; padding: 6px 5px 3px; background: var(--bg); border-radius: 1px; overflow: hidden; }
+.leg::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--halo, transparent); }
+.leg .ln { display: block; font: 500 12px/1.05 var(--f-leg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leg .mt { display: block; font: 9px var(--f-num); color: var(--fg2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.armed .strip .leg { box-shadow: inset 0 0 0 1px var(--red); }
+.lvl { position: relative; background: var(--bg); border-radius: 1px; cursor: ns-resize; touch-action: none; overflow: hidden; }
+.lvl .bar { position: absolute; left: 0; right: 0; bottom: 0; background: var(--line2); }
+.strip.run .lvl .bar { background: color-mix(in srgb, var(--green) 40%, var(--surf)); }
+.lvl .cap { position: absolute; left: 0; right: 0; height: 2px; background: var(--fg); }
+.lvl .pc { position: absolute; top: 3px; right: 4px; font: 11px var(--f-num); font-variant-numeric: tabular-nums; }
+.lvl .fp { position: absolute; left: 0; bottom: 0; width: 3px; background: var(--green); }
+.fb { border-radius: 1px; background: var(--surf2); box-shadow: inset 0 0 0 1px var(--line); font: 500 11px var(--f-leg); letter-spacing: .06em; text-transform: uppercase; touch-action: none; }
+.fb.held { background: var(--fg); color: var(--bg); }
+.fb.latched { box-shadow: inset 0 0 0 2px var(--amber); color: var(--amber); }
+.fb:disabled { opacity: .25; }
 
-/* faders */
-.fwin { margin-top: 10px; position: sticky; bottom: env(safe-area-inset-bottom, 0px); z-index: 4; box-shadow: 0 -8px 16px var(--bg); }
-@media (max-height: 640px), (max-width: 700px) { .fwin { position: static; box-shadow: none; } }
-.frow { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
-.fader { flex: 1 0 88px; display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--raise); }
-.fader.active { border-color: var(--live); }
-.fader.armed { border-color: var(--rec); }
-.fleg { position: relative; display: block; width: 100%; padding: 6px 4px 4px; border-radius: 3px; background: #0a0d10; border: 0; cursor: pointer; text-align: left; font: 600 13px/1.1 var(--f-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fleg::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--halo, var(--line)); }
-.fleg small { display: block; font: 10px var(--f-num); color: var(--mute); }
-.track { position: relative; height: 120px; width: 34px; align-self: center; border-radius: 4px; background: #07090c; border: 1px solid var(--line); touch-action: none; cursor: ns-resize; }
-.track .fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 3px; background: linear-gradient(to top, rgba(74, 208, 125, .35), rgba(74, 208, 125, .1)); }
-.track .cap { position: absolute; left: -6px; right: -6px; height: 16px; margin-bottom: -8px; border-radius: 3px; background: #c9d1d8; box-shadow: 0 2px 4px rgba(0, 0, 0, .6); }
-.track .cap::after { content: ""; position: absolute; left: 4px; right: 4px; top: 7px; height: 2px; background: #333; }
-.flv { text-align: center; font: 12px var(--f-num); font-variant-numeric: tabular-nums; }
-.fbtns { display: flex; gap: 4px; }
-.fbtns button { flex: 1; padding: 5px 0; border-radius: 3px; border: 1px solid var(--line); font: 600 11px var(--f-label); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; user-select: none; touch-action: none; }
-.swp { background: #12233f; color: #9cc3ff; }
-.fls { background: #2a3038; }
-.fbtns button.held { background: var(--fg); color: var(--bg); }
-.fader.gm { flex: 0 0 88px; border-color: var(--mute); }
-.fader.empty-h .fleg { color: var(--line); }
-.pagebar { display: flex; align-items: center; gap: 8px; }
-.pagebar .key { min-width: 0; padding: 2px 8px; }
-.pagebar select { background: var(--raise); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; font: 11px var(--f-num); }
+.go { display: grid; grid-template-rows: auto auto minmax(0, 1fr) 30px; gap: 4px; padding: 6px; }
+.go .hd { display: flex; justify-content: space-between; gap: 6px; font: 10px var(--f-num); color: var(--fg2); white-space: nowrap; }
+.go .now { font: 500 13px var(--f-leg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.go .now span { font: 12px var(--f-num); color: var(--green); margin-right: 6px; }
+.gob { position: relative; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 2px var(--green); text-align: left; padding: 8px 10px; overflow: hidden; }
+.gob:active:not(:disabled) { background: var(--green); }
+.gob .g { display: block; font: 600 24px/1 var(--f-leg); letter-spacing: .12em; color: var(--green); }
+.gob:active:not(:disabled) .g { color: var(--bg); }
+.gob .nx { display: block; margin-top: 6px; font: 500 12px var(--f-leg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gob .nx span { font: 11px var(--f-num); color: var(--fg2); }
+.gob .fpb { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--green); }
+.gob:disabled { box-shadow: inset 0 0 0 1px var(--line); }
+.gob:disabled .g { color: var(--fg3); }
+.gorow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.gorow .k { height: 30px; font-size: 11px; }
+.gm { display: grid; grid-template-rows: 18px minmax(0, 1fr) 30px; gap: 3px; padding: 4px; }
+.gm .ln { font: 500 11px var(--f-leg); text-align: center; color: var(--fg2); }
+.gm.low .lvl .bar { background: color-mix(in srgb, var(--amber) 45%, var(--surf)); }
+.fb.dbo.on { background: var(--amber); color: #000; box-shadow: none; }
 
-.note { margin: 10px 2px 0; color: var(--mute); font-size: 12px; max-width: 900px; }
-
-@media (max-width: 1100px) { .ws { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .ws > .col:last-child { grid-column: 1 / -1; } }
-@media (max-width: 700px) { .ws { grid-template-columns: minmax(0, 1fr); } .pal { grid-template-columns: repeat(4, minmax(0, 1fr)); } body { padding-inline: 16px; } }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 1280px) { .kp { display: none !important; } }
+@media (max-width: 900px) {
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "status" "rail" "grid" "side" "attr" "play"; padding: 0 16px; }
+  .status, .rail { flex-wrap: wrap; flex-direction: row; white-space: normal; padding-block: 6px; }
+  .rail button { min-height: 36px; }
+  .grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .win { height: 300px; }
+  .side { flex-wrap: wrap; } .soft { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; flex: 1; }
+  .attr { grid-template-columns: minmax(0, 1fr); padding-block: 6px; } .wheels { flex-wrap: wrap; }
+  .play { grid-template-columns: minmax(0, 1fr); } .strips { min-height: 230px; } .pages { flex-direction: row; flex-wrap: wrap; } .gm { min-height: 160px; }
+}
+@media (prefers-reduced-motion: reduce) { .cmd .curs { animation: none; } }
 </style>
 
-<header class="top">
-  <div class="brand">ColourmotionDMX<small>Sunday service.cmdmx · sketch v1</small></div>
-  <span class="pill"><i></i>Engine online</span>
-  <span class="pill"><i></i>Art-Net · sACN</span>
-  <span class="pill"><i class="off"></i>USB: no interface</span>
-  <div class="cmd" id="cmd" role="status" aria-live="polite"></div>
-  <div class="keys">
-    <button class="key rec" id="kRec">Record</button>
-    <button class="key" id="kLocate">Locate</button>
-    <button class="key" id="kHigh">Highlight</button>
-    <button class="key" id="kClear">Clear</button>
-  </div>
-</header>
-
-<main class="ws" id="ws">
-  <div class="col">
-    <section class="win"><h2>Fixtures <span class="tag" id="selTag"></span></h2><div class="body" id="fixtures"></div></section>
-    <section class="win"><h2>Groups</h2><div class="body groups" id="groups"></div></section>
-  </div>
-  <div class="col">
-    <section class="win"><h2>Colours <span class="tag">mask C</span></h2><div class="body pal" id="palC"></div></section>
-    <section class="win"><h2>Positions <span class="tag">mask P</span></h2><div class="body pal" id="palP"></div></section>
-    <section class="win"><h2>Gobos &amp; Beams <span class="tag">mask IGBES</span></h2><div class="body pal" id="palB"></div></section>
-  </div>
-  <div class="col">
-    <section class="win"><h2>Attributes <span class="tag" id="firstTag"></span></h2>
-      <div class="body">
-        <div class="tabs" id="tabs"></div>
-        <div class="modes" id="modes"></div>
-        <div class="encs" id="encs"></div>
-        <canvas class="picker" id="picker" width="600" height="150" hidden></canvas>
-      </div>
-    </section>
-    <section class="win"><h2>Programmer <span class="tag" id="progTag"></span></h2><div class="body prog" id="prog"></div></section>
-    <section class="win"><h2>Cue list · Service <span class="tag">on playback 1</span></h2>
-      <div class="body"><table class="cues" id="cues"></table>
-        <div class="golist"><button class="key" id="kBack">Back</button><button class="key go" id="kGo">Go</button></div>
-      </div>
-    </section>
-  </div>
-</main>
-
-<section class="win fwin">
-  <h2>Playbacks
-    <span class="pagebar">
-      <button class="key" id="pgDown" aria-label="Previous page">◀</button>
-      <span id="pgName"></span>
-      <button class="key" id="pgUp" aria-label="Next page">▶</button>
-      <label>faders_per_page <select id="fpp"><option>8</option><option>10</option></select></label>
-    </span>
-  </h2>
-  <div class="frow" id="faders"></div>
-</section>
-
-<p class="note">Clickable sketch for UX-01, iteration 1. Fake data, no engine behind it; it shows how the screen should feel, not how the merge works. Try: tap a group, turn a wheel, then tap a fixture (a new selection starts). Tap a colour with nothing selected (quick palette). Record, then tap an empty palette button or a fader legend. Clear twice.</p>
+<div class="app" id="app">
+  <header class="status" id="status"></header>
+  <nav class="rail" id="rail" aria-label="Workspaces"></nav>
+  <main class="grid"><section class="win" id="w0"></section><section class="win" id="w1"></section><section class="win" id="w2"></section><section class="win" id="w3"></section></main>
+  <aside class="side"><div class="func" id="func"></div><div class="kp" id="kp"></div><div class="soft" id="soft"></div></aside>
+  <section class="attr" id="attr"></section>
+  <section class="play"><div class="pages" id="pages"></div><div class="strips" id="strips"></div><div class="go" id="go"></div><div class="gm" id="gm"></div></section>
+</div>
 
 <script>
-// ---- rig: the church (PROJECT.md) -------------------------------------------------
+// UX-01 sketch. Fake engine: the merge below only lights the tiles; real behaviour is specced in ENG/PRG/PAL/PBK/CUE.
+// ---------------------------------------------------------------- rig (the church, PROJECT.md)
 const TYPES = {
   wash: { label: "Washes 19×15 W", short: "Wash", attrs: ["dim", "str", "pan", "tilt", "col", "zoom"] },
   rgbw: { label: "Pars RGBW", short: "RGBW", attrs: ["dim", "str", "col"] },
-  rgbl: { label: "Pars RGB+Lime", short: "RGBL", attrs: ["dim", "col"] },
+  rgbl: { label: "Pars RGB+Lime", short: "RGB+L", attrs: ["dim", "col"] },
   rgb:  { label: "Pars RGB · virtual dimmer", short: "RGB", attrs: ["dim", "col"] },
   spot: { label: "Front spots", short: "Spot", attrs: ["dim"] },
 };
@@ -214,383 +270,739 @@ const add = (type, n, from) => { for (let i = 0; i < n; i++) FIX.push({ id: from
 add("wash", 4, 101); add("rgbw", 8, 201); add("rgbl", 6, 211); add("rgb", 6, 221); add("spot", 6, 301);
 const F = Object.fromEntries(FIX.map(f => [f.id, f]));
 const has = (f, a) => TYPES[f.type].attrs.includes(a);
-const ids = pred => FIX.filter(pred).map(f => f.id);
-const PARS = ids(f => ["rgbw", "rgbl", "rgb"].includes(f.type));
-const WASH = ids(f => f.type === "wash");
-const SPOT = ids(f => f.type === "spot");
+const pick = pred => FIX.filter(pred).map(f => f.id);
+const PARS = pick(f => ["rgbw", "rgbl", "rgb"].includes(f.type)), WASH = pick(f => f.type === "wash"), SPOT = pick(f => f.type === "spot");
 const GROUPS = [
-  ["All", ids(() => true)], ["Washes", WASH], ["All pars", PARS], ["Pars RGBW", ids(f => f.type === "rgbw")],
-  ["Odd pars", PARS.filter((_, i) => i % 2 === 0)], ["Even pars", PARS.filter((_, i) => i % 2 === 1)],
-  ["Front spots", SPOT], ["Stage wash", [...WASH, ...PARS]],
+  { name: "All", ids: pick(() => true) }, { name: "Washes", ids: WASH }, { name: "All pars", ids: PARS },
+  { name: "Pars RGBW", ids: pick(f => f.type === "rgbw") }, { name: "Odd pars", ids: PARS.filter((_, i) => i % 2 === 0) },
+  { name: "Even pars", ids: PARS.filter((_, i) => i % 2 === 1) }, { name: "Front spots", ids: SPOT }, { name: "Stage wash", ids: [...WASH, ...PARS] },
 ];
 const GROUP_OF = { dim: "I", str: "I", pan: "P", tilt: "P", col: "C", zoom: "B" };
-const ATTR_GROUPS = ["I", "P", "C", "G", "B", "E", "S", "FX"];
+const AG = ["I", "P", "C", "G", "B", "E", "S", "FX"];
+const AG_NAME = { I: "Intensity", P: "Position", C: "Colour", G: "Gobo (none in this rig)", B: "Beam", E: "Effect (none in this rig)", S: "Special (none in this rig)", FX: "Shapes (phase 2)" };
 
-// ---- colour: one device-independent target colour (P1-07), shown in three models --
-const rgbHex = c => "#" + [c.r, c.g, c.b].map(v => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, "0")).join("");
+// ---------------------------------------------------------------- colour: one target colour (P1-07)
+const C = (r, g, b) => ({ r, g, b });
+const clamp = v => Math.max(0, Math.min(1, v));
+const hex = c => "#" + [c.r, c.g, c.b].map(v => Math.round(clamp(v) * 255).toString(16).padStart(2, "0")).join("");
 function toHS(c) { const mx = Math.max(c.r, c.g, c.b), mn = Math.min(c.r, c.g, c.b), d = mx - mn; let h = 0;
   if (d) h = mx === c.r ? ((c.g - c.b) / d) % 6 : mx === c.g ? (c.b - c.r) / d + 2 : (c.r - c.g) / d + 4;
   return { h: (h * 60 + 360) % 360, s: mx ? d / mx : 0 }; }
-function fromHS(h, s) { const f = n => { const k = (n + h / 60) % 6; return 1 - s * Math.max(0, Math.min(k, 4 - k, 1)); }; return { r: f(5), g: f(3), b: f(1) }; }
-const C = (r, g, b) => ({ r, g, b });
+function fromHS(h, s) { const f = n => { const k = (n + h / 60) % 6; return 1 - s * Math.max(0, Math.min(k, 4 - k, 1)); }; return C(f(5), f(3), f(1)); }
+const GELS = [["L201", "Full CT Blue", C(.6, .75, 1)], ["L079", "Just Blue", C(.1, .3, 1)], ["L181", "Congo Blue", C(.25, 0, .65)], ["L106", "Primary Red", C(1, 0, .05)],
+  ["L135", "Deep Golden Amber", C(1, .35, 0)], ["L010", "Medium Yellow", C(1, .85, .1)], ["L116", "Medium Blue-Green", C(0, .75, .6)], ["L128", "Bright Pink", C(1, .1, .55)]];
 
-// ---- show data ------------------------------------------------------------------
+// ---------------------------------------------------------------- show data
 const look = (fids, v) => Object.fromEntries(fids.map(id => [id, Object.fromEntries(Object.entries(v).filter(([a]) => has(F[id], a)))]));
 const merge = (...ls) => Object.assign({}, ...ls);
 const WARM = C(1, .72, .42), BLUE = C(.1, .3, 1), DEEP = C(.05, .05, .8);
 const CUES = [
-  { n: 1, name: "Walk-in", t: 3, look: look(PARS, { dim: .45, col: WARM }) },
-  { n: 2, name: "Welcome", t: 2, look: merge(look(PARS, { dim: .6, col: WARM }), look(SPOT, { dim: .8 })) },
-  { n: 3, name: "Worship", t: 4, look: merge(look(PARS, { dim: .7, col: BLUE }), look(WASH, { dim: .8, col: C(.8, 0, 1), pan: .5, tilt: .3 })) },
-  { n: 4, name: "Prayer", t: 6, look: look(PARS, { dim: .3, col: DEEP }) },
-  { n: 5, name: "Sermon", t: 3, look: merge(look(PARS, { dim: .35, col: WARM }), look(SPOT, { dim: 1 })) },
-  { n: 6, name: "Video", t: 2, look: look(PARS, { dim: .15, col: DEEP }) },
-  { n: 7, name: "Walk-out", t: 5, look: look(PARS, { dim: .6, col: WARM }) },
+  { n: 1, name: "Walk-in", t: 3, d: 0, look: look(PARS, { dim: .45, col: WARM }) },
+  { n: 2, name: "Welcome", t: 2, d: 0, look: merge(look(PARS, { dim: .6, col: WARM }), look(SPOT, { dim: .8 })) },
+  { n: 3, name: "Worship", t: 4, d: 0, look: merge(look(PARS, { dim: .7, col: BLUE }), look(WASH, { dim: .8, col: C(.8, 0, 1), pan: .5, tilt: .3 })) },
+  { n: 4, name: "Prayer", t: 6, d: 1, look: look(PARS, { dim: .3, col: DEEP }) },
+  { n: 5, name: "Sermon", t: 3, d: 0, look: merge(look(PARS, { dim: .35, col: WARM }), look(SPOT, { dim: 1 })) },
+  { n: 6, name: "Video", t: 2, d: 0, look: look(PARS, { dim: .15, col: DEEP }) },
+  { n: 7, name: "Walk-out", t: 5, d: 0, look: look(PARS, { dim: .6, col: WARM }) },
 ];
+const pb = (name, l, extra) => ({ name, look: l, opts: { mode: 0, prio: "Normal", rmask: "I", rtime: 2 }, ...extra });
 const PAGES = [
-  { name: "Page 1 · Sunday", pbs: [
-    { name: "Service", sub: "cue list", list: true },
-    { name: "Warm wash", look: look(PARS, { dim: .8, col: WARM }) },
-    { name: "Front spots", look: look(SPOT, { dim: 1 }) },
-    { name: "Blue wash", look: merge(look(PARS, { dim: .7, col: BLUE }), look(WASH, { dim: .7, col: BLUE })) },
-    { name: "Washes stage", look: look(WASH, { dim: 1, col: C(1, 1, 1), pan: .5, tilt: .4, zoom: .6 }) },
-    { name: "Purple", look: look(PARS, { dim: .7, col: C(.55, 0, 1) }) },
-    { name: "House", look: look(PARS, { dim: 1, col: C(1, 1, 1) }) },
-    null,
-  ] },
-  { name: "Page 2 · Band", pbs: [
-    { name: "Red", look: look([...PARS, ...WASH], { dim: .8, col: C(1, 0, 0) }) },
-    { name: "Cyan", look: look([...PARS, ...WASH], { dim: .8, col: C(0, .9, 1) }) },
-    { name: "Washes band", look: look(WASH, { dim: 1, pan: .3, tilt: .6 }) },
-    null, null, null, null, null,
-  ] },
+  { name: "Sunday", pbs: [pb("Service", null, { list: true }), pb("Warm wash", look(PARS, { dim: .8, col: WARM })), pb("Front spots", look(SPOT, { dim: 1 })),
+    pb("Blue wash", merge(look(PARS, { dim: .7, col: BLUE }), look(WASH, { dim: .7, col: BLUE }))), pb("Washes stage", look(WASH, { dim: 1, col: C(1, 1, 1), pan: .5, tilt: .4, zoom: .6 })),
+    pb("Purple", look(PARS, { dim: .7, col: C(.55, 0, 1) })), pb("House", look(PARS, { dim: 1, col: C(1, 1, 1) })), null] },
+  { name: "Band", pbs: [pb("Red", look([...PARS, ...WASH], { dim: .8, col: C(1, 0, 0) })), pb("Cyan", look([...PARS, ...WASH], { dim: .8, col: C(0, .9, 1) })),
+    pb("Washes band", look(WASH, { dim: 1, pan: .3, tilt: .6 })), null, null, null, null, null] },
+  { name: "", pbs: [] }, { name: "", pbs: [] },
 ];
-PAGES.forEach((pg, pi) => pg.pbs.forEach((p, i) => { if (p) { p.id = pi * 100 + i + 1; p.halo = p.list ? "#4ad07d" : haloOf(p.look); } }));
-function haloOf(l) { const v = Object.values(l).find(x => x.col); return v ? rgbHex(v.col) : "#c9d1d8"; }
+let nextPb = 1;
+PAGES.forEach(pg => pg.pbs.forEach(p => { if (p) p.id = nextPb++; }));
 
 const mkPal = (name, kind, v) => ({ name, kind, ...v });
-const PAL = {
-  C: [["White", C(1, 1, 1)], ["Warm", WARM], ["Amber", C(1, .5, .05)], ["Red", C(1, 0, 0)], ["Magenta", C(1, 0, .6)], ["Purple", C(.55, 0, 1)],
-      ["Deep blue", DEEP], ["Blue", BLUE], ["Cyan", C(0, .9, 1)], ["Green", C(0, 1, .2)], ["Lime", C(.6, 1, 0)], ["Pink", C(1, .45, .7)]]
-      .map(([n, c]) => mkPal(n, "G", { all: { col: c } })),
-  P: [["Stage", .5, .4], ["Pulpit", .38, .45], ["Band", .62, .5], ["Audience", .5, .75], ["Cross", .5, .2], ["Ceiling", .5, .05]]
-      .map(([n, pan, tilt]) => mkPal(n, "N", { byFix: Object.fromEntries(WASH.map((id, i) => [id, { pan: pan + (i - 1.5) * .04, tilt }])) })),
-  B: [mkPal("Zoom narrow", "S", { byType: { wash: { zoom: .1 } } }), mkPal("Zoom mid", "S", { byType: { wash: { zoom: .5 } } }),
-      mkPal("Zoom wide", "S", { byType: { wash: { zoom: .95 } } }), mkPal("Full", "G", { all: { dim: 1 } }),
-      mkPal("Half", "G", { all: { dim: .5 } }), mkPal("Out", "G", { all: { dim: 0 } })],
-};
-const SLOTS = 16;
+const SLOTS = 32, BASE = { C: 1, P: 41, B: 81 };
+const PAL = { C: Array(SLOTS).fill(null), P: Array(SLOTS).fill(null), B: Array(SLOTS).fill(null) };
+[["White", C(1, 1, 1)], ["Warm", WARM], ["Amber", C(1, .5, .05)], ["Red", C(1, 0, 0)], ["Magenta", C(1, 0, .6)], ["Purple", C(.55, 0, 1)], ["Deep blue", DEEP], ["Blue", BLUE],
+ ["Cyan", C(0, .9, 1)], ["Green", C(0, 1, .2)], ["Lime", C(.6, 1, 0)], ["Pink", C(1, .45, .7)]].forEach(([n, c], i) => PAL.C[i] = mkPal(n, "G", { all: { col: c } }));
+[["Stage", .5, .4], ["Pulpit", .38, .45], ["Band", .62, .5], ["Audience", .5, .75], ["Cross", .5, .2], ["Ceiling", .5, .05]].forEach(([n, pan, tilt], i) =>
+  PAL.P[i] = mkPal(n, "N", { byFix: Object.fromEntries(WASH.map((id, k) => [id, { pan: pan + (k - 1.5) * .04, tilt }])) }));
+[["Zoom narrow", "S", { byType: { wash: { zoom: .1 } } }], ["Zoom mid", "S", { byType: { wash: { zoom: .5 } } }], ["Zoom wide", "S", { byType: { wash: { zoom: .95 } } }],
+ ["Full", "G", { all: { dim: 1 } }], ["Half", "G", { all: { dim: .5 } }], ["Out", "G", { all: { dim: 0 } }]].forEach(([n, k, v], i) => PAL.B[i] = mkPal(n, k, v));
 const MASK = { C: ["col"], P: ["pan", "tilt"], B: ["dim", "str", "zoom"] };
-const WIN_NAME = { C: "Colours", P: "Positions", B: "Gobos & Beams" };
+const MASK_TXT = { C: "C", P: "P", B: "IGBES" };
+const WIN_TITLE = { C: "Colours", P: "Positions", B: "Gobos & Beams" };
 const palVals = (p, f) => p.all || p.byType?.[f.type] || p.byFix?.[f.id];
+const palGroups = p => new Set((p.all ? [p.all] : Object.values(p.byType || p.byFix)).flatMap(v => Object.keys(v).map(a => GROUP_OF[a])));
+const palNum = (w, i) => BASE[w] + i;
 
-// ---- console state ----------------------------------------------------------------
+// ---------------------------------------------------------------- state
 const S = {
-  sel: [], changed: false, prog: {}, located: {}, group: "C", cmode: "HSI",
-  rec: false, high: false, page: 0, fpp: 8, gm: 1, cue: 0,
-  level: { 1: 1 }, raised: { 1: 1 }, order: 1, flash: null, swop: null, clearArmed: false,
+  ws: 0, sel: [], cur: -1, changed: false, prog: {}, located: {}, group: "C", cmode: "HSI",
+  mode: null, src: null, target: null, ctx: null, recMerge: false, fan: null, high: false, blind: false,
+  page: 0, fpp: 8, gm: 1, dbo: false, cue: 0, fade: null, level: { 1: 1 }, raised: { 1: 1 }, order: 1, rel: {},
+  flash: null, swop: null, latched: {}, selPb: 1, cmd: [], keys: false, kp: true, day: false,
+  undo: [], msg: "Service runs Q1 Walk-in on playback 1. Pick a group to start programming.", warn: false,
 };
+const allPbs = () => PAGES.flatMap(pg => pg.pbs.filter(Boolean));
+const pbById = id => allPbs().find(p => p.id === +id);
+const lookOf = p => p.list ? CUES[S.cue].look : p.look;
+const lvl = p => (S.flash === p.id || S.swop === p.id || S.latched[p.id]) ? 1 : (S.level[p.id] || 0);
+const say = (t, warn) => { S.msg = t; S.warn = !!warn; };
 
-// ---- the fake output: only so the sketch shows something; real merge is ENG ----
+function snapshot(label) {
+  S.undo.push({ label, s: JSON.stringify({ prog: S.prog, sel: S.sel, located: S.located, PAL, pages: PAGES.map(pg => pg.pbs) }) });
+  if (S.undo.length > 30) S.undo.shift();
+}
+function undo() {
+  const u = S.undo.pop(); if (!u) return say("Nothing to undo.");
+  const d = JSON.parse(u.s);
+  S.prog = d.prog; S.sel = d.sel; S.located = d.located; S.cur = -1;
+  for (const w of ["C", "P", "B"]) PAL[w] = d.PAL[w];
+  d.pages.forEach((pbs, i) => PAGES[i].pbs = pbs);
+  say(`Undone: ${u.label}`);
+}
+
+// ---------------------------------------------------------------- fake output (only to light the tiles)
 function output(f) {
   const o = { dim: 0, col: C(1, 1, 1), pan: .5, tilt: .5, zoom: .5 };
   if (S.located[f.id]) o.dim = 1;
   const live = allPbs().filter(p => lvl(p) > 0).sort((a, b) => (S.raised[a.id] || 0) - (S.raised[b.id] || 0));
   for (const p of live) {
-    const v = lookOf(p)[f.id]; if (!v) continue;
+    const v = lookOf(p)?.[f.id]; if (!v) continue;
     if (v.dim != null) o.dim = Math.max(o.dim, v.dim * lvl(p));
     for (const a of ["col", "pan", "tilt", "zoom"]) if (v[a] != null) o[a] = v[a];
   }
-  if (S.swop && !lookOf(S.swop)[f.id]) o.dim = 0;
+  if (S.swop && !lookOf(pbById(S.swop))?.[f.id]) o.dim = 0;
   const pr = S.prog[f.id];
-  if (pr) for (const a of ["dim", "col", "pan", "tilt", "zoom"]) if (pr[a] != null) o[a] = pr[a];
-  if (S.high && S.sel.includes(f.id)) { o.dim = 1; o.col = C(1, 1, 1); }
-  o.dim *= S.gm;
+  if (pr && !S.blind) for (const a of ["dim", "col", "pan", "tilt", "zoom"]) if (pr[a] != null) o[a] = pr[a];
+  if (S.high && S.sel.includes(f.id) && (S.cur < 0 || S.sel[S.cur] === f.id)) { o.dim = 1; o.col = C(1, 1, 1); }
+  o.dim *= S.dbo ? 0 : S.gm;
   return o;
 }
-const allPbs = () => PAGES.flatMap(pg => pg.pbs.filter(Boolean));
-const lookOf = p => p.list ? CUES[S.cue].look : p.look;
-const lvl = p => (S.flash === p || S.swop === p) ? 1 : (S.level[p.id] || 0);
 
-// ---- actions ----------------------------------------------------------------------
-const say = t => { $("cmd").textContent = "› " + t; };
+// ---------------------------------------------------------------- programmer actions
 function selectFix(list, toggle) {
   if (S.changed) { S.sel = []; S.changed = false; }
-  S.clearArmed = false;
-  for (const id of list) {
-    const i = S.sel.indexOf(id);
-    if (i >= 0 && toggle) S.sel.splice(i, 1); else if (i < 0) S.sel.push(id);
-  }
+  S.cur = -1;
+  for (const id of list) { const i = S.sel.indexOf(id); if (i >= 0 && toggle) S.sel.splice(i, 1); else if (i < 0) S.sel.push(id); }
 }
-function touch(id) { return S.prog[id] || (S.prog[id] = { ref: {} }); }
+const touch = id => S.prog[id] || (S.prog[id] = { ref: {} });
+const targets = () => S.cur >= 0 ? [S.sel[S.cur]] : S.sel;
+const FAN = { Line: x => x * 2 - 1, Mirror: x => 1 - Math.abs(x * 2 - 1) * 2, Wings: x => (x < .5 ? x : x - .5) * 4 - 1, Arrow: x => Math.abs(x * 2 - 1) * 2 - 1 };
 function setAttr(ids, a, fn) {
   let n = 0;
-  for (const id of ids) { const f = F[id]; if (!has(f, a)) continue; const pr = touch(id); pr[a] = fn(pr[a] ?? output(f)[a] ?? 0, f); delete pr.ref[GROUP_OF[a]]; n++; }
-  if (n) { S.changed = true; S.clearArmed = false; }
+  ids.forEach((id, i) => {
+    const f = F[id]; if (!has(f, a)) return;
+    const pr = touch(id), k = S.fan && ids.length > 1 ? FAN[S.fan](i / (ids.length - 1)) : 1;
+    pr[a] = fn(pr[a] ?? output(f)[a] ?? 0, k); delete pr.ref[GROUP_OF[a]]; n++;
+  });
+  if (n) S.changed = true;
   return n;
 }
 function applyPal(w, i) {
-  const p = PAL[w][i];
-  const quick = S.sel.length === 0;
-  const targets = quick ? FIX.map(f => f.id) : S.sel;
+  const p = PAL[w][i], quick = !S.sel.length, ids = quick ? FIX.map(f => f.id) : targets();
+  snapshot(`Palette ${palNum(w, i)} ${p.name}`);
   let n = 0;
-  for (const id of targets) {
+  for (const id of ids) {
     const v = palVals(p, F[id]); if (!v) continue;
-    const pr = touch(id); let hit = false;
-    for (const [a, val] of Object.entries(v)) if (has(F[id], a)) { pr[a] = typeof val === "object" ? { ...val } : val; pr.ref[GROUP_OF[a]] = p.name; hit = true; }
-    if (hit) n++; else if (Object.keys(pr).length === 1) delete S.prog[id];
+    let hit = false;
+    for (const [a, val] of Object.entries(v)) if (has(F[id], a)) { const pr = touch(id); pr[a] = typeof val === "object" ? { ...val } : val; pr.ref[GROUP_OF[a]] = p.name; hit = true; }
+    if (hit) n++;
   }
-  S.changed = n > 0 || S.changed;
-  say(n ? `${quick ? "Quick palette" : "Palette"} ${p.name} → ${n} fixture${n > 1 ? "s" : ""}${quick ? " (nothing selected, so every fixture it fits)" : ""}. The programmer keeps a reference, not the values.`
-        : `${p.name} does not fit the selected fixtures.`);
+  if (n) S.changed = true;
+  say(n ? `${quick ? "Quick palette" : "Palette"} ${palNum(w, i)} ${p.name} → ${n} fixture${n > 1 ? "s" : ""}${quick ? " (nothing selected: every fixture it fits)" : ""}. Stored as a reference.` : `${p.name} does not fit the selection.`, !n);
 }
 function recordPal(w, i) {
   const mask = MASK[w];
   const fids = Object.keys(S.prog).map(Number).filter(id => mask.some(a => S.prog[id][a] != null));
-  if (!fids.length) { say(`Nothing in the programmer for ${WIN_NAME[w]} (mask ${w === "B" ? "IGBES" : w}). Set a value first.`); return; }
+  if (!fids.length) return say(`Nothing in the programmer for ${WIN_TITLE[w]} (mask ${MASK_TXT[w]}).`, true);
   const vals = id => Object.fromEntries(mask.filter(a => S.prog[id][a] != null).map(a => [a, S.prog[id][a]]));
   const key = id => JSON.stringify(vals(id));
-  const same = fids.every(id => key(id) === key(fids[0]));
+  const old = PAL[w][i];
+  snapshot(`Record ${WIN_TITLE[w]} ${palNum(w, i)}`);
   const types = [...new Set(fids.map(id => F[id].type))];
-  const sameByType = types.every(t => { const ts = fids.filter(id => F[id].type === t); return ts.every(id => key(id) === key(ts[0])); });
   let p;
-  if (same && (w === "C" || w === "B")) p = mkPal("", "G", { all: vals(fids[0]) });
-  else if (sameByType && w !== "P") p = mkPal("", "S", { byType: Object.fromEntries(types.map(t => [t, vals(fids.find(id => F[id].type === t))])) });
+  if (w !== "P" && fids.every(id => key(id) === key(fids[0]))) p = mkPal("", "G", { all: vals(fids[0]) });
+  else if (w !== "P" && types.every(t => { const ts = fids.filter(id => F[id].type === t); return ts.every(id => key(id) === key(ts[0])); }))
+    p = mkPal("", "S", { byType: Object.fromEntries(types.map(t => [t, vals(fids.find(id => F[id].type === t))])) });
   else p = mkPal("", "N", { byFix: Object.fromEntries(fids.map(id => [id, vals(id)])) });
-  const any = vals(fids[0]);
-  p.name = w === "C" ? `Colour ${i + 1}` : w === "P" ? `Position ${i + 1}` : any.zoom != null ? `Zoom ${Math.round(any.zoom * 100)}` : `Beam ${i + 1}`;
-  PAL[w][i] = p;
-  const kind = { G: "Global", S: "Shared", N: "Normal" }[p.kind];
-  S.rec = false;
-  say(`Recorded ${WIN_NAME[w]} ${i + 1} as ${kind} from ${fids.length} fixture${fids.length > 1 ? "s" : ""} (Quick Record: mask ${w === "B" ? "IGBES" : w} from the window).`);
+  if (old && S.recMerge && p.byFix && old.byFix) p.byFix = { ...old.byFix, ...p.byFix };
+  const v0 = vals(fids[0]);
+  p.name = old?.name || (w === "C" ? `Colour ${palNum(w, i)}` : w === "P" ? `Position ${palNum(w, i)}` : v0.zoom != null ? `Zoom ${Math.round(v0.zoom * 100)}%` : `Beam ${palNum(w, i)}`);
+  PAL[w][i] = p; S.mode = null;
+  say(`${old ? (S.recMerge ? "Merged into" : "Replaced") : "Recorded"} ${WIN_TITLE[w]} ${palNum(w, i)} as ${{ G: "Global", S: "Shared", N: "Normal" }[p.kind]} from ${fids.length} fixture${fids.length > 1 ? "s" : ""}. Mask ${MASK_TXT[w]} comes from the window (Quick Record).`);
 }
+const progLook = () => Object.fromEntries(Object.entries(S.prog).map(([id, pr]) => [id, Object.fromEntries(["dim", "col", "pan", "tilt", "zoom"].filter(a => pr[a] != null).map(a => [a, pr[a]]))]));
 function recordPb(slot) {
-  const fids = Object.keys(S.prog).map(Number);
-  if (!fids.length) { say("The programmer is empty: nothing to record onto a playback."); S.rec = false; return; }
-  const l = Object.fromEntries(fids.map(id => [id, Object.fromEntries(["dim", "col", "pan", "tilt", "zoom"].filter(a => S.prog[id][a] != null).map(a => [a, S.prog[id][a]]))]));
-  const pg = PAGES[S.page];
-  const p = { id: S.page * 100 + slot + 1, name: `Playback ${slot + 1}`, look: l };
-  p.halo = haloOf(l);
-  pg.pbs[slot] = p;
-  S.rec = false;
-  say(`Recorded a cue on ${pg.name.split(" · ")[0]}, fader ${slot + 1}: ${fids.length} fixtures, touched attributes only (palette references kept).`);
-  buildFaders();
+  if (!Object.keys(S.prog).length) { S.mode = null; return say("The programmer is empty: nothing to record onto a playback.", true); }
+  snapshot(`Record playback ${slot + 1}`);
+  const pg = PAGES[S.page], old = pg.pbs[slot];
+  const p = old && !old.list ? old : pb(`Cue ${slot + 1}`, {});
+  if (!p.id) p.id = nextPb++;
+  p.look = S.recMerge && old?.look ? { ...old.look, ...progLook() } : progLook();
+  pg.pbs[slot] = p; S.mode = null; S.selPb = p.id;
+  say(`Recorded onto page ${S.page + 1}, fader ${slot + 1}: ${Object.keys(S.prog).length} fixtures, touched attributes only, palette references kept.`);
+}
+function includeFrom(l, label) {
+  snapshot(`Include ${label}`);
+  for (const [id, v] of Object.entries(l)) { const pr = touch(id); for (const [a, val] of Object.entries(v)) pr[a] = typeof val === "object" ? { ...val } : val; }
+  if (!S.sel.length) S.sel = Object.keys(l).map(Number);
+  S.changed = true; S.mode = null;
+  say(`Included ${label} into the programmer (${Object.keys(l).length} fixtures). Change it, then Record or Update.`);
+}
+const palLook = p => Object.fromEntries(FIX.filter(f => palVals(p, f)).map(f => [f.id, Object.fromEntries(Object.entries(palVals(p, f)).filter(([a]) => has(f, a)))]));
+function updatePal(w, i) {
+  const p = PAL[w][i], mask = MASK[w];
+  const fids = Object.keys(S.prog).map(Number).filter(id => mask.some(a => S.prog[id][a] != null) && palVals(p, F[id]));
+  if (!fids.length) { S.mode = null; return say(`Update: the programmer holds no ${WIN_TITLE[w]} values for fixtures in ${p.name}.`, true); }
+  snapshot(`Update ${p.name}`);
+  const v = id => Object.fromEntries(mask.filter(a => S.prog[id][a] != null).map(a => [a, S.prog[id][a]]));
+  if (p.all) p.all = { ...p.all, ...v(fids[0]) };
+  else if (p.byType) for (const id of fids) p.byType[F[id].type] = { ...p.byType[F[id].type], ...v(id) };
+  else for (const id of fids) p.byFix[id] = { ...p.byFix[id], ...v(id) };
+  S.mode = null;
+  say(`Updated ${WIN_TITLE[w]} ${palNum(w, i)} ${p.name}: every cue that references it follows.`);
 }
 
-// ---- rendering --------------------------------------------------------------------
-const $ = id => document.getElementById(id);
-const pct = v => Math.round(v * 100) + "%";
-function lampStyle(f) { const o = output(f); const k = o.dim; return `background:${rgbHex({ r: o.col.r * k, g: o.col.g * k, b: o.col.b * k })}`; }
+// ---------------------------------------------------------------- command line (Titan keypad syntax subset)
+function key(k) {
+  const t = S.cmd, last = t[t.length - 1];
+  if (/^[0-9.]$/.test(k)) { if (last && /^[0-9.]+$/.test(last)) t[t.length - 1] = last + k; else t.push(k); return; }
+  if (k === "Back") { if (last && /^[0-9.]{2,}$/.test(last)) t[t.length - 1] = last.slice(0, -1); else t.pop(); return; }
+  if (k === "Enter") return exec();
+  if (k === "Exit") { S.cmd = []; S.mode = null; S.src = null; S.target = null; S.ctx = null; return say("Exit."); }
+  t.push(k);
+}
+function exec() {
+  const t = S.cmd; if (!t.length) return;
+  const text = t.join(" ");
+  S.cmd = [];
+  let kind = null, list = [], at = null;
+  for (let i = 0; i < t.length; i++) {
+    const x = t[i];
+    if (["Fixture", "Group", "Palette", "Macro"].includes(x)) kind = x;
+    else if (x === "@") { at = t[i + 1] == null ? 100 : +t[i + 1]; i++; }
+    else if (x === "Thro") { const a = list.pop() ?? 0, b = +t[i + 1]; for (let n = Math.min(a, b); n <= Math.max(a, b); n++) list.push(n); i++; }
+    else if (/^[0-9.]+$/.test(x)) list.push(+x);
+  }
+  kind = kind || "Fixture";
+  if (list.length) {
+    if (kind === "Macro") return say("Macros come later; the key stays so muscle memory does not change.", true);
+    if (kind === "Fixture") { const ids = list.filter(n => F[n]); if (!ids.length) return say(`${text}: no such fixture.`, true); selectFix(ids, false); }
+    if (kind === "Group") { const g = GROUPS[list[0] - 1]; if (!g) return say(`${text}: no such group.`, true); selectFix(g.ids, false); }
+    if (kind === "Palette") {
+      const n = list[0], w = n >= BASE.B ? "B" : n >= BASE.P ? "P" : "C", i = n - BASE[w];
+      if (!PAL[w][i]) return say(`${text}: palette ${n} is empty.`, true);
+      applyPal(w, i);
+    }
+  }
+  if (at != null) {
+    if (!S.sel.length) return say(`${text}: select fixtures first.`, true);
+    snapshot(text);
+    const n = setAttr(targets(), "dim", () => clamp(at / 100));
+    say(`${text} → intensity on ${n} fixtures.`);
+  } else if (kind !== "Palette") say(`${text} → ${S.sel.length} selected.`);
+}
 
-function renderFixtures() {
+// ---------------------------------------------------------------- function buttons, softkeys
+const FUNCS = [
+  ["Record", "rec"], ["Update"], ["Edit"], ["Select If", "later"], ["Delete"], ["Unfold", "later"], ["Copy"], ["Move"], ["Include"], ["Release"],
+  ["Patch", "screen"], ["Disk", "screen"], ["Help", "screen"], ["System", "screen"], ["Blind", "blind"], ["Off"], ["Fan"], ["Options"], ["Latch"], ["Shape", "later"],
+];
+const MODE_HINT = {
+  Record: "Record: tap an empty palette button (mask from its window) or a playback legend.",
+  Update: "Update: tap the palette to update with what is in the programmer.",
+  Edit: "Edit: tap a playback or palette to load it into the programmer.",
+  Delete: "Delete: tap the palette or playback to delete. You confirm on softkey A.",
+  Copy: "Copy: tap the source palette, then an empty button.", Move: "Move: tap the source palette, then an empty button.",
+  Include: "Include: tap a playback or palette; its values go into the programmer.",
+  Release: "Release: tap a playback to release it with its release time.",
+  Options: "Options: tap a playback; its options appear on the softkeys.",
+  Latch: "Latch: tap a Flash button to latch it on (tap again to unlatch).",
+  Legend: "Set Legend: tap a palette, group or playback; type the name on softkey A.",
+};
+function func(name) {
+  const def = FUNCS.find(f => f[0] === name);
+  if (def?.[1] === "screen") return say(`${name} opens its own full screen (not part of this main-screen sketch).`);
+  if (name === "Blind") { S.blind = !S.blind; return say(S.blind ? "Blind: programmer changes stay off stage. The violet frame stays until you leave Blind." : "Blind off: the programmer is live again."); }
+  if (name === "Off") {
+    const ids = targets().filter(id => S.prog[id]);
+    if (!ids.length) return say("Off: nothing of the selection is in the programmer.", true);
+    snapshot(`Off ${S.group}`);
+    for (const id of ids) { for (const a of Object.keys(S.prog[id])) if (GROUP_OF[a] === S.group) delete S.prog[id][a]; delete S.prog[id].ref[S.group]; if (Object.keys(S.prog[id]).length === 1) delete S.prog[id]; }
+    return say(`Off: ${AG_NAME[S.group]} of ${ids.length} fixtures out of the programmer; the playbacks show through again.`);
+  }
+  if (name === "Fan") { S.fan = S.fan ? null : "Line"; S.mode = null; return say(S.fan ? "Fan on: wheels spread values over the selection order. Pick the curve on the softkeys." : "Fan off."); }
+  S.mode = S.mode === name ? null : name; S.src = null; S.target = null;
+  say(S.mode ? MODE_HINT[name] : `${name} cancelled.`);
+}
+const sk = (label, sub, act, o = {}) => ({ label, sub, act, ...o });
+function ctxKeys(c) {
+  const run = (mode, fn) => () => { S.ctx = null; S.mode = mode; S.src = null; S.target = null; fn(); };
+  if (c.w) {
+    const p = PAL[c.w][c.i], tap = () => tapPalette(c.w, c.i);
+    return [`${WIN_TITLE[c.w]} ${palNum(c.w, c.i)}`, [sk("Set Legend", p?.name, run("Legend", tap)), sk("Include", "into programmer", run("Include", tap)), sk("Update", "from programmer", run("Update", tap)),
+      sk("Copy", "then tap target", run("Copy", tap)), sk("Move", "then tap target", run("Move", tap)), sk("Delete", "", run("Delete", tap)), sk("Close", "", () => { S.ctx = null; })]];
+  }
+  if (c.slot != null) {
+    const tap = () => tapPlayback(c.slot);
+    return [`Playback ${c.slot + 1}`, [sk("Set Legend", "", run("Legend", tap)), sk("Include", "into programmer", run("Include", tap)), sk("Options", "fader mode, release", run("Options", tap)),
+      sk("Release", "", run("Release", tap)), sk("Edit Times", "", () => { S.ctx = null; say("Edit Times: delay/fade in/out and fixture overlap (PBK/CUE spec)."); }), sk("Delete", "", run("Delete", tap)), sk("Close", "", () => { S.ctx = null; })]];
+  }
+  const g = GROUPS[c.g];
+  return [`Group ${c.g + 1}`, [sk("Set Legend", g.name, run("Legend", () => { S.target = { label: `group ${g.name}`, get: () => g.name, set: v => { g.name = v; } }; })),
+    sk("Select", `${g.ids.length} fixtures`, () => { S.ctx = null; selectFix(g.ids, false); }), null, null, null, null, sk("Close", "", () => { S.ctx = null; })]];
+}
+function softkeys() {
+  if (S.ctx) return ctxKeys(S.ctx);
+  if (S.mode === "Record") return ["Record", [
+    sk(S.recMerge ? "Merge" : "Replace", "on a used button", () => { S.recMerge = !S.recMerge; }),
+    sk("Record by", "channel in programmer", () => say("Record by: channel / group in programmer / group in mask / mixed (PAL spec).")),
+    sk("Mask", "auto from window", () => say("The mask follows the window you record into: Colours = C, Positions = P, Gobos & Beams = IGBES.")),
+    sk("Quick Record", "on", () => say("Quick Record: one tap on an empty button records with the window's mask.")),
+    null, null, sk("Cancel", "", () => { S.mode = null; say("Record cancelled."); })]];
+  if (S.mode === "Delete" && S.target) {
+    const tg = S.target;
+    return ["Delete", [sk("Confirm delete", tg.label, () => { snapshot(`Delete ${tg.label}`); tg.del(); S.mode = null; S.target = null; say(`Deleted ${tg.label}. Undo brings it back.`); }, { warn: true }),
+      null, null, null, null, null, sk("Cancel", "", () => { S.mode = null; S.target = null; say("Delete cancelled."); })]];
+  }
+  if (S.mode === "Options" && S.target) {
+    const p = pbById(S.target), o = p.opts, cyc = (arr, v) => arr[(arr.indexOf(v) + 1) % arr.length];
+    return [`Options · ${p.name}`, [
+      sk("Fader mode", `${o.mode} · ${["HTP fades, LTP snaps", "timed in and out", "everything on fader"][o.mode]}`, () => { o.mode = cyc([0, 1, 2], o.mode); }),
+      sk("Priority", o.prio, () => { o.prio = cyc(["Low", "Normal", "High", "Programmer", "Very High"], o.prio); }),
+      sk("Release mask", o.rmask, () => { o.rmask = cyc(["I", "IPCGBES", "none"], o.rmask); }),
+      sk("Release time", `${o.rtime}s`, () => { o.rtime = cyc([0, 1, 2, 5], o.rtime); }),
+      sk("Kill point", "fade out complete", () => say("Kill point: Fade Out Complete or Fader at 0 (PBK spec).")),
+      sk("Handle paging", "unlocked", () => say("Handle paging: Unlocked / Transparent Lock / Locked (PBK spec).")),
+      sk("Done", "", () => { S.mode = null; S.target = null; say(`Options for ${p.name} kept.`); })]];
+  }
+  if (S.mode === "Legend" && S.target) return ["Set Legend", [sk("legend-input", "", null), null, null, null, null, null, sk("Cancel", "", () => { S.mode = null; S.target = null; })]];
+  if (S.fan) return ["Fan", [...Object.keys(FAN).map(k => sk(k + (S.fan === k ? " ●" : ""), k === "Line" ? "low to high" : "", () => { S.fan = k; say(`Fan curve: ${k}.`); })),
+    null, null, sk("Fan off", "", () => { S.fan = null; say("Fan off."); })]];
+  if (S.mode) return [S.mode, [null, null, null, null, null, null, sk("Cancel", "", () => { say(`${S.mode} cancelled.`); S.mode = null; S.src = null; S.target = null; })]];
+  const undoKey = sk("Undo", S.undo.at(-1)?.label || "nothing", () => undo(), { disabled: !S.undo.length });
+  if (S.sel.length) return ["Selection", [
+    sk("Next", S.cur >= 0 ? `${S.cur + 1} of ${S.sel.length}` : "step through", () => stepSel(1)),
+    sk("Previous", "", () => stepSel(-1)),
+    sk("All", "whole selection", () => { S.cur = -1; say("Whole selection active again."); }),
+    sk("Odd / Even", "", () => oddEven()),
+    sk("Set Legend", "", () => modeLegend()),
+    sk("Playback Options", "", () => func("Options")), undoKey]];
+  return ["Main", [
+    sk("Edit Times", "selected playback", () => say("Edit Times: delay/fade in/out and fixture overlap per playback (PBK/CUE spec).")),
+    sk("Playback Options", "", () => func("Options")),
+    sk("Set Legend", "", () => modeLegend()),
+    sk("Shapes & Effects", "phase 2", null, { disabled: true }),
+    sk("Timecode", "phase 3", null, { disabled: true }),
+    sk("Lock", "venue mode: Go + faders", () => say("Lock / venue mode: only Go and the faders stay live (to spec).")), undoKey]];
+}
+function modeLegend() { S.mode = "Legend"; S.target = null; say(MODE_HINT.Legend); }
+function stepSel(d) { if (!S.sel.length) return; S.cur = S.cur < 0 ? (d > 0 ? 0 : S.sel.length - 1) : (S.cur + d + S.sel.length) % S.sel.length; S.high = true; say(`Fixture ${S.sel[S.cur]} (${S.cur + 1} of ${S.sel.length}) highlighted; the wheels act on it alone.`); }
+function oddEven() { if (S.sel.length < 2) return; S.sel = S.sel.filter((_, i) => i % 2 === 0); S.cur = -1; say(`Odd of the selection: ${S.sel.length} fixtures.`); }
+
+// ---------------------------------------------------------------- tap on a handle (with or without an armed function)
+function tapPalette(w, i) {
+  const p = PAL[w][i], label = p ? `palette ${palNum(w, i)} ${p.name}` : "";
+  switch (S.mode) {
+    case "Record": return recordPal(w, i);
+    case "Update": return p ? updatePal(w, i) : say("Update needs a recorded palette.", true);
+    case "Edit": case "Include": return p ? includeFrom(palLook(p), label) : say("Empty button.", true);
+    case "Delete": if (!p) return say("That button is empty.", true); S.target = { label, del: () => { PAL[w][i] = null; } }; return say(`Delete ${label}? Confirm on softkey A.`, true);
+    case "Copy": case "Move":
+      if (!S.src) { if (!p) return say("Tap a recorded palette as the source.", true); S.src = { w, i }; return say(`${S.mode} ${label} → tap an empty button in the same window.`); }
+      if (p || S.src.w !== w) return say("Pick an empty button in the same window.", true);
+      snapshot(`${S.mode} palette`);
+      PAL[w][i] = JSON.parse(JSON.stringify(PAL[S.src.w][S.src.i])); if (S.mode === "Move") PAL[S.src.w][S.src.i] = null;
+      say(`${S.mode === "Move" ? "Moved" : "Copied"} to ${WIN_TITLE[w]} ${palNum(w, i)}.`); S.mode = null; S.src = null; return;
+    case "Legend": if (!p) return say("That button is empty.", true); S.target = { label, get: () => p.name, set: v => { p.name = v; } }; return;
+  }
+  if (p) applyPal(w, i); else say("Empty button. Press Record, then tap it.");
+}
+function tapPlayback(slot) {
+  const p = PAGES[S.page].pbs[slot];
+  switch (S.mode) {
+    case "Record": return recordPb(slot);
+    case "Edit": case "Include": return p ? includeFrom(lookOf(p), `playback ${p.name}`) : say("Empty handle.", true);
+    case "Delete": if (!p) return say("That handle is empty.", true); S.target = { label: `playback ${p.name}`, del: () => { PAGES[S.page].pbs[slot] = null; } }; return say(`Delete playback ${p.name}? Confirm on softkey A.`, true);
+    case "Release": if (p) releasePb(p); S.mode = null; return;
+    case "Options": if (!p) return; S.target = p.id; S.selPb = p.id; return say(`Options for ${p.name} on the softkeys.`);
+    case "Legend": if (!p) return; S.target = { label: `playback ${p.name}`, get: () => p.name, set: v => { p.name = v; } }; return;
+    case "Copy": case "Move": case "Update": return say(`${S.mode} works on palettes in this sketch.`, true);
+  }
+  if (p) { S.selPb = p.id; say(`Playback ${p.name} selected${p.list ? ": Go and Back drive its cue list" : ""}.`); }
+}
+function releasePb(p) {
+  if (!p) return;
+  if (!(S.level[p.id] > 0) && !S.latched[p.id]) return say(`${p.name} is not running.`);
+  S.level[p.id] = 0; delete S.latched[p.id];
+  S.rel[p.id] = performance.now() + p.opts.rtime * 1000;
+  say(`Released ${p.name}: mask ${p.opts.rmask}, ${p.opts.rtime}s (amber while it fades).`);
+  setTimeout(render, p.opts.rtime * 1000 + 50);
+}
+
+// ---------------------------------------------------------------- rendering
+const $ = id => document.getElementById(id);
+const pct = v => Math.round(v * 100);
+function setHTML(el, h) { if (el._h !== h) { el.innerHTML = h; el._h = h; } }
+const maskStrip = gs => `<span class="mask">${AG.map(g => `<i style="${gs.has(g) ? `background:var(--g${g})` : ""}"></i>`).join("")}</span>`;
+function lamp(f) { const o = output(f), k = o.dim; return hex(C(o.col.r * k, o.col.g * k, o.col.b * k)); }
+function glyph(p) {
+  const v = (p.all ? [p.all] : Object.values(p.byType || p.byFix))[0];
+  if (v.col) return `<span class="sw" style="background:${hex(v.col)}"></span>`;
+  if (v.pan != null) return `<svg width="34" height="12" viewBox="0 0 34 12" aria-hidden="true"><path d="M1 11.5h32" stroke="var(--fg2)"/><path d="M17 0.5L${(4 + v.pan * 26).toFixed(1)} ${(3 + v.tilt * 8).toFixed(1)}" stroke="var(--fg)" stroke-width="1.25"/><circle cx="${(4 + v.pan * 26).toFixed(1)}" cy="${(3 + v.tilt * 8).toFixed(1)}" r="1.8" fill="var(--fg)"/></svg>`;
+  if (v.zoom != null) return `<svg width="34" height="12" viewBox="0 0 34 12" aria-hidden="true"><circle cx="6" cy="6" r="${(1.5 + v.zoom * 4).toFixed(1)}" fill="none" stroke="var(--fg)" stroke-width="1.25"/><path d="M14 6h${(4 + v.zoom * 16).toFixed(1)}" stroke="var(--fg2)"/></svg>`;
+  if (v.dim != null) return `<span class="sw" style="width:60%;background:linear-gradient(90deg,var(--fg) ${pct(v.dim)}%,var(--line) 0)"></span>`;
+  return "";
+}
+function winPalettes(w) {
+  const lit = new Set(Object.values(S.prog).flatMap(pr => Object.values(pr.ref)));
+  let h = "", used = 0;
+  for (let i = 0; i < SLOTS; i++) {
+    const p = PAL[w][i];
+    if (!p) { h += `<button class="cell empty" data-w="${w}" data-i="${i}" aria-label="Empty ${palNum(w, i)}"><span class="num">${palNum(w, i)}</span></button>`; continue; }
+    used++;
+    const fits = !S.sel.length || S.sel.some(id => { const v = palVals(p, F[id]); return v && Object.keys(v).some(a => has(F[id], a)); });
+    const src = S.src && S.src.w === w && S.src.i === i;
+    h += `<button class="cell${fits ? "" : " dim"}${lit.has(p.name) ? " lit" : ""}${src ? " src" : ""}" data-w="${w}" data-i="${i}" title="${p.name}">
+      <span class="num">${palNum(w, i)}</span><span class="kind">${p.kind}</span><span class="ic">${glyph(p)}</span><span class="lg">${p.name}</span>${maskStrip(palGroups(p))}</button>`;
+  }
+  return [WIN_TITLE[w], `mask ${MASK_TXT[w]} · ${used}/${SLOTS}`, `<div class="cells">${h}</div>`];
+}
+function winGroups() {
+  const h = GROUPS.map((g, i) => {
+    const gs = new Set(g.ids.flatMap(id => TYPES[F[id].type].attrs.map(a => GROUP_OF[a])));
+    const on = g.ids.every(id => S.sel.includes(id));
+    return `<button class="cell${on ? " sel" : ""}" data-g="${i}"><span class="num">${i + 1}</span><span class="kind">${g.ids.length}</span><span class="lg">${g.name}</span>${maskStrip(gs)}</button>`;
+  }).join("") + Array.from({ length: 24 - GROUPS.length }, (_, i) => `<button class="cell empty" disabled><span class="num">${GROUPS.length + i + 1}</span></button>`).join("");
+  return ["Groups", `${GROUPS.length} groups`, `<div class="cells">${h}</div>`];
+}
+function winFixtures() {
   let h = "";
   for (const t of Object.keys(TYPES)) {
-    h += `<div class="ftype">${TYPES[t].label}</div><div class="grid">`;
+    h += `<div class="trow">${TYPES[t].label}</div>`;
     for (const f of FIX.filter(x => x.type === t)) {
       const o = S.sel.indexOf(f.id);
-      h += `<button class="fx${o >= 0 ? " sel" : ""}" data-f="${f.id}" aria-pressed="${o >= 0}" title="${f.name}">
-        <span class="n">${f.id}</span><span class="lamp" style="${lampStyle(f)}"></span>
-        ${o >= 0 ? `<span class="ord">${o + 1}</span>` : ""}${S.prog[f.id] ? `<span class="p" title="in programmer"></span>` : ""}${S.located[f.id] ? `<span class="l">L</span>` : ""}</button>`;
+      h += `<button class="cell${o >= 0 ? " sel" : ""}${S.prog[f.id] ? " inprog" : ""}${o >= 0 && o === S.cur ? " cur" : ""}" data-f="${f.id}" title="${f.name}">
+        <span class="num">${f.id}</span>${o >= 0 ? `<span class="ord">${o + 1}</span>` : ""}${S.located[f.id] ? `<span class="loc">LOC</span>` : ""}<span class="lg" style="bottom:10px">${TYPES[t].short}</span><span class="lamp" style="background:${lamp(f)}"></span></button>`;
     }
-    h += "</div>";
   }
-  $("fixtures").innerHTML = h;
-  $("selTag").textContent = S.sel.length ? `${S.sel.length} selected` : "";
+  return ["Fixtures", S.sel.length ? `${S.sel.length} selected · order shown` : "30 fixtures · lamp = output", `<div class="cells">${h}</div>`];
 }
-function renderGroups() {
-  $("groups").innerHTML = GROUPS.map(([n, l], i) => `<button class="btn" data-g="${i}">${n}<small>${l.length} fixtures</small></button>`).join("");
+function winProgrammer() {
+  const rows = Object.entries(S.prog);
+  if (!rows.length) return ["Programmer", "empty", `<p class="note">Only attributes you touch land here, in red. Values from a palette show the palette name in cyan. Locate and Highlight never land here.</p>`];
+  const cell = (pr, g, txt) => pr.ref[g] ? `<td class="pal">${pr.ref[g]}</td>` : txt == null ? `<td class="off">·</td>` : `<td class="man">${txt}</td>`;
+  const body = rows.map(([id, pr]) => `<tr><td class="n">${id}</td><td>${F[id].name}</td>
+    ${cell(pr, "I", pr.dim != null ? pct(pr.dim) + "%" : null)}
+    ${cell(pr, "P", pr.pan != null ? `${Math.round((pr.pan - .5) * 540)}°/${Math.round(((pr.tilt ?? .5) - .5) * 270)}°` : pr.tilt != null ? "tilt" : null)}
+    ${pr.col && !pr.ref.C ? `<td class="man"><span class="dotc" style="background:${hex(pr.col)}"></span>${hex(pr.col)}</td>` : cell(pr, "C", null)}
+    ${cell(pr, "B", pr.zoom != null ? "zoom " + pct(pr.zoom) + "%" : null)}</tr>`).join("");
+  return ["Programmer", `${rows.length} fixtures${S.blind ? " · blind" : ""}`, `<table class="t"><thead><tr><th>#</th><th>Fixture</th><th>I</th><th>P</th><th>C</th><th>B</th></tr></thead><tbody>${body}</tbody></table>`];
 }
-function renderPalettes() {
-  document.body.classList.toggle("rec-armed", S.rec);
-  const lit = new Set(Object.values(S.prog).flatMap(pr => Object.values(pr.ref)));
-  for (const w of ["C", "P", "B"]) {
-    let h = "";
-    for (let i = 0; i < SLOTS; i++) {
-      const p = PAL[w][i];
-      if (!p) { h += `<button class="pb empty" data-w="${w}" data-i="${i}"><span class="nm">${S.rec ? "record" : i + 1}</span></button>`; continue; }
-      const fits = !S.sel.length || S.sel.some(id => palVals(p, F[id]) && Object.keys(palVals(p, F[id])).some(a => has(F[id], a)));
-      const sw = p.all?.col || p.byType && Object.values(p.byType)[0].col || p.byFix && Object.values(p.byFix)[0].col;
-      h += `<button class="pb${fits ? "" : " dim"}${lit.has(p.name) ? " lit" : ""}" data-w="${w}" data-i="${i}" title="${p.name} (${p.kind})">
-        ${sw ? `<span class="sw" style="background:${rgbHex(sw)}"></span>` : ""}<span class="k${sw ? "" : " dark"}">${p.kind}</span><span class="nm">${p.name}</span></button>`;
-    }
-    $("pal" + w).innerHTML = h;
-  }
+function winCues() {
+  const body = CUES.map((c, i) => `<tr class="click${i === S.cue ? " cur" : ""}${i === S.cue + 1 ? " next" : ""}" data-cue="${i}"><td class="n">${c.n}</td><td>${c.name}</td><td>${c.d ? c.d + "s" : "·"}</td><td>${c.t}s</td><td>${i === CUES.length - 1 ? "·" : "wait"}</td></tr>`).join("");
+  return ["Cue list · Service", "playback 1 · tracking in phase 2", `<table class="t"><thead><tr><th>Q</th><th>Name</th><th>Delay</th><th>Fade</th><th>Link</th></tr></thead><tbody>${body}</tbody></table>`];
 }
-function selAttrs() { return new Set(S.sel.flatMap(id => TYPES[F[id].type].attrs)); }
-const ENC = {
-  I: [["dim", "Dimmer"], ["str", "Strobe"]], P: [["pan", "Pan"], ["tilt", "Tilt"]], B: [["zoom", "Zoom"]],
-  C: { HSI: [["h", "Hue"], ["s", "Sat"]], RGB: [["r", "Red"], ["g", "Green"], ["b", "Blue"]], CMY: [["c", "Cyan"], ["m", "Magenta"], ["y", "Yellow"]] },
-};
-function buildAttr() {
-  const av = selAttrs();
-  const groupHas = g => [...av].some(a => GROUP_OF[a] === g);
-  const progHas = g => S.sel.some(id => S.prog[id] && Object.keys(S.prog[id]).some(a => GROUP_OF[a] === g));
-  if (S.sel.length && !groupHas(S.group)) S.group = ["I", "P", "C", "B"].find(groupHas) || S.group;
-  $("tabs").innerHTML = ATTR_GROUPS.map(g => `<button class="tab${g === S.group ? " on" : ""}${progHas(g) ? " has" : ""}" data-t="${g}" ${(S.sel.length && !groupHas(g)) || g === "FX" || ["G", "E", "S"].includes(g) ? "disabled" : ""} title="${{ I: "Intensity", P: "Position", C: "Colour", G: "Gobo (no fixture in this rig has one)", B: "Beam", E: "Effect (none in this rig)", S: "Special (none in this rig)", FX: "Shapes: phase 2" }[g]}">${g}</button>`).join("");
-  $("modes").innerHTML = S.group === "C" ? ["HSI", "RGB", "CMY"].map(m => `<button class="tab${m === S.cmode ? " on" : ""}" data-m="${m}">${m}</button>`).join("") : "";
-  $("picker").hidden = S.group !== "C" || !S.sel.length;
-  if (!S.sel.length) { $("encs").innerHTML = `<div class="hint">Select fixtures or a group to get wheels.<br>Locate and Highlight work on the selection without touching the programmer.</div>`; $("firstTag").textContent = ""; return; }
-  const list = S.group === "C" ? ENC.C[S.cmode] : (ENC[S.group] || []).filter(([a]) => av.has(a));
-  $("encs").innerHTML = list.map(([k, n]) => `<div class="enc" data-e="${k}" tabindex="0" role="slider" aria-label="${n}"><div class="knob"></div><span class="lab">${n}</span><span class="val"></span></div>`).join("");
-  updateEncs();
+function winActive() {
+  const live = allPbs().filter(p => lvl(p) > 0);
+  if (!live.length) return ["Active playbacks", "none", `<p class="note">Nothing running. Raise a fader or press Go.</p>`];
+  const pageOf = p => PAGES.findIndex(pg => pg.pbs.includes(p)) + 1;
+  const body = live.map(p => { const gs = new Set(Object.values(lookOf(p)).flatMap(v => Object.keys(v).map(a => GROUP_OF[a])));
+    return `<tr class="click" data-kill="${p.id}"><td class="n">${pageOf(p)}</td><td>${p.name}</td><td>${pct(lvl(p))}%</td><td>${AG.filter(g => gs.has(g)).join(" ")}</td></tr>`; }).join("");
+  return ["Active playbacks", "tap a row to release", `<table class="t"><thead><tr><th>Pg</th><th>Playback</th><th>Level</th><th>Groups</th></tr></thead><tbody>${body}</tbody></table>`];
+}
+function winPicker() {
+  const f = F[targets().find(id => has(F[id], "col"))];
+  const c = f ? output(f).col : C(1, 1, 1), hs = toHS(c);
+  const models = { RGB: [["R", c.r, "#e5484d"], ["G", c.g, "#46a758"], ["B", c.b, "#3e8ef7"]], CMY: [["C", 1 - c.r, "#3fb7d9"], ["M", 1 - c.g, "#d6409f"], ["Y", 1 - c.b, "#e5c20a"]], HSI: [["H", hs.h / 360, "#8a8e93"], ["S", hs.s, "#8a8e93"]] };
+  const rows = models[S.cmode].map(([k, v, col]) => `<div class="mrow"><span>${k}</span><div class="mbar" data-mix="${k}"><i style="width:${pct(v)}%;background:${col}"></i></div><span>${pct(v)}</span></div>`).join("");
+  const gels = GELS.map(([n, nm, gc], i) => `<button class="gel" data-gel="${i}" title="${n} ${nm}"><span>${n}</span><i style="background:${hex(gc)}"></i></button>`).join("");
+  return ["Colour picker", f ? `${S.cmode} · showing ${f.name}` : "select colour fixtures",
+    f ? `<div class="picker"><canvas id="pk" width="600" height="300"></canvas><div class="mix">${rows}<div class="gels">${gels}</div></div></div>`
+      : `<p class="note">Select fixtures that mix colour. The picker sets one target colour; each fixture type maps it to its own emitters (RGBW, RGB+Lime, RGB). Gel book: LEE first.</p>`];
+}
+const WINS = { groups: winGroups, fixtures: winFixtures, colours: () => winPalettes("C"), positions: () => winPalettes("P"), beams: () => winPalettes("B"), programmer: winProgrammer, cues: winCues, active: winActive, picker: winPicker };
+const WS = [
+  { name: "Groups + Palettes", w: ["groups", "colours", "positions", "beams"] },
+  { name: "Fixtures + Groups", w: ["fixtures", "groups", "colours", "programmer"] },
+  { name: "Colour", w: ["fixtures", "picker", "colours", "programmer"] },
+  { name: "Playbacks", w: ["cues", "active", "fixtures", "programmer"] },
+];
+const KP = ["Fixture", "Palette", "Macro", "Group", "Back", "Thro", "And", "@", "7", "8", "9", "Avo", "4", "5", "6", "Set", "1", "2", "3", "Clear", "Exit", "0", ".", "Enter", "Fix -1", "Fix +1", "Odd/Even", "Highlight", "View", "Locate"];
+
+function render() {
+  const app = $("app");
+  app.classList.toggle("blind", S.blind); app.classList.toggle("day", S.day); app.classList.toggle("armed", S.mode === "Record");
+  const now = new Date();
+  setHTML($("status"), `<b>Sunday service.cmdmx</b>
+    <span class="st ok"><i></i>Engine</span><span class="st ok"><i></i>Art-Net 1</span><span class="st ok"><i></i>sACN 1</span><span class="st"><i></i>USB: no interface</span>
+    <span>autosaved ${3 + (now.getSeconds() % 5)}s ago</span>
+    ${S.blind ? `<span class="tagx tag-blind">BLIND</span>` : ""}${S.dbo ? `<span class="tagx tag-dbo">DBO</span>` : ""}${S.gm < 1 && !S.dbo ? `<span class="tagx tag-dbo">GM ${pct(S.gm)}%</span>` : ""}
+    <span class="sp"></span>
+    <button data-x="keys" class="${S.keys ? "on" : ""}" title="Mac keyboard drives the keypad; Space = Go">Keys ${S.keys ? "live" : "off"}</button>
+    <button data-x="kp" class="${S.kp ? "on" : ""}">Keypad</button>
+    <button data-x="day">${S.day ? "Night" : "Day"}</button>
+    <span class="clock">${now.toTimeString().slice(0, 8)}</span>`);
+  setHTML($("rail"), WS.map((w, i) => `<button class="${S.ws === i ? "on" : ""}" data-ws="${i}">${w.name}<small>F${i + 1}</small></button>`).join("") +
+    `<hr>` + ["Patch", "Macros", "Show"].map(n => `<button data-scr="${n}">${n}<small>screen</small></button>`).join("") +
+    `<hr>` + ["Shapes", "Pixelmapper", "Keystone"].map(n => `<button disabled>${n}<small>later</small></button>`).join(""));
+  WS[S.ws].w.forEach((k, i) => { const [t, info, body] = WINS[k](); setHTML($("w" + i), `<header><h2>${t}</h2><span class="r">${info}</span></header><div class="wb">${body}</div>`); });
   drawPicker();
+  setHTML($("func"), `<div class="hd2">Functions</div>` + FUNCS.map(([n, k]) => `<button class="k${k === "rec" ? " rec" : ""}${k === "blind" ? " blind" : ""}${(S.mode === n || (n === "Blind" && S.blind) || (n === "Fan" && S.fan)) ? " on" : ""}" data-fn="${n}" ${k === "later" ? "disabled title=\"later\"" : ""}>${n}</button>`).join(""));
+  $("kp").classList.toggle("hide", !S.kp);
+  setHTML($("kp"), `<div class="hd2">Keypad${S.keys ? " · Mac keys live" : ""}</div>` + KP.map(k => `<button class="k${/^[0-9.]$/.test(k) ? " num" : ""}${k === "Clear" && (Object.keys(S.prog).length || S.sel.length) ? " clr has" : ""}${k === "Highlight" && S.high ? " on" : ""}" data-kp="${k}" ${["Avo", "View"].includes(k) ? "disabled" : ""}>${k}</button>`).join(""));
+  const [sh, keys] = softkeys(); S._soft = keys;
+  setHTML($("soft"), `<div class="hd2">${sh}</div>` + keys.map((s, i) => {
+    const L = "ABCDEFG"[i];
+    if (!s) return `<button class="sk" disabled><b>${L}</b></button>`;
+    if (s.label === "legend-input") return `<div class="sk"><b>${L}</b><input id="legIn" value="${S.target.get().replace(/"/g, "&quot;")}" aria-label="Legend"><small>Enter to set</small></div>`;
+    return `<button class="sk${s.warn ? " warn" : ""}" data-sk="${i}" ${s.disabled || !s.act ? "disabled" : ""}><b>${L}</b>${s.label}${s.sub ? `<small>${s.sub}</small>` : ""}</button>`;
+  }).join(""));
+  if (S.mode === "Legend" && S.target && document.activeElement?.id !== "legIn") { const el = $("legIn"); el?.focus(); el?.select(); }
+  renderAttr();
+  renderPlay();
 }
-function encValue(k) {
-  const f = F[S.sel.find(id => has(F[id], S.group === "C" ? "col" : k)) ?? S.sel[0]];
-  const o = output(f), c = o.col;
-  const touched = S.group === "C" ? S.prog[f.id]?.col != null : S.prog[f.id]?.[k] != null;
-  const hs = toHS(c);
-  const v = { h: hs.h / 360, s: hs.s, r: c.r, g: c.g, b: c.b, c: 1 - c.r, m: 1 - c.g, y: 1 - c.b }[k] ?? o[k] ?? S.prog[f.id]?.[k] ?? 0;
-  const txt = k === "h" ? Math.round(hs.h) + "°" : k === "pan" ? Math.round((v - .5) * 540) + "°" : k === "tilt" ? Math.round((v - .5) * 270) + "°" : pct(v);
-  return { v, txt, touched, ref: S.prog[f.id]?.ref[S.group], name: f.name };
+const WHEELS = { I: [["dim", "Dimmer"], ["str", "Strobe"]], P: [["pan", "Pan"], ["tilt", "Tilt"]], B: [["zoom", "Zoom"]],
+  C: { HSI: [["h", "Hue"], ["s", "Saturation"]], RGB: [["r", "Red"], ["g", "Green"], ["b", "Blue"]], CMY: [["c", "Cyan"], ["m", "Magenta"], ["y", "Yellow"]] } };
+function wheelVal(k) {
+  const attr = S.group === "C" ? "col" : k, id = targets().find(i => has(F[i], attr)); if (id == null) return null;
+  const o = output(F[id]), c = o.col, hs = toHS(c), pr = S.prog[id];
+  const v = { h: hs.h / 360, s: hs.s, r: c.r, g: c.g, b: c.b, c: 1 - c.r, m: 1 - c.g, y: 1 - c.b }[k] ?? o[k] ?? pr?.[k] ?? 0;
+  const txt = k === "h" ? Math.round(hs.h) + "°" : k === "pan" ? Math.round((v - .5) * 540) + "°" : k === "tilt" ? Math.round((v - .5) * 270) + "°" : pct(v) + "%";
+  if (pr?.ref[S.group]) return { v, txt: pr.ref[S.group], state: "pal" };
+  return { v, txt, state: pr?.[attr] != null ? "man" : "" };
 }
-function updateEncs() {
-  for (const el of document.querySelectorAll(".enc")) {
-    const e = encValue(el.dataset.e);
-    el.classList.toggle("touched", e.touched);
-    el.querySelector(".knob").style.setProperty("--a", e.v * 360 + "deg");
-    el.querySelector(".knob").style.setProperty("--c", e.touched ? "var(--prog)" : "var(--accent)");
-    el.querySelector(".val").textContent = e.ref ? `${e.ref}` : e.txt;
-    el.setAttribute("aria-valuetext", e.txt);
-    $("firstTag").textContent = `showing ${e.name}`;
-  }
+function renderAttr() {
+  const av = new Set(targets().flatMap(id => TYPES[F[id].type].attrs)), any = S.sel.length > 0;
+  const gHas = g => [...av].some(a => GROUP_OF[a] === g);
+  const gProg = g => targets().some(id => S.prog[id] && Object.keys(S.prog[id]).some(a => GROUP_OF[a] === g));
+  if (any && !gHas(S.group)) S.group = ["I", "P", "C", "B"].find(gHas) || S.group;
+  const tabs = AG.map(g => `<button class="tab${g === S.group ? " on" : ""}${any && gHas(g) ? " av" : ""}${gProg(g) ? " has" : ""}" style="--gc:var(--g${g})" data-t="${g}" title="${AG_NAME[g]}" ${(any && !gHas(g)) || ["G", "E", "S", "FX"].includes(g) ? "disabled" : ""}>${g}</button>`).join("");
+  const list = !any ? [] : S.group === "C" ? WHEELS.C[S.cmode] : (WHEELS[S.group] || []).filter(([a]) => av.has(a));
+  const wheels = [0, 1, 2].map(i => {
+    const w = list[i], v = w && wheelVal(w[0]);
+    if (!v) return `<div class="wh none"><span class="nm">${w ? w[1] : any ? "" : "select fixtures"}</span><span class="bk">enc ${i + 1}</span><span class="vl">—</span><span class="roll"></span></div>`;
+    return `<div class="wh ${v.state}" data-e="${w[0]}" role="slider" tabindex="0" aria-label="${w[1]}" aria-valuetext="${v.txt}" style="--x:${(-v.v * 300).toFixed(1)}px;--p:${(v.v * 100).toFixed(1)}%"><span class="nm">${w[1]}</span><span class="bk">enc ${i + 1}</span><span class="vl">${v.txt}</span><span class="roll"></span><span class="pos"></span></div>`;
+  }).join("");
+  const modes = S.group === "C" && any ? `<div class="modes">${["HSI", "RGB", "CMY"].map(m => `<button class="${m === S.cmode ? "on" : ""}" data-m="${m}">${m}</button>`).join("")}</div>` : "";
+  const n = Object.keys(S.prog).length, groupsIn = AG.filter(g => Object.values(S.prog).some(pr => Object.keys(pr).some(a => GROUP_OF[a] === g)));
+  setHTML($("attr"), `<div class="tabs">${tabs}</div><div class="wheels">${modes}${wheels}${S.fan ? `<span class="tagx" style="color:var(--amber)">FAN ${S.fan.toUpperCase()}</span>` : ""}</div>
+    <div class="cmdz"><div class="cmd"><span class="pr">${S.mode ? S.mode.toUpperCase() + " ›" : "›"}</span><span>${S.cmd.join(" ")}</span><span class="curs"></span></div><div class="msg${S.warn ? " warn" : ""}" role="status">${S.msg}</div></div>
+    <div class="pz"><div class="sum${n ? "" : " empty"}"><b>${n ? `${n} fx · ${groupsIn.join(" ")}` : "empty"}</b>programmer</div>
+      <button class="k" data-x="undo" ${S.undo.length ? "" : "disabled"} title="${S.undo.at(-1)?.label || ""}">Undo</button>
+      <button class="k clr${n || S.sel.length ? " has" : ""}" data-x="clear">Clear</button></div>`);
 }
-function turn(k, d) {
-  const n = S.group === "C" ? setAttr(S.sel, "col", c => {
-    const hs = toHS(c);
-    if (k === "h") return fromHS((hs.h + d * 360 + 360) % 360, hs.s);
-    if (k === "s") return fromHS(hs.h, Math.max(0, Math.min(1, hs.s + d)));
-    const map = { r: "r", g: "g", b: "b", c: "r", m: "g", y: "b" }, ch = map[k], sign = "cmy".includes(k) ? -1 : 1;
-    return { ...c, [ch]: Math.max(0, Math.min(1, c[ch] + sign * d)) };
-  }) : setAttr(S.sel, k, v => Math.max(0, Math.min(1, v + d)));
-  if (n) say(`${S.group} wheel → ${n} fixture${n > 1 ? "s" : ""}, relative (offsets between fixtures are kept). Shift = fine.`);
-  refresh(true);
+function renderPlay() {
+  const pg = PAGES[S.page];
+  setHTML($("pages"), PAGES.map((p, i) => `<button class="${i === S.page ? "on" : ""}" data-pg="${i}"><span class="pg-n">${i + 1}</span>${p.name || "—"}</button>`).join("") +
+    `<label for="fpp">per page</label><select id="fpp">${[8, 10].map(n => `<option ${n === S.fpp ? "selected" : ""}>${n}</option>`).join("")}</select>`);
+  const now = performance.now();
+  const strip = i => {
+    const p = pg.pbs[i];
+    if (!p) return `<div class="strip empty"><button class="leg" data-slot="${i}"><span class="ln" style="color:var(--fg3)">empty</span><span class="mt">${i + 1}</span></button><div class="lvl"></div><button class="fb" disabled>Swop</button><button class="fb" disabled>Flash</button></div>`;
+    const v = lvl(p), rel = S.rel[p.id] > now;
+    const halo = p.list ? "var(--fg2)" : (() => { const c = Object.values(p.look || {}).find(x => x.col); return c ? hex(c.col) : "var(--fg2)"; })();
+    const meta = p.list ? `${i + 1} · Q${CUES[S.cue].n} › ${CUES[S.cue + 1]?.n ?? "end"}` : `${i + 1} · mode ${p.opts.mode}`;
+    const fp = p.list && S.fade ? Math.min(1, (now - S.fade.start) / S.fade.dur) : 0;
+    const lv = S.level[p.id] || 0;
+    return `<div class="strip${S.selPb === p.id ? " sel" : ""}${v > 0 ? " run" : rel ? " rel" : ""}">
+      <button class="leg" data-slot="${i}" style="--halo:${halo}"><span class="ln">${p.name}</span><span class="mt">${meta}</span></button>
+      <div class="lvl" data-p="${p.id}"><div class="bar" style="height:${pct(lv)}%"></div><div class="cap" style="bottom:calc(${pct(lv)}% - 1px)"></div><span class="pc">${pct(v)}</span>${fp ? `<div class="fp" style="height:${pct(fp)}%"></div>` : ""}</div>
+      <button class="fb${S.swop === p.id ? " held" : ""}" data-swop="${p.id}">Swop</button>
+      <button class="fb${S.flash === p.id ? " held" : ""}${S.latched[p.id] ? " latched" : ""}" data-flash="${p.id}">Flash</button></div>`;
+  };
+  const n = S.fpp;
+  setHTML($("strips"), `<div class="bank"><span>BCF2000 · faders 1–8</span>${Array.from({ length: Math.min(8, n) }, (_, i) => strip(i)).join("")}</div>` +
+    (n > 8 ? `<div class="loose">${Array.from({ length: n - 8 }, (_, i) => strip(i + 8)).join("")}</div>` : ""));
+  const cur = CUES[S.cue], nx = CUES[S.cue + 1];
+  const fp = S.fade ? Math.min(1, (now - S.fade.start) / S.fade.dur) : 0;
+  setHTML($("go"), `<div class="hd"><span>SERVICE · pb 1</span><span>live ${cur.t}s · next ${nx ? nx.t + "s" : "—"}</span></div>
+    <div class="now"><span>Q${cur.n}</span>${cur.name}${fp && fp < 1 ? ` · ${pct(fp)}%` : ""}</div>
+    <button class="gob" data-x="go" ${nx ? "" : "disabled"}><span class="g">GO</span><span class="nx">${nx ? `<span>Q${nx.n}</span> ${nx.name}` : "end of list"}</span>${fp && fp < 1 ? `<span class="fpb" style="width:${pct(fp)}%"></span>` : ""}</button>
+    <div class="gorow"><button class="k" data-x="back">Back</button><button class="k" data-x="stop">Stop</button><button class="k" data-x="rel1">Release</button></div>`);
+  setHTML($("gm"), `<div class="ln">GM</div><div class="lvl" data-p="gm"><div class="bar" style="height:${pct(S.gm)}%"></div><div class="cap" style="bottom:calc(${pct(S.gm)}% - 1px)"></div><span class="pc">${pct(S.gm)}</span></div><button class="fb dbo${S.dbo ? " on" : ""}" data-x="dbo">DBO</button>`);
+  $("gm").classList.toggle("low", S.gm < 1);
 }
 function drawPicker() {
-  const cv = $("picker"); if (cv.hidden) return;
+  const cv = $("pk"); if (!cv) return;
   const x = cv.getContext("2d"), w = cv.width, h = cv.height;
   const g1 = x.createLinearGradient(0, 0, w, 0);
   for (let i = 0; i <= 6; i++) g1.addColorStop(i / 6, `hsl(${i * 60},100%,50%)`);
   x.fillStyle = g1; x.fillRect(0, 0, w, h);
   const g2 = x.createLinearGradient(0, 0, 0, h); g2.addColorStop(0, "rgba(255,255,255,0)"); g2.addColorStop(1, "rgba(255,255,255,1)");
   x.fillStyle = g2; x.fillRect(0, 0, w, h);
-  const f = F[S.sel.find(id => has(F[id], "col"))]; if (!f) return;
-  const hs = toHS(output(f).col);
-  x.strokeStyle = "#000"; x.lineWidth = 3; x.beginPath(); x.arc(hs.h / 360 * w, (1 - hs.s) * h, 8, 0, 7); x.stroke();
-  x.strokeStyle = "#fff"; x.lineWidth = 1.5; x.stroke();
-}
-function renderProg() {
-  const rows = Object.entries(S.prog);
-  $("progTag").textContent = rows.length ? `${rows.length} fixtures` : "empty";
-  if (!rows.length) { $("prog").innerHTML = `<div class="empty-note">Only attributes you touch go in here. Locate and Highlight never do.</div>`; return; }
-  $("prog").innerHTML = rows.map(([id, pr]) => {
-    const chips = [];
-    if (pr.dim != null || pr.str != null) chips.push(pr.ref.I ? `I ${pr.ref.I}` : `I ${pct(pr.dim ?? 0)}`);
-    if (pr.pan != null) chips.push(pr.ref.P ? `P ${pr.ref.P}` : `P ${Math.round((pr.pan - .5) * 540)}°/${Math.round((pr.tilt - .5) * 270)}°`);
-    if (pr.col) chips.push(`<span class="dot" style="background:${rgbHex(pr.col)}"></span>C ${pr.ref.C || rgbHex(pr.col)}`);
-    if (pr.zoom != null) chips.push(`B ${pr.ref.B || "zoom " + pct(pr.zoom)}`);
-    return `<div class="prow"><b>${F[id].name}</b>${chips.map(c => `<span class="chip">${c}</span>`).join("")}</div>`;
-  }).join("");
-}
-function renderCues() {
-  $("cues").innerHTML = CUES.map((c, i) => `<tr class="${i === S.cue ? "cur" : ""}${i === S.cue + 1 ? " next" : ""}"><td class="num">${c.n}</td><td>${c.name}</td><td class="t">${c.t}s</td></tr>`).join("");
-}
-function buildFaders() {
-  const pg = PAGES[S.page];
-  $("pgName").textContent = pg.name;
-  let h = "";
-  for (let i = 0; i < S.fpp; i++) {
-    const p = pg.pbs[i];
-    h += p ? `<div class="fader" data-p="${p.id}" style="--halo:${p.halo}">
-        <button class="fleg" data-slot="${i}">${p.name}<small>${i + 1}${p.sub ? " · " + p.sub : ""}</small></button>
-        <div class="track" data-p="${p.id}"><div class="fill"></div><div class="cap"></div></div>
-        <div class="flv"></div>
-        <div class="fbtns"><button class="swp" data-swop="${p.id}">Swop</button><button class="fls" data-flash="${p.id}">Flash</button></div></div>`
-      : `<div class="fader empty-h"><button class="fleg" data-slot="${i}">empty<small>${i + 1}</small></button><div class="track"></div><div class="flv">—</div><div class="fbtns"><button class="swp" disabled>Swop</button><button class="fls" disabled>Flash</button></div></div>`;
-  }
-  h += `<div class="fader gm"><button class="fleg" style="--halo:#fff">Grand Master<small>GM</small></button><div class="track" data-p="gm"><div class="fill"></div><div class="cap"></div></div><div class="flv"></div><div class="fbtns"><button class="fls" disabled>DBO</button></div></div>`;
-  $("faders").innerHTML = h;
-  updateFaders();
-}
-function updateFaders() {
-  for (const el of document.querySelectorAll(".fader")) {
-    const t = el.querySelector(".track[data-p]"); if (!t) continue;
-    const id = t.dataset.p;
-    const v = id === "gm" ? S.gm : lvl(allPbs().find(p => String(p.id) === id));
-    t.querySelector(".fill").style.height = pct(v);
-    t.querySelector(".cap").style.bottom = pct(v);
-    el.querySelector(".flv").textContent = pct(v);
-    if (id !== "gm") el.classList.toggle("active", v > 0);
-    el.classList.toggle("armed", S.rec && !el.classList.contains("gm"));
-  }
-}
-function refresh(keepAttr) {
-  renderFixtures(); renderPalettes(); renderProg(); renderCues(); updateFaders();
-  if (keepAttr) { updateEncs(); drawPicker(); } else buildAttr();
-  $("kRec").classList.toggle("on", S.rec); $("kHigh").classList.toggle("on", S.high);
-  $("kClear").classList.toggle("on", S.clearArmed);
+  targets().filter(id => has(F[id], "col")).forEach((id, i) => {
+    const hs = toHS(output(F[id]).col);
+    x.beginPath(); x.arc(hs.h / 360 * w, (1 - hs.s) * h, i ? 5 : 9, 0, 7);
+    x.lineWidth = 3; x.strokeStyle = "#000"; x.stroke(); x.lineWidth = 1.5; x.strokeStyle = "#fff"; x.stroke();
+  });
 }
 
-// ---- input ------------------------------------------------------------------------
+// ---------------------------------------------------------------- wheels
+function turn(k, d) {
+  const ids = targets(); if (!ids.length) return;
+  if (!S._turning) { snapshot(`${S.group} wheel`); S._turning = true; }
+  const n = S.group === "C" ? setAttr(ids, "col", (c, f) => {
+    const hs = toHS(c), dd = d * f;
+    if (k === "h") return fromHS((hs.h + dd * 360 + 720) % 360, hs.s);
+    if (k === "s") return fromHS(hs.h, clamp(hs.s + dd));
+    const ch = { r: "r", g: "g", b: "b", c: "r", m: "g", y: "b" }[k], sign = "cmy".includes(k) ? -1 : 1;
+    return { ...c, [ch]: clamp(c[ch] + sign * dd) };
+  }) : setAttr(ids, k, (v, f) => clamp(v + d * f));
+  if (n) say(`${AG_NAME[S.group]} → ${n} fixture${n > 1 ? "s" : ""}${S.fan ? `, fanned (${S.fan})` : ", relative: offsets stay"}. Option = fine, Shift = coarse.`);
+}
+
+// ---------------------------------------------------------------- input
 document.addEventListener("click", e => {
-  const t = e.target.closest("button,[data-f]"); if (!t) return;
-  if (t.dataset.f) { selectFix([+t.dataset.f], true); say(`${S.sel.length} selected, in this order. After you change a value, the next fixture you tap starts a new selection.`); return refresh(); }
-  if (t.dataset.g) { const [n, l] = GROUPS[+t.dataset.g]; selectFix(l, false); say(`Group ${n}: ${l.length} fixtures added in group order.`); return refresh(); }
-  if (t.dataset.w) { const w = t.dataset.w, i = +t.dataset.i; if (S.rec) recordPal(w, i); else if (PAL[w][i]) applyPal(w, i); else say("Empty button. Press Record first, then tap it."); return refresh(); }
-  if (t.dataset.t) { S.group = t.dataset.t; return refresh(); }
-  if (t.dataset.m) { S.cmode = t.dataset.m; say(`Colour wheels in ${S.cmode}. The stored colour is one target colour; each fixture type maps it to its own emitters (P1-07).`); return refresh(); }
-  if (t.dataset.slot != null) { if (S.rec) recordPb(+t.dataset.slot); else say("Tap Record first to record the programmer onto this fader."); return refresh(true); }
-  switch (t.id) {
-    case "kRec": S.rec = !S.rec; say(S.rec ? "Record: tap an empty palette button (mask from its window) or a fader legend." : "Record cancelled."); break;
-    case "kLocate": if (!S.sel.length) { say("Locate needs a selection."); break; } S.sel.forEach(id => S.located[id] = true); say(`Located ${S.sel.length} fixtures: open white, centred, full. Not in the programmer, so not recorded.`); break;
-    case "kHigh": S.high = !S.high; say(S.high ? "Highlight: the selection shows full white on stage, outside the programmer." : "Highlight off."); break;
-    case "kClear":
-      if (S.sel.length) { S.sel = []; S.changed = false; S.clearArmed = true; say("Selection cleared. Press Clear again to clear the programmer."); }
-      else { S.prog = {}; S.located = {}; S.clearArmed = false; say("Programmer cleared: values go back to the playbacks."); }
-      break;
-    case "kGo": S.cue = Math.min(CUES.length - 1, S.cue + 1); say(`Go: cue ${CUES[S.cue].n} ${CUES[S.cue].name}, fade ${CUES[S.cue].t}s (snaps in the sketch).`); break;
-    case "kBack": S.cue = Math.max(0, S.cue - 1); say(`Back: cue ${CUES[S.cue].n} ${CUES[S.cue].name}.`); break;
-    case "pgUp": case "pgDown": S.page = (S.page + (t.id === "pgUp" ? 1 : PAGES.length - 1)) % PAGES.length; buildFaders(); say(`${PAGES[S.page].name}. A fader that is up keeps its old playback until you pull it through the new value.`); break;
-    default: return;
+  const t = e.target.closest("button, tr[data-cue], tr[data-kill]"); if (!t || t.disabled) return;
+  const d = t.dataset;
+  if (d.sk == null) S.ctx = null;
+  if (d.f) { selectFix([+d.f], true); say(`${S.sel.length} selected, in this order. After a value change, the next tap starts a new selection.`); }
+  else if (d.g != null) {
+    const g = GROUPS[+d.g];
+    if (S.mode === "Legend") S.target = { label: `group ${g.name}`, get: () => g.name, set: v => { g.name = v; } };
+    else { selectFix(g.ids, false); say(`Group ${+d.g + 1} ${g.name}: ${g.ids.length} fixtures in group order.`); }
   }
-  refresh(t.id !== "kLocate" && t.id !== "kClear" ? true : false);
+  else if (d.w) tapPalette(d.w, +d.i);
+  else if (d.slot != null) tapPlayback(+d.slot);
+  else if (d.t) S.group = d.t;
+  else if (d.m) { S.cmode = d.m; say(`Colour in ${S.cmode}. One target colour; each fixture type maps it to its own emitters (P1-07).`); }
+  else if (d.fn) func(d.fn);
+  else if (d.kp) {
+    const k = d.kp;
+    if (k === "Clear") clearKey();
+    else if (k === "Highlight") { S.high = !S.high; say(S.high ? "Highlight: the selection shows open white on stage, outside the programmer. Fix ±1 steps through it." : "Highlight off."); }
+    else if (k === "Locate") locate(); else if (k === "Fix +1") stepSel(1); else if (k === "Fix -1") stepSel(-1); else if (k === "Odd/Even") oddEven();
+    else if (k === "Set") modeLegend(); else key(k);
+  }
+  else if (d.sk != null) S._soft[+d.sk]?.act?.();
+  else if (d.ws != null) S.ws = +d.ws;
+  else if (d.scr) say(`${d.scr} is its own full screen; the bars around it stay the same.`);
+  else if (d.pg != null) { S.page = +d.pg; say(`Page ${S.page + 1}${PAGES[S.page].name ? " " + PAGES[S.page].name : ""}. A fader that is up keeps its playback until you pull it through the new value.`); }
+  else if (d.cue != null) { S.cue = +d.cue; S.fade = null; say(`Jumped to Q${CUES[S.cue].n} ${CUES[S.cue].name}.`); }
+  else if (d.kill) releasePb(pbById(d.kill));
+  else if (d.flash && S.mode === "Latch") { const id = +d.flash; S.latched[id] = !S.latched[id]; S.mode = null; say(S.latched[id] ? "Flash latched." : "Flash unlatched."); }
+  else if (d.gel != null) { const [n, nm, c] = GELS[+d.gel]; snapshot(`Gel ${n}`); const k = setAttr(targets(), "col", () => ({ ...c })); say(k ? `${n} ${nm} → ${k} fixtures (approximate per emitter set).` : "Select fixtures that mix colour.", !k); }
+  else if (d.x) {
+    switch (d.x) {
+      case "keys": S.keys = !S.keys; say(S.keys ? "Keys live: digits, - Thro, + And, @, Enter, Esc Exit, Backspace Back, F/G/P = Fixture/Group/Palette, Space Go, F1–F4 workspaces." : "Keys off."); break;
+      case "kp": S.kp = !S.kp; break;
+      case "day": S.day = !S.day; break;
+      case "undo": undo(); break;
+      case "clear": clearKey(); break;
+      case "go": go(1); break;
+      case "back": go(-1); break;
+      case "stop": S.fade = null; say("Stop: the fade holds where it is."); break;
+      case "rel1": releasePb(pbById(1)); break;
+      case "dbo": S.dbo = !S.dbo; say(S.dbo ? "DBO: everything dark. Press again to bring it back." : "DBO off."); break;
+    }
+  }
+  render();
 });
-$("fpp").addEventListener("change", e => { S.fpp = +e.target.value; buildFaders(); say(`faders_per_page = ${S.fpp}. It is configuration; pages are multiples of it.`); });
+function clearKey() {
+  if (S.mode) { S.mode = null; S.src = null; S.target = null; return say("Cancelled."); }
+  if (S.sel.length) { S.sel = []; S.cur = -1; S.changed = false; S.high = false; return say("Selection cleared. Clear again clears the programmer."); }
+  if (Object.keys(S.prog).length || Object.keys(S.located).length) { snapshot("Clear programmer"); S.prog = {}; S.located = {}; return say("Programmer cleared: the playbacks show through again."); }
+  say("The programmer is already empty.");
+}
+function locate() {
+  if (!S.sel.length) return say("Locate needs a selection.", true);
+  targets().forEach(id => S.located[id] = true);
+  say(`Located ${targets().length} fixtures: open white, centred, full. Not in the programmer, so Record ignores it.`);
+}
+function go(dir) {
+  const n = S.cue + dir; if (n < 0 || n >= CUES.length) return;
+  S.cue = n;
+  if (!(S.level[1] > 0)) { S.level[1] = 1; S.raised[1] = ++S.order; }
+  if (dir > 0) { S.fade = { start: performance.now(), dur: CUES[n].t * 1000 }; say(`Go: Q${CUES[n].n} ${CUES[n].name}, fade ${CUES[n].t}s.`); requestAnimationFrame(tick); }
+  else { S.fade = null; say(`Back: Q${CUES[n].n} ${CUES[n].name}.`); }
+}
+function tick() { if (!S.fade) return; if (performance.now() - S.fade.start >= S.fade.dur) S.fade = null; else requestAnimationFrame(tick); render(); }
 
-// drag: faders, wheels, colour picker
+$("app").addEventListener("change", e => { if (e.target.id === "fpp") { S.fpp = +e.target.value; say(`faders_per_page = ${S.fpp}: configuration, not a fork. The BCF2000 bank stays faders 1–8.`); render(); } });
+$("app").addEventListener("keydown", e => {
+  if (e.target.id !== "legIn") return;
+  if (e.key === "Enter") { snapshot("Set legend"); S.target.set(e.target.value.trim() || S.target.get()); S.mode = null; S.target = null; say("Legend set."); render(); }
+  if (e.key === "Escape") { S.mode = null; S.target = null; render(); }
+});
+// right-click: the softkeys become that handle's context menu (Titan)
+document.addEventListener("contextmenu", e => {
+  const t = e.target.closest("[data-w],[data-slot],[data-g]"); if (!t) return;
+  e.preventDefault();
+  const d = t.dataset;
+  S.mode = null; S.target = null;
+  S.ctx = d.w ? { w: d.w, i: +d.i } : d.slot != null ? { slot: +d.slot } : { g: +d.g };
+  say("Context menu on the softkeys.");
+  render();
+});
+
+// drag: faders, GM, wheels, colour picker, mix bars; hold: Flash and Swop
 let drag = null;
 document.addEventListener("pointerdown", e => {
-  const tr = e.target.closest(".track[data-p]"), en = e.target.closest(".enc"), pk = e.target.closest("#picker");
   const hold = e.target.closest("[data-flash],[data-swop]");
-  if (hold) { const p = allPbs().find(x => x.id === +(hold.dataset.flash || hold.dataset.swop)); if (hold.dataset.flash) S.flash = p; else S.swop = p; hold.classList.add("held"); drag = { hold }; refresh(true); return; }
-  if (!tr && !en && !pk) return;
-  drag = { tr, en, pk, y: e.clientY };
-  e.target.setPointerCapture?.(e.pointerId);
+  if (hold && !hold.disabled) { if (hold.dataset.flash && S.mode === "Latch") return; if (hold.dataset.flash) S.flash = +hold.dataset.flash; else S.swop = +hold.dataset.swop; drag = { hold: true }; return render(); }
+  const lv = e.target.closest(".lvl[data-p]"), wh = e.target.closest(".wh[data-e]"), pk = e.target.closest("#pk"), mx = e.target.closest(".mbar");
+  if (!lv && !wh && !pk && !mx) return;
+  e.preventDefault();
+  drag = { lv: lv?.dataset.p, wh: wh?.dataset.e, pk: !!pk, mx: mx?.dataset.mix, x: e.clientX };
+  S._turning = false;
+  if (pk || mx) snapshot("Colour picker");
   move(e);
 });
-document.addEventListener("pointermove", e => drag && move(e));
-document.addEventListener("pointerup", () => {
-  if (drag?.hold) { drag.hold.classList.remove("held"); S.flash = S.swop = null; refresh(true); }
-  drag = null;
-});
+document.addEventListener("pointermove", e => { if (drag && !drag.hold) move(e); });
+document.addEventListener("pointerup", () => { if (drag?.hold) { S.flash = S.swop = null; render(); } drag = null; S._turning = false; });
+function setLevel(id, v) {
+  const was = S.level[id] || 0, p = pbById(id);
+  if (!(was > 0) && v > 0) S.raised[id] = ++S.order;
+  if (was > 0 && v === 0 && p) { S.rel[id] = performance.now() + p.opts.rtime * 1000; setTimeout(render, p.opts.rtime * 1000 + 50); }
+  S.level[id] = v;
+}
 function move(e) {
-  if (drag.tr) {
-    const r = drag.tr.getBoundingClientRect(), v = Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)), id = drag.tr.dataset.p;
-    if (id === "gm") S.gm = v; else { if (!(S.level[id] > 0) && v > 0) S.raised[id] = ++S.order; S.level[id] = v; }
-    return refresh(true);
+  if (drag.lv) {
+    const el = document.querySelector(`.lvl[data-p="${drag.lv}"]`); if (!el) return;
+    const r = el.getBoundingClientRect(), v = clamp((r.bottom - e.clientY) / r.height);
+    if (drag.lv === "gm") S.gm = v; else setLevel(+drag.lv, v);
+    return render();
   }
-  if (drag.en) { const d = (drag.y - e.clientY) / (e.shiftKey ? 1200 : 200); drag.y = e.clientY; if (d) turn(drag.en.dataset.e, d); return; }
+  if (drag.wh) { const d = (e.clientX - drag.x) / (e.altKey ? 1600 : e.shiftKey ? 100 : 400); drag.x = e.clientX; if (d) { turn(drag.wh, d); render(); } return; }
   if (drag.pk) {
-    const r = drag.pk.getBoundingClientRect();
-    const h = Math.max(0, Math.min(359.9, (e.clientX - r.left) / r.width * 360)), s = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
-    const n = setAttr(S.sel, "col", () => fromHS(h, s));
-    if (n) say(`Colour picker → ${n} fixtures (absolute). Hue ${Math.round(h)}°, saturation ${pct(s)}.`);
-    refresh(true);
+    const r = $("pk").getBoundingClientRect(), hh = clamp((e.clientX - r.left) / r.width) * 359.9, s = clamp(1 - (e.clientY - r.top) / r.height);
+    const n = setAttr(targets(), "col", () => fromHS(hh, s));
+    if (n) say(`Colour picker → ${n} fixtures, absolute: hue ${Math.round(hh)}°, saturation ${pct(s)}%.`);
+    return render();
+  }
+  if (drag.mx) {
+    const el = document.querySelector(`.mbar[data-mix="${drag.mx}"]`); if (!el) return;
+    const r = el.getBoundingClientRect(), v = clamp((e.clientX - r.left) / r.width), k = drag.mx;
+    setAttr(targets(), "col", c => {
+      if (k === "H") return fromHS(v * 359.9, toHS(c).s); if (k === "S") return fromHS(toHS(c).h, v);
+      const ch = { R: "r", G: "g", B: "b", C: "r", M: "g", Y: "b" }[k]; return { ...c, [ch]: "CMY".includes(k) ? 1 - v : v };
+    });
+    say(`${S.cmode} ${k} → ${pct(v)}%.`);
+    return render();
   }
 }
-document.addEventListener("wheel", e => { const en = e.target.closest(".enc"); if (!en) return; e.preventDefault(); turn(en.dataset.e, -e.deltaY / (e.shiftKey ? 3000 : 600)); }, { passive: false });
-document.addEventListener("keydown", e => { const en = e.target.closest?.(".enc"); if (!en) return; const d = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02 }[e.key]; if (d) { e.preventDefault(); turn(en.dataset.e, e.shiftKey ? d / 10 : d); } });
-
-renderGroups(); buildFaders(); refresh();
-say("Service is running cue 1 Walk-in on fader 1. Tap a group to start programming.");
+let lastWheel = 0;
+document.addEventListener("wheel", e => {
+  const wh = e.target.closest(".wh[data-e]"), lv = e.target.closest(".lvl[data-p]");
+  if (!wh && !lv) return; e.preventDefault();
+  if (wh) { if (performance.now() - lastWheel > 600) S._turning = false; lastWheel = performance.now(); turn(wh.dataset.e, -e.deltaY / (e.altKey ? 6000 : e.shiftKey ? 300 : 1500)); }
+  else { const id = lv.dataset.p, d = -e.deltaY / 1000; if (id === "gm") S.gm = clamp(S.gm + d); else setLevel(+id, clamp((S.level[id] || 0) + d)); }
+  render();
+}, { passive: false });
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  const wh = e.target.closest?.(".wh[data-e]");
+  if (wh) { const d = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02 }[e.key]; if (d) { e.preventDefault(); S._turning = false; turn(wh.dataset.e, e.altKey ? d / 10 : d); render(); return; } }
+  if (!S.keys || e.metaKey || e.ctrlKey) return;
+  const map = { "-": "Thro", "+": "And", "@": "@", Enter: "Enter", Escape: "Exit", Backspace: "Back", f: "Fixture", g: "Group", p: "Palette" };
+  if (/^F[1-4]$/.test(e.key)) S.ws = +e.key[1] - 1;
+  else if (e.key === " ") go(1);
+  else if (/^[0-9.]$/.test(e.key)) key(e.key);
+  else if (map[e.key]) key(map[e.key]);
+  else return;
+  e.preventDefault();
+  render();
+});
+setInterval(render, 1000);
+render();
 </script>
