@@ -21,7 +21,7 @@ through the engine as one value with HSI/RGB/CMY wheels, virtual dimmers and mul
 demo of the church rig with its RGBW, RGB+Lime and RGB pars (VS2-14). The engine patches fixtures
 by type, mode, count and user number with clash checks (VS2-10) and imports QLC+ fixture files
 into its own profile model (VS2-09); the daemon serves the whole QLC+ library (about 1800
-fixtures) plus your own profiles, searchable over IPC (VS2-11), and the app has a Patch screen: search the library, add fixtures, move, renumber, name, change mode and remove them over IPC (VS2-12). The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
+fixtures) plus your own profiles, searchable over IPC (VS2-11), and the app has a Patch screen: search the library, add fixtures, move, renumber, name, change mode and remove them over IPC (VS2-12). The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1); the app is now being moved into that real layout zone by zone (UX-02).
 Details in `STATE.md` and `BACKLOG.md`.
 
 ## Layout
