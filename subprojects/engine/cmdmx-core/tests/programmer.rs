@@ -54,6 +54,62 @@ fn prg_02_group_appends_in_group_order_without_duplicates() {
     assert_eq!(selection(&e), vec![205, 201, 202, 203, 204, 206, 207, 208]);
 }
 
+/// PRG-02 amended (IDEA-11): a group whose fixtures are all selected toggles off.
+#[test]
+fn prg_02_selecting_a_fully_selected_group_deselects_it() {
+    let mut e = church();
+    select(&mut e, &[201, 202, 203, 204, 205, 206, 207, 208]);
+    e.record_group(3).unwrap();
+    e.clear_selection();
+    e.select_group(3).unwrap();
+    e.select_group(3).unwrap();
+    assert!(selection(&e).is_empty());
+    // The rest of the selection stays, in its order.
+    select(&mut e, &[301]);
+    e.select_group(3).unwrap();
+    assert_eq!(
+        selection(&e),
+        vec![301, 201, 202, 203, 204, 205, 206, 207, 208]
+    );
+    e.select_group(3).unwrap();
+    assert_eq!(selection(&e), vec![301]);
+}
+
+#[test]
+fn prg_02_a_partly_selected_group_appends_the_rest() {
+    let mut e = church();
+    select(&mut e, &[201, 202, 203, 204]);
+    e.record_group(3).unwrap();
+    e.clear_selection();
+    select(&mut e, &[203]);
+    e.select_group(3).unwrap();
+    assert_eq!(selection(&e), vec![203, 201, 202, 204]);
+}
+
+#[test]
+fn prg_02_after_a_change_the_group_is_selected_again_not_toggled() {
+    let mut e = church();
+    select(&mut e, &[201, 202]);
+    e.record_group(3).unwrap();
+    e.clear_selection();
+    e.select_group(3).unwrap();
+    e.set_programmer_value(201, "Dimmer", 0.5).unwrap();
+    // PRG-03: a new selection starts, so the tap selects the group.
+    e.select_group(3).unwrap();
+    assert_eq!(selection(&e), vec![201, 202]);
+}
+
+#[test]
+fn prg_02_typed_group_always_selects() {
+    let mut e = church();
+    select(&mut e, &[201, 202]);
+    e.record_group(3).unwrap();
+    e.clear_selection();
+    e.execute_command(&["Group", "3", "Enter"]).unwrap();
+    e.execute_command(&["Group", "3", "Enter"]).unwrap();
+    assert_eq!(selection(&e), vec![201, 202]);
+}
+
 #[test]
 fn prg_02_unknown_group_is_refused() {
     let mut e = church();

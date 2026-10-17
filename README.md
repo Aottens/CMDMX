@@ -29,7 +29,7 @@ Early, under active development, not yet for real shows. What works today:
 - The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol).
 - Patch: pick a fixture from the library, set its mode, count, address and user number. Clashes
   are refused, and you can move, renumber, rename, change mode and remove.
-- Programmer: select fixtures and groups, Fix ±1, odd/even, a Titan-style command line
+- Programmer: select fixtures and groups (tap again to deselect), Fix ±1, odd/even, a Titan-style command line
   (`201 Thro 205 @ 50`) and wheels.
 - Colour as one value per fixture. You set it with HSI, RGB or CMY wheels, and extra emitters
   (White, Lime, …) are driven directly.

@@ -13,7 +13,7 @@ The app connects to the daemon over WebSocket (`EngineClient.swift`, IPC-08/09):
 - Colour (VS2-14, IPC-19): HSI/RGB/CMY buttons on the C tab send `programmer.colour_model`; the Hue wheel shows degrees. Checklist `tests/manual/app-programmer.md` → Colour section.
 
 ## In progress
-- UX-02a in review; owner runs `tests/manual/app-main-screen.md`
+- nothing (UX-02a merged; run `tests/manual/runs/2026-10-17-UX-02a.md` passed)
 
 ## Resume with
 VS1-06 (faders bound to page-1 playbacks) from `BACKLOG.md`. The main screen follows UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17): the current placeholder grid + fader row is replaced zone by zone as specs land.
