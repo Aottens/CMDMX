@@ -12,12 +12,12 @@
 //! Not yet here, by design (each lands with its spec): release masks and
 //! times (ENG-07..10), chases, masters other than GM.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{ColourModel, TargetColour};
 use crate::command::{self, Item, Kind};
-use crate::patch::{Fixture, FixtureId};
+use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values};
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -92,6 +92,13 @@ impl Frame {
         }
     }
 
+    /// Zero `footprint` slots from `address` (a fixture left this place).
+    fn clear(&mut self, address: u16, footprint: u16) {
+        for a in address..address.saturating_add(footprint) {
+            self.set(a, 0);
+        }
+    }
+
     fn set(&mut self, address: u16, value: u8) {
         if let Some(slot) = address
             .checked_sub(1)
@@ -108,6 +115,8 @@ pub struct Settings {
     pub ltp_trigger_level: f32,
     /// Faders per page (configuration, never hard-coded; default 8).
     pub faders_per_page: u16,
+    /// Fixture buttons per page of the Fixtures window (PAT-14).
+    pub handles_per_page: u16,
     /// Wheel step sizes as fractions of the full range (PRG-21).
     pub wheel_step_normal: f32,
     pub wheel_step_fine: f32,
@@ -119,6 +128,7 @@ impl Default for Settings {
         Settings {
             ltp_trigger_level: 0.02,
             faders_per_page: 8,
+            handles_per_page: 40,
             wheel_step_normal: 1.0 / 255.0,
             wheel_step_fine: 1.0 / 65535.0,
             wheel_step_coarse: 1.0 / 25.0,
@@ -132,6 +142,10 @@ pub struct Engine {
     settings: Settings,
     profiles: BTreeMap<String, Profile>,
     fixtures: BTreeMap<FixtureId, Fixture>,
+    /// User number -> id (PAT-06, PAT-12).
+    numbers: BTreeMap<u32, FixtureId>,
+    /// Above every id ever patched, so ids are never reused (PAT-12).
+    next_id: FixtureId,
     playbacks: BTreeMap<PlaybackId, Playback>,
     states: BTreeMap<PlaybackId, PlaybackState>,
     grand_master: f32,
@@ -163,6 +177,8 @@ impl Engine {
             settings,
             profiles: BTreeMap::new(),
             fixtures: BTreeMap::new(),
+            numbers: BTreeMap::new(),
+            next_id: 1,
             playbacks: BTreeMap::new(),
             states: BTreeMap::new(),
             grand_master: 1.0,
@@ -191,28 +207,277 @@ impl Engine {
         Ok(())
     }
 
-    /// Patch a fixture. Rejected (not panicking) when the profile or mode is unknown
-    /// or the mode's footprint runs past slot 512. LTP attributes start at their
-    /// default (LIB-03).
-    pub fn patch(&mut self, fixture: Fixture) -> Result<(), CoreError> {
-        let profile = self
-            .profiles
-            .get(&fixture.profile)
-            .ok_or_else(|| CoreError::UnknownProfile(fixture.profile.clone()))?;
-        let mode = profile
-            .mode(fixture.mode.as_deref())
-            .ok_or_else(|| CoreError::UnknownMode {
-                profile: fixture.profile.clone(),
-                mode: fixture.mode.clone().unwrap_or_default(),
+    /// Patch a fixture under its own id (scenario files, test rigs, the show file later).
+    /// Rejected (not panicking) when the id or number is taken, the profile or mode is
+    /// unknown, or the footprint runs past slot 512 or onto another fixture (PAT-02).
+    /// `number == 0` means "same as the id". LTP attributes start at their default (LIB-03).
+    pub fn patch(&mut self, mut fixture: Fixture) -> Result<(), CoreError> {
+        if fixture.number == 0 {
+            fixture.number = fixture.id;
+        }
+        if self.fixtures.contains_key(&fixture.id) {
+            return Err(CoreError::DuplicateFixture(fixture.id));
+        }
+        let footprint =
+            lookup_mode(&self.profiles, &fixture.profile, fixture.mode.as_deref())?.footprint;
+        self.check_place(
+            fixture.number,
+            fixture.universe,
+            u32::from(fixture.address),
+            footprint,
+            None,
+        )?;
+        if self.numbers.contains_key(&fixture.number) {
+            return Err(CoreError::NumberInUse(fixture.number));
+        }
+        self.install(fixture)
+    }
+
+    /// PAT-01..03, 07: patch `count` fixtures back to back. The whole placement is computed and
+    /// checked first; a refused add changes nothing. Returns the new ids in patch order.
+    pub fn patch_add(&mut self, add: &PatchAdd) -> Result<Vec<FixtureId>, CoreError> {
+        if add.count == 0 {
+            return Err(CoreError::InvalidCount(0));
+        }
+        // ponytail: a zero-channel mode is treated as one channel wide when placing.
+        let footprint = lookup_mode(&self.profiles, &add.profile, add.mode.as_deref())?
+            .footprint
+            .max(1);
+        if add.number == Some(0) {
+            return Err(CoreError::InvalidNumber);
+        }
+        let first_number = match (add.number, self.numbers.keys().next_back()) {
+            (Some(n), _) => n,
+            (None, None) => 1,
+            (None, Some(max)) => max.checked_add(1).ok_or(CoreError::NoFreeNumbers)?,
+        };
+        let first_id = self.next_id;
+        first_id
+            .checked_add(add.count)
+            .ok_or(CoreError::NoFreeNumbers)?;
+        let first_address = match add.address {
+            Some(a) => u32::from(a),
+            None => self
+                .first_free_run(add.universe, u64::from(add.count) * u64::from(footprint))
+                .ok_or(CoreError::NoFreeAddresses {
+                    universe: add.universe,
+                })?,
+        };
+        // Refused at the first fixture that does not fit, so this stays within a universe.
+        let mut placed = Vec::new();
+        let mut address = first_address;
+        for i in 0..add.count {
+            let number = first_number
+                .checked_add(i)
+                .ok_or(CoreError::NoFreeNumbers)?;
+            self.check_place(number, add.universe, address, footprint, None)?;
+            if self.numbers.contains_key(&number) {
+                return Err(CoreError::NumberInUse(number));
+            }
+            placed.push((first_id + i, number, address));
+            address += u32::from(footprint);
+        }
+        let mut ids = Vec::new();
+        for (id, number, address) in placed {
+            self.install(Fixture {
+                id,
+                number,
+                name: String::new(),
+                profile: add.profile.clone(),
+                mode: add.mode.clone(),
+                universe: add.universe,
+                address: u16::try_from(address).unwrap_or(u16::MAX),
+                handle: None,
             })?;
-        if fixture.address == 0
-            || u32::from(fixture.address) + u32::from(mode.footprint) > UNIVERSE_SIZE as u32 + 1
-        {
-            return Err(CoreError::AddressOutOfRange {
-                fixture: fixture.id,
-                universe: fixture.universe,
-                address: fixture.address,
+            ids.push(id);
+        }
+        Ok(ids)
+    }
+
+    /// PAT-04: give a fixture a new place. Its own old channels do not count as a clash; they
+    /// drop to 0 and the new ones are written at the next tick. References follow the id.
+    pub fn patch_move(
+        &mut self,
+        id: FixtureId,
+        universe: UniverseId,
+        address: u16,
+    ) -> Result<(), CoreError> {
+        let fixture = self
+            .fixtures
+            .get(&id)
+            .ok_or(CoreError::UnknownFixture(id))?;
+        let footprint = self.footprint_of(fixture)?;
+        self.check_place(
+            fixture.number,
+            universe,
+            u32::from(address),
+            footprint,
+            Some(id),
+        )?;
+        let (old_universe, old_address) = (fixture.universe, fixture.address);
+        self.clear_channels(old_universe, old_address, footprint);
+        self.frames.entry(universe).or_default();
+        if let Some(f) = self.fixtures.get_mut(&id) {
+            f.universe = universe;
+            f.address = address;
+        }
+        Ok(())
+    }
+
+    /// PAT-05: remove fixtures from the patch, the selection, the programmer and every group.
+    /// All ids are checked first. Playback values for them are ignored by the merge.
+    pub fn patch_remove(&mut self, ids: &[FixtureId]) -> Result<(), CoreError> {
+        if let Some(&unknown) = ids.iter().find(|id| !self.fixtures.contains_key(id)) {
+            return Err(CoreError::UnknownFixture(unknown));
+        }
+        for &id in ids {
+            let footprint = self
+                .fixtures
+                .get(&id)
+                .and_then(|f| self.footprint_of(f).ok())
+                .unwrap_or(0);
+            let Some(fixture) = self.fixtures.remove(&id) else {
+                continue; // listed twice
+            };
+            self.clear_channels(fixture.universe, fixture.address, footprint);
+            self.numbers.remove(&fixture.number);
+            self.held.remove(&id);
+            self.programmer.remove_fixture(id);
+            for members in self.groups.values_mut() {
+                members.retain(|&f| f != id);
+            }
+        }
+        self.follow_active_group();
+        Ok(())
+    }
+
+    /// PAT-06: change the user number; everything else refers to the id.
+    pub fn patch_renumber(&mut self, id: FixtureId, number: u32) -> Result<(), CoreError> {
+        if number == 0 {
+            return Err(CoreError::InvalidNumber);
+        }
+        let old = self
+            .fixtures
+            .get(&id)
+            .ok_or(CoreError::UnknownFixture(id))?
+            .number;
+        if self.numbers.get(&number).is_some_and(|&other| other != id) {
+            return Err(CoreError::NumberInUse(number));
+        }
+        self.numbers.remove(&old);
+        self.numbers.insert(number, id);
+        if let Some(f) = self.fixtures.get_mut(&id) {
+            f.number = number;
+        }
+        Ok(())
+    }
+
+    /// PAT-13: give a fixture another mode of its profile. Attributes are matched by name;
+    /// programmer and playback values the new mode cannot take are dropped with a warning,
+    /// held values of attributes that remain are kept. A bigger footprint is checked like a move.
+    pub fn patch_change_mode(&mut self, id: FixtureId, mode: &str) -> Result<(), CoreError> {
+        let fixture = self
+            .fixtures
+            .get(&id)
+            .ok_or(CoreError::UnknownFixture(id))?;
+        let old_footprint = self.footprint_of(fixture)?;
+        let new = lookup_mode(&self.profiles, &fixture.profile, Some(mode))?;
+        self.check_place(
+            fixture.number,
+            fixture.universe,
+            u32::from(fixture.address),
+            new.footprint,
+            Some(id),
+        )?;
+        let (number, universe, address) = (fixture.number, fixture.universe, fixture.address);
+        // A value stays only when the new mode has that attribute with the same kind of value.
+        let keeps = |name: &str, value: &Value| {
+            new.logical(name)
+                .is_some_and(|l| l.default.same_kind(value))
+        };
+        let mut warnings: Vec<String> = Vec::new();
+        let mut dropped_programmer = Vec::new();
+        for (name, value) in self.programmer.values().get(&id).into_iter().flatten() {
+            if !keeps(name, value) {
+                dropped_programmer.push(name.clone());
+                warnings.push(format!(
+                    "fixture {number}: programmer value '{name}' dropped, mode '{mode}' has no such attribute"
+                ));
+            }
+        }
+        for playback in self.playbacks.values_mut() {
+            if let Some(values) = playback.values.get_mut(&id) {
+                values.retain(|name, value| {
+                    let keep = keeps(name, value);
+                    if !keep {
+                        warnings.push(format!(
+                            "fixture {number}: playback {} value '{name}' dropped, mode '{mode}' has no such attribute",
+                            playback.id
+                        ));
+                    }
+                    keep
+                });
+            }
+        }
+        let old_held = self.held.remove(&id).unwrap_or_default();
+        let held: BTreeMap<String, Value> = new
+            .logical_attributes()
+            .filter(|l| l.kind == AttributeKind::Ltp)
+            .map(|l| {
+                let value = old_held
+                    .get(l.name)
+                    .copied()
+                    .filter(|v| l.default.same_kind(v))
+                    .unwrap_or(l.default);
+                (l.name.to_string(), value)
+            })
+            .collect();
+        for name in dropped_programmer {
+            self.programmer.remove_value(id, &name);
+        }
+        self.held.insert(id, held);
+        self.clear_channels(universe, address, old_footprint);
+        if let Some(f) = self.fixtures.get_mut(&id) {
+            f.mode = Some(mode.to_string());
+        }
+        let at = self.last_tick.unwrap_or(0.0);
+        self.warnings
+            .extend(warnings.into_iter().map(|message| Warning { at, message }));
+        Ok(())
+    }
+
+    /// PAT-14: move a fixture's button to a free slot, or swap with whoever holds it.
+    pub fn patch_handle(&mut self, id: FixtureId, handle: Handle) -> Result<(), CoreError> {
+        let old = self
+            .fixtures
+            .get(&id)
+            .ok_or(CoreError::UnknownFixture(id))?
+            .handle;
+        if handle.page == 0 || handle.slot == 0 || handle.slot > self.settings.handles_per_page {
+            return Err(CoreError::InvalidHandle {
+                page: handle.page,
+                slot: handle.slot,
             });
+        }
+        let occupant = self
+            .fixtures
+            .values()
+            .find(|f| f.id != id && f.handle == Some(handle))
+            .map(|f| f.id);
+        if let Some(other) = occupant.and_then(|o| self.fixtures.get_mut(&o)) {
+            other.handle = old;
+        }
+        if let Some(f) = self.fixtures.get_mut(&id) {
+            f.handle = Some(handle);
+        }
+        Ok(())
+    }
+
+    /// Store a checked fixture: number index, handle, held defaults and frame (LIB-03).
+    fn install(&mut self, mut fixture: Fixture) -> Result<(), CoreError> {
+        let mode = lookup_mode(&self.profiles, &fixture.profile, fixture.mode.as_deref())?;
+        if fixture.handle.is_none() {
+            fixture.handle = self.first_free_handle();
         }
         let frame = self.frames.entry(fixture.universe).or_default();
         let held = self.held.entry(fixture.id).or_default();
@@ -226,8 +491,100 @@ impl Engine {
             held.insert(l.name.to_string(), l.default);
             write_value(frame, fixture.address, mode, &l, l.default, scale);
         }
+        self.numbers.insert(fixture.number, fixture.id);
+        self.next_id = self.next_id.max(fixture.id.saturating_add(1));
         self.fixtures.insert(fixture.id, fixture);
         Ok(())
+    }
+
+    fn footprint_of(&self, fixture: &Fixture) -> Result<u16, CoreError> {
+        lookup_mode(&self.profiles, &fixture.profile, fixture.mode.as_deref()).map(|m| m.footprint)
+    }
+
+    fn clear_channels(&mut self, universe: UniverseId, address: u16, footprint: u16) {
+        if let Some(frame) = self.frames.get_mut(&universe) {
+            frame.clear(address, footprint);
+        }
+    }
+
+    /// Channel spans `(first, last, number)` of the fixtures on a universe, except `own`.
+    fn spans(&self, universe: UniverseId, own: Option<FixtureId>) -> Vec<(u32, u32, u32)> {
+        self.fixtures
+            .values()
+            .filter(|f| f.universe == universe && Some(f.id) != own)
+            .filter_map(|f| {
+                let first = u32::from(f.address);
+                let width = u32::from(self.footprint_of(f).ok()?);
+                Some((first, (first + width).saturating_sub(1), f.number))
+            })
+            .collect()
+    }
+
+    /// PAT-02: `footprint` channels from `address` must lie within 1..=512 and clear every other
+    /// fixture; the error names the first clashing channel.
+    fn check_place(
+        &self,
+        number: u32,
+        universe: UniverseId,
+        address: u32,
+        footprint: u16,
+        own: Option<FixtureId>,
+    ) -> Result<(), CoreError> {
+        let at = u16::try_from(address).unwrap_or(u16::MAX);
+        let end = address.saturating_add(u32::from(footprint)); // first channel after
+        if address == 0 || end > UNIVERSE_SIZE as u32 + 1 {
+            return Err(CoreError::AddressOutOfRange {
+                fixture: number,
+                universe,
+                address: at,
+            });
+        }
+        let clash = self
+            .spans(universe, own)
+            .into_iter()
+            .filter(|&(first, last, _)| address <= last && first < end)
+            .map(|(first, _, other)| (address.max(first), other))
+            .min();
+        match clash {
+            Some((channel, other)) => Err(CoreError::PatchOverlap {
+                number,
+                other,
+                universe,
+                address: u16::try_from(channel).unwrap_or(at),
+            }),
+            None => Ok(()),
+        }
+    }
+
+    /// PAT-03: the first address on the universe with `total` free channels in a row.
+    fn first_free_run(&self, universe: UniverseId, total: u64) -> Option<u32> {
+        let total = u32::try_from(total)
+            .ok()
+            .filter(|t| *t <= UNIVERSE_SIZE as u32)?;
+        let mut spans = self.spans(universe, None);
+        spans.sort();
+        let mut candidate = 1;
+        for (first, last, _) in spans {
+            if first >= candidate + total {
+                break;
+            }
+            candidate = candidate.max(last + 1);
+        }
+        (candidate + total <= UNIVERSE_SIZE as u32 + 1).then_some(candidate)
+    }
+
+    /// PAT-14: the first free slot, page by page.
+    fn first_free_handle(&self) -> Option<Handle> {
+        let taken: BTreeSet<(u16, u16)> = self
+            .fixtures
+            .values()
+            .filter_map(|f| f.handle)
+            .map(|h| (h.page, h.slot))
+            .collect();
+        (1..=u16::MAX)
+            .flat_map(|page| (1..=self.settings.handles_per_page).map(move |slot| (page, slot)))
+            .find(|key| !taken.contains(key))
+            .map(|(page, slot)| Handle { page, slot })
     }
 
     pub fn add_playback(&mut self, playback: Playback) {
@@ -645,12 +1002,13 @@ impl Engine {
         Ok(())
     }
 
-    /// Patched fixtures (or members of existing groups) named by one item, in typed order.
-    /// Ranges walk only the entries that exist, so `1 Thro 4000000000` stays cheap.
+    /// Patched fixtures (user numbers, PAT-12) or members of existing groups (ids) named by one
+    /// item, in typed order. Ranges walk only the entries that exist, so `1 Thro 4000000000`
+    /// stays cheap.
     fn expand(&self, item: &Item) -> Vec<FixtureId> {
         let (lo, hi) = (item.from.min(item.to), item.from.max(item.to));
         let mut keys: Vec<u32> = match item.kind {
-            Kind::Fixture => self.fixtures.range(lo..=hi).map(|(id, _)| *id).collect(),
+            Kind::Fixture => self.numbers.range(lo..=hi).map(|(_, id)| *id).collect(),
             Kind::Group => self.groups.range(lo..=hi).map(|(id, _)| *id).collect(),
         };
         if item.from > item.to {
@@ -753,6 +1111,16 @@ impl Engine {
         self.fixtures.values()
     }
 
+    pub fn fixture(&self, id: FixtureId) -> Option<&Fixture> {
+        self.fixtures.get(&id)
+    }
+
+    pub fn fixture_by_number(&self, number: u32) -> Option<&Fixture> {
+        self.numbers
+            .get(&number)
+            .and_then(|id| self.fixtures.get(id))
+    }
+
     /// Recorded groups, sorted by id, members in group order.
     pub fn groups(&self) -> &BTreeMap<GroupId, Vec<FixtureId>> {
         &self.groups
@@ -774,6 +1142,22 @@ impl Engine {
     pub fn drain_warnings(&mut self) -> Vec<Warning> {
         std::mem::take(&mut self.warnings)
     }
+}
+
+/// The named mode of a profile, or its first when `mode` is `None`.
+fn lookup_mode<'a>(
+    profiles: &'a BTreeMap<String, Profile>,
+    profile: &str,
+    mode: Option<&str>,
+) -> Result<&'a Mode, CoreError> {
+    profiles
+        .get(profile)
+        .ok_or_else(|| CoreError::UnknownProfile(profile.to_string()))?
+        .mode(mode)
+        .ok_or_else(|| CoreError::UnknownMode {
+            profile: profile.to_string(),
+            mode: mode.unwrap_or_default().to_string(),
+        })
 }
 
 /// The fixture's mode: the named one, or the profile's first.
@@ -936,6 +1320,9 @@ mod tests {
         assert_eq!(e.add_profile("dimmer", dimmer_profile()), Ok(()));
         let patched = e.patch(Fixture {
             id: 1,
+            number: 0,
+            name: String::new(),
+            handle: None,
             profile: "dimmer".into(),
             mode: None,
             universe: 1,
@@ -950,6 +1337,9 @@ mod tests {
         let mut e = Engine::new(Settings::default());
         let r = e.patch(Fixture {
             id: 1,
+            number: 0,
+            name: String::new(),
+            handle: None,
             profile: "nope".into(),
             mode: None,
             universe: 1,
@@ -964,6 +1354,9 @@ mod tests {
         assert_eq!(e.add_profile("dimmer", dimmer_profile()), Ok(()));
         let r = e.patch(Fixture {
             id: 1,
+            number: 0,
+            name: String::new(),
+            handle: None,
             profile: "dimmer".into(),
             mode: None,
             universe: 1,

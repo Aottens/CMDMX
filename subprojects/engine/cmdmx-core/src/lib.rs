@@ -55,6 +55,27 @@ pub enum CoreError {
         universe: UniverseId,
         address: u16,
     },
+    #[error("{number} would overlap {other} at {universe}.{address}")]
+    PatchOverlap {
+        number: u32,
+        other: u32,
+        universe: UniverseId,
+        address: u16,
+    },
+    #[error("number {0} is already in use")]
+    NumberInUse(u32),
+    #[error("user numbers start at 1")]
+    InvalidNumber,
+    #[error("no free run of addresses in universe {universe}")]
+    NoFreeAddresses { universe: UniverseId },
+    #[error("no free fixture numbers")]
+    NoFreeNumbers,
+    #[error("invalid handle page {page} slot {slot}")]
+    InvalidHandle { page: u16, slot: u16 },
+    #[error("invalid fixture count {0} (expected at least 1)")]
+    InvalidCount(u32),
+    #[error("fixture id {0} is already patched")]
+    DuplicateFixture(u32),
     #[error("invalid value {0} (expected 0.0..=1.0)")]
     InvalidLevel(f32),
     #[error("fixture {fixture} attribute '{attribute}' takes a different kind of value")]

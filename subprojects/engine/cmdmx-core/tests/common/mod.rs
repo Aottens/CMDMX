@@ -46,6 +46,9 @@ pub fn church() -> Engine {
     for id in 101..=104 {
         e.patch(Fixture {
             id,
+            number: 0,
+            name: String::new(),
+            handle: None,
             profile: "wash".into(),
             mode: None,
             universe: 1,
@@ -57,6 +60,9 @@ pub fn church() -> Engine {
     for id in (201..=208).chain(221..=226).chain(301..=306) {
         e.patch(Fixture {
             id,
+            number: 0,
+            name: String::new(),
+            handle: None,
             profile: "dimmer".into(),
             mode: None,
             universe: 1,

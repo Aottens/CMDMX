@@ -28,7 +28,7 @@ the backlog, not the whole idea.
 | IDEA-04 | Phase 1 = programming the building blocks of any show (robust programmer); cue lists and busking both run on them | accepted 2026-10-17 | 1 | PRD, PRG, new `cuelists.md` |
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
-| IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | triaged | 1 (with VS2-05), owner to confirm | PRG, app |
+| IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | accepted 2026-10-17 | 1 (with VS2-05) | PRG, IPC, app |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -86,6 +86,7 @@ shows through from the playbacks again. Double-clicking the wheel (or the parame
   later remotes get their own gesture (e.g. Off + touch the encoder, as consoles do).
 - Touches nothing built so far; the Colour wheels (Hue/Saturation/Red/…) would take Colour out
   as a whole, since it is one value (ADR-005).
-**Open questions:** double-click on the wheel, or on its name only (a double-click while dragging
-could misfire)? Should it clear for all targets or only the fixture whose value the wheel shows
-(all targets, consistent with how wheels work)?
+**Owner decisions (2026-10-17):** phase 1, built with VS2-05. The double-click is on the wheel's
+**name** only, not on the wheel itself, so a drag can never trigger it ("safe, but functional").
+Clears the attribute for all targets, as wheels act on all targets. The PRG criterion is written
+at the start of VS2-05.
