@@ -328,7 +328,7 @@ func resolution(_ flags: NSEvent.ModifierFlags) -> WheelResolution {
 /// Reports scroll-wheel / trackpad scrolling over its bounds as whole steps.
 /// A local event monitor instead of `scrollWheel(with:)` so it works behind
 /// SwiftUI content that would otherwise take the hit test.
-private struct ScrollCatcher: NSViewRepresentable {
+struct ScrollCatcher: NSViewRepresentable {
     let onSteps: (Int, NSEvent.ModifierFlags) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }

@@ -143,6 +143,15 @@ struct ColourPickerWindow: View {
 
     /// Placeholders until the gel book (IDEA-02): 8 disabled swatches.
     private var gelRow: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("GELS · LATER").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3)
+            gelSwatches
+        }
+        .padding(.top, 4)
+        .help("Gel book · IDEA-02")
+    }
+
+    private var gelSwatches: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 4), spacing: 2) {
             ForEach(0..<8, id: \.self) { _ in
                 RoundedRectangle(cornerRadius: radius).fill(t.surf)
@@ -150,8 +159,6 @@ struct ColourPickerWindow: View {
                     .frame(height: 28).opacity(0.3)
             }
         }
-        .padding(.top, 4)
-        .help("Gel book · IDEA-02")
     }
 }
 
@@ -247,6 +254,9 @@ private struct MixBar: View {
         }
         .font(Typo.mono(Typo.small))
         .foregroundStyle(t.fg2)
+        .background(ScrollCatcher { steps, flags in
+            engine.wheel(attribute: wheel.attribute, steps: steps, resolution: resolution(flags))
+        })
         .help(wheel.attribute)
     }
 }

@@ -140,3 +140,12 @@ fixture tap already does (PRG-01).
   (`programmer.select_group` stays), and the Groups window shows it through the existing
   selection state.
 **Outcome (2026-10-17):** owner: phase 1. Task VS2-15 in `BACKLOG.md`.
+
+### IDEA-12 — Command history with the arrow keys (2026-10-17, UX-02b run)
+**Owner's intent:** as in a terminal, Up recalls the previous command on the command line ("nice to
+have").
+**Triage:**
+- Proposed phase 1, built with UX-02c (the token command line and Mac keys): Up and Down step
+  through the commands sent in this session, app-side only (no engine change; history is not
+  part of the show). Needs one UI criterion next to UI-19.
+**Open questions:** the owner confirms the phase; keep history across app restarts or not?
