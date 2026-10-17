@@ -27,7 +27,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- UX-02b in review: attribute bar as rolling encoders, Programmer window (IPC-21), colour picker (IPC-22/23); owner run passed (`tests/manual/runs/2026-10-17-UX-02b.md`), merge pending. Owner exports the church patch from Lightkey on 2026-10-18
+- nothing (VS2-12, UX-02.0, UX-02a, VS2-15, UX-02b merged 2026-10-17); owner exports the church patch from Lightkey on 2026-10-18
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -41,4 +41,20 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-Start a fresh session (read PROJECT/STATE/ARCHITECTURE/DECISIONS, CLAUDE.md). Next, in dependency order (run `subprojects/engine/scripts/fetch-qlcplus.sh` once on a fresh clone): finish UX-02b (owner run, merge), then (attribute bar, Programmer window, colour picker; IPC-21..23), UX-02c, UX-02d with VS1-06 (`specs/modules/ui.md`, approved 2026-10-17), P1-14/P1-15 (specs for library browsing and multi-select in the patch table, owner 2026-10-17: phase 1), VS2-13 (church patch from the owner's Lightkey export, expected 2026-10-18; the owner may also hand over a Lightkey show file to decode). Still open: VS2-05 (Locate/Highlight/Off/Rem Dim/Clear options incl. freeze/release), P1-09 show file (needed for PAT-08 persistence), P1-12 GDTF importer spec, P1-13 per-cell selection spec. Every PR updates README (CLAUDE.md step 5). The church is the playground, not the limit (owner): no church-driven feature cuts. Working notes: CI (`.github/workflows/ci.yml`) runs a newer stable Rust than the owner's Mac, so a clippy lint can fail only in CI — check the PR's CI before calling it done. The owner's disk is nearly full: `cargo clean` after a task, avoid needless release builds. Open owner question: read the two Eurolite IP PIX Strobe QLC+ files leniently (ignore the bad head channel with a warning) or keep refusing them (LIB-10)? IDEA-07 (double-click a wheel name = Off for that attribute) is built with VS2-05.
+Start a fresh session (read PROJECT/STATE/ARCHITECTURE/DECISIONS, CLAUDE.md). The app now runs in
+its real main screen (`specs/modules/ui.md`, UI-01..26; README screenshot). Next, owner's choice:
+- **VS2-13**: the church patch from the owner's Lightkey export (patch list or decoded show file),
+  entered through the patch commands; `tests/hardware/church.md` (VS4-01).
+- **UX-02c**: side column live (UI-16..19): function buttons (Record moves from the Groups window),
+  keypad sending tokens, softkeys, token command line with Keys mode (Mac keys), ⌘1–⌘4 next to
+  F1–F4, command history Up/Down (IDEA-12: amend UI-19 first, ask the owner whether history
+  survives an app restart), and make every disabled button look equally greyed.
+- **UX-02d** with VS1-06: playback area and paging.
+- Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
+  (multi-select in the patch table), P1-03 palettes, P1-09 show file, P1-05 control surfaces.
+Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
+failing tests and reviews. The owner likes to be walked through manual runs step by step (one
+step per message, tick the run file in `tests/manual/runs/`). CI runs a newer Rust than the Mac:
+check PR CI. Disk is nearly full: `cargo clean` after a task. Don't run `git checkout` in the
+owner's tree while subagents work. Open owner question: read the two Eurolite IP PIX Strobe QLC+
+files leniently or keep refusing them (LIB-10)? IDEA-10 (output lamps) phase still to confirm.
