@@ -25,6 +25,14 @@ Use the project-management conventions from the `project-manage` skill when avai
 (session start: read STATE files; session end: handoff in STATE.md). Use the
 `project-orchestrator` agent in `.claude/agents/` for pre-flight and post-flight checks.
 
+## Ideas intake
+
+The owner drops ideas in chat. Record each one in `IDEAS.md` (id, intent, proposed phase,
+module, what it touches now, open questions) and ask the owner to confirm the phase. No
+criteria or code for an idea until its phase is planned. Phase 1 is `specs/PRD.md`; new ideas
+default to a later phase. If an idea forces a decision earlier, add only that decision to
+`BACKLOG.md` and say so.
+
 ## Show-proof rules (non-negotiable in engine code)
 
 - No `unwrap()`, `expect()`, `panic!`, `unreachable!`, `todo!` or indexing that can panic in
