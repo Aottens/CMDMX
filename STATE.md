@@ -10,11 +10,11 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 in review), each node on its own thread. No IPC yet
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), each node on its own thread. No IPC yet
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS1-03 (sACN) in review on branch `vs1-03-sacn-output`; owner: PR review + sACN lines of `tests/hardware/output.md`
+- VS1-04 (Eurolite MK2 serial) on branch `vs1-04-enttec-serial`: spec awaiting approval
 
 ## Blocked
 - nothing
@@ -28,4 +28,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-Owner: review the VS1-03 PR and run the sACN lines of `tests/hardware/output.md` (sACNView or Wireshark filter `acn`). Then VS1-04 (Eurolite MK2 serial).
+VS1-04: get owner approval for OUT-09/20..22 and the `serialport` crate, then failing tests, serial node via `output::spawn`, hardware checklist with the Eurolite.

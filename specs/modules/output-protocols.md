@@ -1,6 +1,6 @@
 # Module spec: output-protocols (OUT)
 
-Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
+Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; OUT-09/20..22 revised for VS1-04 (draft); rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
 
 ## Purpose
 Deliver each universe's frame to one or more *nodes* (Titan's model: lines → nodes). Framing is pure and byte-exact tested; I/O lives in the daemon and must never block the tick.
@@ -25,7 +25,9 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
 
 ### ENTTEC Pro over serial
 - **OUT-08** `enttec::send_dmx_frame(data: &[u8]) -> Vec<u8>` produces `0x7E`, label `6`, length LSB, length MSB (length = 1 + data.len(), data padded to at least 24 channels), start code `0x00`, data, `0xE7`. Golden bytes in the test.
-- **OUT-09** Daemon identifies the owner's interface by USB product string containing `"DMX512 Pro"` (Eurolite USB-DMX512 PRO MK2 reports VID/PID `0403:6001` like any FTDI device and the product string `Eurolite DMX512 Pro`), opens the macOS VCP device (`/dev/cu.usbserial-*`) at 250 kbaud-independent settings (FTDI handles the line; use 115200 8N1 on the VCP), and sends one frame per tick. Never treat it as ENTTEC Open DMX.
+- **OUT-09** Detection: the daemon lists serial ports with their USB info and picks the ones whose USB product string passes `enttec::is_pro_product_string` (the Eurolite USB-DMX512 PRO MK2 reports VID/PID `0403:6001` like any FTDI device and the product string `Eurolite DMX512 Pro`) and whose path starts with `/dev/cu.`. With several matches it takes the lowest path and logs the others. It logs `serial: ENTTEC Pro "<product>" at <path>`. A port without a matching product string is never used, so an interface is never treated as ENTTEC Open DMX.
+- **OUT-20** The chosen port is opened raw at 115200 8N1 without flow control (the FTDI chip handles the DMX line; the VCP baud rate does not set the DMX timing), with a 100 ms write timeout. Every tick one label-6 frame (OUT-08) of line 1 is written, on the node's own thread (OUT-11).
+- **OUT-21** Hotplug: no interface at startup is not an error; it is logged once (`serial: no ENTTEC Pro interface found`) and the daemon keeps looking. While there is no port, or after a write/open error (`Degraded`, OUT-12), it rescans at most once per second, so unplugging and replugging resumes output without a daemon restart.
 
 ### Scheduling and safety
 - **OUT-11** Output I/O runs on its own thread(s); a slow or failing node never delays `engine.tick`. The tick hands each frame over through a bounded channel without blocking; when the output thread has not taken the previous frame yet, the new one is dropped (the next tick carries a fresh frame). A panic inside the output thread is caught, logged, and the thread carries on with the next frame.
@@ -36,6 +38,7 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
 - **OUT-15** *(vertical slice 1 only, superseded by OUT-13 once node config lives in the show file)* Without a show file the daemon outputs line 1 to one Art-Net node, port-address 0, **enabled**, target `255.255.255.255`. `--artnet-target <ipv4>` sets the target; `--no-artnet` disables the node. An unparsable target is a startup error (exit code 2), not a silent fallback.
 - **OUT-16** *(vertical slice 1 only, superseded by OUT-13 once node config lives in the show file)* Without a show file the daemon outputs line 1 to one sACN node, universe 1, multicast, priority 100, **enabled** — alongside the Art-Net node of OUT-15. `--sacn-unicast <ipv4>` replaces multicast with that target, `--sacn-priority <0..200>` sets the priority, `--no-sacn` disables the node. An unparsable value is a startup error (exit code 2).
 - **OUT-17** Source name is `ColourmotionDMX`. The CID is one fixed UUID compiled into the daemon (`c0105e00-d3a0-4c00-8000-000000000001`) until the show file stores a generated CID (SHW); a fixed CID keeps receivers seeing the same source across daemon restarts.
+- **OUT-22** *(vertical slice 1 only, superseded by OUT-13 once node config lives in the show file)* Serial output is **enabled** by default with detection (OUT-09). `--serial <path>` skips detection and uses that device; a path that does not exist (yet) is `Degraded` and retried like OUT-21, not a startup error. `--no-serial` disables the node.
 - **OUT-18** *(later)* On a clean shutdown the daemon sends three packets with the Stream_Terminated option bit per sACN node. Needs signal handling in the daemon.
 - **OUT-19** *(later)* E1.31 universe discovery packets (universe 64214) every 10 s.
 
