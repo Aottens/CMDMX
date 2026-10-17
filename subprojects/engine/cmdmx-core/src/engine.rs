@@ -56,12 +56,15 @@ impl Frame {
 pub struct Settings {
     /// Fader level at which LTP attributes of a mode-0/1 playback are asserted.
     pub ltp_trigger_level: f32,
+    /// Faders per page (configuration, never hard-coded; default 8).
+    pub faders_per_page: u16,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Settings {
             ltp_trigger_level: 0.02,
+            faders_per_page: 8,
         }
     }
 }
@@ -226,6 +229,19 @@ impl Engine {
 
     pub fn playback_state(&self, id: PlaybackId) -> Option<&PlaybackState> {
         self.states.get(&id)
+    }
+
+    /// Every playback's state, sorted by id.
+    pub fn playback_states(&self) -> impl Iterator<Item = (&PlaybackId, &PlaybackState)> {
+        self.states.iter()
+    }
+
+    pub fn grand_master(&self) -> f32 {
+        self.grand_master
+    }
+
+    pub fn settings(&self) -> &Settings {
+        &self.settings
     }
 
     /// Take accumulated warnings (for the IPC layer to forward to the UI).

@@ -10,6 +10,7 @@
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 
 mod artnet_out;
+mod ipc;
 mod output;
 mod sacn_out;
 mod serial_out;
@@ -273,5 +274,27 @@ mod tests {
         assert_eq!(cli.serial_path.as_deref(), Some("/dev/cu.usbserial-X"));
         assert!(!parse_args(args("--no-serial")).unwrap().serial_enabled);
         assert!(parse_args(args("--serial")).is_err());
+    }
+
+    #[test]
+    fn ipc_01_ipc_port_flag() {
+        assert_eq!(parse_args(args("")).unwrap().ipc_port, 7319);
+        assert_eq!(parse_args(args("--ipc-port 9001")).unwrap().ipc_port, 9001);
+        assert!(parse_args(args("--ipc-port nope")).is_err());
+        assert!(parse_args(args("--ipc-port")).is_err());
+    }
+
+    #[test]
+    fn ipc_09_breathing_demo_only_with_demo_flag() {
+        assert!(!parse_args(args("")).unwrap().demo);
+        assert!(parse_args(args("--demo")).unwrap().demo);
+    }
+
+    #[test]
+    fn ipc_09_demo_show_has_one_dimmer_per_fader() {
+        let engine = demo_engine().unwrap();
+        let ids: Vec<_> = engine.playback_states().map(|(id, _)| *id).collect();
+        let n = u32::from(engine.settings().faders_per_page);
+        assert_eq!(ids, (1..=n).collect::<Vec<_>>());
     }
 }

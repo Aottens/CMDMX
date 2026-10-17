@@ -30,7 +30,7 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 
 ### App behaviour (verified by `swift build` + `tests/manual/app-ipc.md`; no Swift test target)
 - **IPC-08** The app connects to `ws://127.0.0.1:7319` on launch. While not connected it shows the "engine offline" banner and retries every second; on (re)connect it rebuilds its state from the snapshot.
-- **IPC-09** Moving an on-screen fader sends `fader.set` (slot n → playback n for now; paging is VS1-06) and the grand master sends `grand_master.set`; the displayed levels follow the deltas.
+- **IPC-09** Moving an on-screen fader sends `fader.set` (slot n → playback n for now; paging is VS1-06) and the grand master sends `grand_master.set`; the displayed levels follow the deltas. To make this testable the daemon's demo show has one dimmer per fader (playback n → channel n of universe 1), and the breathing demo on playback 1 only runs with `--demo` (so it does not fight the app's fader).
 
 ## Out of scope (this version)
 Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), programmer and palette messages, command acknowledgements, binary encoding.
