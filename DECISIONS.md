@@ -5,9 +5,9 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
-## 2026-10-17 — Own profile model filled by importers, QLC+ first (ADR-006, proposed)
+## 2026-10-17 — Own profile model filled by importers, QLC+ first (ADR-006, accepted)
 
-**Decision:** The engine's own profile model is the only internal fixture format; importers convert QLC+ `.qxf` (bundled, Apache-2.0), typed channel lists, later GDTF and OFL into it. Supersedes ADR-004 in part. See `specs/ADRs/ADR-006-own-profile-model-with-importers.md`.
+**Decision:** The engine's own profile model is the only internal fixture format; importers convert QLC+ `.qxf` (bundled, Apache-2.0), typed channel lists and GDTF (phase 1), later OFL, into it. Patch: internal id + user number as on Titan; no church-driven cuts (owner). Supersedes ADR-004 in part. See `specs/ADRs/ADR-006-own-profile-model-with-importers.md`.
 
 **Alternatives considered:** GDTF internal (ADR-004); QLC+ format internal; own curated library.
 

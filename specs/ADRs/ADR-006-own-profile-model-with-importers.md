@@ -1,6 +1,6 @@
 # ADR-006: Own profile model, filled by importers (QLC+ first)
 
-**Status:** proposed (P1-01, owner approval)
+**Status:** accepted (owner, 2026-10-17)
 **Date:** 2026-10-17
 **Supersedes in part:** ADR-004 (GDTF is no longer the internal format; the overlay becomes fields of the own model)
 

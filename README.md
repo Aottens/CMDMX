@@ -15,7 +15,7 @@ built: selection, groups, stepping, patterns, the keypad command line, wheels an
 output work, and the app drives them (fixtures and groups windows, attribute bar, command line)
 against a demo of the church rig. Colour model: ADR-005 (one target colour per
 fixture, White/Lime driven directly). Fixture library: the open QLC+ library is imported
-(ADR-006, proposed), plus profiles typed from a channel list. The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
+(ADR-006), plus profiles typed from a channel list. The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
 Details in `STATE.md` and `BACKLOG.md`.
 
 ## Layout

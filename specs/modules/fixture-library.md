@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **draft for owner approval (P1-01)**; revised 2026-10-17 (no church-driven cuts). Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01)**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
