@@ -3,7 +3,7 @@
 _Last updated: 2026-10-17_
 
 ## Current step
-VS2-08 profile model v2 in review; next VS2-06, VS2-09, VS2-10 (each needs VS2-08).
+VS2-06 colour value in review; next VS2-14 (daemon + app), VS2-09, VS2-10.
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
@@ -15,6 +15,7 @@ VS2-08 profile model v2 in review; next VS2-06, VS2-09, VS2-10 (each needs VS2-0
 - Programmer in the merge (VS2-04): manual values are a candidate at `Priority::Programmer` (ENG-04); `turn_wheel` (relative, clamped, start from programmer → merged → frame → 0; steps from `Settings::wheel_step_*`), `wheel_layout`, stored `active_group` (PRG-18), `contents(mask)`. Scenario runner has a `prg` action (select / wheel / command). 16 tests in `tests/wheels.rs`, scenarios PRG-12/13.
 - VS2-07: `Engine::programmer_view()` (PRG-35) and `clear()` (PRG-29 default); daemon IPC-10..13 (snapshot fixtures/groups/programmer, programmer + groups deltas, ten programmer commands mapped by `apply` in `main.rs`) and the IPC-14 church demo rig with groups 1–4.
 - Profile model v2 (VS2-08): `profile.rs` — `Profile{manufacturer, model, source, modes}`, `Mode{footprint, attributes, colour, virtual_dimmer, cells, pan/tilt/zoom degrees}`, `AttributeDef` + `default/locate/highlight/emitter/slots`; `from_json` validates (LIB-02, 17), legacy `{attributes}` = mode "default"; `Fixture.mode` (None = first); `Engine::add_profile` returns `Result`; `patch` writes LTP defaults (LIB-03). Colour components and cells are model-only until VS2-06. 19 tests in `tests/profile.rs`.
+- Colour (VS2-06): `colour.rs` (`TargetColour`, `ColourModel`, HSV), `value.rs` (`Value`, untagged serde); `Mode::logical_attributes()` = virtual Dimmer, Colour, own attributes, cell-only names; engine `held` LTP values (patch defaults, Colour white) replace frame decoding; `write_value` maps Colour nominally to mode + cell mixing channels, levels to mode + same-named cell attributes, virtual dimmer scales colour and emitters. 18 tests in `tests/colour.rs`, scenarios LIB-04 and PRG-12 colour.
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress
@@ -24,4 +25,4 @@ VS2-08 profile model v2 in review; next VS2-06, VS2-09, VS2-10 (each needs VS2-0
 - Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, show file (SHW-*), IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with
-`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-06 (colour value), VS2-09 (QLC+ importer) or VS2-10 (patch core).
+`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-14 (colour model over IPC, colour demo rig), VS2-09 (QLC+ importer) or VS2-10 (patch core).

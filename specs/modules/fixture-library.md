@@ -42,10 +42,14 @@ model, and a show carries the profiles it uses.
   or `highlight` value is outside 0.0–1.0. A rejected profile never reaches the patch.
 - **LIB-03** An attribute that no source has proposed since the fixture was patched outputs its
   `default` (Showtec LED Par 56 "Mode" channel default 0 = RGB control, so the par does not run its
-  built-in program). HTP attributes default to 0 (ENG-07 unchanged).
+  built-in program). HTP attributes default to 0 (ENG-07 unchanged). The `Colour` attribute
+  defaults to open white (1, 1, 1), so a fixture brought up on its dimmer alone shows white.
+  A released LTP attribute (Colour included) holds its last value (ENG-07).
 - **LIB-04** A `virtual_dimmer` mode outputs each colour channel as component × Dimmer, where Dimmer
-  is a normal HTP attribute of that fixture without a channel of its own. Showtec LED Par 56 at
-  Colour (1, 0.5, 0) and Dimmer 0.5 → R 128, G 64, B 0.
+  is a normal HTP attribute of that fixture without a channel of its own (Grand Master included).
+  Emitters are scaled the same way, so Dimmer 0 or a Grand Master blackout darkens the whole
+  fixture. Showtec LED Par 56 at Colour (1, 0.5, 0) and Dimmer 0.5 → R 128, G 64, B 0; U'King
+  RGBL at Lime 1.0, Dimmer 0.5 → Lime 128.
 
 - **LIB-17** Emitters are generic: the engine recognises an extra emitter only by its `emitter`
   flag, never by its name, so every rule for emitters (direct wheels PRG-34, ADR-005 palette
@@ -77,7 +81,9 @@ model, and a show carries the profiles it uses.
 - **LIB-07** Heads become cells: Shehds 19x15 "24 Channel" (three RGBW heads) → a mode with three
   cells, each with its own RGB components and White. The fixture as a whole still has one Colour
   and one White: setting them drives every cell (the master), so the fixture works before
-  per-cell control exists. Per-cell selection (`201.2`, Unfold) is a programmer task with its own
+  per-cell control exists. In the engine: a fixture attribute drives the mode's attribute of that
+  name and the same-named attribute of every cell; Colour drives the mode's and every cell's
+  mixing channels. Per-cell selection (`201.2`, Unfold) is a programmer task with its own
   PRG criteria; the model does not change for it.
 - **LIB-15** Wheel-type channels keep their slots: for each QLC+ capability range its name, and for
   colour-wheel slots its colour (QLC+ `Res1`/colour hint) converted to a target colour (ADR-005),

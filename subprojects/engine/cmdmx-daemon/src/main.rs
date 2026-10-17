@@ -288,7 +288,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             id: n,
             priority: Priority::Normal,
             fader_mode: FaderMode::Mode0,
-            values: BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0)]))]),
+            values: BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
         });
     }
     // IPC-14: the church rig on universe 1, after the demo dimmers.

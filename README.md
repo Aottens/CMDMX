@@ -16,7 +16,8 @@ output work, and the app drives them (fixtures and groups windows, attribute bar
 against a demo of the church rig. Colour model: ADR-005 (one target colour per
 fixture; every extra emitter — White, Lime, Amber, warm/cold white, UV, … — driven directly, LIB-17).
 Fixture library: the open QLC+ library is imported (ADR-006), plus profiles typed from a channel
-list; the engine's own profile model (modes, cells, defaults, slots, emitters) is in place (VS2-08). The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
+list; the engine's own profile model (modes, cells, defaults, slots, emitters) is in place (VS2-08), and colour runs
+through the engine as one value with HSI/RGB/CMY wheels, virtual dimmers and multi-cell fixtures (VS2-06). The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
 Details in `STATE.md` and `BACKLOG.md`.
 
 ## Layout

@@ -509,7 +509,7 @@ mod tests {
             id: 1,
             priority: Priority::Normal,
             fader_mode: FaderMode::Mode0,
-            values: BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0)]))]),
+            values: BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
         });
         e
     }
@@ -550,7 +550,7 @@ mod tests {
         assert_eq!(
             v["programmer"],
             json!({"selection":[],"targets":[],"active_group":"I",
-                   "attribute_groups": no_values(false),"wheels":[],"in_programmer":[]})
+                   "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi"})
         );
     }
 
@@ -564,7 +564,7 @@ mod tests {
             json!({"selection":[1],"targets":[1],"active_group":"I",
                    "attribute_groups": no_values(true),
                    "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false}],
-                   "in_programmer":[]})
+                   "in_programmer":[],"colour_model":"Hsi"})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(&e));

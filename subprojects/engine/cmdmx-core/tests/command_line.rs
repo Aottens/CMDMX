@@ -7,6 +7,7 @@ mod common;
 
 use cmdmx_core::engine::Engine;
 use cmdmx_core::patch::FixtureId;
+use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
 use common::{church, select};
 
@@ -107,7 +108,7 @@ fn prg_09_at_sets_intensity_of_the_expression() {
     run(&mut e, "221 Thro 226 @ 40 Enter").unwrap();
     assert_eq!(selection(&e), vec![221, 222, 223, 224, 225, 226]);
     for id in 221..=226 {
-        assert_eq!(e.programmer().value(id, "Dimmer"), Some(0.4));
+        assert_eq!(e.programmer().value(id, "Dimmer"), Some(Value::Level(0.4)));
     }
     assert!(!e.programmer().in_programmer(201));
 }
@@ -118,7 +119,7 @@ fn prg_09_at_alone_uses_the_targets() {
     select(&mut e, &[101, 102, 103]);
     e.next_fixture(); // sub-selection: 101
     run(&mut e, "@ 50 Enter").unwrap();
-    assert_eq!(e.programmer().value(101, "Dimmer"), Some(0.5));
+    assert_eq!(e.programmer().value(101, "Dimmer"), Some(Value::Level(0.5)));
     assert!(!e.programmer().in_programmer(102));
     assert_eq!(selection(&e), vec![101, 102, 103]);
 }
@@ -127,9 +128,9 @@ fn prg_09_at_alone_uses_the_targets() {
 fn prg_09_level_is_clamped() {
     let mut e = church();
     run(&mut e, "301 @ 150 Enter").unwrap();
-    assert_eq!(e.programmer().value(301, "Dimmer"), Some(1.0));
+    assert_eq!(e.programmer().value(301, "Dimmer"), Some(Value::Level(1.0)));
     run(&mut e, "302 @ 0 Enter").unwrap();
-    assert_eq!(e.programmer().value(302, "Dimmer"), Some(0.0));
+    assert_eq!(e.programmer().value(302, "Dimmer"), Some(Value::Level(0.0)));
 }
 
 #[test]

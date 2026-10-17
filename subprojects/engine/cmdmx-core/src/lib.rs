@@ -6,6 +6,8 @@
 //! Module map (phase 1):
 //! - [`attribute`]  attribute groups (I P C G B E S FX) and HTP/LTP kind
 //! - [`profile`]    fixture profiles with modes (own model, importers later — ADR-006, `specs/modules/fixture-library.md`)
+//! - [`colour`]     colour as one value: target RGB, HSI/RGB/CMY wheel views (ADR-005)
+//! - [`value`]      what an attribute holds: a level or a colour
 //! - [`patch`]      fixtures on universes/addresses
 //! - [`playback`]   playbacks: priority, fader mode, values, runtime level
 //! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
@@ -14,6 +16,7 @@
 //! - [`scenario`]   JSON scenario format used by `tests/scenarios/*.json`
 
 pub mod attribute;
+pub mod colour;
 pub mod command;
 pub mod engine;
 pub mod patch;
@@ -21,6 +24,7 @@ pub mod playback;
 pub mod profile;
 pub mod programmer;
 pub mod scenario;
+pub mod value;
 
 /// Seconds on the caller's clock. Never read from the system clock inside core.
 pub type Timestamp = f64;
@@ -53,6 +57,8 @@ pub enum CoreError {
     },
     #[error("invalid value {0} (expected 0.0..=1.0)")]
     InvalidLevel(f32),
+    #[error("fixture {fixture} attribute '{attribute}' takes a different kind of value")]
+    WrongValueKind { fixture: u32, attribute: String },
     #[error("unknown group id {0}")]
     UnknownGroup(u32),
     #[error("fixture {fixture} has no attribute '{attribute}'")]

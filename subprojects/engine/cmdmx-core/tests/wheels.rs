@@ -12,6 +12,7 @@ use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::playback::{FaderMode, Playback, Priority, Values};
 use cmdmx_core::programmer::Resolution;
+use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
 use common::{church, dmx, select};
 
@@ -20,7 +21,9 @@ use AttributeGroup::*;
 fn values(entries: &[(u32, &str, f32)]) -> Values {
     let mut v: Values = BTreeMap::new();
     for &(id, attr, val) in entries {
-        v.entry(id).or_default().insert(attr.to_string(), val);
+        v.entry(id)
+            .or_default()
+            .insert(attr.to_string(), val.into());
     }
     v
 }
@@ -140,12 +143,12 @@ fn prg_19_wheel_is_relative_and_clamps_per_fixture() {
     e.clear_selection();
     select(&mut e, &[201, 202]);
     e.turn_wheel("Dimmer", 10, Resolution::Coarse).unwrap();
-    let v201 = e.programmer().value(201, "Dimmer").unwrap();
+    let v201 = e.programmer().value(201, "Dimmer").unwrap().level();
     assert!((v201 - 0.6).abs() < 1e-5, "{v201}");
-    assert_eq!(e.programmer().value(202, "Dimmer"), Some(1.0));
+    assert_eq!(e.programmer().value(202, "Dimmer"), Some(Value::Level(1.0)));
     e.turn_wheel("Dimmer", -100, Resolution::Coarse).unwrap();
-    assert_eq!(e.programmer().value(201, "Dimmer"), Some(0.0));
-    assert_eq!(e.programmer().value(202, "Dimmer"), Some(0.0));
+    assert_eq!(e.programmer().value(201, "Dimmer"), Some(Value::Level(0.0)));
+    assert_eq!(e.programmer().value(202, "Dimmer"), Some(Value::Level(0.0)));
 }
 
 #[test]
@@ -175,7 +178,7 @@ fn prg_20_first_touch_starts_from_the_current_output_value() {
     e.tick(0.1);
     select(&mut e, &[201]);
     e.turn_wheel("Dimmer", 1, Resolution::Normal).unwrap();
-    let v = e.programmer().value(201, "Dimmer").unwrap();
+    let v = e.programmer().value(201, "Dimmer").unwrap().level();
     assert!((v - (0.6 + 1.0 / 255.0)).abs() < 1e-5, "{v}");
 }
 
@@ -184,7 +187,7 @@ fn prg_20_untouched_attribute_without_a_source_starts_from_zero() {
     let mut e = church();
     select(&mut e, &[101]);
     e.turn_wheel("Zoom", 1, Resolution::Coarse).unwrap();
-    let v = e.programmer().value(101, "Zoom").unwrap();
+    let v = e.programmer().value(101, "Zoom").unwrap().level();
     assert!((v - 0.04).abs() < 1e-5, "{v}");
 }
 
@@ -198,7 +201,7 @@ fn prg_21_step_sizes_per_resolution() {
     e.tick(0.1);
     assert_eq!(dmx(&e, 21), 1, "one Normal step is one 8-bit DMX step");
     e.turn_wheel("Dimmer", 1, Resolution::Coarse).unwrap();
-    let v = e.programmer().value(201, "Dimmer").unwrap();
+    let v = e.programmer().value(201, "Dimmer").unwrap().level();
     assert!((v - (1.0 / 255.0 + 0.04)).abs() < 1e-5, "{v}");
 }
 

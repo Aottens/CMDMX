@@ -3,14 +3,21 @@
 //! A profile is one fixture type with one or more modes; a mode is one channel layout.
 //! Importers (QLC+, channel list) produce this model, so the engine never sees a foreign
 //! format. A fixture is patched in one mode; everything the engine reads comes from it.
-//! Cells and the colour mixing system are model-only here: the engine does not output them yet.
+//! A mode's *logical* attributes ([`Mode::logical_attributes`]) are what the programmer sees.
 
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::attribute::{AttributeDef, AttributeGroup};
+use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
+pub use crate::colour::TargetColour;
+use crate::value::Value;
 use crate::CoreError;
+
+/// Name of the intensity attribute, real or virtual (LIB-04).
+pub const DIMMER: &str = "Dimmer";
+/// Name of the one value that drives every colour mixing channel (ADR-005).
+pub const COLOUR: &str = "Colour";
 
 /// Name of the mode of a profile built from a bare attribute list.
 const DEFAULT_MODE: &str = "default";
@@ -111,12 +118,41 @@ pub struct Component {
     pub fine_channel: Option<u16>,
 }
 
-/// A colour a wheel slot or macro shows, as linear 0.0..=1.0 RGB (ADR-005).
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct TargetColour {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
+impl Component {
+    /// Coarse and optional fine DMX bytes of a 0.0..=1.0 component value.
+    pub(crate) fn to_dmx(self, value: f32) -> (u8, Option<u8>) {
+        crate::attribute::split_dmx(value, self.fine_channel.is_some())
+    }
+}
+
+/// An attribute as the programmer, wheels and merge see it: a profile attribute, the
+/// virtual Dimmer, or Colour standing for all of a mode's mixing channels.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LogicalAttribute<'a> {
+    pub name: &'a str,
+    pub group: AttributeGroup,
+    pub kind: AttributeKind,
+    pub emitter: bool,
+    pub sixteen_bit: bool,
+    /// What it outputs until a source proposes something; its variant is the value kind.
+    pub default: Value,
+}
+
+impl<'a> LogicalAttribute<'a> {
+    fn from_def(a: &'a AttributeDef) -> Self {
+        LogicalAttribute {
+            name: &a.name,
+            group: a.group,
+            kind: a.kind,
+            emitter: a.emitter,
+            sixteen_bit: a.fine_channel.is_some(),
+            default: Value::Level(a.default),
+        }
+    }
+
+    pub fn is_colour(&self) -> bool {
+        matches!(self.default, Value::Colour(_))
+    }
 }
 
 /// A named DMX value range of an attribute (a wheel slot or a macro).
@@ -198,9 +234,88 @@ impl Profile {
     }
 }
 
+impl Cell {
+    pub fn attribute(&self, name: &str) -> Option<&AttributeDef> {
+        self.attributes.iter().find(|a| a.name == name)
+    }
+}
+
 impl Mode {
     pub fn attribute(&self, name: &str) -> Option<&AttributeDef> {
         self.attributes.iter().find(|a| a.name == name)
+    }
+
+    /// True when Dimmer is a virtual attribute: no dimmer channel, colour is scaled instead (LIB-04).
+    pub fn has_virtual_dimmer(&self) -> bool {
+        self.virtual_dimmer && self.attribute(DIMMER).is_none()
+    }
+
+    /// The mode or any cell mixes colour (ADR-005).
+    pub fn has_colour(&self) -> bool {
+        self.colour.is_some() || self.cells.iter().any(|c| c.colour.is_some())
+    }
+
+    /// The attributes the programmer sees, in order: the virtual Dimmer, Colour, the
+    /// mode's own attributes, then cell attribute names not already present (LIB-04, LIB-07).
+    pub fn logical_attributes(&self) -> impl Iterator<Item = LogicalAttribute<'_>> {
+        let (virtual_dimmer, colour) = (self.has_virtual_dimmer(), self.has_colour());
+        let dimmer = virtual_dimmer.then_some(LogicalAttribute {
+            name: DIMMER,
+            group: AttributeGroup::I,
+            kind: AttributeKind::Htp,
+            emitter: false,
+            sixteen_bit: false,
+            default: Value::Level(0.0),
+        });
+        let colour_attr = colour.then_some(LogicalAttribute {
+            name: COLOUR,
+            group: AttributeGroup::C,
+            kind: AttributeKind::Ltp,
+            emitter: false,
+            sixteen_bit: false,
+            default: Value::Colour(TargetColour::WHITE),
+        });
+        let taken =
+            move |name: &str| (virtual_dimmer && name == DIMMER) || (colour && name == COLOUR);
+        let own = self
+            .attributes
+            .iter()
+            .filter(move |a| !taken(&a.name))
+            .map(LogicalAttribute::from_def);
+        let cells = self
+            .cells
+            .iter()
+            .enumerate()
+            .flat_map(|(ci, c)| {
+                c.attributes
+                    .iter()
+                    .enumerate()
+                    .map(move |(ai, a)| (ci, ai, a))
+            })
+            .filter(move |&(ci, ai, a)| {
+                let same = |x: &AttributeDef| x.name == a.name;
+                !taken(&a.name)
+                    && !self.attributes.iter().any(same)
+                    && !self
+                        .cells
+                        .iter()
+                        .take(ci)
+                        .any(|c| c.attributes.iter().any(same))
+                    && !self
+                        .cells
+                        .get(ci)
+                        .is_some_and(|c| c.attributes.iter().take(ai).any(same))
+            })
+            .map(|(_, _, a)| LogicalAttribute::from_def(a));
+        dimmer
+            .into_iter()
+            .chain(colour_attr)
+            .chain(own)
+            .chain(cells)
+    }
+
+    pub fn logical(&self, name: &str) -> Option<LogicalAttribute<'_>> {
+        self.logical_attributes().find(|l| l.name == name)
     }
 
     /// Extra emitters (LIB-17): found by flag, never by name, in profile order.

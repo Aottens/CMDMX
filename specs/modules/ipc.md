@@ -37,12 +37,12 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   fixture, sorted by id), `"groups":[{"id":2,"fixtures":[101,102,103,104]}]` (sorted by id, members
   in group order) and `"programmer":{…}` (IPC-11).
 - **IPC-11** The programmer state object:
-  `{"selection":[203,201],"targets":[203],"active_group":"P","attribute_groups":[{"group":"I","available":true,"has_values":false},…],"wheels":[{"attribute":"Pan","value":0.5,"touched":true,"sixteen_bit":true}],"in_programmer":[201,203]}`.
+  `{"selection":[203,201],"targets":[203],"active_group":"P","attribute_groups":[{"group":"I","available":true,"has_values":false},…],"wheels":[{"attribute":"Pan","value":0.5,"touched":true,"sixteen_bit":true}],"in_programmer":[201,203],"colour_model":"Hsi"}`.
   `attribute_groups` has eight entries in I P C G B E S FX order: `available` = some target has an
   attribute in that group, `has_values` = some target has a programmer value in it. `wheels` is
   the wheel layout (PRG-17) with, per attribute, the value of the first target that has it
   (programmer value if touched, else the current output, PRG-20), whether that value is
-  touched, and whether that attribute is 16-bit in its profile (has a fine channel). `in_programmer` lists fixtures with programmer values, sorted.
+  touched, and whether that attribute is 16-bit in its profile (has a fine channel). `in_programmer` lists fixtures with programmer values, sorted. `colour_model` (`Hsi`/`Rgb`/`Cmy`, PRG-30) says which wheels Colour shows as (added with VS2-06; Hue and Saturation values are 0.0–1.0, Hue as a fraction of 360°).
 - **IPC-12** Deltas: `{"v":0,"type":"programmer",…IPC-11 fields}` to every client after a tick in
   which any of those fields changed, and `{"v":0,"type":"groups","groups":[…]}` after a tick in
   which a group was recorded. At most one of each per tick.

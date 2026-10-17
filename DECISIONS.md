@@ -5,6 +5,12 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Colour defaults to open white; the virtual dimmer also scales emitters (owner)
+**Decision:** The `Colour` attribute defaults to open white (1, 1, 1), so a fixture brought up on its dimmer alone shows white (LIB-03). On a mode without a dimmer channel the virtual Dimmer (Grand Master included) scales every colour channel **and** every emitter (LIB-04). Hue/Saturation are HSV of the target colour and keep max(r, g, b) (PRG-30). Colour in the app is its own task (VS2-14).
+**Alternatives:** black as the default colour (dimmer up shows nothing until a colour is picked); scaling only RGB (a Grand Master blackout would leave Lime/White burning on virtual-dimmer pars).
+**Why:** no "I see nothing" surprise on LED fixtures; a blackout must darken everything.
+**Reversal trigger:** an operator finds white-at-dimmer-up gets in the way of programming (then make the default a profile/show setting).
+
 ## 2026-10-17 — Extra emitters are recognised by a flag, not by name (LIB-17, owner)
 **Decision:** Every profile attribute carries an `emitter` flag; the engine treats an attribute as an extra emitter (direct wheel PRG-34, ADR-005 palette zeroing, defaults) only by that flag, so any number of emitters with any name works (Amber, Warm/Cold White, UV, Royal Blue, …). Duplicate names take the channel name on import; C/M/Y next to RGB are emitters, CTO/CTB are not.
 **Alternatives:** a fixed list of emitter names (breaks on Warm/Cold White, which QLC+ has no preset for, and on unknown LED colours).

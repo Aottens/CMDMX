@@ -239,8 +239,8 @@ fn lib_01_fixture_uses_its_patched_mode() {
         priority: Priority::Normal,
         fader_mode: FaderMode::Mode0,
         values: BTreeMap::from([
-            (1, BTreeMap::from([("Dimmer".to_string(), 1.0)])),
-            (2, BTreeMap::from([("Dimmer".to_string(), 1.0)])),
+            (1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])),
+            (2, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])),
         ]),
     });
     e.set_fader(1, 1.0, 0.0).unwrap();
@@ -431,7 +431,7 @@ fn lib_03_released_ltp_holds_its_last_value_not_the_default() {
         id: 1,
         priority: Priority::Normal,
         fader_mode: FaderMode::Mode0,
-        values: BTreeMap::from([(1, BTreeMap::from([("Pan".to_string(), 1.0)]))]),
+        values: BTreeMap::from([(1, BTreeMap::from([("Pan".to_string(), 1.0.into())]))]),
     });
     e.set_fader(1, 1.0, 0.0).unwrap();
     e.tick(0.0);
