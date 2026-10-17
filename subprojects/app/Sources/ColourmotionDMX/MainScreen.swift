@@ -54,7 +54,7 @@ private struct Frame: View {
                         SideColumn(showKeypad: keypad && geo.size.width >= 1440)
                     }
                     HLine()
-                    AttributeBar().frame(height: 64)
+                    AttributeBar().frame(height: 96)
                 }
                 HLine()
                 PlaybackArea().frame(height: 232)

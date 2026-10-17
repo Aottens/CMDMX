@@ -70,7 +70,8 @@ struct PanelWindow<Accessory: View, Content: View>: View {
 
 // MARK: - Attribute bar (UI-20, IPC-16, IPC-17, IPC-19)
 
-/// 64 pt zone: tabs, colour model + wheels, command line, programmer summary with Undo and Clear.
+/// 96 pt zone in two rows: tabs, colour model and wheels (64 pt); command line, message, interim
+/// buttons and programmer summary (32 pt).
 struct AttributeBar: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
@@ -78,22 +79,18 @@ struct AttributeBar: View {
 
     var body: some View {
         let programmer = engine.programmer
-        let dirty = !programmer.selection.isEmpty || !programmer.inProgrammer.isEmpty
-        let touchedGroups = programmer.attributeGroups.filter(\.hasValues).map(\.group).joined(separator: " ")
-
-        // UI-20: everything but the command line is fixed width; the wheels drop from 168 to 124 pt
-        // when more than three, or when 168 pt does not fit next to the other zones.
-        // ponytail: 4+ wheels on the C tab need ~1360 pt (est.), so a 1280 pt window still clips; no narrower fallback yet.
-        ViewThatFits(in: .horizontal) {
-            if programmer.wheels.count <= 3 { bar(programmer, dirty: dirty, touchedGroups: touchedGroups, wheelWidth: 168) }
-            bar(programmer, dirty: dirty, touchedGroups: touchedGroups, wheelWidth: 124)
+        VStack(spacing: 0) {
+            wheelsRow(programmer).frame(height: 64)
+            commandRow(programmer).frame(height: 32)
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
     }
 
-    private func bar(_ programmer: ProgrammerState, dirty: Bool, touchedGroups: String, wheelWidth: CGFloat) -> some View {
+    /// UI-20 row 1. The wheels share what the tabs and the colour switch leave: 168 pt each when
+    /// there is room, down to 110 pt (eight fit at the 1280 pt minimum window).
+    private func wheelsRow(_ programmer: ProgrammerState) -> some View {
         HStack(spacing: 10) {
             HStack(spacing: 2) {
                 ForEach(programmer.attributeGroups) { tab in
@@ -104,63 +101,6 @@ struct AttributeBar: View {
             }
             .fixedSize()
 
-            wheelRow(programmer, width: wheelWidth).fixedSize()
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    Text("›").font(Typo.mono(13)).foregroundStyle(t.fg3)
-                    // Still a text field; the token command line comes with UX-02c (UI-19).
-                    TextField("Command, e.g. 201 Thro 205 @ 50", text: $command)
-                        .textFieldStyle(.plain)
-                        .font(Typo.mono(13))
-                        .foregroundStyle(t.fg)
-                        .onSubmit {
-                            let words = command.split(whereSeparator: \.isWhitespace).map(String.init)
-                            if !words.isEmpty { engine.command(words: words) }
-                            command = ""
-                        }
-                }
-                .padding(.horizontal, 8).frame(height: 26)
-                .background(RoundedRectangle(cornerRadius: radius).fill(t.field))
-                .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
-                // Only warnings and errors land here (IPC-17).
-                Text(engine.lastMessage ?? " ").font(Typo.ui(11)).foregroundStyle(t.amber).lineLimit(1)
-            }
-            .frame(minWidth: 140, idealWidth: 140, maxWidth: .infinity)
-
-            // Until UX-02c moves them to the keypad and softkeys.
-            VStack(spacing: 3) {
-                HStack(spacing: 3) {
-                    Button("Fix −1") { engine.step(-1) }
-                    Button("Fix +1") { engine.step(1) }
-                }
-                HStack(spacing: 3) {
-                    Button("Odd/Even") { engine.pattern(2) }
-                    Button("All") { engine.selectAll() }
-                }
-            }
-            .buttonStyle(FlatButton(compact: true))
-            .fixedSize()
-
-            HStack(spacing: 4) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(!programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
-                        .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
-                    Text("programmer").font(Typo.mono(11)).foregroundStyle(t.fg2)
-                }
-                .lineLimit(1)
-                .padding(.horizontal, 8).frame(minWidth: 108, alignment: .leading)
-                Button("Undo") {}.disabled(true).help("Undo · P1-10")
-                Button("Clear") { engine.clearProgrammer() }.buttonStyle(ZoneKeyStyle(ring: dirty))
-            }
-            .buttonStyle(ZoneKeyStyle(ring: false))
-            .fixedSize()
-        }
-    }
-
-    /// The colour model switch (C tab only), then the wheels; at least three slots like the encoders.
-    private func wheelRow(_ programmer: ProgrammerState, width: CGFloat) -> some View {
-        HStack(spacing: 6) {
             if programmer.activeGroup == "C" {
                 // IPC-19: wire values are the engine's ColourModel names.
                 VStack(spacing: 2) {
@@ -169,14 +109,73 @@ struct AttributeBar: View {
                             .buttonStyle(ModeButton(on: programmer.colourModel == model))
                     }
                 }
+                .fixedSize()
             }
-            ForEach(Array(programmer.wheels.enumerated()), id: \.element.id) { index, wheel in
-                WheelView(wheel: wheel, slot: index + 1, width: width)
+
+            GeometryReader { geo in
+                // At least three slots like the encoders.
+                let slots = max(3, programmer.wheels.count)
+                let width = min(168, max(110, (geo.size.width - 6 * CGFloat(slots - 1)) / CGFloat(slots)))
+                HStack(spacing: 6) {
+                    ForEach(Array(programmer.wheels.enumerated()), id: \.element.id) { index, wheel in
+                        WheelView(wheel: wheel, slot: index + 1, width: width)
+                    }
+                    ForEach(programmer.wheels.count..<slots, id: \.self) { index in
+                        WheelFace(name: programmer.selection.isEmpty ? "select fixtures" : "", slot: index + 1,
+                                  text: "—", value: nil, touched: false, width: width)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
-            ForEach(programmer.wheels.count..<max(3, programmer.wheels.count), id: \.self) { index in
-                WheelFace(name: programmer.selection.isEmpty ? "select fixtures" : "", slot: index + 1,
-                          text: "—", value: nil, touched: false, width: width)
+        }
+    }
+
+    /// UI-20 row 2.
+    private func commandRow(_ programmer: ProgrammerState) -> some View {
+        let dirty = !programmer.selection.isEmpty || !programmer.inProgrammer.isEmpty
+        let touchedGroups = programmer.attributeGroups.filter(\.hasValues).map(\.group).joined(separator: " ")
+        return HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Text("›").font(Typo.mono(13)).foregroundStyle(t.fg3)
+                // Still a text field; the token command line comes with UX-02c (UI-19).
+                TextField("Command, e.g. 201 Thro 205 @ 50", text: $command)
+                    .textFieldStyle(.plain)
+                    .font(Typo.mono(13))
+                    .foregroundStyle(t.fg)
+                    .onSubmit {
+                        let words = command.split(whereSeparator: \.isWhitespace).map(String.init)
+                        if !words.isEmpty { engine.command(words: words) }
+                        command = ""
+                    }
             }
+            .padding(.horizontal, 8).frame(height: 26)
+            .frame(minWidth: 200, maxWidth: .infinity)
+            .background(RoundedRectangle(cornerRadius: radius).fill(t.field))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+
+            // Only warnings and errors land here (IPC-17).
+            Text(engine.lastMessage ?? " ").font(Typo.ui(11)).foregroundStyle(t.amber).lineLimit(1)
+                .truncationMode(.tail).frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+
+            // Until UX-02c moves them to the keypad and softkeys.
+            HStack(spacing: 3) {
+                Button("Fix −1") { engine.step(-1) }
+                Button("Fix +1") { engine.step(1) }
+                Button("Odd/Even") { engine.pattern(2) }
+                Button("All") { engine.selectAll() }
+            }
+            .buttonStyle(FlatButton(compact: true))
+            .fixedSize()
+
+            HStack(spacing: 4) {
+                Text(!programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
+                    .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
+                    .lineLimit(1).padding(.horizontal, 8).frame(minWidth: 90, alignment: .leading)
+                Button("Undo") {}.disabled(true).help("Undo · P1-10")
+                Button("Clear") { engine.clearProgrammer() }.buttonStyle(ZoneKeyStyle(ring: dirty))
+            }
+            .buttonStyle(ZoneKeyStyle(ring: false))
+            .fixedSize()
         }
     }
 }
@@ -222,7 +221,7 @@ private struct ModeButton: ButtonStyle {
     }
 }
 
-/// Undo and Clear: 60 x 46 pt; the red ring means there is something to clear.
+/// Undo and Clear: 52 x 26 pt; the red ring means there is something to clear.
 private struct ZoneKeyStyle: ButtonStyle {
     @Environment(\.theme) private var t
     @Environment(\.isEnabled) private var enabled
@@ -233,7 +232,7 @@ private struct ZoneKeyStyle: ButtonStyle {
         configuration.label
             .font(Typo.legend(12, .medium))
             .foregroundStyle(down ? t.bg : ring ? t.red : t.fg)
-            .frame(width: 60, height: 46)
+            .frame(width: 52, height: 26)
             .background(RoundedRectangle(cornerRadius: radius).fill(down ? t.fg : t.surf))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ring ? t.red : t.line, lineWidth: ring ? 2 : hairline))
             .opacity(enabled ? 1 : 0.3)

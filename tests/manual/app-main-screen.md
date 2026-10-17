@@ -63,9 +63,11 @@ Setup: daemon `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`;
 ## UX-02b — attribute bar, Programmer window, colour picker
 
 ### Attribute bar (UI-20)
-- [ ] Left to right as in the sketch: eight IPCGBES FX tabs (30 pt wide, group-hue underline),
-      the HSI/RGB/CMY switch on the C tab, the wheels, the command line with its message zone,
-      the programmer summary with Undo (disabled) and Clear
+- [ ] Two rows. Row 1: eight IPCGBES FX tabs (30 pt wide, group-hue underline), the HSI/RGB/CMY
+      switch on the C tab, the wheels. Row 2: the command line with its message zone, the
+      programmer summary with Undo (disabled) and Clear
+- [ ] Select group 3, C tab (Hue, Saturation, White, Lime): no wheel is cut off, also in a
+      1280 pt wide window (Console off, make it as small as it goes)
 - [ ] Select 101: tabs I, P, C, B available, the rest greyed; the active tab is inverted; turn
       Dimmer: a red dot on the I tab
 - [ ] Wheels look like rolling encoders: uppercase name, "enc 1/2/3", the value in large
