@@ -81,6 +81,19 @@ struct AttributeBar: View {
         let dirty = !programmer.selection.isEmpty || !programmer.inProgrammer.isEmpty
         let touchedGroups = programmer.attributeGroups.filter(\.hasValues).map(\.group).joined(separator: " ")
 
+        // UI-20: everything but the command line is fixed width; the wheels drop from 168 to 124 pt
+        // when more than three, or when 168 pt does not fit next to the other zones.
+        // ponytail: 4+ wheels on the C tab need ~1360 pt (est.), so a 1280 pt window still clips; no narrower fallback yet.
+        ViewThatFits(in: .horizontal) {
+            if programmer.wheels.count <= 3 { bar(programmer, dirty: dirty, touchedGroups: touchedGroups, wheelWidth: 168) }
+            bar(programmer, dirty: dirty, touchedGroups: touchedGroups, wheelWidth: 124)
+        }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(t.bg)
+    }
+
+    private func bar(_ programmer: ProgrammerState, dirty: Bool, touchedGroups: String, wheelWidth: CGFloat) -> some View {
         HStack(spacing: 10) {
             HStack(spacing: 2) {
                 ForEach(programmer.attributeGroups) { tab in
@@ -89,11 +102,9 @@ struct AttributeBar: View {
                     }
                 }
             }
+            .fixedSize()
 
-            ViewThatFits(in: .horizontal) {
-                wheelRow(programmer)
-                ScrollView(.horizontal, showsIndicators: false) { wheelRow(programmer) }
-            }
+            wheelRow(programmer, width: wheelWidth).fixedSize()
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
@@ -115,7 +126,7 @@ struct AttributeBar: View {
                 // Only warnings and errors land here (IPC-17).
                 Text(engine.lastMessage ?? " ").font(Typo.ui(11)).foregroundStyle(t.amber).lineLimit(1)
             }
-            .frame(minWidth: 140, maxWidth: .infinity)
+            .frame(minWidth: 140, idealWidth: 140, maxWidth: .infinity)
 
             // Until UX-02c moves them to the keypad and softkeys.
             VStack(spacing: 3) {
@@ -129,6 +140,7 @@ struct AttributeBar: View {
                 }
             }
             .buttonStyle(FlatButton(compact: true))
+            .fixedSize()
 
             HStack(spacing: 4) {
                 VStack(alignment: .leading, spacing: 0) {
@@ -142,16 +154,13 @@ struct AttributeBar: View {
                 Button("Clear") { engine.clearProgrammer() }.buttonStyle(ZoneKeyStyle(ring: dirty))
             }
             .buttonStyle(ZoneKeyStyle(ring: false))
+            .fixedSize()
         }
-        .padding(.horizontal, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(t.bg)
     }
 
     /// The colour model switch (C tab only), then the wheels; at least three slots like the encoders.
-    private func wheelRow(_ programmer: ProgrammerState) -> some View {
-        let width: CGFloat = programmer.wheels.count > 3 ? 124 : 168
-        return HStack(spacing: 6) {
+    private func wheelRow(_ programmer: ProgrammerState, width: CGFloat) -> some View {
+        HStack(spacing: 6) {
             if programmer.activeGroup == "C" {
                 // IPC-19: wire values are the engine's ColourModel names.
                 VStack(spacing: 2) {
