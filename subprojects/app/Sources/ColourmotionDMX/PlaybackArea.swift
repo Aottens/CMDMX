@@ -57,7 +57,8 @@ private struct StripsRow: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 2) {
                 ForEach(engine.slots) { slot in
-                    FaderStrip(slot: slot) { engine.setFader(index: slot.id, level: $0) }
+                    FaderStrip(slot: slot, onChange: { engine.setFader(index: slot.id, level: $0) },
+                              onTouch: { engine.touchFader(index: slot.id, held: $0) })
                 }
             }
             .padding(4)
@@ -70,6 +71,7 @@ private struct FaderStrip: View {
     @Environment(\.theme) private var t
     let slot: PlaybackSlot
     let onChange: (Double) -> Void
+    let onTouch: (Bool) -> Void
 
     var body: some View {
         VStack(spacing: 2) {
@@ -77,7 +79,7 @@ private struct FaderStrip: View {
                 .padding(.horizontal, 5).padding(.top, 6)
                 .frame(maxWidth: .infinity, maxHeight: 44, alignment: .topLeading)
                 .background(t.bg)
-            LevelBar(value: Binding(get: { slot.level }, set: onChange), running: slot.isActive)
+            LevelBar(value: Binding(get: { slot.level }, set: onChange), running: slot.isActive, onTouch: onTouch)
             ForEach(["Swop", "Flash"], id: \.self) { name in
                 Text(name.uppercased()).font(Typo.legend(11)).tracking(0.7).foregroundStyle(t.fg)
                     .frame(maxWidth: .infinity).frame(height: 24)
@@ -104,6 +106,9 @@ private struct LevelBar: View {
     var running = false
     /// Grand Master turns amber below 100 % (UI-24).
     var warnBelowFull = false
+    /// UI-22 / IPC-05: true on the first drag event, false on release (motor-fader touch).
+    var onTouch: (Bool) -> Void = { _ in }
+    @State private var touching = false
 
     var body: some View {
         GeometryReader { geo in
@@ -119,9 +124,12 @@ private struct LevelBar: View {
             }
             .contentShape(Rectangle())
             .gesture(
-                DragGesture(minimumDistance: 0).onChanged { drag in
-                    value = height > 0 ? (1 - drag.location.y / height).clamped01 : value
-                }
+                DragGesture(minimumDistance: 0)
+                    .onChanged { drag in
+                        if !touching { touching = true; onTouch(true) }
+                        value = height > 0 ? (1 - drag.location.y / height).clamped01 : value
+                    }
+                    .onEnded { _ in touching = false; onTouch(false) }
             )
         }
         .clipped()
@@ -167,7 +175,8 @@ private struct GrandMaster: View {
     var body: some View {
         VStack(spacing: 3) {
             Text("GM").font(Typo.legend(11)).foregroundStyle(t.fg2).frame(height: 18)
-            LevelBar(value: Binding(get: { engine.grandMaster }, set: { engine.setGrandMaster($0) }), warnBelowFull: true)
+            LevelBar(value: Binding(get: { engine.grandMaster }, set: { engine.setGrandMaster($0) }), warnBelowFull: true,
+                     onTouch: { engine.touchGrandMaster(held: $0) })
             KeyButton(label: "DBO", spec: "Dead black out · P1-04", height: 30)
         }
         .padding(4)

@@ -55,5 +55,7 @@ Setup: daemon `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`;
 ### Disabled zones (UX-02c/d fill them)
 - [ ] The side column, attribute bar and playback area are there in the sketch's layout; what
       does not work yet is disabled and its tooltip names the spec it waits for
+- [ ] Drag a fader and the GM up and down quickly: the bar follows the pointer without lagging
+      or bouncing, and on release it stays where you let go (UI-22)
 - [ ] Nothing that worked before is lost: faders 1–8, GM, the attribute bar wheels and command
       line, Record + group still work (`tests/manual/app-programmer.md` spot checks)

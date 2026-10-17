@@ -205,6 +205,10 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - The first eight strips sit in a framed bank labelled "BCF2000 · faders 1–8", mirroring the
     hardware bank (research §5).
   - Scrolling over a strip moves its level (Option fine, Shift coarse).
+  - While the operator holds a fader or the GM, the engine's deltas for it do not move it. The
+    app keeps its own value, as a motor fader does while touched. On release the bar shows the
+    engine's latest value, so the engine stays authoritative (IPC-05). Amended 2026-10-17 after
+    the owner saw faders lag and bounce in the UX-02a run.
 - **UI-23 [now]** Go block (210 pt): the header, the "now" line and the big green-outlined GO
   button with Back / Stop / Release are drawn disabled with "Cue lists · P1-08". It is never
   covered by anything.
