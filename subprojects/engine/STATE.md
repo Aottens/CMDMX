@@ -3,7 +3,7 @@
 _Last updated: 2026-10-17_
 
 ## Current step
-VS2-14 (colour model over IPC, colour demo rig) in review; next VS2-09, VS2-10.
+VS2-14 done (owner run passed); next VS2-09, VS2-10.
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
