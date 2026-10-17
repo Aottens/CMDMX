@@ -5,7 +5,7 @@ Source: "Avolites Titan — analyse als basis voor eigen macOS DMX-console" (own
 ## Goal
 Program the building blocks of any show on a Mac, the Titan way: a robust programmer, palettes on a grid, cues recorded onto playbacks and into cue lists; then run them — as a cue list, as busking pages, or both — with Art-Net/sACN/USB-DMX out. Programming is the focus; running proves what was programmed.
 
-Design target (provisional, owner to confirm): 16 universes, 500 fixtures, 1000 cues per show.
+Finish line: a real Sunday morning service in the church run on ColourmotionDMX instead of Lightkey (`PROJECT.md`, reference venue). Baseline: the church rig, ~30 fixtures on one universe. Headroom target (provisional): 16 universes, 500 fixtures, 1000 cues per show.
 
 ## Non-goals (phase 1)
 Cue-list tracking, shapes, pixel mapper, timelines and timecode, media, visualiser, multi-console.

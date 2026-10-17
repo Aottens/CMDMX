@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Phase-1 finish line: replace Lightkey in the church
+
+**Decision:** Phase 1 is done when a real Sunday morning service in the church is programmed and run on ColourmotionDMX instead of Lightkey. Phase 1 is cut into milestones VS2 (programming), VS3 (running: cue list + busking), VS4 (the church).
+
+**Alternatives considered:** an abstract feature list as the end of phase 1.
+
+**Reasoning:** A real venue, rig and user keep the scope honest and force the hardware track to happen. The church is the owner's own playground, so what works there can move to other setups.
+
+**Reversal trigger:** the church rig stops being representative of the shows the owner wants to run.
+
 ## 2026-10-17 — Phase 1 is programming the building blocks of any show
 
 **Decision:** Phase 1 changes from "one evening of busking" to "program the building blocks of any show": a robust programmer at the core, palettes, cues on playbacks and in cue lists, and enough playback to run them. Cue-list tracking moves to phase 2; timelines (IDEA-05) to phase 3.

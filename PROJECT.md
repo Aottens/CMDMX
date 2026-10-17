@@ -26,6 +26,18 @@ them as cue lists, busking pages or (later) a timeline.
 - Phase 3+: timeline synced to Ableton/timecode (IDEA-05), pixel mapper, key frame shapes, set list, sACN input, visualiser
 - Ideas not yet placed: `IDEAS.md`
 
+## Reference venue: the church
+The owner built and rigged the church; it is the playground where ideas are tested before they
+go to other setups. **Phase-1 finish line: replace Lightkey (paid) there with ColourmotionDMX.**
+- Shows: mostly Sunday morning services — static looks, little movement; when a video plays the
+  front light must go out in one easy move. Sometimes bigger shows.
+- Rig (~30 fixtures): 4 moving-head washes with zoom (19×15 W), ~20 LED pars of mixed types
+  (RGBW, RGB+Lime, classic RGB), 6 single-channel theatre spots (dimmers).
+- Output: Eurolite USB-DMX512 PRO MK2 (kept at the church).
+- Consequences: mixed LED types make colour mapping per fixture type a phase-1 need (P1-07; full
+  calibration stays phase 2, IDEA-03); cheap pars often lack GDTF, so profiles from a plain channel
+  list are needed (P1-01).
+
 ## Out of scope (for this milestone)
 - Media server, Synergy/Ai, Capture visualiser, TitanNet multi-console, NDI
 - Windows/Linux UI (the engine is portable; the UI is macOS only)
