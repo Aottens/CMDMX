@@ -12,7 +12,8 @@
 //! The app talks to the daemon over WebSocket on `--ipc-port` (default 7319);
 //! `--demo` lets fader 1 breathe. The demo show (IPC-09, IPC-14) has eight dimmers on
 //! faders 1..8 plus the church rig (RGBW washes, RGBW, RGB+Lime and RGB pars, front spots)
-//! and its groups; the programmer travels over the same socket (IPC-10..13, IPC-18).
+//! and its groups; the programmer travels over the same socket (IPC-10..13, IPC-18), and so do the
+//! patch commands (PAT-09).
 //! The fixture library (LIB-12..14) is indexed on its own thread at start-up from `--qlcplus-dir`
 //! (default: the bundled `vendor/qlcplus/fixtures`) and `--profiles-dir` (default
 //! `~/Library/Application Support/ColourmotionDMX/profiles`); output never waits for it.
@@ -233,6 +234,23 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         RecordGroup { group } => engine.record_group(group),
         // Answered in the client thread; the tick never sees it (LIB-14).
         Library(_) => Ok(()),
+        PatchAdd { add, profile } => {
+            if let Some(p) = profile.filter(|_| !engine.has_profile(&add.profile)) {
+                // ponytail: a refused add leaves the installed profile unused in the show.
+                engine.add_profile(add.profile.clone(), p)?;
+            }
+            engine.patch_add(&add).map(drop)
+        }
+        PatchMove {
+            id,
+            universe,
+            address,
+        } => engine.patch_move(id, universe, address),
+        PatchRemove { ids } => engine.patch_remove(&ids),
+        PatchRenumber { id, number } => engine.patch_renumber(id, number),
+        PatchName { id, name } => engine.patch_name(id, &name),
+        PatchChangeMode { id, mode } => engine.patch_change_mode(id, &mode),
+        PatchHandle { id, handle } => engine.patch_handle(id, handle),
     }
 }
 
@@ -435,6 +453,7 @@ fn report(engine: &Engine) {
 mod tests {
     use super::*;
     use cmdmx_core::colour::ColourModel;
+    use cmdmx_core::patch::{Handle, PatchAdd};
     use cmdmx_core::programmer::Resolution;
 
     fn args(s: &str) -> impl Iterator<Item = String> + '_ {
@@ -638,6 +657,168 @@ mod tests {
         assert_eq!(
             (frame.channel(10), frame.channel(11)),
             (Some(255), Some(255))
+        );
+    }
+
+    fn add(
+        profile: &str,
+        mode: &str,
+        count: u32,
+        address: Option<u16>,
+        number: Option<u32>,
+    ) -> PatchAdd {
+        PatchAdd {
+            profile: profile.into(),
+            mode: Some(mode.into()),
+            count,
+            universe: 1,
+            address,
+            number,
+        }
+    }
+
+    /// PAT-01's example from a library profile (the client thread attached it, PAT-09).
+    #[test]
+    fn pat_09_patch_add_installs_a_library_profile_and_patches() {
+        let mut engine = demo_engine().unwrap();
+        let profile = Profile::from_json(RGB_PAR).unwrap();
+        let cmd = ipc::Command::PatchAdd {
+            add: add("Showtec/LED Par 56", "default", 6, Some(201), Some(1221)),
+            profile: Some(profile),
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        let placed: Vec<(u32, u16)> = engine
+            .fixtures()
+            .filter(|f| f.profile == "Showtec/LED Par 56")
+            .map(|f| (f.number, f.address))
+            .collect();
+        assert_eq!(
+            placed,
+            [
+                (1221, 201),
+                (1222, 207),
+                (1223, 213),
+                (1224, 219),
+                (1225, 225),
+                (1226, 231)
+            ]
+        );
+        // A second add reuses the show's copy; no profile needed. PAT-03: first free run.
+        let cmd = ipc::Command::PatchAdd {
+            add: add("Showtec/LED Par 56", "default", 1, None, None),
+            profile: None,
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert_eq!(engine.fixture_by_number(1227).unwrap().address, 151);
+    }
+
+    #[test]
+    fn pat_09_patch_add_keeps_the_shows_copy_of_a_known_profile() {
+        let mut engine = demo_engine().unwrap();
+        // A different profile under the demo's "rgbw" key must not replace the show's copy.
+        let cmd = ipc::Command::PatchAdd {
+            add: add("rgbw", "default", 1, None, Some(2001)),
+            profile: Some(Profile::from_json(RGB_PAR).unwrap()),
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert_eq!(engine.fixture(201).unwrap().address, 45);
+        let new = engine.fixture_by_number(2001).unwrap();
+        assert_eq!(
+            new.address, 151,
+            "first free run after the spots, RGBW footprint"
+        );
+        let next = ipc::Command::PatchAdd {
+            add: add("rgbw", "default", 1, None, None),
+            profile: None,
+        };
+        apply(&mut engine, next, 0.0).unwrap();
+        assert_eq!(
+            engine.fixture_by_number(2002).unwrap().address,
+            156,
+            "5 channels on"
+        );
+    }
+
+    #[test]
+    fn pat_09_refusals_are_errors_and_change_nothing() {
+        let mut engine = demo_engine().unwrap();
+        let before: Vec<_> = engine.fixtures().cloned().collect();
+        let unknown = ipc::Command::PatchAdd {
+            add: add("Nope/Nope", "default", 1, None, None),
+            profile: None,
+        };
+        assert_eq!(
+            apply(&mut engine, unknown, 0.0),
+            Err(CoreError::UnknownProfile("Nope/Nope".into()))
+        );
+        // PAT-02: 2 RGBW pars at 140 would overlap 226 at 140.
+        let clash = ipc::Command::PatchAdd {
+            add: add("rgbw", "default", 2, Some(140), Some(900)),
+            profile: None,
+        };
+        assert!(matches!(
+            apply(&mut engine, clash, 0.0),
+            Err(CoreError::PatchOverlap { .. })
+        ));
+        let after: Vec<_> = engine.fixtures().cloned().collect();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn pat_09_edit_commands_reach_the_engine() {
+        let mut engine = demo_engine().unwrap();
+        let mut run = |cmd| apply(&mut engine, cmd, 0.0).unwrap();
+        run(ipc::Command::PatchMove {
+            id: 301,
+            universe: 2,
+            address: 1,
+        });
+        run(ipc::Command::PatchRenumber {
+            id: 302,
+            number: 1302,
+        });
+        run(ipc::Command::PatchName {
+            id: 303,
+            name: "Pulpit".into(),
+        });
+        run(ipc::Command::PatchHandle {
+            id: 304,
+            handle: Handle { page: 3, slot: 7 },
+        });
+        run(ipc::Command::PatchRemove {
+            ids: vec![305, 306],
+        });
+        let f = |id| engine.fixture(id).cloned();
+        assert_eq!(f(301).map(|f| (f.universe, f.address)), Some((2, 1)));
+        assert_eq!(f(302).map(|f| f.number), Some(1302));
+        assert_eq!(f(303).map(|f| f.name), Some("Pulpit".to_string()));
+        assert_eq!(
+            f(304).and_then(|f| f.handle),
+            Some(Handle { page: 3, slot: 7 })
+        );
+        assert!(f(305).is_none() && f(306).is_none());
+        assert_eq!(engine.group(4), Some(&[301, 302, 303, 304][..]));
+    }
+
+    #[test]
+    fn pat_09_change_mode_reaches_the_engine() {
+        let mut engine = demo_engine().unwrap();
+        let cmd = ipc::Command::PatchChangeMode {
+            id: 201,
+            mode: "Nope".into(),
+        };
+        assert!(matches!(
+            apply(&mut engine, cmd, 0.0),
+            Err(CoreError::UnknownMode { .. })
+        ));
+        let cmd = ipc::Command::PatchChangeMode {
+            id: 201,
+            mode: "default".into(),
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert_eq!(
+            engine.fixture(201).unwrap().mode.as_deref(),
+            Some("default")
         );
     }
 

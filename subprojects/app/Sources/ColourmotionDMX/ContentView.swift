@@ -4,25 +4,55 @@ import SwiftUI
 /// Everything shown comes from `EngineClient`; nothing is computed here.
 struct ContentView: View {
     @EnvironmentObject private var engine: EngineClient
+    @State private var workspace = Workspace.program
+
+    enum Workspace { case program, patch }
 
     var body: some View {
         VStack(spacing: 0) {
             if engine.connection != .online {
                 OfflineBanner(state: engine.connection)
             }
-            HStack(spacing: 8) {
-                FixturesWindow()
-                GroupsWindow().frame(width: 280)
+            HStack(spacing: 0) {
+                WorkspaceRail(selection: $workspace)
+                Divider()
+                if workspace == .patch {
+                    PatchView()
+                } else {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 8) {
+                            FixturesWindow()
+                            GroupsWindow().frame(width: 280)
+                        }
+                        .padding(8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        Divider()
+                        AttributeBar()
+                        Divider()
+                        FaderRow()
+                            .frame(height: 260)
+                    }
+                }
             }
-            .padding(8)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Divider()
-            AttributeBar()
-            Divider()
-            FaderRow()
-                .frame(height: 260)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+/// Narrow rail on the left: switches the whole window between workspaces (PAT-10).
+private struct WorkspaceRail: View {
+    @Binding var selection: ContentView.Workspace
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Button("Program") { selection = .program }
+                .buttonStyle(FlatButton(fill: selection == .program ? .blue : nil))
+            Button("Patch") { selection = .patch }
+                .buttonStyle(FlatButton(fill: selection == .patch ? .blue : nil))
+            Spacer()
+        }
+        .padding(6)
+        .frame(width: 84)
     }
 }
 

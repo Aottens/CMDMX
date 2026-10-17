@@ -196,6 +196,11 @@ impl Engine {
 
     // ---- setup -----------------------------------------------------------
 
+    /// PAT-09: does the show already hold a profile under this key?
+    pub fn has_profile(&self, key: &str) -> bool {
+        self.profiles.contains_key(key)
+    }
+
     /// LIB-02: an invalid profile is refused and never reaches the patch.
     pub fn add_profile(
         &mut self,
@@ -369,6 +374,16 @@ impl Engine {
         if let Some(f) = self.fixtures.get_mut(&id) {
             f.number = number;
         }
+        Ok(())
+    }
+
+    /// PAT-09: the legend only; id, number and place stay.
+    pub fn patch_name(&mut self, id: FixtureId, name: &str) -> Result<(), CoreError> {
+        let f = self
+            .fixtures
+            .get_mut(&id)
+            .ok_or(CoreError::UnknownFixture(id))?;
+        f.name = name.to_string();
         Ok(())
     }
 
@@ -1113,6 +1128,11 @@ impl Engine {
 
     pub fn fixture(&self, id: FixtureId) -> Option<&Fixture> {
         self.fixtures.get(&id)
+    }
+
+    /// PAT-09: the fixture's mode (its profile's first when none was named).
+    pub fn fixture_mode(&self, id: FixtureId) -> Option<&Mode> {
+        resolve_mode(&self.profiles, self.fixtures.get(&id)?)
     }
 
     pub fn fixture_by_number(&self, number: u32) -> Option<&Fixture> {

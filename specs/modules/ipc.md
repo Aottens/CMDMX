@@ -89,5 +89,10 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   `colour_model` highlighted; a click sends `programmer.colour_model`. The Hue wheel shows its
   value in degrees (`value × 360`, no decimals); every other wheel stays in %.
 
+### Patch (VS2-12)
+The patch messages (snapshot `fixtures` entries, `fixtures` delta, `patch.*` commands) and the
+Patch screen are specified in `patch.md` PAT-09 and PAT-10; IPC-10's `fixtures` entries grow to
+the PAT-09 shape.
+
 ## Out of scope (this version)
 Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), a colour picker or swatch (UX-02), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.

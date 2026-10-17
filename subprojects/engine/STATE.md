@@ -3,7 +3,7 @@
 _Last updated: 2026-10-17_
 
 ## Current step
-VS2-11 merged; next VS2-12 (patch over IPC + Patch screen).
+VS2-12 (patch over IPC) in review; next VS2-13 (church patch).
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
@@ -20,6 +20,7 @@ VS2-11 merged; next VS2-12 (patch over IPC + Patch screen).
 - Patch core (VS2-10): `Fixture{id, number, name, profile, mode, universe, address, handle}`; `Engine::patch_add/move/remove/renumber/change_mode/handle`, `fixture`, `fixture_by_number`; number index + `next_id` (ids never reused); low-level `patch` (scenarios, rigs) checks overlap too, `number: 0` = same as id; command line resolves user numbers. 18 tests in `tests/patch.rs`.
 - QLC+ importer (VS2-09): `library/qlcplus.rs` (quick-xml serde) → `Import { profile, report }`, `CoreError::ImportFailed`; church files + expected profiles in `tests/fixtures/qlcplus/`. 15 tests in `tests/qlcplus.rs`.
 - Library (VS2-11): core `library::{Entry, Index}` (word search, user hides QLC+), `library::channel_list` (LIB-11, same rules as the importer), `qlcplus::header`; daemon `library.rs` (`Library::load/search/import_report/profile/save_profile/save_channel_list`, atomic user files) loaded on its own thread; `library.*` IPC answered in the client thread. `scripts/fetch-qlcplus.sh` fetches the QLC+ set (commit 3d832ce) into the git-ignored `vendor/qlcplus`; `tests/qlcplus_library.rs` imports all of it: 1779 of 1781 (two Eurolite files name a head channel outside their mode).
+- Patch over IPC (VS2-12, PAT-09): snapshot/delta `fixtures` entries `{id, number, name, profile, mode, universe, address, footprint, virtual_dimmer, handle}`, `patch.*` commands mapped 1:1 in `apply`; `ipc::attach_profile` fetches a `Manufacturer/Model` profile from the library in the client thread, the tick installs it only when the show has no profile under that key (`Engine::has_profile`); `Engine::patch_name`.
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress
@@ -29,4 +30,4 @@ VS2-11 merged; next VS2-12 (patch over IPC + Patch screen).
 - Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, show file (SHW-*), IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with
-`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-12 (patch over IPC and the Patch screen). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.
+`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-13 (the church patch from the owner's Lightkey export). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.

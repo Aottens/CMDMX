@@ -550,3 +550,32 @@ fn pat_14_handles_follow_patch_order_and_can_move_or_swap() {
         );
     }
 }
+
+/// PAT-09: `patch.name` sets the legend; nothing else changes.
+#[test]
+fn pat_09_name_sets_the_legend_only() {
+    let mut e = engine();
+    let ids = e
+        .patch_add(&add("showtec", None, 3, 1, Some(37), Some(221)))
+        .unwrap();
+    let before = e.fixture(ids[1]).cloned().unwrap();
+    e.patch_name(ids[1], "Front left").unwrap();
+    let after = e.fixture(ids[1]).cloned().unwrap();
+    assert_eq!(after.name, "Front left");
+    assert_eq!(
+        cmdmx_core::patch::Fixture {
+            name: String::new(),
+            ..after
+        },
+        before
+    );
+    assert_eq!(e.patch_name(999, "x"), Err(CoreError::UnknownFixture(999)));
+}
+
+/// PAT-09: the daemon asks whether the show already has a profile under a key.
+#[test]
+fn pat_09_has_profile() {
+    let e = engine();
+    assert!(e.has_profile("showtec"));
+    assert!(!e.has_profile("Showtec/LED Par 56"));
+}
