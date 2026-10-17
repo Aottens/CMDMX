@@ -1,13 +1,24 @@
 //! The programmer: selection, sub-selection and manual values.
 //!
-//! Implements `specs/modules/programmer.md` PRG-01..07 and PRG-14. Palette
-//! references and merge output come with VS2-04.
+//! Implements `specs/modules/programmer.md` PRG-01..07 and PRG-14; the merge
+//! reads its values at `Priority::Programmer` (PRG-12/13). Palette references
+//! come later.
 
 use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
 
 use crate::patch::FixtureId;
 
 pub type GroupId = u32;
+
+/// Wheel step size (PRG-21); the sizes live in the engine `Settings`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Resolution {
+    Normal,
+    Fine,
+    Coarse,
+}
 
 /// Narrowing of the selection for stepping (PRG-04) and patterns (PRG-05).
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -28,6 +39,9 @@ pub struct Programmer {
     /// Set by a value change; the next select starts a new selection (PRG-03).
     changed: bool,
     values: BTreeMap<FixtureId, BTreeMap<String, f32>>,
+    /// Engine activation counter at the last value change: orders the
+    /// programmer against other sources in LTP ties (ENG-04).
+    activated: u64,
 }
 
 impl Programmer {
@@ -52,6 +66,14 @@ impl Programmer {
 
     pub fn value(&self, fixture: FixtureId, attribute: &str) -> Option<f32> {
         self.values.get(&fixture)?.get(attribute).copied()
+    }
+
+    pub fn values(&self) -> &BTreeMap<FixtureId, BTreeMap<String, f32>> {
+        &self.values
+    }
+
+    pub fn activated(&self) -> u64 {
+        self.activated
     }
 
     pub fn is_empty(&self) -> bool {
@@ -140,7 +162,14 @@ impl Programmer {
         }
     }
 
-    pub(crate) fn set_value(&mut self, fixture: FixtureId, attribute: &str, value: f32) {
+    pub(crate) fn set_value(
+        &mut self,
+        fixture: FixtureId,
+        attribute: &str,
+        value: f32,
+        activated: u64,
+    ) {
+        self.activated = activated;
         self.values
             .entry(fixture)
             .or_default()

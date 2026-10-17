@@ -12,9 +12,10 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::engine::{Engine, Settings};
-use crate::patch::Fixture;
+use crate::patch::{Fixture, FixtureId};
 use crate::playback::{Playback, PlaybackId};
 use crate::profile::Profile;
+use crate::programmer::Resolution;
 use crate::{CoreError, Timestamp, UniverseId};
 
 pub const TICK_SECONDS: f64 = 1.0 / 40.0;
@@ -51,6 +52,20 @@ pub struct Action {
 pub enum ActionKind {
     Fader { playback: PlaybackId, level: f32 },
     GrandMaster(f32),
+    Prg(PrgAction),
+}
+
+/// Programmer actions in a scenario (PRG-12/13).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PrgAction {
+    Select(Vec<FixtureId>),
+    Wheel {
+        attribute: String,
+        steps: i32,
+        resolution: Resolution,
+    },
+    Command(Vec<String>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,11 +150,25 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
             if action.t > now + 1e-9 {
                 break;
             }
-            match action.kind {
+            match &action.kind {
                 ActionKind::Fader { playback, level } => {
-                    engine.set_fader(playback, level, now)?;
+                    engine.set_fader(*playback, *level, now)?;
                 }
-                ActionKind::GrandMaster(level) => engine.set_grand_master(level)?,
+                ActionKind::GrandMaster(level) => engine.set_grand_master(*level)?,
+                ActionKind::Prg(PrgAction::Select(ids)) => {
+                    for id in ids {
+                        engine.select_fixture(*id)?;
+                    }
+                }
+                ActionKind::Prg(PrgAction::Wheel {
+                    attribute,
+                    steps,
+                    resolution,
+                }) => engine.turn_wheel(attribute, *steps, *resolution)?,
+                ActionKind::Prg(PrgAction::Command(tokens)) => {
+                    let tokens: Vec<&str> = tokens.iter().map(String::as_str).collect();
+                    engine.execute_command(&tokens)?;
+                }
             }
             next_action += 1;
         }

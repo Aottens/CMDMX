@@ -2,20 +2,21 @@
 //!
 //! Implements the phase-1 subset of `specs/modules/engine-merge.md`:
 //! ENG-01 (HTP highest wins), ENG-02 (LTP latest wins), ENG-03 (priority),
-//! ENG-05 (fader mode 0 scaling / LTP snap), ENG-06 (Grand Master), ENG-11
-//! (determinism), ENG-12 (never stops on bad input).
+//! ENG-04 (programmer at `Priority::Programmer`), ENG-05 (fader mode 0
+//! scaling / LTP snap), ENG-06 (Grand Master), ENG-11 (determinism), ENG-12
+//! (never stops on bad input).
 //!
-//! Not yet here, by design (each lands with its spec): programmer (ENG-04),
-//! release masks and times (ENG-07..10), chases, masters other than GM.
+//! Not yet here, by design (each lands with its spec): release masks and
+//! times (ENG-07..10), chases, masters other than GM.
 
 use std::collections::BTreeMap;
 
 use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::command::{self, Item, Kind};
 use crate::patch::{Fixture, FixtureId};
-use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority};
+use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values};
 use crate::profile::Profile;
-use crate::programmer::{GroupId, Programmer};
+use crate::programmer::{GroupId, Programmer, Resolution};
 use crate::{CoreError, Timestamp, UniverseId, Warning, UNIVERSE_SIZE};
 
 /// One universe's output, 512 slots. Start code is added by the transport.
@@ -60,6 +61,10 @@ pub struct Settings {
     pub ltp_trigger_level: f32,
     /// Faders per page (configuration, never hard-coded; default 8).
     pub faders_per_page: u16,
+    /// Wheel step sizes as fractions of the full range (PRG-21).
+    pub wheel_step_normal: f32,
+    pub wheel_step_fine: f32,
+    pub wheel_step_coarse: f32,
 }
 
 impl Default for Settings {
@@ -67,12 +72,15 @@ impl Default for Settings {
         Settings {
             ltp_trigger_level: 0.02,
             faders_per_page: 8,
+            wheel_step_normal: 1.0 / 255.0,
+            wheel_step_fine: 1.0 / 65535.0,
+            wheel_step_coarse: 1.0 / 25.0,
         }
     }
 }
 
 /// The engine. Deterministic: the same sequence of calls yields the same frames.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Engine {
     settings: Settings,
     profiles: BTreeMap<String, Profile>,
@@ -86,6 +94,8 @@ pub struct Engine {
     last_tick: Option<Timestamp>,
     programmer: Programmer,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    /// Attribute group the wheels show (PRG-17/18).
+    active_group: AttributeGroup,
 }
 
 /// A candidate value for one attribute from one source, during a merge.
@@ -99,8 +109,18 @@ impl Engine {
     pub fn new(settings: Settings) -> Self {
         Engine {
             settings,
+            profiles: BTreeMap::new(),
+            fixtures: BTreeMap::new(),
+            playbacks: BTreeMap::new(),
+            states: BTreeMap::new(),
             grand_master: 1.0,
-            ..Default::default()
+            activation_seq: 0,
+            frames: BTreeMap::new(),
+            warnings: Vec::new(),
+            last_tick: None,
+            programmer: Programmer::default(),
+            groups: BTreeMap::new(),
+            active_group: AttributeGroup::I,
         }
     }
 
@@ -190,6 +210,7 @@ impl Engine {
             return Err(CoreError::UnknownFixture(id));
         }
         self.programmer.toggle(id);
+        self.follow_active_group();
         Ok(())
     }
 
@@ -197,20 +218,24 @@ impl Engine {
     pub fn select_group(&mut self, id: GroupId) -> Result<(), CoreError> {
         let members = self.groups.get(&id).ok_or(CoreError::UnknownGroup(id))?;
         self.programmer.add_group(members);
+        self.follow_active_group();
         Ok(())
     }
 
     pub fn clear_selection(&mut self) {
         self.programmer.clear_selection();
+        self.follow_active_group();
     }
 
     /// PRG-04: step to the next fixture (or pattern stage).
     pub fn next_fixture(&mut self) {
         self.programmer.step(true);
+        self.follow_active_group();
     }
 
     pub fn prev_fixture(&mut self) {
         self.programmer.step(false);
+        self.follow_active_group();
     }
 
     /// PRG-05: split the selection into `n` interleaved stages.
@@ -219,12 +244,14 @@ impl Engine {
             return Err(CoreError::InvalidPattern(n));
         }
         self.programmer.set_pattern(n);
+        self.follow_active_group();
         Ok(())
     }
 
     /// PRG-06.
     pub fn select_all(&mut self) {
         self.programmer.select_all();
+        self.follow_active_group();
     }
 
     /// PRG-07: store the selection as a group, replacing any existing one.
@@ -237,7 +264,7 @@ impl Engine {
         Ok(())
     }
 
-    /// Minimal manual value; feeding the merge comes with VS2-04.
+    /// Set a manual value; it joins the merge at `Priority::Programmer` (PRG-12/13).
     pub fn set_programmer_value(
         &mut self,
         fixture: FixtureId,
@@ -261,8 +288,144 @@ impl Engine {
         if !(0.0..=1.0).contains(&value) || value.is_nan() {
             return Err(CoreError::InvalidLevel(value));
         }
-        self.programmer.set_value(fixture, attribute, value);
+        self.activation_seq = self.activation_seq.saturating_add(1);
+        self.programmer
+            .set_value(fixture, attribute, value, self.activation_seq);
         Ok(())
+    }
+
+    /// PRG-18: the attribute group the wheels show; always accepted.
+    pub fn active_group(&self) -> AttributeGroup {
+        self.active_group
+    }
+
+    pub fn set_active_group(&mut self, group: AttributeGroup) {
+        self.active_group = group;
+    }
+
+    /// PRG-18: after a selection change, leave a group no target has for the
+    /// first one (I P C G B E S) some target has. Stored, not computed lazily.
+    fn follow_active_group(&mut self) {
+        let targets = self.programmer.targets();
+        let has = |g: AttributeGroup| {
+            targets.iter().any(|id| {
+                self.profile_of(*id)
+                    .is_some_and(|p| p.attributes.iter().any(|a| a.group == g))
+            })
+        };
+        if targets.is_empty() || has(self.active_group) {
+            return;
+        }
+        use AttributeGroup::*;
+        if let Some(g) = [I, P, C, G, B, E, S].into_iter().find(|g| has(*g)) {
+            self.active_group = g;
+        }
+    }
+
+    fn profile_of(&self, id: FixtureId) -> Option<&Profile> {
+        self.fixtures
+            .get(&id)
+            .and_then(|f| self.profiles.get(&f.profile))
+    }
+
+    /// PRG-17: names of the active group's attributes that at least one
+    /// target has, in target order then profile order.
+    pub fn wheel_layout(&self) -> Vec<String> {
+        let mut names: Vec<String> = Vec::new();
+        for id in self.programmer.targets() {
+            for a in self
+                .profile_of(id)
+                .map(|p| p.attributes.as_slice())
+                .unwrap_or_default()
+            {
+                if a.group == self.active_group && !names.contains(&a.name) {
+                    names.push(a.name.clone());
+                }
+            }
+        }
+        names
+    }
+
+    /// PRG-19..21, 36: move `attribute` of every target that has it by
+    /// `steps` wheel steps. Refused turns change nothing.
+    pub fn turn_wheel(
+        &mut self,
+        attribute: &str,
+        steps: i32,
+        resolution: Resolution,
+    ) -> Result<(), CoreError> {
+        let targets = self.programmer.targets();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let step = match resolution {
+            Resolution::Normal => self.settings.wheel_step_normal,
+            Resolution::Fine => self.settings.wheel_step_fine,
+            Resolution::Coarse => self.settings.wheel_step_coarse,
+        };
+        let mut new = Vec::new();
+        for id in targets {
+            let Some(fixture) = self.fixtures.get(&id) else {
+                continue;
+            };
+            let Some(attr) = self
+                .profiles
+                .get(&fixture.profile)
+                .and_then(|p| p.attribute(attribute))
+            else {
+                continue;
+            };
+            // PRG-20: programmer value, else what is on the output, else 0.
+            let start = self
+                .programmer
+                .value(id, attribute)
+                .or_else(|| {
+                    merge_attribute(id, attr, &self.playbacks, &self.states, &self.programmer)
+                })
+                .or_else(|| self.frame_value(fixture, attr))
+                .unwrap_or(0.0);
+            new.push((id, (start + steps as f32 * step).clamp(0.0, 1.0)));
+        }
+        if new.is_empty() {
+            return Err(CoreError::AttributeNotInTargets(attribute.to_string()));
+        }
+        for (id, value) in new {
+            self.set_programmer_value(id, attribute, value)?;
+        }
+        Ok(())
+    }
+
+    /// The fixture's current frame slot(s) decoded back to 0.0..=1.0.
+    fn frame_value(&self, fixture: &Fixture, attr: &AttributeDef) -> Option<f32> {
+        let frame = self.frames.get(&fixture.universe)?;
+        let base = fixture.address.saturating_sub(1);
+        let coarse = frame.channel(base.saturating_add(attr.channel))?;
+        Some(match attr.fine_channel {
+            None => f32::from(coarse) / 255.0,
+            Some(fine_ch) => {
+                let fine = frame.channel(base.saturating_add(fine_ch))?;
+                f32::from(u16::from(coarse) << 8 | u16::from(fine)) / 65535.0
+            }
+        })
+    }
+
+    /// PRG-15: the programmer's manual values whose attribute is in `mask`.
+    pub fn contents(&self, mask: &[AttributeGroup]) -> Values {
+        let mut out = Values::new();
+        for (id, attrs) in self.programmer.values() {
+            let Some(profile) = self.profile_of(*id) else {
+                continue;
+            };
+            for (name, value) in attrs {
+                if profile
+                    .attribute(name)
+                    .is_some_and(|a| mask.contains(&a.group))
+                {
+                    out.entry(*id).or_default().insert(name.clone(), *value);
+                }
+            }
+        }
+        out
     }
 
     /// PRG-08/09/11: run one command line. Parse and resolve first, then apply,
@@ -311,6 +474,7 @@ impl Engine {
         }
         if let Some(list) = typed {
             self.programmer.replace_selection(list);
+            self.follow_active_group();
         }
         if let Some(level) = level {
             for (id, name) in touched {
@@ -363,7 +527,13 @@ impl Engine {
                 continue;
             };
             for attr in &profile.attributes {
-                let merged = merge_attribute(*fixture_id, attr, &self.playbacks, &self.states);
+                let merged = merge_attribute(
+                    *fixture_id,
+                    attr,
+                    &self.playbacks,
+                    &self.states,
+                    &self.programmer,
+                );
                 let Some(value) = merged else { continue };
                 let scaled = match attr.kind {
                     AttributeKind::Htp => value * self.grand_master,
@@ -422,7 +592,7 @@ impl Engine {
     }
 }
 
-/// Merge one attribute of one fixture across all active playbacks.
+/// Merge one attribute of one fixture across all active playbacks and the programmer.
 ///
 /// Returns `None` when no active source proposes a value, in which case the
 /// caller leaves the slot as it was (LTP "stays where it is" semantics; HTP
@@ -432,6 +602,7 @@ fn merge_attribute(
     attr: &AttributeDef,
     playbacks: &BTreeMap<PlaybackId, Playback>,
     states: &BTreeMap<PlaybackId, PlaybackState>,
+    programmer: &Programmer,
 ) -> Option<f32> {
     let mut best: Option<Candidate> = None;
 
@@ -470,6 +641,19 @@ fn merge_attribute(
             value,
         };
 
+        best = Some(match best {
+            None => candidate,
+            Some(current) => pick(attr.kind, current, candidate),
+        });
+    }
+
+    // ENG-04: manual values are absolute and sit at Priority::Programmer.
+    if let Some(value) = programmer.value(fixture, &attr.name) {
+        let candidate = Candidate {
+            priority: Priority::Programmer,
+            activated: programmer.activated(),
+            value,
+        };
         best = Some(match best {
             None => candidate,
             Some(current) => pick(attr.kind, current, candidate),
