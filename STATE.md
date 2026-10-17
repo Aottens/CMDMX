@@ -11,11 +11,12 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
 - `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
+- Programmer spec `specs/modules/programmer.md` PRG-01..37 approved (P1-02); tasks VS2-02..07 in BACKLOG
 - UI v0.1: clickable main-screen sketch `specs/ux/main-screen.html` (UX-01 done; Artifact https://claude.ai/artifact/YNEG3JsZAnjWhG1793MDUd), built from `specs/ux/research.md`; reference for the SwiftUI work and the PRG/PAL/PBK specs
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- P1-02: `specs/modules/programmer.md` (PRG-01..37) drafted, waiting for owner approval and the five open questions at its end
+- nothing
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -29,4 +30,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-Owner reviews the P1-02 spec PR and answers its open questions; after approval, PRG tasks go into BACKLOG. Alternatives meanwhile: VS1-06 (on-screen faders bound to page-1 playbacks, needs the PBK paging subset). P1-07 (colour ADR) must also settle direct W/Lime emitter control. Code is written by Sonnet subagents from failing tests (CLAUDE.md).
+Next: VS2-02 (selection, PRG-01..07) — failing tests first, Sonnet implements; or P1-07 (ADR-005, unblocks VS2-06 and P1-03) or VS1-06 (on-screen faders bound to page-1 playbacks, needs the PBK paging subset). P1-07 (colour ADR) must also settle direct W/Lime emitter control. Code is written by Sonnet subagents from failing tests (CLAUDE.md).

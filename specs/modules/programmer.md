@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **draft for owner approval (P1-02)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02)**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -138,8 +138,8 @@ editing the line (Back, Exit) stays in the client.
 - **PRG-29** Clear follows the setting `clear_precedence`:
   `SelectionThenProgrammer` (first Clear deselects, the next empties the programmer),
   `SelectionWithProgrammer` (one Clear does both) or `ProgrammerThenSelection`. Emptying the
-  programmer also empties the located set; deselecting also switches Highlight off. Default: see
-  open question 1. A masked Clear (Set Mask) removes only the touched values in the mask, for all
+  programmer also empties the located set; deselecting also switches Highlight off. Default
+  `SelectionThenProgrammer` (UI v0.1; Titan's default is a setting). A masked Clear (Set Mask) removes only the touched values in the mask, for all
   fixtures, and leaves the selection. A timed Clear behaves as ENG-10.
 
 ### Colour
@@ -184,27 +184,20 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 `Programmer`; anything that reaches the frame (PRG-12, 13, 20, 21, 23..26) is a scenario file.
 
 ## Out of scope (phase 1 unless noted)
-- Fan and align (phase 2, `PROJECT.md`); UI v0.1 shows a Fan button — see open question 3.
-- Blind (no phase yet) — see open question 3.
+- Fan and align (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
 - Select If, Unfold, per-cell selection of multi-cell fixtures (phase 2; cells as a whole only).
 - Gel book / filter numbers (phase 2, IDEA-02); colour calibration (phase 2, IDEA-03).
 - Channel mode of the colour picker (one slider per raw emitter) beyond W/Lime: ADR-005 decides.
 - Shapes and effects (phase 2). Multiple programmers (multi-user, remotes): one programmer.
-- Undo: cross-cutting (programmer, palettes, playbacks); its own decision — open question 4.
+- Undo: one engine-wide undo for programmer and show edits, its own item (BACKLOG P1-10).
 - Handle actions on groups other than Record (Set Legend, Copy, Move, Delete): shared with
   palettes and playbacks, specified with them.
 - Wheel acceleration, encoder banks and their mapping: `control-surfaces.md`.
 
-## Open questions for the owner
-1. **Clear default.** Titan's default is `SelectionWithProgrammer` (one press clears all); UI v0.1
-   does `SelectionThenProgrammer` (first press keeps your work). Proposal: UI v0.1 behaviour as
-   default, Titan's as a setting.
-2. **Locate and existing programmer values.** Titan by default keeps them (they get recorded
-   while the stage shows the locate). PRG-24 removes them, so what you see is what you record.
-   OK?
-3. **Fan and Blind.** Both are live buttons in UI v0.1, but Fan is phase 2 in `PROJECT.md` and
-   Blind is in no phase. Keep them out of phase 1 (buttons greyed), or pull one in?
-4. **Undo.** UI v0.1 has an undo history. Proposal: a separate backlog item (one engine-wide undo
-   for programmer and show edits), not part of PRG.
-5. **Command-line selection replaces** the current selection (PRG-08), while tapping adds
-   (PRG-01). That matches how a typed expression reads; Titan's manual does not say. OK?
+## Owner decisions (2026-10-17)
+1. Clear defaults to `SelectionThenProgrammer` (UI v0.1); Titan's one-press Clear is a setting.
+2. Locate removes existing programmer values of the located attributes (PRG-24), a deliberate
+   deviation from Titan's default, so what you see is what you record.
+3. Fan and Blind stay out of phase 1; their buttons are greyed out in UI v0.1.
+4. Undo is a separate backlog item (P1-10), not part of PRG.
+5. A typed selection replaces the current selection; tapping adds (PRG-08 vs PRG-01).
