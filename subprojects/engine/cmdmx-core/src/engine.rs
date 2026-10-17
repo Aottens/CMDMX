@@ -666,7 +666,8 @@ impl Engine {
         Ok(())
     }
 
-    /// PRG-02/03: append a group's fixtures, keeping the ones already selected in place.
+    /// PRG-02/03: append a group's fixtures, keeping the ones already selected in place;
+    /// a fully selected group is removed instead (IDEA-11). Typed `Group n` replaces, see PRG-08.
     pub fn select_group(&mut self, id: GroupId) -> Result<(), CoreError> {
         let members = self.groups.get(&id).ok_or(CoreError::UnknownGroup(id))?;
         self.programmer.add_group(members);

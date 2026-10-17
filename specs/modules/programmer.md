@@ -43,6 +43,11 @@ and later remotes are views and inputs of the same single programmer.
 - **PRG-02** Selecting a group appends its fixtures in the group's stored order, skipping
   fixtures already selected (they keep their place). Selection `[205]`, group "Pars RGBW"
   (201–208) → `[205, 201, 202, 203, 204, 206, 207, 208]`.
+  Selecting a group whose fixtures are **all** in the selection removes them from it instead,
+  as PRG-01 does for one fixture; the rest keeps its order. Selection `[205, 201, …, 208]`,
+  group "Pars RGBW" again → `[]`; selection `[301, 201, …, 208]` → `[301]`. When PRG-03 starts a
+  new selection, the group is selected as usual. A typed `Group n` on the command line always
+  selects (typed selections replace). Amended 2026-10-17 (IDEA-11, VS2-15).
 - **PRG-03** After any change to the programmer contents (wheel, keypad level, palette, Rem Dim),
   the next select action first deselects everything and starts a new selection; the earlier
   changes stay in the programmer. Select 201, set dimmer 50 %, select 202 → selection `[202]`,

@@ -139,8 +139,14 @@ impl Programmer {
         }
     }
 
+    /// PRG-02 (IDEA-11): append the group's fixtures; if all of them are already selected
+    /// (after PRG-03's new-selection check) remove them instead, like `toggle` for one fixture.
     pub(crate) fn add_group(&mut self, members: &[FixtureId]) {
         self.begin_select();
+        if !members.is_empty() && members.iter().all(|f| self.selection.contains(f)) {
+            self.selection.retain(|f| !members.contains(f));
+            return;
+        }
         for &f in members {
             if !self.selection.contains(&f) {
                 self.selection.push(f);
