@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Main-screen sketch is UI v0.1
+
+**Decision:** `specs/ux/main-screen.html` (UX-01, iteration 2 with owner tweaks) is UI v0.1: the reference for the SwiftUI main screen and for the programmer, palette and playback specs. Its layout (workspace rail, fixed 2×2 window grid, function buttons, keypad + command line, softkeys, attribute bar, pages, playback strips, Go block, GM/DBO) and visual rules (flat, dense, hairlines, colour only for state) hold until the owner changes them. Background: `specs/ux/research.md`.
+
+**Alternatives considered:** iteration 1 (generic dark dashboard, rejected by the owner); a 1:1 copy of the Titan look (dated).
+
+**Reasoning:** The owner judged it right ("this becomes v0.1, we build on this first"). It keeps the Titan layout an Avolites user knows and gives it a modern, strict look.
+
+**Reversal trigger:** the SwiftUI build or a church test shows a zone that does not work in practice; change the sketch first, then the app.
+
+---
+
 ## 2026-10-17 — Phase-1 finish line: replace Lightkey in the church
 
 **Decision:** Phase 1 is done when a real Sunday morning service in the church is programmed and run on ColourmotionDMX instead of Lightkey. Phase 1 is cut into milestones VS2 (programming), VS3 (running: cue list + busking), VS4 (the church).

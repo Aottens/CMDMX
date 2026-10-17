@@ -11,10 +11,11 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
 - `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
+- UI v0.1: clickable main-screen sketch `specs/ux/main-screen.html` (UX-01 done; Artifact https://claude.ai/artifact/YNEG3JsZAnjWhG1793MDUd), built from `specs/ux/research.md`; reference for the SwiftUI work and the PRG/PAL/PBK specs
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- UX-01 iteration 2 (rebuilt from the UX research `specs/ux/research.md`): clickable main-screen sketch `specs/ux/main-screen.html` (Artifact: https://claude.ai/artifact/YNEG3JsZAnjWhG1793MDUd), waiting for owner feedback
+- nothing
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -28,4 +29,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-UX-01: owner judges iteration 2 (the backlog allows two; a third needs the owner's say), then close it and feed findings into P1-02/P1-04. Next: VS1-06 (on-screen faders bound to playbacks of page 1 — needs the PBK paging subset) or start the programmer spec P1-02 using the sketch. Code is written by Sonnet subagents from failing tests (CLAUDE.md).
+Start a fresh session. Next: P1-02 `programmer.md` (uses UI v0.1 and the Titan analysis) or VS1-06 (on-screen faders bound to page-1 playbacks, needs the PBK paging subset). P1-07 (colour ADR) must also settle direct W/Lime emitter control. Code is written by Sonnet subagents from failing tests (CLAUDE.md).

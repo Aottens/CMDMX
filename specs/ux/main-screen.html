@@ -745,7 +745,7 @@ function render() {
   const app = $("app");
   app.classList.toggle("blind", S.blind); app.classList.toggle("day", S.day); app.classList.toggle("armed", S.mode === "Record");
   const now = new Date();
-  setHTML($("status"), `<b>Sunday service.cmdmx</b>
+  setHTML($("status"), `<b>Sunday service.cmdmx</b><span>UI v0.1</span>
     <span class="st ok"><i></i>Engine</span><span class="st ok"><i></i>Art-Net 1</span><span class="st ok"><i></i>sACN 1</span><span class="st"><i></i>USB: no interface</span>
     <span>autosaved ${3 + (now.getSeconds() % 5)}s ago</span>
     ${S.blind ? `<span class="tagx tag-blind">BLIND</span>` : ""}${S.dbo ? `<span class="tagx tag-dbo">DBO</span>` : ""}${S.gm < 1 && !S.dbo ? `<span class="tagx tag-dbo">GM ${pct(S.gm)}%</span>` : ""}
