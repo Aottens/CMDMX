@@ -10,11 +10,11 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (port-address 0, default 255.255.255.255) from its own thread, `--artnet-target`/`--no-artnet` (VS1-02 done). No IPC yet
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 in review), each node on its own thread. No IPC yet
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- nothing
+- VS1-03 (sACN) in review on branch `vs1-03-sacn-output`; owner: PR review + sACN lines of `tests/hardware/output.md`
 
 ## Blocked
 - nothing
@@ -28,4 +28,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-VS1-03 (sACN, OUT-05..07) on a new branch `vs1-03-sacn-output`: spec check, failing tests, sACN node next to `artnet_out.rs`.
+Owner: review the VS1-03 PR and run the sACN lines of `tests/hardware/output.md` (sACNView or Wireshark filter `acn`). Then VS1-04 (Eurolite MK2 serial).

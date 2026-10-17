@@ -1,6 +1,6 @@
 # Module spec: output-protocols (OUT)
 
-Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
+Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
 
 ## Purpose
 Deliver each universe's frame to one or more *nodes* (Titan's model: lines → nodes). Framing is pure and byte-exact tested; I/O lives in the daemon and must never block the tick.
@@ -20,8 +20,8 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
 
 ### sACN (E1.31)
 - **OUT-05** `sacn::data_packet(cid: [u8;16], source_name: &str, priority: u8, sequence: u8, universe: u16, data: &[u8]) -> Vec<u8>` produces a valid E1.31 data packet: Root layer (preamble `0x0010`, postamble `0x0000`, ACN packet identifier `"ASC-E1.17\0\0\0"`, flags+length `0x7xxx`, vector `VECTOR_ROOT_E131_DATA = 0x00000004`, CID), Framing layer (vector `0x00000002`, 64-byte UTF-8 source name zero-padded, priority, sync address, sequence, options, universe), DMP layer (vector `0x02`, address type `0xA1`, first address 0, increment 1, property value count = 1 + data length, start code 0 + data). Golden bytes in the test.
-- **OUT-06** Multicast to `239.255.{hi}.{lo}` for universe `hi<<8|lo`, port 5568; unicast optional per node.
-- **OUT-07** Priority defaults to 100 and is configurable 0–200 per node (Titan uses this for backup consoles).
+- **OUT-06** The daemon sends one E1.31 data packet per tick (40 Hz, continuous like OUT-03) per enabled sACN node. Default destination is multicast `239.255.{hi}.{lo}:5568` for universe `hi<<8|lo`; a node may instead have one unicast IPv4 target (port 5568). Multicast loopback is on, so sACNView on the same Mac receives it; TTL and outgoing interface are the OS defaults (interface choice is later). Packets leave from an ephemeral source port. The sequence number is per node, starts at 0 and wraps 255 → 0.
+- **OUT-07** Priority defaults to 100 and is configurable 0–200 per node (Titan uses this for backup consoles). The framing clamps above 200; configuration rejects values above 200 instead of clamping them.
 
 ### ENTTEC Pro over serial
 - **OUT-08** `enttec::send_dmx_frame(data: &[u8]) -> Vec<u8>` produces `0x7E`, label `6`, length LSB, length MSB (length = 1 + data.len(), data padded to at least 24 channels), start code `0x00`, data, `0xE7`. Golden bytes in the test.
@@ -34,6 +34,10 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
 
 - **OUT-14** *(later, not in vertical slice 1)* Change-only mode (`continuous = false`): send only when the frame changed, plus a keep-alive at least every 800 ms. Needs per-node config in the show file.
 - **OUT-15** *(vertical slice 1 only, superseded by OUT-13 once node config lives in the show file)* Without a show file the daemon outputs line 1 to one Art-Net node, port-address 0, **enabled**, target `255.255.255.255`. `--artnet-target <ipv4>` sets the target; `--no-artnet` disables the node. An unparsable target is a startup error (exit code 2), not a silent fallback.
+- **OUT-16** *(vertical slice 1 only, superseded by OUT-13 once node config lives in the show file)* Without a show file the daemon outputs line 1 to one sACN node, universe 1, multicast, priority 100, **enabled** — alongside the Art-Net node of OUT-15. `--sacn-unicast <ipv4>` replaces multicast with that target, `--sacn-priority <0..200>` sets the priority, `--no-sacn` disables the node. An unparsable value is a startup error (exit code 2).
+- **OUT-17** Source name is `ColourmotionDMX`. The CID is one fixed UUID compiled into the daemon (`c0105e00-d3a0-4c00-8000-000000000001`) until the show file stores a generated CID (SHW); a fixed CID keeps receivers seeing the same source across daemon restarts.
+- **OUT-18** *(later)* On a clean shutdown the daemon sends three packets with the Stream_Terminated option bit per sACN node. Needs signal handling in the daemon.
+- **OUT-19** *(later)* E1.31 universe discovery packets (universe 64214) every 10 s.
 
 ## Hardware checklist
 `tests/hardware/output.md` covers OUT-03/04/06/09 on the owner's network and Eurolite MK2.
