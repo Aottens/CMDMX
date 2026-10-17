@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01)**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters)**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -22,10 +22,12 @@ model, and a show carries the profiles it uses.
 - **Attribute:** `name` (Dimmer, Pan, Tilt, Strobe, Zoom, Focus, White, Lime, …), `group`
   (I P C G B E S FX), `kind` (HTP/LTP), `channel` (1-based offset), optional `fine` offset,
   optional `slots` for wheel-type channels (ranges with a name and, for colour wheels, a colour), `default` (0.0–1.0, default 0), optional
-  `locate` and `highlight` values.
+  `locate` and `highlight` values, and `emitter` (true for an extra emitter, LIB-17).
 - **Colour mixing system (ADR-005):** `RGB` or `CMY`, with the channel offset of each component.
-  It is the fixture's one `Colour` attribute (group C, LTP). Extra emitters (White, Amber, Lime,
-  UV, Indigo) are ordinary C attributes. A multi-cell mode has them per cell.
+  It is the fixture's one `Colour` attribute (group C, LTP). Extra emitters (White, Warm White,
+  Cold White, Amber, Lime, UV, Indigo, and Cyan/Magenta/Yellow next to RGB) are ordinary C
+  attributes marked `emitter`. A mode can have any number of them; a multi-cell mode has them
+  per cell.
 - **Import report:** per source channel: what it became (attribute, colour component, emitter) or
   "kept as a plain channel", plus warnings.
 
@@ -45,10 +47,23 @@ model, and a show carries the profiles it uses.
   is a normal HTP attribute of that fixture without a channel of its own. Showtec LED Par 56 at
   Colour (1, 0.5, 0) and Dimmer 0.5 → R 128, G 64, B 0.
 
+- **LIB-17** Emitters are generic: the engine recognises an extra emitter only by its `emitter`
+  flag, never by its name, so every rule for emitters (direct wheels PRG-34, ADR-005 palette
+  zeroing, LIB-03 defaults) holds for any number of them with any name. Each emitter name is
+  unique within a mode (cell). Importers name an emitter after its preset (White, Amber, …);
+  when two channels of a mode would get the same name (QLC+ has no Warm/Cold White preset, so
+  both are `IntensityWhite` or colour hint White), each takes its channel name ("Warm White",
+  "Cold White"). Cyan/Magenta/Yellow channels in a mode that also has Red/Green/Blue are
+  emitters, not a CMY system (RGBACL par: RGB system + emitters Amber, Cyan, Lime). Loading a
+  mode where `emitter` is set on an attribute outside group C, or where two emitters share a
+  name, is rejected as LIB-02.
+
 ### QLC+ import (`.qxf`)
 - **LIB-05** Preset mapping: `IntensityMasterDimmer`/`IntensityDimmer` → Dimmer (I, HTP);
-  `IntensityRed/Green/Blue` → RGB system; `IntensityCyan/Magenta/Yellow` → CMY system;
+  `IntensityRed/Green/Blue` → RGB system; `IntensityCyan/Magenta/Yellow` → CMY system, but
+  emitters when the mode also has Red/Green/Blue (LIB-17);
   `IntensityWhite/Amber/UV/Indigo/Lime` → emitter attributes White/Amber/UV/Indigo/Lime (C, LTP);
+  `ColorCTOMixer/CTCMixer/CTBMixer` → CTO / CTC / CTB (C, LTP, not emitters);
   `PositionPan`/`PositionTilt` → Pan/Tilt (P, LTP); `ShutterStrobe*` → Strobe (I, LTP);
   `ShutterIris*` → Iris (B); `BeamZoom*` → Zoom (B); `BeamFocus*` → Focus (B); `ColorWheel` →
   Colour Wheel (C); `ColorMacro` → Colour Macro (C); `GoboWheel`/`GoboIndex` → Gobo / Gobo Index
@@ -83,9 +98,10 @@ model, and a show carries the profiles it uses.
 
 ### Profile from a channel list
 - **LIB-11** The engine builds a profile from `manufacturer`, `model`, `mode` and an ordered list of
-  channel types: Dimmer, Dimmer fine, Red, Green, Blue, White, Amber, Lime, UV, Cyan, Magenta,
-  Yellow, Pan, Pan fine, Tilt, Tilt fine, Strobe, Zoom, Focus, Colour Macro, or Other (with a
-  name, group and default). Same mapping rules as LIB-05/08: U'King RGBL as `[Red, Green, Blue,
+  channel types: Dimmer, Dimmer fine, Red, Green, Blue, White, Warm White, Cold White, Amber,
+  Lime, UV, Indigo, Cyan, Magenta, Yellow, Emitter (with a name, e.g. "Royal Blue"), Pan, Pan
+  fine, Tilt, Tilt fine, Strobe, Zoom, Focus, Colour Macro, or Other (with a name, group and
+  default). Same mapping rules as LIB-05/08: U'King RGBL as `[Red, Green, Blue,
   Lime]` → Colour RGB on 1–3, Lime on 4, `virtual_dimmer = true`.
 - **LIB-12** A profile can be edited after import or creation (attribute names, groups, defaults,
   locate/highlight values) and saved as a user profile; a user profile with the same

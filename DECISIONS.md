@@ -5,6 +5,12 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Extra emitters are recognised by a flag, not by name (LIB-17, owner)
+**Decision:** Every profile attribute carries an `emitter` flag; the engine treats an attribute as an extra emitter (direct wheel PRG-34, ADR-005 palette zeroing, defaults) only by that flag, so any number of emitters with any name works (Amber, Warm/Cold White, UV, Royal Blue, …). Duplicate names take the channel name on import; C/M/Y next to RGB are emitters, CTO/CTB are not.
+**Alternatives:** a fixed list of emitter names (breaks on Warm/Cold White, which QLC+ has no preset for, and on unknown LED colours).
+**Why:** same principle as GDTF's `ColorAdd_*` family; the owner wants every deviating emitter under direct control, not just White and Lime.
+**Reversal trigger:** none foreseen; per-emitter colour data (IDEA-03) is added alongside the flag, not instead of it.
+
 ## 2026-10-17 — Own profile model filled by importers, QLC+ first (ADR-006, accepted)
 
 **Decision:** The engine's own profile model is the only internal fixture format; importers convert QLC+ `.qxf` (bundled, Apache-2.0), typed channel lists and GDTF (phase 1), later OFL, into it. Patch: internal id + user number as on Titan; no church-driven cuts (owner). Supersedes ADR-004 in part. See `specs/ADRs/ADR-006-own-profile-model-with-importers.md`.

@@ -152,7 +152,7 @@ editing the line (Back, Exit) stays in the client.
   RGB/CMY wheels clamp per target (PRG-19).
 - **PRG-33** HSI has no intensity wheel of its own: brightness is the fixture's Dimmer
   (group I), so a colour never carries a second, hidden intensity.
-- **PRG-34** A direct emitter wheel (White, Lime) changes only fixtures that have that emitter and
+- **PRG-34** A direct emitter wheel (White, Lime, any emitter of LIB-17) changes only fixtures that have that emitter and
   is a touched attribute of its own, separate from the target colour. Targets 201 + 221, White
   +50 % → 201 White 0.50 in the programmer, 221 unchanged and not in the programmer.
 
