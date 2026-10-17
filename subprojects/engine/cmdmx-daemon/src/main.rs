@@ -9,7 +9,9 @@
 //!        [--serial PATH | --no-serial] [--ipc-port N] [--demo]`.
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 //! The app talks to the daemon over WebSocket on `--ipc-port` (default 7319);
-//! `--demo` lets fader 1 breathe.
+//! `--demo` lets fader 1 breathe. The demo show (IPC-09, IPC-14) has eight dimmers on
+//! faders 1..8 plus the church rig and its groups; the programmer travels over the same
+//! socket (IPC-10..13).
 
 mod artnet_out;
 mod ipc;
@@ -26,7 +28,7 @@ use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::{FaderMode, Playback, Priority};
 use cmdmx_core::profile::Profile;
-use cmdmx_core::UNIVERSE_SIZE;
+use cmdmx_core::{CoreError, UNIVERSE_SIZE};
 const TICK: Duration = Duration::from_millis(25);
 
 fn main() {
@@ -97,12 +99,7 @@ fn main() {
                     clients.add(tx, &ipc::snapshot(&engine));
                     Ok(())
                 }
-                ipc::Event::Command(ipc::Command::FaderSet { playback, level }) => {
-                    engine.set_fader(playback, level, now)
-                }
-                ipc::Event::Command(ipc::Command::GrandMasterSet { level }) => {
-                    engine.set_grand_master(level)
-                }
+                ipc::Event::Command(cmd) => apply(&mut engine, cmd, now),
             };
             if let Err(e) = result {
                 eprintln!("warning: {e}");
@@ -147,6 +144,48 @@ fn main() {
         next += TICK;
         let wait = next.saturating_duration_since(Instant::now());
         std::thread::sleep(wait);
+    }
+}
+
+/// IPC-04/13: every command maps 1:1 onto an engine method; refusals come back as `Err`.
+fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreError> {
+    use ipc::Command::*;
+    match cmd {
+        FaderSet { playback, level } => engine.set_fader(playback, level, now),
+        GrandMasterSet { level } => engine.set_grand_master(level),
+        Select { fixture } => engine.select_fixture(fixture),
+        SelectGroup { group } => engine.select_group(group),
+        Step { forward: true } => {
+            engine.next_fixture();
+            Ok(())
+        }
+        Step { forward: false } => {
+            engine.prev_fixture();
+            Ok(())
+        }
+        Pattern { stages } => engine.select_pattern(stages),
+        All => {
+            engine.select_all();
+            Ok(())
+        }
+        Clear => {
+            engine.clear();
+            Ok(())
+        }
+        AttributeGroup { group } => {
+            engine.set_active_group(group);
+            Ok(())
+        }
+        Wheel {
+            attribute,
+            steps,
+            resolution,
+        } => engine.turn_wheel(&attribute, steps, resolution),
+        Line { tokens } => {
+            let tokens: Vec<&str> = tokens.iter().map(String::as_str).collect();
+            engine.execute_command(&tokens)
+        }
+        RecordGroup { group } => engine.record_group(group),
     }
 }
 
@@ -245,7 +284,68 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             values: BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0)]))]),
         });
     }
+    // IPC-14: the church rig on universe 1, after the demo dimmers.
+    engine.add_profile("wash", wash_profile());
+    let mut address = 9;
+    for id in 101..=104 {
+        engine.patch(Fixture {
+            id,
+            profile: "wash".into(),
+            universe: 1,
+            address,
+        })?;
+        address += 5;
+    }
+    address = 29;
+    for id in (201..=208).chain(221..=226).chain(301..=306) {
+        engine.patch(Fixture {
+            id,
+            profile: "generic-dimmer".into(),
+            universe: 1,
+            address,
+        })?;
+        address += 1;
+    }
+    // Groups 1 All, 2 Washes, 3 Pars, 4 Front spots; the demo starts with nothing selected.
+    let all = || {
+        (101..=104)
+            .chain(201..=208)
+            .chain(221..=226)
+            .chain(301..=306)
+    };
+    let groups: [Vec<u32>; 4] = [
+        all().collect(),
+        (101..=104).collect(),
+        (201..=208).chain(221..=226).collect(),
+        (301..=306).collect(),
+    ];
+    for (group, members) in (1..).zip(groups) {
+        for id in members {
+            engine.select_fixture(id)?;
+        }
+        engine.record_group(group)?;
+        engine.clear_selection();
+    }
     Ok(engine)
+}
+
+/// IPC-14: Dimmer, 16-bit Pan, Tilt and Zoom on five channels.
+fn wash_profile() -> Profile {
+    let attr = |name: &str, group, kind, channel, fine_channel| AttributeDef {
+        name: name.into(),
+        group,
+        kind,
+        channel,
+        fine_channel,
+    };
+    Profile {
+        attributes: vec![
+            attr("Dimmer", AttributeGroup::I, AttributeKind::Htp, 1, None),
+            attr("Pan", AttributeGroup::P, AttributeKind::Ltp, 2, Some(3)),
+            attr("Tilt", AttributeGroup::P, AttributeKind::Ltp, 4, None),
+            attr("Zoom", AttributeGroup::B, AttributeKind::Ltp, 5, None),
+        ],
+    }
 }
 
 fn parse_ipv4(flag: &str, value: Option<String>) -> Result<Ipv4Addr, String> {

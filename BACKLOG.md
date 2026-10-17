@@ -36,7 +36,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | VS2-04 | Programmer contents as a merge source, relative wheels with Normal/Fine/Coarse steps; scenarios show untouched attributes coming from playbacks (palette references PRG-16, 22 move to the palette tasks after P1-03). | PRG-12, 13, 15, 17..21, 36, 37 | L | done (2026-10-17; `cmdmx-core/tests/wheels.rs`, scenarios PRG-12/13) |
 | VS2-05 | Locate, Highlight/lowlight, Off, Rem Dim and Clear (precedence, mask; timed per ENG-10); scenarios on the frame. Uses locate/highlight values from the minimal test profile until P1-01. | PRG-10 (Locate), 23..29 | M | todo |
 | VS2-06 | Colour models HSI/RGB/CMY on one colour value and direct W/Lime emitter wheels. | PRG-30..34 | M | blocked (needs ADR-005, P1-07) |
-| VS2-07 | Programmer state and commands over IPC (extend `ipc.md` first), app attribute bar, fixtures and groups windows driven by it. | PRG-35, IPC | L | todo |
+| VS2-07 | Programmer state and commands over IPC (extend `ipc.md` first), app attribute bar, fixtures and groups windows driven by it. | PRG-29 (default), 35, IPC-10..17 | L | review (owner runs `tests/manual/app-programmer.md`) |
 | VS2-01 | Demo: patch the church rig, select the LED pars, set a colour and intensity, record a palette and a playback, bring it up on an on-screen fader; Art-Net shows the right values on every fixture type. | PAT, PRG, PAL, PBK | — | todo (split after specs) |
 
 ### VS3 — Running a show: cue list and busking pages
