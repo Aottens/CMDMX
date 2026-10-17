@@ -469,6 +469,11 @@ mod tests {
         );
         let wash = engine.fixtures().find(|f| f.id == 101).unwrap();
         assert_eq!(wash.profile, "wash");
+        // VS2-07 run, finding 1: a short profile key that fits a fixture button.
+        assert!(engine
+            .fixtures()
+            .filter(|f| f.profile != "wash")
+            .all(|f| f.profile == "dimmer"));
         assert_eq!(engine.group(1), Some(church.as_slice()));
         assert_eq!(engine.group(2), Some(&[101, 102, 103, 104][..]));
         let pars: Vec<u32> = (201..=208).chain(221..=226).collect();

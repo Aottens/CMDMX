@@ -116,3 +116,58 @@ fn prg_35_in_programmer_is_sorted_and_has_values_follows_the_targets() {
     assert!(!group_state(&v, I).has_values);
     assert_eq!(v.in_programmer, vec![201, 302]);
 }
+
+// ---- VS2-07 run findings -------------------------------------------------------
+
+#[test]
+fn prg_29_cleared_intensity_falls_to_zero_in_the_output() {
+    let mut e = church();
+    e.execute_command(&["201", "@", "80", "Enter"]).unwrap();
+    e.tick(0.0);
+    assert_eq!(common::dmx(&e, 21), 204);
+    e.clear();
+    e.clear();
+    e.tick(0.1);
+    assert_eq!(
+        common::dmx(&e, 21),
+        0,
+        "HTP without a source outputs 0 (ENG-07)"
+    );
+}
+
+#[test]
+fn eng_07_htp_falls_to_zero_when_the_last_source_is_killed_ltp_holds() {
+    use cmdmx_core::playback::{FaderMode, Playback, Priority};
+    use std::collections::BTreeMap;
+    let mut e = church();
+    e.add_playback(Playback {
+        id: 1,
+        priority: Priority::Normal,
+        fader_mode: FaderMode::Mode0,
+        values: BTreeMap::from([(
+            101,
+            BTreeMap::from([("Dimmer".to_string(), 1.0), ("Tilt".to_string(), 0.6)]),
+        )]),
+    });
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    assert_eq!((common::dmx(&e, 1), common::dmx(&e, 4)), (255, 153));
+    e.set_fader(1, 0.0, 0.1).unwrap();
+    e.tick(0.1);
+    assert_eq!(common::dmx(&e, 1), 0, "Dimmer (HTP) falls to 0");
+    assert_eq!(common::dmx(&e, 4), 153, "Tilt (LTP) holds");
+}
+
+#[test]
+fn prg_35_wheels_say_whether_the_attribute_is_16_bit() {
+    let mut e = church();
+    select(&mut e, &[101]);
+    e.set_active_group(P);
+    let v = e.programmer_view();
+    let bits: Vec<(String, bool)> = v
+        .wheels
+        .iter()
+        .map(|w| (w.attribute.clone(), w.sixteen_bit))
+        .collect();
+    assert_eq!(bits, vec![("Pan".into(), true), ("Tilt".into(), false)]);
+}

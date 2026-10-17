@@ -37,12 +37,12 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   fixture, sorted by id), `"groups":[{"id":2,"fixtures":[101,102,103,104]}]` (sorted by id, members
   in group order) and `"programmer":{…}` (IPC-11).
 - **IPC-11** The programmer state object:
-  `{"selection":[203,201],"targets":[203],"active_group":"P","attribute_groups":[{"group":"I","available":true,"has_values":false},…],"wheels":[{"attribute":"Pan","value":0.5,"touched":true}],"in_programmer":[201,203]}`.
+  `{"selection":[203,201],"targets":[203],"active_group":"P","attribute_groups":[{"group":"I","available":true,"has_values":false},…],"wheels":[{"attribute":"Pan","value":0.5,"touched":true,"sixteen_bit":true}],"in_programmer":[201,203]}`.
   `attribute_groups` has eight entries in I P C G B E S FX order: `available` = some target has an
   attribute in that group, `has_values` = some target has a programmer value in it. `wheels` is
   the wheel layout (PRG-17) with, per attribute, the value of the first target that has it
-  (programmer value if touched, else the current output, PRG-20) and whether that value is
-  touched. `in_programmer` lists fixtures with programmer values, sorted.
+  (programmer value if touched, else the current output, PRG-20), whether that value is
+  touched, and whether that attribute is 16-bit in its profile (has a fine channel). `in_programmer` lists fixtures with programmer values, sorted.
 - **IPC-12** Deltas: `{"v":0,"type":"programmer",…IPC-11 fields}` to every client after a tick in
   which any of those fields changed, and `{"v":0,"type":"groups","groups":[…]}` after a tick in
   which a group was recorded. At most one of each per tick.
@@ -70,7 +70,8 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 - **IPC-16** An attribute bar between the windows and the faders: eight tabs I P C G B E S FX
   (active, available, has values; unavailable tabs disabled) sending
   `programmer.attribute_group`; one wheel per `wheels` entry with name and value in %, red when
-  touched; dragging it vertically (1 step per 4 pt) or scrolling (1 step per tick) sends
+  touched, with one decimal on a `sixteen_bit` wheel once a Fine step was sent on it (owner,
+  VS2-07 run); dragging it vertically (1 step per 4 pt) or scrolling (1 step per tick) sends
   `programmer.wheel`, with Option = Fine and Shift = Coarse; buttons Fix −1, Fix +1, Odd/Even
   (pattern 2), All and Clear (Clear red while the selection or programmer is non-empty).
 - **IPC-17** A command line in the attribute bar: one text field; Return sends its words plus

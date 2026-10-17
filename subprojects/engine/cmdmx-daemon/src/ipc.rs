@@ -564,14 +564,14 @@ mod tests {
             v["programmer"],
             json!({"selection":[1],"targets":[1],"active_group":"I",
                    "attribute_groups": no_values(true),
-                   "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false}],
+                   "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false}],
                    "in_programmer":[]})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(&e));
         assert_eq!(
             v["programmer"]["wheels"],
-            json!([{"attribute":"Dimmer","value":1.0,"touched":true}])
+            json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false}])
         );
         assert_eq!(v["programmer"]["in_programmer"], json!([1]));
         assert_eq!(v["programmer"]["attribute_groups"][0]["has_values"], true);
