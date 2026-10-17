@@ -19,6 +19,8 @@ struct Cell: View {
     var selected = false
     /// Current target during a sub-selection: a double blue border.
     var current = false
+    /// Selected but not a target during a sub-selection: blue at 40 %.
+    var dimmed = false
     var inProgrammer = false
     /// Record armed: empty cells show a red number.
     var armed = false
@@ -32,7 +34,7 @@ struct Cell: View {
             Rectangle().fill(empty ? Color.clear : t.surf)
 
             Text("\(number)").font(Typo.mono(Typo.small))
-                .foregroundStyle(selected ? t.blue : empty ? (armed ? t.red : t.fg3) : t.fg2)
+                .foregroundStyle(selected ? t.blue.opacity(dimmed ? 0.4 : 1) : empty ? (armed ? t.red : t.fg3) : t.fg2)
                 .padding(.leading, 4).padding(.top, 4)
 
             if !empty {
@@ -59,7 +61,7 @@ struct Cell: View {
         .frame(maxWidth: .infinity).frame(height: 54)
         .overlay(alignment: .topTrailing) {
             if let order {
-                Text("\(order)").font(Typo.mono(Typo.small, .semibold)).foregroundStyle(t.blue).padding(4)
+                Text("\(order)").font(Typo.mono(Typo.small, .semibold)).foregroundStyle(t.blue.opacity(dimmed ? 0.4 : 1)).padding(4)
             } else if let tag {
                 Text(tag.uppercased()).font(Typo.mono(9, .medium)).tracking(0.5).foregroundStyle(t.fg2).padding(4)
             }
@@ -76,7 +78,7 @@ struct Cell: View {
                     Rectangle().inset(by: 4).strokeBorder(t.blue, lineWidth: 1)
                 }
             } else {
-                Rectangle().strokeBorder(selected ? t.blue : t.line, lineWidth: selected ? 2 : 1)
+                Rectangle().strokeBorder(selected ? t.blue.opacity(dimmed ? 0.4 : 1) : t.line, lineWidth: selected ? 2 : 1)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: radius))
@@ -158,6 +160,7 @@ struct FixturesWindow: View {
                          order: order[fixture.id],
                          selected: order[fixture.id] != nil,
                          current: subSelection && targets.contains(fixture.id),
+                         dimmed: subSelection && order[fixture.id] != nil && !targets.contains(fixture.id),
                          inProgrammer: inProgrammer.contains(fixture.id),
                          lamp: true) { engine.selectFixture(fixture.id) }
                 }

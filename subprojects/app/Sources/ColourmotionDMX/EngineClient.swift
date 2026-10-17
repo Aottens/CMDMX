@@ -205,6 +205,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var groups: [GroupInfo] = []
     /// Reply to the last `library.search` (this client only).
     @Published private(set) var libraryResults: [LibraryItem] = []
+    /// Last query sent; a reply that arrives after the field was emptied is ignored.
+    private var lastLibraryQuery = ""
     @Published private(set) var programmer = ProgrammerState()
     /// IPC-20: one entry per output node; empty while offline (the state is unknown then).
     @Published private(set) var outputs: [OutputStatus] = []
@@ -260,7 +262,11 @@ final class EngineClient: ObservableObject {
     // Patch commands (PAT-09, LIB-14). All take internal ids; the engine checks and may refuse
     // with a warning/error, which lands in `lastMessage`.
 
-    func searchLibrary(_ query: String) { sendJSON("library.search", ["query": query]) }
+    func searchLibrary(_ query: String) {
+        lastLibraryQuery = query
+        if query.trimmingCharacters(in: .whitespaces).isEmpty { libraryResults = []; return }
+        sendJSON("library.search", ["query": query])
+    }
 
     /// `address` / `number` nil = omitted, the engine picks (PAT-03).
     func patchAdd(profile: String, mode: String, count: Int, universe: Int, address: Int?, number: Int?) {
@@ -401,7 +407,7 @@ final class EngineClient: ObservableObject {
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
         case "library.results":
-            libraryResults = incoming.items ?? []
+            if !lastLibraryQuery.trimmingCharacters(in: .whitespaces).isEmpty { libraryResults = incoming.items ?? [] }
         case "groups":
             if let groups = incoming.groups { self.groups = groups }
         case "playback":
