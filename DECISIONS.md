@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Programmer behaviour choices (P1-02)
+
+**Decision:** Clear defaults to selection-then-programmer (Titan's one-press Clear is a setting); Locate removes the located attributes from the programmer; a typed command-line selection replaces the selection while tapping adds; Fan and Blind stay out of phase 1 (greyed in UI v0.1); undo gets its own item (P1-10). Spec: `specs/modules/programmer.md`.
+
+**Alternatives considered:** Titan's defaults for Clear and Locate; Fan/Blind in phase 1; undo inside the programmer spec.
+
+**Reasoning:** A first Clear that keeps your work is safer during a service; with Locate, what is on stage is what gets recorded. Fan is phase 2 in `PROJECT.md`; undo spans programmer and show edits.
+
+**Reversal trigger:** Avolites muscle memory at the church makes the Clear or Locate deviation trip the operator.
+
 ## 2026-10-17 — Main-screen sketch is UI v0.1
 
 **Decision:** `specs/ux/main-screen.html` (UX-01, iteration 2 with owner tweaks) is UI v0.1: the reference for the SwiftUI main screen and for the programmer, palette and playback specs. Its layout (workspace rail, fixed 2×2 window grid, function buttons, keypad + command line, softkeys, attribute bar, pages, playback strips, Go block, GM/DBO) and visual rules (flat, dense, hairlines, colour only for state) hold until the owner changes them. Background: `specs/ux/research.md`.

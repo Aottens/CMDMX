@@ -29,8 +29,14 @@ after the specs are added when each spec is approved (no sizing of code before i
 | UX-01 | Clickable HTML sketch of the Titan-style main screen (fixtures/groups, palette grid, programmer + encoders, playback faders, cue list), max two iterations; owner says it feels right. Guides the SwiftUI work. | — | M | done (2026-10-17; UI v0.1 = `specs/ux/main-screen.html`, research `specs/ux/research.md`) |
 | P1-01 | Write `fixture-library.md`: GDTF subset + overlay, **and a profile from a plain channel list** for fixtures without GDTF (the church's Chinese pars); owner approves. | LIB | M | todo |
 | P1-07 | ADR-005: colour is stored as a device-independent target colour and mapped per fixture to RGB/RGBW/RGB+Lime/CMY, **and** extra emitters (W, Lime, later Amber/UV) can also be driven directly (owner, 2026-10-17: Lime makes a fine amber, W a real white); the ADR decides how direct emitter values combine with the target colour and how palettes store them; owner approves before P1-03. | PAL, SHW | S | todo |
-| P1-02 | Write `programmer.md` from the Titan analysis (ordered selection, groups, touched attributes, colour picker RGB/CMY/HSI, Clear options, Locate/Highlight). | PRG | M | todo |
+| P1-02 | Write `programmer.md` from the Titan analysis (ordered selection, groups, touched attributes, colour picker RGB/CMY/HSI, Clear options, Locate/Highlight). | PRG | M | done (2026-10-17; PRG-01..37 approved) |
 | P1-03 | Write `palettes.md` (Global/Shared/Normal auto-detection, quick record masks, quick palette, fade/overlap). | PAL | M | todo |
+| VS2-02 | Selection, sub-selection, patterns and groups in `cmdmx-core::programmer`, unit tested. | PRG-01..07, 14 | M | todo |
+| VS2-03 | Command-line parser and executor for the Titan keypad subset, unit tested. | PRG-08..11 | M | todo |
+| VS2-04 | Programmer contents as a merge source, relative wheels with Normal/Fine/Coarse steps, palette references per attribute; scenarios show untouched attributes coming from playbacks. | PRG-12, 13, 15..22, 36, 37 | L | todo |
+| VS2-05 | Locate, Highlight/lowlight, Off, Rem Dim and Clear (precedence, mask; timed per ENG-10); scenarios on the frame. Uses locate/highlight values from the minimal test profile until P1-01. | PRG-23..29 | M | todo |
+| VS2-06 | Colour models HSI/RGB/CMY on one colour value and direct W/Lime emitter wheels. | PRG-30..34 | M | blocked (needs ADR-005, P1-07) |
+| VS2-07 | Programmer state and commands over IPC (extend `ipc.md` first), app attribute bar, fixtures and groups windows driven by it. | PRG-35, IPC | L | todo |
 | VS2-01 | Demo: patch the church rig, select the LED pars, set a colour and intensity, record a palette and a playback, bring it up on an on-screen fader; Art-Net shows the right values on every fixture type. | PAT, PRG, PAL, PBK | — | todo (split after specs) |
 
 ### VS3 — Running a show: cue list and busking pages
@@ -53,6 +59,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | Id | Task | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
 | P1-05 | Write `control-surfaces.md` (MCU map, generic MIDI map, OSC schema). | CTL | M | todo |
+| P1-10 | Decide and spec one engine-wide undo (programmer, palettes, playbacks, show edits) as UI v0.1 shows it; owner approves. | — | M | todo |
 | P1-06 | Write `ipc.md` (message schema, versioning, snapshot/delta, reconnect) — VS1-05 writes the first subset. | IPC | M | todo |
 
 ## Later phases
