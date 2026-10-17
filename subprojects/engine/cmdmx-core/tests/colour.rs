@@ -512,3 +512,74 @@ fn lib_07_fixture_colour_and_emitters_drive_every_cell() {
         "one White for the fixture"
     );
 }
+
+// ---- IPC-21..23 (UX-02b): the Programmer window and the colour picker ---------------
+
+#[test]
+fn ipc_21_view_contents_are_the_programmer_values() {
+    use cmdmx_core::programmer::FixtureValues;
+    let mut e = rig();
+    assert!(e.programmer_view().contents.is_empty());
+    e.set_programmer_value(201, "Dimmer", 0.5).unwrap();
+    e.set_programmer_value(201, "Colour", rgb(1.0, 0.2, 0.0))
+        .unwrap();
+    e.set_programmer_value(301, "Dimmer", 1.0).unwrap();
+    assert_eq!(
+        e.programmer_view().contents,
+        vec![
+            FixtureValues {
+                fixture: 201,
+                values: BTreeMap::from([
+                    ("Colour".to_string(), Value::Colour(rgb(1.0, 0.2, 0.0))),
+                    ("Dimmer".to_string(), Value::Level(0.5)),
+                ]),
+            },
+            FixtureValues {
+                fixture: 301,
+                values: BTreeMap::from([("Dimmer".to_string(), Value::Level(1.0))]),
+            },
+        ]
+    );
+}
+
+#[test]
+fn ipc_22_view_colour_is_the_first_targets_colour() {
+    let mut e = rig();
+    assert_eq!(e.programmer_view().colour, None, "nothing selected");
+    select(&mut e, &[301]);
+    assert_eq!(e.programmer_view().colour, None, "a dimmer has no Colour");
+    select(&mut e, &[202, 201]);
+    // Nothing in the programmer: the output, open white (LIB-03, PRG-20).
+    let c = e.programmer_view().colour.unwrap();
+    assert_eq!((c.r, c.g, c.b, c.saturation), (1.0, 1.0, 1.0, 0.0));
+    e.set_programmer_value(202, "Colour", rgb(0.0, 0.0, 1.0))
+        .unwrap();
+    let c = e.programmer_view().colour.unwrap();
+    assert_eq!((c.r, c.g, c.b), (0.0, 0.0, 1.0));
+    assert!((c.hue - 2.0 / 3.0).abs() < 1e-4, "hue {}", c.hue);
+    assert!((c.saturation - 1.0).abs() < 1e-4);
+}
+
+#[test]
+fn ipc_23_set_colour_sets_hue_and_saturation_on_every_colour_target() {
+    let mut e = rig();
+    assert_eq!(e.set_colour(0.5, 1.0), Err(CoreError::EmptySelection));
+    select(&mut e, &[301]);
+    assert_eq!(
+        e.set_colour(0.5, 1.0),
+        Err(CoreError::AttributeNotInTargets("Colour".into()))
+    );
+    e.clear_selection();
+    select(&mut e, &[201, 221, 301]);
+    e.set_colour(2.0 / 3.0, 1.0).unwrap();
+    assert_colour(programmer_colour(&e, 201), rgb(0.0, 0.0, 1.0));
+    assert_colour(programmer_colour(&e, 221), rgb(0.0, 0.0, 1.0));
+    assert_eq!(e.programmer().value(301, "Colour"), None);
+    // Like the HSI wheels, the brightest component stays (PRG-32).
+    e.set_programmer_value(201, "Colour", rgb(0.5, 0.5, 0.5))
+        .unwrap();
+    e.set_colour(0.0, 1.0).unwrap();
+    assert_colour(programmer_colour(&e, 201), rgb(0.5, 0.0, 0.0));
+    assert_eq!(e.set_colour(1.5, 1.0), Err(CoreError::InvalidLevel(1.5)));
+    assert_eq!(e.set_colour(0.5, -0.1), Err(CoreError::InvalidLevel(-0.1)));
+}

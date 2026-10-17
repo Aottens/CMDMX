@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Shared controls and the attribute bar (IPC-16, IPC-17, IPC-19). Pure rendering of
+// Shared controls and the attribute bar (UI-20, IPC-16, IPC-17, IPC-19). Pure rendering of
 // `EngineClient` state plus command sending: no selection order, targets or wheel layout
 // is computed here. The Fixtures and Groups windows live in Windows.swift.
 
@@ -68,9 +68,9 @@ struct PanelWindow<Accessory: View, Content: View>: View {
     }
 }
 
-// MARK: - Attribute bar (IPC-16, IPC-17, IPC-19)
+// MARK: - Attribute bar (UI-20, IPC-16, IPC-17, IPC-19)
 
-/// 64 pt zone: tabs, wheels (with the colour model switch), command line, programmer summary.
+/// 64 pt zone: tabs, colour model + wheels, command line, programmer summary with Undo and Clear.
 struct AttributeBar: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
@@ -98,7 +98,7 @@ struct AttributeBar: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
                     Text("›").font(Typo.mono(13)).foregroundStyle(t.fg3)
-                    // Only keyboard-driven control in the app: no global key handlers (IPC-17).
+                    // Still a text field; the token command line comes with UX-02c (UI-19).
                     TextField("Command, e.g. 201 Thro 205 @ 50", text: $command)
                         .textFieldStyle(.plain)
                         .font(Typo.mono(13))
@@ -110,32 +110,38 @@ struct AttributeBar: View {
                         }
                 }
                 .padding(.horizontal, 8).frame(height: 26)
-                .background(RoundedRectangle(cornerRadius: radius).fill(t.bg))
+                .background(RoundedRectangle(cornerRadius: radius).fill(t.field))
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+                // Only warnings and errors land here (IPC-17).
                 Text(engine.lastMessage ?? " ").font(Typo.ui(11)).foregroundStyle(t.amber).lineLimit(1)
             }
-            .frame(minWidth: 200, maxWidth: .infinity)
+            .frame(minWidth: 140, maxWidth: .infinity)
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text(!programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
-                    .font(Typo.mono(13)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
-                Text("programmer").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
-            }
-            .frame(minWidth: 96, alignment: .leading)
-
+            // Until UX-02c moves them to the keypad and softkeys.
             VStack(spacing: 3) {
                 HStack(spacing: 3) {
                     Button("Fix −1") { engine.step(-1) }
                     Button("Fix +1") { engine.step(1) }
-                    Button("Odd/Even") { engine.pattern(2) }
                 }
                 HStack(spacing: 3) {
+                    Button("Odd/Even") { engine.pattern(2) }
                     Button("All") { engine.selectAll() }
-                    Button("Clear") { engine.clearProgrammer() }
-                        .buttonStyle(FlatButton(fill: dirty ? .red : nil, compact: true))
                 }
             }
             .buttonStyle(FlatButton(compact: true))
+
+            HStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(!programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
+                        .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
+                    Text("programmer").font(Typo.mono(11)).foregroundStyle(t.fg2)
+                }
+                .lineLimit(1)
+                .padding(.horizontal, 8).frame(minWidth: 108, alignment: .leading)
+                Button("Undo") {}.disabled(true).help("Undo · P1-10")
+                Button("Clear") { engine.clearProgrammer() }.buttonStyle(ZoneKeyStyle(ring: dirty))
+            }
+            .buttonStyle(ZoneKeyStyle(ring: false))
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -144,7 +150,8 @@ struct AttributeBar: View {
 
     /// The colour model switch (C tab only), then the wheels; at least three slots like the encoders.
     private func wheelRow(_ programmer: ProgrammerState) -> some View {
-        HStack(spacing: 6) {
+        let width: CGFloat = programmer.wheels.count > 3 ? 124 : 168
+        return HStack(spacing: 6) {
             if programmer.activeGroup == "C" {
                 // IPC-19: wire values are the engine's ColourModel names.
                 VStack(spacing: 2) {
@@ -154,9 +161,12 @@ struct AttributeBar: View {
                     }
                 }
             }
-            ForEach(programmer.wheels) { WheelView(wheel: $0) }
-            ForEach(programmer.wheels.count..<max(3, programmer.wheels.count), id: \.self) { slot in
-                EmptyWheel(slot: slot + 1)
+            ForEach(Array(programmer.wheels.enumerated()), id: \.element.id) { index, wheel in
+                WheelView(wheel: wheel, slot: index + 1, width: width)
+            }
+            ForEach(programmer.wheels.count..<max(3, programmer.wheels.count), id: \.self) { index in
+                WheelFace(name: programmer.selection.isEmpty ? "select fixtures" : "", slot: index + 1,
+                          text: "—", value: nil, touched: false, width: width)
             }
         }
     }
@@ -196,33 +206,83 @@ private struct ModeButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(Typo.mono(9))
             .foregroundStyle(on ? t.bg : t.fg2)
-            .padding(.horizontal, 5).frame(height: 14)
+            .padding(.horizontal, 5).frame(height: 16)
             .background(RoundedRectangle(cornerRadius: radius).fill(on ? t.fg : Color.clear))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
-private struct EmptyWheel: View {
+/// Undo and Clear: 60 x 46 pt; the red ring means there is something to clear.
+private struct ZoneKeyStyle: ButtonStyle {
     @Environment(\.theme) private var t
-    let slot: Int
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            Text("enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
-                .frame(maxWidth: .infinity, alignment: .trailing).padding(.horizontal, 6).padding(.top, 4)
-            Text("—").font(Typo.mono(15, .medium)).foregroundStyle(t.fg3).padding(.leading, 6).padding(.top, 17)
-        }
-        .frame(width: 110, height: 46)
-        .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
-        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+    @Environment(\.isEnabled) private var enabled
+    let ring: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        let down = configuration.isPressed
+        configuration.label
+            .font(Typo.legend(12, .medium))
+            .foregroundStyle(down ? t.bg : ring ? t.red : t.fg)
+            .frame(width: 60, height: 46)
+            .background(RoundedRectangle(cornerRadius: radius).fill(down ? t.fg : t.surf))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ring ? t.red : t.line, lineWidth: ring ? 2 : hairline))
+            .opacity(enabled ? 1 : 0.3)
     }
 }
 
-/// One wheel: name, value %, drag or scroll to send `programmer.wheel`.
-private struct WheelView: View {
+/// The face of a rolling encoder (the sketch's .wh): name, "enc n", value, roller strip and
+/// position tick. `value` nil = an empty slot.
+private struct WheelFace: View {
     @Environment(\.theme) private var t
+    let name: String
+    let slot: Int
+    let text: String
+    let value: Double?
+    let touched: Bool
+    let width: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Text(name.uppercased()).font(Typo.legend(11)).tracking(0.6).foregroundStyle(t.fg2).lineLimit(1)
+                .padding(.leading, 6).padding(.top, 4)
+            Text("enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
+                .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 6).padding(.top, 4)
+            Text(text).font(Typo.mono(15, .medium))
+                .foregroundStyle(value == nil ? t.fg3 : touched ? t.red : t.fg).lineLimit(1)
+                .padding(.horizontal, 6).padding(.top, 17)
+        }
+        .frame(width: width, height: 46, alignment: .topLeading)
+        .overlay(alignment: .bottom) { roller }
+        .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
+        .clipShape(RoundedRectangle(cornerRadius: radius))
+        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+    }
+
+    /// 8 pt strip: hairline ticks every 6 pt that scroll with the value (-value x 300 pt, like the
+    /// sketch's --x), plus a 2 pt tick at value x width.
+    private var roller: some View {
+        Canvas { ctx, size in
+            var x = ((-(value ?? 0)) * 300).truncatingRemainder(dividingBy: 6)
+            while x < size.width {
+                ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: size.height)), with: .color(t.line2))
+                x += 6
+            }
+            if let value {
+                let p = min(max(value, 0), 1) * size.width
+                ctx.fill(Path(CGRect(x: min(p, size.width - 2), y: 0, width: 2, height: size.height)), with: .color(t.fg))
+            }
+        }
+        .frame(height: 8)
+    }
+}
+
+/// One wheel: drag or scroll to send `programmer.wheel` (IPC-16).
+private struct WheelView: View {
     @EnvironmentObject private var engine: EngineClient
     let wheel: WheelState
+    let slot: Int
+    let width: CGFloat
     /// Whole steps already sent during the current drag (remainder stays in the translation).
     @State private var sentSteps = 0
 
@@ -230,19 +290,11 @@ private struct WheelView: View {
     private let pointsPerStep: CGFloat = 4
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            Text(wheel.attribute.uppercased()).font(Typo.legend(11)).tracking(0.6).foregroundStyle(t.fg2).lineLimit(1)
-                .padding(.leading, 6).padding(.top, 4)
-            Text(wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
-                 : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
-                 ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value))
-                .font(Typo.mono(15, .medium))
-                .foregroundStyle(wheel.touched ? t.red : t.fg)
-                .padding(.leading, 6).padding(.top, 17)
-        }
-        .frame(width: 110, height: 46, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
-        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+        WheelFace(name: wheel.attribute, slot: slot,
+                  text: wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
+                  : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
+                  ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value),
+                  value: wheel.value, touched: wheel.touched, width: width)
         .background(ScrollCatcher { steps, flags in
             engine.wheel(attribute: wheel.attribute, steps: steps, resolution: resolution(flags))
         })
@@ -261,7 +313,7 @@ private struct WheelView: View {
 }
 
 /// Option = Fine, Shift = Coarse (IPC-16).
-private func resolution(_ flags: NSEvent.ModifierFlags) -> WheelResolution {
+func resolution(_ flags: NSEvent.ModifierFlags) -> WheelResolution {
     flags.contains(.option) ? .fine : flags.contains(.shift) ? .coarse : .normal
 }
 
