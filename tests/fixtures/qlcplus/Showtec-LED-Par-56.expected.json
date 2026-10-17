@@ -1,0 +1,22 @@
+{
+  "manufacturer": "Showtec",
+  "model": "LED Par 56",
+  "source": "qlcplus:Showtec/Showtec-LED-Par-56.qxf",
+  "modes": [
+    {
+      "name": "6 Channel",
+      "footprint": 6,
+      "virtual_dimmer": true,
+      "colour": { "system": "RGB", "components": [ { "channel": 1 }, { "channel": 2 }, { "channel": 3 } ] },
+      "attributes": [
+        { "name": "Colour Macro", "group": "C", "kind": "Ltp", "channel": 4 },
+        { "name": "Strobe and Speed", "group": "S", "kind": "Ltp", "channel": 5 },
+        { "name": "Mode", "group": "S", "kind": "Ltp", "channel": 6, "slots": [
+          { "name": "RGB Control", "from": 0, "to": 63 },
+          { "name": "7 Color Fade", "from": 64, "to": 127 },
+          { "name": "7 color change", "from": 128, "to": 191 },
+          { "name": "music controlled", "from": 192, "to": 255 } ] }
+      ]
+    }
+  ]
+}

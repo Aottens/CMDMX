@@ -1,0 +1,351 @@
+{
+  "manufacturer": "Shehds",
+  "model": "LED Beam+Wash 19x15W RGBW Zoom Lighting",
+  "source": "qlcplus:Shehds/Shehds-LED-Beam+Wash-19x15W-RGBW-Zoom.qxf",
+  "modes": [
+    {
+      "name": "16 Channel",
+      "footprint": 16,
+      "colour": {
+        "system": "RGB",
+        "components": [
+          {
+            "channel": 8
+          },
+          {
+            "channel": 9
+          },
+          {
+            "channel": 10
+          }
+        ]
+      },
+      "attributes": [
+        {
+          "name": "Pan",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 1,
+          "fine_channel": 2
+        },
+        {
+          "name": "Tilt",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 3,
+          "fine_channel": 4
+        },
+        {
+          "name": "Pan/Tilt Speed",
+          "group": "S",
+          "kind": "Ltp",
+          "channel": 5
+        },
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 6
+        },
+        {
+          "name": "Strobe",
+          "group": "I",
+          "kind": "Ltp",
+          "channel": 7
+        },
+        {
+          "name": "White",
+          "group": "C",
+          "kind": "Ltp",
+          "channel": 11,
+          "emitter": true
+        },
+        {
+          "name": "Focus",
+          "group": "B",
+          "kind": "Ltp",
+          "channel": 12
+        },
+        {
+          "name": "Program Selection",
+          "group": "S",
+          "kind": "Ltp",
+          "slots": [
+            {
+              "name": "Preset Color",
+              "from": 0,
+              "to": 175
+            },
+            {
+              "name": "Program Jump",
+              "from": 176,
+              "to": 200
+            },
+            {
+              "name": "Program Gradient",
+              "from": 201,
+              "to": 224
+            },
+            {
+              "name": "Program Pulse",
+              "from": 225,
+              "to": 255
+            }
+          ],
+          "channel": 13
+        },
+        {
+          "name": "Program Speed",
+          "group": "S",
+          "kind": "Ltp",
+          "channel": 14
+        },
+        {
+          "name": "Program Activation",
+          "group": "S",
+          "kind": "Ltp",
+          "slots": [
+            {
+              "name": "No Function",
+              "from": 0,
+              "to": 49
+            },
+            {
+              "name": "Program Activation",
+              "from": 50,
+              "to": 99
+            },
+            {
+              "name": "Self-propelled mode (1)",
+              "from": 100,
+              "to": 150
+            },
+            {
+              "name": "Self-propelled mode (2)",
+              "from": 151,
+              "to": 199
+            },
+            {
+              "name": "Audio control mode",
+              "from": 200,
+              "to": 255
+            }
+          ],
+          "channel": 15
+        },
+        {
+          "name": "Reset",
+          "group": "S",
+          "kind": "Ltp",
+          "channel": 16
+        }
+      ],
+      "pan_degrees": 540.0,
+      "tilt_degrees": 180.0,
+      "zoom_degrees": [
+        8.0,
+        55.0
+      ]
+    },
+    {
+      "name": "24 Channel",
+      "footprint": 24,
+      "attributes": [
+        {
+          "name": "Pan",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 1,
+          "fine_channel": 2
+        },
+        {
+          "name": "Tilt",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 3,
+          "fine_channel": 4
+        },
+        {
+          "name": "Pan/Tilt Speed",
+          "group": "S",
+          "kind": "Ltp",
+          "channel": 5
+        },
+        {
+          "name": "Focus",
+          "group": "B",
+          "kind": "Ltp",
+          "channel": 6
+        },
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 7
+        },
+        {
+          "name": "Strobe",
+          "group": "I",
+          "kind": "Ltp",
+          "channel": 8
+        },
+        {
+          "name": "Program Selection",
+          "group": "S",
+          "kind": "Ltp",
+          "slots": [
+            {
+              "name": "Preset Color",
+              "from": 0,
+              "to": 175
+            },
+            {
+              "name": "Program Jump",
+              "from": 176,
+              "to": 200
+            },
+            {
+              "name": "Program Gradient",
+              "from": 201,
+              "to": 224
+            },
+            {
+              "name": "Program Pulse",
+              "from": 225,
+              "to": 255
+            }
+          ],
+          "channel": 21
+        },
+        {
+          "name": "Program Speed",
+          "group": "S",
+          "kind": "Ltp",
+          "channel": 22
+        },
+        {
+          "name": "Program Activation",
+          "group": "S",
+          "kind": "Ltp",
+          "slots": [
+            {
+              "name": "No Function",
+              "from": 0,
+              "to": 49
+            },
+            {
+              "name": "Program Activation",
+              "from": 50,
+              "to": 99
+            },
+            {
+              "name": "Self-propelled mode (1)",
+              "from": 100,
+              "to": 150
+            },
+            {
+              "name": "Self-propelled mode (2)",
+              "from": 151,
+              "to": 199
+            },
+            {
+              "name": "Audio control mode",
+              "from": 200,
+              "to": 255
+            }
+          ],
+          "channel": 23
+        },
+        {
+          "name": "Reset",
+          "group": "S",
+          "kind": "Ltp",
+          "channel": 24
+        }
+      ],
+      "cells": [
+        {
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 9
+              },
+              {
+                "channel": 10
+              },
+              {
+                "channel": 11
+              }
+            ]
+          },
+          "attributes": [
+            {
+              "name": "White",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 12,
+              "emitter": true
+            }
+          ]
+        },
+        {
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 13
+              },
+              {
+                "channel": 14
+              },
+              {
+                "channel": 15
+              }
+            ]
+          },
+          "attributes": [
+            {
+              "name": "White",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 16,
+              "emitter": true
+            }
+          ]
+        },
+        {
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 17
+              },
+              {
+                "channel": 18
+              },
+              {
+                "channel": 19
+              }
+            ]
+          },
+          "attributes": [
+            {
+              "name": "White",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 20,
+              "emitter": true
+            }
+          ]
+        }
+      ],
+      "pan_degrees": 540.0,
+      "tilt_degrees": 180.0,
+      "zoom_degrees": [
+        8.0,
+        55.0
+      ]
+    }
+  ]
+}

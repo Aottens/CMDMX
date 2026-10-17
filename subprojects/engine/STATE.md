@@ -3,7 +3,7 @@
 _Last updated: 2026-10-17_
 
 ## Current step
-VS2-10 patch core in review; next VS2-09 (QLC+ importer), then VS2-11/12.
+VS2-09 QLC+ importer in review; next VS2-11 (library in the daemon), then VS2-12.
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
@@ -18,6 +18,7 @@ VS2-10 patch core in review; next VS2-09 (QLC+ importer), then VS2-11/12.
 - Colour (VS2-06): `colour.rs` (`TargetColour`, `ColourModel`, HSV), `value.rs` (`Value`, untagged serde); `Mode::logical_attributes()` = virtual Dimmer, Colour, own attributes, cell-only names; engine `held` LTP values (patch defaults, Colour white) replace frame decoding; `write_value` maps Colour nominally to mode + cell mixing channels, levels to mode + same-named cell attributes, virtual dimmer scales colour and emitters. 18 tests in `tests/colour.rs`, scenarios LIB-04 and PRG-12 colour.
 - VS2-14: IPC-18 `programmer.colour_model`; demo rig (IPC-14) built from JSON profiles in `main.rs`: RGBW washes 101–104, RGBW pars 201–208, RGB+Lime 211–216 and Showtec RGB 221–226 (virtual dimmer), spots 301–306.
 - Patch core (VS2-10): `Fixture{id, number, name, profile, mode, universe, address, handle}`; `Engine::patch_add/move/remove/renumber/change_mode/handle`, `fixture`, `fixture_by_number`; number index + `next_id` (ids never reused); low-level `patch` (scenarios, rigs) checks overlap too, `number: 0` = same as id; command line resolves user numbers. 18 tests in `tests/patch.rs`.
+- QLC+ importer (VS2-09): `library/qlcplus.rs` (quick-xml serde) → `Import { profile, report }`, `CoreError::ImportFailed`; church files + expected profiles in `tests/fixtures/qlcplus/`. 15 tests in `tests/qlcplus.rs`.
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress
@@ -27,4 +28,4 @@ VS2-10 patch core in review; next VS2-09 (QLC+ importer), then VS2-11/12.
 - Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, show file (SHW-*), IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with
-`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-09 (QLC+ importer).
+`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-11 (library in the daemon).
