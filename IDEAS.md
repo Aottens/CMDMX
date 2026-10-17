@@ -101,7 +101,7 @@ awkward; browsing manufacturer → model must be possible too.
   (LIB-14); the app shows two columns next to the search field.
 - Touches now: `cmdmx-core::library::Index` (already keyed by manufacturer + model), the daemon's
   library requests, the Add panel.
-**Open questions:** none yet; the owner confirms the phase.
+**Outcome (2026-10-17):** owner: phase 1. Spec task P1-14 in `BACKLOG.md`.
 
 ### IDEA-09 — Multi-select in the patch table (2026-10-17, VS2-12 run)
 **Owner's intent:** select several rows in the patch table and edit them at once.
@@ -112,5 +112,5 @@ awkward; browsing manufacturer → model must be possible too.
   change mode for all, refused as a whole if one does not fit).
 - Touches now: the PAT-09 commands (new multi-fixture forms or a new command), the Patch screen's
   Selected panel.
-**Open questions:** which edits besides remove does the owner need for a range — move, renumber,
-change mode, name (e.g. "Par 1…6")?
+**Outcome (2026-10-17):** owner: phase 1, every edit on a range — remove, move, renumber, change
+mode and name (numbered, e.g. "Par 1…6"). Spec task P1-15 in `BACKLOG.md`.
