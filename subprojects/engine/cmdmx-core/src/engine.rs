@@ -442,6 +442,7 @@ impl Engine {
                 Some(WheelState {
                     value: self.start_value(id, fixture, attr),
                     touched: self.programmer.value(id, &attribute).is_some(),
+                    sixteen_bit: attr.fine_channel.is_some(),
                     attribute,
                 })
             })
@@ -595,7 +596,12 @@ impl Engine {
                     &self.states,
                     &self.programmer,
                 );
-                let Some(value) = merged else { continue };
+                // ENG-07: an HTP attribute nobody proposes is 0; LTP keeps its slot.
+                let value = match (merged, attr.kind) {
+                    (Some(v), _) => v,
+                    (None, AttributeKind::Htp) => 0.0,
+                    (None, AttributeKind::Ltp) => continue,
+                };
                 let scaled = match attr.kind {
                     AttributeKind::Htp => value * self.grand_master,
                     AttributeKind::Ltp => value,
@@ -665,9 +671,8 @@ impl Engine {
 
 /// Merge one attribute of one fixture across all active playbacks and the programmer.
 ///
-/// Returns `None` when no active source proposes a value, in which case the
-/// caller leaves the slot as it was (LTP "stays where it is" semantics; HTP
-/// will be revisited by release handling, ENG-07).
+/// Returns `None` when no active source proposes a value. `tick` then writes 0
+/// for an HTP attribute and leaves an LTP slot as it was (ENG-07).
 fn merge_attribute(
     fixture: FixtureId,
     attr: &AttributeDef,

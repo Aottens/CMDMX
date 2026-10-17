@@ -53,6 +53,8 @@ struct FixturesWindow: View {
         let programmer = engine.programmer
         // Display lookups only: 1-based position in the engine's selection order.
         let order = Dictionary(programmer.selection.enumerated().map { ($1, $0 + 1) }, uniquingKeysWith: { a, _ in a })
+        // Thick outline only while the engine's targets differ from its selection (sub-selection).
+        let subSelection = programmer.targets != programmer.selection
         let targets = Set(programmer.targets)
         let inProgrammer = Set(programmer.inProgrammer)
 
@@ -63,7 +65,7 @@ struct FixturesWindow: View {
                         FixtureButton(
                             fixture: fixture,
                             position: order[fixture.id],
-                            isTarget: targets.contains(fixture.id),
+                            isTarget: subSelection && targets.contains(fixture.id),
                             inProgrammer: inProgrammer.contains(fixture.id)
                         ) { engine.selectFixture(fixture.id) }
                     }
@@ -85,12 +87,13 @@ private struct FixtureButton: View {
         Button(action: action) {
             VStack(spacing: 1) {
                 Text("\(fixture.id)").font(.title3.weight(.semibold).monospacedDigit())
-                Text(fixture.profile).font(.caption2).lineLimit(1)
+                Text(fixture.profile).font(.caption2).lineLimit(1).minimumScaleFactor(0.6)
                     .foregroundStyle(position == nil ? Color.secondary : Color.white.opacity(0.85))
             }
             .foregroundStyle(position == nil ? Color.primary : Color.white)
             .frame(maxWidth: .infinity).frame(height: 46)
             .background(position == nil ? Color.secondary.opacity(0.12) : Color.blue)
+            .contentShape(Rectangle())
             .overlay(alignment: .top) {
                 if inProgrammer { Rectangle().fill(Color.red).frame(height: 4) }
             }
@@ -161,6 +164,7 @@ private struct GroupButton: View {
             }
             .frame(maxWidth: .infinity).frame(height: 46)
             .background(count == nil ? Color.clear : Color.secondary.opacity(0.12))
+            .contentShape(Rectangle())
             .overlay(
                 RoundedRectangle(cornerRadius: radius)
                     .strokeBorder(armed ? Color.red : Color.secondary.opacity(count == nil ? 0.2 : 0.4),
@@ -245,7 +249,9 @@ private struct WheelView: View {
     var body: some View {
         VStack(spacing: 1) {
             Text(wheel.attribute).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            Text(percent(wheel.value)).font(.callout.monospacedDigit())
+            Text(wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
+                 ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value))
+                .font(.callout.monospacedDigit())
                 .foregroundStyle(wheel.touched ? Color.red : Color.primary)
         }
         .frame(width: 76, height: 44)

@@ -50,6 +50,8 @@ pub struct WheelState {
     pub value: f32,
     /// The value is a programmer value (else it is the current output, PRG-20).
     pub touched: bool,
+    /// The attribute has a fine channel in its profile.
+    pub sixteen_bit: bool,
 }
 
 /// PRG-35 / IPC-11: everything the UI renders of the programmer.

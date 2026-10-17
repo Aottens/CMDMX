@@ -89,6 +89,7 @@ fn main() {
     let mut next = started;
     let mut tick: u64 = 0;
     let mut last_report = started;
+    let mut last_printed: Vec<(u16, u8)> = Vec::new();
 
     loop {
         let now = started.elapsed().as_secs_f64();
@@ -130,7 +131,15 @@ fn main() {
         }
 
         if last_report.elapsed() >= Duration::from_secs(1) {
-            report(&engine);
+            // Finding 3: print only when channel 1 changed since the last print.
+            let now_ch1: Vec<_> = engine
+                .universes()
+                .map(|(u, f)| (*u, f.channel(1).unwrap_or(0)))
+                .collect();
+            if now_ch1 != last_printed {
+                report(&engine);
+                last_printed = now_ch1;
+            }
             last_report = Instant::now();
         }
 
@@ -258,7 +267,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
 fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     let mut engine = Engine::new(Settings::default());
     engine.add_profile(
-        "generic-dimmer",
+        "dimmer",
         Profile {
             attributes: vec![AttributeDef {
                 name: "Dimmer".into(),
@@ -273,7 +282,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     for n in 1..=u32::from(Settings::default().faders_per_page) {
         engine.patch(Fixture {
             id: n,
-            profile: "generic-dimmer".into(),
+            profile: "dimmer".into(),
             universe: 1,
             address: n as u16,
         })?;
@@ -300,7 +309,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     for id in (201..=208).chain(221..=226).chain(301..=306) {
         engine.patch(Fixture {
             id,
-            profile: "generic-dimmer".into(),
+            profile: "dimmer".into(),
             universe: 1,
             address,
         })?;

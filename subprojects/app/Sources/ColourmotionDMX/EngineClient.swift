@@ -46,7 +46,21 @@ struct WheelState: Decodable, Identifiable, Equatable {
     let attribute: String
     let value: Double
     let touched: Bool
+    let sixteenBit: Bool
     var id: String { attribute }
+
+    private enum CodingKeys: String, CodingKey {
+        case attribute, value, touched
+        case sixteenBit = "sixteen_bit"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        attribute = try c.decode(String.self, forKey: .attribute)
+        value = try c.decode(Double.self, forKey: .value)
+        touched = try c.decode(Bool.self, forKey: .touched)
+        sixteenBit = (try? c.decode(Bool.self, forKey: .sixteenBit)) ?? false
+    }
 }
 
 /// Mirror of the engine's programmer state (IPC-11). Fields missing from a
@@ -89,6 +103,8 @@ enum WheelResolution: String {
 @MainActor
 final class EngineClient: ObservableObject {
     @Published private(set) var connection: EngineConnection = .offline
+    /// Attributes a Fine step was sent on since the app started (IPC-16: one decimal).
+    @Published private(set) var fineUsed: Set<String> = []
     /// From the engine's settings snapshot. Never hard-code 8 or 10.
     @Published private(set) var fadersPerPage: Int = 8
     @Published private(set) var pageLegend: String = "Page 1"
@@ -139,6 +155,7 @@ final class EngineClient: ObservableObject {
 
     func wheel(attribute: String, steps: Int, resolution: WheelResolution) {
         guard steps != 0 else { return }
+        if resolution == .fine { fineUsed.insert(attribute) }
         sendJSON("programmer.wheel", ["attribute": attribute, "steps": steps, "resolution": resolution.rawValue])
     }
 
