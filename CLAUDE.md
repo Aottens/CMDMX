@@ -60,8 +60,9 @@ Use the project-management conventions from the `project-manage` skill when avai
   all behaviour tests live in the Rust engine. `swift build` is the app's gate. If Swift tests
   become necessary, install a swift.org toolchain (ships XCTest + Testing, ~1.5 GB, no
   Xcode.app) and add a test target with `import Testing`.
-- Hardware on the owner's desk: Behringer BCF2000 (Mackie Control mode), Eurolite USB-DMX512 PRO
-  Interface MK2 (ENTTEC Pro protocol over FTDI serial; identifies as "Eurolite DMX512 Pro",
+- Hardware on the owner's desk: Behringer BCF2000 (Mackie Control mode).
+- Hardware at the church (the venue, not at the desk — gate 3 for it waits for a visit): Eurolite
+  USB-DMX512 PRO Interface MK2 (ENTTEC Pro protocol over FTDI serial; identifies as "Eurolite DMX512 Pro",
   VID/PID 0403:6001 — detect by product string, never treat as Open DMX).
 
 ## Commit style

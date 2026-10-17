@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — `serialport` crate for the ENTTEC Pro output
+
+**Decision:** The daemon uses `serialport` 4.x with default features off for USB product-string detection and raw serial I/O (VS1-04, OUT-09/20).
+
+**Alternatives considered:** `libc` termios plus IOKit or `ioreg` parsing for the product string.
+
+**Reasoning:** std cannot read USB descriptors or set a tty raw; doing both by hand is much more unsafe code. Default features off drops `libudev`, so the Linux CI needs no system package.
+
+**Reversal trigger:** the crate misbehaves with the Eurolite MK2 at the church, or blocks the tick despite its own thread.
+
 ## 2026-10-16 — Public GitHub repo, back to one PR per task
 
 **Decision:** The repo is public at github.com/Aottens/ColourmotionDMX from now on (answers the "public from day one?" question). Work goes through one PR per task again; this reverses the local-review entry below.
