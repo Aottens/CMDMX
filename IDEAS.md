@@ -114,3 +114,13 @@ awkward; browsing manufacturer → model must be possible too.
   Selected panel.
 **Outcome (2026-10-17):** owner: phase 1, every edit on a range — remove, move, renumber, change
 mode and name (numbered, e.g. "Par 1…6"). Spec task P1-15 in `BACKLOG.md`.
+
+### IDEA-10 — Output lamps on fixture buttons (2026-10-17, UX-02.0)
+**Owner's intent:** the sketch's coloured strip on each fixture cell, showing what the fixture
+outputs right now (intensity × colour), so the screen shows the stage at a glance.
+**Triage:**
+- Proposed: later in phase 1, after UX-02d. Needs an IPC addition: each fixture's output colour
+  and intensity, sent a few times a second (not every tick) and only for changed fixtures, so the
+  tick stays cheap.
+- Touches now: only a disabled stripe on the fixture cells (UI-11).
+**Open questions:** the owner confirms the phase.
