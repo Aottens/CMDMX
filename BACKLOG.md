@@ -37,9 +37,9 @@ after the specs are added when each spec is approved (no sizing of code before i
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
 | P1-08 | Write `cuelists.md` (Titan cue list: record, Go/Back, fade/delay, link/follow; touched attributes only so tracking can follow in phase 2). | CUE | M | todo |
-| P1-04 | Write `playbacks.md` (fader modes 0/1/2, priority, release mask/time, kill point, locks, playback groups, chases, masters — incl. "front light out for a video" in one move). | PBK | L | todo |
+| P1-04 | Write `playbacks.md` (fader modes 0/1/2, priority, release mask/time, kill point, locks, playback groups, chases, masters). | PBK | L | todo |
 | P1-09 | Write `showfile.md` criteria (SHW): one readable JSON, autosave + atomic rename, versioned schema. | SHW | M | todo |
-| VS3-01 | Demo: a service-sized cue list (walk-in, worship, sermon, video with front out, walk-out) runs with Go/Back and survives a daemon restart via the show file. | CUE, PBK, SHW | — | todo (split after specs) |
+| VS3-01 | Demo: a service-sized cue list (walk-in, worship, sermon, video, walk-out) plus the 6 front spots on their own fader runs with Go/Back and survives a daemon restart via the show file. | CUE, PBK, SHW | — | todo (split after specs) |
 
 ### VS4 — The church: replace Lightkey
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
