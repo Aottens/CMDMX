@@ -1,6 +1,6 @@
 # Module spec: output-protocols (OUT)
 
-Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; OUT-09/20..22 revised for VS1-04 (draft); rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
+Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; OUT-09/20..22 approved 2026-10-17; rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
 
 ## Purpose
 Deliver each universe's frame to one or more *nodes* (Titan's model: lines → nodes). Framing is pure and byte-exact tested; I/O lives in the daemon and must never block the tick.

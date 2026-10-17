@@ -17,6 +17,10 @@ pub struct Health {
 }
 
 impl Health {
+    pub fn is_degraded(&self) -> bool {
+        self.degraded
+    }
+
     pub fn record(&mut self, result: &io::Result<()>) -> Option<String> {
         match (self.degraded, result) {
             (false, Err(e)) => {

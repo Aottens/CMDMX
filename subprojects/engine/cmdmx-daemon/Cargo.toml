@@ -13,6 +13,7 @@ path = "src/main.rs"
 cmdmx-core = { path = "../cmdmx-core" }
 cmdmx-protocols = { path = "../cmdmx-protocols" }
 cmdmx-control = { path = "../cmdmx-control" }
+serialport = { version = "4.10.1", default-features = false }
 
 [lints]
 workspace = true

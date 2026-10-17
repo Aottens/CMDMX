@@ -10,14 +10,14 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), each node on its own thread. No IPC yet
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. No IPC yet
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS1-04 (Eurolite MK2 serial) on branch `vs1-04-enttec-serial`: spec awaiting approval
+- VS1-04 code in review on branch `vs1-04-enttec-serial`
 
 ## Blocked
-- nothing
+- VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
 
 ## Hardware available for testing
 - Behringer BCF2000 (use in Mackie Control mode)
@@ -28,4 +28,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-VS1-04: get owner approval for OUT-09/20..22 and the `serialport` crate, then failing tests, serial node via `output::spawn`, hardware checklist with the Eurolite.
+After the VS1-04 PR is merged: VS1-07 (BCF2000 is on the desk; verify via Art-Net in Wireshark) or VS1-05 (IPC; needs the transport decision from BACKLOG open questions). VS1-04 hardware check at the church whenever the owner is there.

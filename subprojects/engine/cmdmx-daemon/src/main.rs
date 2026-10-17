@@ -1,16 +1,18 @@
 //! cmdmx-daemon — the ColourmotionDMX engine process.
 //!
 //! Runs the deterministic core at 40 Hz with a demo patch and sends line 1 as
-//! Art-Net and sACN, each node on its own thread (OUT-11). Serial and MIDI
-//! arrive with VS1-04..VS1-07 and must also stay off the tick thread.
+//! Art-Net, sACN and ENTTEC Pro serial, each node on its own thread (OUT-11).
+//! MIDI arrives with VS1-07 and must also stay off the tick thread.
 //!
 //! Usage: `cmdmx-daemon [--ticks N] [--artnet-target IPV4 | --no-artnet]
-//!        [--sacn-unicast IPV4] [--sacn-priority 0..200] [--no-sacn]`.
+//!        [--sacn-unicast IPV4] [--sacn-priority 0..200] [--no-sacn]
+//!        [--serial PATH | --no-serial]`.
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 
 mod artnet_out;
 mod output;
 mod sacn_out;
+mod serial_out;
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
@@ -33,7 +35,7 @@ fn main() {
         }
     };
     let ticks_limit = cli.ticks;
-    // OUT-15/16: slice-only output config until node config lives in the show file.
+    // OUT-15/16/22: slice-only output config until node config lives in the show file.
     // Each entry: (name, hand-off to its thread, thread still alive).
     let mut outputs = Vec::new();
     if let Some(target) = cli.artnet {
@@ -50,6 +52,11 @@ fn main() {
         eprintln!("sacn: line 1 → universe 1 at {target}, priority {priority}");
         let mut node = sacn_out::SacnNode::new(target, 1, priority);
         outputs.push(("sacn", output::spawn("sacn", move |f| node.send(f)), true));
+    }
+    if cli.serial_enabled {
+        let mut node = serial_out::SerialNode::new(cli.serial_path);
+        let send = move |f: &output::FrameData| node.send(f, Instant::now());
+        outputs.push(("serial", output::spawn("serial", send), true));
     }
 
     let mut engine = match demo_engine() {
@@ -110,6 +117,9 @@ struct Cli {
     sacn_enabled: bool,
     sacn_target: SocketAddrV4,
     sacn_priority: u8,
+    serial_enabled: bool,
+    /// `--serial <path>`; `None` = detect the interface (OUT-09).
+    serial_path: Option<String>,
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
@@ -119,6 +129,8 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
         sacn_enabled: true,
         sacn_target: sacn_out::multicast_target(1),
         sacn_priority: cmdmx_protocols::sacn::DEFAULT_PRIORITY,
+        serial_enabled: true,
+        serial_path: None,
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -140,6 +152,10 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
                     .ok()
                     .filter(|p| *p <= 200)
                     .ok_or(format!("--sacn-priority: '{v}' is not 0..200"))?;
+            }
+            "--no-serial" => cli.serial_enabled = false,
+            "--serial" => {
+                cli.serial_path = Some(args.next().ok_or("--serial: missing device path")?);
             }
             _ => {}
         }
@@ -242,5 +258,20 @@ mod tests {
         assert!(parse_args(args("--sacn-priority 201")).is_err());
         assert!(parse_args(args("--sacn-priority -1")).is_err());
         assert!(parse_args(args("--sacn-unicast nope")).is_err());
+    }
+
+    #[test]
+    fn out_22_serial_is_on_by_default_with_detection() {
+        let cli = parse_args(args("")).unwrap();
+        assert!(cli.serial_enabled);
+        assert_eq!(cli.serial_path, None);
+    }
+
+    #[test]
+    fn out_22_serial_flags() {
+        let cli = parse_args(args("--serial /dev/cu.usbserial-X")).unwrap();
+        assert_eq!(cli.serial_path.as_deref(), Some("/dev/cu.usbserial-X"));
+        assert!(!parse_args(args("--no-serial")).unwrap().serial_enabled);
+        assert!(parse_args(args("--serial")).is_err());
     }
 }
