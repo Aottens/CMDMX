@@ -4,6 +4,8 @@
 //! mode (and within each head, which becomes a cell) the channels are sorted by number,
 //! classified by preset or QLC+ group, and assembled into a colour system plus attributes.
 //! Nothing here panics: every problem is an [`CoreError::ImportFailed`] or a report warning.
+//! [`header`] reads only the names, for the search index (LIB-13); the channel-list builder
+//! (LIB-11) feeds its channels through the same conversion ([`mode_of_channels`]).
 
 use std::collections::BTreeSet;
 
@@ -55,7 +57,7 @@ struct Def {
 }
 
 #[derive(Deserialize)]
-struct Chan {
+pub(super) struct Chan {
     #[serde(rename = "@Name")]
     name: String,
     #[serde(rename = "@Preset")]
@@ -68,6 +70,9 @@ struct Chan {
     colour: Option<String>,
     #[serde(rename = "Capability", default)]
     caps: Vec<Cap>,
+    /// A default given as 0.0..=1.0 (channel lists); wins over `Default`.
+    #[serde(skip)]
+    unit_default: Option<f32>,
 }
 
 #[derive(Deserialize)]
@@ -146,7 +151,10 @@ pub fn import(xml: &str, source: &str) -> Result<Import, CoreError> {
         source: source.into(),
         problem,
     };
-    let def: Def = quick_xml::de::from_str(xml).map_err(|e| fail(e.to_string()))?;
+    let mut def: Def = quick_xml::de::from_str(xml).map_err(|e| fail(e.to_string()))?;
+    for c in &mut def.channels {
+        c.name = c.name.trim().into();
+    }
     let mut report = ImportReport::default();
     let modes = def
         .modes
@@ -162,6 +170,40 @@ pub fn import(xml: &str, source: &str) -> Result<Import, CoreError> {
     };
     profile.validate().map_err(|e| fail(e.to_string()))?;
     Ok(Import { profile, report })
+}
+
+/// The names of a `.qxf` file: what the search index needs (LIB-13). No conversion.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Header {
+    pub manufacturer: String,
+    pub model: String,
+    pub modes: Vec<String>,
+}
+
+pub fn header(xml: &str) -> Result<Header, CoreError> {
+    #[derive(Deserialize)]
+    struct Names {
+        #[serde(rename = "Manufacturer", default)]
+        manufacturer: String,
+        #[serde(rename = "Model", default)]
+        model: String,
+        #[serde(rename = "Mode", default)]
+        modes: Vec<ModeName>,
+    }
+    #[derive(Deserialize)]
+    struct ModeName {
+        #[serde(rename = "@Name")]
+        name: String,
+    }
+    let n: Names = quick_xml::de::from_str(xml).map_err(|e| CoreError::ImportFailed {
+        source: String::new(),
+        problem: e.to_string(),
+    })?;
+    Ok(Header {
+        manufacturer: n.manufacturer,
+        model: n.model,
+        modes: n.modes.into_iter().map(|m| m.name).collect(),
+    })
 }
 
 // ---- mode ------------------------------------------------------------------------------------
@@ -215,22 +257,72 @@ fn convert_mode(def: &Def, m: &ModeDef, rep: &mut ImportReport) -> Result<Mode, 
             ));
         }
     }
+    let physical = m.physical.as_ref().or(def.physical.as_ref());
+    Ok(assemble(
+        &m.name, footprint, &items, &m.heads, physical, rep,
+    ))
+}
 
+/// A mode of bare channels, no heads: the channel-list builder's way in (LIB-11).
+pub(super) fn mode_of_channels(name: &str, chans: &[Chan]) -> Result<Mode, String> {
+    let footprint =
+        u16::try_from(chans.len()).map_err(|_| format!("mode '{name}' has too many channels"))?;
+    let items: Vec<Item> = (0..footprint)
+        .zip(chans)
+        .map(|(number, ch)| Item { number, ch })
+        .collect();
+    Ok(assemble(
+        name,
+        footprint,
+        &items,
+        &[],
+        None,
+        &mut ImportReport::default(),
+    ))
+}
+
+/// A channel for [`mode_of_channels`]: a QLC+ preset (or none) and group, and a 0.0..=1.0 default.
+pub(super) fn channel(name: &str, preset: Option<&str>, group: &str, default: f32) -> Chan {
+    Chan {
+        name: name.into(),
+        preset: preset.map(Into::into),
+        default: None,
+        group: Some(group.into()),
+        colour: None,
+        caps: Vec::new(),
+        unit_default: Some(default),
+    }
+}
+
+/// The channels (sorted by number) become the mode's colour system, attributes and cells.
+fn assemble(
+    name: &str,
+    footprint: u16,
+    items: &[Item],
+    heads: &[Head],
+    physical: Option<&Physical>,
+    rep: &mut ImportReport,
+) -> Mode {
+    // A channel in more than one head (a master dimmer in every head) belongs to the mode (LIB-18).
+    let shared = |n: u16| heads.iter().filter(|h| h.channels.contains(&n)).count() > 1;
+    let own_of = |head: &Head| -> Vec<&Item> {
+        items
+            .iter()
+            .filter(|i| head.channels.contains(&i.number) && !shared(i.number))
+            .collect()
+    };
     let start = rep.channels.len();
-    let in_head = |i: &&Item| m.heads.iter().any(|h| h.channels.contains(&i.number));
-    let loose: Vec<&Item> = items.iter().filter(|i| !in_head(i)).collect();
-    let (colour, attributes) = convert_scope(&loose, "", &m.name, rep);
-    let cells: Vec<Cell> = m
-        .heads
+    let loose: Vec<&Item> = items
+        .iter()
+        .filter(|i| !heads.iter().any(|h| h.channels.contains(&i.number)) || shared(i.number))
+        .collect();
+    let (colour, attributes) = convert_scope(&loose, "", name, rep);
+    let cells: Vec<Cell> = heads
         .iter()
         .enumerate()
         .map(|(h, head)| {
-            let own: Vec<&Item> = items
-                .iter()
-                .filter(|i| head.channels.contains(&i.number))
-                .collect();
             let (colour, attributes) =
-                convert_scope(&own, &format!("cell {}: ", h + 1), &m.name, rep);
+                convert_scope(&own_of(head), &format!("cell {}: ", h + 1), name, rep);
             Cell { colour, attributes }
         })
         .collect();
@@ -244,11 +336,10 @@ fn convert_mode(def: &Def, m: &ModeDef, rep: &mut ImportReport) -> Result<Mode, 
         .any(|a| a.name == DIMMER);
     let virtual_dimmer =
         (colour.is_some() || cells.iter().any(|c| c.colour.is_some())) && !has_dimmer;
-    let physical = m.physical.as_ref().or(def.physical.as_ref());
     let focus = physical.and_then(|p| p.focus.as_ref());
     let degrees = |d: Option<f32>| d.filter(|d| *d > 0.0);
-    Ok(Mode {
-        name: m.name.clone(),
+    Mode {
+        name: name.into(),
         footprint,
         attributes,
         colour,
@@ -260,7 +351,7 @@ fn convert_mode(def: &Def, m: &ModeDef, rep: &mut ImportReport) -> Result<Mode, 
             .and_then(|p| p.lens.as_ref())
             .filter(|l| l.min > 0.0 || l.max > 0.0)
             .map(|l| [l.min, l.max]),
-    })
+    }
 }
 
 // ---- channel roles ---------------------------------------------------------------------------
@@ -276,7 +367,7 @@ enum Role {
     /// Index into [`COMPONENTS`].
     Comp(usize),
     Attr {
-        name: &'static str,
+        name: String,
         group: AttributeGroup,
         kind: AttributeKind,
         emitter: bool,
@@ -310,6 +401,8 @@ fn group_of(s: &str) -> AttributeGroup {
         AttributeGroup::G
     } else if has("Prism") {
         AttributeGroup::E
+    } else if has("FX") {
+        AttributeGroup::Fx
     } else if has("Beam") {
         AttributeGroup::B
     } else if has("Pan") || has("Tilt") || has("Position") {
@@ -326,6 +419,15 @@ fn classify(ch: &Chan, preset: Option<&str>) -> Role {
     let Some(p) = preset else {
         return Role::Plain(group_of(group.unwrap_or("")), None);
     };
+    // Not a QLC+ preset: how the channel-list builder asks for an emitter of any name (LIB-11).
+    if let Some(name) = p.strip_prefix("Emitter:") {
+        return Role::Attr {
+            name: name.into(),
+            group: C,
+            kind: Ltp,
+            emitter: true,
+        };
+    }
     if let Some(coarse) = p.strip_suffix("Fine") {
         return Role::Fine(coarse.into());
     }
@@ -335,7 +437,7 @@ fn classify(ch: &Chan, preset: Option<&str>) -> Role {
         }
         if let Some(name) = EMITTERS.iter().find(|n| **n == c) {
             return Role::Attr {
-                name,
+                name: (*name).into(),
                 group: C,
                 kind: Ltp,
                 emitter: true,
@@ -362,7 +464,7 @@ fn classify(ch: &Chan, preset: Option<&str>) -> Role {
         _ => return Role::Plain(group_of(group.unwrap_or(p)), Some(p.into())),
     };
     Role::Attr {
-        name,
+        name: name.into(),
         group,
         kind,
         emitter: false,
@@ -393,7 +495,7 @@ impl Entry<'_> {
                 group,
                 kind,
                 emitter,
-            } => Some(((*name).into(), *group, *kind, *emitter)),
+            } => Some((name.clone(), *group, *kind, *emitter)),
             Role::Comp(i) => Some((
                 comp_name(*i).into(),
                 AttributeGroup::C,
@@ -583,6 +685,9 @@ fn convert_scope(
 
 /// QLC+ `Default` (0..=255) as 0.0..=1.0; 0 when missing or unreadable.
 fn default_of(ch: &Chan) -> f32 {
+    if let Some(unit) = ch.unit_default {
+        return unit;
+    }
     let n = ch
         .default
         .as_deref()

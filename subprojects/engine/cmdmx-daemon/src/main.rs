@@ -6,21 +6,27 @@
 //!
 //! Usage: `cmdmx-daemon [--ticks N] [--artnet-target IPV4 | --no-artnet]
 //!        [--sacn-unicast IPV4] [--sacn-priority 0..200] [--no-sacn]
-//!        [--serial PATH | --no-serial] [--ipc-port N] [--demo]`.
+//!        [--serial PATH | --no-serial] [--ipc-port N] [--demo]
+//!        [--qlcplus-dir PATH] [--profiles-dir PATH]`.
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 //! The app talks to the daemon over WebSocket on `--ipc-port` (default 7319);
 //! `--demo` lets fader 1 breathe. The demo show (IPC-09, IPC-14) has eight dimmers on
 //! faders 1..8 plus the church rig (RGBW washes, RGBW, RGB+Lime and RGB pars, front spots)
 //! and its groups; the programmer travels over the same socket (IPC-10..13, IPC-18).
+//! The fixture library (LIB-12..14) is indexed on its own thread at start-up from `--qlcplus-dir`
+//! (default: the bundled `vendor/qlcplus/fixtures`) and `--profiles-dir` (default
+//! `~/Library/Application Support/ColourmotionDMX/profiles`); output never waits for it.
 
 mod artnet_out;
 mod ipc;
+mod library;
 mod output;
 mod sacn_out;
 mod serial_out;
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
@@ -73,7 +79,8 @@ fn main() {
     };
 
     // IPC-01: a bound port that is already taken most likely means another daemon runs.
-    let (events, ipc_addr) = match ipc::spawn_server(cli.ipc_port) {
+    let library: ipc::SharedLibrary = Default::default();
+    let (events, ipc_addr) = match ipc::spawn_server_with(cli.ipc_port, library.clone()) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("cmdmx-daemon: cannot open IPC port {}: {e}", cli.ipc_port);
@@ -81,6 +88,31 @@ fn main() {
         }
     };
     eprintln!("ipc: listening on ws://{ipc_addr}");
+    // LIB-13: index the library in the background; until it is stored, requests get "loading".
+    let (qlcplus_dir, profiles_dir) = (cli.qlcplus_dir.clone(), cli.profiles_dir.clone());
+    let loader = std::thread::Builder::new()
+        .name("library-load".into())
+        .spawn(move || {
+            // A panic while reading the bundled set must not leave the library "loading" forever.
+            let loaded = std::panic::catch_unwind(|| {
+                library::Library::load(Some(&qlcplus_dir), &profiles_dir)
+            })
+            .unwrap_or_else(|_| {
+                eprintln!("library: loading the QLC+ set panicked; user profiles only");
+                library::Library::load(None, &profiles_dir)
+            });
+            let (lib, warnings) = loaded;
+            for w in warnings {
+                eprintln!("library: warning: {w}");
+            }
+            eprintln!("library: {} profiles", lib.len());
+            if let Ok(mut slot) = library.write() {
+                *slot = Some(lib);
+            }
+        });
+    if let Err(e) = loader {
+        eprintln!("library: cannot start the loader thread: {e}");
+    }
     let mut clients = ipc::Clients::default();
     let mut published = ipc::Published::new(&engine);
 
@@ -199,6 +231,8 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             engine.execute_command(&tokens)
         }
         RecordGroup { group } => engine.record_group(group),
+        // Answered in the client thread; the tick never sees it (LIB-14).
+        Library(_) => Ok(()),
     }
 }
 
@@ -216,6 +250,10 @@ struct Cli {
     ipc_port: u16,
     /// `--demo`: fader 1 breathes (IPC-09).
     demo: bool,
+    /// `--qlcplus-dir <path>`: the bundled QLC+ fixture files (LIB-13).
+    qlcplus_dir: PathBuf,
+    /// `--profiles-dir <path>`: the user's saved profiles (LIB-12).
+    profiles_dir: PathBuf,
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
@@ -229,6 +267,14 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
         serial_path: None,
         ipc_port: 7319,
         demo: false,
+        qlcplus_dir: PathBuf::from(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../vendor/qlcplus/fixtures"
+        )),
+        profiles_dir: std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_default()
+            .join("Library/Application Support/ColourmotionDMX/profiles"),
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -262,6 +308,12 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
                     .map_err(|_| format!("--ipc-port: '{v}' is not a port number"))?;
             }
             "--demo" => cli.demo = true,
+            "--qlcplus-dir" => {
+                cli.qlcplus_dir = args.next().ok_or("--qlcplus-dir: missing path")?.into();
+            }
+            "--profiles-dir" => {
+                cli.profiles_dir = args.next().ok_or("--profiles-dir: missing path")?.into();
+            }
             _ => {}
         }
     }

@@ -5,6 +5,12 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — The QLC+ library is fetched at a pinned commit, not committed (VS2-11)
+**Decision:** `subprojects/engine/scripts/fetch-qlcplus.sh` downloads QLC+'s `resources/fixtures` (commit 3d832ce, 1781 files, 18 MB) with its Apache-2.0 licence and a NOTICE into the git-ignored `vendor/qlcplus`; the daemon indexes it in the background. Only the three church files live in the repo (tests, LIB-09).
+**Alternatives:** committing the whole set (18 MB of third-party files in every clone and diff); a cargo build script with network access (breaks offline and reproducible builds).
+**Why:** small repo, reproducible version, clear licence boundary. The app bundle will copy the folder in when the daemon ships inside it.
+**Reversal trigger:** CI or packaging needs the files without network access (then vendor a compressed archive).
+
 ## 2026-10-17 — Colour defaults to open white; the virtual dimmer also scales emitters (owner)
 **Decision:** The `Colour` attribute defaults to open white (1, 1, 1), so a fixture brought up on its dimmer alone shows white (LIB-03). On a mode without a dimmer channel the virtual Dimmer (Grand Master included) scales every colour channel **and** every emitter (LIB-04). Hue/Saturation are HSV of the target colour and keep max(r, g, b) (PRG-30). Colour in the app is its own task (VS2-14).
 **Alternatives:** black as the default colour (dimmer up shows nothing until a colour is picked); scaling only RGB (a Grand Master blackout would leave Lime/White burning on virtual-dimmer pars).

@@ -10,3 +10,5 @@ subprojects/app/.swiftpm/
 # local
 tests/hardware/runs/*.tmp
 *.cmdmx.json.tmp
+# QLC+ fixture library (scripts/fetch-qlcplus.sh)
+subprojects/engine/vendor/

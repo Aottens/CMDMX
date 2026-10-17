@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions)**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11)**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -120,6 +120,9 @@ model, and a show carries the profiles it uses.
   - *Physical.* A range of 0 (QLC+ "unknown") is not stored; a fixed lens stores min = max.
   - *Footprint.* A mode's footprint is its number of channels; channel numbers must be unique
     and below it (LIB-10).
+  - *Tolerance* (VS2-11, from importing the whole QLC+ library): channel names are compared and
+    stored without surrounding spaces; a channel listed in more than one head (a master dimmer
+    in every head) belongs to the mode, not to a cell.
 - **LIB-10** Malformed XML, a mode referencing an unknown channel, or a channel number outside
   the mode → the import fails with an error naming the file and the problem; nothing is added to
   the library. Unknown presets are imported as plain channels with a warning, not a failure.
@@ -145,6 +148,20 @@ model, and a show carries the profiles it uses.
   `{"v":0,"type":"library.results","items":[{"manufacturer":"Shehds","model":"…","modes":["16 Channel","24 Channel"],"source":"qlcplus"}]}`
   (at most 50 items); `library.import_report {"manufacturer","model"}` → the report;
   `library.save_channel_list {...}` → creates a user profile (LIB-11). Errors as IPC-06.
+  Detail (VS2-11, approved by owner 2026-10-17): a search matches when every word of the query occurs,
+  case-insensitively, in "manufacturer model"; results are sorted by manufacturer then model, a
+  user profile is listed as `"source":"user"` and hides the QLC+ entry with the same
+  manufacturer/model (LIB-12). Replies go to the asking client only:
+  `{"type":"library.import_report","manufacturer","model","report":{"channels":[{"mode","channel","source_name","became"}],"warnings":[…]}}`
+  (a QLC+ entry; a user profile has no import report → error);
+  `library.profile {"manufacturer","model"}` → `{"type":"library.profile","profile":{…}}` (the
+  converted profile, for editing (LIB-12) and for the patch (VS2-12));
+  `library.save_profile {"profile":{…}}` (LIB-12) and `library.save_channel_list {"manufacturer",
+  "model","mode","channels":["Red","Green","Blue",{"Emitter":"Royal Blue"},{"Other":{"name":"Mode","group":"S","default":0.0}}]}`
+  → validated (LIB-02), written atomically to the user profiles folder as
+  `<manufacturer> - <model>.json`, answered `{"type":"library.saved","manufacturer","model"}`.
+  The library is indexed in the background at daemon start; until then a search is answered
+  with an error ("library is loading"). Output never waits for the library.
 
 ## Out of scope (this spec)
 The GDTF importer (its own spec section and task after QLC+, phase 1, ADR-006) and the OFL
