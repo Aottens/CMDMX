@@ -15,7 +15,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- nothing
+- P1-02: `specs/modules/programmer.md` (PRG-01..37) drafted, waiting for owner approval and the five open questions at its end
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -29,4 +29,4 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
 
 ## Resume next session with
-Start a fresh session. Next: P1-02 `programmer.md` (uses UI v0.1 and the Titan analysis) or VS1-06 (on-screen faders bound to page-1 playbacks, needs the PBK paging subset). P1-07 (colour ADR) must also settle direct W/Lime emitter control. Code is written by Sonnet subagents from failing tests (CLAUDE.md).
+Owner reviews the P1-02 spec PR and answers its open questions; after approval, PRG tasks go into BACKLOG. Alternatives meanwhile: VS1-06 (on-screen faders bound to page-1 playbacks, needs the PBK paging subset). P1-07 (colour ADR) must also settle direct W/Lime emitter control. Code is written by Sonnet subagents from failing tests (CLAUDE.md).
