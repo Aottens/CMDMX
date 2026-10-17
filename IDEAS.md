@@ -27,6 +27,7 @@ the backlog, not the whole idea.
 | IDEA-03 | Colour calibration so different fixtures match each other | triaged | 2 | LIB, PAT, core |
 | IDEA-04 | Phase 1 = programming the building blocks of any show (robust programmer); cue lists and busking both run on them | accepted 2026-10-17 | 1 | PRD, PRG, new `cuelists.md` |
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
+| IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -62,6 +63,11 @@ the backlog, not the whole idea.
 **Owner's intent:** a timeline that syncs to e.g. Ableton, so timecoded shows are easy to make by dragging presets onto it.
 **Triage:** phase 3 (timelines are out of scope for now in `PROJECT.md`; "software first"). Sync options to choose later: MIDI Time Code or LTC (absolute time), MIDI clock or Ableton Link (tempo and beat, no absolute position). Builds on cue lists (IDEA-04) and palettes.
 **Open questions:** sync to song position (timecode) or to the beat, or both?
+
+### IDEA-06 — Own web remote with a password (2026-10-17)
+**Owner's intent:** in the church a TouchOSC layout on an old iPad mini in another room is the remote today. Rather: our own web app, usable by anyone on the network who has the password, from an iPad or the browser on the Mac there. Hardware control (BCF2000 or similar) in the church is wanted too.
+**Triage:** phase 2. It reuses the WebSocket contract (`ipc.md`); it needs a LAN listener, a password/session and a touch-friendly page. For the phase-1 finish line (replace Lightkey) the existing TouchOSC layout can keep working through the OSC schema that phase 1 already has (CTL, P1-05) — so the remote is not lost when Lightkey goes. The BCF2000 is phase 1 already (VS1-07, MCU driver).
+**Open questions:** which controls does the TouchOSC layout have today (faders, cue Go, presets)? That defines the OSC schema in P1-05.
 
 ### Decision these ideas force now
 IDEA-02 and IDEA-03 only work if palettes and cues store a colour as a **target colour** (device-independent) and not as raw DMX channel values. The palettes spec (P1-03) and the show file fix that format, so this decision must come **before** P1-03, otherwise phase 2 means rewriting palettes and show files. → `BACKLOG.md` P1-07.
