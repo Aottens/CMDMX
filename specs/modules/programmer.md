@@ -145,6 +145,10 @@ editing the line (Back, Exit) stays in the client.
 ### Colour
 - **PRG-30** HSI, RGB and CMY are views of the same colour value: switching the model never
   changes a value or the output. 201 at red: RGB reads (1, 0, 0), CMY (0, 1, 1), HSI (0°, 100 %).
+  Hue and Saturation are the HSV hue and saturation of the target colour (Saturation =
+  (max − min) / max, 0 for black); turning them keeps max(r, g, b). Wheel values are 0.0–1.0,
+  Hue as a fraction of 360°. The colour model is engine state (default HSI), in the programmer
+  view.
 - **PRG-31** A colour wheel applies to every target with a colour attribute, whatever its colour
   system, and regardless of selection order (Titan v17). Targets 201 (RGBW), 211 (RGB+Lime),
   221 (RGB): Hue to 240° → all three blue; the per-type mapping to emitters is ADR-005 / LIB.
