@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Work towards the real UI early, zone by zone
+
+**Decision:** UX-02 (the SwiftUI main screen as UI v0.1) is split into a UI spec (UX-02.0) and four zones (UX-02a shell, b attribute bar, c side column, d playback area), built now on top of the existing IPC instead of after the engine features. A zone whose engine part is not built yet is shown disabled and labelled with the spec it waits for; new engine features land straight in the real layout.
+
+**Alternatives considered:** keep the thin working layout until palettes, playbacks and cue lists exist, then build the main screen in one go.
+
+**Reasoning:** owner: the sooner we work in the real UI, the more feel we get for it, and the project becomes interesting to follow for outsiders earlier. Building each later feature into its final place also avoids reworking a temporary layout.
+
+**Reversal trigger:** the real layout slows engine work down (e.g. placeholders need rework each time a spec lands).
+
 ## 2026-10-17 — The QLC+ library is fetched at a pinned commit, not committed (VS2-11)
 **Decision:** `subprojects/engine/scripts/fetch-qlcplus.sh` downloads QLC+'s `resources/fixtures` (commit 3d832ce, 1781 files, 18 MB) with its Apache-2.0 licence and a NOTICE into the git-ignored `vendor/qlcplus`; the daemon indexes it in the background. Only the three church files live in the repo (tests, LIB-09).
 **Alternatives:** committing the whole set (18 MB of third-party files in every clone and diff); a cargo build script with network access (breaks offline and reproducible builds).
