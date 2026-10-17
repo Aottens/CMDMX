@@ -30,8 +30,7 @@ Status: `todo` · `doing` · `review` · `done` · `blocked`.
 | P1-07 | ADR-005 on how colour is stored in palettes/cues/show file (device-independent target colour vs raw channel values); owner approves before P1-03. Forced by IDEA-02/03. | PAL, SHW | S | todo |
 
 ## Later phases
-Ideas waiting for their phase live in `IDEAS.md` (IDEA-01..03). They get backlog rows when their phase is planned.
+Ideas waiting for their phase live in `IDEAS.md` (IDEA-01..05). They get backlog rows when their phase is planned.
 
 ## Open questions (owner decides)
 - Licence: MIT or GPL-3.0?
-- IPC transport: raw TCP with length-prefixed JSON, or WebSocket (easier for future web/iPad clients)?
