@@ -31,7 +31,9 @@ Titan does something similar: its colour mixing applies to all colour systems in
    channels as if its emitters were the reference primaries: RGB and RGBW and RGB+Lime fixtures
    get `R = r, G = g, B = b`; CMY fixtures get `C = 1 − r, M = 1 − g, Y = 1 − b`. A fixture
    without a dimmer channel (virtual dimmer, LIB/PAT) multiplies its mixing channels by its
-   Dimmer value. Colour wheels (slot-based colour) are out of scope until a rig needs them.
+   Dimmer value. Colour wheels (slot-based colour): the target colour picks the nearest slot by
+   the slot colours in the profile (amended 2026-10-17, owner: no church-driven cuts; data in
+   LIB-15, behaviour after the mixing case).
 4. **Phase 2 replaces only the mapping.** Calibration (IDEA-03) maps the same target colour onto
    each fixture's real emitters (CIE xy from GDTF or a measurement, plus per-unit trim) and may
    offer, as an opt-in, to use extra emitters for better whites and ambers. Stored colours do not

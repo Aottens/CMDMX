@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Own profile model filled by importers, QLC+ first (ADR-006, accepted)
+
+**Decision:** The engine's own profile model is the only internal fixture format; importers convert QLC+ `.qxf` (bundled, Apache-2.0), typed channel lists and GDTF (phase 1), later OFL, into it. Patch: internal id + user number as on Titan; no church-driven cuts (owner). Supersedes ADR-004 in part. See `specs/ADRs/ADR-006-own-profile-model-with-importers.md`.
+
+**Alternatives considered:** GDTF internal (ADR-004); QLC+ format internal; own curated library.
+
+**Reasoning:** The church's fixtures are in the QLC+ library, not in GDTF or OFL; OFL does not export GDTF; the owner does not want to reinvent the library.
+
+**Reversal trigger:** QLC+ profiles prove unreliable for the church fixtures, or GDTF-share gains the budget brands.
+
+---
+
 ## 2026-10-17 — Colour as a target colour plus direct emitters (ADR-005, accepted)
 
 **Decision:** One `Colour` attribute per fixture holds a linear RGB target colour in the BT.2020 reference space; White, Lime and other extra emitters are ordinary attributes the operator drives directly; phase 1 maps the target colour nominally onto each fixture's RGB or CMY channels; a colour palette with a target colour zeroes the emitters it does not mention. See `specs/ADRs/ADR-005-target-colour-and-direct-emitters.md`.
