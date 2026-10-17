@@ -14,7 +14,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM skeleton builds and runs on the owner's Mac (CLT only); window with offline banner, grid, 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- UX-01 iteration 2 (rebuilt from the UX research `specs/ux/research.md`): clickable main-screen sketch `specs/ux/main-screen.html` (Artifact: https://claude.ai/artifact/YNEG3JsZAnjWhG1793MDUd), waiting for owner feedback; one more iteration allowed
+- UX-01 iteration 2 (rebuilt from the UX research `specs/ux/research.md`): clickable main-screen sketch `specs/ux/main-screen.html` (Artifact: https://claude.ai/artifact/YNEG3JsZAnjWhG1793MDUd), waiting for owner feedback
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
