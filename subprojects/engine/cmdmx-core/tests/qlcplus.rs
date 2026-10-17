@@ -540,3 +540,61 @@ fn lib_16_unknown_ranges_are_not_stored() {
     assert_eq!(i.profile.model, "Unit");
     assert_eq!(i.profile.source, "test.qxf");
 }
+
+// ---- LIB-13 / LIB-18: header and tolerance (VS2-11) -----------------------------------------
+
+#[test]
+fn lib_13_header_reads_names_without_converting() {
+    let h = cmdmx_core::library::qlcplus::header(&read("Pro-Lights-LumiPar-7QPro.qxf")).unwrap();
+    assert_eq!(h.manufacturer, "Pro-Lights");
+    assert_eq!(h.model, "LumiPar 7QPro");
+    assert_eq!(h.modes, ["10 Ch Mode", "6 Ch Mode", "4 Ch Mode"]);
+    assert!(cmdmx_core::library::qlcplus::header("<nope").is_err());
+}
+
+#[test]
+fn lib_18_channel_names_ignore_surrounding_spaces() {
+    let xml = qxf(
+        &[
+            preset("Red ", "IntensityRed"),
+            preset("Green", "IntensityGreen"),
+            preset(" Blue", "IntensityBlue"),
+        ]
+        .concat(),
+        &mode(&["Red", "Green ", "Blue"]),
+    );
+    let i = ok(&xml);
+    assert_eq!(
+        only_mode(&i).colour.as_ref().unwrap().system,
+        ColourSystem::Rgb
+    );
+    assert!(i
+        .report
+        .channels
+        .iter()
+        .all(|l| l.source_name.trim() == l.source_name));
+}
+
+#[test]
+fn lib_18_a_channel_in_several_heads_belongs_to_the_mode() {
+    let xml = qxf(
+        &[
+            preset("Dimmer", "IntensityMasterDimmer"),
+            preset("W1", "IntensityWhite"),
+            preset("W2", "IntensityWhite"),
+        ]
+        .concat(),
+        r#"<Mode Name="M">
+             <Channel Number="0">Dimmer</Channel><Channel Number="1">W1</Channel><Channel Number="2">W2</Channel>
+             <Head><Channel>0</Channel><Channel>1</Channel></Head>
+             <Head><Channel>0</Channel><Channel>2</Channel></Head>
+           </Mode>"#,
+    );
+    let i = ok(&xml);
+    let m = only_mode(&i);
+    assert_eq!(attr(m, "Dimmer").channel, 1);
+    assert_eq!(m.cells.len(), 2);
+    assert!(m.cells.iter().all(|c| c.attribute("Dimmer").is_none()));
+    assert_eq!(m.cells[1].attribute("White").unwrap().channel, 3);
+    assert_eq!(i.profile.validate(), Ok(()));
+}

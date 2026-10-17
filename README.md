@@ -20,7 +20,8 @@ list; the engine's own profile model (modes, cells, defaults, slots, emitters) i
 through the engine as one value with HSI/RGB/CMY wheels, virtual dimmers and multi-cell fixtures (VS2-06); the app switches the colour wheels between HSI, RGB and CMY on a
 demo of the church rig with its RGBW, RGB+Lime and RGB pars (VS2-14). The engine patches fixtures
 by type, mode, count and user number with clash checks (VS2-10) and imports QLC+ fixture files
-into its own profile model (VS2-09); the library and the Patch screen follow. The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
+into its own profile model (VS2-09); the daemon serves the whole QLC+ library (about 1800
+fixtures) plus your own profiles, searchable over IPC (VS2-11). The Patch screen follows. The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
 Details in `STATE.md` and `BACKLOG.md`.
 
 ## Layout

@@ -3,13 +3,13 @@
 _Last updated: 2026-10-17_
 
 ## Current step
-VS2-09 QLC+ importer in review; next VS2-11 (library in the daemon), then VS2-12.
+VS2-11 library in review; next VS2-12 (patch over IPC + Patch screen).
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro label-6 frame + widget-params request + product-string detection. Golden-byte tests (OUT-01/02/05/06/07/08/09).
 - `cmdmx-control`: MCU decode/encode for faders (10-bit pitchbend), buttons, V-Pots, ring LEDs, fader touch (CTL-01..04 provisional ids).
-- `cmdmx-daemon`: 40 Hz loop over a demo patch; line 1 to an Art-Net node (`artnet_out.rs`, OUT-03/04/15) and an sACN node (`sacn_out.rs`, multicast + loopback, fixed CID, OUT-06/07/16/17), each on its own thread via `output.rs` (non-blocking hand-off, Ok/Degraded health, socket reopen, panic caught; OUT-11/12). ENTTEC Pro serial node (`serial_out.rs`, `serialport` crate: product-string detection, raw 115200 8N1, rescan ≤ 1/s; OUT-09/20/21/22) — unverified on hardware. IPC v0 (`ipc.rs`): WebSocket server on 127.0.0.1:7319, refuses browser Origins, snapshot + per-tick deltas, one thread per client, bounded queues (IPC-01..07). Demo show: one dimmer per fader; `--demo` for the breathing fader 1. Flags: `--ticks N`, `--ipc-port N`, `--demo`, `--artnet-target`, `--no-artnet`, `--sacn-unicast`, `--sacn-priority`, `--no-sacn`, `--serial PATH`, `--no-serial`. No MIDI yet.
+- `cmdmx-daemon`: 40 Hz loop over a demo patch; line 1 to an Art-Net node (`artnet_out.rs`, OUT-03/04/15) and an sACN node (`sacn_out.rs`, multicast + loopback, fixed CID, OUT-06/07/16/17), each on its own thread via `output.rs` (non-blocking hand-off, Ok/Degraded health, socket reopen, panic caught; OUT-11/12). ENTTEC Pro serial node (`serial_out.rs`, `serialport` crate: product-string detection, raw 115200 8N1, rescan ≤ 1/s; OUT-09/20/21/22) — unverified on hardware. IPC v0 (`ipc.rs`): WebSocket server on 127.0.0.1:7319, refuses browser Origins, snapshot + per-tick deltas, one thread per client, bounded queues (IPC-01..07). Demo show: one dimmer per fader; `--demo` for the breathing fader 1. Flags: `--ticks N`, `--ipc-port N`, `--demo`, `--artnet-target`, `--no-artnet`, `--sacn-unicast`, `--sacn-priority`, `--no-sacn`, `--serial PATH`, `--no-serial`, `--qlcplus-dir PATH`, `--profiles-dir PATH`. No MIDI yet.
 - `cmdmx-core::programmer` (VS2-02): ordered selection with toggle, groups (record/select, order kept), new selection after a change (PRG-03), Fix ±1 stepping, n-stage patterns, All; `Engine::set_programmer_value` stores manual values (not in the merge yet). 21 tests in `cmdmx-core/tests/programmer.rs`.
 - `cmdmx-core::command` (VS2-03): Titan keypad parser (`Fixture`/`Group`/`Thro`/`And`/`Not`/`@`/`Enter`) + `Engine::execute_command`: typed selection replaces, `@ v` sets I/HTP attributes, parse-then-apply. 16 tests in `cmdmx-core/tests/command_line.rs`; shared rig in `tests/common/mod.rs`.
 - Programmer in the merge (VS2-04): manual values are a candidate at `Priority::Programmer` (ENG-04); `turn_wheel` (relative, clamped, start from programmer → merged → frame → 0; steps from `Settings::wheel_step_*`), `wheel_layout`, stored `active_group` (PRG-18), `contents(mask)`. Scenario runner has a `prg` action (select / wheel / command). 16 tests in `tests/wheels.rs`, scenarios PRG-12/13.
@@ -19,6 +19,7 @@ VS2-09 QLC+ importer in review; next VS2-11 (library in the daemon), then VS2-12
 - VS2-14: IPC-18 `programmer.colour_model`; demo rig (IPC-14) built from JSON profiles in `main.rs`: RGBW washes 101–104, RGBW pars 201–208, RGB+Lime 211–216 and Showtec RGB 221–226 (virtual dimmer), spots 301–306.
 - Patch core (VS2-10): `Fixture{id, number, name, profile, mode, universe, address, handle}`; `Engine::patch_add/move/remove/renumber/change_mode/handle`, `fixture`, `fixture_by_number`; number index + `next_id` (ids never reused); low-level `patch` (scenarios, rigs) checks overlap too, `number: 0` = same as id; command line resolves user numbers. 18 tests in `tests/patch.rs`.
 - QLC+ importer (VS2-09): `library/qlcplus.rs` (quick-xml serde) → `Import { profile, report }`, `CoreError::ImportFailed`; church files + expected profiles in `tests/fixtures/qlcplus/`. 15 tests in `tests/qlcplus.rs`.
+- Library (VS2-11): core `library::{Entry, Index}` (word search, user hides QLC+), `library::channel_list` (LIB-11, same rules as the importer), `qlcplus::header`; daemon `library.rs` (`Library::load/search/import_report/profile/save_profile/save_channel_list`, atomic user files) loaded on its own thread; `library.*` IPC answered in the client thread. `scripts/fetch-qlcplus.sh` fetches the QLC+ set (commit 3d832ce) into the git-ignored `vendor/qlcplus`; `tests/qlcplus_library.rs` imports all of it: 1779 of 1781 (two Eurolite files name a head channel outside their mode).
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress
@@ -28,4 +29,4 @@ VS2-09 QLC+ importer in review; next VS2-11 (library in the daemon), then VS2-12
 - Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, show file (SHW-*), IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with
-`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-11 (library in the daemon).
+`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-12 (patch over IPC and the Patch screen). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.

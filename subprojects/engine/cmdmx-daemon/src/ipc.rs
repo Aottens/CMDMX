@@ -1,27 +1,34 @@
 //! IPC v0: WebSocket server, JSON messages and per-tick deltas (IPC-01..07), plus the
-//! programmer snapshot, deltas and commands (IPC-10..13, VS2-07).
+//! programmer snapshot, deltas and commands (IPC-10..13, VS2-07), and the fixture library
+//! requests (LIB-14, VS2-11).
 //!
 //! One thread per client. The tick only talks to clients through channels and
 //! never blocks: commands arrive on an unbounded channel, outgoing messages
-//! leave through a bounded queue per client (IPC-07).
+//! leave through a bounded queue per client (IPC-07). Library requests never reach the tick:
+//! the client thread answers them itself, straight to the asking client.
 
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender, TryRecvError};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
+use cmdmx_core::library::channel_list::ChannelList;
 use cmdmx_core::patch::FixtureId;
 use cmdmx_core::playback::PlaybackId;
+use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{GroupId, ProgrammerView, Resolution};
 use serde::Serialize;
 use tungstenite::handshake::server::{ErrorResponse, Request, Response};
 use tungstenite::http::StatusCode;
 use tungstenite::{Error as WsError, Message};
+
+use crate::library::Library;
 
 /// Messages a client may have queued before it is disconnected (IPC-07).
 const QUEUE: usize = 64;
@@ -68,6 +75,18 @@ pub enum Command {
     RecordGroup {
         group: GroupId,
     },
+    /// LIB-14: answered by the client thread, never applied by the tick.
+    Library(LibraryRequest),
+}
+
+/// LIB-14: the fixture library requests.
+#[derive(Debug, Clone, PartialEq)]
+pub enum LibraryRequest {
+    Search { query: String },
+    ImportReport { manufacturer: String, model: String },
+    Profile { manufacturer: String, model: String },
+    SaveProfile(Profile),
+    SaveChannelList(ChannelList),
 }
 
 pub enum Event {
@@ -80,6 +99,14 @@ fn uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<T, String> 
     v.get(key)
         .and_then(|n| n.as_u64())
         .and_then(|n| T::try_from(n).ok())
+        .ok_or_else(|| format!("missing or invalid \"{key}\""))
+}
+
+/// A string field.
+fn string(v: &serde_json::Value, key: &str) -> Result<String, String> {
+    v.get(key)
+        .and_then(|s| s.as_str())
+        .map(String::from)
         .ok_or_else(|| format!("missing or invalid \"{key}\""))
 }
 
@@ -165,6 +192,24 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("group.record") => Ok(Command::RecordGroup {
             group: uint(&v, "group")?,
         }),
+        Some("library.search") => Ok(Command::Library(LibraryRequest::Search {
+            query: string(&v, "query")?,
+        })),
+        Some("library.import_report") => Ok(Command::Library(LibraryRequest::ImportReport {
+            manufacturer: string(&v, "manufacturer")?,
+            model: string(&v, "model")?,
+        })),
+        Some("library.profile") => Ok(Command::Library(LibraryRequest::Profile {
+            manufacturer: string(&v, "manufacturer")?,
+            model: string(&v, "model")?,
+        })),
+        Some("library.save_profile") => Ok(Command::Library(LibraryRequest::SaveProfile(
+            serde_json::from_value(v.get("profile").cloned().unwrap_or_default())
+                .map_err(|e| format!("missing or invalid \"profile\": {e}"))?,
+        ))),
+        Some("library.save_channel_list") => Ok(Command::Library(LibraryRequest::SaveChannelList(
+            serde_json::from_value(v.clone()).map_err(|e| format!("invalid channel list: {e}"))?,
+        ))),
         Some(other) => Err(format!("unknown cmd '{other}'")),
         None => Err("missing \"cmd\"".into()),
     }
@@ -385,8 +430,92 @@ impl Clients {
     }
 }
 
-/// IPC-01: listen on loopback (port 0 = ephemeral); events flow to the tick.
+/// The library as the daemon shares it: `None` until the background load has finished.
+pub type SharedLibrary = Arc<RwLock<Option<Library>>>;
+
+const LIBRARY_LOADING: &str = "library is loading; try again in a moment";
+const LIBRARY_POISONED: &str = "library is unavailable after an internal error";
+
+fn saved(manufacturer: &str, model: &str) -> serde_json::Value {
+    serde_json::json!({"v": 0, "type": "library.saved", "manufacturer": manufacturer, "model": model})
+}
+
+fn library_reply(
+    lib: &RwLock<Option<Library>>,
+    req: LibraryRequest,
+) -> Result<serde_json::Value, String> {
+    use serde_json::json;
+    match req {
+        LibraryRequest::SaveProfile(profile) => {
+            let mut guard = lib.write().map_err(|_| LIBRARY_POISONED)?;
+            guard
+                .as_mut()
+                .ok_or(LIBRARY_LOADING)?
+                .save_profile(&profile)?;
+            Ok(saved(&profile.manufacturer, &profile.model))
+        }
+        LibraryRequest::SaveChannelList(list) => {
+            let mut guard = lib.write().map_err(|_| LIBRARY_POISONED)?;
+            guard
+                .as_mut()
+                .ok_or(LIBRARY_LOADING)?
+                .save_channel_list(&list)?;
+            Ok(saved(&list.manufacturer, &list.model))
+        }
+        LibraryRequest::Search { query } => {
+            let guard = lib.read().map_err(|_| LIBRARY_POISONED)?;
+            let found = guard.as_ref().ok_or(LIBRARY_LOADING)?.search(&query);
+            Ok(json!({"v": 0, "type": "library.results", "items": found}))
+        }
+        LibraryRequest::ImportReport {
+            manufacturer,
+            model,
+        } => {
+            let guard = lib.read().map_err(|_| LIBRARY_POISONED)?;
+            let report = guard
+                .as_ref()
+                .ok_or(LIBRARY_LOADING)?
+                .import_report(&manufacturer, &model)?;
+            Ok(
+                json!({"v": 0, "type": "library.import_report", "manufacturer": manufacturer,
+                      "model": model, "report": report}),
+            )
+        }
+        LibraryRequest::Profile {
+            manufacturer,
+            model,
+        } => {
+            let guard = lib.read().map_err(|_| LIBRARY_POISONED)?;
+            let profile = guard
+                .as_ref()
+                .ok_or(LIBRARY_LOADING)?
+                .profile(&manufacturer, &model)?;
+            Ok(json!({"v": 0, "type": "library.profile", "profile": profile}))
+        }
+    }
+}
+
+/// LIB-14: the reply to one library request, an `error` message when it fails or the library
+/// is still loading. Never panics, also on a poisoned lock.
+pub fn answer_library(lib: &RwLock<Option<Library>>, req: LibraryRequest) -> String {
+    match library_reply(lib, req) {
+        Ok(reply) => reply.to_string(),
+        Err(e) => error(&e),
+    }
+}
+
+/// A server for tests that never use the library: it stays "loading".
+#[cfg(test)]
 pub fn spawn_server(port: u16) -> std::io::Result<(Receiver<Event>, SocketAddr)> {
+    spawn_server_with(port, Arc::new(RwLock::new(None)))
+}
+
+/// IPC-01: listen on loopback (port 0 = ephemeral); events flow to the tick, library
+/// requests are answered by the client threads from `library` (LIB-14).
+pub fn spawn_server_with(
+    port: u16,
+    library: SharedLibrary,
+) -> std::io::Result<(Receiver<Event>, SocketAddr)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port))?;
     let addr = listener.local_addr()?;
     let (events, rx) = channel();
@@ -395,12 +524,16 @@ pub fn spawn_server(port: u16) -> std::io::Result<(Receiver<Event>, SocketAddr)>
         .spawn(move || {
             for stream in listener.incoming().flatten() {
                 let events = events.clone();
+                let library = Arc::clone(&library);
                 // A failed spawn only loses this one client.
                 let _ = std::thread::Builder::new()
                     .name("ipc-client".into())
                     .spawn(move || {
                         // IPC-07: a panic closes only this client.
-                        if catch_unwind(AssertUnwindSafe(|| serve_client(stream, &events))).is_err()
+                        if catch_unwind(AssertUnwindSafe(|| {
+                            serve_client(stream, &events, &library)
+                        }))
+                        .is_err()
                         {
                             eprintln!("ipc: client thread panicked; connection closed");
                         }
@@ -421,7 +554,7 @@ fn refuse_origin(req: &Request, resp: Response) -> Result<Response, ErrorRespons
     Ok(resp)
 }
 
-fn serve_client(stream: TcpStream, events: &Sender<Event>) {
+fn serve_client(stream: TcpStream, events: &Sender<Event>, library: &RwLock<Option<Library>>) {
     let Ok(mut ws) = tungstenite::accept_hdr(stream, refuse_origin) else {
         return;
     };
@@ -441,6 +574,14 @@ fn serve_client(stream: TcpStream, events: &Sender<Event>) {
     loop {
         match ws.read() {
             Ok(Message::Text(text)) => match parse_command(text.as_str()) {
+                Ok(Command::Library(req)) => {
+                    if ws
+                        .send(Message::text(answer_library(library, req)))
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
                 Ok(cmd) => {
                     if events.send(Event::Command(cmd)).is_err() {
                         return;
@@ -724,6 +865,92 @@ mod tests {
         let p = parse(&d[0]);
         assert_eq!(p["type"], "programmer");
         assert_eq!(p["colour_model"], "Cmy");
+    }
+
+    /// A library over the LIB-09 church files with its own empty user folder.
+    fn library(test: &str) -> std::sync::RwLock<Option<crate::library::Library>> {
+        let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../tests/fixtures/qlcplus");
+        let user = std::env::temp_dir().join(format!("cmdmx-ipc-{test}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&user);
+        std::sync::RwLock::new(Some(crate::library::Library::load(Some(&dir), &user).0))
+    }
+
+    fn ask(lib: &std::sync::RwLock<Option<crate::library::Library>>, text: &str) -> Value {
+        match parse_command(text).unwrap() {
+            Command::Library(req) => parse(&answer_library(lib, req)),
+            other => panic!("expected a library request, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn lib_14_search_answers_the_asking_client() {
+        let lib = library("search");
+        let v = ask(&lib, r#"{"v":0,"cmd":"library.search","query":"shehds"}"#);
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"library.results","items":[{"manufacturer":"Shehds",
+                   "model":"LED Beam+Wash 19x15W RGBW Zoom Lighting",
+                   "modes":["16 Channel","24 Channel"],"source":"qlcplus"}]})
+        );
+        let loading = std::sync::RwLock::new(None);
+        let v = ask(&loading, r#"{"v":0,"cmd":"library.search","query":"x"}"#);
+        assert_eq!(v["type"], "error");
+        assert!(v["message"].as_str().unwrap().contains("loading"), "{v}");
+    }
+
+    #[test]
+    fn lib_14_report_profile_and_saves() {
+        let lib = library("saves");
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.import_report","manufacturer":"Showtec","model":"LED Par 56"}"#,
+        );
+        assert_eq!(v["type"], "library.import_report");
+        assert_eq!(v["report"]["channels"].as_array().unwrap().len(), 6);
+        assert_eq!(v["report"]["channels"][5]["source_name"], "Mode");
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.profile","manufacturer":"Showtec","model":"LED Par 56"}"#,
+        );
+        assert_eq!(v["type"], "library.profile");
+        assert_eq!(v["profile"]["modes"][0]["name"], "6 Channel");
+        let mut profile = v["profile"].clone();
+        profile["model"] = json!("LED Par 56 (church)");
+        let v = ask(
+            &lib,
+            &json!({"v":0,"cmd":"library.save_profile","profile":profile}).to_string(),
+        );
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"library.saved","manufacturer":"Showtec","model":"LED Par 56 (church)"})
+        );
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.save_channel_list","manufacturer":"U'King","model":"RGBL Par","mode":"4 Channel","channels":["Red","Green","Blue","Lime"]}"#,
+        );
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"library.saved","manufacturer":"U'King","model":"RGBL Par"})
+        );
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.profile","manufacturer":"Nope","model":"Nope"}"#,
+        );
+        assert_eq!(v["type"], "error");
+    }
+
+    #[test]
+    fn lib_14_bad_library_requests_are_errors() {
+        for bad in [
+            r#"{"v":0,"cmd":"library.search"}"#,
+            r#"{"v":0,"cmd":"library.import_report","manufacturer":"Showtec"}"#,
+            r#"{"v":0,"cmd":"library.profile","model":"LED Par 56"}"#,
+            r#"{"v":0,"cmd":"library.save_profile","profile":{"modes":"x"}}"#,
+            r#"{"v":0,"cmd":"library.save_channel_list","manufacturer":"A","model":"B","mode":"C","channels":["Plasma"]}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]
