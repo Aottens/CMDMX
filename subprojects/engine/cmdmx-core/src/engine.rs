@@ -14,6 +14,7 @@ use crate::attribute::{AttributeDef, AttributeKind};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority};
 use crate::profile::Profile;
+use crate::programmer::{GroupId, Programmer};
 use crate::{CoreError, Timestamp, UniverseId, Warning, UNIVERSE_SIZE};
 
 /// One universe's output, 512 slots. Start code is added by the transport.
@@ -82,6 +83,8 @@ pub struct Engine {
     frames: BTreeMap<UniverseId, Frame>,
     warnings: Vec<Warning>,
     last_tick: Option<Timestamp>,
+    programmer: Programmer,
+    groups: BTreeMap<GroupId, Vec<FixtureId>>,
 }
 
 /// A candidate value for one attribute from one source, during a merge.
@@ -178,6 +181,89 @@ impl Engine {
         Ok(())
     }
 
+    // ---- programmer (PRG-01..07) ------------------------------------------
+
+    /// PRG-01/03: toggle a patched fixture in the selection.
+    pub fn select_fixture(&mut self, id: FixtureId) -> Result<(), CoreError> {
+        if !self.fixtures.contains_key(&id) {
+            return Err(CoreError::UnknownFixture(id));
+        }
+        self.programmer.toggle(id);
+        Ok(())
+    }
+
+    /// PRG-02/03: append a group's fixtures, keeping the ones already selected in place.
+    pub fn select_group(&mut self, id: GroupId) -> Result<(), CoreError> {
+        let members = self.groups.get(&id).ok_or(CoreError::UnknownGroup(id))?;
+        self.programmer.add_group(members);
+        Ok(())
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.programmer.clear_selection();
+    }
+
+    /// PRG-04: step to the next fixture (or pattern stage).
+    pub fn next_fixture(&mut self) {
+        self.programmer.step(true);
+    }
+
+    pub fn prev_fixture(&mut self) {
+        self.programmer.step(false);
+    }
+
+    /// PRG-05: split the selection into `n` interleaved stages.
+    pub fn select_pattern(&mut self, n: usize) -> Result<(), CoreError> {
+        if n < 2 {
+            return Err(CoreError::InvalidPattern(n));
+        }
+        self.programmer.set_pattern(n);
+        Ok(())
+    }
+
+    /// PRG-06.
+    pub fn select_all(&mut self) {
+        self.programmer.select_all();
+    }
+
+    /// PRG-07: store the selection as a group, replacing any existing one.
+    pub fn record_group(&mut self, id: GroupId) -> Result<(), CoreError> {
+        let selection = self.programmer.selection();
+        if selection.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        self.groups.insert(id, selection.to_vec());
+        Ok(())
+    }
+
+    /// Minimal manual value; feeding the merge comes with VS2-04.
+    pub fn set_programmer_value(
+        &mut self,
+        fixture: FixtureId,
+        attribute: &str,
+        value: f32,
+    ) -> Result<(), CoreError> {
+        let fx = self
+            .fixtures
+            .get(&fixture)
+            .ok_or(CoreError::UnknownFixture(fixture))?;
+        let profile = self
+            .profiles
+            .get(&fx.profile)
+            .ok_or_else(|| CoreError::UnknownProfile(fx.profile.clone()))?;
+        if profile.attribute(attribute).is_none() {
+            return Err(CoreError::UnknownAttribute {
+                fixture,
+                attribute: attribute.to_string(),
+            });
+        }
+        if !(0.0..=1.0).contains(&value) || value.is_nan() {
+            return Err(CoreError::InvalidLevel(value));
+        }
+        self.programmer.set_value(fixture, attribute, value);
+        Ok(())
+    }
+
     // ---- tick ------------------------------------------------------------
 
     /// Recompute every universe frame for the current state at `now`.
@@ -234,6 +320,14 @@ impl Engine {
     /// Every playback's state, sorted by id.
     pub fn playback_states(&self) -> impl Iterator<Item = (&PlaybackId, &PlaybackState)> {
         self.states.iter()
+    }
+
+    pub fn programmer(&self) -> &Programmer {
+        &self.programmer
+    }
+
+    pub fn group(&self, id: GroupId) -> Option<&[FixtureId]> {
+        self.groups.get(&id).map(Vec::as_slice)
     }
 
     pub fn grand_master(&self) -> f32 {

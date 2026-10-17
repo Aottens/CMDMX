@@ -31,7 +31,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | P1-07 | ADR-005: colour is stored as a device-independent target colour and mapped per fixture to RGB/RGBW/RGB+Lime/CMY, **and** extra emitters (W, Lime, later Amber/UV) can also be driven directly (owner, 2026-10-17: Lime makes a fine amber, W a real white); the ADR decides how direct emitter values combine with the target colour and how palettes store them; owner approves before P1-03. | PAL, SHW | S | todo |
 | P1-02 | Write `programmer.md` from the Titan analysis (ordered selection, groups, touched attributes, colour picker RGB/CMY/HSI, Clear options, Locate/Highlight). | PRG | M | done (2026-10-17; PRG-01..37 approved) |
 | P1-03 | Write `palettes.md` (Global/Shared/Normal auto-detection, quick record masks, quick palette, fade/overlap). | PAL | M | todo |
-| VS2-02 | Selection, sub-selection, patterns and groups in `cmdmx-core::programmer`, unit tested. | PRG-01..07, 14 | M | todo |
+| VS2-02 | Selection, sub-selection, patterns and groups in `cmdmx-core::programmer`, unit tested. | PRG-01..07, 14 | M | done (2026-10-17; `cmdmx-core/tests/programmer.rs`) |
 | VS2-03 | Command-line parser and executor for the Titan keypad subset, unit tested. | PRG-08..11 | M | todo |
 | VS2-04 | Programmer contents as a merge source, relative wheels with Normal/Fine/Coarse steps, palette references per attribute; scenarios show untouched attributes coming from playbacks. | PRG-12, 13, 15..22, 36, 37 | L | todo |
 | VS2-05 | Locate, Highlight/lowlight, Off, Rem Dim and Clear (precedence, mask; timed per ENG-10); scenarios on the frame. Uses locate/highlight values from the minimal test profile until P1-01. | PRG-23..29 | M | todo |
