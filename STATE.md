@@ -26,7 +26,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- UX-02.0 in review: `specs/modules/ui.md` (UI-01..25, IPC-20..23) waits for owner approval and four open questions; owner exports the church patch from Lightkey on 2026-10-18
+- UX-02.0 in review: `specs/modules/ui.md` (UI-01..26, IPC-20..23; open questions answered) waits for owner approval; owner exports the church patch from Lightkey on 2026-10-18
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit

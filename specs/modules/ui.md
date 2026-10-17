@@ -1,7 +1,7 @@
 # Module spec: main screen (UI)
 
 Owner: `subprojects/app` (rendering, input), with four small IPC additions in `cmdmx-daemon`.
-Status: **draft for owner approval (UX-02.0, 2026-10-17)**.
+Status: **draft for owner approval (UX-02.0, 2026-10-17); open questions answered by owner 2026-10-17**.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -52,6 +52,13 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     number. In programmer = 3 pt red top strip. Not relevant = 38 % opacity.
   - State never changes the fill.
 
+- **UI-26 [now]** Console mode, on by default at launch, with a Console toggle in the status bar:
+  - The window goes native full screen with the Dock and the menu bar hidden.
+  - ⌘Q and closing the window ask for confirmation first ("Quit the app? DMX keeps running in
+    the engine.").
+  - Leaving console mode gives a normal resizable window (UI-01's minimum size).
+  - The choice is remembered across launches (owner, 2026-10-17: now, not later).
+
 ### Status bar (UX-02a)
 - **UI-06 [now]** Left to right:
   - The show name, "Demo show" until the show file exists [with P1-09].
@@ -59,7 +66,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     becomes this indicator plus a one-line amber message in the bar.
   - One dot per output node with its name and state (IPC-20).
   - The autosave age [with P1-09], and the BLIND and DBO tags [with their specs].
-  - On the right: the toggles Keys, Keypad and Day/Night, and the clock (SF Mono, hh:mm:ss).
+  - On the right: the toggles Console (UI-26), Keys, Keypad and Day/Night, and the clock (SF
+    Mono, hh:mm:ss).
 
 ### Workspace rail and window grid (UX-02a)
 - **UI-07 [now]** The rail lists four workspaces: Groups + Palettes, Fixtures + Groups, Colour,
@@ -91,8 +99,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Selected, current target (a double blue border during a sub-selection) and in programmer
     follow IPC-15 and UI-05.
   - A tap sends `programmer.select`.
-  - The output lamp strip along the bottom edge is a disabled stripe [with IDEA-10,
-    open question 3].
+  - The output lamp strip along the bottom edge is a disabled stripe [with IDEA-10].
 - **UI-12 [now]** Groups: one cell per group with its number, its fixture count as the tag, and a
   legend ("Group n" until groups have names [with Set Legend]). There are 24 cells, and empty
   ones show only a number.
@@ -231,18 +238,12 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 
 ## Out of scope (this spec)
 Palette, cue and playback behaviour (their own specs fill in the disabled controls), Blind, undo
-(P1-10), full-screen console mode and Cmd-Q protection, freely configurable workspaces, legends
-and halos, picture legends, the fixture output lamps (open question 3), a remote/touch layout
+(P1-10), freely configurable workspaces, legends and halos, picture legends, the fixture output
+lamps (IDEA-10), a remote/touch layout
 (IDEA-06), and the narrow single-column layout of the sketch (below 900 px).
 
-## Open questions for the owner
-1. **Screens keep the playback area** (UI-10). Patch now fills the whole window. The proposal is
-   that the faders, GM and later Go stay visible on every screen. Agreed?
-2. **Fixtures window in handle order** (UI-11, PAT-14) instead of the sketch's rows per fixture
-   type. Handles are what you arrange yourself, as on Titan. Agreed, or keep type rows as an
-   option?
-3. **Output lamps** on fixture cells (the coloured strip in the sketch). This needs the engine to
-   send each fixture's output colour and intensity several times a second. The proposal is to
-   leave it as a disabled stripe now and make it a separate idea (IDEA-10). Agreed?
-4. **Full-screen console mode** (research §5: hides the Dock and menu bar, protects Cmd-Q). Now,
-   or later?
+## Owner decisions (2026-10-17)
+1. Screens (Patch now) keep the playback area and the status bar visible (UI-10).
+2. The Fixtures window is in handle order (UI-11, PAT-14), not in rows per fixture type.
+3. Output lamps on fixture cells are a separate idea (IDEA-10); a disabled stripe until then.
+4. Full-screen console mode comes now (UI-26, UX-02a).
