@@ -10,7 +10,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::attribute::{AttributeDef, AttributeKind};
+use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
+use crate::command::{self, Item, Kind};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority};
 use crate::profile::Profile;
@@ -262,6 +263,83 @@ impl Engine {
         }
         self.programmer.set_value(fixture, attribute, value);
         Ok(())
+    }
+
+    /// PRG-08/09/11: run one command line. Parse and resolve first, then apply,
+    /// so a refused line changes nothing.
+    pub fn execute_command(&mut self, tokens: &[&str]) -> Result<(), CoreError> {
+        let cmd = command::parse(tokens)?;
+        let typed = if cmd.selection.is_empty() {
+            None
+        } else {
+            let mut list: Vec<FixtureId> = Vec::new();
+            for (not, item) in &cmd.selection {
+                let ids = self.expand(item);
+                if *not {
+                    list.retain(|f| !ids.contains(f));
+                } else {
+                    for id in ids {
+                        if !list.contains(&id) {
+                            list.push(id);
+                        }
+                    }
+                }
+            }
+            if list.is_empty() {
+                return Err(CoreError::EmptySelection);
+            }
+            Some(list)
+        };
+        let mut touched = Vec::new();
+        let level = cmd.level.map(|v| (v / 100.0).clamp(0.0, 1.0));
+        if level.is_some() {
+            let targets = typed.clone().unwrap_or_else(|| self.programmer.targets());
+            if targets.is_empty() {
+                return Err(CoreError::EmptySelection);
+            }
+            for id in targets {
+                let profile = self
+                    .fixtures
+                    .get(&id)
+                    .and_then(|f| self.profiles.get(&f.profile));
+                for a in profile.map(|p| p.attributes.as_slice()).unwrap_or_default() {
+                    if a.group == AttributeGroup::I && a.kind == AttributeKind::Htp {
+                        touched.push((id, a.name.clone()));
+                    }
+                }
+            }
+        }
+        if let Some(list) = typed {
+            self.programmer.replace_selection(list);
+        }
+        if let Some(level) = level {
+            for (id, name) in touched {
+                self.set_programmer_value(id, &name, level)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Patched fixtures (or members of existing groups) named by one item, in typed order.
+    /// Ranges walk only the entries that exist, so `1 Thro 4000000000` stays cheap.
+    fn expand(&self, item: &Item) -> Vec<FixtureId> {
+        let (lo, hi) = (item.from.min(item.to), item.from.max(item.to));
+        let mut keys: Vec<u32> = match item.kind {
+            Kind::Fixture => self.fixtures.range(lo..=hi).map(|(id, _)| *id).collect(),
+            Kind::Group => self.groups.range(lo..=hi).map(|(id, _)| *id).collect(),
+        };
+        if item.from > item.to {
+            keys.reverse();
+        }
+        match item.kind {
+            Kind::Fixture => keys,
+            Kind::Group => keys
+                .iter()
+                .filter_map(|g| self.groups.get(g))
+                .flatten()
+                .copied()
+                .collect(),
+        }
     }
 
     // ---- tick ------------------------------------------------------------

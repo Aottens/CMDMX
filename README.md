@@ -11,8 +11,8 @@ washes, mixed LED pars, theatre spots) on ColourmotionDMX instead of Lightkey.
 
 **Status (2026-10-17):** vertical slice 1 runs: the daemon sends Art-Net, sACN and ENTTEC-Pro
 serial at 40 Hz, and the app's faders drive DMX over a local WebSocket. The programmer is being
-built: selection, groups, stepping and patterns are done; the command line, wheels and output
-follow. The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
+built: selection, groups, stepping, patterns and the keypad command line are done; wheels and
+output follow. The main-screen design is a clickable sketch (`specs/ux/main-screen.html`, UI v0.1).
 Details in `STATE.md` and `BACKLOG.md`.
 
 ## Layout

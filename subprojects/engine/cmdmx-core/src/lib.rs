@@ -9,10 +9,12 @@
 //! - [`patch`]      fixtures on universes/addresses
 //! - [`playback`]   playbacks: priority, fader mode, values, runtime level
 //! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
+//! - [`command`]    command line parser (`specs/modules/programmer.md` PRG-08..11)
 //! - [`engine`]     the merge (`specs/modules/engine-merge.md`)
 //! - [`scenario`]   JSON scenario format used by `tests/scenarios/*.json`
 
 pub mod attribute;
+pub mod command;
 pub mod engine;
 pub mod patch;
 pub mod playback;
@@ -55,6 +57,8 @@ pub enum CoreError {
     EmptySelection,
     #[error("invalid pattern of {0} stages (expected at least 2)")]
     InvalidPattern(usize),
+    #[error("invalid command: {0}")]
+    InvalidCommand(String),
 }
 
 /// A non-fatal condition surfaced to the UI. The engine never stops for a warning.
