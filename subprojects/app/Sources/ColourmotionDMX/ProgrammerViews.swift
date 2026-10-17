@@ -4,11 +4,11 @@ import SwiftUI
 // Programmer workspace (IPC-15..17). Pure rendering of `EngineClient` state plus
 // command sending: no selection order, targets or wheel layout is computed here.
 
-private let hairline: CGFloat = 1
-private let radius: CGFloat = 3
+let hairline: CGFloat = 1
+let radius: CGFloat = 3
 
 /// Flat 1 px button; `fill` is a state colour (blue = selected, red = armed / touched).
-private struct FlatButton: ButtonStyle {
+struct FlatButton: ButtonStyle {
     var fill: Color?
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -22,7 +22,7 @@ private struct FlatButton: ButtonStyle {
 }
 
 /// A window with a small title bar and an optional accessory (e.g. Record).
-private struct PanelWindow<Accessory: View, Content: View>: View {
+struct PanelWindow<Accessory: View, Content: View>: View {
     let title: String
     @ViewBuilder var accessory: Accessory
     @ViewBuilder var content: Content
@@ -49,6 +49,16 @@ private struct PanelWindow<Accessory: View, Content: View>: View {
 struct FixturesWindow: View {
     @EnvironmentObject private var engine: EngineClient
 
+    /// Display order only: by handle (page, slot); fixtures without a handle last, by number.
+    private static func handleOrder(_ a: FixtureInfo, _ b: FixtureInfo) -> Bool {
+        switch (a.handle, b.handle) {
+        case let (x?, y?): return (x.page, x.slot) < (y.page, y.slot)
+        case (_?, nil): return true
+        case (nil, _?): return false
+        case (nil, nil): return a.number < b.number
+        }
+    }
+
     var body: some View {
         let programmer = engine.programmer
         // Display lookups only: 1-based position in the engine's selection order.
@@ -61,7 +71,7 @@ struct FixturesWindow: View {
         PanelWindow(title: "Fixtures", accessory: { EmptyView() }) {
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 60, maximum: 80), spacing: 4)], spacing: 4) {
-                    ForEach(engine.fixtures) { fixture in
+                    ForEach(engine.fixtures.sorted(by: Self.handleOrder)) { fixture in
                         FixtureButton(
                             fixture: fixture,
                             position: order[fixture.id],
@@ -86,7 +96,7 @@ private struct FixtureButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 1) {
-                Text("\(fixture.id)").font(.title3.weight(.semibold).monospacedDigit())
+                Text("\(fixture.number)").font(.title3.weight(.semibold).monospacedDigit())
                 Text(fixture.profile).font(.caption2).lineLimit(1).minimumScaleFactor(0.6)
                     .foregroundStyle(position == nil ? Color.secondary : Color.white.opacity(0.85))
             }

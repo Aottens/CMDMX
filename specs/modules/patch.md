@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11)**. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -62,6 +62,15 @@ to end up with two fixtures on the same channel by accident.
   number?}`, `patch.move {id, universe, address}`, `patch.remove {ids}`, `patch.renumber {id,
   number}`, `patch.name {id, name}`, `patch.change_mode {id, mode}`, `patch.handle {id, page,
   slot}`. Refusals are warnings (IPC-06).
+  Wire details (VS2-12, within the approved criterion): `profile` is the engine's profile key; a
+  fixture type from the library is patched under the key `"<manufacturer>/<model>"` (split at the
+  first `/`), and the daemon fetches and converts it from the library in the client thread, never
+  in the tick. A key already in the show keeps the copy the show has (ADR-006 decision 5), so
+  fixtures patched earlier never change under the operator. `mode` is required, `address` and
+  `number` are optional (PAT-03). In the snapshot `mode` is the mode's name (the first mode when
+  none was given), `virtual_dimmer` is LIB-04's virtual dimmer, `handle` is `{page, slot}` or
+  `null`, and the delta is `{"v":0,"type":"fixtures","fixtures":[…]}` (full list, at most one per
+  tick, only when the list changed).
 - **PAT-10** A Patch screen (full screen from the workspace rail, UI v0.1): a table of the patch
   (number, name, manufacturer/model, mode, universe.address, footprint), sorted by number; an Add
   panel with library search (LIB-14), mode, count, universe, start address and start number

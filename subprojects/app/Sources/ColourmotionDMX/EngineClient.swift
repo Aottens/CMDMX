@@ -16,10 +16,63 @@ struct PlaybackSlot: Identifiable, Equatable {
     var isActive: Bool
 }
 
-/// One patched fixture (IPC-10).
+/// One patched fixture (IPC-10, PAT-09). `id` is the internal id, `number` the user number.
+/// Every field but `id` falls back to a default so a malformed entry cannot drop a snapshot.
 struct FixtureInfo: Decodable, Identifiable, Equatable {
+    struct Handle: Decodable, Equatable {
+        let page: Int
+        let slot: Int
+    }
+
     let id: Int
+    let number: Int
+    let name: String
     let profile: String
+    let mode: String
+    let universe: Int
+    let address: Int
+    let footprint: Int
+    let virtualDimmer: Bool
+    let handle: Handle?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, number, name, profile, mode, universe, address, footprint, handle
+        case virtualDimmer = "virtual_dimmer"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        number = (try? c.decode(Int.self, forKey: .number)) ?? id
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
+        profile = (try? c.decode(String.self, forKey: .profile)) ?? ""
+        mode = (try? c.decode(String.self, forKey: .mode)) ?? ""
+        universe = (try? c.decode(Int.self, forKey: .universe)) ?? 0
+        address = (try? c.decode(Int.self, forKey: .address)) ?? 0
+        footprint = (try? c.decode(Int.self, forKey: .footprint)) ?? 0
+        virtualDimmer = (try? c.decode(Bool.self, forKey: .virtualDimmer)) ?? false
+        handle = try? c.decode(Handle.self, forKey: .handle)
+    }
+}
+
+/// One fixture type found by `library.search` (LIB-14). The patch profile key is `manufacturer/model`.
+struct LibraryItem: Decodable, Identifiable, Equatable {
+    let manufacturer: String
+    let model: String
+    let modes: [String]
+    let source: String
+    var id: String { "\(source)/\(manufacturer)/\(model)" }
+    var profileKey: String { "\(manufacturer)/\(model)" }
+
+    private enum CodingKeys: String, CodingKey { case manufacturer, model, modes, source }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        manufacturer = try c.decode(String.self, forKey: .manufacturer)
+        model = try c.decode(String.self, forKey: .model)
+        modes = (try? c.decode([String].self, forKey: .modes)) ?? []
+        source = (try? c.decode(String.self, forKey: .source)) ?? ""
+    }
 }
 
 /// One recorded group; `fixtures` are in group order (IPC-10).
@@ -120,6 +173,8 @@ final class EngineClient: ObservableObject {
     /// IPC-10..12: all straight from the snapshot / deltas.
     @Published private(set) var fixtures: [FixtureInfo] = []
     @Published private(set) var groups: [GroupInfo] = []
+    /// Reply to the last `library.search` (this client only).
+    @Published private(set) var libraryResults: [LibraryItem] = []
     @Published private(set) var programmer = ProgrammerState()
 
     private let url = URL(string: "ws://127.0.0.1:7319")
@@ -168,6 +223,32 @@ final class EngineClient: ObservableObject {
     func command(words: [String]) {
         lastMessage = nil
         sendJSON("programmer.command", ["tokens": words + ["Enter"]])
+    }
+
+    // Patch commands (PAT-09, LIB-14). All take internal ids; the engine checks and may refuse
+    // with a warning/error, which lands in `lastMessage`.
+
+    func searchLibrary(_ query: String) { sendJSON("library.search", ["query": query]) }
+
+    /// `address` / `number` nil = omitted, the engine picks (PAT-03).
+    func patchAdd(profile: String, mode: String, count: Int, universe: Int, address: Int?, number: Int?) {
+        var fields: [String: Any] = ["profile": profile, "mode": mode, "count": count, "universe": universe]
+        if let address { fields["address"] = address }
+        if let number { fields["number"] = number }
+        patch("patch.add", fields)
+    }
+    func patchMove(id: Int, universe: Int, address: Int) { patch("patch.move", ["id": id, "universe": universe, "address": address]) }
+    func patchRemove(ids: [Int]) { patch("patch.remove", ["ids": ids]) }
+    func patchRenumber(id: Int, number: Int) { patch("patch.renumber", ["id": id, "number": number]) }
+    func patchName(id: Int, name: String) { patch("patch.name", ["id": id, "name": name]) }
+    func patchChangeMode(id: Int, mode: String) { patch("patch.change_mode", ["id": id, "mode": mode]) }
+
+    /// Hides the last engine message (e.g. when the operator selects another row).
+    func clearMessage() { lastMessage = nil }
+
+    private func patch(_ cmd: String, _ fields: [String: Any]) {
+        lastMessage = nil
+        sendJSON(cmd, fields)
     }
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
@@ -250,9 +331,10 @@ final class EngineClient: ObservableObject {
         let fixtures: [FixtureInfo]?
         let groups: [GroupInfo]?
         let programmer: ProgrammerState?
+        let items: [LibraryItem]?
 
         enum CodingKeys: String, CodingKey {
-            case type, playbacks, id, level, active, message, fixtures, groups, programmer
+            case type, playbacks, id, level, active, message, fixtures, groups, programmer, items
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
         }
@@ -279,6 +361,10 @@ final class EngineClient: ObservableObject {
         case "programmer":
             // IPC-12: the delta carries the IPC-11 fields at top level.
             if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }
+        case "fixtures":
+            if let fixtures = incoming.fixtures { self.fixtures = fixtures }
+        case "library.results":
+            libraryResults = incoming.items ?? []
         case "groups":
             if let groups = incoming.groups { self.groups = groups }
         case "playback":

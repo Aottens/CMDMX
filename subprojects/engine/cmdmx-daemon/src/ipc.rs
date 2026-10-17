@@ -1,6 +1,6 @@
 //! IPC v0: WebSocket server, JSON messages and per-tick deltas (IPC-01..07), plus the
 //! programmer snapshot, deltas and commands (IPC-10..13, VS2-07), and the fixture library
-//! requests (LIB-14, VS2-11).
+//! requests (LIB-14, VS2-11), and the patch commands and `fixtures` delta (PAT-09, VS2-12).
 //!
 //! One thread per client. The tick only talks to clients through channels and
 //! never blocks: commands arrive on an unbounded channel, outgoing messages
@@ -19,10 +19,11 @@ use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::library::channel_list::ChannelList;
-use cmdmx_core::patch::FixtureId;
+use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::PlaybackId;
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{GroupId, ProgrammerView, Resolution};
+use cmdmx_core::UniverseId;
 use serde::Serialize;
 use tungstenite::handshake::server::{ErrorResponse, Request, Response};
 use tungstenite::http::StatusCode;
@@ -77,6 +78,35 @@ pub enum Command {
     },
     /// LIB-14: answered by the client thread, never applied by the tick.
     Library(LibraryRequest),
+    /// PAT-09: `profile` is the library's copy, attached by the client thread (`attach_profile`).
+    PatchAdd {
+        add: PatchAdd,
+        profile: Option<Profile>,
+    },
+    PatchMove {
+        id: FixtureId,
+        universe: UniverseId,
+        address: u16,
+    },
+    PatchRemove {
+        ids: Vec<FixtureId>,
+    },
+    PatchRenumber {
+        id: FixtureId,
+        number: u32,
+    },
+    PatchName {
+        id: FixtureId,
+        name: String,
+    },
+    PatchChangeMode {
+        id: FixtureId,
+        mode: String,
+    },
+    PatchHandle {
+        id: FixtureId,
+        handle: Handle,
+    },
 }
 
 /// LIB-14: the fixture library requests.
@@ -108,6 +138,14 @@ fn string(v: &serde_json::Value, key: &str) -> Result<String, String> {
         .and_then(|s| s.as_str())
         .map(String::from)
         .ok_or_else(|| format!("missing or invalid \"{key}\""))
+}
+
+/// An optional unsigned integer field: absent is `None`, present but invalid is an error.
+fn opt_uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<Option<T>, String> {
+    match v.get(key) {
+        None => Ok(None),
+        Some(_) => uint(v, key).map(Some),
+    }
 }
 
 /// IPC-04/06/13: one JSON text frame to a command, or a human-readable error.
@@ -210,6 +248,48 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("library.save_channel_list") => Ok(Command::Library(LibraryRequest::SaveChannelList(
             serde_json::from_value(v.clone()).map_err(|e| format!("invalid channel list: {e}"))?,
         ))),
+        Some("patch.add") => Ok(Command::PatchAdd {
+            add: PatchAdd {
+                profile: string(&v, "profile")?,
+                mode: Some(string(&v, "mode")?),
+                count: uint(&v, "count")?,
+                universe: uint(&v, "universe")?,
+                address: opt_uint(&v, "address")?,
+                number: opt_uint(&v, "number")?,
+            },
+            profile: None,
+        }),
+        Some("patch.move") => Ok(Command::PatchMove {
+            id: uint(&v, "id")?,
+            universe: uint(&v, "universe")?,
+            address: uint(&v, "address")?,
+        }),
+        Some("patch.remove") => Ok(Command::PatchRemove {
+            ids: v
+                .get("ids")
+                .and_then(|t| t.as_array())
+                .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
+                .ok_or("missing or invalid \"ids\" (expected an array of fixture ids)")?,
+        }),
+        Some("patch.renumber") => Ok(Command::PatchRenumber {
+            id: uint(&v, "id")?,
+            number: uint(&v, "number")?,
+        }),
+        Some("patch.name") => Ok(Command::PatchName {
+            id: uint(&v, "id")?,
+            name: string(&v, "name")?,
+        }),
+        Some("patch.change_mode") => Ok(Command::PatchChangeMode {
+            id: uint(&v, "id")?,
+            mode: string(&v, "mode")?,
+        }),
+        Some("patch.handle") => Ok(Command::PatchHandle {
+            id: uint(&v, "id")?,
+            handle: Handle {
+                page: uint(&v, "page")?,
+                slot: uint(&v, "slot")?,
+            },
+        }),
         Some(other) => Err(format!("unknown cmd '{other}'")),
         None => Err("missing \"cmd\"".into()),
     }
@@ -225,7 +305,15 @@ struct PlaybackInfo {
 #[derive(Serialize)]
 struct FixtureInfo<'a> {
     id: FixtureId,
+    number: u32,
+    name: &'a str,
     profile: &'a str,
+    mode: &'a str,
+    universe: UniverseId,
+    address: u16,
+    footprint: u16,
+    virtual_dimmer: bool,
+    handle: Option<Handle>,
 }
 
 #[derive(Serialize)]
@@ -262,6 +350,14 @@ struct GroupsDelta<'a> {
     #[serde(rename = "type")]
     kind: &'static str,
     groups: Vec<GroupInfo<'a>>,
+}
+
+#[derive(Serialize)]
+struct FixturesDelta<'a> {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    fixtures: Vec<FixtureInfo<'a>>,
 }
 
 #[derive(Serialize)]
@@ -310,6 +406,28 @@ fn group_infos(groups: &BTreeMap<GroupId, Vec<FixtureId>>) -> Vec<GroupInfo<'_>>
         .collect()
 }
 
+/// PAT-09: the patch as clients see it, with each fixture's mode described.
+fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
+    engine
+        .fixtures()
+        .map(|f| {
+            let mode = engine.fixture_mode(f.id);
+            FixtureInfo {
+                id: f.id,
+                number: f.number,
+                name: &f.name,
+                profile: &f.profile,
+                mode: mode.map_or("", |m| m.name.as_str()),
+                universe: f.universe,
+                address: f.address,
+                footprint: mode.map_or(0, |m| m.footprint),
+                virtual_dimmer: mode.is_some_and(|m| m.has_virtual_dimmer()),
+                handle: f.handle,
+            }
+        })
+        .collect()
+}
+
 /// IPC-03/10: full state for a freshly connected client.
 pub fn snapshot(engine: &Engine) -> String {
     to_json(&Snapshot {
@@ -318,13 +436,7 @@ pub fn snapshot(engine: &Engine) -> String {
         faders_per_page: engine.settings().faders_per_page,
         grand_master: engine.grand_master(),
         playbacks: infos(engine).collect(),
-        fixtures: engine
-            .fixtures()
-            .map(|f| FixtureInfo {
-                id: f.id,
-                profile: &f.profile,
-            })
-            .collect(),
+        fixtures: fixture_infos(engine),
         groups: group_infos(engine.groups()),
         programmer: &engine.programmer_view(),
     })
@@ -352,6 +464,7 @@ pub struct Published {
     grand_master: f32,
     programmer: ProgrammerView,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    fixtures: Vec<Fixture>,
 }
 
 impl Published {
@@ -361,6 +474,7 @@ impl Published {
             grand_master: engine.grand_master(),
             programmer: engine.programmer_view(),
             groups: engine.groups().clone(),
+            fixtures: engine.fixtures().cloned().collect(),
         }
     }
 
@@ -401,6 +515,15 @@ impl Published {
                 v: 0,
                 kind: "groups",
                 groups: group_infos(&self.groups),
+            }));
+        }
+        // PAT-09: the whole list, once, after any patch change.
+        if !engine.fixtures().eq(self.fixtures.iter()) {
+            self.fixtures = engine.fixtures().cloned().collect();
+            out.push(to_json(&FixturesDelta {
+                v: 0,
+                kind: "fixtures",
+                fixtures: fixture_infos(engine),
             }));
         }
         out
@@ -554,6 +677,18 @@ fn refuse_origin(req: &Request, resp: Response) -> Result<Response, ErrorRespons
     Ok(resp)
 }
 
+/// PAT-09: a `patch.add` of a library type (`"<manufacturer>/<model>"`) takes the library's
+/// profile along; any other command, or a key the library does not have, goes on unchanged.
+pub fn attach_profile(lib: &RwLock<Option<Library>>, cmd: Command) -> Command {
+    let Command::PatchAdd { add, profile: None } = cmd else {
+        return cmd;
+    };
+    let profile = add.profile.split_once('/').zip(lib.read().ok()).and_then(
+        |((manufacturer, model), guard)| guard.as_ref()?.profile(manufacturer, model).ok(),
+    );
+    Command::PatchAdd { add, profile }
+}
+
 fn serve_client(stream: TcpStream, events: &Sender<Event>, library: &RwLock<Option<Library>>) {
     let Ok(mut ws) = tungstenite::accept_hdr(stream, refuse_origin) else {
         return;
@@ -583,7 +718,10 @@ fn serve_client(stream: TcpStream, events: &Sender<Event>, library: &RwLock<Opti
                     }
                 }
                 Ok(cmd) => {
-                    if events.send(Event::Command(cmd)).is_err() {
+                    if events
+                        .send(Event::Command(attach_profile(library, cmd)))
+                        .is_err()
+                    {
                         return;
                     }
                 }
@@ -701,13 +839,209 @@ mod tests {
         e.record_group(1).unwrap();
         e.clear();
         let v = parse(&snapshot(&e));
-        assert_eq!(v["fixtures"], json!([{"id":1,"profile":"dimmer"}]));
+        assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
         assert_eq!(
             v["programmer"],
             json!({"selection":[],"targets":[],"active_group":"I",
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi"})
         );
+    }
+
+    /// PAT-09: the test engine's one dimmer as a snapshot entry.
+    fn dimmer_entry() -> Value {
+        json!({"id":1,"number":1,"name":"","profile":"dimmer","mode":"default","universe":1,
+               "address":1,"footprint":1,"virtual_dimmer":false,"handle":{"page":1,"slot":1}})
+    }
+
+    /// Showtec LED Par 56 "6 Channel" with a virtual dimmer (PAT-01's example).
+    const SHOWTEC: &str = r#"{"manufacturer":"Showtec","model":"LED Par 56","source":"channel-list","modes":[{"name":"6 Channel","footprint":6,"virtual_dimmer":true,"colour":{"system":"RGB","components":[{"channel":1},{"channel":2},{"channel":3}]},"attributes":[{"name":"Mode","group":"S","kind":"Ltp","channel":4},{"name":"Speed","group":"S","kind":"Ltp","channel":5},{"name":"Strobe","group":"I","kind":"Ltp","channel":6}]}]}"#;
+
+    #[test]
+    fn pat_09_snapshot_fixture_entries() {
+        let mut e = engine();
+        e.add_profile("Showtec/LED Par 56", Profile::from_json(SHOWTEC).unwrap())
+            .unwrap();
+        e.patch_add(&cmdmx_core::patch::PatchAdd {
+            profile: "Showtec/LED Par 56".into(),
+            mode: None,
+            count: 1,
+            universe: 1,
+            address: Some(37),
+            number: Some(221),
+        })
+        .unwrap();
+        e.patch_name(2, "Front left").unwrap();
+        let v = parse(&snapshot(&e));
+        assert_eq!(
+            v["fixtures"],
+            json!([dimmer_entry(),
+                   {"id":2,"number":221,"name":"Front left","profile":"Showtec/LED Par 56",
+                    "mode":"6 Channel","universe":1,"address":37,"footprint":6,
+                    "virtual_dimmer":true,"handle":{"page":1,"slot":2}}])
+        );
+    }
+
+    #[test]
+    fn pat_09_fixtures_delta_after_a_patch_change_only() {
+        let mut e = engine();
+        let mut published = Published::new(&e);
+        e.tick(0.0);
+        assert!(published.diff(&e).is_empty());
+        e.patch_renumber(1, 42).unwrap();
+        e.tick(0.025);
+        let d: Vec<Value> = published
+            .diff(&e)
+            .iter()
+            .map(|m| parse(m))
+            .filter(|m| m["type"] == "fixtures")
+            .collect();
+        assert_eq!(d.len(), 1);
+        assert_eq!(d[0]["v"], 0);
+        assert_eq!(d[0]["fixtures"][0]["number"], 42);
+        e.tick(0.05);
+        assert!(published.diff(&e).is_empty(), "no change, no delta");
+        e.patch_move(1, 2, 100).unwrap();
+        let d = published.diff(&e);
+        assert_eq!(d.len(), 1);
+        assert_eq!(parse(&d[0])["fixtures"][0]["universe"], 2);
+        assert_eq!(parse(&d[0])["fixtures"][0]["address"], 100);
+    }
+
+    #[test]
+    fn pat_09_patch_commands_parse() {
+        use cmdmx_core::patch::{Handle, PatchAdd};
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":6,"universe":1,"address":37,"number":221}"#
+            ),
+            Command::PatchAdd {
+                add: PatchAdd {
+                    profile: "Showtec/LED Par 56".into(),
+                    mode: Some("6 Channel".into()),
+                    count: 6,
+                    universe: 1,
+                    address: Some(37),
+                    number: Some(221),
+                },
+                profile: None,
+            }
+        );
+        // PAT-03: address and number are optional.
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1}"#
+            ),
+            Command::PatchAdd {
+                add: PatchAdd {
+                    profile: "rgbw".into(),
+                    mode: Some("default".into()),
+                    count: 2,
+                    universe: 1,
+                    address: None,
+                    number: None,
+                },
+                profile: None,
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.move","id":3,"universe":2,"address":101}"#),
+            Command::PatchMove {
+                id: 3,
+                universe: 2,
+                address: 101
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.remove","ids":[3,4]}"#),
+            Command::PatchRemove { ids: vec![3, 4] }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.renumber","id":3,"number":1201}"#),
+            Command::PatchRenumber {
+                id: 3,
+                number: 1201
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.name","id":3,"name":"Front left"}"#),
+            Command::PatchName {
+                id: 3,
+                name: "Front left".into()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.change_mode","id":3,"mode":"Big"}"#),
+            Command::PatchChangeMode {
+                id: 3,
+                mode: "Big".into()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.handle","id":3,"page":2,"slot":5}"#),
+            Command::PatchHandle {
+                id: 3,
+                handle: Handle { page: 2, slot: 5 }
+            }
+        );
+    }
+
+    #[test]
+    fn pat_09_bad_patch_commands_are_errors() {
+        for bad in [
+            r#"{"v":0,"cmd":"patch.add","mode":"6 Channel","count":6,"universe":1}"#,
+            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","count":6,"universe":1}"#,
+            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","universe":1}"#,
+            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6}"#,
+            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6,"universe":1,"address":"37"}"#,
+            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6,"universe":1,"address":70000}"#,
+            r#"{"v":0,"cmd":"patch.move","id":3,"universe":2}"#,
+            r#"{"v":0,"cmd":"patch.remove","ids":3}"#,
+            r#"{"v":0,"cmd":"patch.remove","ids":["3"]}"#,
+            r#"{"v":0,"cmd":"patch.renumber","id":3}"#,
+            r#"{"v":0,"cmd":"patch.name","id":3,"name":7}"#,
+            r#"{"v":0,"cmd":"patch.change_mode","id":3}"#,
+            r#"{"v":0,"cmd":"patch.handle","id":3,"page":2}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn pat_09_patch_add_takes_its_profile_from_the_library() {
+        let lib = library("patch");
+        let cmd = parse_command(
+            r#"{"v":0,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":6,"universe":1,"address":37,"number":221}"#,
+        )
+        .unwrap();
+        match attach_profile(&lib, cmd) {
+            Command::PatchAdd {
+                profile: Some(p), ..
+            } => {
+                assert_eq!(
+                    (p.manufacturer.as_str(), p.model.as_str()),
+                    ("Showtec", "LED Par 56")
+                );
+                assert_eq!(p.modes[0].name, "6 Channel");
+            }
+            other => panic!("expected a patch.add with a profile, got {other:?}"),
+        }
+        // A key that is not in the library (a show profile such as the demo's) goes as is.
+        let cmd = parse_command(
+            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":1,"universe":1}"#,
+        )
+        .unwrap();
+        assert_eq!(attach_profile(&lib, cmd.clone()), cmd);
+        // While the library loads, nothing is attached either.
+        let loading = std::sync::RwLock::new(None);
+        let cmd = parse_command(
+            r#"{"v":0,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":1,"universe":1}"#,
+        )
+        .unwrap();
+        assert_eq!(attach_profile(&loading, cmd.clone()), cmd);
+        // Other commands pass through untouched.
+        assert_eq!(attach_profile(&lib, Command::All), Command::All);
     }
 
     #[test]
