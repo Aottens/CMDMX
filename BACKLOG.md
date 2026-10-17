@@ -26,9 +26,9 @@ after the specs are added when each spec is approved (no sizing of code before i
 ### VS2 — Programming: select, set, record, play back (screen only, output visible via Art-Net)
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
-| UX-01 | Clickable HTML sketch of the Titan-style main screen (fixtures/groups, palette grid, programmer + encoders, playback faders, cue list), max two iterations; owner says it feels right. Guides the SwiftUI work. | — | M | todo |
+| UX-01 | Clickable HTML sketch of the Titan-style main screen (fixtures/groups, palette grid, programmer + encoders, playback faders, cue list), max two iterations; owner says it feels right. Guides the SwiftUI work. | — | M | done (2026-10-17; UI v0.1 = `specs/ux/main-screen.html`, research `specs/ux/research.md`) |
 | P1-01 | Write `fixture-library.md`: GDTF subset + overlay, **and a profile from a plain channel list** for fixtures without GDTF (the church's Chinese pars); owner approves. | LIB | M | todo |
-| P1-07 | ADR-005: colour is stored as a device-independent target colour and mapped per fixture to RGB/RGBW/RGB+Lime/CMY; owner approves before P1-03. | PAL, SHW | S | todo |
+| P1-07 | ADR-005: colour is stored as a device-independent target colour and mapped per fixture to RGB/RGBW/RGB+Lime/CMY, **and** extra emitters (W, Lime, later Amber/UV) can also be driven directly (owner, 2026-10-17: Lime makes a fine amber, W a real white); the ADR decides how direct emitter values combine with the target colour and how palettes store them; owner approves before P1-03. | PAL, SHW | S | todo |
 | P1-02 | Write `programmer.md` from the Titan analysis (ordered selection, groups, touched attributes, colour picker RGB/CMY/HSI, Clear options, Locate/Highlight). | PRG | M | todo |
 | P1-03 | Write `palettes.md` (Global/Shared/Normal auto-detection, quick record masks, quick palette, fade/overlap). | PAL | M | todo |
 | VS2-01 | Demo: patch the church rig, select the LED pars, set a colour and intensity, record a palette and a playback, bring it up on an on-screen fader; Art-Net shows the right values on every fixture type. | PAT, PRG, PAL, PBK | — | todo (split after specs) |
