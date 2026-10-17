@@ -1,6 +1,6 @@
 # ADR-004: GDTF as the fixture-profile format, with a thin overlay
 
-**Status:** accepted
+**Status:** accepted, superseded in part by ADR-006 (2026-10-17): GDTF is no longer the internal format, and OFL does not export GDTF as stated below
 **Date:** 2026-10-16
 
 ## Context

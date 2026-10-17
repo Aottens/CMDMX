@@ -18,7 +18,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- nothing
+- P1-01 + P1-11: ADR-006 (own profile model, QLC+ importer first), `fixture-library.md` LIB-01..14 and `patch.md` PAT-01..11 drafted, waiting for owner approval; owner exports the church patch from Lightkey on 2026-10-18
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
