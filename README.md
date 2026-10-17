@@ -17,6 +17,11 @@ The first goal is to run a real Sunday service in the owner's church on it inste
 The rig there has about 30 fixtures: moving-head washes, mixed RGBW / RGB+Lime / RGB pars and
 theatre spots.
 
+![The main screen: fixtures, groups, palettes, programmer, function buttons, keypad, softkeys, attribute bar and playback faders](docs/screenshots/main-screen.png)
+
+*The main screen, against a demo of the church rig. Controls that are not built yet are greyed
+out.*
+
 ## Status
 
 Early, under active development, not yet for real shows. What works today:
@@ -28,12 +33,14 @@ Early, under active development, not yet for real shows. What works today:
   (`201 Thro 205 @ 50`) and wheels.
 - Colour as one value per fixture. You set it with HSI, RGB or CMY wheels, and extra emitters
   (White, Lime, …) are driven directly.
-- The app drives all of this against a demo of the church rig. It is still a plain working
-  layout.
+- The app has its real main screen. It runs full screen, with a status bar that shows the
+  engine and every output. There are four workspaces of fixtures, groups and other windows, and
+  a dark and a day theme.
 
-Next: moving the app into its real main screen, zone by zone. The design is a clickable sketch
-in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes,
-playbacks and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
+Next: filling the rest of the main screen. That means the attribute bar with a colour picker,
+then the keypad and softkeys, then the playback area. The design is a clickable sketch in
+[`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes, playbacks
+and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
 ## Build and run
 
@@ -60,6 +67,7 @@ specs/              PRD, ADRs, module specs with numbered acceptance criteria, U
 subprojects/engine  Rust workspace: cmdmx-core, -protocols, -control, -daemon
 subprojects/app     SwiftPM app (Command Line Tools only, no Xcode.app)
 tests/              scenario tests, manual and hardware checklists
+docs/screenshots/   README images
 ```
 
 ## How work happens
