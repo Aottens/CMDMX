@@ -27,7 +27,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- UX-02b in review: attribute bar as rolling encoders, Programmer window (IPC-21), colour picker (IPC-22/23); owner run of `tests/manual/app-main-screen.md` UX-02b. Owner exports the church patch from Lightkey on 2026-10-18
+- UX-02b in review: attribute bar as rolling encoders, Programmer window (IPC-21), colour picker (IPC-22/23); owner run passed (`tests/manual/runs/2026-10-17-UX-02b.md`), merge pending. Owner exports the church patch from Lightkey on 2026-10-18
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit

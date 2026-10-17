@@ -148,4 +148,5 @@ have").
 - Proposed phase 1, built with UX-02c (the token command line and Mac keys): Up and Down step
   through the commands sent in this session, app-side only (no engine change; history is not
   part of the show). Needs one UI criterion next to UI-19.
-**Open questions:** the owner confirms the phase; keep history across app restarts or not?
+**Outcome (2026-10-17):** owner: phase 1, built with UX-02c. Open: keep the history across app restarts or
+only per session (decided when UI-19 is amended at the start of UX-02c).
