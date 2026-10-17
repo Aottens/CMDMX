@@ -12,7 +12,9 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
 2. **Test second.** Each criterion gets a test carrying its id in the test name
    (`fn eng_01_htp_highest_wins()`), or a scenario file `tests/scenarios/<id>-*.json`.
    Write the failing test before the implementation.
-3. **Code third.** Smallest change that turns the test green. Run `cargo test` in
+3. **Code third, by a Sonnet subagent.** The main session writes spec and failing tests; a
+   Sonnet subagent (`model: sonnet`) writes the smallest change that turns them green; the main
+   session reviews the diff before it goes to the owner (owner preference, 2026-10-17). Run `cargo test` in
    `subprojects/engine` and `cargo clippy --all-targets -- -D warnings`.
 4. **Review.** One branch and one PR per task on `github.com/Aottens/ColourmotionDMX`; the owner
    reviews and merges (gate 2). Hardware-touching tasks ship with

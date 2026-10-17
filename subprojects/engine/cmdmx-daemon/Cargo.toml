@@ -14,6 +14,9 @@ cmdmx-core = { path = "../cmdmx-core" }
 cmdmx-protocols = { path = "../cmdmx-protocols" }
 cmdmx-control = { path = "../cmdmx-control" }
 serialport = { version = "4.10.1", default-features = false }
+tungstenite = "0.30"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 
 [lints]
 workspace = true
