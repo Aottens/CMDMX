@@ -1,0 +1,21 @@
+{
+  "spec": "PRG-13",
+  "profiles": { "dimmer": { "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 } ] } },
+  "patch": [
+    { "id": 1, "profile": "dimmer", "universe": 1, "address": 1 },
+    { "id": 2, "profile": "dimmer", "universe": 1, "address": 2 }
+  ],
+  "playbacks": [
+    { "id": 1, "priority": "High", "fader_mode": 0, "values": { "1": { "Dimmer": 1.0 }, "2": { "Dimmer": 1.0 } } },
+    { "id": 2, "priority": "VeryHigh", "fader_mode": 0, "values": { "2": { "Dimmer": 0.3 } } }
+  ],
+  "actions": [
+    { "t": 0.0, "fader": { "playback": 1, "level": 1.0 } },
+    { "t": 0.0, "fader": { "playback": 2, "level": 1.0 } },
+    { "t": 0.5, "prg": { "command": ["1", "Thro", "2", "@", "50", "Enter"] } }
+  ],
+  "expect": [
+    { "t": 0.4, "universe": 1, "channels": { "1": 255, "2": 77 } },
+    { "t": 0.6, "universe": 1, "channels": { "1": 128, "2": 77 } }
+  ]
+}

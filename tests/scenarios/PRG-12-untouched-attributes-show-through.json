@@ -1,0 +1,20 @@
+{
+  "spec": "PRG-12",
+  "profiles": { "wash": { "attributes": [
+    { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+    { "name": "Zoom", "group": "B", "kind": "Ltp", "channel": 2 }
+  ] } },
+  "patch": [ { "id": 101, "profile": "wash", "universe": 1, "address": 1 } ],
+  "playbacks": [
+    { "id": 1, "priority": "Normal", "fader_mode": 0, "values": { "101": { "Dimmer": 0.8, "Zoom": 0.2 } } }
+  ],
+  "actions": [
+    { "t": 0.0, "fader": { "playback": 1, "level": 1.0 } },
+    { "t": 0.5, "prg": { "select": [101] } },
+    { "t": 0.5, "prg": { "wheel": { "attribute": "Zoom", "steps": 10, "resolution": "Coarse" } } }
+  ],
+  "expect": [
+    { "t": 0.4, "universe": 1, "channels": { "1": 204, "2": 51 } },
+    { "t": 0.6, "universe": 1, "channels": { "1": 204, "2": 153 } }
+  ]
+}

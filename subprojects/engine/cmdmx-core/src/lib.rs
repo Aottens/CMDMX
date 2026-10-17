@@ -55,6 +55,8 @@ pub enum CoreError {
     UnknownAttribute { fixture: u32, attribute: String },
     #[error("nothing is selected")]
     EmptySelection,
+    #[error("no selected fixture has attribute '{0}'")]
+    AttributeNotInTargets(String),
     #[error("invalid pattern of {0} stages (expected at least 2)")]
     InvalidPattern(usize),
     #[error("invalid command: {0}")]
