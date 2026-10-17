@@ -5,6 +5,36 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-17 — Phase-1 finish line: replace Lightkey in the church
+
+**Decision:** Phase 1 is done when a real Sunday morning service in the church is programmed and run on ColourmotionDMX instead of Lightkey. Phase 1 is cut into milestones VS2 (programming), VS3 (running: cue list + busking), VS4 (the church).
+
+**Alternatives considered:** an abstract feature list as the end of phase 1.
+
+**Reasoning:** A real venue, rig and user keep the scope honest and force the hardware track to happen. The church is the owner's own playground, so what works there can move to other setups.
+
+**Reversal trigger:** the church rig stops being representative of the shows the owner wants to run.
+
+## 2026-10-17 — Phase 1 is programming the building blocks of any show
+
+**Decision:** Phase 1 changes from "one evening of busking" to "program the building blocks of any show": a robust programmer at the core, palettes, cues on playbacks and in cue lists, and enough playback to run them. Cue-list tracking moves to phase 2; timelines (IDEA-05) to phase 3.
+
+**Alternatives considered:** keep busking as the phase-1 goal; put tracking in phase 1.
+
+**Reasoning:** The owner programs big shows; busking is one way of running them, not the goal. Cues store only touched attributes (Titan programmer behaviour), so tracking can be added without changing the show file.
+
+**Reversal trigger:** the cue data model turns out to block tracking.
+
+## 2026-10-17 — IPC transport: WebSocket
+
+**Decision:** App and daemon talk JSON over a WebSocket on loopback. The same contract serves remote clients (iPad/phone/browser, like Titan Remote) later.
+
+**Alternatives considered:** plain TCP with length-prefixed JSON (no extra crate).
+
+**Reasoning:** The owner wants a remote later; browsers only speak WebSocket. Swift has WebSocket support built in; the daemon needs one small crate (choice in the IPC spec).
+
+**Reversal trigger:** the WebSocket crate adds measurable latency to fader feel (> ~10 ms, see ADR-002 trigger).
+
 ## 2026-10-17 — `serialport` crate for the ENTTEC Pro output
 
 **Decision:** The daemon uses `serialport` 4.x with default features off for USB product-string detection and raw serial I/O (VS1-04, OUT-09/20).

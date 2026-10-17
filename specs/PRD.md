@@ -3,10 +3,12 @@
 Source: "Avolites Titan — analyse als basis voor eigen macOS DMX-console" (owner's Claude Doc, 2026-10-16), section "Eerste speclist". This file is the repo-side copy of that table, trimmed to Phase 1 and mapped to module specs.
 
 ## Goal
-One evening of busking on a Mac with a BCF2000, using Avolites muscle memory: programmer, IPCGBES palettes on a grid, fader pages with Titan fader modes and release behaviour, chases on a BPM master, Art-Net/sACN/USB-DMX out.
+Program the building blocks of any show on a Mac, the Titan way: a robust programmer, palettes on a grid, cues recorded onto playbacks and into cue lists; then run them — as a cue list, as busking pages, or both — with Art-Net/sACN/USB-DMX out. Programming is the focus; running proves what was programmed.
+
+Finish line: a real Sunday morning service in the church run on ColourmotionDMX instead of Lightkey (`PROJECT.md`, reference venue). Baseline: the church rig, ~30 fixtures on one universe. Headroom target (provisional): 16 universes, 500 fixtures, 1000 cues per show.
 
 ## Non-goals (phase 1)
-Shapes, pixel mapper, cue lists with tracking, timelines, media, visualiser, multi-console, timecode.
+Cue-list tracking, shapes, pixel mapper, timelines and timecode, media, visualiser, multi-console.
 
 ## Module map
 
@@ -17,8 +19,9 @@ Shapes, pixel mapper, cue lists with tracking, timelines, media, visualiser, mul
 | Show file | one readable JSON, autosave + atomic rename, versioned schema, git-friendly | `specs/modules/showfile.md` | SHW |
 | Fixture library | GDTF import + overlay; minimal JSON profile for tests only | `specs/modules/fixture-library.md` | LIB |
 | Patch | profile + mode + universe + address + user number; cells | `specs/modules/patch.md` | PAT |
-| Programmer & wheels | ordered selection, touched attributes only, Locate/Highlight outside programmer, Clear options, 16-bit, encoders | `specs/modules/programmer.md` | PRG |
+| Programmer & wheels | **the core of phase 1**: ordered selection, groups, touched attributes only, colour picker RGB/CMY/HSI, Locate/Highlight outside programmer, Clear options, 16-bit, encoders | `specs/modules/programmer.md` | PRG |
 | Palettes & preset grid | reference model; Global/Shared/Normal auto; quick record with window mask; quick palette; typed fade + overlap; auto-legend + halo; configurable grid | `specs/modules/palettes.md` | PAL |
+| Cue lists | record cues (touched attributes only), Go/Back, fade + delay per cue, link/follow; no tracking in phase 1 | `specs/modules/cuelists.md` (to write) | CUE |
 | Playbacks & pages | fader modes 0/1/2, priority, release mask/time, kill point, handle paging locks, Flash/Swop + key profiles, `faders_per_page` config, Grand Master, BPM master, group masters, playback groups, chases | `specs/modules/playbacks.md` | PBK |
 | Control surfaces | MCU driver (BCF2000/X-Touch) with motor feedback; generic MIDI mapping; OSC schema | `specs/modules/control-surfaces.md` | CTL |
 | IPC & app shell | daemon ↔ app contract, reconnect, engine-offline state, thin client | `specs/modules/ipc.md` | IPC |

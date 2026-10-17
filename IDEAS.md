@@ -25,6 +25,8 @@ the backlog, not the whole idea.
 | IDEA-01 | More USB-DMX interfaces than the ENTTEC Pro family | triaged | 2 | OUT |
 | IDEA-02 | Colour picking in several models: RGB, CMY, HSL/HSI, gel numbers (LEE first) | triaged | 1 (basic) / 2 (gels) | PRG, PAL |
 | IDEA-03 | Colour calibration so different fixtures match each other | triaged | 2 | LIB, PAT, core |
+| IDEA-04 | Phase 1 = programming the building blocks of any show (robust programmer); cue lists and busking both run on them | accepted 2026-10-17 | 1 | PRD, PRG, new `cuelists.md` |
+| IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -49,6 +51,17 @@ the backlog, not the whole idea.
 - **Per fixture instance:** a trim per emitter, because two units of the same model also differ. Set by eye against a reference fixture, or measured with a colour meter.
 - The engine then converts one target colour into the right emitter levels per fixture.
 **Open questions:** does the owner have (or want) a colour meter, or is matching by eye enough? Is intensity matching (one fixture brighter than another) part of this too?
+
+### IDEA-04 — Big programmed shows are the main use (2026-10-17)
+**Owner's intent:** not only busking: cue lists and running whole shows; "very big shows" must be programmable. Busking must work but is not the main thing.
+**Triage:** this changes the phase-1 goal in `PROJECT.md` and `specs/PRD.md` ("one evening of busking", cue lists with tracking in phase 3+). Proposal: phase 1 becomes "program and run a show": cue lists (Titan cue list behaviour: cues with fade/delay, go/back, link/follow) move into phase 1; busking (palettes on a grid, playbacks, fader modes) stays. Tracking is the open point — it is what makes big shows editable, and it is a large engine feature.
+**What it touches now:** the playbacks spec (P1-04) and the show file; the engine merge already has priorities and playback states that cue lists build on.
+**Outcome (2026-10-17):** owner: phase 1 is *programming* — set up the building blocks for any type of show; the focus moves to a robust programmer. `PROJECT.md` and `specs/PRD.md` updated: cue lists (no tracking) join phase 1, tracking goes to phase 2, cues store touched attributes only so tracking can follow. Provisional design target 16 universes / 500 fixtures / 1000 cues, owner to confirm.
+
+### IDEA-05 — Timeline synced to Ableton (2026-10-17)
+**Owner's intent:** a timeline that syncs to e.g. Ableton, so timecoded shows are easy to make by dragging presets onto it.
+**Triage:** phase 3 (timelines are out of scope for now in `PROJECT.md`; "software first"). Sync options to choose later: MIDI Time Code or LTC (absolute time), MIDI clock or Ableton Link (tempo and beat, no absolute position). Builds on cue lists (IDEA-04) and palettes.
+**Open questions:** sync to song position (timecode) or to the beat, or both?
 
 ### Decision these ideas force now
 IDEA-02 and IDEA-03 only work if palettes and cues store a colour as a **target colour** (device-independent) and not as raw DMX channel values. The palettes spec (P1-03) and the show file fix that format, so this decision must come **before** P1-03, otherwise phase 2 means rewriting palettes and show files. → `BACKLOG.md` P1-07.
