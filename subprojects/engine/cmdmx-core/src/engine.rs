@@ -26,7 +26,7 @@ use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values, PAGES};
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
-    AttributeGroupState, ColourView, FixtureValues, GroupId, Programmer, ProgrammerView,
+    AttributeGroupState, ColourView, Fade, FixtureValues, GroupId, Programmer, ProgrammerView,
     Resolution, WheelState,
 };
 use crate::show::{
@@ -1152,6 +1152,7 @@ impl Engine {
                     &self.states,
                     &self.programmer,
                     &self.palettes,
+                    self.last_tick.unwrap_or_default(),
                 )
             })
             .or_else(|| self.held.get(&id)?.get(l.name).copied())
@@ -1299,13 +1300,14 @@ impl Engine {
         };
         if let Some(number) = cmd.palette {
             // PAL-10: plan against the typed selection first, so a refusal changes nothing.
+            let (time, overlap) = self.palette_timing(Timing::default())?;
             let targets = typed.clone().unwrap_or_else(|| self.programmer.targets());
             let (id, plan) = self.palette_plan(number, &targets)?;
             if let Some(list) = typed {
                 self.programmer.replace_selection(list);
                 self.follow_active_group();
             }
-            self.put_palette(id, plan, true);
+            self.put_palette_timed(id, plan, time, overlap);
             return Ok(());
         }
         let mut touched = Vec::new();
@@ -1620,10 +1622,69 @@ impl Engine {
 
     /// PAL-08/09: apply palette `number` to the targets (selection or sub-selection), or as a
     /// quick palette when nothing is selected. Refused when it resolves nothing for any target.
-    /// ponytail: instant; `timing` (PAL-13..15) is taken but unused until VS2-18.
-    pub fn apply_palette(&mut self, number: u32, _timing: Timing) -> Result<(), CoreError> {
+    /// PAL-13..15: with a time > 0 each attribute fades from its current output (the fixtures
+    /// staggered by the overlap); the programmer holds the reference from the start.
+    pub fn apply_palette(&mut self, number: u32, timing: Timing) -> Result<(), CoreError> {
+        let (time, overlap) = self.palette_timing(timing)?;
         let (id, plan) = self.palette_plan(number, &self.programmer.targets())?;
+        self.put_palette_timed(id, plan, time, overlap);
+        Ok(())
+    }
+
+    /// PAL-15: the time and overlap of an apply: typed, else the master; refused out of range.
+    fn palette_timing(&self, timing: Timing) -> Result<(f32, f32), CoreError> {
+        let time = timing.time.unwrap_or(self.settings.palette_time);
+        let overlap = timing.overlap.unwrap_or(self.settings.palette_overlap);
+        check_palette_timing(time, overlap)?;
+        Ok((time, overlap))
+    }
+
+    /// PAL-13/14: put the plan in the programmer as references, with a fade per attribute when
+    /// `time` > 0. The fade's `from` is the output before the references go in.
+    fn put_palette_timed(&mut self, id: PaletteId, plan: PalettePlan, time: f32, overlap: f32) {
+        let mut fades = Vec::new();
+        if time > 0.0 {
+            let step = time * (1.0 - overlap / 100.0);
+            let mut index = 0.0_f32;
+            let mut previous = None;
+            for (fixture, name, _) in &plan {
+                if previous.is_some_and(|p| p != *fixture) {
+                    index += 1.0;
+                }
+                previous = Some(*fixture);
+                let Some(l) = self.mode_of(*fixture).and_then(|m| m.logical(name)) else {
+                    continue;
+                };
+                fades.push((
+                    *fixture,
+                    name.clone(),
+                    Fade {
+                        from: self.start_value(*fixture, &l),
+                        delay: index * step,
+                        duration: time,
+                        start: None,
+                    },
+                ));
+            }
+        }
         self.put_palette(id, plan, true);
+        for (fixture, name, fade) in fades {
+            self.programmer.set_fade(fixture, &name, fade);
+        }
+    }
+
+    /// PAL-15: set the master fade time (s) and/or overlap (%); `None` keeps the current value.
+    /// Out of range refuses both.
+    pub fn set_palette_master(
+        &mut self,
+        time: Option<f32>,
+        overlap: Option<f32>,
+    ) -> Result<(), CoreError> {
+        let time = time.unwrap_or(self.settings.palette_time);
+        let overlap = overlap.unwrap_or(self.settings.palette_overlap);
+        check_palette_timing(time, overlap)?;
+        self.settings.palette_time = time;
+        self.settings.palette_overlap = overlap;
         Ok(())
     }
 
@@ -1779,6 +1840,7 @@ impl Engine {
     /// slot survives (ENG-12).
     pub fn tick(&mut self, now: Timestamp) {
         self.last_tick = Some(now);
+        self.programmer.start_fades(now);
         for (fixture_id, fixture) in &self.fixtures {
             let Some(mode) = resolve_mode(&self.profiles, fixture) else {
                 self.warnings.push(Warning {
@@ -1806,6 +1868,7 @@ impl Engine {
                     &self.states,
                     &self.programmer,
                     &self.palettes,
+                    now,
                 );
                 // ENG-07: an HTP attribute nobody proposes is 0; LTP holds its last value (LIB-03).
                 let value = match (merged, l.kind) {
@@ -1828,6 +1891,7 @@ impl Engine {
                 write_value(frame, fixture.address, mode, &l, value, scale);
             }
         }
+        self.programmer.drop_finished_fades(now);
     }
 
     // ---- queries ---------------------------------------------------------
@@ -1898,6 +1962,17 @@ impl Engine {
     pub fn drain_warnings(&mut self) -> Vec<Warning> {
         std::mem::take(&mut self.warnings)
     }
+}
+
+/// PAL-15: times 0-600 s, overlaps 0-100 %; NaN is refused too.
+fn check_palette_timing(time: f32, overlap: f32) -> Result<(), CoreError> {
+    if !(0.0..=600.0).contains(&time) {
+        return Err(CoreError::InvalidPaletteTime(time));
+    }
+    if !(0.0..=100.0).contains(&overlap) {
+        return Err(CoreError::InvalidPaletteOverlap(overlap));
+    }
+    Ok(())
 }
 
 /// PAL-17: user numbers run from 1 to 9999.
@@ -1971,6 +2046,8 @@ fn write_value(
 ///
 /// Returns `None` when no active source proposes a value. `tick` then writes 0
 /// for an HTP attribute and the held value for an LTP one (ENG-07, LIB-03).
+// ponytail: eight arguments; a `MergeSources` struct if a ninth appears.
+#[allow(clippy::too_many_arguments)]
 fn merge_attribute(
     fixture: &Fixture,
     mode: &Mode,
@@ -1979,6 +2056,7 @@ fn merge_attribute(
     states: &BTreeMap<PlaybackId, PlaybackState>,
     programmer: &Programmer,
     palettes: &BTreeMap<PaletteId, Palette>,
+    now: Timestamp,
 ) -> Option<Value> {
     let mut best: Option<Candidate> = None;
     // A reference gives what its palette resolves, else its fallback (PAL-07, PAL-11); a value
@@ -2032,6 +2110,10 @@ fn merge_attribute(
         .stored(fixture.id, attr.name)
         .map(resolve)
         .filter(|v| v.same_kind(&attr.default))
+        .map(|to| match programmer.fade(fixture.id, attr.name) {
+            Some(fade) => fade.at(to, now), // PAL-13
+            None => to,
+        })
     {
         let candidate = Candidate {
             priority: Priority::Programmer,

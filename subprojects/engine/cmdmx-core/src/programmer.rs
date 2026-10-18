@@ -10,9 +10,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
+use crate::colour::TargetColour;
 use crate::palette::PaletteId;
 use crate::patch::FixtureId;
 use crate::value::{Stored, Value};
+use crate::Timestamp;
 
 pub type GroupId = u32;
 
@@ -88,6 +90,43 @@ pub struct ProgrammerView {
     pub colour: Option<ColourView>,
 }
 
+/// PAL-13/14: a palette fade of one attribute. Live state, never saved.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Fade {
+    /// The output value when the palette was applied.
+    pub(crate) from: Value,
+    /// Seconds after `start` before this fixture begins (the overlap stagger).
+    pub(crate) delay: f32,
+    pub(crate) duration: f32,
+    /// Set by the first tick after the apply.
+    pub(crate) start: Option<Timestamp>,
+}
+
+impl Fade {
+    /// Seconds since this fade began moving, `None` while it has not started.
+    fn elapsed(&self, now: Timestamp) -> Option<f32> {
+        let e = (now - self.start?) as f32 - self.delay;
+        (e > 0.0).then_some(e)
+    }
+
+    /// PAL-13: linear from `from` to `to`; Colour per component in linear target RGB.
+    pub(crate) fn at(&self, to: Value, now: Timestamp) -> Value {
+        let Some(e) = self.elapsed(now) else {
+            return self.from;
+        };
+        let k = (e / self.duration).min(1.0);
+        match (self.from, to) {
+            (Value::Level(a), Value::Level(b)) => Value::Level(a + (b - a) * k),
+            (Value::Colour(a), Value::Colour(b)) => Value::Colour(TargetColour {
+                r: a.r + (b.r - a.r) * k,
+                g: a.g + (b.g - a.g) * k,
+                b: a.b + (b.b - a.b) * k,
+            }),
+            _ => to,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Programmer {
     selection: Vec<FixtureId>,
@@ -95,6 +134,8 @@ pub struct Programmer {
     /// Set by a value change; the next select starts a new selection (PRG-03).
     changed: bool,
     values: BTreeMap<FixtureId, BTreeMap<String, Stored>>,
+    /// Running palette fades (PAL-13..16); an entry always has a value here.
+    fades: BTreeMap<FixtureId, BTreeMap<String, Fade>>,
     /// Engine activation counter at the last value change: orders the
     /// programmer against other sources in LTP ties (ENG-04).
     activated: u64,
@@ -135,6 +176,35 @@ impl Programmer {
 
     pub fn values(&self) -> &BTreeMap<FixtureId, BTreeMap<String, Stored>> {
         &self.values
+    }
+
+    pub(crate) fn fade(&self, fixture: FixtureId, attribute: &str) -> Option<&Fade> {
+        self.fades.get(&fixture)?.get(attribute)
+    }
+
+    pub(crate) fn set_fade(&mut self, fixture: FixtureId, attribute: &str, fade: Fade) {
+        self.fades
+            .entry(fixture)
+            .or_default()
+            .insert(attribute.to_string(), fade);
+    }
+
+    /// Called at the start of a tick: fades that have not begun start now (PAL-13).
+    pub(crate) fn start_fades(&mut self, now: Timestamp) {
+        for fade in self.fades.values_mut().flat_map(|a| a.values_mut()) {
+            fade.start.get_or_insert(now);
+        }
+    }
+
+    /// Called at the end of a tick: finished fades are dropped.
+    pub(crate) fn drop_finished_fades(&mut self, now: Timestamp) {
+        for attrs in self.fades.values_mut() {
+            attrs.retain(|_, f| {
+                !f.start
+                    .is_some_and(|s| (now - s) as f32 >= f.delay + f.duration)
+            });
+        }
+        self.fades.retain(|_, a| !a.is_empty());
     }
 
     pub fn activated(&self) -> u64 {
@@ -193,6 +263,7 @@ impl Programmer {
     /// PAT-05: the fixture is gone; drop it from the selection (ending any sub-selection) and the values.
     pub(crate) fn remove_fixture(&mut self, fixture: FixtureId) {
         self.values.remove(&fixture);
+        self.fades.remove(&fixture);
         let before = self.selection.len();
         self.selection.retain(|&f| f != fixture);
         if self.selection.len() != before {
@@ -202,6 +273,9 @@ impl Programmer {
 
     /// PAT-13: drop one attribute value of a fixture.
     pub(crate) fn remove_value(&mut self, fixture: FixtureId, attribute: &str) {
+        if let Some(attrs) = self.fades.get_mut(&fixture) {
+            attrs.remove(attribute);
+        }
         if let Some(attrs) = self.values.get_mut(&fixture) {
             attrs.remove(attribute);
             if attrs.is_empty() {
@@ -213,6 +287,7 @@ impl Programmer {
     /// PRG-29: empty the programmer's values.
     pub(crate) fn clear_values(&mut self) {
         self.values.clear();
+        self.fades.clear();
     }
 
     pub(crate) fn clear_selection(&mut self) {
@@ -273,6 +348,10 @@ impl Programmer {
         activated: u64,
     ) {
         self.activated = activated;
+        // PAL-16: a new value takes over from the faded one.
+        if let Some(attrs) = self.fades.get_mut(&fixture) {
+            attrs.remove(attribute);
+        }
         self.values
             .entry(fixture)
             .or_default()

@@ -1,0 +1,25 @@
+{
+  "spec": "PAL-14",
+  "profiles": {
+    "wash": { "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 } ] }
+  },
+  "patch": [
+    { "id": 101, "profile": "wash", "universe": 1, "address": 1 },
+    { "id": 102, "profile": "wash", "universe": 1, "address": 5 }
+  ],
+  "palettes": [
+    { "id": 1, "number": 81, "window": "Beams", "handle": 1, "legend": "Full", "icon": null,
+      "global": { "Dimmer": 1.0 }, "shared": {}, "fixtures": {} }
+  ],
+  "actions": [
+    { "t": 0.5, "prg": { "select": [101, 102] } },
+    { "t": 0.5, "pal": { "apply": { "number": 81, "time": 2.0, "overlap": 50 } } }
+  ],
+  "expect": [
+    { "t": 0.4, "universe": 1, "channels": { "1": 0, "5": 0 } },
+    { "t": 1.0, "universe": 1, "channels": { "1": 64, "5": 0 } },
+    { "t": 2.0, "universe": 1, "channels": { "1": 191, "5": 64 } },
+    { "t": 3.0, "universe": 1, "channels": { "1": 255, "5": 191 } },
+    { "t": 4.0, "universe": 1, "channels": { "1": 255, "5": 255 } }
+  ]
+}
