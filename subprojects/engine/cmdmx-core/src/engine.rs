@@ -1868,8 +1868,12 @@ impl Engine {
         groups.into_iter().collect()
     }
 
-    /// The group of an attribute name, from the profiles (FX when no profile has it).
+    /// The group of an attribute name, from the profiles (FX when no profile has it). `Colour`
+    /// is the built-in target colour (group C) whether or not a patched mode mixes it.
     fn attribute_group(&self, name: &str) -> AttributeGroup {
+        if name == COLOUR {
+            return AttributeGroup::C;
+        }
         (self.profiles.values())
             .flat_map(|p| &p.modes)
             .find_map(|m| m.logical(name).map(|l| l.group))
