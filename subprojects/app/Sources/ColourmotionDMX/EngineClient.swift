@@ -345,13 +345,19 @@ final class EngineClient: ObservableObject {
     @Published private(set) var shows: [ShowEntry] = []
 
     /// UI-22 / IPC-05 "touch": playback ids and the GM held by this client's pointer. While held,
-    /// engine levels are parked here (not shown) so the bar follows the finger. Release is delayed by
-    /// `releaseGrace` so the engine's echo of the final value lands first; then the parked level is shown.
+    /// engine levels are parked here (not shown) so the bar follows the finger. After release the
+    /// parking goes on until the engine echoes the level sent last (or `settleTimeout` passes), so
+    /// older echoes still in flight never show; then the parked level is shown.
     private var heldFaders: [Int: Double?] = [:]
+    private var settling: Set<Int> = []
+    private var lastSent: [Int: Double] = [:]
     private var gmHeld = false
+    private var gmSettling = false
+    private var gmLastSent: Double?
     private var gmEngineLevel: Double?
     private var releaseTasks: [Int: Task<Void, Never>] = [:]  // key 0 = GM, else playback id
-    private let releaseGrace: UInt64 = 150_000_000
+    private let settleTimeout: UInt64 = 1_000_000_000
+    private let echoEpsilon = 0.001
 
     private let url = URL(string: "ws://127.0.0.1:7319")
     private var socket: URLSessionWebSocketTask?
@@ -370,6 +376,7 @@ final class EngineClient: ObservableObject {
     /// delta is authoritative.
     func setFader(playback id: Int, level: Double) {
         playbackStates[id] = (level.clamped01, level > 0)
+        lastSent[id] = level.clamped01
         rebuildSlots()
         send(FaderSet(playback: id, level: level.clamped01))
     }
@@ -382,42 +389,79 @@ final class EngineClient: ObservableObject {
         touchFader(playback: id, held: false)
     }
 
-    /// UI-22 / IPC-05: pointer down/up on a fader. Up starts the grace period; down cancels it.
+    /// UI-22 / IPC-05: pointer down/up on a fader. Down holds (and cancels a pending release); up
+    /// starts the settle wait: the parked level is shown once the engine echoes `lastSent`, or after
+    /// `settleTimeout`.
     func touchFader(playback id: Int, held: Bool) {
         releaseTasks.removeValue(forKey: id)?.cancel()
         if held {
             if heldFaders[id] == nil { heldFaders[id] = .some(nil) }
+            settling.remove(id); lastSent[id] = nil
             return
         }
+        settling.insert(id)
+        if releaseIfEchoed(id) { return }
         releaseTasks[id] = Task {
-            try? await Task.sleep(nanoseconds: releaseGrace)
+            try? await Task.sleep(nanoseconds: settleTimeout)
             guard !Task.isCancelled else { return }
-            releaseTasks[id] = nil
-            guard let parked = heldFaders.removeValue(forKey: id) else { return }
-            if let level = parked, playbackStates[id] != nil {
-                playbackStates[id]?.level = level
-                rebuildSlots()
-            }
+            releaseFader(id)
+        }
+    }
+
+    /// Ends the settle wait for `id` when the parked level matches the last sent one (or none was sent).
+    @discardableResult
+    private func releaseIfEchoed(_ id: Int) -> Bool {
+        guard settling.contains(id), let parked = heldFaders[id] else { return false }
+        if let sent = lastSent[id] {
+            guard let level = parked, abs(level - sent) < echoEpsilon else { return false }
+        }
+        releaseFader(id)
+        return true
+    }
+
+    private func releaseFader(_ id: Int) {
+        releaseTasks.removeValue(forKey: id)?.cancel()
+        settling.remove(id)
+        if let parked = heldFaders.removeValue(forKey: id), let level = parked, playbackStates[id] != nil {
+            playbackStates[id]?.level = level
+            rebuildSlots()
         }
     }
 
     /// Same for the Grand Master.
     func touchGrandMaster(held: Bool) {
         releaseTasks.removeValue(forKey: 0)?.cancel()
-        if held { gmHeld = true; return }
+        if held { gmHeld = true; gmSettling = false; gmLastSent = nil; return }
+        gmSettling = true
+        if releaseGMIfEchoed() { return }
         releaseTasks[0] = Task {
-            try? await Task.sleep(nanoseconds: releaseGrace)
+            try? await Task.sleep(nanoseconds: settleTimeout)
             guard !Task.isCancelled else { return }
-            releaseTasks[0] = nil
-            gmHeld = false
-            if let level = gmEngineLevel { grandMaster = level }
-            gmEngineLevel = nil
+            releaseGM()
         }
+    }
+
+    @discardableResult
+    private func releaseGMIfEchoed() -> Bool {
+        guard gmSettling, gmHeld else { return false }
+        if let sent = gmLastSent {
+            guard let level = gmEngineLevel, abs(level - sent) < echoEpsilon else { return false }
+        }
+        releaseGM()
+        return true
+    }
+
+    private func releaseGM() {
+        releaseTasks.removeValue(forKey: 0)?.cancel()
+        gmHeld = false; gmSettling = false
+        if let level = gmEngineLevel { grandMaster = level }
+        gmEngineLevel = nil
     }
 
     /// `grand_master.set`
     func setGrandMaster(_ level: Double) {
         grandMaster = level.clamped01
+        gmLastSent = level.clamped01
         send(GrandMasterSet(level: level.clamped01))
     }
 
@@ -589,7 +633,8 @@ final class EngineClient: ObservableObject {
         switch incoming.type {
         case "snapshot":
             releaseTasks.values.forEach { $0.cancel() }; releaseTasks = [:]
-            heldFaders = [:]; gmHeld = false; gmEngineLevel = nil
+            heldFaders = [:]; settling = []; lastSent = [:]
+            gmHeld = false; gmSettling = false; gmLastSent = nil; gmEngineLevel = nil
             fadersPerPage = max(1, incoming.fadersPerPage ?? fadersPerPage)
             page = incoming.page?.value ?? PageState()
             playbackStates = [:]
@@ -633,7 +678,7 @@ final class EngineClient: ObservableObject {
             }
         case "grand_master":
             if let level = incoming.level {
-                if gmHeld { gmEngineLevel = level.clamped01 } else { grandMaster = level.clamped01 }
+                if gmHeld { gmEngineLevel = level.clamped01; releaseGMIfEchoed() } else { grandMaster = level.clamped01 }
             }
         case "warning", "error":
             lastMessage = incoming.message
@@ -649,6 +694,7 @@ final class EngineClient: ObservableObject {
         state.active = active
         if heldFaders[id] != nil { heldFaders[id] = .some(level.clamped01) } else { state.level = level.clamped01 }
         playbackStates[id] = state
+        releaseIfEchoed(id)
     }
 
     /// PBK-01/05: the strips show the current page's slots; the engine decides which playback each holds.

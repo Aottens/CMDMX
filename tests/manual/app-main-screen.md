@@ -153,7 +153,8 @@ Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p c
 ## UX-02d — playback area and pages (UI-21..24, PBK-01..05)
 
 ### Pages (UI-21, PBK-01..03, 05)
-- [ ] The pages column shows page buttons 1–10, page 1 highlighted, and "per page 8" below
+- [ ] The pages column shows page buttons 1–10, page 1 highlighted, and "per page 8" below;
+      clicking anywhere on a button selects its page
 - [ ] Page 1: strips 1–8 show playbacks 1–8 (legend = playback number); fader 1 up drives channel 1
 - [ ] Click page 2: page 2 is highlighted; strip 1 shows playback 9, strip 2 playback 10, strips
       3–8 are empty and disabled (no cap)
@@ -167,8 +168,9 @@ Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p c
 - [ ] Each strip is 92 pt wide: legend at the top, level bar with its % in monospace and a
       draggable cap, then Swop and Flash greyed ("Playbacks · P1-04")
 - [ ] An active playback has a green strip along the bottom edge
-- [ ] Strips 1–8 sit in a framed bank labelled "BCF2000 · faders 1–8"
-- [ ] Scrolling over a strip moves its level; Option scrolls fine, Shift coarse
+- [ ] No bank frame around the strips while no control surface is connected (comes with VS1-07)
+- [ ] Scrolling over a strip moves its level; Option scrolls fine, Shift coarse; a fast trackpad
+      scroll down to 0 % never jumps back up on the way (also not the %)
 - [ ] Holding a fader: it follows the pointer and does not bounce; on release it shows the
       engine's value
 - [ ] The Go block (210 pt): header, "now" line, big green-outlined GO, Back / Stop / Release, all

@@ -41,6 +41,7 @@ private struct PagesColumn: View {
                         .padding(.horizontal, 5).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: radius).fill(current ? t.fg : Color.clear))
                         .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: 1))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).frame(height: 16)
             }
@@ -55,28 +56,16 @@ private struct PagesColumn: View {
     }
 }
 
-/// UI-22: the first eight strips sit in a frame mirroring the BCF2000's bank; the rest sit loose beside it.
+/// UI-22: `faders_per_page` strips side by side; a bank frame comes with a control surface (VS1-07).
 private struct StripsRow: View {
     @EnvironmentObject private var engine: EngineClient
-    @Environment(\.theme) private var t
-    private let bankSize = 8
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 2) {
-                HStack(spacing: 2) { ForEach(engine.slots.prefix(bankSize)) { StripCell(slot: $0) } }
-                    .padding(.top, 13).padding([.horizontal, .bottom], 3)
-                    .frame(maxHeight: .infinity)
-                    .overlay(alignment: .topLeading) {
-                        Text("BCF2000 · faders 1–\(min(bankSize, engine.slots.count))")
-                            .font(Typo.mono(9)).tracking(0.5).foregroundStyle(t.fg2).padding(.top, 1).padding(.leading, 5)
-                    }
-                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line2, lineWidth: 1))
-                HStack(spacing: 2) { ForEach(engine.slots.dropFirst(bankSize)) { StripCell(slot: $0) } }
-                    .padding(.top, 13).padding(.bottom, 3)
-                    .frame(maxHeight: .infinity)
-            }
-            .padding(4)
+            HStack(spacing: 2) { ForEach(engine.slots) { StripCell(slot: $0) } }
+                .padding(.top, 13).padding([.horizontal, .bottom], 3)
+                .frame(maxHeight: .infinity)
+                .padding(4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
