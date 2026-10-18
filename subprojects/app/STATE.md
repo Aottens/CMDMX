@@ -11,11 +11,12 @@ The app connects to the daemon over WebSocket (`EngineClient.swift`, IPC-08/09):
 - `swift build`, `scripts/bundle-app.sh`, `open .build/ColourmotionDMX.app` → window with offline banner, placeholder grid, 8 faders + GM.
 - Programmer workspace (VS2-07): fixtures + groups windows, attribute bar with wheels, command line.
 - Patch (VS2-12, PAT-10): workspace rail Program / Patch; Patch screen with the patch table, Add panel (library search, mode, count, universe, optional address and number) and Move / Renumber / Name / Change Mode / Remove on a row (two-step confirm for Remove and Change Mode); fixture buttons show user numbers in handle order. Checklist `tests/manual/app-patch.md`.
+- Side column (UX-02c, UI-16..19, 27, 28): `TokenLine.swift` (shared token command line + history of 100 lines in UserDefaults `commandHistory`; `MacKeys` key-down monitor while Keys is on, never while a text field has focus); function buttons Record (arms, next group tap records; Clear or softkey Cancel disarms), Patch, Disk (Show screen); keypad live; softkeys Main / Selection / Record; ⌘1–⌘4 always, F1–F4 with Keys; `t.disabled` is the one disabled dim.
 - Show (SHW-c, SHW-16/17): status bar shows the show name and the autosave age (amber while autosave fails); `UIState.screen` (Patch / Show) replaces `showPatch`; `ShowView.swift`: open show and age, list of shows (refreshed after every snapshot and `show` delta), Open and New with two-step confirm, Save As. Checklist `tests/manual/app-show.md`.
 - Colour (VS2-14, IPC-19): HSI/RGB/CMY buttons on the C tab send `programmer.colour_model`; the Hue wheel shows degrees. Checklist `tests/manual/app-programmer.md` → Colour section.
 
 ## In progress
-- SHW-c in review (run `tests/manual/runs/2026-10-18-SHW-c.md` passed)
+- UX-02c in review (run `tests/manual/runs/2026-10-18-UX-02c.md` passed)
 
 ## Resume with
-UX-02c (side column live, `specs/modules/ui.md` UI-16..19, IDEA-12) or UX-02d with VS1-06. Checklist `tests/manual/app-main-screen.md` grows per zone.
+UX-02d with VS1-06 (playback area). Checklist `tests/manual/app-main-screen.md` grows per zone.

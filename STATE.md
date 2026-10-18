@@ -6,7 +6,7 @@ _Last updated: 2026-10-18_
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
 
 ## Working
-- Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core, #30) and SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` over IPC, #31) merged; SHW-c (app: show name + autosave age in the status bar, Show screen with Open/New/Save As) in review, owner run `tests/manual/runs/2026-10-18-SHW-c.md` passed
+- Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core, #30) and SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` over IPC, #31) merged; SHW-c (app: show name + autosave age in the status bar, Show screen with Open/New/Save As) merged (#32)
 - Repo scaffold: meta-layer, ADR-001..004, PRD, module specs (3 written, 3 skeleton)
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
@@ -23,12 +23,12 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - ADR-005 accepted: one BT.2020 linear target colour per fixture, White/Lime as direct attributes, nominal mapping in phase 1
 - Programmer spec `specs/modules/programmer.md` PRG-01..37 approved (P1-02); tasks VS2-02..07 in BACKLOG
 - `cmdmx-core::programmer`: ordered selection, groups, Fix ±1 stepping, patterns, All, record group (VS2-02, PRG-01..07, 14); command line `Fixture/Group/Thro/And/Not/@/Enter` (VS2-03, PRG-08/09/11); programmer values in the merge at Programmer priority, relative wheels Normal/Fine/Coarse, wheel layout and active group, `contents(mask)` (VS2-04); over IPC with the church demo rig, and in the app: fixtures + groups windows, attribute bar with wheels, command line (VS2-07, IPC-10..17; owner run `tests/manual/runs/2026-10-17-VS2-07.md` passed). HTP without a source now outputs 0 (ENG-07 part)
-- Main-screen spec `specs/modules/ui.md` UI-01..26 + IPC-20..23 approved (UX-02.0, 2026-10-17); UX-02a (shell) merged, owner run passed
+- Main-screen spec `specs/modules/ui.md` UI-01..28 + IPC-20..23 approved (UX-02.0, 2026-10-17; UI-16/19 amended, UI-27/28 added 2026-10-18); UX-02a (shell), UX-02b merged; UX-02c (side column live: Record/Patch/Disk, keypad tokens, softkey contexts, token command line with Keys mode, ⌘1–4, command history kept across app restarts, one disabled grey) in review, owner run passed
 - UI v0.1: clickable main-screen sketch `specs/ux/main-screen.html` (UX-01 done; Artifact https://claude.ai/artifact/YNEG3JsZAnjWhG1793MDUd), built from `specs/ux/research.md`; reference for the SwiftUI work and the PRG/PAL/PBK specs
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- SHW-c awaits owner review; the church Lightkey export follows after the owner's next church visit
+- UX-02c awaits owner review (SHW-c merged #32); the church Lightkey export follows after the owner's next church visit
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -43,16 +43,12 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 
 ## Resume next session with
 Start a fresh session (read PROJECT/STATE/ARCHITECTURE/DECISIONS, CLAUDE.md). The app now runs in
-its real main screen (`specs/modules/ui.md`, UI-01..26; README screenshot). The show file is
+its real main screen (`specs/modules/ui.md`, UI-01..28; README screenshot); the side column, keypad, token command line, Mac keys and command history work (UX-02c). The show file is
 done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
 - **VS2-13**: the church patch from the owner's Lightkey export (patch list or decoded show file),
   entered through the patch commands into the show *Kerk* (waits for the owner's church visit); `tests/hardware/church.md` (VS4-01).
-- **UX-02c**: side column live (UI-16..19): function buttons (Record moves from the Groups window),
-  keypad sending tokens, softkeys, token command line with Keys mode (Mac keys), ⌘1–⌘4 next to
-  F1–F4, command history Up/Down (IDEA-12: amend UI-19 first, ask the owner whether history
-  survives an app restart), and make every disabled button look equally greyed.
 - **UX-02d** with VS1-06: playback area and paging.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
   (multi-select in the patch table), P1-03 palettes, P1-04 playbacks, P1-05 control surfaces.

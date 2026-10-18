@@ -28,7 +28,7 @@ Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p c
       in programmer = red top strip; the fill never changes
 
 ### Status bar (UI-06, IPC-20)
-- [ ] Left: "Demo show", engine dot green, a dot per output node: Art-Net green, serial amber
+- [ ] Left: the show name ("Demo"), engine dot green, a dot per output node: Art-Net green, serial amber
       with "no interface" (no Eurolite on the desk); no sACN dot because of `--no-sacn`
 - [ ] Restart the daemon without `--no-sacn`: an sACN dot appears, green
 - [ ] Stop the daemon: the engine dot goes grey with an amber line in the bar (no big banner);
@@ -36,7 +36,7 @@ Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p c
 - [ ] Right: Console, Keys, Keypad, Day/Night toggles and a running clock
 
 ### Rail, workspaces and windows (UI-07..13)
-- [ ] The rail shows four workspaces with F1–F4, then Patch, Macros (disabled), Show (disabled),
+- [ ] The rail shows four workspaces with F1–F4, then Patch, Macros (disabled), Show,
       then Shapes, Pixelmapper, Keystone disabled ("later")
 - [ ] Each workspace shows its four windows: 1 Groups / Colours / Positions / Gobos & Beams,
       2 Fixtures / Groups / Colours / Programmer, 3 Fixtures / Colour picker / Colours /
