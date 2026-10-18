@@ -1,0 +1,168 @@
+{
+  "spec": "PBK-30",
+  "profiles": {
+    "mover": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        },
+        {
+          "name": "Pan",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 2
+        }
+      ]
+    },
+    "rgb": {
+      "manufacturer": "T",
+      "model": "RGB Par",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "3ch",
+          "footprint": 3,
+          "virtual_dimmer": true,
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "dimmer": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "mover",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "rgb",
+      "universe": 1,
+      "address": 3
+    },
+    {
+      "id": 10,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 10
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "priority": "Normal",
+      "fader_mode": 0,
+      "cues": [
+        {
+          "values": {
+            "1": {
+              "Dimmer": 1.0,
+              "Pan": 1.0
+            },
+            "2": {
+              "Dimmer": 1.0,
+              "Colour": {
+                "r": 1.0,
+                "g": 0.0,
+                "b": 0.0
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 0.0,
+      "prg": {
+        "command": [
+          "10",
+          "@",
+          "100",
+          "Enter"
+        ]
+      }
+    },
+    {
+      "t": 1.0,
+      "dbo": {
+        "on": true
+      }
+    },
+    {
+      "t": 2.0,
+      "dbo": {
+        "on": false
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.5,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 255,
+        "3": 255,
+        "10": 255
+      }
+    },
+    {
+      "t": 1.0,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 255,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "10": 0
+      }
+    },
+    {
+      "t": 2.0,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 255,
+        "3": 255,
+        "10": 255
+      }
+    }
+  ]
+}
