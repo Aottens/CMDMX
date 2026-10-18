@@ -62,5 +62,5 @@ failing tests and reviews. The owner likes to be walked through manual runs step
 step per message, tick the run file in `tests/manual/runs/`). CI runs a newer Rust than the Mac:
 check PR CI. Disk is nearly full: `cargo clean` after a task. Don't run `git checkout` in the
 owner's tree while subagents work. The two Eurolite IP PIX Strobe QLC+ files stay refused (owner, 2026-10-18). IDEA-10 (output
-lamps) and IDEA-13 (slot-name editing, ONYX as reference) phases still to confirm. Open point from the SHW-c run: engine messages are all amber, also
+lamps) phase still to confirm; IDEA-13 (slot names + defaults editor, ONYX as reference) is phase 1 with P1-14 (owner, 2026-10-18). Open point from the SHW-c run: engine messages are all amber, also
 good news ("autosave … works again"); a calmer info colour needs an `info` message type.

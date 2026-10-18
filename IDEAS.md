@@ -163,5 +163,8 @@ well (owner does not remember how Avolites does it).
   Look at ONYX's fixture editor and Titan's Fixture Tools/Personality Builder before the spec.
 - Touches now: nothing. The church Phantom 25 and Fuze 75S (PAT-16) are patched with plain
   wheel channels; their slot data is in the Lightkey show and can be filled in once this exists.
-- Open questions: phase (1 with P1-14, or later); take the slots from the Lightkey show
-  automatically (a Lightkey profile importer) or enter them by hand in the editor.
+- Open questions: take the slots from the Lightkey show automatically (a Lightkey profile
+  importer) or enter them by hand in the editor.
+**Outcome (2026-10-18):** owner: phase 1, with P1-14. Same editor: attribute defaults must be
+settable there too (owner, VS2-13 review: the church movers start at Pan/Tilt 0, the owner wants
+to set e.g. 0.5 per fixture type; LIB-12 already allows editing defaults, the editor is missing).
