@@ -13,6 +13,7 @@
 //! - [`playback`]   playbacks: priority, fader mode, values, runtime level
 //! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
 //! - [`command`]    command line parser (`specs/modules/programmer.md` PRG-08..11)
+//! - [`show`]       the show file: schema, (de)serialisation, migrations (`specs/modules/showfile.md`)
 //! - [`engine`]     the merge (`specs/modules/engine-merge.md`)
 //! - [`scenario`]   JSON scenario format used by `tests/scenarios/*.json`
 
@@ -26,6 +27,7 @@ pub mod playback;
 pub mod profile;
 pub mod programmer;
 pub mod scenario;
+pub mod show;
 pub mod value;
 
 /// Seconds on the caller's clock. Never read from the system clock inside core.
@@ -100,6 +102,14 @@ pub enum CoreError {
     },
     #[error("invalid command: {0}")]
     InvalidCommand(String),
+    #[error("not a show file: {0}")]
+    InvalidShow(String),
+    #[error("{name} was made by a newer ColourmotionDMX (schema {found}; this one reads up to {supported})")]
+    ShowTooNew {
+        name: String,
+        found: u64,
+        supported: u32,
+    },
 }
 
 /// A non-fatal condition surfaced to the UI. The engine never stops for a warning.

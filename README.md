@@ -37,8 +37,9 @@ Early, under active development, not yet for real shows. What works today:
   engine and every output. There are four workspaces of fixtures, groups and other windows, and
   a dark and a day theme.
 
-Next: filling the rest of the main screen. That means the keypad and softkeys, then the
-playback area. The design is a clickable sketch in
+Next: the show file. The core can already write a show to one readable JSON file and read it
+back. Still to come are autosave in the daemon and a Show screen in the app. Then filling the
+rest of the main screen: the keypad and softkeys, then the playback area. The design is a clickable sketch in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes, playbacks
 and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

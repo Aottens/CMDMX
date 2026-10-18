@@ -24,6 +24,7 @@ use crate::programmer::{
     AttributeGroupState, ColourView, FixtureValues, GroupId, Programmer, ProgrammerView,
     Resolution, WheelState,
 };
+use crate::show::{Meta, Show, ShowGroup, ShowPatch, ShowSettings, SCHEMA_VERSION};
 use crate::value::Value;
 use crate::{CoreError, Timestamp, UniverseId, Warning, UNIVERSE_SIZE};
 
@@ -606,6 +607,122 @@ impl Engine {
     pub fn add_playback(&mut self, playback: Playback) {
         self.states.entry(playback.id).or_default();
         self.playbacks.insert(playback.id, playback);
+    }
+
+    // ---- show file (SHW-01..08) --------------------------------------------
+
+    /// SHW-01..06: the show data as a `Show`; live state (faders, GM, programmer, selection,
+    /// held values, the wheels' group) is not part of it. Collections come out sorted by id,
+    /// only profiles in use are kept (SHW-05), and playback values for fixtures that are no
+    /// longer patched are left out, so what is saved loads clean (SHW-07).
+    pub fn to_show(&self, meta: Meta) -> Show {
+        let s = &self.settings;
+        Show {
+            schema_version: SCHEMA_VERSION,
+            meta,
+            settings: ShowSettings {
+                faders_per_page: s.faders_per_page,
+                handles_per_page: s.handles_per_page,
+                ltp_trigger_level: s.ltp_trigger_level,
+                wheel_step_normal: s.wheel_step_normal,
+                wheel_step_fine: s.wheel_step_fine,
+                wheel_step_coarse: s.wheel_step_coarse,
+                colour_model: self.colour_model,
+            },
+            profiles: self
+                .profiles
+                .iter()
+                .filter(|(key, _)| self.fixtures.values().any(|f| &f.profile == *key))
+                .map(|(key, profile)| (key.clone(), profile.clone()))
+                .collect(),
+            patch: ShowPatch {
+                next_id: self.next_id,
+                fixtures: self.fixtures.values().cloned().collect(),
+            },
+            groups: self
+                .groups
+                .iter()
+                .map(|(&id, fixtures)| ShowGroup {
+                    id,
+                    fixtures: fixtures.clone(),
+                })
+                .collect(),
+            playbacks: self
+                .playbacks
+                .values()
+                .map(|pb| {
+                    let mut pb = pb.clone();
+                    pb.values.retain(|id, _| self.fixtures.contains_key(id));
+                    pb
+                })
+                .collect(),
+        }
+    }
+
+    /// SHW-07: build an engine from a show. Never fails: a profile that does not validate, a
+    /// fixture the patch refuses, a group member or playback value without a fixture is left
+    /// out with one warning. A fixture left out for another reason takes its references with it
+    /// silently; a reference to an id the file never patched gets its own warning.
+    pub fn from_show(show: &Show) -> (Engine, Vec<String>) {
+        let s = &show.settings;
+        let mut engine = Engine::new(Settings {
+            ltp_trigger_level: s.ltp_trigger_level,
+            faders_per_page: s.faders_per_page,
+            handles_per_page: s.handles_per_page,
+            wheel_step_normal: s.wheel_step_normal,
+            wheel_step_fine: s.wheel_step_fine,
+            wheel_step_coarse: s.wheel_step_coarse,
+        });
+        engine.colour_model = s.colour_model;
+        let mut warnings = Vec::new();
+        let mut invalid = BTreeSet::new();
+        for (key, profile) in &show.profiles {
+            if let Err(e) = engine.add_profile(key.clone(), profile.clone()) {
+                warnings.push(format!("profile '{key}' left out with its fixtures: {e}"));
+                invalid.insert(key.as_str());
+            }
+        }
+        let mut fixtures: Vec<&Fixture> = show.patch.fixtures.iter().collect();
+        fixtures.sort_by_key(|f| f.id);
+        let in_file: BTreeSet<FixtureId> = fixtures.iter().map(|f| f.id).collect();
+        for f in fixtures {
+            if invalid.contains(f.profile.as_str()) {
+                continue;
+            }
+            if let Err(e) = engine.patch(f.clone()) {
+                warnings.push(format!("fixture {} left out: {e}", f.id));
+            }
+        }
+        engine.next_id = engine.next_id.max(show.patch.next_id);
+        for group in &show.groups {
+            let mut members = Vec::new();
+            for &id in &group.fixtures {
+                if engine.fixtures.contains_key(&id) {
+                    members.push(id);
+                } else if !in_file.contains(&id) {
+                    warnings.push(format!(
+                        "group {}: fixture {id} is not in the patch, left out",
+                        group.id
+                    ));
+                }
+            }
+            engine.groups.insert(group.id, members);
+        }
+        for playback in &show.playbacks {
+            let mut playback = playback.clone();
+            playback.values.retain(|&id, _| {
+                let keep = engine.fixtures.contains_key(&id);
+                if !keep && !in_file.contains(&id) {
+                    warnings.push(format!(
+                        "playback {}: fixture {id} is not in the patch, its values are left out",
+                        playback.id
+                    ));
+                }
+                keep
+            });
+            engine.add_playback(playback);
+        }
+        (engine, warnings)
     }
 
     // ---- actions ---------------------------------------------------------
