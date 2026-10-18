@@ -171,7 +171,7 @@ slot from a target colour (VS2-06 follow-up, LIB-15 provides the data); showing 
 wheels (UX); a graphical profile editor beyond LIB-12's fields.
 
 ## Open questions for the owner
-1. Shehds 19x15: QLC+ calls the zoom channel **Focus** (`BeamFocusNearFar`). If Lightkey calls it
-   Zoom and it zooms, we rename it in the user profile after the church visit (LIB-12).
-2. Church check tomorrow: which QLC+ mode matches each fixture's DIP/menu setting (e.g. Shehds 16 or
-   24 channels)? The Lightkey export will tell.
+1. ~~Shehds 19x15 Focus or Zoom?~~ Closed 2026-10-18 (VS2-13, owner): Lightkey calls it Zoom
+   (10–60°); the church user profile renames it (PAT-16).
+2. ~~Which QLC+ mode per church fixture?~~ Closed 2026-10-18: the Lightkey export gives them
+   (`patch.md` PAT-16 table; Shehds 24 Channel).

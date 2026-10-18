@@ -6,12 +6,13 @@ _Last updated: 2026-10-18_
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
 
 ## Working
+- Church patch (VS2-13, in review): `patch.md` PAT-15..18 approved (owner, 2026-10-18); `cargo run -p cmdmx-daemon --example church -- ~/Documents/ColourmotionDMX/Lightkey/BGS_Shows.tsv` writes the show *Kerk* (56 fixtures, numbers in blocks of 100 per type: 101–120 Showtec pars … 1201) and 9 user profiles, never overwrites; checklist `tests/hardware/church.md` (gate 3). Dry run into a temp folder opened in the daemon without warnings. The Lightkey files stay out of git
 - Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core, #30) and SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` over IPC, #31) merged; SHW-c (app: show name + autosave age in the status bar, Show screen with Open/New/Save As) merged (#32)
 - Repo scaffold: meta-layer, ADR-001..004, PRD, module specs (3 written, 3 skeleton)
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial at 250000 baud, ≤ 1 write per 30 ms, product-string detection (the owner's Eurolite MK2 needs `--serial <path>`) and hotplug (VS1-04, verified on the MK2 except mid-run unplug, VS4-02), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
 - ADR-006 accepted, `fixture-library.md` LIB-01..17 and `patch.md` PAT-01..14 approved; build tasks VS2-08..13 in BACKLOG. LIB-17 (owner, 2026-10-17): emitters are generic — recognised by an `emitter` flag, never by name, any number (Amber, Warm/Cold White, UV, Royal Blue, …)
 - Patch over IPC + Patch screen (VS2-12, merged): snapshot `fixtures` entries carry number, name, profile, mode, universe.address, footprint, virtual dimmer and handle, a `fixtures` delta after any patch change, `patch.add/move/remove/renumber/name/change_mode/handle` (PAT-09); library fixtures are patched under `Manufacturer/Model`, fetched from the library in the client thread; the app has a workspace rail (Program / Patch) and a Patch screen with the table, an Add panel with library search and row edits with two-step confirm for Remove and Change Mode (PAT-10). Owner run passed: `tests/manual/runs/2026-10-17-VS2-12.md` (findings → IDEA-08 browse by manufacturer, IDEA-09 multi-select)
 - Library (VS2-11, merged): the QLC+ set (1781 fixtures, pinned, fetched by `subprojects/engine/scripts/fetch-qlcplus.sh`, not in git) indexed in the background at daemon start; word search, user profiles that hide the QLC+ one, profiles from a channel list (LIB-11), edited profiles saved atomically (LIB-12), `library.*` over IPC (LIB-14); 1779 of 1781 QLC+ files import
@@ -28,7 +29,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- UX-02c awaits owner review (SHW-c merged #32); the church Lightkey export follows after the owner's next church visit
+- VS4-02 Eurolite fixes (OUT-20/23/24) in PR #34, awaiting owner review. VS2-13 awaits owner review; the owner ran the one-off into the real folders on 2026-10-18 (*Kerk* with 56 fixtures, 9 user profiles); next he ticks `tests/hardware/church.md` (desk part now, the rest at the church)
 
 ## Blocked
 - VS4-02 / VS1-04 gate 3 (Eurolite MK2, on the owner's desk): run `tests/hardware/runs/2026-10-18-VS4-02.md`
@@ -52,8 +53,7 @@ its real main screen (`specs/modules/ui.md`, UI-01..28; README screenshot); the 
 done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
-- **VS2-13**: the church patch from the owner's Lightkey export (patch list or decoded show file),
-  entered through the patch commands into the show *Kerk* (waits for the owner's church visit); `tests/hardware/church.md` (VS4-01).
+- **VS2-13** gate 3: tick `tests/hardware/church.md` (desk lines now, the rest on a church visit).
 - **UX-02d** with VS1-06: playback area and paging.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
   (multi-select in the patch table), P1-03 palettes, P1-04 playbacks, P1-05 control surfaces.
@@ -62,5 +62,5 @@ failing tests and reviews. The owner likes to be walked through manual runs step
 step per message, tick the run file in `tests/manual/runs/`). CI runs a newer Rust than the Mac:
 check PR CI. Disk is nearly full: `cargo clean` after a task. Don't run `git checkout` in the
 owner's tree while subagents work. The two Eurolite IP PIX Strobe QLC+ files stay refused (owner, 2026-10-18). IDEA-10 (output
-lamps) phase still to confirm. Open point from the SHW-c run: engine messages are all amber, also
+lamps) and IDEA-13 (slot-name editing, ONYX as reference) phases still to confirm. Open point from the SHW-c run: engine messages are all amber, also
 good news ("autosave … works again"); a calmer info colour needs an `info` message type.
