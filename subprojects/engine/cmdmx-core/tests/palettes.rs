@@ -391,14 +391,16 @@ fn pal_03_a_reference_in_the_programmer_is_stored_as_its_value() {
 #[test]
 fn pal_04_same_colour_on_every_type_is_global() {
     let mut e = rig();
-    set(&mut e, &[201, 202, 211, 212, 221], "Colour", rgb(1.0, 0.0, 0.0));
+    set(
+        &mut e,
+        &[201, 202, 211, 212, 221],
+        "Colour",
+        rgb(1.0, 0.0, 0.0),
+    );
     channel_record(&mut e, Window::Colours, 1);
     let p = e.palette(1).unwrap();
     assert_eq!(p.kind(), PaletteKind::Global);
-    assert_eq!(
-        p.global,
-        BTreeMap::from([("Colour".to_string(), g(red()))])
-    );
+    assert_eq!(p.global, BTreeMap::from([("Colour".to_string(), g(red()))]));
     assert!(p.shared.is_empty() && p.fixtures.is_empty());
 }
 
@@ -484,7 +486,10 @@ fn pal_04_straight_down_on_two_head_types_is_a_global_position_in_degrees() {
     let p = e.palette(1).unwrap();
     assert_eq!(p.kind(), PaletteKind::Global);
     match (p.global.get("Pan"), p.global.get("Tilt")) {
-        (Some(GlobalValue::Degrees { degrees: pan }), Some(GlobalValue::Degrees { degrees: tilt })) => {
+        (
+            Some(GlobalValue::Degrees { degrees: pan }),
+            Some(GlobalValue::Degrees { degrees: tilt }),
+        ) => {
             assert!(pan.abs() < 0.01, "pan {pan}");
             assert!((tilt + 90.0).abs() < 0.01, "tilt {tilt}");
         }
@@ -607,7 +612,7 @@ fn pal_06_replace_keeps_id_number_cell_legend_and_icon() {
     assert_eq!(p.icon.as_deref(), Some("colour.drop"));
     assert_eq!(e.palette_value(1, 211, "Colour"), Some(blue()));
     assert!(
-        p.shared.get("rgbw").is_none(),
+        !p.shared.contains_key("rgbw"),
         "Replace drops the old contents"
     );
 }
@@ -629,7 +634,10 @@ fn pal_06_merge_adds_a_type_and_never_widens_a_shared_palette() {
     assert!(p.global.is_empty());
     assert_eq!(
         p.shared.get("rgbl"),
-        Some(&BTreeMap::from([("Colour".to_string(), Value::Colour(orange))]))
+        Some(&BTreeMap::from([(
+            "Colour".to_string(),
+            Value::Colour(orange)
+        )]))
     );
     assert_eq!(
         p.shared.get("rgbw"),
@@ -882,7 +890,8 @@ fn pal_11_a_recorded_palette_changes_a_playback_on_the_next_tick() {
 fn pal_11_a_reference_that_resolves_nothing_uses_its_fallback() {
     let mut e = rig();
     let mut p = global_palette(1, 1, &[]);
-    p.fixtures.insert(202, BTreeMap::from([("Colour".to_string(), blue())]));
+    p.fixtures
+        .insert(202, BTreeMap::from([("Colour".to_string(), blue())]));
     e.add_palette(p).unwrap();
     playback_with_reference(&mut e, 1, red());
     tick(&mut e, 0.0);
@@ -951,9 +960,7 @@ fn pal_17_copy_makes_an_independent_palette() {
     e.set_palette_legend(1, "Warm", None).unwrap();
     select(&mut e, &[201]);
     e.apply_palette(1, Timing::default()).unwrap();
-    let copy = e
-        .copy_palette(1, cell(Window::Positions, 3))
-        .unwrap();
+    let copy = e.copy_palette(1, cell(Window::Positions, 3)).unwrap();
     assert_ne!(copy, id);
     assert_eq!(number_of(&e, copy), 2);
     let p = e.palette(2).unwrap();
@@ -1082,7 +1089,9 @@ fn pal_20_legend_and_icon_are_checked() {
     e.set_palette_legend(1, "Warm", Some("service.prayer"))
         .unwrap();
     assert!(e.set_palette_legend(1, &"x".repeat(33), None).is_err());
-    assert!(e.set_palette_legend(1, "Warm", Some("Colour Drop")).is_err());
+    assert!(e
+        .set_palette_legend(1, "Warm", Some("Colour Drop"))
+        .is_err());
     assert!(e
         .set_palette_legend(1, "Warm", Some(&"a".repeat(49)))
         .is_err());

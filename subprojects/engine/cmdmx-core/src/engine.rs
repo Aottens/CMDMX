@@ -9,6 +9,8 @@
 //! Colour is one value mapped nominally onto each fixture's mixing channels, with the
 //! virtual dimmer and cells (ADR-005, LIB-03/04/07).
 //!
+//! Palette references (PAL-07, 11) resolve in the merge, every tick.
+//!
 //! Not yet here, by design (each lands with its spec): release masks and
 //! times (ENG-07..10), chases, masters other than GM.
 
@@ -17,6 +19,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{ColourModel, TargetColour};
 use crate::command::{self, Item, Kind};
+use crate::palette::{
+    self, Cell, Detected, Entry, Limit, Palette, PaletteId, Record, RecordBy, RecordMode, Timing,
+};
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values, PAGES};
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
@@ -24,8 +29,10 @@ use crate::programmer::{
     AttributeGroupState, ColourView, FixtureValues, GroupId, Programmer, ProgrammerView,
     Resolution, WheelState,
 };
-use crate::show::{Meta, Show, ShowGroup, ShowPatch, ShowSettings, SCHEMA_VERSION};
-use crate::value::Value;
+use crate::show::{
+    Meta, Show, ShowGroup, ShowPalette, ShowPalettes, ShowPatch, ShowSettings, SCHEMA_VERSION,
+};
+use crate::value::{Reference, Stored, Value};
 use crate::{CoreError, Timestamp, UniverseId, Warning, UNIVERSE_SIZE};
 
 /// One universe's output, 512 slots. Start code is added by the transport.
@@ -123,6 +130,11 @@ pub struct Settings {
     pub wheel_step_normal: f32,
     pub wheel_step_fine: f32,
     pub wheel_step_coarse: f32,
+    /// Master fade time (s) and overlap (%) of palettes (PAL-15).
+    pub palette_time: f32,
+    pub palette_overlap: f32,
+    /// Default Record By of palettes (PAL-02).
+    pub record_by: RecordBy,
 }
 
 impl Default for Settings {
@@ -134,6 +146,9 @@ impl Default for Settings {
             wheel_step_normal: 1.0 / 255.0,
             wheel_step_fine: 1.0 / 65535.0,
             wheel_step_coarse: 1.0 / 25.0,
+            palette_time: 0.0,
+            palette_overlap: 100.0,
+            record_by: RecordBy::Mixed,
         }
     }
 }
@@ -159,6 +174,9 @@ pub struct Engine {
     last_tick: Option<Timestamp>,
     programmer: Programmer,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    palettes: BTreeMap<PaletteId, Palette>,
+    /// Above every palette id ever used, so ids are never reused (PAL, Definitions).
+    palette_next_id: PaletteId,
     /// Attribute group the wheels show (PRG-17/18).
     active_group: AttributeGroup,
     /// How the Colour wheels are shown (PRG-17, PRG-30).
@@ -167,6 +185,9 @@ pub struct Engine {
     /// nothing proposes it, and where a wheel starts (LIB-03, PRG-20).
     held: BTreeMap<FixtureId, BTreeMap<String, Value>>,
 }
+
+/// PAL-08: what applying a palette puts in the programmer: fixture, attribute, resolved value.
+type PalettePlan = Vec<(FixtureId, String, Value)>;
 
 /// A candidate value for one attribute from one source, during a merge.
 struct Candidate {
@@ -193,6 +214,8 @@ impl Engine {
             last_tick: None,
             programmer: Programmer::default(),
             groups: BTreeMap::new(),
+            palettes: BTreeMap::new(),
+            palette_next_id: 1,
             active_group: AttributeGroup::I,
             colour_model: ColourModel::default(),
             held: BTreeMap::new(),
@@ -339,7 +362,8 @@ impl Engine {
         Ok(())
     }
 
-    /// PAT-05: remove fixtures from the patch, the selection, the programmer and every group.
+    /// PAT-05: remove fixtures from the patch, the selection, the programmer, every group and
+    /// every palette (PAL-19).
     /// All ids are checked first. Playback values for them are ignored by the merge.
     pub fn patch_remove(&mut self, ids: &[FixtureId]) -> Result<(), CoreError> {
         if let Some(&unknown) = ids.iter().find(|id| !self.fixtures.contains_key(id)) {
@@ -360,6 +384,9 @@ impl Engine {
             self.programmer.remove_fixture(id);
             for members in self.groups.values_mut() {
                 members.retain(|&f| f != id);
+            }
+            for palette in self.palettes.values_mut() {
+                palette.fixtures.remove(&id); // PAL-19
             }
         }
         self.follow_active_group();
@@ -416,9 +443,9 @@ impl Engine {
         )?;
         let (number, universe, address) = (fixture.number, fixture.universe, fixture.address);
         // A value stays only when the new mode has that attribute with the same kind of value.
-        let keeps = |name: &str, value: &Value| {
+        let keeps = |name: &str, value: &Stored| {
             new.logical(name)
-                .is_some_and(|l| l.default.same_kind(value))
+                .is_some_and(|l| l.default.same_kind(&value.value()))
         };
         let mut warnings: Vec<String> = Vec::new();
         let mut dropped_programmer = Vec::new();
@@ -636,6 +663,9 @@ impl Engine {
                 wheel_step_fine: s.wheel_step_fine,
                 wheel_step_coarse: s.wheel_step_coarse,
                 colour_model: self.colour_model,
+                palette_time: s.palette_time,
+                palette_overlap: s.palette_overlap,
+                record_by: s.record_by,
             },
             profiles: self
                 .profiles
@@ -655,6 +685,15 @@ impl Engine {
                     fixtures: fixtures.clone(),
                 })
                 .collect(),
+            palettes: ShowPalettes {
+                next_id: self.palette_next_id,
+                palettes: self
+                    .palettes
+                    .values()
+                    .cloned()
+                    .map(ShowPalette::Palette)
+                    .collect(),
+            },
             playbacks: self
                 .playbacks
                 .values()
@@ -680,6 +719,9 @@ impl Engine {
             wheel_step_normal: s.wheel_step_normal,
             wheel_step_fine: s.wheel_step_fine,
             wheel_step_coarse: s.wheel_step_coarse,
+            palette_time: s.palette_time,
+            palette_overlap: s.palette_overlap,
+            record_by: s.record_by,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
@@ -716,6 +758,30 @@ impl Engine {
             }
             engine.groups.insert(group.id, members);
         }
+        for entry in &show.palettes.palettes {
+            let mut palette = match entry {
+                ShowPalette::Palette(p) => p.clone(),
+                ShowPalette::Unreadable(v) => {
+                    warnings.push(format!("palette entry left out, not readable: {v}"));
+                    continue;
+                }
+            };
+            palette.fixtures.retain(|&id, _| {
+                let keep = engine.fixtures.contains_key(&id);
+                if !keep && !in_file.contains(&id) {
+                    warnings.push(format!(
+                        "palette {}: fixture {id} is not in the patch, its values are left out",
+                        palette.number
+                    ));
+                }
+                keep
+            });
+            let number = palette.number;
+            if let Err(e) = engine.add_palette(palette) {
+                warnings.push(format!("palette {number} left out: {e}"));
+            }
+        }
+        engine.palette_next_id = engine.palette_next_id.max(show.palettes.next_id);
         for playback in &show.playbacks {
             let mut playback = playback.clone();
             playback.values.retain(|&id, _| {
@@ -728,6 +794,17 @@ impl Engine {
                 }
                 keep
             });
+            for stored in playback.values.values_mut().flat_map(|a| a.values_mut()) {
+                if let Stored::Reference(r) = *stored {
+                    if !engine.palettes.contains_key(&r.palette) {
+                        warnings.push(format!(
+                            "playback {}: palette {} does not exist, its value is kept",
+                            playback.id, r.palette
+                        ));
+                        *stored = Stored::Value(r.value);
+                    }
+                }
+            }
             engine.add_playback(playback);
         }
         (engine, warnings)
@@ -914,8 +991,12 @@ impl Engine {
             return Err(CoreError::InvalidLevel(bad));
         }
         self.activation_seq = self.activation_seq.saturating_add(1);
-        self.programmer
-            .set_value(fixture, attribute, value, self.activation_seq);
+        self.programmer.set_value(
+            fixture,
+            attribute,
+            Stored::Value(value),
+            self.activation_seq,
+        );
         Ok(())
     }
 
@@ -1061,7 +1142,18 @@ impl Engine {
     fn start_value(&self, id: FixtureId, l: &LogicalAttribute) -> Value {
         self.programmer
             .value(id, l.name)
-            .or_else(|| merge_attribute(id, l, &self.playbacks, &self.states, &self.programmer))
+            .or_else(|| {
+                let (fixture, mode) = (self.fixtures.get(&id)?, self.mode_of(id)?);
+                merge_attribute(
+                    fixture,
+                    mode,
+                    l,
+                    &self.playbacks,
+                    &self.states,
+                    &self.programmer,
+                    &self.palettes,
+                )
+            })
             .or_else(|| self.held.get(&id)?.get(l.name).copied())
             .unwrap_or(match l.kind {
                 AttributeKind::Htp => Value::Level(0.0),
@@ -1111,7 +1203,7 @@ impl Engine {
                 };
                 Some(WheelState {
                     value,
-                    touched: self.programmer.value(id, name).is_some(),
+                    touched: self.programmer.stored(id, name).is_some(),
                     sixteen_bit: l.sixteen_bit,
                     attribute,
                 })
@@ -1143,7 +1235,12 @@ impl Engine {
             contents: (self.programmer.values().iter())
                 .map(|(&fixture, values)| FixtureValues {
                     fixture,
-                    values: values.clone(),
+                    values: values
+                        .iter()
+                        .map(|(name, stored)| {
+                            (name.clone(), self.resolve_stored(fixture, name, *stored))
+                        })
+                        .collect(),
                 })
                 .collect(),
             colour,
@@ -1200,6 +1297,17 @@ impl Engine {
             }
             Some(list)
         };
+        if let Some(number) = cmd.palette {
+            // PAL-10: plan against the typed selection first, so a refusal changes nothing.
+            let targets = typed.clone().unwrap_or_else(|| self.programmer.targets());
+            let (id, plan) = self.palette_plan(number, &targets)?;
+            if let Some(list) = typed {
+                self.programmer.replace_selection(list);
+                self.follow_active_group();
+            }
+            self.put_palette(id, plan, true);
+            return Ok(());
+        }
         let mut touched = Vec::new();
         let level = cmd.level.map(|v| (v / 100.0).clamp(0.0, 1.0));
         if level.is_some() {
@@ -1250,6 +1358,418 @@ impl Engine {
         }
     }
 
+    // ---- palettes (PAL-01..12, 17..21) --------------------------------------
+
+    /// PAL-23, scenario files and tests: place a palette as it is. Refused (nothing changes) for
+    /// an id or number in use, a number outside 1–9999 or a cell in use.
+    pub fn add_palette(&mut self, palette: Palette) -> Result<(), CoreError> {
+        if palette.id == 0 || self.palettes.contains_key(&palette.id) {
+            return Err(CoreError::DuplicatePalette(palette.id));
+        }
+        check_palette_number(palette.number)?;
+        if self.palette(palette.number).is_some() {
+            return Err(CoreError::PaletteNumberInUse(palette.number));
+        }
+        self.check_free_cell(palette.cell())?;
+        self.palette_next_id = self.palette_next_id.max(palette.id.saturating_add(1));
+        self.palettes.insert(palette.id, palette);
+        Ok(())
+    }
+
+    /// PAL-01: record the programmer's contents in the mask onto a cell. An empty cell gets a
+    /// new palette; a used one needs `mode` (PAL-06). Refused records change nothing.
+    pub fn record_palette(&mut self, record: &Record) -> Result<PaletteId, CoreError> {
+        let cell = record.cell;
+        let existing = self
+            .palettes
+            .values()
+            .find(|p| p.cell() == cell)
+            .map(|p| (p.id, p.number, p.kind()));
+        let number = match existing {
+            Some((_, number, _)) => {
+                if record.mode.is_none() {
+                    return Err(CoreError::PaletteUsed(number));
+                }
+                number
+            }
+            None => {
+                self.check_free_cell(cell)?;
+                match record.number {
+                    Some(n) => {
+                        check_palette_number(n)?;
+                        if self.palette(n).is_some() {
+                            return Err(CoreError::PaletteNumberInUse(n));
+                        }
+                        n
+                    }
+                    None => self.next_free_palette_number()?,
+                }
+            }
+        };
+        let mask = record
+            .mask
+            .clone()
+            .unwrap_or_else(|| cell.window.mask().to_vec());
+        let mut values = self.record_values(&mask);
+        if record.record_by.unwrap_or(self.settings.record_by) == RecordBy::Mixed {
+            self.mix_groups(&mut values);
+        }
+        let mode = existing.and(record.mode);
+        if let (Some((id, ..)), Some(RecordMode::QuickMerge)) = (existing, mode) {
+            if let Some(palette) = self.palettes.get(&id) {
+                for attrs in values.values_mut() {
+                    attrs.retain(|name, _| palette.holds(name));
+                }
+                values.retain(|_, attrs| !attrs.is_empty());
+            }
+        }
+        if values.is_empty() {
+            let letters: Vec<&str> = mask.iter().map(|g| palette::letter(*g)).collect();
+            return Err(CoreError::NothingToRecord(format!(
+                "{:?} (mask {})",
+                cell.window,
+                letters.join("")
+            )));
+        }
+        let mut limit = Limit::from_record_as(record.record_as);
+        if let (Some((_, _, kind)), Some(RecordMode::Merge | RecordMode::QuickMerge)) =
+            (existing, mode)
+        {
+            limit = limit.capped_by(kind);
+        }
+        let detected = {
+            let entries: BTreeMap<FixtureId, Entry> = values
+                .into_iter()
+                .filter_map(|(id, values)| {
+                    let fixture = self.fixtures.get(&id)?;
+                    let mode = self.mode_of(id)?;
+                    let profile = fixture.profile.as_str();
+                    Some((
+                        id,
+                        Entry {
+                            profile,
+                            mode,
+                            values,
+                        },
+                    ))
+                })
+                .collect();
+            palette::detect(&entries, limit)?
+        };
+        match existing {
+            Some((id, ..)) => {
+                if let Some(palette) = self.palettes.get_mut(&id) {
+                    match mode {
+                        Some(RecordMode::Replace) | None => {
+                            palette.global = detected.global;
+                            palette.shared = detected.shared;
+                            palette.fixtures = detected.fixtures;
+                        }
+                        Some(_) => palette.merge(detected),
+                    }
+                }
+                Ok(id)
+            }
+            None => {
+                let id = self.palette_next_id;
+                self.palette_next_id = id.saturating_add(1);
+                let Detected {
+                    global,
+                    shared,
+                    fixtures,
+                } = detected;
+                self.palettes.insert(
+                    id,
+                    Palette {
+                        id,
+                        number,
+                        window: cell.window,
+                        handle: cell.handle,
+                        legend: String::new(),
+                        icon: None,
+                        global,
+                        shared,
+                        fixtures,
+                    },
+                );
+                Ok(id)
+            }
+        }
+    }
+
+    /// PAL-01, 03: the programmer's values in the mask as plain values; a reference is
+    /// recorded as the value it resolves to now.
+    fn record_values(
+        &self,
+        mask: &[AttributeGroup],
+    ) -> BTreeMap<FixtureId, BTreeMap<String, Value>> {
+        self.contents(mask)
+            .into_iter()
+            .map(|(id, attrs)| {
+                let values = attrs
+                    .into_iter()
+                    .map(|(name, stored)| {
+                        let value = self.resolve_stored(id, &name, stored);
+                        (name, value)
+                    })
+                    .collect();
+                (id, values)
+            })
+            .collect()
+    }
+
+    /// PAL-02 Mixed: a fixture with a touched attribute in group P (or C) also stores the rest
+    /// of that group, untouched ones at their current output value (PRG-20).
+    fn mix_groups(&self, values: &mut BTreeMap<FixtureId, BTreeMap<String, Value>>) {
+        for (&id, attrs) in values.iter_mut() {
+            let Some(mode) = self.mode_of(id) else {
+                continue;
+            };
+            let whole: Vec<LogicalAttribute> = [AttributeGroup::P, AttributeGroup::C]
+                .into_iter()
+                .filter(|g| {
+                    attrs
+                        .keys()
+                        .any(|n| mode.logical(n).is_some_and(|l| l.group == *g))
+                })
+                .flat_map(|g| mode.logical_attributes().filter(move |l| l.group == g))
+                .collect();
+            for l in whole {
+                if !attrs.contains_key(l.name) {
+                    attrs.insert(l.name.to_string(), self.start_value(id, &l));
+                }
+            }
+        }
+    }
+
+    /// PAL-17: the lowest unused number.
+    fn next_free_palette_number(&self) -> Result<u32, CoreError> {
+        (1..=palette::MAX_NUMBER)
+            .find(|n| self.palette(*n).is_none())
+            .ok_or(CoreError::NoFreePaletteNumbers)
+    }
+
+    /// PAL-17: handles start at 1 and hold one palette.
+    fn check_free_cell(&self, cell: Cell) -> Result<(), CoreError> {
+        let window = format!("{:?}", cell.window);
+        let handle = cell.handle;
+        if handle == 0 {
+            Err(CoreError::InvalidPaletteCell { window, handle })
+        } else if self.palettes.values().any(|p| p.cell() == cell) {
+            Err(CoreError::PaletteCellInUse { window, handle })
+        } else {
+            Ok(())
+        }
+    }
+
+    /// PAL-08/09: the values palette `number` resolves for the targets, or for every patched
+    /// fixture in user-number order when there are none (quick palette). Nothing is changed.
+    fn palette_plan(
+        &self,
+        number: u32,
+        targets: &[FixtureId],
+    ) -> Result<(PaletteId, PalettePlan), CoreError> {
+        let palette = self
+            .palette(number)
+            .ok_or(CoreError::UnknownPalette(number))?;
+        let all: Vec<FixtureId>;
+        let list = if targets.is_empty() {
+            all = self.numbers.values().copied().collect();
+            &all
+        } else {
+            targets
+        };
+        let mut plan = Vec::new();
+        for &id in list {
+            let (Some(fixture), Some(mode)) = (self.fixtures.get(&id), self.mode_of(id)) else {
+                continue;
+            };
+            for l in mode.logical_attributes() {
+                if let Some(v) = palette
+                    .resolve(fixture, mode, l.name)
+                    .filter(|v| v.same_kind(&l.default))
+                {
+                    plan.push((id, l.name.to_string(), v));
+                }
+            }
+        }
+        if plan.is_empty() {
+            return Err(CoreError::PaletteDoesNotFit(
+                format!("{} {}", palette.number, palette.legend)
+                    .trim()
+                    .to_string(),
+            ));
+        }
+        Ok((palette.id, plan))
+    }
+
+    /// PAL-08/12: put a plan into the programmer as references (with the value as fallback)
+    /// or as manual values. Counts as a programmer change (PRG-03).
+    fn put_palette(&mut self, palette: PaletteId, plan: PalettePlan, as_reference: bool) {
+        self.activation_seq = self.activation_seq.saturating_add(1);
+        for (fixture, name, value) in plan {
+            let stored = if as_reference {
+                Stored::Reference(Reference { palette, value })
+            } else {
+                Stored::Value(value)
+            };
+            self.programmer
+                .set_value(fixture, &name, stored, self.activation_seq);
+        }
+    }
+
+    /// PAL-08/09: apply palette `number` to the targets (selection or sub-selection), or as a
+    /// quick palette when nothing is selected. Refused when it resolves nothing for any target.
+    /// ponytail: instant; `timing` (PAL-13..15) is taken but unused until VS2-18.
+    pub fn apply_palette(&mut self, number: u32, _timing: Timing) -> Result<(), CoreError> {
+        let (id, plan) = self.palette_plan(number, &self.programmer.targets())?;
+        self.put_palette(id, plan, true);
+        Ok(())
+    }
+
+    /// PAL-12: like [`Engine::apply_palette`], but the programmer gets manual values.
+    pub fn include_palette(&mut self, number: u32) -> Result<(), CoreError> {
+        let (id, plan) = self.palette_plan(number, &self.programmer.targets())?;
+        self.put_palette(id, plan, false);
+        Ok(())
+    }
+
+    /// PAL-17: a new palette (new id, next free number) on an empty cell with the same values,
+    /// legend and icon.
+    pub fn copy_palette(&mut self, number: u32, to: Cell) -> Result<PaletteId, CoreError> {
+        let source = self
+            .palette(number)
+            .ok_or(CoreError::UnknownPalette(number))?
+            .clone();
+        self.check_free_cell(to)?;
+        let new_number = self.next_free_palette_number()?;
+        let id = self.palette_next_id;
+        self.palette_next_id = id.saturating_add(1);
+        self.palettes.insert(
+            id,
+            Palette {
+                id,
+                number: new_number,
+                window: to.window,
+                handle: to.handle,
+                ..source
+            },
+        );
+        Ok(id)
+    }
+
+    /// PAL-17: change only the cell, so every reference follows.
+    pub fn move_palette(&mut self, number: u32, to: Cell) -> Result<(), CoreError> {
+        let id = self
+            .palette(number)
+            .ok_or(CoreError::UnknownPalette(number))?
+            .id;
+        self.check_free_cell(to)?;
+        if let Some(p) = self.palettes.get_mut(&id) {
+            p.window = to.window;
+            p.handle = to.handle;
+        }
+        Ok(())
+    }
+
+    /// PAL-17: give a palette a free number; references use the id.
+    pub fn renumber_palette(&mut self, number: u32, to: u32) -> Result<(), CoreError> {
+        let id = self
+            .palette(number)
+            .ok_or(CoreError::UnknownPalette(number))?
+            .id;
+        check_palette_number(to)?;
+        if self.palette(to).is_some() {
+            return Err(CoreError::PaletteNumberInUse(to));
+        }
+        if let Some(p) = self.palettes.get_mut(&id) {
+            p.number = to;
+        }
+        Ok(())
+    }
+
+    /// PAL-18: delete; references in the programmer and in every playback become their
+    /// fallback values. Number and cell are free again, the id is never reused.
+    pub fn delete_palette(&mut self, number: u32) -> Result<(), CoreError> {
+        let id = self
+            .palette(number)
+            .ok_or(CoreError::UnknownPalette(number))?
+            .id;
+        self.palettes.remove(&id);
+        self.programmer.dereference(id);
+        for stored in self
+            .playbacks
+            .values_mut()
+            .flat_map(|pb| pb.values.values_mut())
+            .flat_map(|attrs| attrs.values_mut())
+        {
+            *stored = stored.without_palette(id);
+        }
+        Ok(())
+    }
+
+    /// PAL-20, 22: the legend (at most 32 characters) and the icon id (`None` = automatic).
+    pub fn set_palette_legend(
+        &mut self,
+        number: u32,
+        legend: &str,
+        icon: Option<&str>,
+    ) -> Result<(), CoreError> {
+        let id = self
+            .palette(number)
+            .ok_or(CoreError::UnknownPalette(number))?
+            .id;
+        if legend.chars().count() > palette::MAX_LEGEND {
+            return Err(CoreError::InvalidLegend);
+        }
+        if let Some(icon) = icon.filter(|i| !palette::valid_icon(i)) {
+            return Err(CoreError::InvalidIcon(icon.to_string()));
+        }
+        if let Some(p) = self.palettes.get_mut(&id) {
+            p.legend = legend.to_string();
+            p.icon = icon.map(str::to_string);
+        }
+        Ok(())
+    }
+
+    /// A stored value, or what its palette resolves for this fixture now (PAL-11).
+    fn resolve_stored(&self, fixture: FixtureId, attribute: &str, stored: Stored) -> Value {
+        match (self.fixtures.get(&fixture), self.mode_of(fixture)) {
+            (Some(f), Some(mode)) => resolve_stored(&self.palettes, f, mode, attribute, stored),
+            _ => stored.value(),
+        }
+    }
+
+    /// The palette with this user number.
+    pub fn palette(&self, number: u32) -> Option<&Palette> {
+        self.palettes.values().find(|p| p.number == number)
+    }
+
+    /// Palettes, sorted by id.
+    pub fn palettes(&self) -> impl Iterator<Item = &Palette> {
+        self.palettes.values()
+    }
+
+    /// PAL-07: what palette `number` resolves for a fixture and attribute.
+    pub fn palette_value(&self, number: u32, fixture: FixtureId, attribute: &str) -> Option<Value> {
+        self.palette(number)?.resolve(
+            self.fixtures.get(&fixture)?,
+            self.mode_of(fixture)?,
+            attribute,
+        )
+    }
+
+    /// PAL-21: the icon drawn when no icon was picked.
+    pub fn palette_auto_icon(&self, number: u32) -> Option<palette::AutoIcon> {
+        self.palette(number)?.auto_icon(|name| {
+            self.profiles
+                .values()
+                .flat_map(|p| &p.modes)
+                .find_map(|m| m.logical(name).map(|l| l.group))
+                .unwrap_or(AttributeGroup::Fx)
+        })
+    }
+
     // ---- tick ------------------------------------------------------------
 
     /// Recompute every universe frame for the current state at `now`.
@@ -1279,11 +1799,13 @@ impl Engine {
             let mut scale = 1.0;
             for l in mode.logical_attributes() {
                 let merged = merge_attribute(
-                    *fixture_id,
+                    fixture,
+                    mode,
                     &l,
                     &self.playbacks,
                     &self.states,
                     &self.programmer,
+                    &self.palettes,
                 );
                 // ENG-07: an HTP attribute nobody proposes is 0; LTP holds its last value (LIB-03).
                 let value = match (merged, l.kind) {
@@ -1316,6 +1838,10 @@ impl Engine {
 
     pub fn universes(&self) -> impl Iterator<Item = (&UniverseId, &Frame)> {
         self.frames.iter()
+    }
+
+    pub fn playback(&self, id: PlaybackId) -> Option<&Playback> {
+        self.playbacks.get(&id)
     }
 
     pub fn playback_state(&self, id: PlaybackId) -> Option<&PlaybackState> {
@@ -1371,6 +1897,15 @@ impl Engine {
     /// Take accumulated warnings (for the IPC layer to forward to the UI).
     pub fn drain_warnings(&mut self) -> Vec<Warning> {
         std::mem::take(&mut self.warnings)
+    }
+}
+
+/// PAL-17: user numbers run from 1 to 9999.
+fn check_palette_number(number: u32) -> Result<(), CoreError> {
+    if (1..=palette::MAX_NUMBER).contains(&number) {
+        Ok(())
+    } else {
+        Err(CoreError::InvalidPaletteNumber(number))
     }
 }
 
@@ -1432,17 +1967,23 @@ fn write_value(
 }
 
 /// Merge one attribute of one fixture across all active playbacks and the programmer.
+/// A palette reference is resolved here, every tick (PAL-11).
 ///
 /// Returns `None` when no active source proposes a value. `tick` then writes 0
 /// for an HTP attribute and the held value for an LTP one (ENG-07, LIB-03).
 fn merge_attribute(
-    fixture: FixtureId,
+    fixture: &Fixture,
+    mode: &Mode,
     attr: &LogicalAttribute,
     playbacks: &BTreeMap<PlaybackId, Playback>,
     states: &BTreeMap<PlaybackId, PlaybackState>,
     programmer: &Programmer,
+    palettes: &BTreeMap<PaletteId, Palette>,
 ) -> Option<Value> {
     let mut best: Option<Candidate> = None;
+    // A reference gives what its palette resolves, else its fallback (PAL-07, PAL-11); a value
+    // of the wrong kind (a level for Colour, say) is ignored, not output.
+    let resolve = |stored: Stored| resolve_stored(palettes, fixture, mode, attr.name, stored);
 
     for (id, playback) in playbacks {
         let Some(state) = states.get(id) else {
@@ -1453,10 +1994,9 @@ fn merge_attribute(
         };
         let Some(raw) = playback
             .values
-            .get(&fixture)
+            .get(&fixture.id)
             .and_then(|attrs| attrs.get(attr.name))
-            .copied()
-            // A value of the wrong kind (a level for Colour, say) is ignored, not output.
+            .map(|s| resolve(*s))
             .filter(|v| v.same_kind(&attr.default))
         else {
             continue;
@@ -1488,7 +2028,11 @@ fn merge_attribute(
     }
 
     // ENG-04: manual values are absolute and sit at Priority::Programmer.
-    if let Some(value) = programmer.value(fixture, attr.name) {
+    if let Some(value) = programmer
+        .stored(fixture.id, attr.name)
+        .map(resolve)
+        .filter(|v| v.same_kind(&attr.default))
+    {
         let candidate = Candidate {
             priority: Priority::Programmer,
             activated: programmer.activated(),
@@ -1501,6 +2045,24 @@ fn merge_attribute(
     }
 
     best.map(|c| c.value)
+}
+
+/// A stored value, or what its palette resolves for this fixture and attribute (PAL-07),
+/// falling back to the reference's own value (PAL-11).
+fn resolve_stored(
+    palettes: &BTreeMap<PaletteId, Palette>,
+    fixture: &Fixture,
+    mode: &Mode,
+    attribute: &str,
+    stored: Stored,
+) -> Value {
+    match stored {
+        Stored::Value(v) => v,
+        Stored::Reference(r) => palettes
+            .get(&r.palette)
+            .and_then(|p| p.resolve(fixture, mode, attribute))
+            .unwrap_or(r.value),
+    }
 }
 
 /// ENG-01..03: higher priority always wins; at equal priority HTP takes the

@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::engine::{Engine, Settings};
+use crate::palette::{Palette, Record, Timing};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{Playback, PlaybackId};
 use crate::profile::Profile;
@@ -28,6 +29,9 @@ pub struct Scenario {
     pub settings: ScenarioSettings,
     pub profiles: BTreeMap<String, Profile>,
     pub patch: Vec<Fixture>,
+    /// PAL-23: palettes as in the show file, placed after the patch.
+    #[serde(default)]
+    pub palettes: Vec<Palette>,
     #[serde(default)]
     pub playbacks: Vec<Playback>,
     #[serde(default)]
@@ -53,6 +57,22 @@ pub enum ActionKind {
     Fader { playback: PlaybackId, level: f32 },
     GrandMaster(f32),
     Prg(PrgAction),
+    Pal(PalAction),
+}
+
+/// Palette actions in a scenario (`specs/modules/palettes.md`, "Scenario test format").
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PalAction {
+    Record(Record),
+    Apply {
+        number: u32,
+        #[serde(default)]
+        time: Option<f32>,
+        #[serde(default)]
+        overlap: Option<f32>,
+    },
+    Delete(u32),
 }
 
 /// Programmer actions in a scenario (PRG-12/13).
@@ -108,6 +128,9 @@ pub fn build_engine(scenario: &Scenario) -> Result<Engine, CoreError> {
     }
     for fixture in &scenario.patch {
         engine.patch(fixture.clone())?;
+    }
+    for palette in &scenario.palettes {
+        engine.add_palette(palette.clone())?;
     }
     for playback in &scenario.playbacks {
         engine.add_playback(playback.clone());
@@ -169,6 +192,21 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                     let tokens: Vec<&str> = tokens.iter().map(String::as_str).collect();
                     engine.execute_command(&tokens)?;
                 }
+                ActionKind::Pal(PalAction::Record(record)) => {
+                    engine.record_palette(record)?;
+                }
+                ActionKind::Pal(PalAction::Apply {
+                    number,
+                    time,
+                    overlap,
+                }) => engine.apply_palette(
+                    *number,
+                    Timing {
+                        time: *time,
+                        overlap: *overlap,
+                    },
+                )?,
+                ActionKind::Pal(PalAction::Delete(number)) => engine.delete_palette(*number)?,
             }
             next_action += 1;
         }

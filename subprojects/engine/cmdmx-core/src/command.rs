@@ -1,4 +1,5 @@
-//! Command line parser (Titan keypad syntax): `specs/modules/programmer.md` PRG-08, 09, 11.
+//! Command line parser (Titan keypad syntax): `specs/modules/programmer.md` PRG-08, 09, 11;
+//! `Palette n` is `specs/modules/palettes.md` PAL-10.
 //!
 //! Pure: tokens in, a parsed [`Command`] out. Resolving fixtures and applying
 //! the result is the engine's job.
@@ -25,6 +26,8 @@ pub struct Command {
     pub selection: Vec<(bool, Item)>,
     /// The `@` level as typed (0..), before the percent conversion.
     pub level: Option<f32>,
+    /// `Palette n`: apply palette number n (PAL-10).
+    pub palette: Option<u32>,
 }
 
 fn number(token: Option<&&str>) -> Option<u32> {
@@ -74,6 +77,23 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
     if last != "Enter" {
         return None;
     }
+    if let Some(at) = body.iter().position(|&t| t == "Palette") {
+        let (sel, rest) = body.split_at(at);
+        let number = match rest {
+            [_, n] => number(Some(n))?,
+            _ => return None,
+        };
+        let selection = if sel.is_empty() {
+            Vec::new()
+        } else {
+            selection(sel)?
+        };
+        return Some(Command {
+            selection,
+            level: None,
+            palette: Some(number),
+        });
+    }
     let (sel, level) = match body.iter().position(|&t| t == "@") {
         Some(at) => {
             let (sel, rest) = body.split_at(at);
@@ -92,7 +112,11 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
     } else {
         selection(sel)?
     };
-    Some(Command { selection, level })
+    Some(Command {
+        selection,
+        level,
+        palette: None,
+    })
 }
 
 /// PRG-11: anything that does not fit the grammar is refused, naming the line.

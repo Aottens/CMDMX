@@ -9,6 +9,7 @@
 //! - [`library`]    fixture library importers: QLC+ `.qxf` (LIB-05..10, 15..18)
 //! - [`colour`]     colour as one value: target RGB, HSI/RGB/CMY wheel views (ADR-005)
 //! - [`value`]      what an attribute holds: a level or a colour
+//! - [`palette`]    palettes: storage, kind detection, resolving, icons (`specs/modules/palettes.md`)
 //! - [`patch`]      fixtures on universes/addresses
 //! - [`playback`]   playbacks: priority, fader mode, values, runtime level
 //! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
@@ -22,6 +23,7 @@ pub mod colour;
 pub mod command;
 pub mod engine;
 pub mod library;
+pub mod palette;
 pub mod patch;
 pub mod playback;
 pub mod profile;
@@ -96,6 +98,32 @@ pub enum CoreError {
     AttributeNotInTargets(String),
     #[error("invalid pattern of {0} stages (expected at least 2)")]
     InvalidPattern(usize),
+    #[error("unknown palette {0}")]
+    UnknownPalette(u32),
+    #[error("palette numbers are 1 to {max}", max = crate::palette::MAX_NUMBER)]
+    InvalidPaletteNumber(u32),
+    #[error("palette number {0} is already in use")]
+    PaletteNumberInUse(u32),
+    #[error("no free palette numbers")]
+    NoFreePaletteNumbers,
+    #[error("palette id {0} is already in use")]
+    DuplicatePalette(u32),
+    #[error("{window} cell {handle} is not a place for a palette (handles start at 1)")]
+    InvalidPaletteCell { window: String, handle: u16 },
+    #[error("{window} cell {handle} already holds a palette")]
+    PaletteCellInUse { window: String, handle: u16 },
+    #[error("Palette {0} is used: Replace, Merge or Quick Merge")]
+    PaletteUsed(u32),
+    #[error("Nothing in the programmer for {0}")]
+    NothingToRecord(String),
+    #[error("Palette {0} does not fit the selection")]
+    PaletteDoesNotFit(String),
+    #[error("Record as Shared: the values differ inside a fixture type")]
+    SharedValuesDiffer,
+    #[error("a legend is at most {max} characters", max = crate::palette::MAX_LEGEND)]
+    InvalidLegend,
+    #[error("invalid icon id '{0}' (expected category.name, lower case a-z 0-9 . -, at most 48 characters)")]
+    InvalidIcon(String),
     #[error("import of '{source}' failed: {problem}")]
     ImportFailed {
         // `r#` keeps thiserror from treating this String as an error source.

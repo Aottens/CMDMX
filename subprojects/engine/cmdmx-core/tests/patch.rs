@@ -453,8 +453,8 @@ fn pat_13_change_mode_keeps_matching_attributes_and_drops_the_rest() {
         values: BTreeMap::from([(
             m,
             BTreeMap::from([
-                ("Tilt".to_string(), Value::Level(0.3)),
-                ("Zoom".to_string(), Value::Level(0.7)),
+                ("Tilt".to_string(), 0.3.into()),
+                ("Zoom".to_string(), 0.7.into()),
             ]),
         )]),
     });
