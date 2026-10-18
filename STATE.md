@@ -12,7 +12,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial at 250000 baud, ≤ 1 write per 30 ms, product-string detection (the owner's Eurolite MK2 needs `--serial <path>`) and hotplug (VS1-04, verified on the MK2 except mid-run unplug, VS4-02), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
 - ADR-006 accepted, `fixture-library.md` LIB-01..17 and `patch.md` PAT-01..14 approved; build tasks VS2-08..13 in BACKLOG. LIB-17 (owner, 2026-10-17): emitters are generic — recognised by an `emitter` flag, never by name, any number (Amber, Warm/Cold White, UV, Royal Blue, …)
 - Patch over IPC + Patch screen (VS2-12, merged): snapshot `fixtures` entries carry number, name, profile, mode, universe.address, footprint, virtual dimmer and handle, a `fixtures` delta after any patch change, `patch.add/move/remove/renumber/name/change_mode/handle` (PAT-09); library fixtures are patched under `Manufacturer/Model`, fetched from the library in the client thread; the app has a workspace rail (Program / Patch) and a Patch screen with the table, an Add panel with library search and row edits with two-step confirm for Remove and Change Mode (PAT-10). Owner run passed: `tests/manual/runs/2026-10-17-VS2-12.md` (findings → IDEA-08 browse by manufacturer, IDEA-09 multi-select)
 - Library (VS2-11, merged): the QLC+ set (1781 fixtures, pinned, fetched by `subprojects/engine/scripts/fetch-qlcplus.sh`, not in git) indexed in the background at daemon start; word search, user profiles that hide the QLC+ one, profiles from a channel list (LIB-11), edited profiles saved atomically (LIB-12), `library.*` over IPC (LIB-14); 1779 of 1781 QLC+ files import
@@ -29,14 +29,19 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS2-13 awaits owner review; the owner ran the one-off into the real folders on 2026-10-18 (*Kerk* with 56 fixtures, 9 user profiles); next he ticks `tests/hardware/church.md` (desk part now, the rest at the church)
+- VS4-02 Eurolite fixes (OUT-20/23/24) in PR #34, awaiting owner review. VS2-13 awaits owner review; the owner ran the one-off into the real folders on 2026-10-18 (*Kerk* with 56 fixtures, 9 user profiles); next he ticks `tests/hardware/church.md` (desk part now, the rest at the church)
 
 ## Blocked
-- VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
+- VS4-02 / VS1-04 gate 3 (Eurolite MK2, on the owner's desk): run `tests/hardware/runs/2026-10-18-VS4-02.md`
+  passed except two lines. The MK2 needs 250000 baud (OUT-20), is not auto-detected (FTDI default string
+  "FT232R USB UART", no reply to ENTTEC requests; the log names it with a `--serial` hint, OUT-23), and flickers
+  an LED par at 40 Hz, so serial writes at most every 30 ms (OUT-24, 20 Hz). Left: mid-run unplug (OUT-12),
+  and "some visible steps" in a dragged fade (20 Hz, or the par's low end? try a 33 Hz own timer, compare
+  with Lightkey). Never run the Demo show on the real rig: its demo fixtures on 9–150 lit real lamps.
 
 ## Hardware available for testing
 - Behringer BCF2000 (use in Mackie Control mode)
-- Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, ENTTEC Pro protocol, product string "Eurolite DMX512 Pro") — **at the church, not on the desk**; its hardware checks wait for a visit
+- Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, product string "FT232R USB UART", ENTTEC Pro label 6 at 250000 baud, ≤ 33 Hz) — on the owner's desk since 2026-10-18 with six 1-channel dimmers (185–190) and an RGBL par (361–364)
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Repo

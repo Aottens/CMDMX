@@ -1,5 +1,5 @@
 //! ENTTEC DMX USB Pro API framing (also spoken by DMXking and the
-//! Eurolite USB-DMX512 PRO Interface MK2 — see OUT-09).
+//! Eurolite USB-DMX512 PRO Interface MK2 — see OUT-09, OUT-20).
 //!
 //! Every message:
 //! ```text
@@ -18,9 +18,9 @@ pub const LABEL_GET_WIDGET_PARAMS: u8 = 3;
 pub const LABEL_GET_SERIAL: u8 = 10;
 pub const MIN_CHANNELS: usize = 24;
 
-/// Serial settings for the macOS VCP device. The FTDI chip re-times the DMX
-/// line itself; the host baud rate only governs USB-serial transfer.
-pub const VCP_BAUD: u32 = 115_200;
+/// Serial baud rate (OUT-20): the Eurolite MK2's microcontroller UART runs at
+/// 250000 and ignores frames at other rates; FT245-based ENTTEC Pros ignore the baud.
+pub const VCP_BAUD: u32 = 250_000;
 
 /// USB product-string fragments that identify ENTTEC-Pro-protocol devices
 /// sharing the generic FTDI VID/PID 0403:6001. Match case-insensitively.
@@ -106,6 +106,11 @@ mod tests {
         assert!(is_pro_product_string("DMX USB PRO"));
         assert!(is_pro_product_string("DMXking ultraDMX Micro"));
         assert!(!is_pro_product_string("FT232R USB UART")); // Open DMX clone: never Pro
+    }
+
+    #[test]
+    fn out_20_serial_runs_at_the_eurolite_mk2_rate() {
+        assert_eq!(VCP_BAUD, 250_000);
     }
 
     #[test]

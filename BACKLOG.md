@@ -12,7 +12,7 @@ Software first (owner, 2026-10-17): VS1-05/06 next; VS1-07 and the VS1-04 hardwa
 | VS1-01 | `cargo test` is green on a fresh clone, `swift build` produces a binary in `subprojects/app` on the owner's Mac. | — | S | done (2026-10-16; no Swift test target, see CLAUDE.md) |
 | VS1-02 | Daemon opens an Art-Net broadcast socket and emits the current frame of universe 1 at 40 Hz; owner sees it in an Art-Net monitor. | OUT-01..04, 11, 12, 15 | M | done (2026-10-16; hardware run `tests/hardware/runs/2026-10-16-VS1-02.md`) |
 | VS1-03 | Daemon emits sACN universe 1 (priority 100) alongside Art-Net; owner sees it in sACNView. | OUT-05..07, 16, 17 | S | done (2026-10-17; hardware run `tests/hardware/runs/2026-10-17-VS1-03.md`) |
-| VS1-04 | Daemon detects the Eurolite MK2 by USB product string, opens its serial port and sends ENTTEC-Pro frames; owner's dimmer follows a fader. | OUT-08, 09, 12, 20..22, hardware checklist | M | blocked (code merged; gate 3 at the church, see VS4-02) |
+| VS1-04 | Daemon detects the Eurolite MK2 by USB product string, opens its serial port and sends ENTTEC-Pro frames; owner's dimmer follows a fader. | OUT-08, 09, 12, 20..24, hardware checklist | M | gate 3 mostly passed on the owner's desk 2026-10-18 (`tests/hardware/runs/2026-10-18-VS4-02.md`); mid-run unplug and fade steps open, see VS4-02 |
 | VS1-05 | IPC contract v0: app connects, receives state snapshot, sends `fader.set`, receives delta; reconnect after daemon restart. | IPC-01..09 | M | done (2026-10-17; manual run `tests/manual/runs/2026-10-17-VS1-05.md`) |
 | VS1-06 | App shows `faders_per_page` on-screen faders bound to playbacks of page 1; moving one changes DMX. | PBK (subset) | M | todo |
 | VS1-07 | MCU driver: BCF2000 fader 1 pitchbend moves playback 1; engine echoes level back and the motor follows after a page change. | CTL-01..04 | M | parked (hardware track: BCF2000 not at hand) |
@@ -73,7 +73,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
 | VS4-01 | Write `tests/hardware/church.md`: checklist for running a service (rig patched, all fixture types match, front-out works, fallback to Lightkey ready). | — | S | todo |
-| VS4-02 | At the church: VS1-04 serial lines of `tests/hardware/output.md` pass with the Eurolite. | OUT-09, 20..22 | S | blocked (needs a church visit) |
+| VS4-02 | VS1-04 serial lines of `tests/hardware/output.md` pass with the Eurolite (now on the owner's desk). | OUT-09, 20..24 | S | in progress: 250000 baud (OUT-20), no auto-detect + hint (OUT-23), 20 Hz (OUT-24) in PR; left: mid-run unplug (OUT-12), visible steps in a dragged fade (20 Hz vs 33 Hz own timer, compare with Lightkey) |
 | VS4-04 | The church TouchOSC layout drives ColourmotionDMX through OSC (CTL/P1-05), so the remote in the other room keeps working. | CTL | M | todo |
 | VS4-03 | One real Sunday morning service run entirely on ColourmotionDMX, Lightkey on standby as fallback; checklist ticked. | all phase 1 | — | todo |
 

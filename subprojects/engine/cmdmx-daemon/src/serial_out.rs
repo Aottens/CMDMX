@@ -12,6 +12,9 @@ use crate::output::{Health, OutputState};
 
 const RESCAN: Duration = Duration::from_secs(1);
 const WRITE_TIMEOUT: Duration = Duration::from_millis(100);
+/// OUT-24 calibration constant: the Eurolite MK2 restarts its DMX frame when a
+/// new USB frame arrives; 40 Hz flickered, <= 33 Hz was steady.
+const MIN_WRITE_INTERVAL: Duration = Duration::from_millis(30);
 
 /// OUT-09: the lowest `/dev/cu.*` path whose USB product string is a known
 /// ENTTEC Pro one, with that product string. Anything else is never used.
@@ -30,11 +33,37 @@ pub fn pick_port(ports: &[SerialPortInfo]) -> Option<(String, String)> {
         .min()
 }
 
+/// OUT-23: the once-logged "no interface" line, naming FTDI ports (VID 0x0403)
+/// on `/dev/cu.*` that OUT-09 does not use, lowest path first.
+pub fn missing_message(ports: &[SerialPortInfo]) -> String {
+    let mut ftdi: Vec<(&str, &str)> = ports
+        .iter()
+        .filter(|p| p.port_name.starts_with("/dev/cu."))
+        .filter_map(|p| match &p.port_type {
+            SerialPortType::UsbPort(usb) if usb.vid == 0x0403 => {
+                Some((p.port_name.as_str(), usb.product.as_deref().unwrap_or("")))
+            }
+            _ => None,
+        })
+        .collect();
+    ftdi.sort();
+    let mut msg = String::from("serial: no ENTTEC Pro interface found");
+    for (path, product) in &ftdi {
+        msg.push_str("; ");
+        msg.push_str(&format!(
+            "FTDI \"{product}\" at {path} not used \
+             (start with --serial {path} if it is a Eurolite USB-DMX512 PRO MK2)"
+        ));
+    }
+    msg
+}
+
 pub struct SerialNode {
     /// `--serial <path>` (OUT-22); `None` = detect (OUT-09).
     fixed_path: Option<String>,
     port: Option<Box<dyn SerialPort>>,
     last_scan: Option<Instant>,
+    last_write: Option<Instant>,
     said_missing: bool,
     health: Health,
 }
@@ -45,6 +74,7 @@ impl SerialNode {
             fixed_path,
             port: None,
             last_scan: None,
+            last_write: None,
             said_missing: false,
             health: Health::default(),
         }
@@ -62,22 +92,30 @@ impl SerialNode {
             }
             self.last_scan = Some(now);
             match self.open() {
-                Ok(Some((port, msg))) => {
+                Ok(Ok((port, msg))) => {
                     self.port = Some(port);
+                    self.last_write = Some(now);
                     let written = self.write(data);
                     return Some(msg)
                         .into_iter()
                         .chain(written)
                         .reduce(|a, b| a + "\n" + &b);
                 }
-                Ok(None) if !self.said_missing && !self.health.is_degraded() => {
+                Ok(Err(missing)) if !self.said_missing && !self.health.is_degraded() => {
                     self.said_missing = true;
-                    return Some("serial: no ENTTEC Pro interface found".into());
+                    return Some(missing);
                 }
-                Ok(None) => return None,
+                Ok(Err(_)) => return None,
                 Err(e) => return self.log(&Err(e)),
             }
         }
+        if self
+            .last_write
+            .is_some_and(|t| now.duration_since(t) < MIN_WRITE_INTERVAL)
+        {
+            return None;
+        }
+        self.last_write = Some(now);
         self.write(data)
     }
 
@@ -106,14 +144,19 @@ impl SerialNode {
         self.health.record(result).map(|m| format!("serial: {m}"))
     }
 
-    /// `Ok(None)` = no interface present (not an error at startup, OUT-21).
-    fn open(&self) -> io::Result<Option<(Box<dyn SerialPort>, String)>> {
+    /// `Ok(Err(line))` = no interface present, with the OUT-23 log line (not an
+    /// error at startup, OUT-21).
+    #[allow(clippy::type_complexity)]
+    fn open(&self) -> io::Result<Result<(Box<dyn SerialPort>, String), String>> {
         let (path, product) = match &self.fixed_path {
             Some(path) => (path.clone(), "--serial".to_string()),
-            None => match pick_port(&serialport::available_ports()?) {
-                Some(found) => found,
-                None => return Ok(None),
-            },
+            None => {
+                let ports = serialport::available_ports()?;
+                match pick_port(&ports) {
+                    Some(found) => found,
+                    None => return Ok(Err(missing_message(&ports))),
+                }
+            }
         };
         let port = serialport::new(&path, enttec::VCP_BAUD)
             .data_bits(DataBits::Eight)
@@ -122,7 +165,7 @@ impl SerialNode {
             .flow_control(FlowControl::None)
             .timeout(WRITE_TIMEOUT)
             .open()?;
-        Ok(Some((
+        Ok(Ok((
             port,
             format!("serial: ENTTEC Pro \"{product}\" at {path}"),
         )))
@@ -185,6 +228,32 @@ mod tests {
     }
 
     #[test]
+    fn out_23_no_interface_line_names_unused_ftdi_ports() {
+        let mut other = usb("/dev/cu.usbserial-Z9", Some("Arduino"));
+        if let SerialPortType::UsbPort(info) = &mut other.port_type {
+            info.vid = 0x2341;
+        }
+        let ports = [
+            usb("/dev/cu.usbserial-B2", None),
+            usb("/dev/tty.usbserial-AQ01FA9F", Some("FT232R USB UART")),
+            other,
+            usb("/dev/cu.usbserial-AQ01FA9F", Some("FT232R USB UART")),
+        ];
+        assert_eq!(
+            missing_message(&ports),
+            "serial: no ENTTEC Pro interface found; \
+             FTDI \"FT232R USB UART\" at /dev/cu.usbserial-AQ01FA9F not used \
+             (start with --serial /dev/cu.usbserial-AQ01FA9F if it is a Eurolite USB-DMX512 PRO MK2); \
+             FTDI \"\" at /dev/cu.usbserial-B2 not used \
+             (start with --serial /dev/cu.usbserial-B2 if it is a Eurolite USB-DMX512 PRO MK2)"
+        );
+        assert_eq!(
+            missing_message(&ports[2..3]),
+            "serial: no ENTTEC Pro interface found"
+        );
+    }
+
+    #[test]
     fn out_20_frames_arrive_byte_exact_through_the_raw_port() {
         let (mut master, slave) = TTYPort::pair().unwrap();
         master.set_timeout(Duration::from_secs(2)).unwrap();
@@ -203,6 +272,31 @@ mod tests {
         let mut got = vec![0u8; expected.len()];
         master.read_exact(&mut got).unwrap();
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn out_24_at_most_one_write_per_30_ms() {
+        let (mut master, slave) = TTYPort::pair().unwrap();
+        master.set_timeout(Duration::from_millis(200)).unwrap();
+        let mut node = SerialNode::new(None);
+        node.port = Some(Box::new(slave));
+        let t0 = Instant::now();
+        let frame_len = cmdmx_protocols::enttec::send_dmx_frame(&[0; 512])
+            .unwrap()
+            .len();
+        let mut written = Vec::new();
+        for ms in [0u64, 25, 50, 75, 80, 100] {
+            assert_eq!(
+                node.send(&[ms as u8; 512], t0 + Duration::from_millis(ms)),
+                None
+            );
+            let mut got = vec![0u8; frame_len];
+            if master.read_exact(&mut got).is_ok() {
+                written.push(got[5]);
+            }
+        }
+        // Written at 0, 50 and 80 (30 ms after 50); 25, 75 and 100 come too soon.
+        assert_eq!(written, [0, 50, 80]);
     }
 
     #[test]
