@@ -769,6 +769,66 @@ mod tests {
         assert!(parse_args(args("--show-dir")).is_err());
     }
 
+    /// Every flag `parse_args` knows, `--help` included.
+    const FLAGS: [&str; 15] = [
+        "--help",
+        "--ticks",
+        "--no-artnet",
+        "--artnet-target",
+        "--no-sacn",
+        "--sacn-unicast",
+        "--sacn-priority",
+        "--no-serial",
+        "--serial",
+        "--ipc-port",
+        "--demo",
+        "--qlcplus-dir",
+        "--profiles-dir",
+        "--show-dir",
+        "-h",
+    ];
+
+    #[test]
+    fn shw_18_help_flag_asks_for_usage() {
+        assert!(!parse_args(args("")).unwrap().help);
+        assert!(parse_args(args("--help")).unwrap().help);
+        assert!(parse_args(args("-h")).unwrap().help);
+        assert!(parse_args(args("--show-dir /tmp/x --help")).unwrap().help);
+    }
+
+    #[test]
+    fn shw_18_usage_names_every_flag_one_per_line() {
+        // A flag's line starts with it (`-h, --help` shares one line).
+        for flag in FLAGS {
+            let lines = USAGE
+                .lines()
+                .filter(|l| {
+                    l.split_whitespace()
+                        .take(2)
+                        .any(|w| w.trim_end_matches(',') == flag)
+                })
+                .count();
+            assert_eq!(lines, 1, "{flag} must start exactly one usage line");
+        }
+    }
+
+    #[test]
+    fn shw_18_unknown_argument_is_an_error() {
+        let e = parse_args(args("--bogus")).err().unwrap();
+        assert_eq!(e, "unknown argument '--bogus'");
+        assert!(parse_args(args("--ticks 1 -x")).is_err());
+        assert!(parse_args(args("Kerk")).is_err());
+        assert!(parse_args(args("--show-dir /tmp/x --helpme")).is_err());
+    }
+
+    #[test]
+    fn shw_18_ticks_value_must_be_a_whole_number() {
+        assert_eq!(parse_args(args("--ticks 5")).unwrap().ticks, Some(5));
+        assert!(parse_args(args("--ticks nope")).is_err());
+        assert!(parse_args(args("--ticks -1")).is_err());
+        assert!(parse_args(args("--ticks")).is_err());
+    }
+
     #[test]
     fn shw_03_demo_show_round_trips() {
         let meta = cmdmx_core::show::Meta {
