@@ -39,10 +39,11 @@ Early, under active development, not yet for real shows. What works today:
 
 - Show file: the engine keeps the show in one readable JSON file in
   `~/Documents/ColourmotionDMX/Shows/`. It autosaves within 5 seconds of any change, survives a
-  crash, and opens the last show again when it starts.
+  crash, and opens the last show again when it starts. The Show screen opens, creates and saves
+  shows under a new name; the status bar shows the show and when it was last saved.
 
-Next: a Show screen in the app (open, new, save as). Then filling the
-rest of the main screen: the keypad and softkeys, then the playback area. The design is a clickable sketch in
+Next: the church patch from the Lightkey export, and filling the rest of the main screen: the
+keypad and softkeys, then the playback area. The design is a clickable sketch in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes, playbacks
 and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

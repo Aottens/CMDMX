@@ -81,7 +81,8 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
   first autosave can replace it, and says so in the warning.
 - **SHW-13** When an autosave fails (disk full, no permission) the engine keeps running, the
   daemon warns once and retries every 5 s; the warning repeats only after a save has worked again
-  and then fails anew. The show state (SHW-14) says the autosave is failing.
+  and then fails anew. When a save works again after a failure, the daemon says so once ("autosave
+  of Kerk works again"), so the failure message does not stay on screen (owner, SHW-c run). The show state (SHW-14) says the autosave is failing.
 - **SHW-14** Crash recovery: when the daemon opens a show and finds a `.tmp` next to it that is
   newer than the show file and loads without being refused, the crash came between write and
   rename: the `.tmp` is renamed over the show file and a warning says the autosave of <time> was

@@ -188,13 +188,14 @@ impl Shows {
             io::ErrorKind::NotFound => format!("there is no show named {name}"),
             _ => format!("cannot read {name}: {e}"),
         })?;
-        let (show, migrations) = Show::from_json(&json).map_err(|e| {
-            let msg = e.to_string();
-            if msg.contains(name) {
-                msg
-            } else {
-                format!("{name}: {msg}")
-            }
+        let (show, migrations) = Show::from_json(&json).map_err(|e| match e {
+            // The core names meta.name from inside the file; a copy has another name.
+            cmdmx_core::CoreError::ShowTooNew {
+                found, supported, ..
+            } => format!(
+                "{name} was made by a newer ColourmotionDMX (schema {found}; this one reads up to {supported})"
+            ),
+            e => format!("{name}: {e}"),
         })?;
         let (engine, lost) = Engine::from_show(&show);
         if !lost.is_empty() || !migrations.is_empty() {
@@ -358,7 +359,8 @@ impl Autosave {
         self.changed(engine, wall)
     }
 
-    /// The saver's answer. Returns a warning on the first failure of a streak (SHW-13).
+    /// The saver's answer. Returns a warning on the first failure of a streak and a
+    /// note on the first success after one (SHW-13).
     pub fn finished(&mut self, done: Done) -> Option<String> {
         let name = done.show.meta.name.clone();
         if name != self.meta.name {
@@ -370,10 +372,10 @@ impl Autosave {
         }
         match done.result {
             Ok(()) => {
-                self.ok = true;
+                let was_failing = !std::mem::replace(&mut self.ok, true);
                 self.saved_at = Some(done.at);
                 self.saved = Some(done.show);
-                None
+                was_failing.then(|| format!("autosave of {name} works again"))
             }
             Err(e) => {
                 let first = std::mem::replace(&mut self.ok, false);
@@ -773,13 +775,15 @@ mod tests {
         let job = a.poll(&e, 10.0, WALL).expect("retried after 5 s");
         assert!(fail(&mut a, job).is_none(), "warned once");
         let job = a.poll(&e, 15.0, WALL).unwrap();
-        assert!(a
-            .finished(Done {
-                show: job.show,
-                result: Ok(()),
-                at: WALL.into()
-            })
-            .is_none());
+        let back = a.finished(Done {
+            show: job.show,
+            result: Ok(()),
+            at: WALL.into(),
+        });
+        assert!(
+            back.unwrap().contains("works again"),
+            "said once when it works again"
+        );
         assert!(a.state().autosave_ok);
         e.patch_name(101, "Right wash").unwrap();
         let job = a.poll(&e, 20.0, WALL).unwrap();
@@ -854,6 +858,18 @@ mod tests {
         let opened = s.open("kerk").unwrap();
         assert_eq!(opened.name, "Kerk");
         assert_eq!(opened.meta.name, "Kerk");
+    }
+
+    #[test]
+    fn shw_04_a_refusal_names_the_file_not_the_name_inside_it() {
+        // A copy of Kerk saved by a newer version under another file name (SHW-c run).
+        let s = shows("refused-copy");
+        let json =
+            save(&s, "Kerk", &demo()).replace("\"schema_version\": 1", "\"schema_version\": 9");
+        fs::write(s.path("Toekomst"), json).unwrap();
+        let err = s.open("Toekomst").unwrap_err();
+        assert!(err.contains("Toekomst") && err.contains("newer"), "{err}");
+        assert!(!err.contains("Kerk"), "{err}");
     }
 
     #[test]

@@ -6,7 +6,7 @@ _Last updated: 2026-10-18_
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
 
 ## Working
-- Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core: schema v1, `Engine::to_show/from_show`, stable JSON, version check, lenient load) merged (#30); SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.list/new/open/save_as` over IPC) in review
+- Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core, #30) and SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` over IPC, #31) merged; SHW-c (app: show name + autosave age in the status bar, Show screen with Open/New/Save As) in review, owner run `tests/manual/runs/2026-10-18-SHW-c.md` passed
 - Repo scaffold: meta-layer, ADR-001..004, PRD, module specs (3 written, 3 skeleton)
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
@@ -28,7 +28,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- SHW-b awaits owner review (SHW-a merged #30); the church Lightkey export follows after the owner's next church visit
+- SHW-c awaits owner review; the church Lightkey export follows after the owner's next church visit
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -44,21 +44,22 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 ## Resume next session with
 Start a fresh session (read PROJECT/STATE/ARCHITECTURE/DECISIONS, CLAUDE.md). The app now runs in
 its real main screen (`specs/modules/ui.md`, UI-01..26; README screenshot). The show file is
-specced (SHW-01..17); core (SHW-a) and daemon (SHW-b) are built: the daemon opens the last show
-from `~/Documents/ColourmotionDMX/Shows/` and autosaves it. Next: **SHW-c** (status bar show name +
-autosave age, Show screen with Open/New/Save As, `tests/manual/app-show.md`). Then, owner's choice:
+done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
+`~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
+runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
 - **VS2-13**: the church patch from the owner's Lightkey export (patch list or decoded show file),
-  entered through the patch commands; `tests/hardware/church.md` (VS4-01).
+  entered through the patch commands into the show *Kerk* (waits for the owner's church visit); `tests/hardware/church.md` (VS4-01).
 - **UX-02c**: side column live (UI-16..19): function buttons (Record moves from the Groups window),
   keypad sending tokens, softkeys, token command line with Keys mode (Mac keys), ⌘1–⌘4 next to
   F1–F4, command history Up/Down (IDEA-12: amend UI-19 first, ask the owner whether history
   survives an app restart), and make every disabled button look equally greyed.
 - **UX-02d** with VS1-06: playback area and paging.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
-  (multi-select in the patch table), P1-03 palettes, P1-09 show file, P1-05 control surfaces.
+  (multi-select in the patch table), P1-03 palettes, P1-04 playbacks, P1-05 control surfaces.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
 failing tests and reviews. The owner likes to be walked through manual runs step by step (one
 step per message, tick the run file in `tests/manual/runs/`). CI runs a newer Rust than the Mac:
 check PR CI. Disk is nearly full: `cargo clean` after a task. Don't run `git checkout` in the
-owner's tree while subagents work. Open owner question: read the two Eurolite IP PIX Strobe QLC+
-files leniently or keep refusing them (LIB-10)? IDEA-10 (output lamps) phase still to confirm.
+owner's tree while subagents work. The two Eurolite IP PIX Strobe QLC+ files stay refused (owner, 2026-10-18). IDEA-10 (output
+lamps) phase still to confirm. Open point from the SHW-c run: engine messages are all amber, also
+good news ("autosave … works again"); a calmer info colour needs an `info` message type.
