@@ -43,6 +43,12 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
   ("serial: ENTTEC Pro \"--serial\" at …") and then reports "serial: Degraded: Operation timed
   out": find out whether the write or the widget-params read times out, and whether the dimmer
   responds at all.
+  Second try: the owner set all lamps up, nothing on the dimmer, still Degraded. Hypotheses
+  (untested): (1) `serial_out.rs` opens at 115200 baud with a 100 ms write timeout; a 518-byte
+  frame takes ~45 ms at 115200 but the tick sends one every 25 ms, so the FT232R UART (unlike the
+  real ENTTEC Pro's FT245 FIFO) backs up and times out; try the MK2's real baud rate / frame pacing.
+  (2) Lightkey asks for an admin password to start output, which suggests it detaches Apple's
+  FTDI VCP driver and talks D2XX/libusb; the VCP route may not work for this unit.
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
 
 ## Hardware available for testing
