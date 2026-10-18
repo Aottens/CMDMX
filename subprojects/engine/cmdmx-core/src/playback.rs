@@ -1,19 +1,22 @@
 //! Playbacks: a handle with content, a priority, a fader mode and a live level.
 //!
-//! Phase 1 scope (see `specs/modules/playbacks.md`, still a skeleton): fader
-//! modes 0/1/2, priority, level, activation order. Release masks, kill points,
-//! times and chases follow once that spec is written.
+//! Storage and options (`specs/modules/playbacks.md` PBK-06..14, 24, 31..34); the engine owns
+//! the state and the actions. Behaviour of times, kill and release on the frame follows with
+//! VS2-21.
 
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::attribute::AttributeGroup;
+use crate::colour::TargetColour;
+use crate::palette::{RecordBy, RecordMode};
 use crate::patch::FixtureId;
 use crate::value::Stored;
 
 pub type PlaybackId = u32;
 
-/// PBK-01: the number of pages of playbacks.
+/// PBK-06: the number of pages of playbacks.
 pub const PAGES: u16 = 10;
 
 /// Titan's five priority levels, lowest first. Ordering is meaningful.
@@ -62,22 +65,152 @@ impl From<FaderMode> for u8 {
 /// Attribute values a playback proposes: fixture → attribute name → value or palette reference.
 pub type Values = BTreeMap<FixtureId, BTreeMap<String, Stored>>;
 
+/// PBK-19: when a playback leaves the merge (behaviour on the frame is VS2-21).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum KillPoint {
+    /// Effective level 0 and the intensity master has reached 0.
+    #[default]
+    FadeOutComplete,
+    /// As soon as the effective level is 0.
+    FaderAtZero,
+}
+
+/// PBK-07: Titan's Handle Paging.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Paging {
+    /// Shown only on its home page.
+    #[default]
+    Unlocked,
+    /// Shown at its slot on every page.
+    Locked,
+    /// Shown at its slot on every page whose own slot is empty.
+    TransparentLock,
+}
+
+/// PBK-34: one cue, its times (seconds 0–600, overlap 0–100 %) and its values.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Playback {
-    pub id: PlaybackId,
-    #[serde(default = "default_priority")]
-    pub priority: Priority,
-    #[serde(default = "default_fader_mode")]
-    pub fader_mode: FaderMode,
+pub struct Cue {
+    #[serde(default)]
+    pub delay: f32,
+    #[serde(default)]
+    pub fade_in: f32,
+    #[serde(default)]
+    pub fade_out: f32,
+    #[serde(default = "full_overlap")]
+    pub overlap: f32,
     pub values: Values,
 }
 
-fn default_priority() -> Priority {
-    Priority::Normal
+fn full_overlap() -> f32 {
+    100.0
 }
 
-fn default_fader_mode() -> FaderMode {
-    FaderMode::Mode0
+impl Cue {
+    /// Zero times, full overlap.
+    pub fn new(values: Values) -> Self {
+        Cue {
+            delay: 0.0,
+            fade_in: 0.0,
+            fade_out: 0.0,
+            overlap: full_overlap(),
+            values,
+        }
+    }
+}
+
+/// PBK-34: a handle's content and options. Field order is the key order in the show file.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Playback {
+    pub id: PlaybackId,
+    /// Home handle (PBK-06): page 1..=`PAGES`, slot 1-based.
+    pub page: u16,
+    pub slot: u16,
+    /// 0–32 characters (PBK-31).
+    pub legend: String,
+    /// A built-in icon id, else the automatic icon (PBK-31).
+    pub icon: Option<String>,
+    /// `None` = automatic (PBK-33).
+    pub halo: Option<TargetColour>,
+    pub priority: Priority,
+    pub fader_mode: FaderMode,
+    pub kill_point: KillPoint,
+    /// `None` = the global setting (PBK-20).
+    pub release_mask: Option<Vec<AttributeGroup>>,
+    pub release_time: Option<f32>,
+    pub paging: Paging,
+    /// 1–99 (PBK-25).
+    pub group: Option<u8>,
+    /// Phase 1 records exactly one; the merge reads the first.
+    pub cues: Vec<Cue>,
+}
+
+impl Playback {
+    /// One cue with zero times; everything else at its default.
+    pub fn new(id: PlaybackId, page: u16, slot: u16, values: Values) -> Self {
+        Playback {
+            id,
+            page,
+            slot,
+            legend: String::new(),
+            icon: None,
+            halo: None,
+            priority: Priority::Normal,
+            fader_mode: FaderMode::Mode0,
+            kill_point: KillPoint::default(),
+            release_mask: None,
+            release_time: None,
+            paging: Paging::default(),
+            group: None,
+            cues: vec![Cue::new(values)],
+        }
+    }
+
+    /// The first cue's values (phase 1 has one cue).
+    pub fn values(&self) -> Option<&Values> {
+        self.cues.first().map(|c| &c.values)
+    }
+}
+
+/// `playback.options` and `playback.times` (PBK-36): every field optional; `Option<Option<_>>`
+/// for the nullable ones (`Some(None)` clears). The times are the first cue's.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PlaybackChange {
+    pub priority: Option<Priority>,
+    pub fader_mode: Option<FaderMode>,
+    pub kill_point: Option<KillPoint>,
+    pub release_mask: Option<Option<Vec<AttributeGroup>>>,
+    pub release_time: Option<Option<f32>>,
+    pub paging: Option<Paging>,
+    pub group: Option<Option<u8>>,
+    pub delay: Option<f32>,
+    pub fade_in: Option<f32>,
+    pub fade_out: Option<f32>,
+    pub overlap: Option<f32>,
+}
+
+/// `playback.record` (PBK-36): the handle, the rest optional.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlaybackRecord {
+    pub page: u16,
+    pub slot: u16,
+    /// Default: every group.
+    pub mask: Option<Vec<AttributeGroup>>,
+    /// Default: the setting `cue_record_by`.
+    pub record_by: Option<RecordBy>,
+    /// Only for a used handle; `QuickMerge` is the Update function (PBK-13).
+    pub mode: Option<RecordMode>,
+}
+
+impl PlaybackRecord {
+    pub fn at(page: u16, slot: u16) -> Self {
+        PlaybackRecord {
+            page,
+            slot,
+            mask: None,
+            record_by: None,
+            mode: None,
+        }
+    }
 }
 
 /// Live state of a playback inside the engine.

@@ -983,23 +983,34 @@ fn as_json(show: &Show) -> Json {
     serde_json::from_str(&show.to_json()).unwrap()
 }
 
+/// Each key appears after the previous one in `text`, searching from `from` on (the show has
+/// one playback with one cue here, so a key out of order is not found).
+fn keys_in_order(text: &str, from: &str, keys: &[&str]) {
+    let mut at = text.find(from).unwrap();
+    for key in keys {
+        let pattern = format!("\"{key}\":");
+        let i = text[at..]
+            .find(&pattern)
+            .unwrap_or_else(|| panic!("{key} out of order"));
+        at += i + pattern.len();
+    }
+}
+
 #[test]
 fn pbk_34_schema_3_shape() {
     assert_eq!(SCHEMA_VERSION, 3);
     let mut e = styled();
     e.set_page_legend(2, "Service").unwrap();
-    let v = as_json(&e.to_show(meta()));
-    let keys: Vec<&String> = v.as_object().unwrap().keys().collect();
-    let pos = |k: &str| keys.iter().position(|x| *x == k).unwrap();
-    assert_eq!(pos("pages"), pos("palettes") + 1);
-    assert_eq!(pos("playbacks"), pos("pages") + 1);
+    let text = e.to_show(meta()).to_json();
+    let v: Json = serde_json::from_str(&text).unwrap();
+    // Key order is read from the text (serde_json's `Value` sorts its keys).
+    keys_in_order(&text, "", &["palettes", "pages", "playbacks"]);
     assert_eq!(v["pages"], json!([{"number": 2, "legend": "Service"}]));
     assert_eq!(v["playbacks"]["next_id"], json!(2));
-    let pb = &v["playbacks"]["playbacks"][0];
-    let pb_keys: Vec<&String> = pb.as_object().unwrap().keys().collect();
-    assert_eq!(
-        pb_keys,
-        [
+    keys_in_order(
+        &text,
+        "\"playbacks\": [",
+        &[
             "id",
             "page",
             "slot",
@@ -1013,16 +1024,17 @@ fn pbk_34_schema_3_shape() {
             "release_time",
             "paging",
             "group",
-            "cues"
-        ]
+            "cues",
+            "delay",
+            "fade_in",
+            "fade_out",
+            "overlap",
+            "values",
+        ],
     );
+    let pb = &v["playbacks"]["playbacks"][0];
     assert_eq!(pb["paging"], json!("Unlocked"));
     assert_eq!(pb["kill_point"], json!("FadeOutComplete"));
-    let cue_keys: Vec<&String> = pb["cues"][0].as_object().unwrap().keys().collect();
-    assert_eq!(
-        cue_keys,
-        ["delay", "fade_in", "fade_out", "overlap", "values"]
-    );
     let s = &v["settings"];
     assert_eq!(s["cue_record_by"], json!("Channel"));
     assert_eq!(

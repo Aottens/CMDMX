@@ -11,7 +11,7 @@
 use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::Fixture;
-use cmdmx_core::playback::{FaderMode, Playback, Priority};
+use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::{ColourSystem, Profile, TargetColour};
 use cmdmx_core::CoreError;
 use std::collections::BTreeMap;
@@ -237,15 +237,15 @@ fn lib_01_fixture_uses_its_patched_mode() {
             mode: "99 Channel".into()
         })
     );
-    e.add_playback(Playback {
-        id: 1,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: BTreeMap::from([
+    e.add_playback(Playback::new(
+        1,
+        1,
+        1,
+        BTreeMap::from([
             (1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])),
             (2, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])),
         ]),
-    });
+    ));
     e.set_fader(1, 1.0, 0.0).unwrap();
     e.tick(0.0);
     let f = e.frame(1).unwrap();
@@ -439,12 +439,12 @@ fn lib_03_released_ltp_holds_its_last_value_not_the_default() {
         address: 1,
     })
     .unwrap();
-    e.add_playback(Playback {
-        id: 1,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: BTreeMap::from([(1, BTreeMap::from([("Pan".to_string(), 1.0.into())]))]),
-    });
+    e.add_playback(Playback::new(
+        1,
+        1,
+        1,
+        BTreeMap::from([(1, BTreeMap::from([("Pan".to_string(), 1.0.into())]))]),
+    ));
     e.set_fader(1, 1.0, 0.0).unwrap();
     e.tick(0.0);
     e.set_fader(1, 0.0, 0.025).unwrap();

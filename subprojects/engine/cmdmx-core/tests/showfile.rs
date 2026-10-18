@@ -134,7 +134,7 @@ fn shw_01_top_level_keys_in_order() {
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
-    assert_eq!(SCHEMA_VERSION, 2); // PAL-23
+    assert_eq!(SCHEMA_VERSION, 3); // PBK-34
     assert_eq!(
         v["meta"],
         json!({"name": "Church demo", "created": "2026-10-18T09:00:00Z",

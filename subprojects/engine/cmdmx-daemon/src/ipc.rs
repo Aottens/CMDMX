@@ -1205,7 +1205,7 @@ mod tests {
     use cmdmx_core::colour::ColourModel;
     use cmdmx_core::engine::{Engine, Settings};
     use cmdmx_core::patch::Fixture;
-    use cmdmx_core::playback::{FaderMode, Playback, Priority};
+    use cmdmx_core::playback::Playback;
     use cmdmx_core::profile::Profile;
     use cmdmx_core::programmer::Resolution;
     use serde_json::{json, Value};
@@ -1239,12 +1239,12 @@ mod tests {
             address: 1,
         })
         .unwrap();
-        e.add_playback(Playback {
-            id: 1,
-            priority: Priority::Normal,
-            fader_mode: FaderMode::Mode0,
-            values: BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
-        });
+        e.add_playback(Playback::new(
+            1,
+            1,
+            1,
+            BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
+        ));
         e
     }
 

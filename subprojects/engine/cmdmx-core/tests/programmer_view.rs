@@ -138,21 +138,21 @@ fn prg_29_cleared_intensity_falls_to_zero_in_the_output() {
 
 #[test]
 fn eng_07_htp_falls_to_zero_when_the_last_source_is_killed_ltp_holds() {
-    use cmdmx_core::playback::{FaderMode, Playback, Priority};
+    use cmdmx_core::playback::Playback;
     use std::collections::BTreeMap;
     let mut e = church();
-    e.add_playback(Playback {
-        id: 1,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: BTreeMap::from([(
+    e.add_playback(Playback::new(
+        1,
+        1,
+        1,
+        BTreeMap::from([(
             101,
             BTreeMap::from([
                 ("Dimmer".to_string(), 1.0.into()),
                 ("Tilt".to_string(), 0.6.into()),
             ]),
         )]),
-    });
+    ));
     e.set_fader(1, 1.0, 0.0).unwrap();
     e.tick(0.0);
     assert_eq!((common::dmx(&e, 1), common::dmx(&e, 4)), (255, 153));

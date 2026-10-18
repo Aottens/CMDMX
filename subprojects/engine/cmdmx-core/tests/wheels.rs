@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::engine::Engine;
-use cmdmx_core::playback::{FaderMode, Playback, Priority, Values};
+use cmdmx_core::playback::{Playback, Priority, Values};
 use cmdmx_core::programmer::Resolution;
 use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
@@ -30,10 +30,8 @@ fn values(entries: &[(u32, &str, f32)]) -> Values {
 
 fn playback(e: &mut Engine, id: u32, priority: Priority, entries: &[(u32, &str, f32)]) {
     e.add_playback(Playback {
-        id,
         priority,
-        fader_mode: FaderMode::Mode0,
-        values: values(entries),
+        ..Playback::new(id, 1, 1, values(entries))
     });
     e.set_fader(id, 1.0, 0.0).unwrap();
 }

@@ -30,7 +30,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- P1-04 playbacks: `specs/modules/playbacks.md` PBK-06..45 drafted (2026-10-18), waiting for the owner at gate 1 with seven open questions (Record By default, mode 0/1 time model, key profiles, automatic halo, attribute-group times, where chases and masters go, release defaults). Proposed tasks VS2-20 (core) and VS2-21 (IPC + app)
+- P1-04 playbacks: `specs/modules/playbacks.md` PBK-06..45 approved (owner, 2026-10-18; all seven proposals: Record By Channel, the mode 0/1 time model, fixed Swop/Flash/Latch, automatic halo, attribute-group times and chases with BPM/Rate masters in P1-08, group masters P1-16, Titan release defaults). VS2-20 (core storage: handles and locks, record, Copy/Move/Delete, options, legends/icons/halos, show schema 3 with migration) in review; next VS2-21 (behaviour on the frame) and VS2-22 (IPC + app)
 - VS4-02 (#34) and VS2-13 (#35) merged; *Kerk* is in the owner's Shows folder (56 fixtures, 9 user profiles). Run `tests/hardware/runs/2026-10-18-church.md`: the Patch-screen line passed at home; the desk lines wait for the Eurolite, the rest for the church
 - VS2-16 merged (#38): snapshot `fixtures` entries carry `modes` (PAT-09 amended), Change Mode is a dropdown of them (PAT-10 amended); owner run `tests/manual/runs/2026-10-18-VS2-16.md` passed
 
@@ -57,7 +57,7 @@ done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
 - **VS2-13** gate 3: finish `tests/hardware/runs/2026-10-18-church.md` (desk lines with the Eurolite, the rest at the church).
-- **P1-04** gate 1: answer the open questions in `playbacks.md`, then VS2-20/21. After that P1-08 cue lists; IDEA-10 (output lamps) shows live fades.
+- **VS2-20** in review; then VS2-21 (fader modes, times, release, Flash/Swop, DBO on the frame: scenarios first) and VS2-22 (IPC + app). After that P1-08 cue lists; IDEA-10 (output lamps) shows live fades.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
   (multi-select in the patch table), P1-08 cue lists, P1-05 control surfaces.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and

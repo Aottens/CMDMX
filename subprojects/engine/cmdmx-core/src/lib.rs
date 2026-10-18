@@ -11,7 +11,7 @@
 //! - [`value`]      what an attribute holds: a level or a colour
 //! - [`palette`]    palettes: storage, kind detection, resolving, icons (`specs/modules/palettes.md`)
 //! - [`patch`]      fixtures on universes/addresses
-//! - [`playback`]   playbacks: priority, fader mode, values, runtime level
+//! - [`playback`]   playbacks: handles, cues, options, runtime level
 //! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
 //! - [`command`]    command line parser (`specs/modules/programmer.md` PRG-08..11)
 //! - [`show`]       the show file: schema, (de)serialisation, migrations (`specs/modules/showfile.md`)
@@ -134,6 +134,22 @@ pub enum CoreError {
     InvalidPaletteTime(f32),
     #[error("invalid palette overlap {0} (expected 0 to 100 %)")]
     InvalidPaletteOverlap(f32),
+    #[error("Handle {page}.{slot} is used: Replace or Merge")]
+    HandleUsedRecord { page: u16, slot: u16 },
+    #[error("Handle {page}.{slot} is used")]
+    HandleUsed { page: u16, slot: u16 },
+    #[error("Nothing in the programmer to record")]
+    NothingToRecordPlayback,
+    #[error("invalid time {0} (expected 0 to 600 s)")]
+    InvalidTime(f32),
+    #[error("invalid overlap {0} (expected 0 to 100 %)")]
+    InvalidOverlap(f32),
+    #[error("invalid playback group {0} (expected 1 to 99)")]
+    InvalidGroup(u8),
+    #[error("slot {slot} already holds a Locked playback")]
+    SlotAlreadyLocked { slot: u16 },
+    #[error("invalid halo colour (components are 0.0 to 1.0)")]
+    InvalidHalo,
     #[error("invalid command: {0}")]
     InvalidCommand(String),
     #[error("not a show file: {0}")]

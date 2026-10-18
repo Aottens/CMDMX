@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "Church demo",
     "created": "2026-10-18T09:00:00Z",
@@ -16,7 +16,14 @@
     "colour_model": "Rgb",
     "palette_time": 0.0,
     "palette_overlap": 100.0,
-    "record_by": "Mixed"
+    "record_by": "Mixed",
+    "cue_record_by": "Channel",
+    "cue_delay": 0.0,
+    "cue_fade_in": 0.0,
+    "cue_fade_out": 0.0,
+    "cue_overlap": 100.0,
+    "release_mask": [],
+    "release_time": 2.0
   },
   "profiles": {
     "Showtec/LED Par 56": {
@@ -530,36 +537,76 @@
     "next_id": 1,
     "palettes": []
   },
-  "playbacks": [
-    {
-      "id": 1,
-      "priority": "Normal",
-      "fader_mode": 0,
-      "values": {
-        "101": {
-          "Dimmer": 1.0,
-          "Pan": 0.5
-        },
-        "102": {
-          "Dimmer": 1.0
-        },
-        "103": {
-          "Dimmer": 1.0
-        },
-        "104": {
-          "Dimmer": 1.0
-        }
+  "pages": [],
+  "playbacks": {
+    "next_id": 3,
+    "playbacks": [
+      {
+        "id": 1,
+        "page": 1,
+        "slot": 1,
+        "legend": "",
+        "icon": null,
+        "halo": null,
+        "priority": "Normal",
+        "fader_mode": 0,
+        "kill_point": "FadeOutComplete",
+        "release_mask": null,
+        "release_time": null,
+        "paging": "Unlocked",
+        "group": null,
+        "cues": [
+          {
+            "delay": 0.0,
+            "fade_in": 0.0,
+            "fade_out": 0.0,
+            "overlap": 100.0,
+            "values": {
+              "101": {
+                "Dimmer": 1.0,
+                "Pan": 0.5
+              },
+              "102": {
+                "Dimmer": 1.0
+              },
+              "103": {
+                "Dimmer": 1.0
+              },
+              "104": {
+                "Dimmer": 1.0
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "page": 1,
+        "slot": 2,
+        "legend": "",
+        "icon": null,
+        "halo": null,
+        "priority": "High",
+        "fader_mode": 2,
+        "kill_point": "FadeOutComplete",
+        "release_mask": null,
+        "release_time": null,
+        "paging": "Unlocked",
+        "group": null,
+        "cues": [
+          {
+            "delay": 0.0,
+            "fade_in": 0.0,
+            "fade_out": 0.0,
+            "overlap": 100.0,
+            "values": {
+              "301": {
+                "Dimmer": 0.8
+              }
+            }
+          }
+        ]
       }
-    },
-    {
-      "id": 2,
-      "priority": "High",
-      "fader_mode": 2,
-      "values": {
-        "301": {
-          "Dimmer": 0.8
-        }
-      }
-    }
-  ]
+    ]
+  }
 }

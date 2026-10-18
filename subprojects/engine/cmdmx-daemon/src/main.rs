@@ -40,7 +40,7 @@ use std::time::{Duration, Instant, SystemTime};
 use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::Fixture;
-use cmdmx_core::playback::{FaderMode, Playback, Priority};
+use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
 use cmdmx_core::{CoreError, UNIVERSE_SIZE};
 const TICK: Duration = Duration::from_millis(25);
@@ -561,12 +561,13 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             universe: 1,
             address: n as u16,
         })?;
-        engine.add_playback(Playback {
-            id: n,
-            priority: Priority::Normal,
-            fader_mode: FaderMode::Mode0,
-            values: BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
-        });
+        // PBK-01: where playback n sits, on page 1 while n is up to `faders_per_page`.
+        engine.add_playback(Playback::new(
+            n,
+            1,
+            u16::try_from(n).unwrap_or(1),
+            BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
+        ));
     }
     // IPC-14: the church rig on universe 1, each fixture right after the previous one.
     let mut address = 9;
@@ -615,15 +616,14 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     ];
     // PBK-04: page 2 holds the washes (playback 9) and the front spots (playback 10) at full.
     let per_page = u32::from(Settings::default().faders_per_page);
-    for (offset, ids) in [(1, 101..=104), (2, 301..=306)] {
-        engine.add_playback(Playback {
-            id: per_page + offset,
-            priority: Priority::Normal,
-            fader_mode: FaderMode::Mode0,
-            values: ids
-                .map(|f| (f, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])))
+    for (slot, ids) in [(1, 101..=104), (2, 301..=306)] {
+        engine.add_playback(Playback::new(
+            per_page + u32::from(slot),
+            2,
+            slot,
+            ids.map(|f| (f, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])))
                 .collect(),
-        });
+        ));
     }
     for (group, members) in (1..).zip(groups) {
         for id in members {

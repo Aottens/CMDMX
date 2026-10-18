@@ -23,14 +23,18 @@ use crate::palette::{
     self, Cell, Detected, Entry, Limit, Palette, PaletteId, Record, RecordBy, RecordMode, Timing,
 };
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
-use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values, PAGES};
+use crate::playback::{
+    Cue, FaderMode, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
+    Priority, Values, PAGES,
+};
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
     AttributeGroupState, ColourView, Fade, FixtureValues, GroupId, PaletteUse, Programmer,
     ProgrammerView, Resolution, WheelState,
 };
 use crate::show::{
-    Meta, Show, ShowGroup, ShowPalette, ShowPalettes, ShowPatch, ShowSettings, SCHEMA_VERSION,
+    Meta, Show, ShowGroup, ShowPage, ShowPalette, ShowPalettes, ShowPatch, ShowPlaybacks,
+    ShowSettings, SCHEMA_VERSION,
 };
 use crate::value::{Reference, Stored, Value};
 use crate::{CoreError, Timestamp, UniverseId, Warning, UNIVERSE_SIZE};
@@ -135,7 +139,40 @@ pub struct Settings {
     pub palette_overlap: f32,
     /// Default Record By of palettes (PAL-02).
     pub record_by: RecordBy,
+    /// Default Record By of playbacks, and the times of a new cue (PBK-10, PBK-12).
+    pub cue_record_by: RecordBy,
+    pub cue_delay: f32,
+    pub cue_fade_in: f32,
+    pub cue_fade_out: f32,
+    pub cue_overlap: f32,
+    /// The global release mask and time (PBK-20).
+    pub release_mask: Vec<AttributeGroup>,
+    pub release_time: f32,
 }
+
+/// PBK-12, PBK-20 (`settings.playback`): every field optional, all or nothing.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PlaybackSettingsChange {
+    pub record_by: Option<RecordBy>,
+    pub delay: Option<f32>,
+    pub fade_in: Option<f32>,
+    pub fade_out: Option<f32>,
+    pub overlap: Option<f32>,
+    pub release_mask: Option<Vec<AttributeGroup>>,
+    pub release_time: Option<f32>,
+}
+
+/// PBK-09: the default record mask, every group.
+const ALL_GROUPS: [AttributeGroup; 8] = [
+    AttributeGroup::I,
+    AttributeGroup::P,
+    AttributeGroup::C,
+    AttributeGroup::G,
+    AttributeGroup::B,
+    AttributeGroup::E,
+    AttributeGroup::S,
+    AttributeGroup::Fx,
+];
 
 impl Default for Settings {
     fn default() -> Self {
@@ -149,6 +186,13 @@ impl Default for Settings {
             palette_time: 0.0,
             palette_overlap: 100.0,
             record_by: RecordBy::Mixed,
+            cue_record_by: RecordBy::Channel,
+            cue_delay: 0.0,
+            cue_fade_in: 0.0,
+            cue_fade_out: 0.0,
+            cue_overlap: 100.0,
+            release_mask: Vec::new(),
+            release_time: 2.0,
         }
     }
 }
@@ -165,6 +209,10 @@ pub struct Engine {
     next_id: FixtureId,
     playbacks: BTreeMap<PlaybackId, Playback>,
     states: BTreeMap<PlaybackId, PlaybackState>,
+    /// Above every playback id ever used, so ids are never reused (PBK, Definitions).
+    playback_next_id: PlaybackId,
+    /// Legends of the `PAGES` pages (PBK-08).
+    page_legends: Vec<String>,
     grand_master: f32,
     /// Current page of playbacks, 1..=PAGES (PBK-02). Live state, not in the show.
     page: u16,
@@ -206,6 +254,8 @@ impl Engine {
             next_id: 1,
             playbacks: BTreeMap::new(),
             states: BTreeMap::new(),
+            playback_next_id: 1,
+            page_legends: vec![String::new(); usize::from(PAGES)],
             grand_master: 1.0,
             page: 1,
             activation_seq: 0,
@@ -363,8 +413,8 @@ impl Engine {
     }
 
     /// PAT-05: remove fixtures from the patch, the selection, the programmer, every group and
-    /// every palette (PAL-19).
-    /// All ids are checked first. Playback values for them are ignored by the merge.
+    /// every palette (PAL-19) and every cue of every playback (PBK-14).
+    /// All ids are checked first.
     pub fn patch_remove(&mut self, ids: &[FixtureId]) -> Result<(), CoreError> {
         if let Some(&unknown) = ids.iter().find(|id| !self.fixtures.contains_key(id)) {
             return Err(CoreError::UnknownFixture(unknown));
@@ -387,6 +437,9 @@ impl Engine {
             }
             for palette in self.palettes.values_mut() {
                 palette.fixtures.remove(&id); // PAL-19
+            }
+            for cue in self.playbacks.values_mut().flat_map(|pb| &mut pb.cues) {
+                cue.values.remove(&id); // PBK-14
             }
         }
         self.follow_active_group();
@@ -458,17 +511,19 @@ impl Engine {
             }
         }
         for playback in self.playbacks.values_mut() {
-            if let Some(values) = playback.values.get_mut(&id) {
-                values.retain(|name, value| {
-                    let keep = keeps(name, value);
-                    if !keep {
-                        warnings.push(format!(
-                            "fixture {number}: playback {} value '{name}' dropped, mode '{mode}' has no such attribute",
-                            playback.id
-                        ));
-                    }
-                    keep
-                });
+            for cue in &mut playback.cues {
+                if let Some(values) = cue.values.get_mut(&id) {
+                    values.retain(|name, value| {
+                        let keep = keeps(name, value);
+                        if !keep {
+                            warnings.push(format!(
+                                "fixture {number}: playback {} value '{name}' dropped, mode '{mode}' has no such attribute",
+                                playback.id
+                            ));
+                        }
+                        keep
+                    });
+                }
             }
         }
         let old_held = self.held.remove(&id).unwrap_or_default();
@@ -639,7 +694,10 @@ impl Engine {
             .map(|(page, slot)| Handle { page, slot })
     }
 
+    /// Place a playback as it is (tests, scenarios, the show file): nothing is checked, and the
+    /// next playback id is raised above its id.
     pub fn add_playback(&mut self, playback: Playback) {
+        self.playback_next_id = self.playback_next_id.max(playback.id.saturating_add(1));
         self.states.entry(playback.id).or_default();
         self.playbacks.insert(playback.id, playback);
     }
@@ -666,6 +724,13 @@ impl Engine {
                 palette_time: s.palette_time,
                 palette_overlap: s.palette_overlap,
                 record_by: s.record_by,
+                cue_record_by: s.cue_record_by,
+                cue_delay: s.cue_delay,
+                cue_fade_in: s.cue_fade_in,
+                cue_fade_out: s.cue_fade_out,
+                cue_overlap: s.cue_overlap,
+                release_mask: s.release_mask.clone(),
+                release_time: s.release_time,
             },
             profiles: self
                 .profiles
@@ -694,15 +759,28 @@ impl Engine {
                     .map(ShowPalette::Palette)
                     .collect(),
             },
-            playbacks: self
-                .playbacks
-                .values()
-                .map(|pb| {
-                    let mut pb = pb.clone();
-                    pb.values.retain(|id, _| self.fixtures.contains_key(id));
-                    pb
+            pages: (1..=PAGES)
+                .zip(&self.page_legends)
+                .filter(|(_, legend)| !legend.is_empty())
+                .map(|(number, legend)| ShowPage {
+                    number,
+                    legend: legend.clone(),
                 })
                 .collect(),
+            playbacks: ShowPlaybacks {
+                next_id: self.playback_next_id,
+                playbacks: self
+                    .playbacks
+                    .values()
+                    .map(|pb| {
+                        let mut pb = pb.clone();
+                        for cue in &mut pb.cues {
+                            cue.values.retain(|id, _| self.fixtures.contains_key(id));
+                        }
+                        pb
+                    })
+                    .collect(),
+            },
         }
     }
 
@@ -722,6 +800,13 @@ impl Engine {
             palette_time: s.palette_time,
             palette_overlap: s.palette_overlap,
             record_by: s.record_by,
+            cue_record_by: s.cue_record_by,
+            cue_delay: s.cue_delay,
+            cue_fade_in: s.cue_fade_in,
+            cue_fade_out: s.cue_fade_out,
+            cue_overlap: s.cue_overlap,
+            release_mask: s.release_mask.clone(),
+            release_time: s.release_time,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
@@ -782,32 +867,114 @@ impl Engine {
             }
         }
         engine.palette_next_id = engine.palette_next_id.max(show.palettes.next_id);
-        for playback in &show.playbacks {
-            let mut playback = playback.clone();
-            playback.values.retain(|&id, _| {
-                let keep = engine.fixtures.contains_key(&id);
-                if !keep && !in_file.contains(&id) {
+        for page in &show.pages {
+            if let Err(e) = engine.set_page_legend(page.number, &page.legend) {
+                warnings.push(format!("page {} legend left out: {e}", page.number));
+            }
+        }
+        for playback in &show.playbacks.playbacks {
+            if let Some(playback) = engine.lenient_playback(playback, &in_file, &mut warnings) {
+                engine.add_playback(playback);
+            }
+        }
+        engine.playback_next_id = engine.playback_next_id.max(show.playbacks.next_id);
+        (engine, warnings)
+    }
+
+    /// PBK-44: a playback of a show file as the engine takes it: left out (`None`) for an id or
+    /// home handle an earlier one holds or a handle outside the pages; an option or time out of
+    /// range at its default, a second `Locked` on a slot `Unlocked`, cue values for a fixture
+    /// that is not patched or a palette that does not exist as in SHW-07 and PAL-24; one
+    /// warning for each.
+    fn lenient_playback(
+        &self,
+        playback: &Playback,
+        in_file: &BTreeSet<FixtureId>,
+        warnings: &mut Vec<String>,
+    ) -> Option<Playback> {
+        let Playback { id, page, slot, .. } = *playback;
+        if self.playbacks.contains_key(&id) {
+            warnings.push(format!("playback {id} left out: the id is already used"));
+            return None;
+        }
+        if !(1..=PAGES).contains(&page) || slot == 0 {
+            warnings.push(format!(
+                "playback {id} left out: handle {page}.{slot} does not exist"
+            ));
+            return None;
+        }
+        if let Some(other) = self
+            .playbacks
+            .values()
+            .find(|p| (p.page, p.slot) == (page, slot))
+        {
+            warnings.push(format!(
+                "playback {id} left out: handle {page}.{slot} is used by playback {}",
+                other.id
+            ));
+            return None;
+        }
+        let mut playback = playback.clone();
+        if playback
+            .release_time
+            .is_some_and(|t| check_time(t).is_err())
+        {
+            warnings.push(format!(
+                "playback {id}: release time is out of range, set to the global one"
+            ));
+            playback.release_time = None;
+        }
+        if playback.group.is_some_and(|g| !(1..=99).contains(&g)) {
+            warnings.push(format!("playback {id}: group is out of range, set to none"));
+            playback.group = None;
+        }
+        if playback.paging == Paging::Locked
+            && self
+                .playbacks
+                .values()
+                .any(|p| p.slot == slot && p.paging == Paging::Locked)
+        {
+            warnings.push(format!(
+                "playback {id}: slot {slot} already holds a Locked playback, loaded Unlocked"
+            ));
+            playback.paging = Paging::Unlocked;
+        }
+        for cue in &mut playback.cues {
+            for (name, value, max, default) in [
+                ("delay", &mut cue.delay, 600.0, 0.0),
+                ("fade in", &mut cue.fade_in, 600.0, 0.0),
+                ("fade out", &mut cue.fade_out, 600.0, 0.0),
+                ("overlap", &mut cue.overlap, 100.0, 100.0),
+            ] {
+                if !(0.0..=max).contains(value) {
                     warnings.push(format!(
-                        "playback {}: fixture {id} is not in the patch, its values are left out",
-                        playback.id
+                        "playback {id}: {name} {value} is out of range, set to {default}"
+                    ));
+                    *value = default;
+                }
+            }
+            cue.values.retain(|&fixture, _| {
+                let keep = self.fixtures.contains_key(&fixture);
+                if !keep && !in_file.contains(&fixture) {
+                    warnings.push(format!(
+                        "playback {id}: fixture {fixture} is not in the patch, its values are left out"
                     ));
                 }
                 keep
             });
-            for stored in playback.values.values_mut().flat_map(|a| a.values_mut()) {
+            for stored in cue.values.values_mut().flat_map(|a| a.values_mut()) {
                 if let Stored::Reference(r) = *stored {
-                    if !engine.palettes.contains_key(&r.palette) {
+                    if !self.palettes.contains_key(&r.palette) {
                         warnings.push(format!(
-                            "playback {}: palette {} does not exist, its value is kept",
-                            playback.id, r.palette
+                            "playback {id}: palette {} does not exist, its value is kept",
+                            r.palette
                         ));
                         *stored = Stored::Value(r.value);
                     }
                 }
             }
-            engine.add_playback(playback);
         }
-        (engine, warnings)
+        Some(playback)
     }
 
     // ---- actions ---------------------------------------------------------
@@ -857,7 +1024,7 @@ impl Engine {
         Ok(())
     }
 
-    // ---- pages (PBK-01, PBK-02) --------------------------------------------
+    // ---- pages and playbacks (PBK-02, PBK-06..14, 24, 31..33) ---------------
 
     /// PBK-02: show another page. 0 or a page above `PAGES` is refused and nothing changes;
     /// playback levels and active state are never touched.
@@ -874,17 +1041,358 @@ impl Engine {
         self.page
     }
 
-    /// PBK-01: slot *s* (index *s* − 1) of the current page holds playback
-    /// (page − 1) · `faders_per_page` + *s* when it exists.
+    /// PBK-06, 07: what slot *s* (index *s* − 1) of the current page shows, for the
+    /// `faders_per_page` slots.
     pub fn page_slots(&self) -> Vec<Option<PlaybackId>> {
-        let per_page = u32::from(self.settings.faders_per_page);
-        let first = u32::from(self.page)
-            .saturating_sub(1)
-            .saturating_mul(per_page);
-        (1..=per_page)
-            .map(|s| first.saturating_add(s))
-            .map(|id| self.playbacks.contains_key(&id).then_some(id))
+        (1..=self.settings.faders_per_page)
+            .map(|slot| self.playback_at(self.page, slot, true))
             .collect()
+    }
+
+    /// PBK-07: a `Locked` playback on the slot, else the playback whose home is the handle, else
+    /// (`transparent`) a `TransparentLock` one from another page.
+    fn playback_at(&self, page: u16, slot: u16, transparent: bool) -> Option<PlaybackId> {
+        let find = |keep: &dyn Fn(&Playback) -> bool| {
+            self.playbacks.values().find(|p| keep(p)).map(|p| p.id)
+        };
+        find(&|p| p.slot == slot && p.paging == Paging::Locked)
+            .or_else(|| find(&|p| (p.page, p.slot) == (page, slot)))
+            .or_else(|| {
+                find(&|p| transparent && p.slot == slot && p.paging == Paging::TransparentLock)
+            })
+    }
+
+    /// PBK-07, 13, 14: the playback a record, copy or move onto this handle addresses, if any.
+    /// A handle outside the pages and `faders_per_page` is refused.
+    fn handle_target(&self, page: u16, slot: u16) -> Result<Option<PlaybackId>, CoreError> {
+        if !(1..=PAGES).contains(&page) || !(1..=self.settings.faders_per_page).contains(&slot) {
+            return Err(CoreError::InvalidHandle { page, slot });
+        }
+        Ok(self.playback_at(page, slot, false))
+    }
+
+    fn check_empty_handle(&self, page: u16, slot: u16) -> Result<(), CoreError> {
+        match self.handle_target(page, slot)? {
+            Some(_) => Err(CoreError::HandleUsed { page, slot }),
+            None => Ok(()),
+        }
+    }
+
+    /// PBK-08: the page's legend; `None` for a page that does not exist.
+    pub fn page_legend(&self, page: u16) -> Option<&str> {
+        let index = usize::from(page).checked_sub(1)?;
+        self.page_legends.get(index).map(String::as_str)
+    }
+
+    /// PBK-08: 0–32 characters.
+    pub fn set_page_legend(&mut self, page: u16, legend: &str) -> Result<(), CoreError> {
+        check_legend(legend)?;
+        let slot = usize::from(page)
+            .checked_sub(1)
+            .and_then(|i| self.page_legends.get_mut(i))
+            .ok_or(CoreError::InvalidPage(page))?;
+        *slot = legend.to_string();
+        Ok(())
+    }
+
+    /// PBK-12, 20: the cue time and release settings, refused as a whole when one is out of range.
+    pub fn set_playback_settings(
+        &mut self,
+        change: &PlaybackSettingsChange,
+    ) -> Result<(), CoreError> {
+        for time in [
+            change.delay,
+            change.fade_in,
+            change.fade_out,
+            change.release_time,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            check_time(time)?;
+        }
+        if let Some(overlap) = change.overlap {
+            check_overlap(overlap)?;
+        }
+        let s = &mut self.settings;
+        if let Some(v) = change.record_by {
+            s.cue_record_by = v;
+        }
+        if let Some(v) = change.delay {
+            s.cue_delay = v;
+        }
+        if let Some(v) = change.fade_in {
+            s.cue_fade_in = v;
+        }
+        if let Some(v) = change.fade_out {
+            s.cue_fade_out = v;
+        }
+        if let Some(v) = change.overlap {
+            s.cue_overlap = v;
+        }
+        if let Some(v) = &change.release_mask {
+            s.release_mask = v.clone();
+        }
+        if let Some(v) = change.release_time {
+            s.release_time = v;
+        }
+        Ok(())
+    }
+
+    /// PBK-09..13: record the programmer's contents in the mask onto a handle. An empty handle
+    /// gets a new playback; a used one (or the playback a lock puts on it, PBK-07) needs a mode.
+    /// Palette references stay references with the value they resolve to now as fallback
+    /// (PBK-11). Refused records change nothing.
+    pub fn record_playback(&mut self, record: &PlaybackRecord) -> Result<PlaybackId, CoreError> {
+        let (page, slot) = (record.page, record.slot);
+        let existing = self.handle_target(page, slot)?;
+        if existing.is_some() && record.mode.is_none() {
+            return Err(CoreError::HandleUsedRecord { page, slot });
+        }
+        let mask = (record.mask.clone()).unwrap_or_else(|| ALL_GROUPS.to_vec());
+        let mut values = self.contents(&mask);
+        for (&id, attrs) in &mut values {
+            for (name, stored) in attrs {
+                if let Stored::Reference(r) = stored {
+                    r.value = self.resolve_stored(id, name, Stored::Reference(*r));
+                }
+            }
+        }
+        if record.record_by.unwrap_or(self.settings.cue_record_by) == RecordBy::Mixed {
+            let mut plain: BTreeMap<FixtureId, BTreeMap<String, Value>> = values
+                .iter()
+                .map(|(&id, attrs)| {
+                    let now = attrs.iter().map(|(n, s)| (n.clone(), s.value()));
+                    (id, now.collect())
+                })
+                .collect();
+            self.mix_groups(&mut plain);
+            for (id, attrs) in plain {
+                let entry = values.entry(id).or_default();
+                for (name, value) in attrs {
+                    entry.entry(name).or_insert(Stored::Value(value));
+                }
+            }
+        }
+        if let (Some(id), Some(RecordMode::QuickMerge)) = (existing, record.mode) {
+            let held = self.playbacks.get(&id).and_then(Playback::values);
+            values.retain(|fixture, attrs| {
+                let held = held.and_then(|h| h.get(fixture));
+                attrs.retain(|name, _| held.is_some_and(|h| h.contains_key(name)));
+                !attrs.is_empty()
+            });
+        }
+        if values.is_empty() {
+            return Err(CoreError::NothingToRecordPlayback);
+        }
+        let Some(id) = existing else {
+            let s = &self.settings;
+            let mut playback = Playback::new(self.playback_next_id, page, slot, values);
+            if let Some(cue) = playback.cues.first_mut() {
+                cue.delay = s.cue_delay;
+                cue.fade_in = s.cue_fade_in;
+                cue.fade_out = s.cue_fade_out;
+                cue.overlap = s.cue_overlap;
+            }
+            let id = playback.id;
+            self.add_playback(playback);
+            return Ok(id);
+        };
+        if let Some(playback) = self.playbacks.get_mut(&id) {
+            if playback.cues.is_empty() {
+                playback.cues.push(Cue::new(Values::new()));
+            }
+            if let Some(cue) = playback.cues.first_mut() {
+                match record.mode {
+                    Some(RecordMode::Replace) | None => cue.values = values,
+                    Some(RecordMode::Merge | RecordMode::QuickMerge) => {
+                        for (fixture, attrs) in values {
+                            cue.values.entry(fixture).or_default().extend(attrs);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(id)
+    }
+
+    /// PBK-14: a new playback (new id) on an empty handle with the same cues, legend, icon,
+    /// halo and options.
+    pub fn copy_playback(
+        &mut self,
+        id: PlaybackId,
+        page: u16,
+        slot: u16,
+    ) -> Result<PlaybackId, CoreError> {
+        let source = self
+            .playbacks
+            .get(&id)
+            .ok_or(CoreError::UnknownPlayback(id))?
+            .clone();
+        self.check_empty_handle(page, slot)?;
+        let new = self.playback_next_id;
+        self.add_playback(Playback {
+            id: new,
+            page,
+            slot,
+            ..source
+        });
+        Ok(new)
+    }
+
+    /// PBK-14: change only the home handle, so a running playback keeps running.
+    pub fn move_playback(&mut self, id: PlaybackId, page: u16, slot: u16) -> Result<(), CoreError> {
+        if !self.playbacks.contains_key(&id) {
+            return Err(CoreError::UnknownPlayback(id));
+        }
+        self.check_empty_handle(page, slot)?;
+        if let Some(playback) = self.playbacks.get_mut(&id) {
+            playback.page = page;
+            playback.slot = slot;
+        }
+        Ok(())
+    }
+
+    /// PBK-14: remove a playback; it leaves the merge with its state. The id is never reused.
+    pub fn delete_playback(&mut self, id: PlaybackId) -> Result<(), CoreError> {
+        self.playbacks
+            .remove(&id)
+            .ok_or(CoreError::UnknownPlayback(id))?;
+        self.states.remove(&id);
+        Ok(())
+    }
+
+    /// PBK-24, 36: change options and the first cue's times; refused as a whole when one is out
+    /// of range or a second `Locked` would share a slot (PBK-07).
+    pub fn change_playback(
+        &mut self,
+        id: PlaybackId,
+        change: &PlaybackChange,
+    ) -> Result<(), CoreError> {
+        let slot = self
+            .playbacks
+            .get(&id)
+            .ok_or(CoreError::UnknownPlayback(id))?
+            .slot;
+        for time in [
+            change.delay,
+            change.fade_in,
+            change.fade_out,
+            change.release_time.flatten(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            check_time(time)?;
+        }
+        if let Some(overlap) = change.overlap {
+            check_overlap(overlap)?;
+        }
+        if let Some(group) = change.group.flatten().filter(|g| !(1..=99).contains(g)) {
+            return Err(CoreError::InvalidGroup(group));
+        }
+        if change.paging == Some(Paging::Locked)
+            && self
+                .playbacks
+                .values()
+                .any(|p| p.id != id && p.slot == slot && p.paging == Paging::Locked)
+        {
+            return Err(CoreError::SlotAlreadyLocked { slot });
+        }
+        let Some(playback) = self.playbacks.get_mut(&id) else {
+            return Ok(());
+        };
+        if let Some(v) = change.priority {
+            playback.priority = v;
+        }
+        if let Some(v) = change.fader_mode {
+            playback.fader_mode = v;
+        }
+        if let Some(v) = change.kill_point {
+            playback.kill_point = v;
+        }
+        if let Some(v) = &change.release_mask {
+            playback.release_mask = v.clone();
+        }
+        if let Some(v) = change.release_time {
+            playback.release_time = v;
+        }
+        if let Some(v) = change.paging {
+            playback.paging = v;
+        }
+        if let Some(v) = change.group {
+            playback.group = v;
+        }
+        if let Some(cue) = playback.cues.first_mut() {
+            if let Some(v) = change.delay {
+                cue.delay = v;
+            }
+            if let Some(v) = change.fade_in {
+                cue.fade_in = v;
+            }
+            if let Some(v) = change.fade_out {
+                cue.fade_out = v;
+            }
+            if let Some(v) = change.overlap {
+                cue.overlap = v;
+            }
+        }
+        Ok(())
+    }
+
+    /// PBK-31: legend (at most 32 characters), icon id (`None` = automatic) and halo (`None` =
+    /// automatic, components 0..=1).
+    pub fn set_playback_legend(
+        &mut self,
+        id: PlaybackId,
+        legend: &str,
+        icon: Option<&str>,
+        halo: Option<TargetColour>,
+    ) -> Result<(), CoreError> {
+        if !self.playbacks.contains_key(&id) {
+            return Err(CoreError::UnknownPlayback(id));
+        }
+        check_legend(legend)?;
+        if let Some(icon) = icon.filter(|i| !palette::valid_icon(i)) {
+            return Err(CoreError::InvalidIcon(icon.to_string()));
+        }
+        if halo.is_some_and(|h| ![h.r, h.g, h.b].iter().all(|c| (0.0..=1.0).contains(c))) {
+            return Err(CoreError::InvalidHalo);
+        }
+        if let Some(playback) = self.playbacks.get_mut(&id) {
+            playback.legend = legend.to_string();
+            playback.icon = icon.map(str::to_string);
+            playback.halo = halo;
+        }
+        Ok(())
+    }
+
+    /// PBK-32: the icon drawn when none was picked, from the first cue; a reference counts with
+    /// what it resolves to now.
+    pub fn playback_auto_icon(&self, id: PlaybackId) -> Option<palette::AutoIcon> {
+        let resolved: Vec<BTreeMap<String, Value>> = (self.playbacks.get(&id)?.values()?)
+            .iter()
+            .map(|(&fixture, attrs)| {
+                (attrs.iter())
+                    .map(|(name, stored)| {
+                        (name.clone(), self.resolve_stored(fixture, name, *stored))
+                    })
+                    .collect()
+            })
+            .collect();
+        let sets: Vec<_> = resolved.iter().map(palette::as_set).collect();
+        palette::auto_icon_of(&sets, |name| self.attribute_group(name))
+    }
+
+    /// PBK-33: the picked halo, else the first colour of the automatic icon.
+    pub fn playback_halo(&self, id: PlaybackId) -> Option<TargetColour> {
+        self.playbacks
+            .get(&id)?
+            .halo
+            .or_else(|| match self.playback_auto_icon(id) {
+                Some(palette::AutoIcon::Colours(colours)) => colours.first().copied(),
+                _ => None,
+            })
     }
 
     // ---- programmer (PRG-01..07) ------------------------------------------
@@ -1804,7 +2312,8 @@ impl Engine {
         for stored in self
             .playbacks
             .values_mut()
-            .flat_map(|pb| pb.values.values_mut())
+            .flat_map(|pb| pb.cues.iter_mut())
+            .flat_map(|cue| cue.values.values_mut())
             .flat_map(|attrs| attrs.values_mut())
         {
             *stored = stored.without_palette(id);
@@ -1823,9 +2332,7 @@ impl Engine {
             .palette(number)
             .ok_or(CoreError::UnknownPalette(number))?
             .id;
-        if legend.chars().count() > palette::MAX_LEGEND {
-            return Err(CoreError::InvalidLegend);
-        }
+        check_legend(legend)?;
         if let Some(icon) = icon.filter(|i| !palette::valid_icon(i)) {
             return Err(CoreError::InvalidIcon(icon.to_string()));
         }
@@ -1972,6 +2479,11 @@ impl Engine {
         self.playbacks.get(&id)
     }
 
+    /// Every playback, sorted by id.
+    pub fn playbacks(&self) -> impl Iterator<Item = &Playback> {
+        self.playbacks.values()
+    }
+
     pub fn playback_state(&self, id: PlaybackId) -> Option<&PlaybackState> {
         self.states.get(&id)
     }
@@ -2035,6 +2547,32 @@ fn check_palette_timing(time: f32, overlap: f32) -> Result<(), CoreError> {
     }
     if !(0.0..=100.0).contains(&overlap) {
         return Err(CoreError::InvalidPaletteOverlap(overlap));
+    }
+    Ok(())
+}
+
+/// PBK-12, PBK-24: times run from 0 to 600 s; NaN is refused too.
+fn check_time(time: f32) -> Result<(), CoreError> {
+    if (0.0..=600.0).contains(&time) {
+        Ok(())
+    } else {
+        Err(CoreError::InvalidTime(time))
+    }
+}
+
+/// PBK-12, PBK-24: overlaps run from 0 to 100 %.
+fn check_overlap(overlap: f32) -> Result<(), CoreError> {
+    if (0.0..=100.0).contains(&overlap) {
+        Ok(())
+    } else {
+        Err(CoreError::InvalidOverlap(overlap))
+    }
+}
+
+/// PAL-20, PBK-31: a legend is at most 32 characters.
+fn check_legend(legend: &str) -> Result<(), CoreError> {
+    if legend.chars().count() > palette::MAX_LEGEND {
+        return Err(CoreError::InvalidLegend);
     }
     Ok(())
 }
@@ -2135,8 +2673,8 @@ fn merge_attribute(
             continue;
         };
         let Some(raw) = playback
-            .values
-            .get(&fixture.id)
+            .values()
+            .and_then(|values| values.get(&fixture.id))
             .and_then(|attrs| attrs.get(attr.name))
             .map(|s| resolve(*s))
             .filter(|v| v.same_kind(&attr.default))
@@ -2306,12 +2844,12 @@ mod tests {
     #[test]
     fn eng_12_bad_level_is_rejected_and_frame_survives() {
         let mut e = engine_with_dimmer();
-        e.add_playback(Playback {
-            id: 1,
-            priority: Priority::Normal,
-            fader_mode: FaderMode::Mode0,
-            values: BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
-        });
+        e.add_playback(Playback::new(
+            1,
+            1,
+            1,
+            BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
+        ));
         assert_eq!(e.set_fader(1, 1.0, 0.0), Ok(()));
         e.tick(0.025);
         assert_eq!(e.frame(1).and_then(|f| f.channel(1)), Some(255));
