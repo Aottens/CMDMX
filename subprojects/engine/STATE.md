@@ -3,7 +3,7 @@
 _Last updated: 2026-10-18_
 
 ## Current step
-VS2-13 in review: `cmdmx-daemon/examples/church/` (PAT-15..18), the church patch from the Lightkey export.
+VS2-16 in review: `Engine::profile(key)`, IPC fixture entries carry `modes` (PAT-09 amended).
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.

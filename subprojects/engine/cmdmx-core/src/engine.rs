@@ -203,6 +203,11 @@ impl Engine {
         self.profiles.contains_key(key)
     }
 
+    /// PAT-09: the profile the show holds under this key (its modes feed Change Mode).
+    pub fn profile(&self, key: &str) -> Option<&Profile> {
+        self.profiles.get(key)
+    }
+
     /// LIB-02: an invalid profile is refused and never reaches the patch.
     pub fn add_profile(
         &mut self,

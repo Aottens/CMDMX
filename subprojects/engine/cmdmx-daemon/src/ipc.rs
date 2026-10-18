@@ -357,6 +357,8 @@ struct FixtureInfo<'a> {
     handle: Option<Handle>,
     /// IPC-21: attribute name to group, for placing programmer values.
     attributes: BTreeMap<&'a str, AttributeGroup>,
+    /// PAT-09: every mode name of the fixture's profile, in profile order.
+    modes: Vec<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -523,6 +525,9 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
                 attributes: (mode.iter())
                     .flat_map(|m| m.logical_attributes())
                     .map(|l| (l.name, l.group))
+                    .collect(),
+                modes: (engine.profile(&f.profile).into_iter())
+                    .flat_map(|p| p.modes.iter().map(|m| m.name.as_str()))
                     .collect(),
             }
         })

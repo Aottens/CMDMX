@@ -36,9 +36,11 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     let handle: Handle?
     /// Attribute name → group letter (IPC-21); places programmer values in the I/P/C/B columns.
     let attributes: [String: String]
+    /// Every mode name of the fixture's profile (PAT-09), for the Change Mode dropdown.
+    let modes: [String]
 
     private enum CodingKeys: String, CodingKey {
-        case id, number, name, profile, mode, universe, address, footprint, handle, attributes
+        case id, number, name, profile, mode, universe, address, footprint, handle, attributes, modes
         case virtualDimmer = "virtual_dimmer"
     }
 
@@ -55,6 +57,7 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
         virtualDimmer = (try? c.decode(Bool.self, forKey: .virtualDimmer)) ?? false
         handle = try? c.decode(Handle.self, forKey: .handle)
         attributes = (try? c.decode([String: String].self, forKey: .attributes)) ?? [:]
+        modes = (try? c.decode([String].self, forKey: .modes)) ?? []
     }
 }
 
