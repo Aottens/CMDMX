@@ -235,6 +235,56 @@ enum WheelResolution: String {
     case normal = "Normal", fine = "Fine", coarse = "Coarse"
 }
 
+/// ISO-8601 UTC as the daemon writes it, with or without fractional seconds (SHW-15).
+private func parseISODate(_ text: String) -> Date? {
+    (try? Date(text, strategy: .iso8601)) ?? (try? Date(text, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+}
+
+/// The open show (SHW-15): name, last successful autosave and whether autosave works. An empty
+/// name means no snapshot has arrived yet.
+struct ShowState: Decodable, Equatable {
+    var name = ""
+    var savedAt: Date?
+    var autosaveOk = true
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case savedAt = "saved_at"
+        case autosaveOk = "autosave_ok"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
+        savedAt = (try? c.decode(String.self, forKey: .savedAt)).flatMap(parseISODate)
+        autosaveOk = (try? c.decode(Bool.self, forKey: .autosaveOk)) ?? true
+    }
+
+    /// SHW-16: "not saved yet", "saved 4 s ago", above 59 s "saved 2 min ago".
+    func ageText(now: Date) -> String {
+        guard let savedAt else { return "not saved yet" }
+        let s = max(0, Int(now.timeIntervalSince(savedAt)))
+        return s < 60 ? "saved \(s) s ago" : "saved \(s / 60) min ago"
+    }
+}
+
+/// One saved show in the shows folder (SHW-15 `show.list`).
+struct ShowEntry: Decodable, Identifiable, Equatable {
+    let name: String
+    let modified: Date?
+    var id: String { name }
+
+    private enum CodingKeys: String, CodingKey { case name, modified }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        modified = (try? c.decode(String.self, forKey: .modified)).flatMap(parseISODate)
+    }
+}
+
 /// Thin IPC client: WebSocket to cmdmx-daemon (specs/modules/ipc.md, IPC-03..09).
 /// Holds no lighting logic; local state is a mirror of the engine's snapshot and deltas.
 @MainActor
@@ -260,6 +310,10 @@ final class EngineClient: ObservableObject {
     @Published private(set) var programmer = ProgrammerState()
     /// IPC-20: one entry per output node; empty while offline (the state is unknown then).
     @Published private(set) var outputs: [OutputStatus] = []
+    /// SHW-15: the open show; keeps the last known value while offline. `shows` is the reply to the
+    /// last `show.list` (this client only).
+    @Published private(set) var show = ShowState()
+    @Published private(set) var shows: [ShowEntry] = []
 
     /// UI-22 / IPC-05 "touch": playback ids and the GM held by this client's pointer. While held,
     /// engine levels are parked here (not shown) so the bar follows the finger. Release is delayed by
@@ -375,6 +429,13 @@ final class EngineClient: ObservableObject {
     func patchName(id: Int, name: String) { patch("patch.name", ["id": id, "name": name]) }
     func patchChangeMode(id: Int, mode: String) { patch("patch.change_mode", ["id": id, "mode": mode]) }
 
+    // Show commands (SHW-15). The engine checks names and refuses with a warning.
+
+    func listShows() { sendJSON("show.list") }
+    func newShow(_ name: String) { patch("show.new", ["name": name]) }
+    func openShow(_ name: String) { patch("show.open", ["name": name]) }
+    func saveShowAs(_ name: String) { patch("show.save_as", ["name": name]) }
+
     /// Hides the last engine message (e.g. when the operator selects another row).
     func clearMessage() { lastMessage = nil }
 
@@ -466,9 +527,11 @@ final class EngineClient: ObservableObject {
         let programmer: ProgrammerState?
         let items: [LibraryItem]?
         fileprivate let outputs: Tolerant<[OutputStatus]>?
+        fileprivate let show: Tolerant<ShowState>?
+        fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, playbacks, id, level, active, message, fixtures, groups, programmer, items, outputs
+            case type, playbacks, id, level, active, message, fixtures, groups, programmer, items, outputs, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
         }
@@ -494,7 +557,9 @@ final class EngineClient: ObservableObject {
             groups = incoming.groups ?? []
             programmer = incoming.programmer ?? ProgrammerState()
             outputs = incoming.outputs?.value ?? []
+            if let show = incoming.show?.value { self.show = show }
             connection = .online
+            listShows()
         case "programmer":
             // IPC-12: the delta carries the IPC-11 fields at top level.
             if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }
@@ -502,6 +567,13 @@ final class EngineClient: ObservableObject {
             if let fixtures = incoming.fixtures { self.fixtures = fixtures }
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
+        case "show":
+            // SHW-15: the delta carries the show fields at top level. A switch or save changes the
+            // list too, so ask again.
+            if let state = try? JSONDecoder().decode(ShowState.self, from: data) { show = state }
+            listShows()
+        case "show.list":
+            if let shows = incoming.shows?.value { self.shows = shows.compactMap(\.value) }
         case "library.results":
             if !lastLibraryQuery.trimmingCharacters(in: .whitespaces).isEmpty { libraryResults = incoming.items ?? [] }
         case "groups":

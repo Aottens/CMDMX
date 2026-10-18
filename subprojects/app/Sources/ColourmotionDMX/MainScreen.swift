@@ -7,9 +7,12 @@ import SwiftUI
 /// UI-only state shared by the zones. None of this reaches the engine.
 @MainActor
 final class UIState: ObservableObject {
+    enum Screen { case patch, show }
+
     @Published var workspace = 0
-    /// The Patch screen replaces the grid, side column and attribute bar (UI-10).
-    @Published var showPatch = false
+    /// A full screen (Patch UI-10, Show SHW-17) replaces the grid, side column and attribute bar;
+    /// nil = the workspace windows. The screens exclude each other.
+    @Published var screen: Screen?
     /// Record armed in the Groups window; moves to the Record function button in UX-02c.
     @Published var recordArmed = false
 }
@@ -39,11 +42,14 @@ private struct Frame: View {
             VStack(spacing: 0) {
                 StatusBar().frame(height: 26)
                 HLine()
-                if ui.showPatch {
+                if let screen = ui.screen {
                     HStack(spacing: 0) {
                         Rail().frame(width: 78)
                         VLine()
-                        PatchView()
+                        switch screen {
+                        case .patch: PatchView()
+                        case .show: ShowView()
+                        }
                     }
                 } else {
                     HStack(spacing: 0) {
@@ -103,7 +109,7 @@ private struct StatusBar: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Text("Demo show").font(Typo.legend(Typo.body, .semibold)).foregroundStyle(t.fg)
+            ShowLabel()
 
             Dot(color: engine.connection == .online ? t.green : t.fg3, label: "Engine")
             if engine.connection != .online {
@@ -140,6 +146,27 @@ private struct StatusBar: View {
         .padding(.horizontal, 10)
         .frame(maxWidth: .infinity)
         .background(t.bg)
+    }
+}
+
+/// SHW-16: show name and autosave age. Before the first snapshot and while offline the last known
+/// name stays, greyed, and the age is hidden (it would only count up on stale data).
+private struct ShowLabel: View {
+    @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
+
+    var body: some View {
+        let show = engine.show
+        let online = engine.connection == .online
+        HStack(spacing: 8) {
+            Text(show.name.isEmpty ? "—" : show.name).font(Typo.legend(Typo.body, .semibold))
+                .foregroundStyle(online ? t.fg : t.fg3)
+            if online {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(show.ageText(now: context.date)).foregroundStyle(show.autosaveOk ? t.fg2 : t.amber)
+                }
+            }
+        }
     }
 }
 
@@ -185,16 +212,16 @@ private struct Rail: View {
     var body: some View {
         VStack(spacing: 1) {
             ForEach(Array(Workspace.all.enumerated()), id: \.offset) { index, workspace in
-                RailItem(title: workspace.name, small: "F\(index + 1)", on: !ui.showPatch && ui.workspace == index) {
+                RailItem(title: workspace.name, small: "F\(index + 1)", on: ui.screen == nil && ui.workspace == index) {
                     ui.workspace = index
-                    ui.showPatch = false
+                    ui.screen = nil
                 }
                 .keyboardShortcut(Self.functionKey(index), modifiers: [])
             }
             divider
-            RailItem(title: "Patch", small: "screen", on: ui.showPatch) { ui.showPatch.toggle() }
+            RailItem(title: "Patch", small: "screen", on: ui.screen == .patch) { ui.screen = ui.screen == .patch ? nil : .patch }
             RailItem(title: "Macros", small: "later")
-            RailItem(title: "Show", small: "P1-09")
+            RailItem(title: "Show", small: "screen", on: ui.screen == .show) { ui.screen = ui.screen == .show ? nil : .show }
             divider
             RailItem(title: "Shapes", small: "later")
             RailItem(title: "Pixelmapper", small: "later")

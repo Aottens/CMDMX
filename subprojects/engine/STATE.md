@@ -3,7 +3,7 @@
 _Last updated: 2026-10-18_
 
 ## Current step
-SHW-a merged (#30), SHW-b (show file in the daemon) in review; next SHW-c (app).
+SHW-a/b merged (#30, #31); SHW-c run fixes in review: "works again" note (SHW-13 amended), refusal names the file.
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
@@ -34,4 +34,4 @@ SHW-a merged (#30), SHW-b (show file in the daemon) in review; next SHW-c (app).
 - Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, output/control config in the show file, IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with
-`cargo test && cargo clippy --all-targets -- -D warnings`, then SHW-c in the app, then VS2-13 (the church patch from the owner's Lightkey export). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.
+`cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-13 (the church patch from the owner's Lightkey export). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.
