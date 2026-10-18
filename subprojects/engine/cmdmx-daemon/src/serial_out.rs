@@ -12,6 +12,9 @@ use crate::output::{Health, OutputState};
 
 const RESCAN: Duration = Duration::from_secs(1);
 const WRITE_TIMEOUT: Duration = Duration::from_millis(100);
+/// OUT-24 calibration constant: the Eurolite MK2 restarts its DMX frame when a
+/// new USB frame arrives; 40 Hz flickered, <= 33 Hz was steady.
+const MIN_WRITE_INTERVAL: Duration = Duration::from_millis(30);
 
 /// OUT-09: the lowest `/dev/cu.*` path whose USB product string is a known
 /// ENTTEC Pro one, with that product string. Anything else is never used.
@@ -60,6 +63,7 @@ pub struct SerialNode {
     fixed_path: Option<String>,
     port: Option<Box<dyn SerialPort>>,
     last_scan: Option<Instant>,
+    last_write: Option<Instant>,
     said_missing: bool,
     health: Health,
 }
@@ -70,6 +74,7 @@ impl SerialNode {
             fixed_path,
             port: None,
             last_scan: None,
+            last_write: None,
             said_missing: false,
             health: Health::default(),
         }
@@ -89,6 +94,7 @@ impl SerialNode {
             match self.open() {
                 Ok(Ok((port, msg))) => {
                     self.port = Some(port);
+                    self.last_write = Some(now);
                     let written = self.write(data);
                     return Some(msg)
                         .into_iter()
@@ -103,6 +109,13 @@ impl SerialNode {
                 Err(e) => return self.log(&Err(e)),
             }
         }
+        if self
+            .last_write
+            .is_some_and(|t| now.duration_since(t) < MIN_WRITE_INTERVAL)
+        {
+            return None;
+        }
+        self.last_write = Some(now);
         self.write(data)
     }
 
@@ -268,10 +281,15 @@ mod tests {
         let mut node = SerialNode::new(None);
         node.port = Some(Box::new(slave));
         let t0 = Instant::now();
-        let frame_len = cmdmx_protocols::enttec::send_dmx_frame(&[0; 512]).unwrap().len();
+        let frame_len = cmdmx_protocols::enttec::send_dmx_frame(&[0; 512])
+            .unwrap()
+            .len();
         let mut written = Vec::new();
         for ms in [0u64, 25, 50, 75, 80, 100] {
-            assert_eq!(node.send(&[ms as u8; 512], t0 + Duration::from_millis(ms)), None);
+            assert_eq!(
+                node.send(&[ms as u8; 512], t0 + Duration::from_millis(ms)),
+                None
+            );
             let mut got = vec![0u8; frame_len];
             if master.read_exact(&mut got).is_ok() {
                 written.push(got[5]);
