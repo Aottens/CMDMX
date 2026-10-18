@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::palette` (pure: storage, recording, resolving, fades), `cmdmx-daemon` (IPC),
 the palette windows in `subprojects/app`.
-Status: **draft for owner approval (P1-03, 2026-10-18)**; owner decisions at the end.
+Status: **PAL-01..32 approved by owner 2026-10-18 (P1-03)**; owner decisions at the end.
 Behavioural reference: Avolites Titan v19 manual, *Palettes*
 (https://manual.avolites.com/docs/palettes: Creating, Using, Editing, Copying/Moving/Deleting,
 Timing with Palettes) and the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1
@@ -82,8 +82,10 @@ lists) store, so they come first.
   warning when the values differ inside a type.
 - **PAL-06** Recording onto a used cell needs a mode, else it is refused with a warning
   ("Palette 3 is used: Replace, Merge or Quick Merge"). `Replace` stores the new contents as on
-  an empty cell. `Merge` detects the new contents on their own (PAL-04) and writes them over
-  the existing values at their own level, keeping everything else. `QuickMerge` does the same
+  an empty cell. `Merge` detects the new contents on their own (PAL-04), never wider than the
+  palette's current kind (a shared palette stays without a global level, a per-fixture one stays
+  per fixture), and writes them over the existing values at their own level, keeping everything
+  else. `QuickMerge` does the same
   but only for attributes the palette already holds on any level. Id, number, cell, legend and
   icon stay. Shared Red for the RGBW type, then RGB+Lime pars set to orange-red and merged → the
   palette also holds a shared entry for the RGB+Lime type; the RGBW entry is unchanged.
@@ -166,7 +168,8 @@ lists) store, so they come first.
     order global, shared (by type key), per fixture (by id); a split swatch when there are more
     than one (Titan's bar per colour);
   - else any Pan or Tilt → `{"position":[[pan, tilt], …]}`: up to 8 distinct points, 0.0–1.0, a
-    missing Pan or Tilt counting as 0.5;
+    missing Pan or Tilt counting as 0.5, a global value in degrees drawn as
+    `0.5 + degrees / 540` for Pan and `0.5 + degrees / 270` for Tilt (an icon only);
   - else `{"value":{"attribute":"Zoom","value":0.4}}`: the first stored attribute in I P C G B
     E S FX order, then by name.
   A palette with a picked icon still reports its automatic icon (the picker shows it as "Auto").
@@ -255,8 +258,9 @@ lists) store, so they come first.
   same timestamped actions → identical palettes, programmer state and frames (PRG-37, ENG-11).
 
 ## Scenario test format
-Scenario files (`engine-merge.md`) gain an optional `palettes` key in the show part (PAL-23
-shape) and a `pal` action:
+Scenario files (`engine-merge.md`) gain an optional `palettes` list (palette entries as in
+PAL-23) and a `pal` action (`record` with the `palette.record` fields, `apply {number}`,
+`delete <number>`):
 
 ```json
 { "t": 0.0, "prg": { "select": [201, 211, 221] } }
@@ -269,9 +273,10 @@ Recording, detection, resolving, Copy/Move/Delete and the show file are unit tes
 `cmdmx-core` (`tests/palettes.rs`, `tests/showfile.rs`); anything that reaches the frame
 (PAL-07 emitter zeroing, 11, 13, 14, 16) is a scenario file.
 
-## Proposed build tasks (sized after approval)
+## Build tasks (`BACKLOG.md`)
 1. **VS2-17** core: storage, record (PAL-01..06), resolve and apply (07..12), references in the
-   merge, Copy/Move/Delete, patch changes, automatic icons, show schema 2 (17..24, 32).
+   merge, Copy/Move/Renumber/Delete, patch changes, legends, automatic icons, show schema 2
+   (17..24, 32). Tests: `cmdmx-core/tests/palettes.rs`, scenarios PAL-07 and PAL-11.
 2. **VS2-18** palette fades and overlap (PAL-13..16).
 3. **VS2-19** IPC and the app: windows, Record/Update/Include/Copy/Move/Delete, legend editor
    with the icon library, Palette softkeys (PAL-25..31).

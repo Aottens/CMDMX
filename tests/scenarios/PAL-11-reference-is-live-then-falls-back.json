@@ -1,0 +1,28 @@
+{
+  "spec": "PAL-11",
+  "profiles": {
+    "rgbw": { "manufacturer": "T", "model": "RGBW Par", "source": "channel-list", "modes": [ {
+      "name": "5ch", "footprint": 5,
+      "colour": { "system": "RGB", "components": [ { "channel": 2 }, { "channel": 3 }, { "channel": 4 } ] },
+      "attributes": [
+        { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+        { "name": "White", "group": "C", "kind": "Ltp", "channel": 5, "emitter": true } ] } ] }
+  },
+  "patch": [ { "id": 201, "profile": "rgbw", "universe": 1, "address": 1 } ],
+  "palettes": [
+    { "id": 1, "number": 1, "window": "Colours", "handle": 1, "legend": "Red", "icon": null,
+      "global": { "Colour": { "r": 1.0, "g": 0.0, "b": 0.0 } }, "shared": {}, "fixtures": {} }
+  ],
+  "playbacks": [
+    { "id": 1, "priority": "Normal", "fader_mode": 0, "values": {
+      "201": { "Dimmer": 1.0, "Colour": { "palette": 1, "value": { "r": 0.0, "g": 0.0, "b": 1.0 } } } } }
+  ],
+  "actions": [
+    { "t": 0.0, "fader": { "playback": 1, "level": 1.0 } },
+    { "t": 0.5, "pal": { "delete": 1 } }
+  ],
+  "expect": [
+    { "t": 0.4, "universe": 1, "channels": { "1": 255, "2": 255, "3": 0, "4": 0 } },
+    { "t": 0.6, "universe": 1, "channels": { "1": 255, "2": 0, "3": 0, "4": 255 } }
+  ]
+}
