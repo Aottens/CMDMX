@@ -146,5 +146,6 @@ Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p c
 - [ ] Quit and reopen the app: Up still recalls the lines from before
 
 ### One grey (UI-28)
-- [ ] Rail entries (Macros, Shapes, …), function buttons, keypad keys, softkeys, unavailable
-      attribute tabs and the palette cells all look equally dim when disabled
+- [ ] Rail entries (Macros, Shapes, …), the status bar toggles, function buttons, keypad keys,
+      softkeys, unavailable attribute tabs and Undo all look equally dim when disabled (empty
+      palette cells keep their own look)

@@ -85,7 +85,7 @@ private struct FaderStrip: View {
                     .frame(maxWidth: .infinity).frame(height: 24)
                     .background(t.surf2)
                     .overlay(Rectangle().strokeBorder(t.line, lineWidth: 1))
-                    .opacity(0.25)
+                    .opacity(t.disabled)
                     .help("Playbacks · P1-04")
             }
         }

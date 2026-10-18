@@ -189,8 +189,9 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   The history keeps the last 100 lines in the app's preferences, so it survives a restart of
   the app. It is the app's own; the engine and the show file never see it.
 - **UI-28 [now]** Every disabled control looks the same: one dim level (a theme token) for rail
-  entries, function buttons, keypad keys, softkeys, attribute tabs and window cells, with the
-  spec it waits for in the tooltip (owner, UX-02b run).
+  entries, status bar toggles, function buttons, keypad keys, softkeys, attribute tabs and
+  buttons, with the spec it waits for in the tooltip (owner, UX-02b run). Empty palette cells keep
+  their own empty-cell look (UI-13): dimming them would hide their numbers.
 
 ### Attribute bar (UX-02b)
 - **UI-20 [now]** Two rows (owner, UX-02b run 2026-10-17: the command line gets its own row, so the

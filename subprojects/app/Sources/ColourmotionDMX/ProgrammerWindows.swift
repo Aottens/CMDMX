@@ -156,7 +156,7 @@ struct ColourPickerWindow: View {
             ForEach(0..<8, id: \.self) { _ in
                 RoundedRectangle(cornerRadius: radius).fill(t.surf)
                     .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
-                    .frame(height: 28).opacity(0.3)
+                    .frame(height: 28).opacity(t.disabled)
             }
         }
     }

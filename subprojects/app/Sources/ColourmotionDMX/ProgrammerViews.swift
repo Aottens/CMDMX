@@ -35,7 +35,7 @@ private struct FlatButtonBody: View {
             .foregroundStyle(fill == nil ? t.fg : Color.white)
             .background(RoundedRectangle(cornerRadius: radius).fill(fill ?? t.surf2))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line2, lineWidth: hairline))
-            .opacity(!enabled ? 0.3 : configuration.isPressed ? 0.7 : 1)
+            .opacity(!enabled ? t.disabled : configuration.isPressed ? 0.7 : 1)
     }
 }
 
@@ -71,11 +71,12 @@ struct PanelWindow<Accessory: View, Content: View>: View {
 // MARK: - Attribute bar (UI-20, IPC-16, IPC-17, IPC-19)
 
 /// 96 pt zone in two rows: tabs, colour model and wheels (64 pt); command line, message, interim
-/// buttons and programmer summary (32 pt).
+/// and programmer summary (32 pt).
 struct AttributeBar: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
-    @State private var command = ""
+    @EnvironmentObject private var ui: UIState
+    @EnvironmentObject private var line: TokenLine
 
     var body: some View {
         let programmer = engine.programmer
@@ -137,16 +138,11 @@ struct AttributeBar: View {
         return HStack(spacing: 10) {
             HStack(spacing: 8) {
                 Text("›").font(Typo.mono(13)).foregroundStyle(t.fg3)
-                // Still a text field; the token command line comes with UX-02c (UI-19).
-                TextField("Command, e.g. 201 Thro 205 @ 50", text: $command)
-                    .textFieldStyle(.plain)
-                    .font(Typo.mono(13))
-                    .foregroundStyle(t.fg)
-                    .onSubmit {
-                        let words = command.split(whereSeparator: \.isWhitespace).map(String.init)
-                        if !words.isEmpty { engine.command(words: words) }
-                        command = ""
-                    }
+                // UI-19: tokens and a cursor; the keypad and the Mac keys fill the line.
+                Text(line.tokens.joined(separator: " ")).font(Typo.mono(13)).foregroundStyle(t.fg)
+                    .lineLimit(1).truncationMode(.head)
+                BlinkingCursor()
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 8).frame(height: 26)
             .frame(minWidth: 200, maxWidth: .infinity)
@@ -157,25 +153,28 @@ struct AttributeBar: View {
             Text(engine.lastMessage ?? " ").font(Typo.ui(11)).foregroundStyle(t.amber).lineLimit(1)
                 .truncationMode(.tail).frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
 
-            // Until UX-02c moves them to the keypad and softkeys.
-            HStack(spacing: 3) {
-                Button("Fix −1") { engine.step(-1) }
-                Button("Fix +1") { engine.step(1) }
-                Button("Odd/Even") { engine.pattern(2) }
-                Button("All") { engine.selectAll() }
-            }
-            .buttonStyle(FlatButton(compact: true))
-            .fixedSize()
-
             HStack(spacing: 4) {
                 Text(!programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
                     .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
                     .lineLimit(1).padding(.horizontal, 8).frame(minWidth: 90, alignment: .leading)
                 Button("Undo") {}.disabled(true).help("Undo · P1-10")
-                Button("Clear") { engine.clearProgrammer() }.buttonStyle(ZoneKeyStyle(ring: dirty))
+                Button("Clear") { engine.clearProgrammer(); ui.recordArmed = false }.buttonStyle(ZoneKeyStyle(ring: dirty))
             }
             .buttonStyle(ZoneKeyStyle(ring: false))
             .fixedSize()
+        }
+    }
+}
+
+/// Block cursor after the tokens; it stays on under Reduce Motion.
+private struct BlinkingCursor: View {
+    @Environment(\.theme) private var t
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.5)) { context in
+            let on = reduceMotion || Int(context.date.timeIntervalSinceReferenceDate / 0.5) % 2 == 0
+            Rectangle().fill(t.fg).frame(width: 7, height: 14).opacity(on ? 1 : 0)
         }
     }
 }
@@ -199,7 +198,7 @@ private struct AttributeTab: View {
                 .overlay(alignment: .topTrailing) {
                     if tab.hasValues { Circle().fill(t.red).frame(width: 5, height: 5).padding(3) }
                 }
-                .opacity(tab.available ? 1 : 0.3)
+                .opacity(tab.available ? 1 : t.disabled)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -235,7 +234,7 @@ private struct ZoneKeyStyle: ButtonStyle {
             .frame(width: 52, height: 26)
             .background(RoundedRectangle(cornerRadius: radius).fill(down ? t.fg : t.surf))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ring ? t.red : t.line, lineWidth: ring ? 2 : hairline))
-            .opacity(enabled ? 1 : 0.3)
+            .opacity(enabled ? 1 : t.disabled)
     }
 }
 

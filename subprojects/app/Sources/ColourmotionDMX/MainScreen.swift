@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // The main screen (UI-01): six zones, flush, separated by 1 px hairlines. Only the window grid
@@ -13,8 +14,14 @@ final class UIState: ObservableObject {
     /// A full screen (Patch UI-10, Show SHW-17) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
     @Published var screen: Screen?
-    /// Record armed in the Groups window; moves to the Record function button in UX-02c.
+    /// Record armed with the Record function button (UI-16); the next group tap records.
     @Published var recordArmed = false
+
+    /// Rail entries and the workspace keys (F1–F4, ⌘1–⌘4) all come here.
+    func show(workspace index: Int) {
+        workspace = index
+        screen = nil
+    }
 }
 
 /// Applies the app's own theme (UI-02), then lays out the zones.
@@ -22,10 +29,12 @@ struct MainScreen: View {
     @AppStorage("dayTheme") private var day = false
     @AppStorage("consoleMode") private var console = true
     @StateObject private var ui = UIState()
+    @StateObject private var line = TokenLine()
 
     var body: some View {
         Frame()
             .environmentObject(ui)
+            .environmentObject(line)
             .environment(\.theme, day ? .day : .dark)
             .preferredColorScheme(day ? .light : .dark)   // native controls follow the app, not macOS
             .background(WindowConfigurator(console: console))
@@ -35,7 +44,10 @@ struct MainScreen: View {
 private struct Frame: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var ui: UIState
+    @EnvironmentObject private var line: TokenLine
+    @EnvironmentObject private var engine: EngineClient
     @AppStorage("keypadVisible") private var keypad = true
+    @State private var keyMonitor: Any?
 
     var body: some View {
         GeometryReader { geo in
@@ -68,6 +80,13 @@ private struct Frame: View {
         }
         .background(t.bg)
         .foregroundStyle(t.fg)
+        .onAppear {
+            // Mac keys (UI-19): the monitor stays installed; the handler checks the Keys toggle.
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [ui, line, engine] event in
+                MainActor.assumeIsolated { MacKeys.handle(event, ui: ui, line: line, engine: engine) } ? nil : event
+            }
+        }
+        .onDisappear { keyMonitor.map(NSEvent.removeMonitor) }
     }
 }
 
@@ -97,6 +116,7 @@ private struct StatusBar: View {
     @AppStorage("dayTheme") private var day = false
     @AppStorage("consoleMode") private var console = true
     @AppStorage("keypadVisible") private var keypad = true
+    @AppStorage("keysLive") private var keys = false
 
     private static let clock: DateFormatter = {
         let f = DateFormatter()
@@ -130,8 +150,8 @@ private struct StatusBar: View {
 
             BarToggle(title: "Console", on: console) { console.toggle() }
                 .help("Full screen, Dock and menu bar hidden, asks before quitting")
-            BarToggle(title: "Keys", on: false, enabled: false) {}
-                .help("Mac keyboard drives the keypad · UX-02c")
+            BarToggle(title: "Keys", on: keys) { keys.toggle() }
+                .help("Mac keyboard drives the keypad and the command line · ⌘1–⌘4 always switch workspaces")
             BarToggle(title: "Keypad", on: keypad) { keypad.toggle() }
                 .help("Hidden automatically on windows narrower than 1440 pt")
             BarToggle(title: day ? "Night" : "Day", on: false) { day.toggle() }
@@ -195,7 +215,7 @@ private struct BarToggle: View {
             Text(title).font(Typo.ui(11)).foregroundStyle(on ? t.fg : t.fg2)
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(on ? t.fg2 : t.line, lineWidth: 1))
-                .opacity(enabled ? 1 : 0.35)
+                .opacity(enabled ? 1 : t.disabled)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -213,10 +233,10 @@ private struct Rail: View {
         VStack(spacing: 1) {
             ForEach(Array(Workspace.all.enumerated()), id: \.offset) { index, workspace in
                 RailItem(title: workspace.name, small: "F\(index + 1)", on: ui.screen == nil && ui.workspace == index) {
-                    ui.workspace = index
-                    ui.screen = nil
+                    ui.show(workspace: index)
                 }
-                .keyboardShortcut(Self.functionKey(index), modifiers: [])
+                // F1–F4 follow the Keys toggle (MacKeys); ⌘1–⌘4 always work (UI-19).
+                .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
             }
             divider
             RailItem(title: "Patch", small: "screen", on: ui.screen == .patch) { ui.screen = ui.screen == .patch ? nil : .patch }
@@ -233,12 +253,6 @@ private struct Rail: View {
     }
 
     private var divider: some View { HLine().padding(.vertical, 4) }
-
-    /// F1...F4 (plain keys; they go live with the Keys toggle in UX-02c, UI-19).
-    private static func functionKey(_ index: Int) -> KeyEquivalent {
-        // NSF1FunctionKey is U+F704; the others follow it.
-        KeyEquivalent(Character(Unicode.Scalar(UInt32(0xF704 + index)) ?? " "))
-    }
 }
 
 /// A rail entry; without an `action` it is disabled and its small text says what it waits for.
@@ -265,7 +279,7 @@ private struct RailItem: View {
         }
         .buttonStyle(.plain)
         .disabled(action == nil)
-        .opacity(action == nil ? 0.35 : 1)
+        .opacity(action == nil ? t.disabled : 1)
         .help(action == nil ? "\(title) · \(small)" : title)
     }
 }
