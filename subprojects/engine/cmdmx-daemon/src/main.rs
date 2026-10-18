@@ -8,7 +8,7 @@
 //! Usage: `cmdmx-daemon [--ticks N] [--artnet-target IPV4 | --no-artnet]
 //!        [--sacn-unicast IPV4] [--sacn-priority 0..200] [--no-sacn]
 //!        [--serial PATH | --no-serial] [--ipc-port N] [--demo]
-//!        [--qlcplus-dir PATH] [--profiles-dir PATH]`.
+//!        [--qlcplus-dir PATH] [--profiles-dir PATH] [--show-dir PATH]`.
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 //! The app talks to the daemon over WebSocket on `--ipc-port` (default 7319);
 //! `--demo` lets fader 1 breathe. The demo show (IPC-09, IPC-14) has eight dimmers on
@@ -18,6 +18,9 @@
 //! The fixture library (LIB-12..14) is indexed on its own thread at start-up from `--qlcplus-dir`
 //! (default: the bundled `vendor/qlcplus/fixtures`) and `--profiles-dir` (default
 //! `~/Library/Application Support/ColourmotionDMX/profiles`); output never waits for it.
+//! The daemon always runs a show (SHW-09..15): it opens the last one from `--show-dir` (default
+//! `~/Documents/ColourmotionDMX/Shows`, `state.json` beside the app support files, or inside
+//! `--show-dir` when that is given), autosaves it on a saver thread and switches on `show.*`.
 
 mod artnet_out;
 mod ipc;
@@ -30,7 +33,9 @@ mod shows;
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::sync::mpsc::Sender;
+use std::sync::Arc;
+use std::time::{Duration, Instant, SystemTime};
 
 use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use cmdmx_core::engine::{Engine, Settings};
@@ -86,23 +91,50 @@ fn main() {
         });
     }
 
-    let mut engine = match demo_engine() {
-        Ok(e) => e,
+    // SHW-10: the last show, else Demo; a refused show is reported, never written.
+    let shows = Arc::new(shows::Shows::new(
+        cli.show_dir.clone(),
+        cli.state_file.clone(),
+    ));
+    let opened = shows.start(
+        || {
+            demo_engine().unwrap_or_else(|e| {
+                eprintln!("cmdmx-daemon: cannot build demo engine: {e}");
+                std::process::exit(2);
+            })
+        },
+        &shows::iso_utc(SystemTime::now()),
+    );
+    // The first client to connect gets these right after its snapshot.
+    let mut pending = opened.warnings;
+    for w in &pending {
+        eprintln!("warning: {w}");
+    }
+    eprintln!("show: {}", opened.name);
+    if let Err(e) = shows.remember(&opened.name) {
+        eprintln!("warning: cannot remember the open show: {e}");
+    }
+    let mut engine = opened.engine;
+    let mut autosave =
+        shows::Autosave::new(shows.path(&opened.name), opened.meta, opened.show, 0.0);
+    let (jobs, saved) = match shows::spawn_saver() {
+        Ok(s) => s,
         Err(e) => {
-            eprintln!("cmdmx-daemon: cannot build demo engine: {e}");
+            eprintln!("cmdmx-daemon: cannot start the saver thread: {e}");
             std::process::exit(2);
         }
     };
 
     // IPC-01: a bound port that is already taken most likely means another daemon runs.
     let library: ipc::SharedLibrary = Default::default();
-    let (events, ipc_addr) = match ipc::spawn_server_with(cli.ipc_port, library.clone()) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("cmdmx-daemon: cannot open IPC port {}: {e}", cli.ipc_port);
-            std::process::exit(2);
-        }
-    };
+    let (events, ipc_addr) =
+        match ipc::spawn_server_with(cli.ipc_port, library.clone(), Arc::clone(&shows)) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("cmdmx-daemon: cannot open IPC port {}: {e}", cli.ipc_port);
+                std::process::exit(2);
+            }
+        };
     eprintln!("ipc: listening on ws://{ipc_addr}");
     // LIB-13: index the library in the background; until it is stored, requests get "loading".
     let (qlcplus_dir, profiles_dir) = (cli.qlcplus_dir.clone(), cli.profiles_dir.clone());
@@ -130,7 +162,7 @@ fn main() {
         eprintln!("library: cannot start the loader thread: {e}");
     }
     let mut clients = ipc::Clients::default();
-    let mut published = ipc::Published::new(&engine, &statuses);
+    let mut published = ipc::Published::new(&engine, &statuses, &autosave.state());
 
     eprintln!("cmdmx-daemon 0.1.0 — 40 Hz tick loop running.");
     let started = Instant::now();
@@ -141,11 +173,87 @@ fn main() {
 
     loop {
         let now = started.elapsed().as_secs_f64();
+        let wall = shows::iso_utc(SystemTime::now());
         // IPC-07: commands and new clients are drained here, never waited for.
         while let Ok(event) = events.try_recv() {
             let result = match event {
                 ipc::Event::Connected(tx) => {
-                    clients.add(tx, &ipc::snapshot(&engine, &statuses));
+                    clients.add(tx, &ipc::snapshot(&engine, &statuses, &autosave.state()));
+                    for w in std::mem::take(&mut pending) {
+                        clients.broadcast(&ipc::warning(&w));
+                    }
+                    Ok(())
+                }
+                ipc::Event::Warning(e) => {
+                    warn(&mut clients, &e);
+                    continue;
+                }
+                // SHW-11/14/15: write the current show at once, then continue in the next one.
+                event
+                @ (ipc::Event::ShowOpened(_) | ipc::Event::Command(ipc::Command::Show(_))) => {
+                    use shows::ShowRequest::{New, SaveAs};
+                    let target = match &event {
+                        ipc::Event::ShowOpened(opened) => Some(&opened.name),
+                        ipc::Event::Command(ipc::Command::Show(New { name } | SaveAs { name })) => {
+                            Some(name)
+                        }
+                        _ => None,
+                    };
+                    // Also keeps a New or Save As off the open show's own file.
+                    if let Some(n) =
+                        target.filter(|n| n.to_lowercase() == autosave.state().name.to_lowercase())
+                    {
+                        warn(&mut clients, &format!("{n} is already open"));
+                        continue;
+                    }
+                    hand_off(
+                        autosave.flush(&engine, &wall),
+                        &jobs,
+                        &mut autosave,
+                        &mut clients,
+                    );
+                    let fresh = |name: String, engine: Engine| shows::Opened {
+                        meta: shows::new_meta(&name, &wall),
+                        name,
+                        engine,
+                        show: None,
+                        warnings: Vec::new(),
+                    };
+                    let next = match event {
+                        ipc::Event::ShowOpened(opened) => Some(*opened),
+                        ipc::Event::Command(ipc::Command::Show(New { name })) => {
+                            Some(fresh(name, Engine::new(Settings::default())))
+                        }
+                        // Same engine, a new file; the placeholder never runs.
+                        ipc::Event::Command(ipc::Command::Show(SaveAs { name })) => Some(fresh(
+                            name,
+                            std::mem::replace(&mut engine, Engine::new(Settings::default())),
+                        )),
+                        _ => None,
+                    };
+                    if let Some(next) = next {
+                        engine = next.engine;
+                        autosave =
+                            shows::Autosave::new(shows.path(&next.name), next.meta, next.show, now);
+                        // SHW-15: Save As and New write under the new name at once, so the file
+                        // exists for `show.list`, `show.open` and the name check.
+                        hand_off(
+                            autosave.flush(&engine, &wall),
+                            &jobs,
+                            &mut autosave,
+                            &mut clients,
+                        );
+                        // ponytail: a tiny write on the tick, once per switch.
+                        if let Err(e) = shows.remember(&next.name) {
+                            warn(&mut clients, &format!("cannot remember the open show: {e}"));
+                        }
+                        let state = autosave.state();
+                        published = ipc::Published::new(&engine, &statuses, &state);
+                        clients.broadcast(&ipc::snapshot(&engine, &statuses, &state));
+                        for w in &next.warnings {
+                            warn(&mut clients, w);
+                        }
+                    }
                     Ok(())
                 }
                 ipc::Event::Command(cmd) => apply(&mut engine, cmd, now),
@@ -163,6 +271,18 @@ fn main() {
             }
         }
         engine.tick(now);
+        // SHW-11/13: the saver does the disk work; the tick only hands over a copy.
+        while let Ok(done) = saved.try_recv() {
+            if let Some(w) = autosave.finished(done) {
+                warn(&mut clients, &w);
+            }
+        }
+        hand_off(
+            autosave.poll(&engine, now, &wall),
+            &jobs,
+            &mut autosave,
+            &mut clients,
+        );
         let frame = engine.frame(1).map_or([0; UNIVERSE_SIZE], |f| *f.slots());
         for ((tx, status), out) in outputs.iter().zip(&mut statuses) {
             if !output::publish(tx, &frame) && status.get() != output::OutputState::Stopped {
@@ -175,7 +295,7 @@ fn main() {
             eprintln!("warning @{:.3}: {}", w.at, w.message);
             clients.broadcast(&ipc::warning(&w.message));
         }
-        for msg in published.diff(&engine, &statuses) {
+        for msg in published.diff(&engine, &statuses, &autosave.state()) {
             clients.broadcast(&msg);
         }
 
@@ -202,6 +322,32 @@ fn main() {
         next += TICK;
         let wait = next.saturating_duration_since(Instant::now());
         std::thread::sleep(wait);
+    }
+}
+
+fn warn(clients: &mut ipc::Clients, msg: &str) {
+    eprintln!("warning: {msg}");
+    clients.broadcast(&ipc::warning(msg));
+}
+
+/// SHW-11/13: give a job to the saver. A saver that has stopped counts as a failed save.
+/// Never waits.
+fn hand_off(
+    job: Option<shows::Job>,
+    jobs: &Sender<shows::Job>,
+    autosave: &mut shows::Autosave,
+    clients: &mut ipc::Clients,
+) {
+    let Some(job) = job else { return };
+    if let Err(e) = jobs.send(job) {
+        let done = shows::Done {
+            show: e.0.show,
+            result: Err("the saver thread has stopped".into()),
+            at: String::new(),
+        };
+        if let Some(w) = autosave.finished(done) {
+            warn(clients, &w);
+        }
     }
 }
 
@@ -251,6 +397,8 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         RecordGroup { group } => engine.record_group(group),
         // Answered in the client thread; the tick never sees it (LIB-14).
         Library(_) => Ok(()),
+        // Handled before `apply` (SHW-15).
+        Show(_) => Ok(()),
         PatchAdd { add, profile } => {
             if let Some(p) = profile.filter(|_| !engine.has_profile(&add.profile)) {
                 // ponytail: a refused add leaves the installed profile unused in the show.
@@ -289,9 +437,16 @@ struct Cli {
     qlcplus_dir: PathBuf,
     /// `--profiles-dir <path>`: the user's saved profiles (LIB-12).
     profiles_dir: PathBuf,
+    /// `--show-dir <path>`: the shows folder (SHW-09).
+    show_dir: PathBuf,
+    /// Where the last open show is remembered; `<show-dir>/state.json` with `--show-dir`.
+    state_file: PathBuf,
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
     let mut cli = Cli {
         ticks: None,
         artnet: Some(artnet_out::default_target()),
@@ -306,10 +461,9 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
             env!("CARGO_MANIFEST_DIR"),
             "/../vendor/qlcplus/fixtures"
         )),
-        profiles_dir: std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .unwrap_or_default()
-            .join("Library/Application Support/ColourmotionDMX/profiles"),
+        profiles_dir: home.join("Library/Application Support/ColourmotionDMX/profiles"),
+        show_dir: home.join("Documents/ColourmotionDMX/Shows"),
+        state_file: home.join("Library/Application Support/ColourmotionDMX/state.json"),
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -348,6 +502,10 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
             }
             "--profiles-dir" => {
                 cli.profiles_dir = args.next().ok_or("--profiles-dir: missing path")?.into();
+            }
+            "--show-dir" => {
+                cli.show_dir = args.next().ok_or("--show-dir: missing path")?.into();
+                cli.state_file = cli.show_dir.join("state.json");
             }
             _ => {}
         }

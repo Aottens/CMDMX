@@ -1,4 +1,423 @@
 //! The show file on disk (`specs/modules/showfile.md` SHW-09..14). Implementation: SHW-b.
+//!
+//! The shows folder, the last-show state file, opening with recovery and backup, and autosave.
+//! The tick never touches the disk for a show except at a switch: `Autosave` only decides, the
+//! saver thread writes (SHW-11).
+
+use std::fs;
+use std::io::{self, Write};
+use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::path::{Path, PathBuf};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use cmdmx_core::engine::Engine;
+use cmdmx_core::show::{Meta, Show};
+use serde::Serialize;
+
+const EXT: &str = ".cmdmx.json";
+const DEMO: &str = "Demo";
+/// SHW-11: the autosave looks for a change this often.
+const AUTOSAVE_EVERY: f64 = 5.0;
+
+/// SHW-09: 1–64 characters, no `/` or `:`, not starting with `.`.
+pub fn valid_name(name: &str) -> Result<(), String> {
+    let len = name.chars().count();
+    if !(1..=64).contains(&len) || name.contains(['/', ':']) || name.starts_with('.') {
+        return Err(format!(
+            "'{name}' is not a show name (1-64 characters, no / or :, not starting with .)"
+        ));
+    }
+    Ok(())
+}
+
+/// `<path>` with `suffix` appended to the whole file name.
+fn suffixed(path: &Path, suffix: &str) -> PathBuf {
+    let mut p = path.as_os_str().to_owned();
+    p.push(suffix);
+    PathBuf::from(p)
+}
+
+/// SHW-11: write `<path>.tmp`, `fsync` it and rename it over `path`, so `path` is always either
+/// the previous or the new complete file. The folder is created when missing.
+pub fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let tmp = suffixed(path, ".tmp");
+    let mut file = fs::File::create(&tmp)?;
+    file.write_all(contents.as_bytes())?;
+    file.sync_all()?;
+    fs::rename(&tmp, path)
+}
+
+/// `YYYY-MM-DDTHH:MM:SSZ` (the core never reads the clock, SHW-01).
+pub fn iso_utc(t: SystemTime) -> String {
+    let secs = t.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    let (days, rem) = (secs / 86_400, secs % 86_400);
+    // Days since 1970-01-01 to a civil date (Howard Hinnant's algorithm).
+    let z = days + 719_468;
+    let era = z / 146_097;
+    let doe = z % 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + u64::from(month <= 2);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
+}
+
+/// Meta of a show that starts now.
+pub fn new_meta(name: &str, wall: &str) -> Meta {
+    Meta {
+        name: name.into(),
+        created: wall.into(),
+        modified: wall.into(),
+        app_version: env!("CARGO_PKG_VERSION").into(),
+    }
+}
+
+/// SHW-15: one row of `show.list`.
+#[derive(Debug, Serialize)]
+pub struct ShowEntry {
+    pub name: String,
+    pub modified: String,
+}
+
+/// SHW-12: a show as opened. `show` is what the file held (`None` for a Demo that was built).
+pub struct Opened {
+    pub name: String,
+    pub engine: Engine,
+    pub meta: Meta,
+    pub show: Option<Show>,
+    pub warnings: Vec<String>,
+}
+
+// The engine has no `Debug`; `Result::unwrap_err` wants one.
+impl std::fmt::Debug for Opened {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Opened")
+            .field("name", &self.name)
+            .field("warnings", &self.warnings)
+            .finish_non_exhaustive()
+    }
+}
+
+/// SHW-09: the shows folder and the file that remembers the last open show.
+pub struct Shows {
+    dir: PathBuf,
+    state_file: PathBuf,
+}
+
+impl Shows {
+    pub fn new(dir: PathBuf, state_file: PathBuf) -> Shows {
+        Shows { dir, state_file }
+    }
+
+    pub fn path(&self, name: &str) -> PathBuf {
+        self.dir.join(format!("{name}{EXT}"))
+    }
+
+    pub fn state_file(&self) -> &Path {
+        &self.state_file
+    }
+
+    /// Only `*.cmdmx.json` files, sorted by name ignoring case.
+    pub fn list(&self) -> Vec<ShowEntry> {
+        let mut list: Vec<ShowEntry> = fs::read_dir(&self.dir)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|entry| {
+                let file = entry.file_name().into_string().ok()?;
+                let name = file.strip_suffix(EXT)?.to_string();
+                let modified = entry.metadata().and_then(|m| m.modified()).ok()?;
+                Some(ShowEntry {
+                    name,
+                    modified: iso_utc(modified),
+                })
+            })
+            .collect();
+        list.sort_by_key(|e| e.name.to_lowercase());
+        list
+    }
+
+    /// Names are unique ignoring case (APFS).
+    pub fn exists(&self, name: &str) -> bool {
+        let name = name.to_lowercase();
+        self.list().iter().any(|e| e.name.to_lowercase() == name)
+    }
+
+    /// SHW-14 and SHW-04/07/12: settle a leftover `.tmp`, read the file, build the engine and
+    /// keep the original as `.bak` when the load left something out or migrated.
+    pub fn open(&self, name: &str) -> Result<Opened, String> {
+        // Keep the casing the file has.
+        let lower = name.to_lowercase();
+        let name = self
+            .list()
+            .into_iter()
+            .find(|e| e.name.to_lowercase() == lower)
+            .map_or_else(|| name.to_string(), |e| e.name);
+        let name = name.as_str();
+        let path = self.path(name);
+        let mut warnings = Vec::new();
+        let tmp = suffixed(&path, ".tmp");
+        if let Ok(tmp_time) = fs::metadata(&tmp).and_then(|m| m.modified()) {
+            let newer = fs::metadata(&path)
+                .and_then(|m| m.modified())
+                .map_or(true, |show_time| tmp_time > show_time);
+            let usable =
+                newer && fs::read_to_string(&tmp).is_ok_and(|json| Show::from_json(&json).is_ok());
+            if usable && fs::rename(&tmp, &path).is_ok() {
+                warnings.push(format!(
+                    "{name}: recovered the autosave of {}",
+                    iso_utc(tmp_time)
+                ));
+            } else {
+                let _ = fs::remove_file(&tmp);
+                warnings.push(format!("{name}: discarded an unfinished autosave"));
+            }
+        }
+        let json = fs::read_to_string(&path).map_err(|e| match e.kind() {
+            io::ErrorKind::NotFound => format!("there is no show named {name}"),
+            _ => format!("cannot read {name}: {e}"),
+        })?;
+        let (show, migrations) = Show::from_json(&json).map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains(name) {
+                msg
+            } else {
+                format!("{name}: {msg}")
+            }
+        })?;
+        let (engine, lost) = Engine::from_show(&show);
+        if !lost.is_empty() || !migrations.is_empty() {
+            let bak = suffixed(&path, ".bak");
+            warnings.push(match fs::copy(&path, &bak) {
+                Ok(_) => format!("{name}: the original file is kept as {name}{EXT}.bak"),
+                Err(e) => format!("{name}: could not keep the original as {name}{EXT}.bak: {e}"),
+            });
+        }
+        warnings.extend(lost.into_iter().map(|w| format!("{name}: {w}")));
+        warnings.extend(
+            migrations
+                .into_iter()
+                .map(|m| format!("{name}: migrated {m}")),
+        );
+        let mut meta = show.meta.clone();
+        meta.name = name.into();
+        Ok(Opened {
+            name: name.into(),
+            engine,
+            meta,
+            show: Some(show),
+            warnings,
+        })
+    }
+
+    /// The name in `state.json`.
+    pub fn last(&self) -> Option<String> {
+        let json = fs::read_to_string(self.state_file()).ok()?;
+        let v: serde_json::Value = serde_json::from_str(&json).ok()?;
+        Some(v.get("last_show")?.as_str()?.to_string())
+    }
+
+    pub fn remember(&self, name: &str) -> io::Result<()> {
+        let json = serde_json::json!({ "last_show": name }).to_string();
+        write_atomic(self.state_file(), &json)
+    }
+
+    /// SHW-10: the last show; else (also when it is refused) Demo from its file, else the
+    /// built-in Demo. A refused file is only reported, never written (`Opened::show` is `None`
+    /// for the built Demo, and a refused show is never the one that autosaves).
+    pub fn start(&self, demo: impl FnOnce() -> Engine, wall: &str) -> Opened {
+        let mut warnings = Vec::new();
+        let mut opened = None;
+        for name in self.last().into_iter().chain([DEMO.to_string()]) {
+            match self.open(&name) {
+                Ok(o) => {
+                    opened = Some(o);
+                    break;
+                }
+                // A show that is merely gone is not worth a warning; a refused one is.
+                Err(e) if self.exists(&name) => warnings.push(e),
+                Err(_) => {}
+            }
+        }
+        let mut opened = opened.unwrap_or_else(|| {
+            // A Demo file that was refused is never overwritten: take the first free name.
+            let name = (2..)
+                .map(|n| format!("{DEMO} {n}"))
+                .find(|n| !self.exists(n))
+                .filter(|_| self.exists(DEMO))
+                .unwrap_or_else(|| DEMO.into());
+            Opened {
+                meta: new_meta(&name, wall),
+                name,
+                engine: demo(),
+                show: None,
+                warnings: Vec::new(),
+            }
+        });
+        warnings.append(&mut opened.warnings);
+        opened.warnings = warnings;
+        opened
+    }
+}
+
+/// SHW-15: what `show.*` asks for.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ShowRequest {
+    List,
+    New { name: String },
+    Open { name: String },
+    SaveAs { name: String },
+}
+
+/// SHW-15: the `show` part of the snapshot and the `show` delta.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ShowState {
+    pub name: String,
+    pub saved_at: Option<String>,
+    pub autosave_ok: bool,
+}
+
+/// SHW-11: a copy of the show for the saver thread.
+pub struct Job {
+    pub path: PathBuf,
+    pub json: String,
+    pub show: Show,
+}
+
+/// SHW-11/13: the saver's answer to one [`Job`]; `at` is when the write ended.
+pub struct Done {
+    pub show: Show,
+    pub result: Result<(), String>,
+    pub at: String,
+}
+
+/// SHW-11/13: decides when the open show needs writing; the tick owns it, the saver writes.
+pub struct Autosave {
+    path: PathBuf,
+    meta: Meta,
+    /// The last show known to be on disk (as read, or as written successfully).
+    saved: Option<Show>,
+    checked: f64,
+    saved_at: Option<String>,
+    ok: bool,
+}
+
+impl Autosave {
+    pub fn new(path: PathBuf, meta: Meta, saved: Option<Show>, now: f64) -> Autosave {
+        Autosave {
+            path,
+            meta,
+            // The file is there: it was saved when it says so.
+            saved_at: saved.as_ref().map(|s| s.meta.modified.clone()),
+            saved,
+            checked: now,
+            ok: true,
+        }
+    }
+
+    /// Show data only: live state is not in `to_show`, and `meta` is left out of the comparison.
+    fn changed(&self, engine: &Engine, wall: &str) -> Option<Job> {
+        let known = self.saved.as_ref().map(|s| s.meta.clone());
+        let mut show = engine.to_show(known.unwrap_or_else(|| self.meta.clone()));
+        if self.saved.as_ref() == Some(&show) {
+            return None;
+        }
+        show.meta = Meta {
+            modified: wall.into(),
+            ..self.meta.clone()
+        };
+        Some(Job {
+            path: self.path.clone(),
+            json: show.to_json(),
+            show,
+        })
+    }
+
+    /// At most every 5 s; a failed save is retried by the same rule (SHW-13).
+    pub fn poll(&mut self, engine: &Engine, now: f64, wall: &str) -> Option<Job> {
+        if now - self.checked < AUTOSAVE_EVERY {
+            return None;
+        }
+        self.checked = now;
+        self.changed(engine, wall)
+    }
+
+    /// Before a show switch: no wait (SHW-11).
+    pub fn flush(&mut self, engine: &Engine, wall: &str) -> Option<Job> {
+        self.changed(engine, wall)
+    }
+
+    /// The saver's answer. Returns a warning on the first failure of a streak (SHW-13).
+    pub fn finished(&mut self, done: Done) -> Option<String> {
+        let name = done.show.meta.name.clone();
+        if name != self.meta.name {
+            // The flush of a show we have left: report a failure, change nothing here.
+            return done
+                .result
+                .err()
+                .map(|e| format!("saving {name} failed: {e}"));
+        }
+        match done.result {
+            Ok(()) => {
+                self.ok = true;
+                self.saved_at = Some(done.at);
+                self.saved = Some(done.show);
+                None
+            }
+            Err(e) => {
+                let first = std::mem::replace(&mut self.ok, false);
+                first.then(|| format!("autosave of {name} failed: {e}; retrying every 5 s"))
+            }
+        }
+    }
+
+    pub fn state(&self) -> ShowState {
+        ShowState {
+            name: self.meta.name.clone(),
+            saved_at: self.saved_at.clone(),
+            autosave_ok: self.ok,
+        }
+    }
+}
+
+/// SHW-11: the thread that does the disk writes, so the tick never waits. A panic in a write
+/// is caught and comes back as a failed save.
+pub fn spawn_saver() -> io::Result<(Sender<Job>, Receiver<Done>)> {
+    let (jobs, job_rx) = channel::<Job>();
+    let (done_tx, done) = channel();
+    std::thread::Builder::new()
+        .name("show-saver".into())
+        .spawn(move || {
+            for job in job_rx {
+                let result = catch_unwind(AssertUnwindSafe(|| write_atomic(&job.path, &job.json)))
+                    .unwrap_or_else(|_| Err(io::Error::other("the writer panicked")))
+                    .map_err(|e| e.to_string());
+                let at = iso_utc(SystemTime::now());
+                if done_tx
+                    .send(Done {
+                        show: job.show,
+                        result,
+                        at,
+                    })
+                    .is_err()
+                {
+                    return;
+                }
+            }
+        })?;
+    Ok((jobs, done))
+}
 
 #[cfg(test)]
 #[allow(
@@ -89,7 +508,10 @@ mod tests {
         let s = shows("folder");
         assert!(s.path("Kerk").ends_with("Shows/Kerk.cmdmx.json"));
         save(&s, "Kerk", &demo());
-        assert!(s.path("Kerk").is_file(), "the folder is created when missing");
+        assert!(
+            s.path("Kerk").is_file(),
+            "the folder is created when missing"
+        );
     }
 
     #[test]
@@ -145,7 +567,10 @@ mod tests {
         let s = shows("start-none");
         let opened = s.start(demo, WALL);
         assert_eq!(opened.name, "Demo");
-        assert!(opened.show.is_none(), "not on disk yet: the first autosave writes it");
+        assert!(
+            opened.show.is_none(),
+            "not on disk yet: the first autosave writes it"
+        );
         assert_eq!(opened.engine.fixtures().count(), demo().fixtures().count());
         assert_eq!(opened.meta.created, WALL);
     }
@@ -171,13 +596,17 @@ mod tests {
     #[test]
     fn shw_10_a_refused_last_show_falls_back_to_demo_and_is_never_written() {
         let s = shows("start-refused");
-        let json = save(&s, "Kerk", &demo()).replace("\"schema_version\": 1", "\"schema_version\": 9");
+        let json =
+            save(&s, "Kerk", &demo()).replace("\"schema_version\": 1", "\"schema_version\": 9");
         fs::write(s.path("Kerk"), &json).unwrap();
         s.remember("Kerk").unwrap();
         let opened = s.start(demo, WALL);
         assert_eq!(opened.name, "Demo");
         assert!(
-            opened.warnings.iter().any(|w| w.contains("Kerk") && w.contains("newer")),
+            opened
+                .warnings
+                .iter()
+                .any(|w| w.contains("Kerk") && w.contains("newer")),
             "{:?}",
             opened.warnings
         );
@@ -219,6 +648,13 @@ mod tests {
     }
 
     #[test]
+    fn shw_15_an_opened_show_was_saved_when_its_file_says() {
+        let s = shows("saved-at");
+        let a = autosave(&s, &demo());
+        assert_eq!(a.state().saved_at.as_deref(), Some(WALL));
+    }
+
+    #[test]
     fn shw_11_live_state_is_not_a_show_change() {
         let s = shows("autosave-live");
         let mut e = demo();
@@ -237,7 +673,13 @@ mod tests {
         let mut a = autosave(&s, &e);
         e.patch_name(101, "Left wash").unwrap();
         let job = a.poll(&e, 5.0, WALL).unwrap();
-        assert!(a.finished(Done { show: job.show, result: Ok(()), at: WALL.into() }).is_none());
+        assert!(a
+            .finished(Done {
+                show: job.show,
+                result: Ok(()),
+                at: WALL.into()
+            })
+            .is_none());
         assert!(a.poll(&e, 10.0, WALL).is_none());
         assert_eq!(a.state().saved_at.as_deref(), Some(WALL));
     }
@@ -291,7 +733,11 @@ mod tests {
         fs::write(s.path("Kerk"), &broken).unwrap();
         let opened = s.open("Kerk").unwrap();
         assert!(opened.warnings.iter().any(|w| w.contains("999")));
-        assert!(opened.warnings.iter().any(|w| w.contains(".bak")), "{:?}", opened.warnings);
+        assert!(
+            opened.warnings.iter().any(|w| w.contains(".bak")),
+            "{:?}",
+            opened.warnings
+        );
         assert_eq!(fs::read_to_string(bak_path(&s, "Kerk")).unwrap(), broken);
     }
 
@@ -314,7 +760,11 @@ mod tests {
         let mut a = autosave(&s, &e);
         e.patch_name(101, "Left wash").unwrap();
         let fail = |a: &mut Autosave, job: Job| {
-            a.finished(Done { show: job.show, result: Err("disk full".into()), at: WALL.into() })
+            a.finished(Done {
+                show: job.show,
+                result: Err("disk full".into()),
+                at: WALL.into(),
+            })
         };
         let job = a.poll(&e, 5.0, WALL).unwrap();
         let warning = fail(&mut a, job).unwrap();
@@ -323,11 +773,20 @@ mod tests {
         let job = a.poll(&e, 10.0, WALL).expect("retried after 5 s");
         assert!(fail(&mut a, job).is_none(), "warned once");
         let job = a.poll(&e, 15.0, WALL).unwrap();
-        assert!(a.finished(Done { show: job.show, result: Ok(()), at: WALL.into() }).is_none());
+        assert!(a
+            .finished(Done {
+                show: job.show,
+                result: Ok(()),
+                at: WALL.into()
+            })
+            .is_none());
         assert!(a.state().autosave_ok);
         e.patch_name(101, "Right wash").unwrap();
         let job = a.poll(&e, 20.0, WALL).unwrap();
-        assert!(fail(&mut a, job).is_some(), "fails anew after it worked: warn again");
+        assert!(
+            fail(&mut a, job).is_some(),
+            "fails anew after it worked: warn again"
+        );
     }
 
     // ---- SHW-14 --------------------------------------------------------------
@@ -342,9 +801,15 @@ mod tests {
         fs::write(tmp_path(&s, "Kerk"), e.to_show(meta("Kerk")).to_json()).unwrap();
         let opened = s.open("Kerk").unwrap();
         assert_eq!(opened.engine.fixture(101).unwrap().name, "Unsaved");
-        assert!(opened.warnings.iter().any(|w| w.contains("recovered")), "{:?}", opened.warnings);
+        assert!(
+            opened.warnings.iter().any(|w| w.contains("recovered")),
+            "{:?}",
+            opened.warnings
+        );
         assert!(!tmp_path(&s, "Kerk").exists());
-        assert!(fs::read_to_string(s.path("Kerk")).unwrap().contains("Unsaved"));
+        assert!(fs::read_to_string(s.path("Kerk"))
+            .unwrap()
+            .contains("Unsaved"));
     }
 
     #[test]
@@ -363,6 +828,32 @@ mod tests {
         let opened = s.open("Kerk").unwrap();
         assert_ne!(opened.engine.fixture(101).unwrap().name, "Old");
         assert!(!tmp_path(&s, "Kerk").exists());
+    }
+
+    #[test]
+    fn shw_10_a_refused_demo_file_is_never_written_either() {
+        let s = shows("start-refused-demo");
+        let json =
+            save(&s, "Demo", &demo()).replace("\"schema_version\": 1", "\"schema_version\": 9");
+        fs::write(s.path("Demo"), &json).unwrap();
+        let opened = s.start(demo, WALL);
+        assert_eq!(opened.name, "Demo 2", "the built Demo gets a free name");
+        assert!(opened.show.is_none());
+        assert!(
+            opened.warnings.iter().any(|w| w.contains("newer")),
+            "{:?}",
+            opened.warnings
+        );
+        assert_eq!(fs::read_to_string(s.path("Demo")).unwrap(), json);
+    }
+
+    #[test]
+    fn shw_09_open_keeps_the_name_as_the_file_has_it() {
+        let s = shows("case");
+        save(&s, "Kerk", &demo());
+        let opened = s.open("kerk").unwrap();
+        assert_eq!(opened.name, "Kerk");
+        assert_eq!(opened.meta.name, "Kerk");
     }
 
     #[test]

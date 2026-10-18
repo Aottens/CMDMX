@@ -2,12 +2,14 @@
 //! programmer snapshot, deltas and commands (IPC-10..13, VS2-07), and the fixture library
 //! requests (LIB-14, VS2-11), the patch commands and `fixtures` delta (PAT-09, VS2-12), and
 //! the output node states in the snapshot and the `outputs` delta (IPC-20), and the programmer
-//! contents, picker colour and `programmer.colour` command (IPC-21..23).
+//! contents, picker colour and `programmer.colour` command (IPC-21..23), and the show state and
+//! `show.*` commands (SHW-15).
 //!
 //! One thread per client. The tick only talks to clients through channels and
 //! never blocks: commands arrive on an unbounded channel, outgoing messages
 //! leave through a bounded queue per client (IPC-07). Library requests never reach the tick:
-//! the client thread answers them itself, straight to the asking client.
+//! the client thread answers them itself, straight to the asking client. So does `show.list`,
+//! and `show.open` is read from disk there too, so the tick never waits on a show file.
 
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
@@ -33,6 +35,7 @@ use tungstenite::{Error as WsError, Message};
 
 use crate::library::Library;
 use crate::output::OutputState;
+use crate::shows::{valid_name, Opened, ShowRequest, ShowState, Shows};
 
 /// Messages a client may have queued before it is disconnected (IPC-07).
 const QUEUE: usize = 64;
@@ -86,6 +89,9 @@ pub enum Command {
     },
     /// LIB-14: answered by the client thread, never applied by the tick.
     Library(LibraryRequest),
+    /// SHW-15: `New` and `SaveAs` reach the tick once their name is checked; `List` and `Open`
+    /// are answered by the client thread.
+    Show(ShowRequest),
     /// PAT-09: `profile` is the library's copy, attached by the client thread (`attach_profile`).
     PatchAdd {
         add: PatchAdd,
@@ -130,6 +136,10 @@ pub enum LibraryRequest {
 pub enum Event {
     Connected(SyncSender<String>),
     Command(Command),
+    /// SHW-15: a show read by the client thread, to be switched to.
+    ShowOpened(Box<Opened>),
+    /// SHW-15: a refused show request, for every client (IPC-06).
+    Warning(String),
 }
 
 /// An unsigned integer field that fits `T`.
@@ -269,6 +279,16 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("library.save_channel_list") => Ok(Command::Library(LibraryRequest::SaveChannelList(
             serde_json::from_value(v.clone()).map_err(|e| format!("invalid channel list: {e}"))?,
         ))),
+        Some("show.list") => Ok(Command::Show(ShowRequest::List)),
+        Some("show.new") => Ok(Command::Show(ShowRequest::New {
+            name: string(&v, "name")?,
+        })),
+        Some("show.open") => Ok(Command::Show(ShowRequest::Open {
+            name: string(&v, "name")?,
+        })),
+        Some("show.save_as") => Ok(Command::Show(ShowRequest::SaveAs {
+            name: string(&v, "name")?,
+        })),
         Some("patch.add") => Ok(Command::PatchAdd {
             add: PatchAdd {
                 profile: string(&v, "profile")?,
@@ -357,6 +377,7 @@ struct Snapshot<'a> {
     groups: Vec<GroupInfo<'a>>,
     programmer: &'a ProgrammerView,
     outputs: Vec<OutputJson>,
+    show: &'a ShowState,
 }
 
 /// IPC-20: one output node as the daemon's tick sees it.
@@ -392,6 +413,15 @@ impl From<&OutputStatus> for OutputJson {
 
 fn output_jsons(outputs: &[OutputStatus]) -> Vec<OutputJson> {
     outputs.iter().map(OutputJson::from).collect()
+}
+
+#[derive(Serialize)]
+struct ShowDelta<'a> {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    #[serde(flatten)]
+    state: &'a ShowState,
 }
 
 #[derive(Serialize)]
@@ -500,7 +530,7 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
 }
 
 /// IPC-03/10/20: full state for a freshly connected client.
-pub fn snapshot(engine: &Engine, outputs: &[OutputStatus]) -> String {
+pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> String {
     to_json(&Snapshot {
         v: 0,
         kind: "snapshot",
@@ -511,6 +541,7 @@ pub fn snapshot(engine: &Engine, outputs: &[OutputStatus]) -> String {
         groups: group_infos(engine.groups()),
         programmer: &engine.programmer_view(),
         outputs: output_jsons(outputs),
+        show,
     })
 }
 
@@ -538,10 +569,11 @@ pub struct Published {
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
     fixtures: Vec<Fixture>,
     outputs: Vec<OutputStatus>,
+    show: ShowState,
 }
 
 impl Published {
-    pub fn new(engine: &Engine, outputs: &[OutputStatus]) -> Self {
+    pub fn new(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> Self {
         Self {
             playbacks: infos(engine).map(|i| (i.id, (i.level, i.active))).collect(),
             grand_master: engine.grand_master(),
@@ -549,10 +581,16 @@ impl Published {
             groups: engine.groups().clone(),
             fixtures: engine.fixtures().cloned().collect(),
             outputs: outputs.to_vec(),
+            show: show.clone(),
         }
     }
 
-    pub fn diff(&mut self, engine: &Engine, outputs: &[OutputStatus]) -> Vec<String> {
+    pub fn diff(
+        &mut self,
+        engine: &Engine,
+        outputs: &[OutputStatus],
+        show: &ShowState,
+    ) -> Vec<String> {
         let mut out = Vec::new();
         for info in infos(engine) {
             let now = (info.level, info.active);
@@ -607,6 +645,15 @@ impl Published {
                 v: 0,
                 kind: "outputs",
                 outputs: output_jsons(outputs),
+            }));
+        }
+        // SHW-15: the whole state, once, after any change of it.
+        if show != &self.show {
+            self.show = show.clone();
+            out.push(to_json(&ShowDelta {
+                v: 0,
+                kind: "show",
+                state: show,
             }));
         }
         out
@@ -710,17 +757,48 @@ pub fn answer_library(lib: &RwLock<Option<Library>>, req: LibraryRequest) -> Str
     }
 }
 
-/// A server for tests that never use the library: it stays "loading".
+/// SHW-15: the reply to `show.list`, to the asking client only.
+pub fn answer_show_list(shows: &Shows) -> String {
+    serde_json::json!({"v": 0, "type": "show.list", "shows": shows.list()}).to_string()
+}
+
+/// SHW-15: what a show request becomes. Names are checked here (SHW-09) and an Open is read
+/// here, so the tick only switches. A refusal is a warning for every client (IPC-06).
+fn show_event(shows: &Shows, req: ShowRequest) -> Event {
+    match &req {
+        ShowRequest::Open { name } => match valid_name(name).and_then(|()| shows.open(name)) {
+            Ok(opened) => Event::ShowOpened(Box::new(opened)),
+            Err(e) => Event::Warning(e),
+        },
+        ShowRequest::New { name } | ShowRequest::SaveAs { name } => {
+            match valid_name(name).and_then(|()| match shows.exists(name) {
+                true => Err(format!("a show named {name} already exists")),
+                false => Ok(()),
+            }) {
+                Ok(()) => Event::Command(Command::Show(req)),
+                Err(e) => Event::Warning(e),
+            }
+        }
+        ShowRequest::List => Event::Command(Command::Show(req)),
+    }
+}
+
+/// A server for tests that never use the library: it stays "loading". Its shows folder is a
+/// temp folder nobody writes to.
 #[cfg(test)]
 pub fn spawn_server(port: u16) -> std::io::Result<(Receiver<Event>, SocketAddr)> {
-    spawn_server_with(port, Arc::new(RwLock::new(None)))
+    let dir = std::env::temp_dir().join(format!("cmdmx-ipc-shows-{}", std::process::id()));
+    let shows = Shows::new(dir.join("Shows"), dir.join("state.json"));
+    spawn_server_with(port, Arc::new(RwLock::new(None)), Arc::new(shows))
 }
 
 /// IPC-01: listen on loopback (port 0 = ephemeral); events flow to the tick, library
-/// requests are answered by the client threads from `library` (LIB-14).
+/// requests are answered by the client threads from `library` (LIB-14) and the show requests
+/// from `shows` (SHW-15).
 pub fn spawn_server_with(
     port: u16,
     library: SharedLibrary,
+    shows: Arc<Shows>,
 ) -> std::io::Result<(Receiver<Event>, SocketAddr)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port))?;
     let addr = listener.local_addr()?;
@@ -731,13 +809,14 @@ pub fn spawn_server_with(
             for stream in listener.incoming().flatten() {
                 let events = events.clone();
                 let library = Arc::clone(&library);
+                let shows = Arc::clone(&shows);
                 // A failed spawn only loses this one client.
                 let _ = std::thread::Builder::new()
                     .name("ipc-client".into())
                     .spawn(move || {
                         // IPC-07: a panic closes only this client.
                         if catch_unwind(AssertUnwindSafe(|| {
-                            serve_client(stream, &events, &library)
+                            serve_client(stream, &events, &library, &shows)
                         }))
                         .is_err()
                         {
@@ -772,7 +851,12 @@ pub fn attach_profile(lib: &RwLock<Option<Library>>, cmd: Command) -> Command {
     Command::PatchAdd { add, profile }
 }
 
-fn serve_client(stream: TcpStream, events: &Sender<Event>, library: &RwLock<Option<Library>>) {
+fn serve_client(
+    stream: TcpStream,
+    events: &Sender<Event>,
+    library: &RwLock<Option<Library>>,
+    shows: &Shows,
+) {
     let Ok(mut ws) = tungstenite::accept_hdr(stream, refuse_origin) else {
         return;
     };
@@ -797,6 +881,16 @@ fn serve_client(stream: TcpStream, events: &Sender<Event>, library: &RwLock<Opti
                         .send(Message::text(answer_library(library, req)))
                         .is_err()
                     {
+                        return;
+                    }
+                }
+                Ok(Command::Show(ShowRequest::List)) => {
+                    if ws.send(Message::text(answer_show_list(shows))).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::Show(req)) => {
+                    if events.send(show_event(shows, req)).is_err() {
                         return;
                     }
                 }
@@ -933,7 +1027,10 @@ mod tests {
                    {"name":"sacn","state":"Degraded"},
                    {"name":"serial","state":"Degraded","detail":"no interface"}])
         );
-        assert_eq!(parse(&snapshot(&engine(), &[], &show_state()))["outputs"], json!([]));
+        assert_eq!(
+            parse(&snapshot(&engine(), &[], &show_state()))["outputs"],
+            json!([])
+        );
     }
 
     #[test]
@@ -951,7 +1048,10 @@ mod tests {
         assert_eq!(v["type"], "outputs");
         assert_eq!(v["outputs"][0], json!({"name":"art-net","state":"Stopped"}));
         assert_eq!(v["outputs"].as_array().unwrap().len(), 3);
-        assert!(published.diff(&e, &outs, &show_state()).is_empty(), "no change, no delta");
+        assert!(
+            published.diff(&e, &outs, &show_state()).is_empty(),
+            "no change, no delta"
+        );
     }
 
     fn no_values(available_i: bool) -> Value {
@@ -1035,7 +1135,10 @@ mod tests {
         assert_eq!(d[0]["v"], 0);
         assert_eq!(d[0]["fixtures"][0]["number"], 42);
         e.tick(0.05);
-        assert!(published.diff(&e, &[], &show_state()).is_empty(), "no change, no delta");
+        assert!(
+            published.diff(&e, &[], &show_state()).is_empty(),
+            "no change, no delta"
+        );
         e.patch_move(1, 2, 100).unwrap();
         let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
@@ -1224,7 +1327,10 @@ mod tests {
         assert_eq!(p["wheels"][0]["attribute"], "Dimmer");
 
         e.tick(0.05);
-        assert!(published.diff(&e, &[], &show_state()).is_empty(), "no change, no delta");
+        assert!(
+            published.diff(&e, &[], &show_state()).is_empty(),
+            "no change, no delta"
+        );
 
         e.record_group(4).unwrap();
         e.tick(0.075);
@@ -1520,7 +1626,10 @@ mod tests {
             json!({"v":0,"type":"playback","id":1,"level":0.5,"active":true})
         );
         e.tick(0.05);
-        assert!(published.diff(&e, &[], &show_state()).is_empty(), "no change, no delta");
+        assert!(
+            published.diff(&e, &[], &show_state()).is_empty(),
+            "no change, no delta"
+        );
 
         e.set_grand_master(0.25).unwrap();
         let d = published.diff(&e, &[], &show_state());
@@ -1582,7 +1691,7 @@ mod tests {
                     level: 0.5
                 }
             ),
-            Event::Connected(_) => panic!("expected Command"),
+            _ => panic!("expected Command"),
         }
     }
 
@@ -1636,7 +1745,10 @@ mod tests {
             saved_at: None,
             ..show_state()
         };
-        assert_eq!(parse(&snapshot(&engine(), &[], &fresh))["show"]["saved_at"], Value::Null);
+        assert_eq!(
+            parse(&snapshot(&engine(), &[], &fresh))["show"]["saved_at"],
+            Value::Null
+        );
     }
 
     #[test]
@@ -1652,7 +1764,10 @@ mod tests {
             parse(&d[0]),
             json!({"v":0,"type":"show","name":"Kerk","saved_at":"2026-10-18T09:00:05Z","autosave_ok":false})
         );
-        assert!(published.diff(&e, &[], &state).is_empty(), "no change, no delta");
+        assert!(
+            published.diff(&e, &[], &state).is_empty(),
+            "no change, no delta"
+        );
         state.saved_at = Some("2026-10-18T09:00:10Z".into());
         assert_eq!(published.diff(&e, &[], &state).len(), 1);
     }
@@ -1664,15 +1779,21 @@ mod tests {
             (r#"{"v":0,"cmd":"show.list"}"#, ShowRequest::List),
             (
                 r#"{"v":0,"cmd":"show.new","name":"Kerst"}"#,
-                ShowRequest::New { name: "Kerst".into() },
+                ShowRequest::New {
+                    name: "Kerst".into(),
+                },
             ),
             (
                 r#"{"v":0,"cmd":"show.open","name":"Kerk"}"#,
-                ShowRequest::Open { name: "Kerk".into() },
+                ShowRequest::Open {
+                    name: "Kerk".into(),
+                },
             ),
             (
                 r#"{"v":0,"cmd":"show.save_as","name":"Kerk 2"}"#,
-                ShowRequest::SaveAs { name: "Kerk 2".into() },
+                ShowRequest::SaveAs {
+                    name: "Kerk 2".into(),
+                },
             ),
         ];
         for (text, expected) in cases {
