@@ -1138,7 +1138,7 @@ mod tests {
             v["programmer"],
             json!({"selection":[],"targets":[],"active_group":"I",
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
-                   "contents":[],"colour":null})
+                   "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]}})
         );
     }
 
@@ -1378,20 +1378,21 @@ mod tests {
             v["programmer"],
             json!({"selection":[1],"targets":[1],"active_group":"I",
                    "attribute_groups": no_values(true),
-                   "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false}],
-                   "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null})
+                   "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false,"palette":null}],
+                   "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null,
+                   "palettes":{"in_use":[],"relevant":[]}})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(&e, &[], &show_state()));
         assert_eq!(
             v["programmer"]["wheels"],
-            json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false}])
+            json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false,"palette":null}])
         );
         assert_eq!(v["programmer"]["in_programmer"], json!([1]));
         // IPC-21: programmer values per fixture.
         assert_eq!(
             v["programmer"]["contents"],
-            json!([{"fixture":1,"values":{"Dimmer":1.0}}])
+            json!([{"fixture":1,"values":{"Dimmer":1.0},"palettes":{}}])
         );
         assert_eq!(v["programmer"]["attribute_groups"][0]["has_values"], true);
     }
@@ -1955,6 +1956,235 @@ mod tests {
             r#"{"v":0,"cmd":"page.set"}"#,
             r#"{"v":0,"cmd":"page.set","page":"2"}"#,
             r#"{"v":0,"cmd":"page.set","page":-1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    // ---- palettes (PAL-25..27, VS2-19) -----------------------------------------------------
+
+    /// The test engine plus palette id 7 = number 2 "Full" (global Dimmer) in Beams cell 1 and
+    /// id 8 = number 5 "Red" (global Colour, fits no fixture here) in Colours cell 1.
+    fn engine_with_palettes() -> Engine {
+        use cmdmx_core::colour::TargetColour;
+        use cmdmx_core::palette::{GlobalValue, Palette, Window};
+        let mut e = engine();
+        let palette = |id, number, window, legend: &str, attribute: &str, value| Palette {
+            id,
+            number,
+            window,
+            handle: 1,
+            legend: legend.into(),
+            icon: None,
+            global: BTreeMap::from([(attribute.to_string(), GlobalValue::Value(value))]),
+            shared: BTreeMap::new(),
+            fixtures: BTreeMap::new(),
+        };
+        e.add_palette(palette(
+            8,
+            5,
+            Window::Colours,
+            "Red",
+            "Colour",
+            cmdmx_core::value::Value::Colour(TargetColour {
+                r: 1.0,
+                g: 0.0,
+                b: 0.0,
+            }),
+        ))
+        .unwrap();
+        e.add_palette(palette(
+            7,
+            2,
+            Window::Beams,
+            "Full",
+            "Dimmer",
+            cmdmx_core::value::Value::Level(1.0),
+        ))
+        .unwrap();
+        e
+    }
+
+    #[test]
+    fn pal_25_snapshot_lists_palettes_by_number() {
+        let mut e = engine_with_palettes();
+        e.set_palette_legend(2, "Full", Some("beam.zoom")).unwrap();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        assert_eq!(
+            v["palettes"],
+            json!([
+                {"id":7,"number":2,"window":"Beams","handle":1,"legend":"Full","icon":"beam.zoom",
+                 "auto_icon":{"value":{"attribute":"Dimmer","value":1.0}},"kind":"G","groups":["I"]},
+                {"id":8,"number":5,"window":"Colours","handle":1,"legend":"Red","icon":null,
+                 "auto_icon":{"colours":[{"r":1.0,"g":0.0,"b":0.0}]},"kind":"G","groups":["C"]}
+            ])
+        );
+    }
+
+    #[test]
+    fn pal_25_palettes_delta_after_a_change_only() {
+        let mut e = engine_with_palettes();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.tick(0.0);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+        e.set_palette_legend(5, "Warm", None).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1, "{d:?}");
+        let v = parse(&d[0]);
+        assert_eq!(v["v"], 0);
+        assert_eq!(v["type"], "palettes");
+        assert_eq!(v["palettes"].as_array().unwrap().len(), 2);
+        assert_eq!(v["palettes"][1]["legend"], "Warm");
+        e.tick(0.05);
+        assert!(
+            published.diff(&e, &[], &show_state()).is_empty(),
+            "no change, no delta"
+        );
+        e.move_palette(5, cmdmx_core::palette::Cell::new(cmdmx_core::palette::Window::Positions, 3))
+            .unwrap();
+        e.tick(0.075);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1);
+        assert_eq!(parse(&d[0])["palettes"][1]["window"], "Positions");
+    }
+
+    #[test]
+    fn pal_26_programmer_state_carries_palette_use() {
+        let mut e = engine_with_palettes();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        assert_eq!(
+            v["programmer"]["palettes"],
+            json!({"in_use":[],"relevant":[7,8]}),
+            "nothing selected: every palette is relevant (quick palette)"
+        );
+        e.select_fixture(1).unwrap();
+        e.apply_palette(2, cmdmx_core::palette::Timing::default())
+            .unwrap();
+        let p = &parse(&snapshot(&e, &[], &show_state()))["programmer"];
+        assert_eq!(p["palettes"], json!({"in_use":[7],"relevant":[7]}));
+        assert_eq!(
+            p["wheels"],
+            json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false,"palette":7}])
+        );
+        assert_eq!(
+            p["contents"],
+            json!([{"fixture":1,"values":{"Dimmer":1.0},"palettes":{"Dimmer":7}}])
+        );
+    }
+
+    #[test]
+    fn pal_27_palette_commands_parse() {
+        use cmdmx_core::palette::{Cell, Record, RecordAs, RecordBy, RecordMode, Timing, Window};
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":4}"#),
+            Command::PaletteRecord(Record::at(Cell::new(Window::Colours, 4)))
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.record","window":"Beams","handle":2,"number":12,
+                  "mask":["I","B"],"record_by":"Channel","record_as":"Shared","mode":"QuickMerge"}"#),
+            Command::PaletteRecord(Record {
+                number: Some(12),
+                mask: Some(vec![AttributeGroup::I, AttributeGroup::B]),
+                record_by: Some(RecordBy::Channel),
+                record_as: RecordAs::Shared,
+                mode: Some(RecordMode::QuickMerge),
+                ..Record::at(Cell::new(Window::Beams, 2))
+            })
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.apply","number":3}"#),
+            Command::PaletteApply {
+                number: 3,
+                timing: Timing::default()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.apply","number":3,"time":2.0,"overlap":50}"#),
+            Command::PaletteApply {
+                number: 3,
+                timing: Timing {
+                    time: Some(2.0),
+                    overlap: Some(50.0)
+                }
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.include","number":3}"#),
+            Command::PaletteInclude { number: 3 }
+        );
+        let to = Cell::new(Window::Colours, 5);
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.copy","number":3,"to":{"window":"Colours","handle":5}}"#),
+            Command::PaletteCopy { number: 3, to }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.move","number":3,"to":{"window":"Colours","handle":5}}"#),
+            Command::PaletteMove { number: 3, to }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.renumber","number":3,"to":30}"#),
+            Command::PaletteRenumber { number: 3, to: 30 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.delete","number":3}"#),
+            Command::PaletteDelete { number: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm","icon":"colour.drop"}"#),
+            Command::PaletteLegend {
+                number: 3,
+                legend: "Warm".into(),
+                icon: Some("colour.drop".into())
+            }
+        );
+        for automatic in [
+            r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm","icon":null}"#,
+            r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm"}"#,
+        ] {
+            assert_eq!(
+                ok(automatic),
+                Command::PaletteLegend {
+                    number: 3,
+                    legend: "Warm".into(),
+                    icon: None
+                }
+            );
+        }
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"settings.palette","time":2.0}"#),
+            Command::SettingsPalette {
+                time: Some(2.0),
+                overlap: None,
+                record_by: None
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"settings.palette","overlap":50,"record_by":"Channel"}"#),
+            Command::SettingsPalette {
+                time: None,
+                overlap: Some(50.0),
+                record_by: Some(RecordBy::Channel)
+            }
+        );
+    }
+
+    #[test]
+    fn pal_27_bad_palette_commands_are_errors() {
+        for bad in [
+            r#"{"v":0,"cmd":"palette.record","window":"Colours"}"#,
+            r#"{"v":0,"cmd":"palette.record","window":"Gobos","handle":1}"#,
+            r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":"1"}"#,
+            r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":1,"mode":"Overwrite"}"#,
+            r#"{"v":0,"cmd":"palette.apply"}"#,
+            r#"{"v":0,"cmd":"palette.apply","number":3,"time":"2"}"#,
+            r#"{"v":0,"cmd":"palette.copy","number":3}"#,
+            r#"{"v":0,"cmd":"palette.move","number":3,"to":{"window":"Colours"}}"#,
+            r#"{"v":0,"cmd":"palette.renumber","number":3}"#,
+            r#"{"v":0,"cmd":"palette.delete","number":-1}"#,
+            r#"{"v":0,"cmd":"palette.legend","number":3}"#,
+            r#"{"v":0,"cmd":"settings.palette","record_by":"Group"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }

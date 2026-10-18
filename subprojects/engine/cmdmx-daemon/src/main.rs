@@ -1083,4 +1083,126 @@ mod tests {
         assert_eq!(ch(145), 255);
         assert_eq!(ch(1), 0, "the page-1 dimmers stay out");
     }
+
+    #[test]
+    fn pal_27_palette_commands_reach_the_engine() {
+        use cmdmx_core::palette::{Cell, Record, RecordBy, Timing, Window};
+        let mut engine = demo_engine().unwrap();
+        let run = |engine: &mut Engine, cmd| apply(engine, cmd, 0.0);
+        engine.execute_command(&["201", "Enter"]).unwrap();
+        run(
+            &mut engine,
+            ipc::Command::Colour {
+                hue: 0.0,
+                saturation: 1.0,
+            },
+        )
+        .unwrap();
+        run(
+            &mut engine,
+            ipc::Command::PaletteRecord(Record::at(Cell::new(Window::Colours, 1))),
+        )
+        .unwrap();
+        assert!(engine.palette(1).is_some());
+        run(
+            &mut engine,
+            ipc::Command::PaletteLegend {
+                number: 1,
+                legend: "Red".into(),
+                icon: Some("colour.drop".into()),
+            },
+        )
+        .unwrap();
+        assert_eq!(engine.palette(1).unwrap().legend, "Red");
+        run(
+            &mut engine,
+            ipc::Command::PaletteCopy {
+                number: 1,
+                to: Cell::new(Window::Colours, 2),
+            },
+        )
+        .unwrap();
+        run(
+            &mut engine,
+            ipc::Command::PaletteMove {
+                number: 2,
+                to: Cell::new(Window::Positions, 1),
+            },
+        )
+        .unwrap();
+        run(
+            &mut engine,
+            ipc::Command::PaletteRenumber { number: 2, to: 20 },
+        )
+        .unwrap();
+        assert_eq!(engine.palette(20).unwrap().window, Window::Positions);
+        engine.clear();
+        engine.clear();
+        run(
+            &mut engine,
+            ipc::Command::PaletteApply {
+                number: 1,
+                timing: Timing::default(),
+            },
+        )
+        .unwrap();
+        assert!(
+            engine.programmer().in_programmer(221),
+            "quick palette reaches every colour fixture"
+        );
+        engine.clear();
+        engine.execute_command(&["202", "Enter"]).unwrap();
+        run(&mut engine, ipc::Command::PaletteInclude { number: 1 }).unwrap();
+        assert!(matches!(
+            engine.programmer().stored(202, "Colour"),
+            Some(cmdmx_core::value::Stored::Value(_))
+        ));
+        run(&mut engine, ipc::Command::PaletteDelete { number: 20 }).unwrap();
+        assert!(engine.palette(20).is_none());
+        run(
+            &mut engine,
+            ipc::Command::SettingsPalette {
+                time: Some(2.0),
+                overlap: Some(50.0),
+                record_by: Some(RecordBy::Channel),
+            },
+        )
+        .unwrap();
+        let s = engine.settings();
+        assert_eq!(
+            (s.palette_time, s.palette_overlap, s.record_by),
+            (2.0, 50.0, RecordBy::Channel)
+        );
+    }
+
+    #[test]
+    fn pal_27_refusals_change_nothing() {
+        use cmdmx_core::palette::{Timing, Window};
+        let mut engine = demo_engine().unwrap();
+        let before = engine.to_show(cmdmx_core::show::Meta {
+            name: "Demo".into(),
+            created: String::new(),
+            modified: String::new(),
+            app_version: String::new(),
+        });
+        for cmd in [
+            ipc::Command::PaletteApply {
+                number: 99,
+                timing: Timing::default(),
+            },
+            ipc::Command::PaletteDelete { number: 99 },
+            ipc::Command::PaletteRecord(cmdmx_core::palette::Record::at(
+                cmdmx_core::palette::Cell::new(Window::Colours, 1),
+            )),
+            ipc::Command::SettingsPalette {
+                time: Some(700.0),
+                overlap: None,
+                record_by: None,
+            },
+        ] {
+            assert!(apply(&mut engine, cmd.clone(), 0.0).is_err(), "{cmd:?}");
+        }
+        let after = engine.to_show(before.meta.clone());
+        assert_eq!(before, after);
+    }
 }
