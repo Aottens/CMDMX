@@ -357,6 +357,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
     match cmd {
         FaderSet { playback, level } => engine.set_fader(playback, level, now),
         GrandMasterSet { level } => engine.set_grand_master(level),
+        PageSet { page } => engine.set_page(page),
         Select { fixture } => engine.select_fixture(fixture),
         SelectGroup { group } => engine.select_group(group),
         Step { forward: true } => {
@@ -588,6 +589,18 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
         (201..=208).chain(211..=216).chain(221..=226).collect(),
         (301..=306).collect(),
     ];
+    // PBK-04: page 2 holds the washes (playback 9) and the front spots (playback 10) at full.
+    let per_page = u32::from(Settings::default().faders_per_page);
+    for (offset, ids) in [(1, 101..=104), (2, 301..=306)] {
+        engine.add_playback(Playback {
+            id: per_page + offset,
+            priority: Priority::Normal,
+            fader_mode: FaderMode::Mode0,
+            values: ids
+                .map(|f| (f, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])))
+                .collect(),
+        });
+    }
     for (group, members) in (1..).zip(groups) {
         for id in members {
             engine.select_fixture(id)?;
@@ -1049,6 +1062,25 @@ mod tests {
         let engine = demo_engine().unwrap();
         let ids: Vec<_> = engine.playback_states().map(|(id, _)| *id).collect();
         let n = u32::from(engine.settings().faders_per_page);
-        assert_eq!(ids, (1..=n).collect::<Vec<_>>());
+        // PBK-04: plus two on page 2.
+        assert_eq!(ids, (1..=n).chain([n + 1, n + 2]).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn pbk_04_demo_page_2_has_the_washes_and_the_front_spots() {
+        let mut engine = demo_engine().unwrap();
+        engine.set_page(2).unwrap();
+        let slots = engine.page_slots();
+        assert_eq!(slots.first(), Some(&Some(9)));
+        assert_eq!(slots.get(1), Some(&Some(10)));
+        assert!(slots.iter().skip(2).all(Option::is_none));
+        engine.set_fader(9, 1.0, 0.0).unwrap();
+        engine.set_fader(10, 1.0, 0.0).unwrap();
+        engine.tick(0.0);
+        let ch = |a| engine.frame(1).and_then(|f| f.channel(a)).unwrap();
+        // Wash 101's Dimmer is channel 9; front spot 301 is channel 145 (IPC-14 layout).
+        assert_eq!(ch(9), 255);
+        assert_eq!(ch(145), 255);
+        assert_eq!(ch(1), 0, "the page-1 dimmers stay out");
     }
 }

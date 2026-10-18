@@ -219,20 +219,25 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   degrees); Pan and Tilt in degrees come with the profile's ranges [later].
 
 ### Playback area (UX-02d, built with VS1-06)
-- **UI-21 [now]** Pages column: page buttons with their number (legends [with P1-04]), plus a
+- **UI-21 [now]** Pages column: page buttons (the whole button is clickable) with their number (legends [with P1-04]), plus a
   "per page" read-out of `faders_per_page`. Paging itself comes with VS1-06 in the same task.
 - **UI-22 [now]** `faders_per_page` playback strips, each 92 pt wide:
   - From top to bottom: a legend (playback number; name and halo with P1-04), a level bar with
     its % in SF Mono and a draggable cap (`fader.set`), then Swop and Flash, disabled until
     P1-04.
   - An active playback has a green strip along the bottom edge.
-  - The first eight strips sit in a framed bank labelled "BCF2000 · faders 1–8", mirroring the
-    hardware bank (research §5).
+  - The strips a connected control surface drives sit in a framed bank labelled with that
+    surface and its faders, e.g. "BCF2000 · faders 1–8" (research §5). Without a connected
+    surface there is no frame (owner, UX-02d run 2026-10-18); the frame comes with VS1-07.
   - Scrolling over a strip moves its level (Option fine, Shift coarse).
   - While the operator holds a fader or the GM, the engine's deltas for it do not move it. The
     app keeps its own value, as a motor fader does while touched. On release the bar shows the
     engine's latest value, so the engine stays authoritative (IPC-05). Amended 2026-10-17 after
     the owner saw faders lag and bounce in the UX-02a run.
+  - After a release or a scroll step, older engine values still on their way are not shown: the
+    bar waits until the engine reports the value the app sent last, or at most 1 s, and then
+    follows the engine again. The level never jumps back to an earlier value on its way to 0
+    (owner, UX-02d run 2026-10-18).
 - **UI-23 [now]** Go block (210 pt): the header, the "now" line and the big green-outlined GO
   button with Back / Stop / Release are drawn disabled with "Cue lists · P1-08". It is never
   covered by anything.

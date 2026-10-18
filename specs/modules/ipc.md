@@ -102,6 +102,10 @@ ISO-8601 UTC; names are checked (SHW-09) and an Open is read from disk in the cl
 the tick never waits on a show file; a switch (new, open, save as) reaches the tick as one event,
 which flushes the current show (SHW-11), installs the new one and sends every client a snapshot.
 
+### Pages (VS1-06)
+The `page` object in the snapshot, the `page` delta and `page.set` are specified in
+`playbacks.md` PBK-03 (approved by the owner 2026-10-18).
+
 ### Main screen (UX-02)
 IPC-20..23 (output health, programmer contents, the first target's colour, absolute hue and
 saturation for the colour picker) are specified in `ui.md`, approved by the owner 2026-10-17.

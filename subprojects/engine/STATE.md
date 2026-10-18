@@ -35,4 +35,4 @@ VS2-16 merged (#38): `Engine::profile(key)`, IPC fixture entries carry `modes` (
 - Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, output/control config in the show file, IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with
-`cargo test && cargo clippy --all-targets -- -D warnings`, then UX-02d with VS1-06 (playback area). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.
+`cargo test && cargo clippy --all-targets -- -D warnings`, then the owner's next pick (P1-14, P1-03, P1-04). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.

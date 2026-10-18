@@ -50,7 +50,10 @@ Early, under active development, not yet for real shows. What works today:
 - Console keypad, function buttons and softkeys work. The command line is built from tokens, and
   with Keys on the Mac keyboard drives it. Up and Down recall earlier commands.
 
-Next: the playback area of the main screen, and checking *Kerk* on the real rig. The design is a clickable sketch in
+- Playback area: pages of playbacks with a pages bar, one strip per fader (legend, level,
+  active edge) and the Grand Master; the Go block waits for cue lists.
+
+Next: checking *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The design is a clickable sketch in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes, playbacks
 and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

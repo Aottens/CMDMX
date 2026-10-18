@@ -149,3 +149,30 @@ Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p c
 - [ ] Rail entries (Macros, Shapes, …), the status bar toggles, function buttons, keypad keys,
       softkeys, unavailable attribute tabs and Undo all look equally dim when disabled (empty
       palette cells keep their own look)
+
+## UX-02d — playback area and pages (UI-21..24, PBK-01..05)
+
+### Pages (UI-21, PBK-01..03, 05)
+- [ ] The pages column shows page buttons 1–10, page 1 highlighted, and "per page 8" below;
+      clicking anywhere on a button selects its page
+- [ ] Page 1: strips 1–8 show playbacks 1–8 (legend = playback number); fader 1 up drives channel 1
+- [ ] Click page 2: page 2 is highlighted; strip 1 shows playback 9, strip 2 playback 10, strips
+      3–8 are empty and disabled (no cap)
+- [ ] On page 2, fader 1 (playback 9) to full: the four washes come on (Art-Net channels 9, 18,
+      27, 36); fader 2 (playback 10): the front spots (channels 145–150)
+- [ ] With playback 1 up on page 1, go to page 2: channel 1 stays on, Art-Net does not change;
+      back to page 1: strip 1 shows playback 1 still at its level, with the green active strip
+- [ ] Restart the daemon: the app comes back on page 1 (the page is not part of the show)
+
+### Strips, Go block and GM (UI-22..24)
+- [ ] Each strip is 92 pt wide: legend at the top, level bar with its % in monospace and a
+      draggable cap, then Swop and Flash greyed ("Playbacks · P1-04")
+- [ ] An active playback has a green strip along the bottom edge
+- [ ] No bank frame around the strips while no control surface is connected (comes with VS1-07)
+- [ ] Scrolling over a strip moves its level; Option scrolls fine, Shift coarse; a fast trackpad
+      scroll down to 0 % never jumps back up on the way (also not the %)
+- [ ] Holding a fader: it follows the pointer and does not bounce; on release it shows the
+      engine's value
+- [ ] The Go block (210 pt): header, "now" line, big green-outlined GO, Back / Stop / Release, all
+      greyed with "Cue lists · P1-08"; nothing covers it
+- [ ] Grand Master: a level bar like a strip, amber below 100 %, DBO greyed under it

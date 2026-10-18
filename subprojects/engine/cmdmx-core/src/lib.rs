@@ -82,6 +82,8 @@ pub enum CoreError {
     DuplicateFixture(u32),
     #[error("invalid value {0} (expected 0.0..=1.0)")]
     InvalidLevel(f32),
+    #[error("page {0} does not exist (pages are 1 to {max})", max = crate::playback::PAGES)]
+    InvalidPage(u16),
     #[error("fixture {fixture} attribute '{attribute}' takes a different kind of value")]
     WrongValueKind { fixture: u32, attribute: String },
     #[error("unknown group id {0}")]
