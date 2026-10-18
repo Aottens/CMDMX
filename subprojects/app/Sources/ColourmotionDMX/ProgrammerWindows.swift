@@ -88,16 +88,20 @@ struct ProgrammerWindow: View {
         if mine.isEmpty {
             Text("·").foregroundStyle(t.fg3)
         } else {
-            let items = mine.map { name, value in
+            // Red = touched by hand; cyan + the palette's legend = referenced from a palette (PAL-30).
+            let items = mine.map { name, value -> Text in
+                let text: Text
                 switch value {
                 case .level(let v):
-                    Text(mine.count > 1 ? "\(name) \(percent(v))" : percent(v))
+                    text = Text(mine.count > 1 ? "\(name) \(percent(v))" : percent(v))
                 case .colour(let r, let g, let b):
-                    Text("\(Text(Image(systemName: "square.fill")).font(.system(size: 8)).foregroundStyle(Color(red: r, green: g, blue: b))) \(Self.hex(r, g, b))")
+                    text = Text("\(Text(Image(systemName: "square.fill")).font(.system(size: 8)).foregroundStyle(Color(red: r, green: g, blue: b))) \(Self.hex(r, g, b))")
                 }
+                guard let id = row.palettes[name] else { return text.foregroundStyle(t.red) }
+                let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
+                return Text("\(text) \(legend)").foregroundStyle(t.cyan)
             }
             items.dropFirst().reduce(items[0]) { Text("\($0) · \($1)") }
-                .foregroundStyle(t.red)   // every programmer value is touched
         }
     }
 

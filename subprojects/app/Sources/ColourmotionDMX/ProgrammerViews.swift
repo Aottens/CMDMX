@@ -158,7 +158,7 @@ struct AttributeBar: View {
                     .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
                     .lineLimit(1).padding(.horizontal, 8).frame(minWidth: 90, alignment: .leading)
                 Button("Undo") {}.disabled(true).help("Undo · P1-10")
-                Button("Clear") { engine.clearProgrammer(); ui.recordArmed = false }.buttonStyle(ZoneKeyStyle(ring: dirty))
+                Button("Clear") { engine.clearProgrammer(); ui.cancelModes(); ui.pendingOverlap = nil }.buttonStyle(ZoneKeyStyle(ring: dirty))
             }
             .buttonStyle(ZoneKeyStyle(ring: false))
             .fixedSize()
@@ -247,6 +247,8 @@ private struct WheelFace: View {
     let text: String
     let value: Double?
     let touched: Bool
+    /// The value comes from a palette: cyan (UI-03, PAL-30).
+    var fromPalette = false
     let width: CGFloat
 
     var body: some View {
@@ -256,7 +258,7 @@ private struct WheelFace: View {
             Text("enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 6).padding(.top, 4)
             Text(text).font(Typo.mono(15, .medium))
-                .foregroundStyle(value == nil ? t.fg3 : touched ? t.red : t.fg).lineLimit(1)
+                .foregroundStyle(value == nil ? t.fg3 : fromPalette ? t.cyan : touched ? t.red : t.fg).lineLimit(1)
                 .padding(.horizontal, 6).padding(.top, 17)
         }
         .frame(width: width, height: 46, alignment: .topLeading)
@@ -301,7 +303,7 @@ private struct WheelView: View {
                   text: wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
                   : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
                   ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value),
-                  value: wheel.value, touched: wheel.touched, width: width)
+                  value: wheel.value, touched: wheel.touched, fromPalette: wheel.palette != nil, width: width)
         .background(ScrollCatcher { steps, flags in
             engine.wheel(attribute: wheel.attribute, steps: steps, resolution: resolution(flags))
         })

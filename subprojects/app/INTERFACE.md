@@ -1,7 +1,7 @@
 # app — Interface
 
 ## Publishes
-- IPC commands to the engine (see `subprojects/engine/INTERFACE.md`): `fader.set`, `grand_master.set`, the programmer commands, `library.search` and the `patch.*` commands (PAT-09/10); later palette/record/page commands.
+- IPC commands to the engine (see `subprojects/engine/INTERFACE.md`): `fader.set`, `grand_master.set`, the programmer commands, `library.search` and the `patch.*` commands (PAT-09/10), the `palette.*` commands and `settings.palette` (PAL-27); later record/page commands.
 - Nothing else. The app has no DMX, MIDI or file I/O of its own (except preferences such as window layout).
 
 ## Consumes
