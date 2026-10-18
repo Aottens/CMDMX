@@ -184,6 +184,7 @@ moments in a service), plus a user folder with icons the user draws themselves.
   show like profiles, ADR-006 decision 5, so a show travels with its icons).
 - Touches now: nothing; the show file schema gets an optional `icon` field when the first
   legend criterion lands (SHW-04 migration not needed for an optional field).
-- Open questions: phase split as proposed?; draw in the app or import SVG/PNG first (import is
-  far less work); automatic icons (a colour palette shows its colour, a position palette its
-  pan/tilt) as on Titan, or always a picked icon?
+**Outcome (2026-10-18):** owner: phase split as proposed (library + picker in phase 1 with
+P1-03/P1-04; user folder in phase 2). The user folder starts with importing SVG/PNG; drawing in
+the app comes after that. Automatic icons as on Titan: a colour palette shows its colour, a
+position palette its pan/tilt, unless an icon is picked.
