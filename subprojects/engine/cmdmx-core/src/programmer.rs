@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
-use crate::colour::TargetColour;
 use crate::palette::PaletteId;
 use crate::patch::FixtureId;
 use crate::value::{Stored, Value};
@@ -136,16 +135,7 @@ impl Fade {
         let Some(e) = self.elapsed(now) else {
             return self.from;
         };
-        let k = (e / self.duration).min(1.0);
-        match (self.from, to) {
-            (Value::Level(a), Value::Level(b)) => Value::Level(a + (b - a) * k),
-            (Value::Colour(a), Value::Colour(b)) => Value::Colour(TargetColour {
-                r: a.r + (b.r - a.r) * k,
-                g: a.g + (b.g - a.g) * k,
-                b: a.b + (b.b - a.b) * k,
-            }),
-            _ => to,
-        }
+        self.from.lerp(to, (e / self.duration).min(1.0))
     }
 }
 

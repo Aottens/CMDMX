@@ -1,0 +1,135 @@
+{
+  "spec": "PBK-26",
+  "profiles": {
+    "mover": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        },
+        {
+          "name": "Pan",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 2
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "mover",
+      "universe": 1,
+      "address": 1
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "priority": "Normal",
+      "fader_mode": 1,
+      "cues": [
+        {
+          "fade_in": 2.0,
+          "fade_out": 4.0,
+          "values": {
+            "1": {
+              "Dimmer": 1.0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "t": 1.0,
+      "flash": {
+        "playback": 1,
+        "on": true
+      }
+    },
+    {
+      "t": 2.0,
+      "flash": {
+        "playback": 1,
+        "on": false
+      }
+    },
+    {
+      "t": 3.0,
+      "fader": {
+        "playback": 1,
+        "level": 0.25
+      }
+    },
+    {
+      "t": 6.0,
+      "flash": {
+        "playback": 1,
+        "on": true
+      }
+    },
+    {
+      "t": 7.0,
+      "flash": {
+        "playback": 1,
+        "on": false
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.5,
+      "universe": 1,
+      "channels": {
+        "1": 0
+      }
+    },
+    {
+      "t": 1.0,
+      "universe": 1,
+      "channels": {
+        "1": 255
+      }
+    },
+    {
+      "t": 2.0,
+      "universe": 1,
+      "channels": {
+        "1": 0
+      }
+    },
+    {
+      "t": 4.0,
+      "universe": 1,
+      "channels": {
+        "1": 32
+      }
+    },
+    {
+      "t": 5.0,
+      "universe": 1,
+      "channels": {
+        "1": 64
+      }
+    },
+    {
+      "t": 6.0,
+      "universe": 1,
+      "channels": {
+        "1": 255
+      }
+    },
+    {
+      "t": 7.0,
+      "universe": 1,
+      "channels": {
+        "1": 64
+      }
+    }
+  ]
+}

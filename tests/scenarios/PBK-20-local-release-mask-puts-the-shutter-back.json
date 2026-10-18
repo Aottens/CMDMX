@@ -1,0 +1,124 @@
+{
+  "spec": "PBK-20",
+  "profiles": {
+    "par": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        },
+        {
+          "name": "Shutter",
+          "group": "I",
+          "kind": "Ltp",
+          "channel": 2,
+          "default": 1.0
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "par",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "par",
+      "universe": 1,
+      "address": 3
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "priority": "Normal",
+      "fader_mode": 0,
+      "release_mask": [
+        "I"
+      ],
+      "release_time": 0.0,
+      "cues": [
+        {
+          "values": {
+            "1": {
+              "Dimmer": 1.0,
+              "Shutter": 0.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "priority": "Normal",
+      "fader_mode": 0,
+      "cues": [
+        {
+          "values": {
+            "2": {
+              "Dimmer": 1.0,
+              "Shutter": 0.5
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 2,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 1.0,
+      "fader": {
+        "playback": 1,
+        "level": 0.0
+      }
+    },
+    {
+      "t": 1.0,
+      "fader": {
+        "playback": 2,
+        "level": 0.0
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.5,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 128,
+        "3": 255,
+        "4": 128
+      }
+    },
+    {
+      "t": 1.0,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 255,
+        "3": 0,
+        "4": 128
+      }
+    }
+  ]
+}

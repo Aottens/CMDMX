@@ -11,8 +11,12 @@
 //!
 //! Palette references (PAL-07, 11) resolve in the merge, every tick.
 //!
-//! Not yet here, by design (each lands with its spec): release masks and
-//! times (ENG-07..10), chases, masters other than GM.
+//! Playback behaviour on the frame (VS2-21, PBK-15..23, 25..30): fader modes with times, kill
+//! point, release, Release, playback groups, Flash/Swop/Latch and DBO. Actions change the
+//! inputs; `tick` starts the timers and moves the intensity master before the merge.
+//!
+//! Not yet here, by design (each lands with its spec): the programmer's Clear time (ENG-10),
+//! chases, masters other than GM.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -24,8 +28,8 @@ use crate::palette::{
 };
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
-    Cue, FaderMode, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
-    Priority, Values, PAGES,
+    fade_progress, Cue, FaderMode, KillPoint, Origin, Origins, Paging, Playback, PlaybackChange,
+    PlaybackId, PlaybackRecord, PlaybackState, Priority, Release, Values, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -214,6 +218,10 @@ pub struct Engine {
     /// Legends of the `PAGES` pages (PBK-08).
     page_legends: Vec<String>,
     grand_master: f32,
+    /// PBK-30: Dead Black Out. Live state, not in the show.
+    dbo: bool,
+    /// PBK-27: the playback whose Swop wins, set by the last tick.
+    swop_owner: Option<PlaybackId>,
     /// Current page of playbacks, 1..=PAGES (PBK-02). Live state, not in the show.
     page: u16,
     activation_seq: u64,
@@ -257,6 +265,8 @@ impl Engine {
             playback_next_id: 1,
             page_legends: vec![String::new(); usize::from(PAGES)],
             grand_master: 1.0,
+            dbo: false,
+            swop_owner: None,
             page: 1,
             activation_seq: 0,
             frames: BTreeMap::new(),
@@ -979,8 +989,10 @@ impl Engine {
 
     // ---- actions ---------------------------------------------------------
 
-    /// Move a playback fader. Activation happens when the level rises to the
-    /// LTP trigger point; the playback is killed when the level returns to 0.
+    /// Move a playback fader. The playback fires when the effective level rises above 0 and its
+    /// LTP values trigger at the trigger point (PBK, Definitions); it is killed by the next tick
+    /// once its kill point is reached (PBK-19). Every time counts from that tick (PBK, Timing),
+    /// so `_now` is not needed.
     pub fn set_fader(
         &mut self,
         id: PlaybackId,
@@ -990,29 +1002,239 @@ impl Engine {
         if !(0.0..=1.0).contains(&level) || level.is_nan() {
             return Err(CoreError::InvalidLevel(level));
         }
+        self.live_state(id)?.level = level;
+        self.settle(id);
+        Ok(())
+    }
+
+    /// PBK-26: Flash held (`on`) or released. Pressing it fires the playback at full.
+    pub fn set_flash(
+        &mut self,
+        id: PlaybackId,
+        on: bool,
+        _now: Timestamp,
+    ) -> Result<(), CoreError> {
+        let state = self.live_state(id)?;
+        state.flash = on;
+        state.blocked &= !on; // a press is a deliberate fire
+        self.settle(id);
+        Ok(())
+    }
+
+    /// PBK-27: Swop held or released; the later of two held Swops wins.
+    pub fn set_swop(&mut self, id: PlaybackId, on: bool, _now: Timestamp) -> Result<(), CoreError> {
+        self.activation_seq = self.activation_seq.saturating_add(1);
+        let seq = self.activation_seq;
+        let state = self.live_state(id)?;
+        state.swop = on;
+        state.blocked &= !on;
+        if on {
+            state.swop_seq = seq;
+        }
+        self.settle(id);
+        Ok(())
+    }
+
+    /// PBK-28: latch Flash on, or off again (the engine toggles; arming Latch is the UI's).
+    pub fn latch_flash(&mut self, id: PlaybackId, _now: Timestamp) -> Result<(), CoreError> {
+        let state = self.live_state(id)?;
+        state.latched = !state.latched;
+        state.blocked &= !state.latched;
+        self.settle(id);
+        Ok(())
+    }
+
+    /// PBK-22, 23: kill the playback at once, ignoring `fade_out` and the kill point, and
+    /// release every LTP attribute it holds over its release time. A fader still up has to go
+    /// to 0 before it fires again. An inactive playback is left alone.
+    pub fn release_playback(&mut self, id: PlaybackId, _now: Timestamp) -> Result<(), CoreError> {
+        self.live_state(id)?;
+        self.kill_playback(id, true, None);
+        Ok(())
+    }
+
+    /// PBK-30: Dead Black Out on or off. Live state: not in the show.
+    pub fn set_dbo(&mut self, on: bool) {
+        self.dbo = on;
+    }
+
+    pub fn dbo(&self) -> bool {
+        self.dbo
+    }
+
+    /// The live state of a playback that exists.
+    fn live_state(&mut self, id: PlaybackId) -> Result<&mut PlaybackState, CoreError> {
         if !self.playbacks.contains_key(&id) {
             return Err(CoreError::UnknownPlayback(id));
         }
+        Ok(self.states.entry(id).or_default())
+    }
+
+    /// After an input changed: fire an inactive playback whose effective level is above 0
+    /// (killing the rest of its group, PBK-25), trigger its LTP values at the trigger point.
+    /// An effective level of 0 lets a blocked playback fire again (PBK-22, 25).
+    fn settle(&mut self, id: PlaybackId) {
         let trigger = self.settings.ltp_trigger_level;
-        let seq = &mut self.activation_seq;
-        let state = self.states.entry(id).or_default();
-        state.level = level;
+        let Some(state) = self.states.get_mut(&id) else {
+            return;
+        };
+        let level = state.effective_level();
         if level <= 0.0 {
-            // Kill: the playback leaves the merge entirely. Release masks and
-            // times (ENG-07..09) will refine what happens to its LTP values.
+            state.blocked = false;
+            return;
+        }
+        let fired = !state.is_active();
+        if fired {
+            if state.blocked {
+                return;
+            }
+            self.activation_seq = self.activation_seq.saturating_add(1);
+            state.activated = Some(self.activation_seq);
+            state.release = None; // PBK-21: firing again stops the release
+        }
+        if state.triggered.is_none() && level >= trigger {
+            self.activation_seq = self.activation_seq.saturating_add(1);
+            state.triggered = Some(self.activation_seq);
+        }
+        let group = self.playbacks.get(&id).and_then(|p| p.group);
+        if let (true, Some(group)) = (fired, group) {
+            let others: Vec<PlaybackId> = self
+                .playbacks
+                .iter()
+                .filter(|(other, p)| **other != id && p.group == Some(group))
+                .map(|(other, _)| *other)
+                .collect();
+            for other in others {
+                self.kill_playback(other, false, None);
+            }
+        }
+    }
+
+    /// PBK-19, 20, 22: the playback leaves the merge: its HTP values are gone, its LTP values
+    /// are held except those that release (the release mask's groups, or all when `all`), which
+    /// fade from their current output to what is underneath. `start` is the tick the release
+    /// clock starts at; `None` = the next tick.
+    fn kill_playback(&mut self, id: PlaybackId, all: bool, start: Option<Timestamp>) {
+        let (Some(state), Some(playback)) = (self.states.get(&id), self.playbacks.get(&id)) else {
+            return;
+        };
+        if !state.is_active() {
+            return;
+        }
+        let mask =
+            (playback.release_mask.as_deref()).unwrap_or(self.settings.release_mask.as_slice());
+        let mut entries: BTreeMap<FixtureId, BTreeMap<String, (Value, Value)>> = BTreeMap::new();
+        for (fixture, attributes) in &state.from {
+            for (name, origin) in attributes {
+                if !all && !mask.contains(&self.attribute_group(name)) {
+                    continue;
+                }
+                let current = (self.held.get(fixture))
+                    .and_then(|held| held.get(name))
+                    .copied()
+                    .unwrap_or(origin.value);
+                entries
+                    .entry(*fixture)
+                    .or_default()
+                    .insert(name.clone(), (current, origin.value));
+            }
+        }
+        let release = (!entries.is_empty()).then(|| Release {
+            start,
+            duration: (playback.release_time).unwrap_or(self.settings.release_time),
+            entries,
+        });
+        if let Some(state) = self.states.get_mut(&id) {
+            state.blocked = state.effective_level() > 0.0;
             state.activated = None;
             state.triggered = None;
-            return Ok(());
+            state.fired_at = None;
+            state.trigger_at = None;
+            state.master = 0.0;
+            state.fall = None;
+            state.faded_in = false;
+            state.was_holding = false;
+            state.from.clear();
+            state.release = release;
         }
-        if state.activated.is_none() {
-            *seq += 1;
-            state.activated = Some(*seq);
+    }
+
+    /// Before the merge of a tick: start the timers of what the actions since the last tick did,
+    /// move every active playback's intensity master (PBK-15..17, 26) and kill what has reached
+    /// its kill point (PBK-19).
+    fn update_playbacks(&mut self, now: Timestamp) {
+        let mut kills: Vec<PlaybackId> = Vec::new();
+        let mut swop: Option<(u64, PlaybackId)> = None;
+        for (id, state) in &mut self.states {
+            if let Some(release) = &mut state.release {
+                release.start.get_or_insert(now);
+            }
+            let (true, Some(playback)) = (state.is_active(), self.playbacks.get(id)) else {
+                continue;
+            };
+            let times = playback.times();
+            let mode2 = playback.fader_mode == FaderMode::Mode2;
+            let stagger = times.fade_in * (1.0 - times.overlap / 100.0);
+            if state.fired_at.is_none() {
+                state.fired_at = Some(now);
+                if mode2 {
+                    state.from = origins(playback, &self.fixtures, &self.profiles, &self.held, 0.0);
+                }
+            }
+            if state.triggered.is_some() && state.trigger_at.is_none() {
+                state.trigger_at = Some(now);
+                if !mode2 {
+                    state.from = origins(
+                        playback,
+                        &self.fixtures,
+                        &self.profiles,
+                        &self.held,
+                        stagger,
+                    );
+                }
+            }
+            let level = state.effective_level();
+            let holding = state.flash || state.swop || state.latched;
+            state.faded_in |= holding;
+            let fired_at = state.fired_at.unwrap_or(now);
+            let target = if mode2 || state.faded_in {
+                level
+            } else {
+                level * fade_progress((now - fired_at) as f32 - times.delay, times.fade_in)
+            };
+            // Mode 1: m falls no faster than full scale per fade-out, from its value in the tick
+            // the fall began; rises follow the target at once, and so does a released Flash.
+            let falling = match state.fall {
+                Some((since, from)) if times.fade_out > 0.0 => {
+                    from - (now - since) as f32 / times.fade_out
+                }
+                _ => state.master,
+            };
+            let slow = playback.fader_mode == FaderMode::Mode1
+                && times.fade_out > 0.0
+                && !(state.was_holding && !holding)
+                && target < falling;
+            if slow {
+                state.fall.get_or_insert((now, state.master));
+                state.master = target.max(falling);
+            } else {
+                state.fall = None;
+                state.master = target;
+            }
+            state.was_holding = holding;
+            if state.swop && swop.is_none_or(|(seq, _)| state.swop_seq > seq) {
+                swop = Some((state.swop_seq, *id));
+            }
+            if level <= 0.0
+                && (playback.kill_point == KillPoint::FaderAtZero || state.master <= 0.0)
+            {
+                kills.push(*id);
+            }
         }
-        if level >= trigger && state.triggered.is_none() {
-            *seq += 1;
-            state.triggered = Some(*seq);
+        self.swop_owner = swop.map(|(_, id)| id);
+        for id in kills {
+            self.kill_playback(id, false, Some(now));
         }
-        Ok(())
     }
 
     /// Grand Master, 0.0..=1.0. Scales all HTP output after the merge (ENG-06).
@@ -1653,13 +1875,16 @@ impl Engine {
             .or_else(|| {
                 let (fixture, mode) = (self.fixtures.get(&id)?, self.mode_of(id)?);
                 merge_attribute(
+                    &MergeSources {
+                        playbacks: &self.playbacks,
+                        states: &self.states,
+                        programmer: &self.programmer,
+                        palettes: &self.palettes,
+                        swop_owner: self.swop_owner,
+                    },
                     fixture,
                     mode,
                     l,
-                    &self.playbacks,
-                    &self.states,
-                    &self.programmer,
-                    &self.palettes,
                     self.last_tick.unwrap_or_default(),
                 )
             })
@@ -2412,6 +2637,16 @@ impl Engine {
     pub fn tick(&mut self, now: Timestamp) {
         self.last_tick = Some(now);
         self.programmer.start_fades(now);
+        self.update_playbacks(now);
+        // PBK-30: DBO is a Grand Master of 0 for the HTP output, whoever proposes it.
+        let grand_master = if self.dbo { 0.0 } else { self.grand_master };
+        let sources = MergeSources {
+            playbacks: &self.playbacks,
+            states: &self.states,
+            programmer: &self.programmer,
+            palettes: &self.palettes,
+            swop_owner: self.swop_owner,
+        };
         for (fixture_id, fixture) in &self.fixtures {
             let Some(mode) = resolve_mode(&self.profiles, fixture) else {
                 self.warnings.push(Warning {
@@ -2431,16 +2666,7 @@ impl Engine {
             let virtual_dimmer = mode.has_virtual_dimmer();
             let mut scale = 1.0;
             for l in mode.logical_attributes() {
-                let merged = merge_attribute(
-                    fixture,
-                    mode,
-                    &l,
-                    &self.playbacks,
-                    &self.states,
-                    &self.programmer,
-                    &self.palettes,
-                    now,
-                );
+                let merged = merge_attribute(&sources, fixture, mode, &l, now);
                 // ENG-07: an HTP attribute nobody proposes is 0; LTP holds its last value (LIB-03).
                 let value = match (merged, l.kind) {
                     (Some(v), AttributeKind::Ltp) => {
@@ -2452,7 +2678,7 @@ impl Engine {
                         }
                         v
                     }
-                    (Some(v), AttributeKind::Htp) => v.scaled(self.grand_master),
+                    (Some(v), AttributeKind::Htp) => v.scaled(grand_master),
                     (None, AttributeKind::Htp) => Value::Level(0.0),
                     (None, AttributeKind::Ltp) => held.get(l.name).copied().unwrap_or(l.default),
                 };
@@ -2463,6 +2689,11 @@ impl Engine {
             }
         }
         self.programmer.drop_finished_fades(now);
+        for state in self.states.values_mut() {
+            if state.release.as_ref().is_some_and(|r| r.finished(now)) {
+                state.release = None; // PBK-20: this tick was its last
+            }
+        }
     }
 
     // ---- queries ---------------------------------------------------------
@@ -2643,30 +2874,81 @@ fn write_value(
     }
 }
 
+/// What a merge reads: every source of attribute values.
+struct MergeSources<'a> {
+    playbacks: &'a BTreeMap<PlaybackId, Playback>,
+    states: &'a BTreeMap<PlaybackId, PlaybackState>,
+    programmer: &'a Programmer,
+    palettes: &'a BTreeMap<PaletteId, Palette>,
+    /// PBK-27: the Swop that is held, if any; every other playback's HTP is silent.
+    swop_owner: Option<PlaybackId>,
+}
+
+/// Where the LTP attributes of a playback's cue fade from (PBK-15, 17): the output of the tick
+/// before the playback asserted them, the fixtures staggered by `stagger` seconds each in user
+/// number order (PAL-14).
+fn origins(
+    playback: &Playback,
+    fixtures: &BTreeMap<FixtureId, Fixture>,
+    profiles: &BTreeMap<String, Profile>,
+    held: &BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    stagger: f32,
+) -> Origins {
+    let mut out = Origins::new();
+    let Some(values) = playback.values() else {
+        return out;
+    };
+    let mut order: Vec<(u32, FixtureId)> = values
+        .keys()
+        .filter_map(|id| Some((fixtures.get(id)?.number, *id)))
+        .collect();
+    order.sort_unstable();
+    for (rank, (_, id)) in order.into_iter().enumerate() {
+        let (Some(fixture), Some(attributes)) = (fixtures.get(&id), values.get(&id)) else {
+            continue;
+        };
+        let Some(mode) = resolve_mode(profiles, fixture) else {
+            continue;
+        };
+        for name in attributes.keys() {
+            let Some(l) = mode.logical(name).filter(|l| l.kind == AttributeKind::Ltp) else {
+                continue;
+            };
+            let value = (held.get(&id))
+                .and_then(|attributes| attributes.get(l.name))
+                .copied()
+                .unwrap_or(l.default);
+            out.entry(id).or_default().insert(
+                name.clone(),
+                Origin {
+                    value,
+                    lag: rank as f32 * stagger,
+                },
+            );
+        }
+    }
+    out
+}
+
 /// Merge one attribute of one fixture across all active playbacks and the programmer.
 /// A palette reference is resolved here, every tick (PAL-11).
 ///
 /// Returns `None` when no active source proposes a value. `tick` then writes 0
 /// for an HTP attribute and the held value for an LTP one (ENG-07, LIB-03).
-// ponytail: eight arguments; a `MergeSources` struct if a ninth appears.
-#[allow(clippy::too_many_arguments)]
 fn merge_attribute(
+    src: &MergeSources,
     fixture: &Fixture,
     mode: &Mode,
     attr: &LogicalAttribute,
-    playbacks: &BTreeMap<PlaybackId, Playback>,
-    states: &BTreeMap<PlaybackId, PlaybackState>,
-    programmer: &Programmer,
-    palettes: &BTreeMap<PaletteId, Palette>,
     now: Timestamp,
 ) -> Option<Value> {
     let mut best: Option<Candidate> = None;
     // A reference gives what its palette resolves, else its fallback (PAL-07, PAL-11); a value
     // of the wrong kind (a level for Colour, say) is ignored, not output.
-    let resolve = |stored: Stored| resolve_stored(palettes, fixture, mode, attr.name, stored);
+    let resolve = |stored: Stored| resolve_stored(src.palettes, fixture, mode, attr.name, stored);
 
-    for (id, playback) in playbacks {
-        let Some(state) = states.get(id) else {
+    for (id, playback) in src.playbacks {
+        let Some(state) = src.states.get(id) else {
             continue;
         };
         let Some(activated) = state.activated else {
@@ -2682,17 +2964,40 @@ fn merge_attribute(
             continue;
         };
 
-        let (value, order) = match (attr.kind, playback.fader_mode) {
-            // ENG-05: HTP scales with the fader from 0 in every mode without times.
-            (AttributeKind::Htp, _) => (raw.scaled(state.level), activated),
-            // ENG-05: LTP snaps to the cue value once the fader has reached the
-            // trigger point; until then this playback says nothing about it.
-            (AttributeKind::Ltp, FaderMode::Mode0 | FaderMode::Mode1) => match state.triggered {
-                Some(triggered) => (raw, triggered),
-                None => continue,
-            },
-            // Mode 2: LTP follows the fader proportionally from 0.
-            (AttributeKind::Ltp, FaderMode::Mode2) => (raw.scaled(state.level), activated),
+        let (value, order) = match attr.kind {
+            // PBK-15..17: HTP scales with the intensity master. A playback at 0 (in its delay)
+            // proposes nothing; a Swop silences every other playback (PBK-27).
+            AttributeKind::Htp => {
+                if state.master <= 0.0 || src.swop_owner.is_some_and(|owner| owner != *id) {
+                    continue;
+                }
+                (raw.scaled(state.master), activated)
+            }
+            AttributeKind::Ltp => {
+                let from = (state.from.get(&fixture.id)).and_then(|attrs| attrs.get(attr.name));
+                match playback.fader_mode {
+                    // PBK-17: crossfades with the fader from where it was, from the fire.
+                    FaderMode::Mode2 => (
+                        from.map_or(raw, |o| o.value.lerp(raw, state.effective_level())),
+                        activated,
+                    ),
+                    // PBK-15: asserted from the trigger point, fading in over the cue's times.
+                    FaderMode::Mode0 | FaderMode::Mode1 => {
+                        let Some(triggered) = state.triggered else {
+                            continue;
+                        };
+                        let value = match (state.trigger_at, from) {
+                            (Some(at), Some(o)) => {
+                                let times = playback.times();
+                                let elapsed = (now - at) as f32 - times.delay - o.lag;
+                                o.value.lerp(raw, fade_progress(elapsed, times.fade_in))
+                            }
+                            _ => raw,
+                        };
+                        (value, triggered)
+                    }
+                }
+            }
         };
 
         let candidate = Candidate {
@@ -2708,24 +3013,60 @@ fn merge_attribute(
     }
 
     // ENG-04: manual values are absolute and sit at Priority::Programmer.
-    if let Some(value) = programmer
+    if let Some(value) = src
+        .programmer
         .stored(fixture.id, attr.name)
         .map(resolve)
         .filter(|v| v.same_kind(&attr.default))
-        .map(|to| match programmer.fade(fixture.id, attr.name) {
+        .map(|to| match src.programmer.fade(fixture.id, attr.name) {
             Some(fade) => fade.at(to, now), // PAL-13
             None => to,
         })
     {
         let candidate = Candidate {
             priority: Priority::Programmer,
-            activated: programmer.activated(),
+            activated: src.programmer.activated(),
             value,
         };
         best = Some(match best {
             None => candidate,
             Some(current) => pick(attr.kind, current, candidate),
         });
+    }
+
+    // PBK-20: a killed playback's LTP attribute fades from where it was to what is underneath:
+    // the other sources, else the value from before the playback. A source of higher priority
+    // owns the attribute outright. ponytail: several releases of one attribute chain in
+    // playback id order; a timeline per attribute if that ever looks wrong on a console.
+    if attr.kind == AttributeKind::Ltp {
+        for (id, state) in src.states {
+            let Some(release) = &state.release else {
+                continue;
+            };
+            let Some((from, pre)) = (release.entries.get(&fixture.id))
+                .and_then(|attrs| attrs.get(attr.name))
+                .copied()
+            else {
+                continue;
+            };
+            let priority = src
+                .playbacks
+                .get(id)
+                .map_or(Priority::Normal, |p| p.priority);
+            if best.as_ref().is_some_and(|c| c.priority > priority) {
+                continue;
+            }
+            let to = best.as_ref().map_or(pre, |c| c.value);
+            let value = from.lerp(to, release.progress(now));
+            best = Some(match best {
+                Some(c) => Candidate { value, ..c },
+                None => Candidate {
+                    priority,
+                    activated: 0,
+                    value,
+                },
+            });
+        }
     }
 
     best.map(|c| c.value)

@@ -1,0 +1,113 @@
+{
+  "spec": "PBK-15",
+  "profiles": {
+    "mover": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        },
+        {
+          "name": "Pan",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 2
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "mover",
+      "universe": 1,
+      "address": 1
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "priority": "Normal",
+      "fader_mode": 0,
+      "cues": [
+        {
+          "fade_in": 2.0,
+          "values": {
+            "1": {
+              "Dimmer": 1.0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 3.0,
+      "fader": {
+        "playback": 1,
+        "level": 0.25
+      }
+    },
+    {
+      "t": 4.0,
+      "fader": {
+        "playback": 1,
+        "level": 0.0
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.5,
+      "universe": 1,
+      "channels": {
+        "1": 64
+      }
+    },
+    {
+      "t": 1.0,
+      "universe": 1,
+      "channels": {
+        "1": 128
+      }
+    },
+    {
+      "t": 1.5,
+      "universe": 1,
+      "channels": {
+        "1": 191
+      }
+    },
+    {
+      "t": 2.0,
+      "universe": 1,
+      "channels": {
+        "1": 255
+      }
+    },
+    {
+      "t": 3.0,
+      "universe": 1,
+      "channels": {
+        "1": 64
+      }
+    },
+    {
+      "t": 4.0,
+      "universe": 1,
+      "channels": {
+        "1": 0
+      }
+    }
+  ]
+}

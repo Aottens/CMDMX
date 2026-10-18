@@ -1,0 +1,128 @@
+{
+  "spec": "PBK-27",
+  "profiles": {
+    "dimmer": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 2
+    },
+    {
+      "id": 3,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 3
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "priority": "Normal",
+      "fader_mode": 0,
+      "cues": [
+        {
+          "values": {
+            "1": {
+              "Dimmer": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "priority": "Normal",
+      "fader_mode": 0,
+      "cues": [
+        {
+          "values": {
+            "2": {
+              "Dimmer": 1.0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 0.0,
+      "prg": {
+        "command": [
+          "3",
+          "@",
+          "50",
+          "Enter"
+        ]
+      }
+    },
+    {
+      "t": 1.0,
+      "swop": {
+        "playback": 2,
+        "on": true
+      }
+    },
+    {
+      "t": 2.0,
+      "swop": {
+        "playback": 2,
+        "on": false
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.5,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 0,
+        "3": 128
+      }
+    },
+    {
+      "t": 1.0,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 255,
+        "3": 128
+      }
+    },
+    {
+      "t": 2.0,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 0,
+        "3": 128
+      }
+    }
+  ]
+}

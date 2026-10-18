@@ -39,8 +39,14 @@ playback unless it says "per cue".
   by *m* (PBK-15..17).
 - **Kill:** the playback leaves the merge (PBK-19). **Release:** after a kill, the attributes in
   its release mask fade back to what is underneath (PBK-20).
-- **Underneath:** for one fixture and attribute, what the merge outputs without this playback
-  (other sources by ENG-01..04, else the held LTP value, else the profile default, LIB-03).
+- **Underneath:** for one fixture and attribute, what the merge outputs without this playback:
+  the other active sources by ENG-01..04, else the value the attribute output in the tick before
+  this playback first asserted it (Titan: its previous state; the profile default, LIB-03, when
+  nothing had set it). Clarified 2026-10-18 (VS2-21): the held value is the playback's own last
+  output, so it cannot be what a release returns to.
+- **Timing:** every time is counted from the tick in which the action (a fader move, Flash,
+  Release) reaches the engine, as for palette fades (PAL-13); *m* and fades are evaluated per
+  tick from the tick's timestamp, so they are deterministic (ENG-11).
 - Church examples use the demo rig of `programmer.md`: washes 101–104, RGBW pars 201–208,
   RGB+Lime pars 211–216, RGB pars 221–226, front spots 301–306.
 
@@ -122,7 +128,8 @@ playback unless it says "per cue".
 
 ### Fader modes (`fader_mode`, default 0; mode 3 is phase 2)
 - **PBK-15** **Mode 0.** On fire, after the cue's `delay`, *m* rises from 0 to the effective
-  level over `fade_in` (linearly; at once when 0) and follows the effective level from then on;
+  level over `fade_in` (linearly; at once when 0) and follows the effective level from then on,
+  that is *m* = *f* · *p*, *p* going from 0 to 1 over `fade_in` once `delay` has passed;
   a falling level lowers *m* at once (Titan: fade out is ignored). On trigger, the LTP values
   fade from their current output to the cue's values over `fade_in` after `delay`, staggered by
   `overlap` as PAL-14 (fixtures in user-number order), `Colour` in linear target RGB; with

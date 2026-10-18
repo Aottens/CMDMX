@@ -110,7 +110,28 @@ pub struct Action {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionKind {
-    Fader { playback: PlaybackId, level: f32 },
+    Fader {
+        playback: PlaybackId,
+        level: f32,
+    },
+    /// PBK-26..28, 22, 30.
+    Flash {
+        playback: PlaybackId,
+        on: bool,
+    },
+    Swop {
+        playback: PlaybackId,
+        on: bool,
+    },
+    Latch {
+        playback: PlaybackId,
+    },
+    Release {
+        playback: PlaybackId,
+    },
+    Dbo {
+        on: bool,
+    },
     GrandMaster(f32),
     Prg(PrgAction),
     Pal(PalAction),
@@ -233,6 +254,11 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                 ActionKind::Fader { playback, level } => {
                     engine.set_fader(*playback, *level, now)?;
                 }
+                ActionKind::Flash { playback, on } => engine.set_flash(*playback, *on, now)?,
+                ActionKind::Swop { playback, on } => engine.set_swop(*playback, *on, now)?,
+                ActionKind::Latch { playback } => engine.latch_flash(*playback, now)?,
+                ActionKind::Release { playback } => engine.release_playback(*playback, now)?,
+                ActionKind::Dbo { on } => engine.set_dbo(*on),
                 ActionKind::GrandMaster(level) => engine.set_grand_master(*level)?,
                 ActionKind::Prg(PrgAction::Select(ids)) => {
                     for id in ids {

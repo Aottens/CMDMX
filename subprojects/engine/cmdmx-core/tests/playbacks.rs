@@ -718,12 +718,17 @@ fn pbk_14_copy_or_move_onto_a_used_handle_is_refused() {
 fn pbk_14_delete_kills_and_removes() {
     let mut e = styled();
     e.set_fader(1, 1.0, 0.0).unwrap();
-    assert_eq!(dimmer_out(&mut e, 0.0, 35), 255);
+    e.tick(0.0);
+    assert_eq!(
+        dimmer_out(&mut e, 2.0, 35),
+        255,
+        "after its 2 s fade-in (PBK-15)"
+    );
     e.delete_playback(1).unwrap();
     assert!(e.playback(1).is_none());
     assert!(e.playback_state(1).is_none());
-    assert_eq!(dimmer_out(&mut e, 0.025, 35), 0);
-    assert!(e.set_fader(1, 0.5, 0.05).is_err());
+    assert_eq!(dimmer_out(&mut e, 2.025, 35), 0);
+    assert!(e.set_fader(1, 0.5, 2.05).is_err());
     assert!(e.delete_playback(1).is_err());
     assert_eq!(e.page_slots()[0], None);
 }
