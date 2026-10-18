@@ -14,7 +14,7 @@ Optional: an Art-Net monitor on universe 1 (demo rig: washes 101–104, RGBW par
 RGB+Lime pars 211–216, RGB pars 221–226, front spots 301–306).
 
 ## Windows (PAL-28)
-- [ ] Colours, Positions and Gobos & Beams each show at least 32 empty cells (rows of 8), with no
+- [ ] Colours, Positions and Gobos & Beams each show at least 36 empty cells (rows of 6), with no
       fixed numbers on the empty cells, and the title row says "mask C · 0 palettes" (P, IGBES).
 - [ ] No palette button is disabled with "P1-03" any more; Edit stays disabled with "phase 2".
 

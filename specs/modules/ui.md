@@ -47,7 +47,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   SF Pro for UI text, SF Mono with tabular digits for every number and for the command line.
   Three sizes only: 10–11, 12–13 and 15–20 pt. Tags are uppercase with tracking.
 - **UI-05 [now]** One button system for fixture, group and palette cells, as in the sketch:
-  - The cell is 54 pt high, on a fixed 8-column grid with 2 pt gaps.
+  - The cell is about 72 pt high, on a fixed 6-column grid with 2 pt gaps (amended 2026-10-18,
+    owner, VS2-19 run: 54 pt in 8 columns was too small next to a Titan).
   - The number sits top-left and a tag top-right; the legend is condensed, two lines at most.
   - Empty = outline only with a faint number. Selected = 2 pt blue inner border and a blue
     number. In programmer = 3 pt red top strip. Not relevant = 38 % opacity.
@@ -92,8 +93,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   table.
 
 ### Windows (UX-02a; Programmer and Colour picker in UX-02b)
-- **UI-11 [now]** Fixtures: one cell per fixture, in handle order (PAT-14). There are 8 cells per
-  row and `handles_per_page` cells per handle page, with page tabs in the title row when there is
+- **UI-11 [now]** Fixtures: one cell per fixture, in handle order (PAT-14). There are 6 cells per
+  row (UI-05) and `handles_per_page` cells per handle page, with page tabs in the title row when there is
   more than one page.
   - The cell shows the user number, the selection order top-right in blue, and the fixture's
     name, or else its profile's model, as the legend.

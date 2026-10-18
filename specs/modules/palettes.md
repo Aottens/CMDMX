@@ -230,7 +230,7 @@ lists) store, so they come first.
 
 ### App (UI v0.1; amends `ui.md` UI-13, 16, 17, 18, 19 when approved)
 - **PAL-28** The Colours, Positions and Gobos & Beams windows show their palettes on their
-  handles, rows of 8, at least 32 cells and always one empty row after the last used cell,
+  handles, rows of 6 (UI-05), at least 36 cells and always one empty row after the last used cell,
   scrolling inside the window (UI-13 amended: no fixed number ranges). A used cell follows
   UI-05: number top-left, kind tag (G/S/N) top-right, icon (picked or automatic) and legend, and
   the IPCGBES mask strip from `groups`. In use in the programmer = red top strip; not relevant
