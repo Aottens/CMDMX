@@ -130,6 +130,10 @@ pub enum CoreError {
         r#source: String,
         problem: String,
     },
+    #[error("invalid palette time {0} (expected 0 to 600 s)")]
+    InvalidPaletteTime(f32),
+    #[error("invalid palette overlap {0} (expected 0 to 100 %)")]
+    InvalidPaletteOverlap(f32),
     #[error("invalid command: {0}")]
     InvalidCommand(String),
     #[error("not a show file: {0}")]
