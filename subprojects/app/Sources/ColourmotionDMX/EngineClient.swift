@@ -349,6 +349,8 @@ final class EngineClient: ObservableObject {
     /// parking goes on until the engine echoes the level sent last (or `settleTimeout` passes), so
     /// older echoes still in flight never show; then the parked level is shown.
     private var heldFaders: [Int: Double?] = [:]
+    /// The engine's `active` is parked with the level, so a stale echo cannot light the strip (UI-22).
+    private var parkedActive: [Int: Bool] = [:]
     private var settling: Set<Int> = []
     private var lastSent: [Int: Double] = [:]
     private var gmHeld = false
@@ -422,8 +424,10 @@ final class EngineClient: ObservableObject {
     private func releaseFader(_ id: Int) {
         releaseTasks.removeValue(forKey: id)?.cancel()
         settling.remove(id)
+        let active = parkedActive.removeValue(forKey: id)
         if let parked = heldFaders.removeValue(forKey: id), let level = parked, playbackStates[id] != nil {
             playbackStates[id]?.level = level
+            if let active { playbackStates[id]?.active = active }
             rebuildSlots()
         }
     }
@@ -633,7 +637,7 @@ final class EngineClient: ObservableObject {
         switch incoming.type {
         case "snapshot":
             releaseTasks.values.forEach { $0.cancel() }; releaseTasks = [:]
-            heldFaders = [:]; settling = []; lastSent = [:]
+            heldFaders = [:]; parkedActive = [:]; settling = []; lastSent = [:]
             gmHeld = false; gmSettling = false; gmLastSent = nil; gmEngineLevel = nil
             fadersPerPage = max(1, incoming.fadersPerPage ?? fadersPerPage)
             page = incoming.page?.value ?? PageState()
@@ -691,8 +695,11 @@ final class EngineClient: ObservableObject {
     /// Keeps the engine's level and active state per playback id. A held fader parks the level (UI-22).
     private func storePlayback(id: Int, level: Double, active: Bool) {
         var state = playbackStates[id] ?? (level: 0, active: false)
-        state.active = active
-        if heldFaders[id] != nil { heldFaders[id] = .some(level.clamped01) } else { state.level = level.clamped01 }
+        if heldFaders[id] != nil {
+            heldFaders[id] = .some(level.clamped01); parkedActive[id] = active
+        } else {
+            state.level = level.clamped01; state.active = active
+        }
         playbackStates[id] = state
         releaseIfEchoed(id)
     }

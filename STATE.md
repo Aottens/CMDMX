@@ -28,7 +28,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- UX-02c awaits owner review (SHW-c merged #32); the church Lightkey export follows after the owner's next church visit
+- UX-02d + VS1-06 on branch `ux-02d-playback-area` (pushed, no PR yet): pages of playbacks (PBK-01..05 approved 2026-10-18), playback area, fader echo settling. Owner run `tests/manual/runs/2026-10-18-UX-02d.md` paused with 3 lines left (holding a fader, Go block, GM); then PR. UX-02c awaits owner review (#33); the church Lightkey export follows after the owner's next church visit
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -49,7 +49,7 @@ done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
 - **VS2-13**: the church patch from the owner's Lightkey export (patch list or decoded show file),
   entered through the patch commands into the show *Kerk* (waits for the owner's church visit); `tests/hardware/church.md` (VS4-01).
-- **UX-02d** with VS1-06: playback area and paging.
+- **UX-02d** with VS1-06: finish the paused owner run (3 lines), update app/engine STATE and README, open the PR.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
   (multi-select in the patch table), P1-03 palettes, P1-04 playbacks, P1-05 control surfaces.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
