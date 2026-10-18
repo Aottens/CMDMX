@@ -4,7 +4,7 @@ No Swift test target exists (CLAUDE.md), so the Patch screen of `specs/modules/p
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
 
 Setup: fetch the QLC+ set once (`subprojects/engine/scripts/fetch-qlcplus.sh`). Two terminals.
-Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn` (wait for
+Daemon: `rm -rf /tmp/cmdmx-patch && cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-patch` (a fresh Demo; wait for
 `library: … profiles`). App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open
 .build/ColourmotionDMX.app`. Optional: an Art-Net monitor on universe 1.
 The demo show (IPC-14) uses universe 1 channels 1–150.
@@ -40,5 +40,5 @@ The demo show (IPC-14) uses universe 1 channels 1–150.
 ## Still works
 - [ ] A second app window (or a restart of the app) shows the same patch: the table comes from the
       snapshot and the `fixtures` deltas (PAT-09)
-- [ ] Stop and restart the daemon: the banner shows, the app reconnects and the table is the demo
-      show again (the patch is not saved until the show file, P1-09)
+- [ ] Stop and restart the daemon: the banner shows, the app reconnects and the table is the patch
+      as you left it, because the show is autosaved and reopened (SHW-10/11)
