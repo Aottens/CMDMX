@@ -18,5 +18,10 @@ tungstenite = "0.30"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 
+# PAT-11, PAT-15..18: the church patch from the Lightkey export, run once (VS2-13).
+[[example]]
+name = "church"
+test = true
+
 [lints]
 workspace = true

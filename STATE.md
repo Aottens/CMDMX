@@ -6,12 +6,13 @@ _Last updated: 2026-10-18_
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
 
 ## Working
+- Church patch (VS2-13, merged #35): `patch.md` PAT-15..18 approved (owner, 2026-10-18); `cargo run -p cmdmx-daemon --example church -- ~/Documents/ColourmotionDMX/Lightkey/BGS_Shows.tsv` writes the show *Kerk* (56 fixtures, numbers in blocks of 100 per type: 101–120 Showtec pars … 1201) and 9 user profiles, never overwrites; checklist `tests/hardware/church.md` (gate 3). Dry run into a temp folder opened in the daemon without warnings. The Lightkey files stay out of git
 - Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core, #30) and SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` over IPC, #31) merged; SHW-c (app: show name + autosave age in the status bar, Show screen with Open/New/Save As) merged (#32)
 - Repo scaffold: meta-layer, ADR-001..004, PRD, module specs (3 written, 3 skeleton)
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
-- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial with product-string detection and hotplug (VS1-04, hardware unverified), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
+- `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial at 250000 baud, ≤ 1 write per 30 ms, product-string detection (the owner's Eurolite MK2 needs `--serial <path>`) and hotplug (VS1-04, verified on the MK2 except mid-run unplug, VS4-02), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
 - ADR-006 accepted, `fixture-library.md` LIB-01..17 and `patch.md` PAT-01..14 approved; build tasks VS2-08..13 in BACKLOG. LIB-17 (owner, 2026-10-17): emitters are generic — recognised by an `emitter` flag, never by name, any number (Amber, Warm/Cold White, UV, Royal Blue, …)
 - Patch over IPC + Patch screen (VS2-12, merged): snapshot `fixtures` entries carry number, name, profile, mode, universe.address, footprint, virtual dimmer and handle, a `fixtures` delta after any patch change, `patch.add/move/remove/renumber/name/change_mode/handle` (PAT-09); library fixtures are patched under `Manufacturer/Model`, fetched from the library in the client thread; the app has a workspace rail (Program / Patch) and a Patch screen with the table, an Add panel with library search and row edits with two-step confirm for Remove and Change Mode (PAT-10). Owner run passed: `tests/manual/runs/2026-10-17-VS2-12.md` (findings → IDEA-08 browse by manufacturer, IDEA-09 multi-select)
 - Library (VS2-11, merged): the QLC+ set (1781 fixtures, pinned, fetched by `subprojects/engine/scripts/fetch-qlcplus.sh`, not in git) indexed in the background at daemon start; word search, user profiles that hide the QLC+ one, profiles from a channel list (LIB-11), edited profiles saved atomically (LIB-12), `library.*` over IPC (LIB-14); 1779 of 1781 QLC+ files import
@@ -28,32 +29,21 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- UX-02d + VS1-06 on branch `ux-02d-playback-area` (pushed, no PR yet): pages of playbacks (PBK-01..05 approved 2026-10-18), playback area, fader echo settling. Owner run `tests/manual/runs/2026-10-18-UX-02d.md` paused with 3 lines left (holding a fader, Go block, GM); then PR. UX-02c awaits owner review (#33); the church Lightkey export follows after the owner's next church visit
+- UX-02d + VS1-06 in review: pages of playbacks (PBK-01..05 approved 2026-10-18), playback area, fader echo settling; owner run `tests/manual/runs/2026-10-18-UX-02d.md` passed (finished at home, 2026-10-18)
+- VS4-02 (#34) and VS2-13 (#35) merged; *Kerk* is in the owner's Shows folder (56 fixtures, 9 user profiles). Run `tests/hardware/runs/2026-10-18-church.md`: the Patch-screen line passed at home; the desk lines wait for the Eurolite, the rest for the church
+- VS2-16 merged (#38): snapshot `fixtures` entries carry `modes` (PAT-09 amended), Change Mode is a dropdown of them (PAT-10 amended); owner run `tests/manual/runs/2026-10-18-VS2-16.md` passed
 
 ## Blocked
-- **Eurolite finding (2026-10-18, owner attached the MK2 to the Mac):** macOS sees it as
-  `/dev/cu.usbserial-AQ01FA9F`, FTDI VID/PID 0403:6001, but its USB product string is the FTDI
-  default **"FT232R USB UART"**, not "Eurolite DMX512 Pro". The daemon detects by product string
-  (OUT-09, CLAUDE.md), so it reports "no ENTTEC Pro interface found". Next session (owner wants
-  the hardware test there): first a quick run with `--serial /dev/cu.usbserial-AQ01FA9F` to see
-  DMX on the dimmer, then decide with the owner how to detect it (e.g. probe FTDI 0403:6001 ports
-  with the ENTTEC "get widget parameters" request and accept those that answer; still never treat
-  it as Open DMX), amend OUT-09 and CLAUDE.md, then `tests/hardware/output.md` serial lines (VS4-02).
-  First try (2026-10-18): with `--serial /dev/cu.usbserial-AQ01FA9F` the daemon opens the port
-  ("serial: ENTTEC Pro \"--serial\" at …") and then reports "serial: Degraded: Operation timed
-  out": find out whether the write or the widget-params read times out, and whether the dimmer
-  responds at all.
-  Second try: the owner set all lamps up, nothing on the dimmer, still Degraded. Hypotheses
-  (untested): (1) `serial_out.rs` opens at 115200 baud with a 100 ms write timeout; a 518-byte
-  frame takes ~45 ms at 115200 but the tick sends one every 25 ms, so the FT232R UART (unlike the
-  real ENTTEC Pro's FT245 FIFO) backs up and times out; try the MK2's real baud rate / frame pacing.
-  (2) Lightkey asks for an admin password to start output, which suggests it detaches Apple's
-  FTDI VCP driver and talks D2XX/libusb; the VCP route may not work for this unit.
-- VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
+- VS4-02 / VS1-04 gate 3 (Eurolite MK2, on the owner's desk): run `tests/hardware/runs/2026-10-18-VS4-02.md`
+  passed except two lines. The MK2 needs 250000 baud (OUT-20), is not auto-detected (FTDI default string
+  "FT232R USB UART", no reply to ENTTEC requests; the log names it with a `--serial` hint, OUT-23), and flickers
+  an LED par at 40 Hz, so serial writes at most every 30 ms (OUT-24, 20 Hz). Left: mid-run unplug (OUT-12),
+  and "some visible steps" in a dragged fade (20 Hz, or the par's low end? try a 33 Hz own timer, compare
+  with Lightkey). Never run the Demo show on the real rig: its demo fixtures on 9–150 lit real lamps.
 
 ## Hardware available for testing
 - Behringer BCF2000 (use in Mackie Control mode)
-- Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, ENTTEC Pro protocol, product string "Eurolite DMX512 Pro") — **at the church, not on the desk**; its hardware checks wait for a visit
+- Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, product string "FT232R USB UART", ENTTEC Pro label 6 at 250000 baud, ≤ 33 Hz) — on the owner's desk since 2026-10-18 with six 1-channel dimmers (185–190) and an RGBL par (361–364)
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Repo
@@ -65,9 +55,8 @@ its real main screen (`specs/modules/ui.md`, UI-01..28; README screenshot); the 
 done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
-- **VS2-13**: the church patch from the owner's Lightkey export (patch list or decoded show file),
-  entered through the patch commands into the show *Kerk* (waits for the owner's church visit); `tests/hardware/church.md` (VS4-01).
-- **UX-02d** with VS1-06: finish the paused owner run (3 lines), update app/engine STATE and README, open the PR.
+- **VS2-13** gate 3: finish `tests/hardware/runs/2026-10-18-church.md` (desk lines with the Eurolite, the rest at the church).
+- **UX-02d** with VS1-06: in review (owner run passed).
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
   (multi-select in the patch table), P1-03 palettes, P1-04 playbacks, P1-05 control surfaces.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
@@ -75,5 +64,5 @@ failing tests and reviews. The owner likes to be walked through manual runs step
 step per message, tick the run file in `tests/manual/runs/`). CI runs a newer Rust than the Mac:
 check PR CI. Disk is nearly full: `cargo clean` after a task. Don't run `git checkout` in the
 owner's tree while subagents work. The two Eurolite IP PIX Strobe QLC+ files stay refused (owner, 2026-10-18). IDEA-10 (output
-lamps) phase still to confirm. Open point from the SHW-c run: engine messages are all amber, also
+lamps) phase still to confirm; IDEA-13 (slot names + defaults editor, ONYX as reference) is phase 1 with P1-14 (owner, 2026-10-18). Open point from the SHW-c run: engine messages are all amber, also
 good news ("autosave … works again"); a calmer info colour needs an `info` message type.

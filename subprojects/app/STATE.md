@@ -16,7 +16,7 @@ The app connects to the daemon over WebSocket (`EngineClient.swift`, IPC-08/09):
 - Colour (VS2-14, IPC-19): HSI/RGB/CMY buttons on the C tab send `programmer.colour_model`; the Hue wheel shows degrees. Checklist `tests/manual/app-programmer.md` → Colour section.
 
 ## In progress
-- UX-02c in review (run `tests/manual/runs/2026-10-18-UX-02c.md` passed)
+- UX-02d (playback area: pages bar, strips, Go block placeholder, GM) in review; run `tests/manual/runs/2026-10-18-UX-02d.md` passed
 
 ## Resume with
-UX-02d with VS1-06 (playback area). Checklist `tests/manual/app-main-screen.md` grows per zone.
+The owner's choice after UX-02d: P1-14 (library browsing + profile editor, IDEA-13) or the PBK/PAL specs. Checklist `tests/manual/app-main-screen.md` grows per zone.

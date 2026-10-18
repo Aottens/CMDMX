@@ -5,6 +5,26 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-18 — Eurolite MK2: 250000 baud over Apple's VCP driver, not auto-detected
+
+**Decision:** The serial node opens the port at 250000 8N1 (OUT-20, was 115200). An FTDI port with a generic product string ("FT232R USB UART") is never opened automatically; the "no interface" log line names it with a `--serial <path>` hint (OUT-09/23). The owner chose this over treating every FTDI 0403:6001 port as ENTTEC Pro and over a serial-number allowlist.
+
+**Alternatives considered:** detaching Apple's FTDI driver and using D2XX/libusb (as Lightkey's admin prompt suggests); probing ports with the ENTTEC "get widget parameters" request; auto-using every FTDI port; a USB-serial-number allowlist.
+
+**Reasoning:** On the owner's Mac the MK2 followed a full/off pattern at 250000 baud through the stock VCP driver, so no admin rights or driver change are needed. At 115200 a 518-byte frame took ~54 ms per 25 ms tick and the unit ignored it. The MK2 does not answer ENTTEC requests and shares its product string with Open DMX clones, so neither probing nor the string can identify it, and sending Pro frames to an unknown FTDI device (an Open DMX clone, an Arduino) is not show-proof. Once the show stores node config (OUT-13), the chosen port is stored there. Same day, OUT-24: serial writes at most every 30 ms (20 Hz with 25 ms ticks), because the MK2 flickered an LED par at 40 Hz and was steady at ≤ 33 Hz; the owner chose this over a 33 Hz own-timer serial thread (upgrade path if fades step visibly).
+
+**Reversal trigger:** an MK2 unit that answers label 3 or reports a Pro product string (then detection covers it), or the owner wants plug-and-play before OUT-13 lands.
+
+## 2026-10-18 — The church patch: numbers in blocks of 100 per type, profiles from QLC+ where exact (VS2-13, owner)
+
+**Decision:** The church rig gets user numbers in blocks of 100 per fixture type (101–120 Showtec pars, 201–204 Phantom 25, …, 1201), names are the Lightkey short names with duplicates moved to the next free one (P45, MH9, MH10). Types QLC+ has with Lightkey's channel order come from QLC+; the other eight are channel lists from the Lightkey show; the Shehds zoom channel is called Zoom (user profile). Made once by `cargo run -p cmdmx-daemon --example church` (PAT-15..18).
+
+**Alternatives considered:** numbers equal to the Lightkey short names (P27 → 27); 1..56 in address order; all twelve types as channel lists; a Lightkey profile importer first.
+
+**Reasoning:** Titan-style blocks keep each type together on the command line and in the Fixtures window; QLC+ profiles carry slots and ranges the channel lists lack; an importer can come later (IDEA-13 asks for slot editing anyway).
+
+**Reversal trigger:** the owner finds the block numbers harder to use in a service than the Lightkey names.
+
 ## 2026-10-17 — Work towards the real UI early, zone by zone
 
 **Decision:** UX-02 (the SwiftUI main screen as UI v0.1) is split into a UI spec (UX-02.0) and four zones (UX-02a shell, b attribute bar, c side column, d playback area), built now on top of the existing IPC instead of after the engine features. A zone whose engine part is not built yet is shown disabled and labelled with the spec it waits for; new engine features land straight in the real layout.

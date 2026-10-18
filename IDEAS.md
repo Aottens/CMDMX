@@ -151,3 +151,40 @@ have").
 **Outcome (2026-10-17):** owner: phase 1, built with UX-02c. Open: keep the history across app restarts or
 only per session (decided when UI-19 is amended at the start of UX-02c).
 **Done (2026-10-18):** UI-27 with UX-02c; history kept across app restarts (owner).
+
+### IDEA-13 — Easy editing of wheel and slot names (2026-10-18, VS2-13)
+**Owner's intent:** slot names (colour wheel, gobo, prism, programs) must exist on every fixture,
+also ones built from a channel list, and editing them has to be user-friendly; ONYX does this
+well (owner does not remember how Avolites does it).
+**Triage:**
+- Proposed phase 1, with P1-14 (library browsing and the Add panel rethink): a slot editor in
+  the profile editor (LIB-12): per channel a list of ranges (from–to DMX, name, optional colour
+  or gobo picture), with a split/merge of ranges and a live DMX test on the selected fixture.
+  Look at ONYX's fixture editor and Titan's Fixture Tools/Personality Builder before the spec.
+- Touches now: nothing. The church Phantom 25 and Fuze 75S (PAT-16) are patched with plain
+  wheel channels; their slot data is in the Lightkey show and can be filled in once this exists.
+- Open questions: take the slots from the Lightkey show automatically (a Lightkey profile
+  importer) or enter them by hand in the editor.
+**Outcome (2026-10-18):** owner: phase 1, with P1-14. Same editor: attribute defaults must be
+settable there too (owner, VS2-13 review: the church movers start at Pan/Tilt 0, the owner wants
+to set e.g. 0.5 per fixture type; LIB-12 already allows editing defaults, the editor is missing).
+
+### IDEA-14 — Icon library for legends, plus a user folder with own drawings (2026-10-18, VS2-13 run)
+**Owner's intent:** playbacks, cues, palettes, groups and the like carry pictures, as on Titan
+(legend pictures). The difference: ColourmotionDMX ships its own tight, consistent icon
+library that can already show most things (colours, positions, gobos, effects, fixture types,
+moments in a service), plus a user folder with icons the user draws themselves.
+**Triage:**
+- Proposed phase 1 for the library and picking it (an `icon` id on each legend, next to the
+  text, in the show file); a built-in icon set drawn in one style (SF Symbols-like line icons,
+  licence checked); assign from a picker in the app; palettes and playbacks show them on their
+  buttons. Specified with P1-03 (palettes) and P1-04 (playbacks), as UI + SHW criteria.
+- Proposed phase 2 for the user folder with an icon editor (draw in the app, stored as SVG in
+  `~/Library/Application Support/ColourmotionDMX/icons/`, referenced by id and copied into the
+  show like profiles, ADR-006 decision 5, so a show travels with its icons).
+- Touches now: nothing; the show file schema gets an optional `icon` field when the first
+  legend criterion lands (SHW-04 migration not needed for an optional field).
+**Outcome (2026-10-18):** owner: phase split as proposed (library + picker in phase 1 with
+P1-03/P1-04; user folder in phase 2). The user folder starts with importing SVG/PNG; drawing in
+the app comes after that. Automatic icons as on Titan: a colour palette shows its colour, a
+position palette its pan/tilt, unless an icon is picked.

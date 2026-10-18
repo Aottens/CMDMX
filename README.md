@@ -26,9 +26,11 @@ out.*
 
 Early, under active development, not yet for real shows. What works today:
 
-- The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol).
+- The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
+  USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, 20 Hz, start with `--serial <path>`).
 - Patch: pick a fixture from the library, set its mode, count, address and user number. Clashes
-  are refused, and you can move, renumber, rename, change mode and remove.
+  are refused, and you can move, renumber, rename, change mode (from a list of the fixture's modes)
+  and remove.
 - Programmer: select fixtures and groups (tap again to deselect), Fix ±1, odd/even, a Titan-style command line
   (`201 Thro 205 @ 50`) and wheels.
 - Colour as one value per fixture. You set it with HSI, RGB or CMY wheels or a colour picker,
@@ -42,10 +44,16 @@ Early, under active development, not yet for real shows. What works today:
   crash, and opens the last show again when it starts. The Show screen opens, creates and saves
   shows under a new name; the status bar shows the show and when it was last saved.
 
+- The church rig (56 fixtures from the owner's Lightkey patch) is patched by a one-off
+  (`cargo run -p cmdmx-daemon --example church -- <export.tsv>`) into the show *Kerk*.
+
 - Console keypad, function buttons and softkeys work. The command line is built from tokens, and
   with Keys on the Mac keyboard drives it. Up and Down recall earlier commands.
 
-Next: the church patch from the Lightkey export, and the playback area of the main screen. The design is a clickable sketch in
+- Playback area: pages of playbacks with a pages bar, one strip per fader (legend, level,
+  active edge) and the Grand Master; the Go block waits for cue lists.
+
+Next: checking *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The design is a clickable sketch in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes, playbacks
 and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
