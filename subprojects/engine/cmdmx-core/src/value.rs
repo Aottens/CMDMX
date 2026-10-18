@@ -50,6 +50,23 @@ impl Value {
         }
     }
 
+    /// `self` towards `to` by `k` (0.0..=1.0, exact `to` at 1.0); Colour per component in linear
+    /// target RGB (PAL-13, PBK-15). Mixed kinds give `to`.
+    pub fn lerp(self, to: Value, k: f32) -> Value {
+        if k >= 1.0 {
+            return to;
+        }
+        match (self, to) {
+            (Value::Level(a), Value::Level(b)) => Value::Level(a + (b - a) * k),
+            (Value::Colour(a), Value::Colour(b)) => Value::Colour(TargetColour {
+                r: a.r + (b.r - a.r) * k,
+                g: a.g + (b.g - a.g) * k,
+                b: a.b + (b.b - a.b) * k,
+            }),
+            _ => to,
+        }
+    }
+
     /// The first component outside 0.0..=1.0 (or NaN), if any.
     pub fn out_of_range(&self) -> Option<f32> {
         let bad = |v: &f32| !(0.0..=1.0).contains(v);
