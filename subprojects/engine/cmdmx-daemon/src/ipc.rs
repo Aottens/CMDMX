@@ -24,7 +24,7 @@ use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::library::channel_list::ChannelList;
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
-use cmdmx_core::playback::PlaybackId;
+use cmdmx_core::playback::{PlaybackId, PAGES};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{GroupId, ProgrammerView, Resolution};
 use cmdmx_core::UniverseId;
@@ -48,6 +48,10 @@ pub enum Command {
     },
     GrandMasterSet {
         level: f32,
+    },
+    /// PBK-03: show another page of playbacks.
+    PageSet {
+        page: u16,
     },
     /// IPC-13: the programmer commands map 1:1 onto engine methods.
     Select {
@@ -200,6 +204,9 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             })
         }
         Some("grand_master.set") => Ok(Command::GrandMasterSet { level: level()? }),
+        Some("page.set") => Ok(Command::PageSet {
+            page: uint(&v, "page")?,
+        }),
         Some("programmer.select") => Ok(Command::Select {
             fixture: uint(&v, "fixture")?,
         }),
@@ -343,6 +350,32 @@ struct PlaybackInfo {
     active: bool,
 }
 
+/// PBK-03: the current page and what its slots hold.
+#[derive(Serialize, Clone, PartialEq)]
+struct PageInfo {
+    number: u16,
+    count: u16,
+    slots: Vec<SlotInfo>,
+}
+
+#[derive(Serialize, Clone, PartialEq)]
+struct SlotInfo {
+    /// 1-based.
+    slot: u16,
+    playback: Option<PlaybackId>,
+}
+
+fn page_info(engine: &Engine) -> PageInfo {
+    PageInfo {
+        number: engine.page(),
+        count: PAGES,
+        slots: (1..)
+            .zip(engine.page_slots())
+            .map(|(slot, playback)| SlotInfo { slot, playback })
+            .collect(),
+    }
+}
+
 #[derive(Serialize)]
 struct FixtureInfo<'a> {
     id: FixtureId,
@@ -372,6 +405,7 @@ struct Snapshot<'a> {
     kind: &'static str,
     faders_per_page: u16,
     grand_master: f32,
+    page: PageInfo,
     playbacks: Vec<PlaybackInfo>,
     fixtures: Vec<FixtureInfo<'a>>,
     groups: Vec<GroupInfo<'a>>,
@@ -475,6 +509,15 @@ struct GrandMasterDelta {
 }
 
 #[derive(Serialize)]
+struct PageDelta {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    #[serde(flatten)]
+    page: PageInfo,
+}
+
+#[derive(Serialize)]
 struct Text<'a> {
     v: u8,
     #[serde(rename = "type")]
@@ -536,6 +579,7 @@ pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> 
         kind: "snapshot",
         faders_per_page: engine.settings().faders_per_page,
         grand_master: engine.grand_master(),
+        page: page_info(engine),
         playbacks: infos(engine).collect(),
         fixtures: fixture_infos(engine),
         groups: group_infos(engine.groups()),
@@ -565,6 +609,7 @@ pub fn warning(msg: &str) -> String {
 pub struct Published {
     playbacks: BTreeMap<PlaybackId, (f32, bool)>,
     grand_master: f32,
+    page: PageInfo,
     programmer: ProgrammerView,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
     fixtures: Vec<Fixture>,
@@ -577,6 +622,7 @@ impl Published {
         Self {
             playbacks: infos(engine).map(|i| (i.id, (i.level, i.active))).collect(),
             grand_master: engine.grand_master(),
+            page: page_info(engine),
             programmer: engine.programmer_view(),
             groups: engine.groups().clone(),
             fixtures: engine.fixtures().cloned().collect(),
@@ -609,6 +655,16 @@ impl Published {
                 v: 0,
                 kind: "grand_master",
                 level: gm,
+            }));
+        }
+        // PBK-03: the whole page, once, when the number or a slot's playback changed.
+        let page = page_info(engine);
+        if page != self.page {
+            self.page = page.clone();
+            out.push(to_json(&PageDelta {
+                v: 0,
+                kind: "page",
+                page,
             }));
         }
         // IPC-12: at most one programmer and one groups delta per tick.

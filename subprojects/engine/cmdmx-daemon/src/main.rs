@@ -357,6 +357,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
     match cmd {
         FaderSet { playback, level } => engine.set_fader(playback, level, now),
         GrandMasterSet { level } => engine.set_grand_master(level),
+        PageSet { page } => engine.set_page(page),
         Select { fixture } => engine.select_fixture(fixture),
         SelectGroup { group } => engine.select_group(group),
         Step { forward: true } => {
@@ -588,6 +589,18 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
         (201..=208).chain(211..=216).chain(221..=226).collect(),
         (301..=306).collect(),
     ];
+    // PBK-04: page 2 holds the washes (playback 9) and the front spots (playback 10) at full.
+    let per_page = u32::from(Settings::default().faders_per_page);
+    for (offset, ids) in [(1, 101..=104), (2, 301..=306)] {
+        engine.add_playback(Playback {
+            id: per_page + offset,
+            priority: Priority::Normal,
+            fader_mode: FaderMode::Mode0,
+            values: ids
+                .map(|f| (f, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])))
+                .collect(),
+        });
+    }
     for (group, members) in (1..).zip(groups) {
         for id in members {
             engine.select_fixture(id)?;

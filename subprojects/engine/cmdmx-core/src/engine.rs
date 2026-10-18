@@ -18,7 +18,7 @@ use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{ColourModel, TargetColour};
 use crate::command::{self, Item, Kind};
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
-use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values};
+use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values, PAGES};
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
     AttributeGroupState, ColourView, FixtureValues, GroupId, Programmer, ProgrammerView,
@@ -151,6 +151,8 @@ pub struct Engine {
     playbacks: BTreeMap<PlaybackId, Playback>,
     states: BTreeMap<PlaybackId, PlaybackState>,
     grand_master: f32,
+    /// Current page of playbacks, 1..=PAGES (PBK-02). Live state, not in the show.
+    page: u16,
     activation_seq: u64,
     frames: BTreeMap<UniverseId, Frame>,
     warnings: Vec<Warning>,
@@ -184,6 +186,7 @@ impl Engine {
             playbacks: BTreeMap::new(),
             states: BTreeMap::new(),
             grand_master: 1.0,
+            page: 1,
             activation_seq: 0,
             frames: BTreeMap::new(),
             warnings: Vec::new(),
@@ -770,6 +773,36 @@ impl Engine {
         }
         self.grand_master = level;
         Ok(())
+    }
+
+    // ---- pages (PBK-01, PBK-02) --------------------------------------------
+
+    /// PBK-02: show another page. 0 or a page above `PAGES` is refused and nothing changes;
+    /// playback levels and active state are never touched.
+    pub fn set_page(&mut self, page: u16) -> Result<(), CoreError> {
+        if page == 0 || page > PAGES {
+            return Err(CoreError::InvalidPage(page));
+        }
+        self.page = page;
+        Ok(())
+    }
+
+    /// PBK-02: the current page, 1..=`PAGES`.
+    pub fn page(&self) -> u16 {
+        self.page
+    }
+
+    /// PBK-01: slot *s* (index *s* − 1) of the current page holds playback
+    /// (page − 1) · `faders_per_page` + *s* when it exists.
+    pub fn page_slots(&self) -> Vec<Option<PlaybackId>> {
+        let per_page = u32::from(self.settings.faders_per_page);
+        let first = u32::from(self.page)
+            .saturating_sub(1)
+            .saturating_mul(per_page);
+        (1..=per_page)
+            .map(|s| first.saturating_add(s))
+            .map(|id| self.playbacks.contains_key(&id).then_some(id))
+            .collect()
     }
 
     // ---- programmer (PRG-01..07) ------------------------------------------

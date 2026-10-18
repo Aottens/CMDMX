@@ -1,6 +1,11 @@
 //! PBK-01, PBK-02: pages of playbacks (`specs/modules/playbacks.md`, VS1-06 subset).
 
-#![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing)]
+#![allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::indexing_slicing
+)]
 
 mod common;
 

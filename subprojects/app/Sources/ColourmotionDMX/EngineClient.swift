@@ -7,13 +7,39 @@ enum EngineConnection: Equatable {
     case online
 }
 
-/// What the UI knows about one playback slot on the current page.
-/// Mirrors the engine's `PlaybackState`; the app never computes these.
+/// What the UI knows about one slot on the current page. The engine says which playback a slot
+/// holds (PBK-03); level and active state mirror its `PlaybackState`. The app never computes these.
 struct PlaybackSlot: Identifiable, Equatable {
-    let id: Int          // 0-based index on the page
-    var legend: String
+    let id: Int          // 0-based slot index on the page
+    var playback: Int?   // nil: an empty slot (PBK-05)
     var level: Double    // 0.0...1.0, as last reported by the engine
     var isActive: Bool
+    /// UI-22: the legend is the playback number; names and halos come with P1-04.
+    var legend: String { playback.map(String.init) ?? "" }
+}
+
+/// The current page of playbacks (PBK-03): snapshot object or `page` delta (flattened).
+/// Fields missing from a message fall back to a single empty page.
+struct PageState: Decodable, Equatable {
+    struct Slot: Decodable, Equatable {
+        let slot: Int          // 1-based
+        let playback: Int?
+    }
+
+    var number = 1
+    var count = 1
+    var slots: [Slot] = []
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey { case number, count, slots }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        number = (try? c.decode(Int.self, forKey: .number)) ?? 1
+        count = (try? c.decode(Int.self, forKey: .count)) ?? 1
+        slots = (try? c.decode([Slot].self, forKey: .slots)) ?? []
+    }
 }
 
 /// One patched fixture (IPC-10, PAT-09). `id` is the internal id, `number` the user number.
@@ -294,8 +320,11 @@ final class EngineClient: ObservableObject {
     @Published private(set) var fineUsed: Set<String> = []
     /// From the engine's settings snapshot. Never hard-code 8 or 10.
     @Published private(set) var fadersPerPage: Int = 8
-    @Published private(set) var pageLegend: String = "Page 1"
+    /// PBK-03: the current page and the playback each slot holds; `slots` is derived from it.
+    @Published private(set) var page = PageState()
     @Published private(set) var slots: [PlaybackSlot] = []
+    /// Level and active state per playback id, so a page switch shows the right values at once.
+    private var playbackStates: [Int: (level: Double, active: Bool)] = [:]
     @Published private(set) var grandMaster: Double = 1.0
     /// Latest `warning` / `error` message from the engine; cleared when a
     /// `programmer.command` is sent (IPC-17).
@@ -334,17 +363,27 @@ final class EngineClient: ObservableObject {
 
     // MARK: - Commands (app → engine)
 
-    /// `fader.set` — optimistic local update; the engine's delta is authoritative.
-    func setFader(index: Int, level: Double) {
-        guard slots.indices.contains(index) else { return }
-        slots[index].level = level.clamped01
-        slots[index].isActive = level > 0
-        send(FaderSet(playback: index + 1, level: level.clamped01))
+    /// `page.set` (PBK-03). No local update: the engine's `page` delta changes the strips.
+    func setPage(_ number: Int) { sendJSON("page.set", ["page": number]) }
+
+    /// `fader.set` for the playback a slot holds (PBK-03) — optimistic local update; the engine's
+    /// delta is authoritative.
+    func setFader(playback id: Int, level: Double) {
+        playbackStates[id] = (level.clamped01, level > 0)
+        rebuildSlots()
+        send(FaderSet(playback: id, level: level.clamped01))
+    }
+
+    /// UI-22: a scroll step is a short touch, so the engine's echo of the previous step cannot
+    /// pull the bar back while the wheel is still turning.
+    func nudgeFader(playback id: Int, by delta: Double) {
+        touchFader(playback: id, held: true)
+        setFader(playback: id, level: (playbackStates[id]?.level ?? 0) + delta)
+        touchFader(playback: id, held: false)
     }
 
     /// UI-22 / IPC-05: pointer down/up on a fader. Up starts the grace period; down cancels it.
-    func touchFader(index: Int, held: Bool) {
-        let id = index + 1
+    func touchFader(playback id: Int, held: Bool) {
         releaseTasks.removeValue(forKey: id)?.cancel()
         if held {
             if heldFaders[id] == nil { heldFaders[id] = .some(nil) }
@@ -355,7 +394,10 @@ final class EngineClient: ObservableObject {
             guard !Task.isCancelled else { return }
             releaseTasks[id] = nil
             guard let parked = heldFaders.removeValue(forKey: id) else { return }
-            if let level = parked, slots.indices.contains(index) { slots[index].level = level }
+            if let level = parked, playbackStates[id] != nil {
+                playbackStates[id]?.level = level
+                rebuildSlots()
+            }
         }
     }
 
@@ -515,6 +557,7 @@ final class EngineClient: ObservableObject {
             let active: Bool
         }
         let type: String
+        fileprivate let page: Tolerant<PageState>?
         let fadersPerPage: Int?
         let grandMaster: Double?
         let playbacks: [Playback]?
@@ -531,7 +574,7 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, playbacks, id, level, active, message, fixtures, groups, programmer, items, outputs, show, shows
+            case type, page, playbacks, id, level, active, message, fixtures, groups, programmer, items, outputs, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
         }
@@ -548,10 +591,12 @@ final class EngineClient: ObservableObject {
             releaseTasks.values.forEach { $0.cancel() }; releaseTasks = [:]
             heldFaders = [:]; gmHeld = false; gmEngineLevel = nil
             fadersPerPage = max(1, incoming.fadersPerPage ?? fadersPerPage)
-            rebuildSlots()
+            page = incoming.page?.value ?? PageState()
+            playbackStates = [:]
             for pb in incoming.playbacks ?? [] {
-                applyPlayback(id: pb.id, level: pb.level, active: pb.active)
+                storePlayback(id: pb.id, level: pb.level, active: pb.active)
             }
+            rebuildSlots()
             grandMaster = (incoming.grandMaster ?? grandMaster).clamped01
             fixtures = incoming.fixtures ?? []
             groups = incoming.groups ?? []
@@ -560,6 +605,9 @@ final class EngineClient: ObservableObject {
             if let show = incoming.show?.value { self.show = show }
             connection = .online
             listShows()
+        case "page":
+            // PBK-03: the delta carries the page fields at top level.
+            if let state = try? JSONDecoder().decode(PageState.self, from: data) { page = state; rebuildSlots() }
         case "programmer":
             // IPC-12: the delta carries the IPC-11 fields at top level.
             if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }
@@ -580,7 +628,8 @@ final class EngineClient: ObservableObject {
             if let groups = incoming.groups { self.groups = groups }
         case "playback":
             if let id = incoming.id, let level = incoming.level, let active = incoming.active {
-                applyPlayback(id: id, level: level, active: active)
+                storePlayback(id: id, level: level, active: active)
+                rebuildSlots()
             }
         case "grand_master":
             if let level = incoming.level {
@@ -594,17 +643,21 @@ final class EngineClient: ObservableObject {
         }
     }
 
-    /// Slot n ↔ playback id n+1 (paging is VS1-06).
-    private func applyPlayback(id: Int, level: Double, active: Bool) {
-        let index = id - 1
-        guard slots.indices.contains(index) else { return }
-        slots[index].isActive = active
-        if heldFaders[id] != nil { heldFaders[id] = .some(level.clamped01) } else { slots[index].level = level.clamped01 }
+    /// Keeps the engine's level and active state per playback id. A held fader parks the level (UI-22).
+    private func storePlayback(id: Int, level: Double, active: Bool) {
+        var state = playbackStates[id] ?? (level: 0, active: false)
+        state.active = active
+        if heldFaders[id] != nil { heldFaders[id] = .some(level.clamped01) } else { state.level = level.clamped01 }
+        playbackStates[id] = state
     }
 
+    /// PBK-01/05: the strips show the current page's slots; the engine decides which playback each holds.
     private func rebuildSlots() {
-        slots = (0..<fadersPerPage).map {
-            PlaybackSlot(id: $0, legend: "PB \($0 + 1)", level: 0, isActive: false)
+        let byNumber = Dictionary(page.slots.map { ($0.slot, $0.playback) }, uniquingKeysWith: { first, _ in first })
+        slots = (0..<fadersPerPage).map { index in
+            let playback = byNumber[index + 1].flatMap { $0 }
+            let state = playback.flatMap { playbackStates[$0] }
+            return PlaybackSlot(id: index, playback: playback, level: state?.level ?? 0, isActive: state?.active ?? false)
         }
     }
 }

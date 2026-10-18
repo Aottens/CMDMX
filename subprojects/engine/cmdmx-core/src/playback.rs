@@ -13,6 +13,9 @@ use crate::value::Value;
 
 pub type PlaybackId = u32;
 
+/// PBK-01: the number of pages of playbacks.
+pub const PAGES: u16 = 10;
+
 /// Titan's five priority levels, lowest first. Ordering is meaningful.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Priority {
