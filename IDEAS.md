@@ -168,3 +168,22 @@ well (owner does not remember how Avolites does it).
 **Outcome (2026-10-18):** owner: phase 1, with P1-14. Same editor: attribute defaults must be
 settable there too (owner, VS2-13 review: the church movers start at Pan/Tilt 0, the owner wants
 to set e.g. 0.5 per fixture type; LIB-12 already allows editing defaults, the editor is missing).
+
+### IDEA-14 — Icon library for legends, plus a user folder with own drawings (2026-10-18, VS2-13 run)
+**Owner's intent:** playbacks, cues, palettes, groups and the like carry pictures, as on Titan
+(legend pictures). The difference: ColourmotionDMX ships its own tight, consistent icon
+library that can already show most things (colours, positions, gobos, effects, fixture types,
+moments in a service), plus a user folder with icons the user draws themselves.
+**Triage:**
+- Proposed phase 1 for the library and picking it (an `icon` id on each legend, next to the
+  text, in the show file); a built-in icon set drawn in one style (SF Symbols-like line icons,
+  licence checked); assign from a picker in the app; palettes and playbacks show them on their
+  buttons. Specified with P1-03 (palettes) and P1-04 (playbacks), as UI + SHW criteria.
+- Proposed phase 2 for the user folder with an icon editor (draw in the app, stored as SVG in
+  `~/Library/Application Support/ColourmotionDMX/icons/`, referenced by id and copied into the
+  show like profiles, ADR-006 decision 5, so a show travels with its icons).
+- Touches now: nothing; the show file schema gets an optional `icon` field when the first
+  legend criterion lands (SHW-04 migration not needed for an optional field).
+- Open questions: phase split as proposed?; draw in the app or import SVG/PNG first (import is
+  far less work); automatic icons (a colour palette shows its colour, a position palette its
+  pan/tilt) as on Titan, or always a picked icon?
