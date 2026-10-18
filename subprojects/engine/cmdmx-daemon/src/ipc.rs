@@ -1594,7 +1594,7 @@ mod tests {
         // IPC-21: programmer values per fixture.
         assert_eq!(
             v["programmer"]["contents"],
-            json!([{"fixture":1,"values":{"Dimmer":1.0},"palettes":{}}])
+            json!([{"fixture":1,"values":{"Dimmer":1.0},"palettes":{},"fading":{}}])
         );
         assert_eq!(v["programmer"]["attribute_groups"][0]["has_values"], true);
     }
@@ -2294,7 +2294,7 @@ mod tests {
         );
         assert_eq!(
             p["contents"],
-            json!([{"fixture":1,"values":{"Dimmer":1.0},"palettes":{"Dimmer":7}}])
+            json!([{"fixture":1,"values":{"Dimmer":1.0},"palettes":{"Dimmer":7},"fading":{}}])
         );
     }
 

@@ -465,3 +465,43 @@ fn pal_16_same_actions_same_frames() {
     };
     assert_eq!(run(), run());
 }
+
+// ---- PAL-26 (amended): fade progress in the programmer view -----------------------------------
+
+fn fading(e: &Engine, fixture: u32) -> BTreeMap<String, f32> {
+    e.programmer_view()
+        .contents
+        .into_iter()
+        .find(|c| c.fixture == fixture)
+        .map(|c| c.fading)
+        .unwrap_or_default()
+}
+
+#[test]
+fn pal_26_the_programmer_view_shows_fade_progress() {
+    let mut e = rig();
+    select(&mut e, &[101, 102]);
+    e.apply_palette(FULL, staggered(2.0, 50.0)).unwrap();
+    assert_eq!(
+        fading(&e, 101),
+        BTreeMap::from([("Dimmer".to_string(), 0.0)])
+    );
+    e.tick(0.0);
+    e.tick(1.0);
+    let p = fading(&e, 101)["Dimmer"];
+    assert!((p - 0.5).abs() < 1e-3, "101 halfway, got {p}");
+    assert_eq!(
+        fading(&e, 102),
+        BTreeMap::from([("Dimmer".to_string(), 0.0)]),
+        "102 waits for its overlap turn"
+    );
+    e.tick(2.0);
+    assert!(
+        fading(&e, 101).is_empty(),
+        "a finished fade leaves the view"
+    );
+    e.tick(3.0);
+    assert!(fading(&e, 102).is_empty());
+    let view = e.programmer_view();
+    assert!(view.contents.iter().all(|c| c.fading.is_empty()));
+}

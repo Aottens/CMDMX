@@ -213,7 +213,10 @@ lists) store, so they come first.
   (`in_use`: palettes referenced in the programmer; `relevant`: palettes that resolve something
   for a target, or all palettes when nothing is selected), each `wheels` entry gains
   `"palette": id` or `null`, and each `contents` entry (IPC-21) gains `"palettes":{"Colour":1}`
-  for its referenced attributes.
+  for its referenced attributes and `"fading":{"Colour":0.4}` for its attributes with a palette
+  fade still running (PAL-13/14): the progress 0.0–1.0 at the last tick, 0.0 while the fixture
+  waits for its overlap turn; the entry disappears when the fade is done (amended 2026-10-18,
+  owner, VS2-19 run).
 - **PAL-27** Commands (numbers and cells, not ids; refusals are warnings, IPC-06):
   `palette.record {"window":"Colours","handle":4,"number":12,"mask":["C"],"record_by":"Mixed",
   "record_as":"Auto","mode":"Merge"}` (all but the cell optional: `number` only for a new
@@ -251,7 +254,10 @@ lists) store, so they come first.
     the number on the command line; without one they show the current value) and Set Overlap
     (the number on the line is the overlap for the next tap only).
 - **PAL-30** The Programmer window (UI-14) shows referenced values in cyan with the palette's
-  legend; a wheel whose value comes from a palette shows its value in cyan (UI-03).
+  legend; a wheel whose value comes from a palette shows its value in cyan (UI-03). A value
+  that is still fading keeps showing its target, with an amber marker and its progress (UI-03:
+  amber = fading) until the fade is done; the live output itself is for IDEA-10 (owner,
+  VS2-19 run).
 - **PAL-31** `tests/manual/app-palettes.md` walks recording, Quick Record, G/S/N on the mixed
   pars, applying with and without a selection, a timed apply with overlap, Merge, Copy/Move,
   Delete, legends and icons, and a restart of the daemon with the palettes back from the show.
