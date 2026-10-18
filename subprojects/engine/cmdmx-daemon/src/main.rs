@@ -50,9 +50,14 @@ fn main() {
         Ok(c) => c,
         Err(e) => {
             eprintln!("cmdmx-daemon: {e}");
+            eprint!("{USAGE}");
             std::process::exit(2);
         }
     };
+    if cli.help {
+        print!("{USAGE}");
+        return;
+    }
     let ticks_limit = cli.ticks;
     // OUT-15/16/22: slice-only output config until node config lives in the show file.
     // Each entry: (hand-off to its thread, its shared state). `statuses` is the IPC-20 view
@@ -444,7 +449,28 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
     }
 }
 
+/// SHW-18: printed by `--help` (stdout, exit 0) and after a bad argument (stderr, exit 2).
+const USAGE: &str = "\
+usage: cmdmx-daemon [options]
+  --ticks <n>             stop after n ticks (default: run until stopped)
+  --no-artnet             turn Art-Net output off
+  --artnet-target <ip>    Art-Net destination (default 255.255.255.255)
+  --no-sacn               turn sACN output off
+  --sacn-unicast <ip>     sACN unicast destination (default: multicast universe 1)
+  --sacn-priority <n>     sACN priority 0..200 (default 100)
+  --no-serial             turn serial DMX output off
+  --serial <path>         serial DMX device (default: detect the interface)
+  --ipc-port <n>          WebSocket port on 127.0.0.1 (default 7319)
+  --demo                  fader 1 breathes
+  --qlcplus-dir <path>    QLC+ fixture files (default: bundled vendor/qlcplus/fixtures)
+  --profiles-dir <path>   saved profiles (default ~/Library/Application Support/ColourmotionDMX/profiles)
+  --show-dir <path>       shows folder (default ~/Documents/ColourmotionDMX/Shows)
+  -h, --help              print this and exit
+";
+
 struct Cli {
+    /// `--help`/`-h`: print USAGE and exit 0 (SHW-18).
+    help: bool,
     ticks: Option<u64>,
     /// `None` = Art-Net disabled (`--no-artnet`).
     artnet: Option<SocketAddrV4>,
@@ -473,6 +499,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
         .map(PathBuf::from)
         .unwrap_or_default();
     let mut cli = Cli {
+        help: false,
         ticks: None,
         artnet: Some(artnet_out::default_target()),
         sacn_enabled: true,
@@ -492,7 +519,17 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "--ticks" => cli.ticks = args.next().and_then(|v| v.parse().ok()),
+            "--help" | "-h" => {
+                cli.help = true;
+                return Ok(cli);
+            }
+            "--ticks" => {
+                let v = args.next().unwrap_or_default();
+                cli.ticks = Some(
+                    v.parse()
+                        .map_err(|_| format!("--ticks: '{v}' is not a whole number"))?,
+                );
+            }
             "--no-artnet" => cli.artnet = None,
             "--artnet-target" => {
                 let ip = parse_ipv4("--artnet-target", args.next())?;
@@ -532,7 +569,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
                 cli.show_dir = args.next().ok_or("--show-dir: missing path")?.into();
                 cli.state_file = cli.show_dir.join("state.json");
             }
-            _ => {}
+            other => return Err(format!("unknown argument '{other}'")),
         }
     }
     Ok(cli)

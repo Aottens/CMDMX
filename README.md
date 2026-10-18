@@ -78,7 +78,7 @@ Requirements: macOS 14+, Rust (stable), Xcode Command Line Tools (`xcode-select 
 # once: fetch the QLC+ fixture library (pinned, Apache-2.0)
 subprojects/engine/scripts/fetch-qlcplus.sh
 
-# engine (keep it running)
+# engine (keep it running); `-- --help` lists the flags, `-- --show-dir <folder>` keeps a test run away from your shows
 cd subprojects/engine && cargo run -p cmdmx-daemon
 
 # app, in a second terminal
