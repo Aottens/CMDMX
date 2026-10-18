@@ -32,8 +32,12 @@ The demo show (IPC-14) uses universe 1 channels 1–150.
       refused with the overlap warning
 - [ ] Renumber 1221 to 1301: the row moves in the sorted table; on Program, `1301 Enter` selects it
 - [ ] Name it `Front left`: the name shows in the table
-- [ ] Select 101 (a wash), set its Pan in Program, come back, Change Mode: the button asks to
-      confirm first; confirming with the same mode keeps the value, an unknown mode is refused
+- [ ] Select 101 (a wash, one mode): Mode is a dropdown showing only its mode, and Change stays
+      disabled (PAT-10 amended, VS2-16)
+- [ ] Add one Shehds LED Beam+Wash 19x15W in 16 Channel, select it and set its Pan in Program;
+      back on Patch the Mode dropdown lists 16 Channel and 24 Channel with 16 Channel picked; pick
+      24 Channel: Change asks to confirm first; after confirming the row shows 24 Channel with
+      footprint 24 (or the overlap warning) and Pan is kept
 - [ ] Remove 1222: the button asks to confirm; after confirming the row is gone, its channels
       (1.207–212) go to 0 on Art-Net, and it leaves any group it was in
 

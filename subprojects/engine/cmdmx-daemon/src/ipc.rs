@@ -1085,7 +1085,7 @@ mod tests {
     fn dimmer_entry() -> Value {
         json!({"id":1,"number":1,"name":"","profile":"dimmer","mode":"default","universe":1,
                "address":1,"footprint":1,"virtual_dimmer":false,"handle":{"page":1,"slot":1},
-               "attributes":{"Dimmer":"I"}})
+               "attributes":{"Dimmer":"I"},"modes":["default"]})
     }
 
     /// Showtec LED Par 56 "6 Channel" with a virtual dimmer (PAT-01's example).
@@ -1113,8 +1113,34 @@ mod tests {
                    {"id":2,"number":221,"name":"Front left","profile":"Showtec/LED Par 56",
                     "mode":"6 Channel","universe":1,"address":37,"footprint":6,
                     "virtual_dimmer":true,"handle":{"page":1,"slot":2},
-                    "attributes":{"Dimmer":"I","Colour":"C","Mode":"S","Speed":"S","Strobe":"I"}}])
+                    "attributes":{"Dimmer":"I","Colour":"C","Mode":"S","Speed":"S","Strobe":"I"},
+                    "modes":["6 Channel"]}])
         );
+    }
+
+    /// PAT-09 (amended, VS2-16): every mode of the show's profile, in profile order, whatever
+    /// mode the fixture is in.
+    #[test]
+    fn pat_09_entries_carry_the_profile_modes() {
+        let two_modes = r#"{"manufacturer":"Acme","model":"Wash","source":"channel-list","modes":[
+            {"name":"16 Channel","footprint":16,"attributes":[{"name":"Dimmer","group":"I","kind":"Htp","channel":1}]},
+            {"name":"24 Channel","footprint":24,"attributes":[{"name":"Dimmer","group":"I","kind":"Htp","channel":1}]}]}"#;
+        let mut e = engine();
+        e.add_profile("Acme/Wash", Profile::from_json(two_modes).unwrap())
+            .unwrap();
+        e.patch_add(&cmdmx_core::patch::PatchAdd {
+            profile: "Acme/Wash".into(),
+            mode: Some("24 Channel".into()),
+            count: 1,
+            universe: 1,
+            address: Some(101),
+            number: Some(901),
+        })
+        .unwrap();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let wash = &v["fixtures"][1];
+        assert_eq!(wash["mode"], "24 Channel");
+        assert_eq!(wash["modes"], json!(["16 Channel", "24 Channel"]));
     }
 
     #[test]

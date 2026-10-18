@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -71,12 +71,18 @@ to end up with two fixtures on the same channel by accident.
   none was given), `virtual_dimmer` is LIB-04's virtual dimmer, `handle` is `{page, slot}` or
   `null`, and the delta is `{"v":0,"type":"fixtures","fixtures":[…]}` (full list, at most one per
   tick, only when the list changed).
+  Amended (VS2-16, owner 2026-10-18): each entry also carries `modes`, the names of every mode of
+  the fixture's profile as the show holds it (ADR-006 decision 5), in profile order, e.g.
+  `["16 Channel","24 Channel"]` for the Shehds; the client never asks the library for them.
 - **PAT-10** A Patch screen (full screen from the workspace rail, UI v0.1): a table of the patch
   (number, name, manufacturer/model, mode, universe.address, footprint), sorted by number; an Add
   panel with library search (LIB-14), mode, count, universe, start address and start number
   (both optional, PAT-03); Move, Renumber, Name, Change Mode and Remove on a selected row, Remove
   and Change Mode with a two-step confirm. A refused action shows the warning in the panel. Verified by
   `tests/manual/app-patch.md`.
+  Amended (VS2-16, owner 2026-10-18): Change Mode is a dropdown of the row's `modes` (PAT-09) with
+  the current mode preselected, not a text field; Change stays disabled while the current mode is
+  picked, so a one-mode fixture cannot be changed.
 
 ### The church
 - **PAT-11** The church rig from the owner's Lightkey export is patched once through these commands
