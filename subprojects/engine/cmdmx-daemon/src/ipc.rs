@@ -1829,4 +1829,47 @@ mod tests {
         assert_eq!(v["shows"][0]["name"], "Kerk");
         assert!(v["shows"][0]["modified"].as_str().unwrap().ends_with('Z'));
     }
+
+    // ---- PBK-03 --------------------------------------------------------------
+
+    #[test]
+    fn pbk_03_snapshot_has_the_page() {
+        let v = parse(&snapshot(&engine(), &[], &show_state()));
+        let slots: Vec<Value> = (1..=8)
+            .map(|s| json!({"slot": s, "playback": if s == 1 { json!(1) } else { Value::Null }}))
+            .collect();
+        assert_eq!(v["page"], json!({"number": 1, "count": 10, "slots": slots}));
+    }
+
+    #[test]
+    fn pbk_03_page_delta_only_after_a_change() {
+        let mut e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+        e.set_page(2).unwrap();
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1);
+        let v = parse(&d[0]);
+        assert_eq!(v["v"], 0);
+        assert_eq!(v["type"], "page");
+        assert_eq!(v["number"], 2);
+        assert_eq!(v["count"], 10);
+        assert_eq!(v["slots"][0], json!({"slot": 1, "playback": null}));
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
+    fn pbk_03_page_set_parses() {
+        assert_eq!(
+            parse_command(r#"{"v":0,"cmd":"page.set","page":2}"#),
+            Ok(Command::PageSet { page: 2 })
+        );
+        for bad in [
+            r#"{"v":0,"cmd":"page.set"}"#,
+            r#"{"v":0,"cmd":"page.set","page":"2"}"#,
+            r#"{"v":0,"cmd":"page.set","page":-1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
 }
