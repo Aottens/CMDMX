@@ -39,6 +39,10 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
   DMX on the dimmer, then decide with the owner how to detect it (e.g. probe FTDI 0403:6001 ports
   with the ENTTEC "get widget parameters" request and accept those that answer; still never treat
   it as Open DMX), amend OUT-09 and CLAUDE.md, then `tests/hardware/output.md` serial lines (VS4-02).
+  First try (2026-10-18): with `--serial /dev/cu.usbserial-AQ01FA9F` the daemon opens the port
+  ("serial: ENTTEC Pro \"--serial\" at …") and then reports "serial: Degraded: Operation timed
+  out": find out whether the write or the widget-params read times out, and whether the dimmer
+  responds at all.
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
 
 ## Hardware available for testing
