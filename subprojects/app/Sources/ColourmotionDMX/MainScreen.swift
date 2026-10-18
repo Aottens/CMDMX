@@ -5,9 +5,29 @@ import SwiftUI
 // resizes with the window; the other zones keep their size. Everything shown comes from
 // `EngineClient`; nothing is computed here.
 
-/// A function button armed for palettes (UI-16, PAL-29); the next palette tap uses it.
+/// A function button armed for palettes and playback handles (UI-16, PAL-29, PBK-38); the next
+/// palette or handle tap uses it. Release, Options and Latch only mean something on handles.
 enum PaletteFunction: String {
     case update = "Update", include = "Include", copy = "Copy", move = "Move", delete = "Delete", legend = "Set Legend"
+    case release = "Release", options = "Options", latch = "Latch"
+}
+
+/// A used handle tapped while Record is armed (PBK-38): the softkeys ask how to record onto it.
+struct UsedHandle: Equatable {
+    let page: Int
+    let slot: Int
+    let playback: Int
+}
+
+/// The playback whose legend editor is open (PBK-38).
+struct PlaybackRef: Identifiable {
+    let id: Int
+}
+
+/// The page whose legend editor is open (PBK-38).
+struct PageRef: Identifiable {
+    let number: Int
+    var id: Int { number }
 }
 
 /// A used cell tapped while Record is armed (PAL-29): the softkeys ask how to record onto it.
@@ -26,10 +46,10 @@ struct PaletteRef: Identifiable {
 /// UI-only state shared by the zones. None of this reaches the engine.
 @MainActor
 final class UIState: ObservableObject {
-    enum Screen { case patch, show }
+    enum Screen { case patch, show, options }
 
     @Published var workspace = 0
-    /// A full screen (Patch UI-10, Show SHW-17) replaces the grid, side column and attribute bar;
+    /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
     @Published var screen: Screen?
     /// Record armed with the Record function button (UI-16); the next group or palette tap records.
@@ -37,6 +57,8 @@ final class UIState: ObservableObject {
     @Published var recordArmed = false { didSet { if !recordArmed { resetRecord() } } }
     /// Record + tap on a used cell: waiting for Replace / Merge / Quick Merge (PAL-06).
     @Published var usedCell: UsedCell?
+    /// Record + tap on a used handle: waiting for Replace / Merge (PBK-38).
+    @Published var usedHandle: UsedHandle?
     /// Record choices for this record only (PAL-29); nil = the window's mask / the engine's setting.
     @Published var recordMask: Set<String>?
     @Published var recordBy: String?
@@ -50,6 +72,17 @@ final class UIState: ObservableObject {
     /// Delete: the palette number waiting for the confirmation on softkey A (two-step, PAT-10).
     @Published var deleteTarget: Int?
     @Published var legendEditing: PaletteRef?
+    /// Copy / Move on handles: the source playback's id (PBK-38).
+    @Published var handleSource: Int?
+    /// Delete on handles: the playback waiting for the confirmation on softkey A.
+    @Published var deletePlayback: Int?
+    @Published var playbackLegendEditing: PlaybackRef?
+    @Published var pageLegendEditing: PageRef?
+    /// The handle last tapped (a playback id): the Playback Options and Edit Times softkeys open it.
+    @Published var lastHandle: Int?
+    /// The playback shown on the Playback Options screen and its tab (PBK-39).
+    @Published var optionsFor: Int?
+    @Published var optionsTab = PlaybackOptionsTab.fader
     /// Set Overlap (PAL-29): the overlap in % for the next palette tap only.
     @Published var pendingOverlap: Double?
     /// The Palette softkeys (PAL-29): opened by the Palette key on an empty line, they stay open
@@ -57,14 +90,23 @@ final class UIState: ObservableObject {
     @Published var paletteMenu = false
 
     func resetRecord() {
-        usedCell = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
+        usedCell = nil; usedHandle = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
     }
 
     /// Disarms Record and every palette function.
     func cancelModes() {
         recordArmed = false
         function = nil; source = nil; deleteTarget = nil
+        handleSource = nil; deletePlayback = nil
         paletteMenu = false
+    }
+
+    /// PBK-39: open the Playback Options screen on a playback.
+    func openOptions(_ playback: Int, tab: PlaybackOptionsTab = .fader) {
+        cancelModes()
+        optionsFor = playback
+        optionsTab = tab
+        screen = .options
     }
 
     /// A function button: arms it (disarming the others), or disarms it when it is the armed one.
@@ -124,6 +166,7 @@ private struct Frame: View {
                         switch screen {
                         case .patch: PatchView()
                         case .show: ShowView()
+                        case .options: PlaybackOptionsView()
                         }
                     }
                 } else {
@@ -145,6 +188,18 @@ private struct Frame: View {
         .foregroundStyle(t.fg)
         .sheet(item: $ui.legendEditing, onDismiss: { ui.cancelModes() }) { ref in
             LegendEditor(number: ref.number)
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
+        .sheet(item: $ui.playbackLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
+            PlaybackLegendEditor(id: ref.id)
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
+        .sheet(item: $ui.pageLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
+            PageLegendEditor(page: ref.number)
                 .environmentObject(engine).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
@@ -213,6 +268,13 @@ private struct StatusBar: View {
                 case .degraded: Dot(color: t.amber, label: output.detail.map { "\(name): \($0)" } ?? name, warn: true)
                 case .stopped: Dot(color: t.fg3, label: name)
                 }
+            }
+
+            // UI-06, PBK-41: the engine's DBO.
+            if engine.dbo {
+                Text("DBO").font(Typo.ui(11, .semibold)).foregroundStyle(t.amber)
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.amber, lineWidth: 1))
             }
 
             Spacer(minLength: 0)

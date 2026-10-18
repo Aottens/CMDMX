@@ -148,6 +148,8 @@ struct PaletteWindow: View {
     private func perform(_ function: PaletteFunction, _ handle: Int, _ p: PaletteInfo?) {
         lastTap = nil
         switch function {
+        case .release, .options, .latch:
+            engine.say("\(function.rawValue) works on playback handles.")
         case .copy, .move:
             if let source = ui.source {
                 guard p == nil else { return engine.say("Pick an empty cell for the \(function.rawValue.lowercased()).") }
@@ -157,6 +159,7 @@ struct PaletteWindow: View {
                 ui.cancelModes()
             } else if let p {
                 ui.source = p.id
+                ui.handleSource = nil
                 engine.say("\(function.rawValue) palette \(p.number): tap an empty cell.")
             } else {
                 engine.say("Tap a recorded palette as the source.")
@@ -175,7 +178,7 @@ struct PaletteWindow: View {
                 engine.say("Delete palette \(p.number)? Confirm on softkey A.")
             case .legend:
                 ui.legendEditing = PaletteRef(number: p.number)
-            case .copy, .move:
+            case .copy, .move, .release, .options, .latch:
                 break
             }
         }
@@ -212,37 +215,7 @@ struct LegendEditor: View {
                 TextField("Number", text: $numberText).textFieldStyle(.roundedBorder).frame(width: 80).onSubmit(apply)
             }
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let palette {
-                        sectionTitle("Automatic")
-                        Button { icon = nil } label: {
-                            VStack(spacing: 4) {
-                                PaletteIconView(palette: palette, forceAuto: true).frame(width: 60, height: 14)
-                                Text("Auto").font(Typo.legend(Typo.small))
-                            }
-                            .frame(width: 76, height: 40)
-                            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(icon == nil ? t.blue : t.line, lineWidth: icon == nil ? 2 : 1))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    ForEach(PaletteIcons.categories, id: \.self) { category in
-                        sectionTitle(category)
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 44), spacing: 4)], alignment: .leading, spacing: 4) {
-                            ForEach(PaletteIcons.ids(in: category), id: \.id) { item in
-                                Button { icon = item.id } label: {
-                                    IconGlyph(entry: item.entry, size: 18).foregroundStyle(t.fg)
-                                        .frame(width: 44, height: 36)
-                                        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(icon == item.id ? t.blue : t.line, lineWidth: icon == item.id ? 2 : 1))
-                                }
-                                .buttonStyle(.plain)
-                                .help(PaletteIcons.name(item.id))
-                            }
-                        }
-                    }
-                }
-            }
-            .frame(height: 260)
+            IconPicker(icon: $icon, autoIcon: palette?.autoIcon)
 
             HStack {
                 Spacer()
@@ -263,10 +236,6 @@ struct LegendEditor: View {
         }
     }
 
-    private func sectionTitle(_ text: String) -> some View {
-        Text(text.uppercased()).font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3)
-    }
-
     /// The legend goes first, by the old number; then the renumber, if the number changed.
     private func apply() {
         guard let palette else { return close() }
@@ -282,5 +251,51 @@ struct LegendEditor: View {
         ui.cancelModes()
         ui.legendEditing = nil
         dismiss()
+    }
+}
+
+// MARK: - Icon picker (PAL-29, PBK-38)
+
+/// The icon library as a grid by category, and "Auto" with the automatic icon the engine computed.
+/// Shared by the palette and the playback legend editors.
+struct IconPicker: View {
+    @Environment(\.theme) private var t
+    @Binding var icon: String?
+    let autoIcon: AutoIcon?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                sectionTitle("Automatic")
+                Button { icon = nil } label: {
+                    VStack(spacing: 4) {
+                        AutoIconView(icon: autoIcon).frame(width: 60, height: 14)
+                        Text("Auto").font(Typo.legend(Typo.small))
+                    }
+                    .frame(width: 76, height: 40)
+                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(icon == nil ? t.blue : t.line, lineWidth: icon == nil ? 2 : 1))
+                }
+                .buttonStyle(.plain)
+                ForEach(PaletteIcons.categories, id: \.self) { category in
+                    sectionTitle(category)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44), spacing: 4)], alignment: .leading, spacing: 4) {
+                        ForEach(PaletteIcons.ids(in: category), id: \.id) { item in
+                            Button { icon = item.id } label: {
+                                IconGlyph(entry: item.entry, size: 18).foregroundStyle(t.fg)
+                                    .frame(width: 44, height: 36)
+                                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(icon == item.id ? t.blue : t.line, lineWidth: icon == item.id ? 2 : 1))
+                            }
+                            .buttonStyle(.plain)
+                            .help(PaletteIcons.name(item.id))
+                        }
+                    }
+                }
+            }
+        }
+        .frame(height: 260)
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text.uppercased()).font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3)
     }
 }

@@ -236,7 +236,7 @@ struct GroupsWindow: View {
 
 // MARK: - Placeholders for later specs
 
-/// Cue list or Active playbacks: the sketch's column headers over an empty table.
+/// Cue list: the sketch's column headers over an empty table.
 struct TablePlaceholderWindow: View {
     @Environment(\.theme) private var t
     let title: String
@@ -286,7 +286,7 @@ enum WindowKind {
         case .programmer: ProgrammerWindow()
         case .picker: ColourPickerWindow()
         case .cues: TablePlaceholderWindow(title: "Cue list", spec: "Cue lists · P1-08", columns: ["Q", "Name", "Delay", "Fade", "Link"])
-        case .active: TablePlaceholderWindow(title: "Active playbacks", spec: "Playbacks · P1-04", columns: ["Pg", "Playback", "Level", "Groups"])
+        case .active: ActivePlaybacksWindow()
         }
     }
 }

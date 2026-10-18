@@ -2,8 +2,9 @@ import AppKit
 import SwiftUI
 
 // Playback area (UI-21..24): pages column, one strip per fader on the page, the Go block and
-// the Grand Master. Pages, strips and GM are live (PBK-01..05, IPC-09); Swop/Flash and the Go
-// block are drawn disabled until their specs land (P1-04, P1-08).
+// the Grand Master. Pages, strips, Swop/Flash, GM and DBO are live (PBK-01..05, PBK-37, PBK-41,
+// IPC-09); the Go block is drawn disabled until its spec lands (P1-08). What a tap on a legend
+// does by the armed function button is in PlaybackViews.swift (HandleTaps).
 
 func percent(_ v: Double) -> String {
     "\(Int((v * 100).rounded())) %"
@@ -25,25 +26,35 @@ struct PlaybackArea: View {
     }
 }
 
-/// UI-21, PBK-05: one button per page, the current one highlighted; a click sends `page.set`.
+/// UI-21, PBK-05: one button per page with its legend (PBK-08), the current one highlighted; a click
+/// sends `page.set`. With Set Legend armed a click edits the page's legend (PBK-38).
 private struct PagesColumn: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             // Compact so all ten fit the 232 pt zone with the "per page" read-out.
             ForEach(1...max(1, engine.page.count), id: \.self) { number in
                 let current = number == engine.page.number
-                Button { engine.setPage(number) } label: {
-                    Text("\(number)").font(Typo.mono(Typo.small))
-                        .foregroundStyle(current ? t.bg : t.fg2)
-                        .padding(.horizontal, 5).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: radius).fill(current ? t.fg : Color.clear))
-                        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: 1))
-                        .contentShape(Rectangle())
+                let legend = engine.pages.first { $0.number == number }?.legend ?? ""
+                Button {
+                    if ui.function == .legend { ui.pageLegendEditing = PageRef(number: number) } else { engine.setPage(number) }
+                } label: {
+                    HStack(spacing: 3) {
+                        Text("\(number)").font(Typo.mono(Typo.small))
+                        Text(legend).font(Typo.legend(9)).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(current ? t.bg : t.fg2)
+                    .padding(.horizontal, 5).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: radius).fill(current ? t.fg : Color.clear))
+                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ui.function == .legend ? t.red : t.line, lineWidth: 1))
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).frame(height: 16)
+                .help(legend.isEmpty ? "Page \(number)" : "Page \(number): \(legend)")
             }
             Spacer(minLength: 0)
             Text("per page").font(Typo.mono(9)).foregroundStyle(t.fg3)
@@ -73,10 +84,13 @@ private struct StripsRow: View {
 
 private struct StripCell: View {
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
     let slot: PlaybackSlot
 
     var body: some View {
-        FaderStrip(slot: slot,
+        FaderStrip(slot: slot, page: engine.page.number,
+                   selected: slot.playback.map { ui.handleSource == $0 || ui.deletePlayback == $0 } ?? false,
+                   armed: ui.recordArmed || (ui.function != nil && ui.function != .include && ui.function != .latch),
                    onChange: { level in
                        if let id = slot.playback { engine.setFader(playback: id, level: level) }
                    },
@@ -85,7 +99,13 @@ private struct StripCell: View {
                    },
                    onScroll: { steps, flags in
                        if let id = slot.playback { engine.nudgeFader(playback: id, by: Double(steps) * faderScrollStep(flags)) }
-                   })
+                   },
+                   onLegendTap: { HandleTaps.tap(slot: slot.id + 1, info: slot.info, engine: engine, ui: ui) },
+                   onRightClick: { HandleTaps.rightClick(info: slot.info, engine: engine, ui: ui) },
+                   swop: HoldActions(press: { engine.swopPlayback($0, on: true); return false },
+                                     release: { engine.swopPlayback($0, on: false) }),
+                   flash: HoldActions(press: { HandleTaps.flashPress($0, info: slot.info, engine: engine, ui: ui) },
+                                      release: { engine.flashPlayback($0, on: false) }))
     }
 }
 
@@ -98,46 +118,172 @@ private func faderScrollStep(_ flags: NSEvent.ModifierFlags) -> Double {
     }
 }
 
-/// An empty slot (PBK-05) is a disabled strip without a cap or a level.
+/// Press and hold for Swop and Flash (PBK-37). `press` returns true when the press was a one-shot
+/// (Latch), so there is nothing to send on release.
+struct HoldActions {
+    let press: (Int) -> Bool
+    let release: (Int) -> Void
+}
+
+/// An empty slot (PBK-05) is a strip without a cap or a level, its Swop and Flash disabled; its
+/// legend area still takes taps (Record, Copy, Move onto an empty handle, PBK-38).
 private struct FaderStrip: View {
     @Environment(\.theme) private var t
     let slot: PlaybackSlot
+    let page: Int
+    /// Copy / Move source or Delete target: blue border, as a selected cell (UI-05).
+    let selected: Bool
+    /// A function button is armed: the legends get a red hairline (the sketch's `.armed .leg`).
+    let armed: Bool
     let onChange: (Double) -> Void
     let onTouch: (Bool) -> Void
     let onScroll: (Int, NSEvent.ModifierFlags) -> Void
+    let onLegendTap: () -> Void
+    let onRightClick: () -> Void
+    let swop: HoldActions
+    let flash: HoldActions
 
     var body: some View {
         let empty = slot.playback == nil
         VStack(spacing: 2) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(empty ? "empty" : slot.legend).font(Typo.legend()).foregroundStyle(empty ? t.fg3 : t.fg).lineLimit(1)
-                Text("\(slot.id + 1)").font(Typo.mono(9)).foregroundStyle(t.fg2)
-            }
-            .padding(.horizontal, 5).padding(.top, 6)
-            .frame(maxWidth: .infinity, maxHeight: 44, alignment: .topLeading)
-            .background(t.bg)
-            if empty {
-                Rectangle().fill(t.bg)
-            } else {
-                LevelBar(value: Binding(get: { slot.level }, set: onChange), running: slot.isActive,
+            StripLegend(info: slot.info, page: page)
+                .overlay { if armed { Rectangle().strokeBorder(t.red, lineWidth: 1) } }
+                .overlay { if selected { Rectangle().strokeBorder(t.blue, lineWidth: 2) } }
+                .onTapGesture(perform: onLegendTap)
+                .overlay { RightClickCatcher(action: onRightClick) }
+                .help(empty ? "Empty handle \(page).\(slot.id + 1)" : "Right-click: Playback Options")
+            if let info = slot.info {
+                LevelBar(value: Binding(get: { info.live.level }, set: onChange), running: slot.isActive,
                          onTouch: onTouch, onScroll: onScroll)
+            } else {
+                Rectangle().fill(t.bg)
             }
-            ForEach(["Swop", "Flash"], id: \.self) { name in
-                Text(name.uppercased()).font(Typo.legend(11)).tracking(0.7).foregroundStyle(t.fg)
-                    .frame(maxWidth: .infinity).frame(height: 24)
-                    .background(t.surf2)
-                    .overlay(Rectangle().strokeBorder(t.line, lineWidth: 1))
-                    .opacity(t.disabled)
-                    .help("Playbacks · P1-04")
-            }
+            HoldKey(label: "Swop", target: slot.playback, inverted: false, actions: swop)
+            HoldKey(label: "Flash", target: slot.playback, inverted: slot.info?.live.latched == true, actions: flash)
         }
         .padding(2)
         .frame(width: 92)
         .background(RoundedRectangle(cornerRadius: radius).fill(empty ? Color.clear : t.surf))
         .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: 1))
         .overlay(alignment: .bottom) {
-            if slot.isActive { Rectangle().fill(t.green).frame(height: 3).padding(.horizontal, 2) }
+            // UI-03: green = running, amber = releasing.
+            if slot.isActive || slot.isReleasing {
+                Rectangle().fill(slot.isActive ? t.green : t.amber).frame(height: 3).padding(.horizontal, 2)
+            }
         }
+    }
+}
+
+/// The legend area (44 pt, PBK-37): halo as a 3 pt top bar, the icon, the legend (else `page.slot`),
+/// and the lock mark with the home page when a lock shows the playback away from home.
+private struct StripLegend: View {
+    @Environment(\.theme) private var t
+    let info: PlaybackInfo?
+    let page: Int
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            t.bg
+            if let info {
+                VStack(alignment: .leading, spacing: 1) {
+                    icon(info).frame(height: 14, alignment: .leading)
+                    Text(info.shownLegend).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1)
+                    meta(info)
+                }
+                .padding(.horizontal, 5).padding(.top, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if let halo = info.stored.halo {
+                    Rectangle().fill(Color(red: halo.r, green: halo.g, blue: halo.b)).frame(height: 3)
+                }
+            } else {
+                Text("empty").font(Typo.legend()).foregroundStyle(t.fg3).padding(.horizontal, 5).padding(.top, 6)
+            }
+        }
+        .frame(maxWidth: .infinity).frame(height: 44)
+        .clipped()
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private func icon(_ info: PlaybackInfo) -> some View {
+        if let id = info.stored.icon, let entry = PaletteIcons.entry(id) {
+            IconGlyph(entry: entry, size: 10).foregroundStyle(t.fg)
+        } else {
+            AutoIconView(icon: info.stored.autoIcon).clipped()
+        }
+    }
+
+    /// "page 2" with a lock for Locked / TransparentLock away from the home page, else the home
+    /// handle when a legend hides it.
+    @ViewBuilder private func meta(_ info: PlaybackInfo) -> some View {
+        let paging = info.stored.options.paging
+        HStack(spacing: 3) {
+            if paging != "Unlocked" && info.stored.page != page {
+                Image(systemName: paging == "Locked" ? "lock.fill" : "lock").font(.system(size: 8))
+                Text("page \(info.stored.page)")
+            } else if !info.stored.legend.isEmpty {
+                Text(info.homeHandle)
+            }
+        }
+        .font(Typo.mono(9)).foregroundStyle(t.fg2).lineLimit(1)
+    }
+}
+
+/// A Swop or Flash key: `press` on mouse down, `release` on mouse up (PBK-37). Disabled without a
+/// playback (UI-28). A latched Flash is drawn inverted.
+private struct HoldKey: View {
+    @Environment(\.theme) private var t
+    let label: String
+    let target: Int?
+    let inverted: Bool
+    let actions: HoldActions
+    @State private var held: Int?
+    @State private var oneShot = false
+
+    var body: some View {
+        let down = held != nil
+        Text(label.uppercased()).font(Typo.legend(11)).tracking(0.7).foregroundStyle(inverted ? t.bg : t.fg)
+            .frame(maxWidth: .infinity).frame(height: 24)
+            .background(inverted ? t.fg : down ? t.line2 : t.surf2)
+            .overlay(Rectangle().strokeBorder(t.line, lineWidth: 1))
+            .opacity(target == nil ? t.disabled : 1)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard held == nil, let target else { return }
+                        held = target
+                        oneShot = actions.press(target)
+                    }
+                    .onEnded { _ in end() }
+            )
+            .onDisappear { end() }   // a strip that goes away mid-press must not leave Flash on
+            .help(target == nil ? "Empty handle" : "\(label): hold")
+    }
+
+    private func end() {
+        guard let id = held else { return }
+        held = nil
+        if !oneShot { actions.release(id) }
+        oneShot = false
+    }
+}
+
+/// Catches a right click without taking left clicks, scrolls or drags from the view below.
+private struct RightClickCatcher: NSViewRepresentable {
+    let action: () -> Void
+
+    func makeNSView(context: Context) -> CatcherView { CatcherView() }
+    func updateNSView(_ view: CatcherView, context: Context) { view.action = action }
+
+    final class CatcherView: NSView {
+        var action: () -> Void = {}
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            guard let event = NSApp.currentEvent, event.type == .rightMouseDown else { return nil }
+            return super.hitTest(point)
+        }
+
+        override func rightMouseDown(with event: NSEvent) { action() }
     }
 }
 
@@ -217,7 +363,8 @@ private struct GoBlock: View {
     }
 }
 
-/// UI-24: a level bar like a strip, amber below 100 %; DBO waits for P1-04.
+/// UI-24: a level bar like a strip, amber below 100 %; DBO under it toggles `dbo.set`, amber while
+/// the engine reports it on (PBK-41).
 private struct GrandMaster: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
@@ -227,7 +374,8 @@ private struct GrandMaster: View {
             Text("GM").font(Typo.legend(11)).foregroundStyle(t.fg2).frame(height: 18)
             LevelBar(value: Binding(get: { engine.grandMaster }, set: { engine.setGrandMaster($0) }), warnBelowFull: true,
                      onTouch: { engine.touchGrandMaster(held: $0) })
-            KeyButton(label: "DBO", spec: "DBO · P1-04", height: 30)
+            KeyButton(label: "DBO", spec: "Dead Black Out: all intensity to 0 (toggle)", height: 30,
+                      lit: engine.dbo, action: { engine.setDBO(!engine.dbo) })
         }
         .padding(4)
     }

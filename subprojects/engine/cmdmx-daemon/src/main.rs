@@ -441,6 +441,27 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             }
             Ok(())
         }
+        PlaybackRecord(record) => engine.record_playback(&record).map(drop),
+        PlaybackFlash { id, on } => engine.set_flash(id, on, now),
+        PlaybackSwop { id, on } => engine.set_swop(id, on, now),
+        PlaybackLatch { id } => engine.latch_flash(id, now),
+        PlaybackRelease { id } => engine.release_playback(id, now),
+        PlaybackChange { id, change } => engine.change_playback(id, &change),
+        PlaybackLegend {
+            id,
+            legend,
+            icon,
+            halo,
+        } => engine.set_playback_legend(id, &legend, icon.as_deref(), halo),
+        PlaybackCopy { id, page, slot } => engine.copy_playback(id, page, slot).map(drop),
+        PlaybackMove { id, page, slot } => engine.move_playback(id, page, slot),
+        PlaybackDelete { id } => engine.delete_playback(id),
+        PageLegend { page, legend } => engine.set_page_legend(page, &legend),
+        DboSet { on } => {
+            engine.set_dbo(on);
+            Ok(())
+        }
+        SettingsPlayback(change) => engine.set_playback_settings(&change),
     }
 }
 
@@ -661,7 +682,7 @@ fn report(engine: &Engine) {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use cmdmx_core::colour::ColourModel;

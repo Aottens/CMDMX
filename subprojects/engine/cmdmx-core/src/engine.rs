@@ -2610,6 +2610,17 @@ impl Engine {
         groups.into_iter().collect()
     }
 
+    /// PBK-35: the attribute groups the playback's first cue holds values in, in I P C G B E S FX order.
+    pub fn playback_groups(&self, id: PlaybackId) -> Vec<AttributeGroup> {
+        let groups: BTreeSet<AttributeGroup> =
+            (self.playback(id).and_then(Playback::values).into_iter())
+                .flat_map(|values| values.values())
+                .flat_map(|attrs| attrs.keys())
+                .map(|name| self.attribute_group(name))
+                .collect();
+        groups.into_iter().collect()
+    }
+
     /// The group of an attribute name, from the profiles (FX when no profile has it). `Colour`
     /// is the built-in target colour (group C) whether or not a patched mode mixes it.
     fn attribute_group(&self, name: &str) -> AttributeGroup {
