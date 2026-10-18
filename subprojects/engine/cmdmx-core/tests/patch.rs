@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::{FixtureId, Handle, PatchAdd};
-use cmdmx_core::playback::{FaderMode, Playback, Priority};
+use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
 use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
@@ -446,18 +446,18 @@ fn pat_13_change_mode_keeps_matching_attributes_and_drops_the_rest() {
     let m = id_of(&e, 101);
     e.set_programmer_value(m, "Dimmer", 1.0).unwrap();
     e.set_programmer_value(m, "Pan", 0.5).unwrap();
-    e.add_playback(Playback {
-        id: 1,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: BTreeMap::from([(
+    e.add_playback(Playback::new(
+        1,
+        1,
+        1,
+        BTreeMap::from([(
             m,
             BTreeMap::from([
                 ("Tilt".to_string(), 0.3.into()),
                 ("Zoom".to_string(), 0.7.into()),
             ]),
         )]),
-    });
+    ));
     e.set_fader(1, 1.0, 0.0).unwrap();
     e.tick(0.0);
     assert_eq!(dmx(&e, 1, 3), 77, "Tilt 0.3 on offset 3");

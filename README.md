@@ -52,6 +52,10 @@ Early, under active development, not yet for real shows. What works today:
 
 - Playback area: pages of playbacks with a pages bar, one strip per fader (legend, level,
   active edge) and the Grand Master; the Go block waits for cue lists.
+- Playbacks in the engine (no app controls yet): record the programmer onto a handle (palette
+  references stay references), Replace/Merge/Update, Copy/Move/Delete, Titan paging locks
+  (a front-spots fader on every page), options and times per playback, legends with automatic
+  icons and halos. Fader modes, release and Flash/Swop on the output come next.
 
 - Palettes in the engine, as on Titan: record colours, positions and beams from the programmer
   (Global/Shared/Normal decided automatically, also across fixture types; positions in degrees),
@@ -61,7 +65,7 @@ Early, under active development, not yet for real shows. What works today:
   windows with automatic icons (colour swatch, pan/tilt plot) or one from a built-in library,
   Record/Update/Include/Copy/Move/Delete and legends, as on Titan.
 
-Next: playbacks and cue lists; checking
+Next: playbacks on the output and in the app, then cue lists; checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

@@ -599,7 +599,7 @@ mod tests {
     fn shw_10_a_refused_last_show_falls_back_to_demo_and_is_never_written() {
         let s = shows("start-refused");
         let json =
-            save(&s, "Kerk", &demo()).replace("\"schema_version\": 2", "\"schema_version\": 9");
+            save(&s, "Kerk", &demo()).replace("\"schema_version\": 3", "\"schema_version\": 9");
         fs::write(s.path("Kerk"), &json).unwrap();
         s.remember("Kerk").unwrap();
         let opened = s.start(demo, WALL);
@@ -838,7 +838,7 @@ mod tests {
     fn shw_10_a_refused_demo_file_is_never_written_either() {
         let s = shows("start-refused-demo");
         let json =
-            save(&s, "Demo", &demo()).replace("\"schema_version\": 2", "\"schema_version\": 9");
+            save(&s, "Demo", &demo()).replace("\"schema_version\": 3", "\"schema_version\": 9");
         fs::write(s.path("Demo"), &json).unwrap();
         let opened = s.start(demo, WALL);
         assert_eq!(opened.name, "Demo 2", "the built Demo gets a free name");
@@ -865,7 +865,7 @@ mod tests {
         // A copy of Kerk saved by a newer version under another file name (SHW-c run).
         let s = shows("refused-copy");
         let json =
-            save(&s, "Kerk", &demo()).replace("\"schema_version\": 2", "\"schema_version\": 9");
+            save(&s, "Kerk", &demo()).replace("\"schema_version\": 3", "\"schema_version\": 9");
         fs::write(s.path("Toekomst"), json).unwrap();
         let err = s.open("Toekomst").unwrap_err();
         assert!(err.contains("Toekomst") && err.contains("newer"), "{err}");

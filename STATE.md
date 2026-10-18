@@ -24,13 +24,13 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - ADR-005 accepted: one BT.2020 linear target colour per fixture, White/Lime as direct attributes, nominal mapping in phase 1
 - Programmer spec `specs/modules/programmer.md` PRG-01..37 approved (P1-02); tasks VS2-02..07 in BACKLOG
 - `cmdmx-core::programmer`: ordered selection, groups, Fix ±1 stepping, patterns, All, record group (VS2-02, PRG-01..07, 14); command line `Fixture/Group/Thro/And/Not/@/Enter` (VS2-03, PRG-08/09/11); programmer values in the merge at Programmer priority, relative wheels Normal/Fine/Coarse, wheel layout and active group, `contents(mask)` (VS2-04); over IPC with the church demo rig, and in the app: fixtures + groups windows, attribute bar with wheels, command line (VS2-07, IPC-10..17; owner run `tests/manual/runs/2026-10-17-VS2-07.md` passed). HTP without a source now outputs 0 (ENG-07 part)
-- Main-screen spec `specs/modules/ui.md` UI-01..28 + IPC-20..23 approved (UX-02.0, 2026-10-17; UI-16/19 amended, UI-27/28 added 2026-10-18); UX-02a (shell), UX-02b merged; UX-02c (side column live: Record/Patch/Disk, keypad tokens, softkey contexts, token command line with Keys mode, ⌘1–4, command history kept across app restarts, one disabled grey) in review, owner run passed
+- Main-screen spec `specs/modules/ui.md` UI-01..28 + IPC-20..23 approved (UX-02.0, 2026-10-17; UI-16/19 amended, UI-27/28 added 2026-10-18); UX-02a (shell), UX-02b, UX-02c (side column, #33) and UX-02d + VS1-06 (playback area, pages of playbacks PBK-01..05, #40) merged
+- Palettes done (P1-03, PAL-01..32): core (VS2-17, #41), fades and overlap (VS2-18, #42), IPC + app (VS2-19, #43; owner run `tests/manual/runs/2026-10-18-VS2-19.md` passed): palette windows on handles, Record/Update/Include/Copy/Move/Delete, legend editor with icons, Palette softkeys, cyan references and fade progress in the Programmer window. Known points: the palette windows scroll on the laptop (check on the console screen); live output during fades waits for IDEA-10 (output lamps); IDEA-15 (selection orders, random, 1 in 3) is phase 2
 - UI v0.1: clickable main-screen sketch `specs/ux/main-screen.html` (UX-01 done; Artifact https://claude.ai/artifact/YNEG3JsZAnjWhG1793MDUd), built from `specs/ux/research.md`; reference for the SwiftUI work and the PRG/PAL/PBK specs
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- P1-03 palettes: `specs/modules/palettes.md` PAL-01..32 approved (owner, 2026-10-18; seven decisions: Titan delete with fallback values, Record By Mixed by default, Global incl. Pan/Tilt in degrees, no Edit in phase 1, SF Symbols + own glyphs, palettes live on cells with free numbers, overlap per fixture). VS2-17 (#41) and VS2-18 (#42) merged; VS2-19 (IPC + app) in review, owner run `tests/manual/runs/2026-10-18-VS2-19.md` passed (cells now 72 pt in 6 columns, UI-05; fade progress in the Programmer window). IDEA-15 (selection orders, random, 1 in 3) → phase 2
-- UX-02d + VS1-06 in review: pages of playbacks (PBK-01..05 approved 2026-10-18), playback area, fader echo settling; owner run `tests/manual/runs/2026-10-18-UX-02d.md` passed (finished at home, 2026-10-18)
+- P1-04 playbacks: `specs/modules/playbacks.md` PBK-06..45 approved (owner, 2026-10-18; all seven proposals: Record By Channel, the mode 0/1 time model, fixed Swop/Flash/Latch, automatic halo, attribute-group times and chases with BPM/Rate masters in P1-08, group masters P1-16, Titan release defaults). VS2-20 (core storage: handles and locks, record, Copy/Move/Delete, options, legends/icons/halos, show schema 3 with migration) in review; next VS2-21 (behaviour on the frame) and VS2-22 (IPC + app)
 - VS4-02 (#34) and VS2-13 (#35) merged; *Kerk* is in the owner's Shows folder (56 fixtures, 9 user profiles). Run `tests/hardware/runs/2026-10-18-church.md`: the Patch-screen line passed at home; the desk lines wait for the Eurolite, the rest for the church
 - VS2-16 merged (#38): snapshot `fixtures` entries carry `modes` (PAT-09 amended), Change Mode is a dropdown of them (PAT-10 amended); owner run `tests/manual/runs/2026-10-18-VS2-16.md` passed
 
@@ -57,10 +57,9 @@ done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
 - **VS2-13** gate 3: finish `tests/hardware/runs/2026-10-18-church.md` (desk lines with the Eurolite, the rest at the church).
-- **UX-02d** with VS1-06: in review (owner run passed).
-- **VS2-19** in review. Then P1-04 playbacks (stores palette references) and P1-08 cue lists; IDEA-10 (output lamps) shows live fades.
+- **VS2-20** in review; then VS2-21 (fader modes, times, release, Flash/Swop, DBO on the frame: scenarios first) and VS2-22 (IPC + app). After that P1-08 cue lists; IDEA-10 (output lamps) shows live fades.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
-  (multi-select in the patch table), P1-04 playbacks, P1-05 control surfaces.
+  (multi-select in the patch table), P1-08 cue lists, P1-05 control surfaces.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
 failing tests and reviews. The owner likes to be walked through manual runs step by step (one
 step per message, tick the run file in `tests/manual/runs/`). CI runs a newer Rust than the Mac:

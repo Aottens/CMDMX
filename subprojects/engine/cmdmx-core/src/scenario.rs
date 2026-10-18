@@ -11,10 +11,14 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::attribute::AttributeGroup;
+use crate::colour::TargetColour;
 use crate::engine::{Engine, Settings};
 use crate::palette::{Palette, Record, Timing};
 use crate::patch::{Fixture, FixtureId};
-use crate::playback::{Playback, PlaybackId};
+use crate::playback::{
+    Cue, FaderMode, KillPoint, Paging, Playback, PlaybackId, Priority, Values, PAGES,
+};
 use crate::profile::Profile;
 use crate::programmer::Resolution;
 use crate::{CoreError, Timestamp, UniverseId};
@@ -33,10 +37,62 @@ pub struct Scenario {
     #[serde(default)]
     pub palettes: Vec<Palette>,
     #[serde(default)]
-    pub playbacks: Vec<Playback>,
+    pub playbacks: Vec<ScenarioPlayback>,
     #[serde(default)]
     pub actions: Vec<Action>,
     pub expect: Vec<Expectation>,
+}
+
+/// A playback of a scenario (`specs/modules/playbacks.md`, "Scenario test format"): the
+/// show-file fields, all optional but the id. `page` and `slot` default to where PBK-01 puts
+/// the id; a plain `values` is one cue with zero times.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ScenarioPlayback {
+    pub id: PlaybackId,
+    pub page: Option<u16>,
+    pub slot: Option<u16>,
+    pub legend: Option<String>,
+    pub icon: Option<String>,
+    pub halo: Option<TargetColour>,
+    pub priority: Option<Priority>,
+    pub fader_mode: Option<FaderMode>,
+    pub kill_point: Option<KillPoint>,
+    pub release_mask: Option<Vec<AttributeGroup>>,
+    pub release_time: Option<f32>,
+    pub paging: Option<Paging>,
+    pub group: Option<u8>,
+    pub values: Option<Values>,
+    pub cues: Option<Vec<Cue>>,
+}
+
+impl ScenarioPlayback {
+    fn build(&self, faders_per_page: u16) -> Playback {
+        // PBK-01: page = ⌈id / fpp⌉ (beyond `PAGES` it is out of reach, as a stored handle).
+        let n = self.id.saturating_sub(1);
+        let per_page = u32::from(faders_per_page.max(1));
+        let page = u16::try_from(n / per_page + 1).unwrap_or(PAGES + 1);
+        let slot = u16::try_from(n % per_page + 1).unwrap_or(1);
+        let mut pb = Playback::new(
+            self.id,
+            self.page.unwrap_or(page),
+            self.slot.unwrap_or(slot),
+            self.values.clone().unwrap_or_default(),
+        );
+        if let Some(cues) = &self.cues {
+            pb.cues = cues.clone();
+        }
+        pb.legend = self.legend.clone().unwrap_or_default();
+        pb.icon = self.icon.clone();
+        pb.halo = self.halo;
+        pb.priority = self.priority.unwrap_or(pb.priority);
+        pb.fader_mode = self.fader_mode.unwrap_or(pb.fader_mode);
+        pb.kill_point = self.kill_point.unwrap_or(pb.kill_point);
+        pb.release_mask = self.release_mask.clone();
+        pb.release_time = self.release_time;
+        pb.paging = self.paging.unwrap_or(pb.paging);
+        pb.group = self.group;
+        pb
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -133,7 +189,7 @@ pub fn build_engine(scenario: &Scenario) -> Result<Engine, CoreError> {
         engine.add_palette(palette.clone())?;
     }
     for playback in &scenario.playbacks {
-        engine.add_playback(playback.clone());
+        engine.add_playback(playback.build(engine.settings().faders_per_page));
     }
     Ok(engine)
 }

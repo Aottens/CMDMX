@@ -285,45 +285,53 @@ impl Palette {
             .chain(self.shared.values().map(as_set))
             .chain(self.fixtures.values().map(as_set))
             .collect();
-
-        let mut colours: Vec<TargetColour> = Vec::new();
-        for set in &sets {
-            if let Some(Value::Colour(c)) = set.get(COLOUR) {
-                if colours.len() < 4 && !colours.contains(c) {
-                    colours.push(*c);
-                }
-            }
-        }
-        if !colours.is_empty() {
-            return Some(AutoIcon::Colours(colours));
-        }
-
-        let mut points: Vec<[f32; 2]> = Vec::new();
-        for set in &sets {
-            if set.contains_key(PAN) || set.contains_key(TILT) {
-                let axis = |name: &str| set.get(name).map_or(0.5, Value::level);
-                let point = [axis(PAN), axis(TILT)];
-                if points.len() < 8 && !points.contains(&point) {
-                    points.push(point);
-                }
-            }
-        }
-        if !points.is_empty() {
-            return Some(AutoIcon::Position(points));
-        }
-
-        let (attribute, value) = sets
-            .iter()
-            .flat_map(|set| set.iter())
-            .min_by(|a, b| (group_of(a.0), a.0).cmp(&(group_of(b.0), b.0)))?;
-        Some(AutoIcon::Value {
-            attribute: (*attribute).to_string(),
-            value: value.level(),
-        })
+        auto_icon_of(&sets, group_of)
     }
 }
 
-fn as_set(values: &BTreeMap<String, Value>) -> BTreeMap<&str, Value> {
+/// PAL-21, PBK-32: the icon for sets of `attribute → value` (a palette's levels, a cue's
+/// fixtures): colours, else positions, else the first stored attribute.
+pub(crate) fn auto_icon_of(
+    sets: &[BTreeMap<&str, Value>],
+    group_of: impl Fn(&str) -> AttributeGroup,
+) -> Option<AutoIcon> {
+    let mut colours: Vec<TargetColour> = Vec::new();
+    for set in sets {
+        if let Some(Value::Colour(c)) = set.get(COLOUR) {
+            if colours.len() < 4 && !colours.contains(c) {
+                colours.push(*c);
+            }
+        }
+    }
+    if !colours.is_empty() {
+        return Some(AutoIcon::Colours(colours));
+    }
+
+    let mut points: Vec<[f32; 2]> = Vec::new();
+    for set in sets {
+        if set.contains_key(PAN) || set.contains_key(TILT) {
+            let axis = |name: &str| set.get(name).map_or(0.5, Value::level);
+            let point = [axis(PAN), axis(TILT)];
+            if points.len() < 8 && !points.contains(&point) {
+                points.push(point);
+            }
+        }
+    }
+    if !points.is_empty() {
+        return Some(AutoIcon::Position(points));
+    }
+
+    let (attribute, value) = sets
+        .iter()
+        .flat_map(|set| set.iter())
+        .min_by(|a, b| (group_of(a.0), a.0).cmp(&(group_of(b.0), b.0)))?;
+    Some(AutoIcon::Value {
+        attribute: (*attribute).to_string(),
+        value: value.level(),
+    })
+}
+
+pub(crate) fn as_set(values: &BTreeMap<String, Value>) -> BTreeMap<&str, Value> {
     values.iter().map(|(k, v)| (k.as_str(), *v)).collect()
 }
 

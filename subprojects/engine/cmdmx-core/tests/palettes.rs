@@ -30,7 +30,7 @@ use cmdmx_core::palette::{
     RecordMode, Timing, Window,
 };
 use cmdmx_core::patch::Fixture;
-use cmdmx_core::playback::{FaderMode, Playback, Priority};
+use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::Resolution;
 use cmdmx_core::show::{Meta, Show};
@@ -843,11 +843,11 @@ fn pal_10_unknown_or_missing_number_is_refused() {
 // ---- PAL-11 references are live -------------------------------------------------------
 
 fn playback_with_reference(e: &mut Engine, palette: PaletteId, fallback: Value) {
-    e.add_playback(Playback {
-        id: 1,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: BTreeMap::from([(
+    e.add_playback(Playback::new(
+        1,
+        1,
+        1,
+        BTreeMap::from([(
             201,
             BTreeMap::from([
                 ("Dimmer".to_string(), Stored::Value(level(1.0))),
@@ -860,7 +860,7 @@ fn playback_with_reference(e: &mut Engine, palette: PaletteId, fallback: Value) 
                 ),
             ]),
         )]),
-    });
+    ));
     e.set_fader(1, 1.0, 0.0).unwrap();
 }
 
@@ -1027,7 +1027,7 @@ fn pal_18_delete_falls_back_to_the_values_at_record_time() {
     e.apply_palette(1, Timing::default()).unwrap();
     e.delete_palette(1).unwrap();
     assert!(e.palette(1).is_none());
-    let values = &e.playback(1).unwrap().values;
+    let values = &e.playback(1).unwrap().cues[0].values;
     assert_eq!(values[&201]["Colour"], Stored::Value(red()));
     assert_eq!(
         e.programmer().stored(202, "Colour"),
@@ -1194,7 +1194,7 @@ fn pal_23_palettes_and_references_round_trip() {
     let show = e.to_show(meta());
     let json = show.to_json();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(v["schema_version"], serde_json::json!(2));
+    assert_eq!(v["schema_version"], serde_json::json!(3));
     // Top-level keys in file order: lines with exactly two spaces of indent.
     let keys: Vec<&str> = json
         .lines()
@@ -1219,7 +1219,7 @@ fn pal_23_palettes_and_references_round_trip() {
         .unwrap();
     assert!((tilt + 90.0).abs() < 0.01);
     assert_eq!(
-        v["playbacks"][0]["values"]["201"]["Colour"],
+        v["playbacks"]["playbacks"][0]["cues"][0]["values"]["201"]["Colour"],
         serde_json::json!({"palette": 2, "value": {"r": 1.0, "g": 0.0, "b": 0.0}})
     );
     for (key, expected) in [
@@ -1255,7 +1255,7 @@ fn pal_23_a_version_1_show_is_migrated() {
     ))
     .unwrap();
     let (show, migrations) = Show::from_json(&v1).unwrap();
-    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert_eq!(migrations.len(), 2, "1 -> 2 and 2 -> 3: {migrations:?}");
     let (engine, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(engine.palettes().count(), 0);
@@ -1295,12 +1295,13 @@ fn pal_24_bad_palette_entries_are_left_out_with_a_warning() {
 fn pal_24_a_reference_to_a_missing_palette_becomes_its_fallback() {
     let e = show_rig();
     let mut v: serde_json::Value = serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
-    v["playbacks"][0]["values"]["201"]["Colour"]["palette"] = serde_json::json!(77);
+    v["playbacks"]["playbacks"][0]["cues"][0]["values"]["201"]["Colour"]["palette"] =
+        serde_json::json!(77);
     let (show, _) = Show::from_json(&v.to_string()).unwrap();
     let (engine, warnings) = Engine::from_show(&show);
     assert_eq!(warnings.len(), 1, "{warnings:?}");
     assert_eq!(
-        engine.playback(1).unwrap().values[&201]["Colour"],
+        engine.playback(1).unwrap().cues[0].values[&201]["Colour"],
         Stored::Value(red())
     );
 }

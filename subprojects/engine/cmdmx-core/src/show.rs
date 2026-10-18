@@ -8,16 +8,17 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
 use crate::palette::{Palette, PaletteId, RecordBy};
 use crate::patch::{Fixture, FixtureId};
-use crate::playback::Playback;
+use crate::playback::{Playback, PlaybackId};
 use crate::profile::Profile;
 use crate::programmer::GroupId;
 use crate::CoreError;
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -42,6 +43,15 @@ pub struct ShowSettings {
     pub palette_overlap: f32,
     /// PAL-02.
     pub record_by: RecordBy,
+    /// PBK-10, PBK-12: Record By and the times of a new cue.
+    pub cue_record_by: RecordBy,
+    pub cue_delay: f32,
+    pub cue_fade_in: f32,
+    pub cue_fade_out: f32,
+    pub cue_overlap: f32,
+    /// PBK-20: the global release mask and time.
+    pub release_mask: Vec<AttributeGroup>,
+    pub release_time: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -63,6 +73,19 @@ pub struct ShowGroup {
 pub struct ShowPalettes {
     pub next_id: PaletteId,
     pub palettes: Vec<ShowPalette>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShowPage {
+    pub number: u16,
+    pub legend: String,
+}
+
+/// PBK-34: `next_id` is above every playback id ever used, so ids are never reused.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShowPlaybacks {
+    pub next_id: PlaybackId,
+    pub playbacks: Vec<Playback>,
 }
 
 /// A palette as saved, or an entry that is not one (PAL-24: left out with a warning on load).
@@ -95,7 +118,9 @@ pub struct Show {
     pub patch: ShowPatch,
     pub groups: Vec<ShowGroup>,
     pub palettes: ShowPalettes,
-    pub playbacks: Vec<Playback>,
+    /// PBK-34: only pages with a legend, sorted by number.
+    pub pages: Vec<ShowPage>,
+    pub playbacks: ShowPlaybacks,
 }
 
 impl Show {
@@ -159,5 +184,82 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
         migrations
             .push("1 -> 2: palettes added (none yet), palette settings at their defaults".into());
     }
+    if version < 3 {
+        migrations.push(migrate_2_to_3(value));
+    }
     migrations
+}
+
+/// PBK-45: each playback keeps the place PBK-01 gave it (id *n* on page ⌈n / fpp⌉, slot
+/// ((n − 1) mod fpp) + 1, with the file's `faders_per_page`), its `values` become its only cue.
+fn migrate_2_to_3(value: &mut serde_json::Value) -> String {
+    use serde_json::json;
+    let Some(show) = value.as_object_mut() else {
+        return "2 -> 3: not an object, left as it is".into();
+    };
+    let per_page = show
+        .get_mut("settings")
+        .and_then(serde_json::Value::as_object_mut)
+        .map_or(8, |settings| {
+            let per_page = settings
+                .get("faders_per_page")
+                .and_then(serde_json::Value::as_u64)
+                .filter(|&n| n > 0)
+                .unwrap_or(8);
+            for (key, default) in [
+                ("cue_record_by", json!("Channel")),
+                ("cue_delay", json!(0.0)),
+                ("cue_fade_in", json!(0.0)),
+                ("cue_fade_out", json!(0.0)),
+                ("cue_overlap", json!(100.0)),
+                ("release_mask", json!([])),
+                ("release_time", json!(2.0)),
+            ] {
+                settings.insert(key.into(), default);
+            }
+            per_page
+        });
+    let old = match show.remove("playbacks") {
+        Some(serde_json::Value::Array(list)) => list,
+        _ => Vec::new(),
+    };
+    let mut next_id = 1;
+    let mut playbacks = Vec::new();
+    for old in old {
+        let id = old
+            .get("id")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        next_id = next_id.max(id.saturating_add(1));
+        let n = id.saturating_sub(1);
+        playbacks.push(json!({
+            "id": id,
+            "page": n / per_page + 1,
+            "slot": n % per_page + 1,
+            "legend": "",
+            "icon": null,
+            "halo": null,
+            "priority": old.get("priority").cloned().unwrap_or(json!("Normal")),
+            "fader_mode": old.get("fader_mode").cloned().unwrap_or(json!(0)),
+            "kill_point": "FadeOutComplete",
+            "release_mask": null,
+            "release_time": null,
+            "paging": "Unlocked",
+            "group": null,
+            "cues": [{
+                "delay": 0.0,
+                "fade_in": 0.0,
+                "fade_out": 0.0,
+                "overlap": 100.0,
+                "values": old.get("values").cloned().unwrap_or(json!({})),
+            }],
+        }));
+    }
+    show.insert("pages".into(), json!([]));
+    show.insert(
+        "playbacks".into(),
+        json!({ "next_id": next_id, "playbacks": playbacks }),
+    );
+    show.insert("schema_version".into(), 3.into());
+    "2 -> 3: playbacks stored on handles with one cue each, playback settings at their defaults, no page legends".into()
 }

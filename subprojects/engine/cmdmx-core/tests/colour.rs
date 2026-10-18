@@ -15,7 +15,7 @@ use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::{ColourModel, TargetColour};
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::Fixture;
-use cmdmx_core::playback::{FaderMode, Playback, Priority};
+use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::Resolution::{Coarse, Normal};
 use cmdmx_core::value::Value;
@@ -434,12 +434,12 @@ fn lib_03_colour_defaults_to_open_white() {
 fn lib_03_released_colour_holds_its_last_value() {
     let mut e = rig();
     let red = BTreeMap::from([("Colour".to_string(), rgb(1.0, 0.0, 0.0).into())]);
-    e.add_playback(Playback {
-        id: 1,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: BTreeMap::from([(201, red.clone()), (221, red)]),
-    });
+    e.add_playback(Playback::new(
+        1,
+        1,
+        1,
+        BTreeMap::from([(201, red.clone()), (221, red)]),
+    ));
     e.set_fader(1, 1.0, 0.0).unwrap();
     e.tick(0.0);
     e.set_fader(1, 0.0, 0.025).unwrap();
