@@ -55,10 +55,11 @@ Early, under active development, not yet for real shows. What works today:
 
 - Palettes in the engine, as on Titan: record colours, positions and beams from the programmer
   (Global/Shared/Normal decided automatically, also across fixture types; positions in degrees),
-  apply them by tap or `Palette 3 Enter`, with or without a selection. Cues and playbacks keep a
-  reference, so changing a palette changes every place that uses it. Not in the app yet.
+  apply them by tap or `Palette 3 Enter`, with or without a selection, snapping or fading over a
+  typed or master time with fixture overlap. Cues and playbacks keep a reference, so changing a
+  palette changes every place that uses it. Not in the app yet.
 
-Next: palette fades and the palette windows in the app, then playbacks and cue lists; checking
+Next: the palette windows in the app, then playbacks and cue lists; checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

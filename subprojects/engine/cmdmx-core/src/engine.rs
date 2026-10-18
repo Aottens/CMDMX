@@ -1964,7 +1964,6 @@ impl Engine {
     }
 }
 
-/// PAL-17: user numbers run from 1 to 9999.
 /// PAL-15: times 0-600 s, overlaps 0-100 %; NaN is refused too.
 fn check_palette_timing(time: f32, overlap: f32) -> Result<(), CoreError> {
     if !(0.0..=600.0).contains(&time) {
@@ -1976,6 +1975,7 @@ fn check_palette_timing(time: f32, overlap: f32) -> Result<(), CoreError> {
     Ok(())
 }
 
+/// PAL-17: user numbers run from 1 to 9999.
 fn check_palette_number(number: u32) -> Result<(), CoreError> {
     if (1..=palette::MAX_NUMBER).contains(&number) {
         Ok(())
