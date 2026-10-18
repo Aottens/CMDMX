@@ -23,9 +23,9 @@ daemon's Art-Net on universe 1 during the run and reports the measured values an
 - [ ] Raise 1.1: the strip gets its green bottom strip. Pull it down: the green strip goes.
 
 ## Recording on handles (PBK-38)
-- [ ] Select 201–208, set Dimmer 100 % and a red (colour picker), then tap palette-free values
-      only. Record, tap the legend of page 3 slot 1 (go to page 3 first): a new playback "3.1"
-      with a red halo bar and a red swatch icon.
+- [ ] Select 201–208, set Dimmer 100 % and a red with the colour picker (manual values, no
+      palette). Go to page 3, Record, tap the legend of slot 1: a new playback "3.1" with a red
+      halo bar and a red swatch icon.
 - [ ] Apply a colour palette to 211–216 (record one first if the show has none), Record, tap 3.2:
       the Programmer's cyan reference is stored; re-record the palette blue and raise 3.2: the
       pars come up blue (reference, PAL-11).

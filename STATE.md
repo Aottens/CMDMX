@@ -57,7 +57,7 @@ done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
 - **VS2-13** gate 3: finish `tests/hardware/runs/2026-10-18-church.md` (desk lines with the Eurolite, the rest at the church).
-- **VS2-22** owner run (`tests/manual/app-playbacks.md`, step by step, Claude reads Art-Net), then P1-08 cue lists (with chases and BPM/Rate masters). After that P1-08 cue lists; IDEA-10 (output lamps) shows live fades.
+- **VS2-22** owner run in progress: `tests/manual/runs/2026-10-18-VS2-22.md`, paused after the first strips line; resume at Swop/Flash (step 2). Setup: daemon with `--no-sacn --show-dir /tmp/cmdmx-pbk`, app via `scripts/bundle-app.sh`; Claude reads Art-Net with a small UDP 6454 listener. Open: channel 1 showed 10 at the start with nothing raised. Then P1-08 cue lists (with chases and BPM/Rate masters). A separate session works on `--help` / unknown daemon flags (the `--help` run touched the real shows folder: an identical `Kerk.cmdmx.json.bak`, harmless). After that P1-08 cue lists; IDEA-10 (output lamps) shows live fades.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
   (multi-select in the patch table), P1-08 cue lists, P1-05 control surfaces.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
