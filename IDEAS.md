@@ -188,3 +188,20 @@ moments in a service), plus a user folder with icons the user draws themselves.
 P1-03/P1-04; user folder in phase 2). The user folder starts with importing SVG/PNG; drawing in
 the app comes after that. Automatic icons as on Titan: a colour palette shows its colour, a
 position palette its pan/tilt, unless an icon is picked.
+
+### IDEA-15 — More selection orders and patterns: random, 1 in 3, … (2026-10-18, P1-03)
+**Owner's intent:** more ways to order and split a selection than Odd/Even: random order, every
+third fixture ("1 in 3"), and further options; ONYX has this, as far as the owner remembers.
+**Triage:**
+- Proposed phase 2, next to Fan/Align (`PROJECT.md`), where selection order matters most
+  (fans, overlap, chases across fixtures).
+- Touches now: little. The engine already splits a selection into *n* stages (PRG-05,
+  `programmer.pattern {"stages": n}`), so "1 in 3" is only a UI control away; the UI shows
+  Odd/Even alone. Palette overlap (PAL-14) follows the target order, so a reordered selection
+  will stagger palettes too.
+- Look at ONYX (selection tools) and Titan (*Select If*, *Shuffle Selection*, pattern select)
+  before the spec. Candidate orders: reverse, random/shuffle (a seed kept in the selection, so
+  the engine stays deterministic, ENG-11), inside-out, outside-in; patterns: 1 in *n* with an
+  offset, blocks of *n*.
+- Open questions: is "1 in 3" wanted earlier than phase 2 (it would be a small UI-only task);
+  does random reshuffle on every press or stay until the selection changes?
