@@ -6,7 +6,7 @@ _Last updated: 2026-10-18_
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
 
 ## Working
-- Church patch (VS2-13, in review): `patch.md` PAT-15..18 approved (owner, 2026-10-18); `cargo run -p cmdmx-daemon --example church -- ~/Documents/ColourmotionDMX/Lightkey/BGS_Shows.tsv` writes the show *Kerk* (56 fixtures, numbers in blocks of 100 per type: 101–120 Showtec pars … 1201) and 9 user profiles, never overwrites; checklist `tests/hardware/church.md` (gate 3). Dry run into a temp folder opened in the daemon without warnings. The Lightkey files stay out of git
+- Church patch (VS2-13, merged #35): `patch.md` PAT-15..18 approved (owner, 2026-10-18); `cargo run -p cmdmx-daemon --example church -- ~/Documents/ColourmotionDMX/Lightkey/BGS_Shows.tsv` writes the show *Kerk* (56 fixtures, numbers in blocks of 100 per type: 101–120 Showtec pars … 1201) and 9 user profiles, never overwrites; checklist `tests/hardware/church.md` (gate 3). Dry run into a temp folder opened in the daemon without warnings. The Lightkey files stay out of git
 - Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core, #30) and SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` over IPC, #31) merged; SHW-c (app: show name + autosave age in the status bar, Show screen with Open/New/Save As) merged (#32)
 - Repo scaffold: meta-layer, ADR-001..004, PRD, module specs (3 written, 3 skeleton)
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
@@ -29,7 +29,8 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- VS4-02 Eurolite fixes (OUT-20/23/24) in PR #34, awaiting owner review. VS2-13 awaits owner review; the owner ran the one-off into the real folders on 2026-10-18 (*Kerk* with 56 fixtures, 9 user profiles); next he ticks `tests/hardware/church.md` (desk part now, the rest at the church)
+- VS4-02 (#34) and VS2-13 (#35) merged; *Kerk* is in the owner's Shows folder (56 fixtures, 9 user profiles). Run `tests/hardware/runs/2026-10-18-church.md`: the Patch-screen line passed at home; the desk lines wait for the Eurolite, the rest for the church
+- Next: VS2-16 (Change Mode as a dropdown, owner finding from that run)
 
 ## Blocked
 - VS4-02 / VS1-04 gate 3 (Eurolite MK2, on the owner's desk): run `tests/hardware/runs/2026-10-18-VS4-02.md`
@@ -53,7 +54,8 @@ its real main screen (`specs/modules/ui.md`, UI-01..28; README screenshot); the 
 done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
-- **VS2-13** gate 3: tick `tests/hardware/church.md` (desk lines now, the rest on a church visit).
+- **VS2-16**: Change Mode as a dropdown of the fixture's modes (next, owner).
+- **VS2-13** gate 3: finish `tests/hardware/runs/2026-10-18-church.md` (desk lines with the Eurolite, the rest at the church).
 - **UX-02d** with VS1-06: playback area and paging.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
   (multi-select in the patch table), P1-03 palettes, P1-04 playbacks, P1-05 control surfaces.
