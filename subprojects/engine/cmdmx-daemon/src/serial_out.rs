@@ -30,6 +30,31 @@ pub fn pick_port(ports: &[SerialPortInfo]) -> Option<(String, String)> {
         .min()
 }
 
+/// OUT-23: the once-logged "no interface" line, naming FTDI ports (VID 0x0403)
+/// on `/dev/cu.*` that OUT-09 does not use, lowest path first.
+pub fn missing_message(ports: &[SerialPortInfo]) -> String {
+    let mut ftdi: Vec<(&str, &str)> = ports
+        .iter()
+        .filter(|p| p.port_name.starts_with("/dev/cu."))
+        .filter_map(|p| match &p.port_type {
+            SerialPortType::UsbPort(usb) if usb.vid == 0x0403 => {
+                Some((p.port_name.as_str(), usb.product.as_deref().unwrap_or("")))
+            }
+            _ => None,
+        })
+        .collect();
+    ftdi.sort();
+    let mut msg = String::from("serial: no ENTTEC Pro interface found");
+    for (path, product) in &ftdi {
+        msg.push_str("; ");
+        msg.push_str(&format!(
+            "FTDI \"{product}\" at {path} not used \
+             (start with --serial {path} if it is a Eurolite USB-DMX512 PRO MK2)"
+        ));
+    }
+    msg
+}
+
 pub struct SerialNode {
     /// `--serial <path>` (OUT-22); `None` = detect (OUT-09).
     fixed_path: Option<String>,
@@ -62,7 +87,7 @@ impl SerialNode {
             }
             self.last_scan = Some(now);
             match self.open() {
-                Ok(Some((port, msg))) => {
+                Ok(Ok((port, msg))) => {
                     self.port = Some(port);
                     let written = self.write(data);
                     return Some(msg)
@@ -70,11 +95,11 @@ impl SerialNode {
                         .chain(written)
                         .reduce(|a, b| a + "\n" + &b);
                 }
-                Ok(None) if !self.said_missing && !self.health.is_degraded() => {
+                Ok(Err(missing)) if !self.said_missing && !self.health.is_degraded() => {
                     self.said_missing = true;
-                    return Some("serial: no ENTTEC Pro interface found".into());
+                    return Some(missing);
                 }
-                Ok(None) => return None,
+                Ok(Err(_)) => return None,
                 Err(e) => return self.log(&Err(e)),
             }
         }
@@ -106,14 +131,19 @@ impl SerialNode {
         self.health.record(result).map(|m| format!("serial: {m}"))
     }
 
-    /// `Ok(None)` = no interface present (not an error at startup, OUT-21).
-    fn open(&self) -> io::Result<Option<(Box<dyn SerialPort>, String)>> {
+    /// `Ok(Err(line))` = no interface present, with the OUT-23 log line (not an
+    /// error at startup, OUT-21).
+    #[allow(clippy::type_complexity)]
+    fn open(&self) -> io::Result<Result<(Box<dyn SerialPort>, String), String>> {
         let (path, product) = match &self.fixed_path {
             Some(path) => (path.clone(), "--serial".to_string()),
-            None => match pick_port(&serialport::available_ports()?) {
-                Some(found) => found,
-                None => return Ok(None),
-            },
+            None => {
+                let ports = serialport::available_ports()?;
+                match pick_port(&ports) {
+                    Some(found) => found,
+                    None => return Ok(Err(missing_message(&ports))),
+                }
+            }
         };
         let port = serialport::new(&path, enttec::VCP_BAUD)
             .data_bits(DataBits::Eight)
@@ -122,7 +152,7 @@ impl SerialNode {
             .flow_control(FlowControl::None)
             .timeout(WRITE_TIMEOUT)
             .open()?;
-        Ok(Some((
+        Ok(Ok((
             port,
             format!("serial: ENTTEC Pro \"{product}\" at {path}"),
         )))
@@ -182,6 +212,32 @@ mod tests {
             usb("/dev/cu.usbserial-A1", Some("Eurolite DMX512 Pro")),
         ];
         assert_eq!(pick_port(&ports).unwrap().0, "/dev/cu.usbserial-A1");
+    }
+
+    #[test]
+    fn out_23_no_interface_line_names_unused_ftdi_ports() {
+        let mut other = usb("/dev/cu.usbserial-Z9", Some("Arduino"));
+        if let SerialPortType::UsbPort(info) = &mut other.port_type {
+            info.vid = 0x2341;
+        }
+        let ports = [
+            usb("/dev/cu.usbserial-B2", None),
+            usb("/dev/tty.usbserial-AQ01FA9F", Some("FT232R USB UART")),
+            other,
+            usb("/dev/cu.usbserial-AQ01FA9F", Some("FT232R USB UART")),
+        ];
+        assert_eq!(
+            missing_message(&ports),
+            "serial: no ENTTEC Pro interface found; \
+             FTDI \"FT232R USB UART\" at /dev/cu.usbserial-AQ01FA9F not used \
+             (start with --serial /dev/cu.usbserial-AQ01FA9F if it is a Eurolite USB-DMX512 PRO MK2); \
+             FTDI \"\" at /dev/cu.usbserial-B2 not used \
+             (start with --serial /dev/cu.usbserial-B2 if it is a Eurolite USB-DMX512 PRO MK2)"
+        );
+        assert_eq!(
+            missing_message(&ports[2..3]),
+            "serial: no ENTTEC Pro interface found"
+        );
     }
 
     #[test]
