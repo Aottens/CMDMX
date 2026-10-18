@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-18 — Eurolite MK2: 250000 baud over Apple's VCP driver, not auto-detected
+
+**Decision:** The serial node opens the port at 250000 8N1 (OUT-20, was 115200). An FTDI port with a generic product string ("FT232R USB UART") is never opened automatically; the "no interface" log line names it with a `--serial <path>` hint (OUT-09/23). The owner chose this over treating every FTDI 0403:6001 port as ENTTEC Pro and over a serial-number allowlist.
+
+**Alternatives considered:** detaching Apple's FTDI driver and using D2XX/libusb (as Lightkey's admin prompt suggests); probing ports with the ENTTEC "get widget parameters" request; auto-using every FTDI port; a USB-serial-number allowlist.
+
+**Reasoning:** On the owner's Mac the MK2 followed a full/off pattern at 250000 baud through the stock VCP driver, so no admin rights or driver change are needed. At 115200 a 518-byte frame took ~54 ms per 25 ms tick and the unit ignored it. The MK2 does not answer ENTTEC requests and shares its product string with Open DMX clones, so neither probing nor the string can identify it, and sending Pro frames to an unknown FTDI device (an Open DMX clone, an Arduino) is not show-proof. Once the show stores node config (OUT-13), the chosen port is stored there. Same day, OUT-24: serial writes at most every 30 ms (20 Hz with 25 ms ticks), because the MK2 flickered an LED par at 40 Hz and was steady at ≤ 33 Hz; the owner chose this over a 33 Hz own-timer serial thread (upgrade path if fades step visibly).
+
+**Reversal trigger:** an MK2 unit that answers label 3 or reports a Pro product string (then detection covers it), or the owner wants plug-and-play before OUT-13 lands.
+
 ## 2026-10-17 — Work towards the real UI early, zone by zone
 
 **Decision:** UX-02 (the SwiftUI main screen as UI v0.1) is split into a UI spec (UX-02.0) and four zones (UX-02a shell, b attribute bar, c side column, d playback area), built now on top of the existing IPC instead of after the engine features. A zone whose engine part is not built yet is shown disabled and labelled with the spec it waits for; new engine features land straight in the real layout.

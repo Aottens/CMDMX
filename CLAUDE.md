@@ -72,9 +72,12 @@ default to a later phase. If an idea forces a decision earlier, add only that de
   become necessary, install a swift.org toolchain (ships XCTest + Testing, ~1.5 GB, no
   Xcode.app) and add a test target with `import Testing`.
 - Hardware on the owner's desk: Behringer BCF2000 (Mackie Control mode).
-- Hardware at the church (the venue, not at the desk — gate 3 for it waits for a visit): Eurolite
-  USB-DMX512 PRO Interface MK2 (ENTTEC Pro protocol over FTDI serial; identifies as "Eurolite DMX512 Pro",
-  VID/PID 0403:6001 — detect by product string, never treat as Open DMX).
+- Hardware at the church (the venue; on the owner's desk since 2026-10-18 for testing): Eurolite
+  USB-DMX512 PRO Interface MK2 (ENTTEC Pro label-6 frames at **250000 baud** over FTDI FT232R serial,
+  Apple VCP driver, no admin rights needed). It reports the FTDI default product string
+  "FT232R USB UART" (VID/PID 0403:6001) and does not answer ENTTEC requests, so it cannot be told
+  from an Open DMX clone: never auto-detect it, use `--serial <path>` (OUT-09/23); never treat
+  any interface as Open DMX.
 
 ## Commit style
 

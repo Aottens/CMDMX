@@ -26,7 +26,8 @@ out.*
 
 Early, under active development, not yet for real shows. What works today:
 
-- The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol).
+- The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
+  USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, 20 Hz, start with `--serial <path>`).
 - Patch: pick a fixture from the library, set its mode, count, address and user number. Clashes
   are refused, and you can move, renumber, rename, change mode and remove.
 - Programmer: select fixtures and groups (tap again to deselect), Fix ±1, odd/even, a Titan-style command line

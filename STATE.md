@@ -31,11 +31,16 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - UX-02c awaits owner review (SHW-c merged #32); the church Lightkey export follows after the owner's next church visit
 
 ## Blocked
-- VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
+- VS4-02 / VS1-04 gate 3 (Eurolite MK2, on the owner's desk): run `tests/hardware/runs/2026-10-18-VS4-02.md`
+  passed except two lines. The MK2 needs 250000 baud (OUT-20), is not auto-detected (FTDI default string
+  "FT232R USB UART", no reply to ENTTEC requests; the log names it with a `--serial` hint, OUT-23), and flickers
+  an LED par at 40 Hz, so serial writes at most every 30 ms (OUT-24, 20 Hz). Left: mid-run unplug (OUT-12),
+  and "some visible steps" in a dragged fade (20 Hz, or the par's low end? try a 33 Hz own timer, compare
+  with Lightkey). Never run the Demo show on the real rig: its demo fixtures on 9–150 lit real lamps.
 
 ## Hardware available for testing
 - Behringer BCF2000 (use in Mackie Control mode)
-- Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, ENTTEC Pro protocol, product string "Eurolite DMX512 Pro") — **at the church, not on the desk**; its hardware checks wait for a visit
+- Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, product string "FT232R USB UART", ENTTEC Pro label 6 at 250000 baud, ≤ 33 Hz) — on the owner's desk since 2026-10-18 with six 1-channel dimmers (185–190) and an RGBL par (361–364)
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Repo
