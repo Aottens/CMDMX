@@ -126,8 +126,9 @@ lists) store, so they come first.
 - **PAL-13** Applying with a fade time *t* > 0 fades each attribute from its current output value
   to the resolved value, linearly over *t*; `Colour` fades in linear target RGB; HTP and LTP
   attributes alike. The programmer holds the reference from the start (a Record during the fade
-  stores the reference). 201 at Dimmer 0, dimmer palette at 100 % applied with 2 s → 50 % at 1 s,
-  100 % at 2 s.
+  stores the reference). The fade starts with the first tick after the apply (the core has no
+  clock of its own; at most one tick, 25 ms, later). 201 at Dimmer 0, dimmer palette at 100 %
+  applied with 2 s → 50 % at 1 s, 100 % at 2 s.
 - **PAL-14** Overlap *o* (0–100 %) staggers the fades: the *i*-th fixture (0-based, in target
   order; for a quick palette in user-number order) starts after *i* · *t* · (1 − *o*/100), each
   fading over *t*. 100 % = all together. Washes 101–104, *t* = 2 s, *o* = 50 % → they start at
