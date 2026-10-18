@@ -137,10 +137,11 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   Update, Edit, Select If, Delete, Unfold, Copy, Move, Include, Release, Patch, Disk, Help,
   System, Blind, Off, Fan, Options, Latch, Shape.
   - Live now: **Record**, which arms with a red ring; the next group tap sends `group.record`
-    and Clear disarms it. **Patch** opens the Patch screen.
+    and Clear disarms it. **Patch** opens the Patch screen. **Disk** opens the Show screen
+    (SHW-17; owner, 2026-10-18).
   - Every other button is disabled with its spec in the tooltip: Update, Edit, Delete, Copy,
-    Move and Include with P1-03; Release, Options and Latch with P1-04; Off with VS2-05; Disk
-    with P1-09; Help and System later; Select If, Unfold, Blind, Fan and Shape "later" as in the
+    Move and Include with P1-03; Release, Options and Latch with P1-04; Off with VS2-05; Help
+    and System later; Select If, Unfold, Blind, Fan and Shape "later" as in the
     sketch.
 - **UI-17 [now]** The keypad has the sketch's 30 keys in its order. Keys that work now:
   - The digits, `.`, Fixture, Group, Thro, And and `@`, which add a token to the command line.
@@ -176,8 +177,20 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - `-` = Thro, `+` = And, `@`, Return = Enter, Esc = Exit, Backspace = Back.
   - F = Fixture, G = Group, P = Palette (disabled until P1-03).
   - F1–F4 = workspaces.
+  - Up and Down = command history (UI-27).
 
-  Space = Go comes with P1-08. Keys never fire while a text field (Patch, legends) has focus.
+  ⌘1–⌘4 switch workspaces too, also while Keys is off (owner, UX-02a run). Space = Go comes with
+  P1-08. Keys never fire while a text field (Patch, Show, legends) has focus. The Keys toggle is
+  remembered across launches, like Console.
+- **UI-27 [now]** Command history (IDEA-12; owner, 2026-10-18): every line sent with Enter is
+  added to the history, except a line equal to the newest entry. While Keys is live, Up replaces
+  the command line with the previous entry and Down with the next one; Down past the newest
+  entry gives an empty line. A recalled line can be edited with the keypad or keys before Enter.
+  The history keeps the last 100 lines in the app's preferences, so it survives a restart of
+  the app. It is the app's own; the engine and the show file never see it.
+- **UI-28 [now]** Every disabled control looks the same: one dim level (a theme token) for rail
+  entries, function buttons, keypad keys, softkeys, attribute tabs and window cells, with the
+  spec it waits for in the tooltip (owner, UX-02b run).
 
 ### Attribute bar (UX-02b)
 - **UI-20 [now]** Two rows (owner, UX-02b run 2026-10-17: the command line gets its own row, so the
