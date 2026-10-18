@@ -30,10 +30,13 @@ lists) store, so they come first.
   fixture that has the attribute), **shared** (`fixture type → attribute → value`) and **per
   fixture** (`fixture id → attribute → value`). Its **kind** tag is `G` when the global level is
   not empty, else `S` when the shared level is not empty, else `N`.
-- **Global attributes:** only attributes whose values mean the same on every fixture: the
-  intensity attribute (group I, HTP) and `Colour` (the target colour of ADR-005). Everything
-  else, Pan and Tilt included, is at most shared (open question 3).
-- **Reference:** a stored value `{"palette": <id>}` in place of a level or colour.
+- **Global attributes:** as on Titan, the intensity attribute (group I, HTP), Pan, Tilt and
+  `Colour` (the target colour of ADR-005). Everything else is at most shared. Global Pan and
+  Tilt are stored in **degrees from centre**, using each fixture's physical range (LIB-16), so
+  one global position means the same angle on a 540° and a 360° head (owner decision 3).
+- **Reference:** a stored value `{"palette": <id>, "value": <level or colour>}` in place of a
+  level or colour. `value` is the **fallback**: the value the palette gave when the reference
+  was made (applied in the programmer, recorded into a playback or cue).
 - **Resolve:** turn a reference for one fixture and attribute into a value (PAL-07).
 - Church examples use the demo rig of `programmer.md`: washes 101–104, RGBW pars 201–208,
   RGB+Lime pars 211–216, RGB pars 221–226 (virtual dimmer), front spots 301–306.
@@ -58,13 +61,17 @@ lists) store, so they come first.
   for each fixture type in it, all its fixtures stored the same attributes with the same values
   (compared at 16-bit, `round(v · 65535)`, each colour component on its own); otherwise it is
   **per fixture**. In a shared palette, every global attribute that every type stored with the
-  same value moves to the global level. Values recorded on one fixture count as shared (Titan).
-  Examples:
+  same value moves to the global level. Pan and Tilt are compared in degrees from centre
+  (`(v − 0.5) · range`, equal within 0.01°) and only become global when every fixture in the
+  palette has a physical range for them; otherwise they stay shared. Values recorded on one
+  fixture count as shared (Titan). Examples:
   - Red on 201–226, `Channel` (only Colour touched) → `G`: global Colour red.
   - Red on 201–208 with White 0.3 on the RGBW pars → `G`: global Colour red, shared White 0.3
     for the RGBW type.
   - Four different wash positions on 101–104 → `N`: four fixture entries.
   - Zoom 40 % on 101–104 → `S`: shared Zoom for the wash type.
+  - "Straight down": Tilt at −90° on the washes (tilt range 270°) and on a second head type
+    (tilt range 180°), Pan centred on both → `G`: global Pan 0° and Tilt −90°.
 - **PAL-05** *Record as* `Normal` or `Shared` can only narrow the detected kind: `Normal`
   stores every value per fixture; `Shared` keeps the global level empty, and is refused with a
   warning when the values differ inside a type.
@@ -80,10 +87,13 @@ lists) store, so they come first.
 - **PAL-07** A reference to palette *p* for fixture *f* and attribute *a* resolves, first hit
   wins: *p*'s per-fixture value for *f*; *p*'s shared value for *f*'s type; *p*'s global value,
   if *f* has *a*; `0` when *a* is an extra emitter of *f* (LIB-17) and *p* resolves `Colour` for
-  *f* (ADR-005 decision 5); otherwise **nothing**. Global red applied to 221 (RGB) → red; to 211
-  (RGB+Lime) → red plus Lime 0; to 301 (spot, no Colour) → nothing.
+  *f* (ADR-005 decision 5); otherwise **nothing**. A global Pan or Tilt in degrees becomes
+  `0.5 + degrees / range` with *f*'s own range, clamped to 0.0–1.0, and nothing for a fixture
+  without a range. Global red applied to 221 (RGB) → red; to 211 (RGB+Lime) → red plus Lime 0;
+  to 301 (spot, no Colour) → nothing.
 - **PAL-08** Applying a palette to the targets (selection or sub-selection) puts a reference
-  into the programmer for every attribute the palette resolves for each target. Attributes it
+  into the programmer for every attribute the palette resolves for each target, with the resolved
+  value as its fallback. Attributes it
   does not resolve, and targets it resolves nothing for, are left as they are. If it resolves
   nothing for any target, it is refused with a warning ("Palette 3 Warm does not fit the
   selection") and nothing changes. Applying counts as a programmer change (PRG-03). Targets 201
@@ -94,12 +104,12 @@ lists) store, so they come first.
 - **PAL-10** `Palette n Enter` on the command line applies palette number *n* as PAL-08/09, to
   the typed selection when the line has one (PRG-08, PRG-10). An empty or unknown number is
   refused with a warning.
-- **PAL-11** References are live. In the merge, a programmer or playback value
-  `{"palette": id}` is resolved every tick, so a recorded or merged palette changes the output of
-  every source that references it on the next tick, without a fade. A reference that resolves
-  nothing proposes nothing (that attribute counts as untouched in that source). Playback 1 holds
-  201 Colour `{"palette": 1}` at full; palette 1 re-recorded blue → 201 turns blue in the next
-  frame.
+- **PAL-11** References are live. In the merge, a programmer or playback reference is resolved
+  every tick, so a recorded or merged palette changes the output of every source that references
+  it on the next tick, without a fade. A reference that resolves nothing (the palette no longer
+  holds that fixture or attribute) proposes its fallback `value`. Playback 1 holds 201 Colour
+  `{"palette": 1, "value": red}` at full; palette 1 re-recorded blue → 201 turns blue in the next
+  frame; palette 1 re-recorded on 202 only → 201 shows red again.
 - **PAL-12** **Include** applies like PAL-08/09 but puts the resolved values into the programmer
   as manual values instead of references, so the operator can change them and record them back
   (Record with Replace or Merge). PRG-22 holds: turning a wheel on a referenced attribute makes
@@ -114,7 +124,8 @@ lists) store, so they come first.
 - **PAL-14** Overlap *o* (0–100 %) staggers the fades: the *i*-th fixture (0-based, in target
   order; for a quick palette in user-number order) starts after *i* · *t* · (1 − *o*/100), each
   fading over *t*. 100 % = all together. Washes 101–104, *t* = 2 s, *o* = 50 % → they start at
-  0, 1, 2 and 3 s. Without a fade time overlap has no effect.
+  0, 1, 2 and 3 s, so the run takes 5 s. The typed time is per fixture, as Titan's fixture
+  overlap (owner decision 7). Without a fade time overlap has no effect.
 - **PAL-15** Master time and master overlap: the settings `palette_time` (default 0 s) and
   `palette_overlap` (default 100 %) apply when an apply carries no time or overlap; a typed time
   or overlap overrides them for that apply only. Times outside 0–600 s and overlaps outside
@@ -128,10 +139,11 @@ lists) store, so they come first.
   and icon; references keep pointing at the original. Move to an empty number changes only the
   number (same id), so every reference follows. Copy or Move onto a used number, or onto a number
   outside 1–120, is refused with a warning.
-- **PAL-18** Deleting a palette first turns every reference to it, in the programmer and in every
-  playback (later cue), into the value it resolves to at that moment, so nothing on stage changes;
-  then the palette is gone (deviation from Titan, open question 1). Its number is free again; its
-  id is never reused.
+- **PAL-18** Deleting a palette turns every reference to it, in the programmer and in every
+  playback (later cue), into its fallback `value`, as on Titan: a playback goes back to the
+  values it had when it was recorded (owner decision 1). Its number is free again; its id is
+  never reused. Palette 1 was red when playback 1 was recorded and is blue now; delete palette
+  1 → playback 1 holds 201 Colour red.
 - **PAL-19** Patch changes: removing fixtures (PAT-05) removes their per-fixture entries from
   every palette; a palette left without values stays (with its legend) and resolves nothing.
   Changing a fixture's mode keeps the stored values; an attribute the new mode lacks resolves
@@ -164,13 +176,15 @@ lists) store, so they come first.
 - **PAL-23** Schema version 2 (SHW-04 migration from 1, which adds the defaults): `settings`
   gains `palette_time`, `palette_overlap` and `record_by`; a new key `palettes` after `groups`
   holds `{"next_id": n, "palettes": [{id, number, legend, icon, global, shared, fixtures}]}`,
-  sorted by id, maps sorted by key (SHW-02); a playback value may be `{"palette": id}`. Live
+  sorted by id, maps sorted by key (SHW-02); a global Pan or Tilt is `{"degrees": -90.0}`; a
+  playback value may be a reference `{"palette": id, "value": …}`. Live
   state (programmer references, running fades) is not saved (SHW decision 3).
 - **PAL-24** Lenient load (SHW-07): each of these is left out with one warning naming it: a
   palette with an id or number used by an earlier one or a number outside 1–120, a per-fixture
-  entry for a fixture not in the patch, a value that is not a level, colour or reference, and a
-  playback reference to a palette that does not exist. Shared entries for a type no fixture uses
-  are kept without a warning.
+  entry for a fixture not in the patch, and a value that is not a level, colour, degrees (global
+  Pan/Tilt only) or reference. A playback reference to a palette that does not exist becomes
+  its fallback value, with a warning. Shared entries for a type no fixture uses are kept
+  without a warning.
 
 ### IPC (extends `ipc.md`)
 - **PAL-25** The snapshot gains `"palettes":[{"id":1,"number":3,"legend":"Warm","icon":null,
@@ -256,30 +270,21 @@ times, effect and shape palettes (phase 2, `PROJECT.md`); *Blind to Live* (with 
 *Release to quick palette* (Titan v19, with P1-04 release); applying a palette to all fixtures of
 a playback; the Palette View window with per-value Off (phase 2); halos (with P1-04, for every
 handle kind at once); the user icon folder (phase 2, IDEA-14); global Pan/Tilt in degrees (with
-physical ranges, open question 3); recording a palette from the command line (`Record Palette
-n`); undo (P1-10).
+recording a palette from the command line (`Record Palette n`); **Edit** (Titan: set the
+programmer aside, edit, Update, get the programmer back; owner decision 4: Include + Record →
+Merge covers it, the Edit button stays disabled); undo (P1-10).
 
 ## Open questions for the owner
-1. **Deleting a used palette (PAL-18).** Titan lets the playbacks fall back to the values they
-   had when they were recorded. Proposal: freeze the palette's current values into every place
-   that uses it, so a delete never changes the stage and the show file needs no fallback values.
-   Agree?
-2. **Record By default (PAL-02):** `Mixed` (a position always stores Pan *and* Tilt) or
-   `Channel` (only what you touched)? Proposal: Mixed.
-3. **Global attributes (PAL-04):** only intensity and Colour. Pan/Tilt stay shared per fixture
-   type, because 0.5 Pan means a different angle on a 540° and a 360° head. Global positions in
-   degrees come when the physical ranges are used (later). Fine for the church (four washes of
-   one type)?
-4. **Edit (Titan: put the programmer aside, edit the palette, Update, get the programmer back).**
-   Proposal: not in phase 1; Include + Record → Merge does the same with one step more, and the
-   Edit button stays disabled. Or do you want Edit now?
-5. **Icon library:** draw our own icon ids with **SF Symbols** in the app (thousands, native,
-   licence fine for a macOS app, but no image files for a later browser remote) plus own glyphs
-   for lighting-specific things, or vendor an open set as SVG (Lucide, ISC licence: also usable
-   by a remote, fewer icons)? Proposal: SF Symbols now; the show stores only our own ids, so a
-   remote can map them to other images later.
-6. **Palette numbers:** three windows of 40 (1–40 Colours, 41–80 Positions, 81–120 Gobos &
-   Beams), fixed in phase 1, as in the sketch. Enough, or should the ranges be settings now?
-7. **Overlap (PAL-14):** the typed time is the fade time **per fixture**, so with overlap the
-   whole run takes longer (four washes, 2 s, 50 % → 5 s in total). The other reading is that the
-   whole run takes the typed time. Proposal: per fixture.
+2. **Record By default (PAL-02):** `Mixed` or `Channel`.
+5. **Icon library (PAL-22):** SF Symbols plus own glyphs, or an open SVG set (Lucide, ISC).
+6. **Palette numbers (Definitions, PAL-28):** fixed ranges per window (1–40, 41–80, 81–120), or
+   Titan's model where a palette simply lives in the window it was recorded in and gets the next
+   free number.
+
+## Owner decisions (2026-10-18)
+1. Deleting a used palette behaves as on Titan: references fall back to the values they had when
+   they were made (PAL-18). Hence the fallback `value` in every reference.
+3. Market practice over the church: Global covers intensity, Pan, Tilt and Colour as on Titan;
+   Pan/Tilt global in degrees via the physical ranges (PAL-04, PAL-07).
+4. No Edit in phase 1; Include + Record → Merge.
+7. Overlap as Titan's fixture overlap: the typed time is per fixture (PAL-14).
