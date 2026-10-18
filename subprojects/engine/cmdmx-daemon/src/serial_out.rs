@@ -262,6 +262,26 @@ mod tests {
     }
 
     #[test]
+    fn out_24_at_most_one_write_per_30_ms() {
+        let (mut master, slave) = TTYPort::pair().unwrap();
+        master.set_timeout(Duration::from_millis(200)).unwrap();
+        let mut node = SerialNode::new(None);
+        node.port = Some(Box::new(slave));
+        let t0 = Instant::now();
+        let frame_len = cmdmx_protocols::enttec::send_dmx_frame(&[0; 512]).unwrap().len();
+        let mut written = Vec::new();
+        for ms in [0u64, 25, 50, 75, 80, 100] {
+            assert_eq!(node.send(&[ms as u8; 512], t0 + Duration::from_millis(ms)), None);
+            let mut got = vec![0u8; frame_len];
+            if master.read_exact(&mut got).is_ok() {
+                written.push(got[5]);
+            }
+        }
+        // Written at 0, 50 and 80 (30 ms after 50); 25, 75 and 100 come too soon.
+        assert_eq!(written, [0, 50, 80]);
+    }
+
+    #[test]
     fn ipc_20_serial_state_no_interface_ok_and_degraded() {
         use crate::output::OutputState;
         assert_eq!(SerialNode::new(None).state(), OutputState::NoInterface);
