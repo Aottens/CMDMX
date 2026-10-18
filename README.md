@@ -53,9 +53,14 @@ Early, under active development, not yet for real shows. What works today:
 - Playback area: pages of playbacks with a pages bar, one strip per fader (legend, level,
   active edge) and the Grand Master; the Go block waits for cue lists.
 
-Next: checking *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The design is a clickable sketch in
-[`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes, playbacks
-and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
+- Palettes in the engine, as on Titan: record colours, positions and beams from the programmer
+  (Global/Shared/Normal decided automatically, also across fixture types; positions in degrees),
+  apply them by tap or `Palette 3 Enter`, with or without a selection. Cues and playbacks keep a
+  reference, so changing a palette changes every place that uses it. Not in the app yet.
+
+Next: palette fades and the palette windows in the app, then playbacks and cue lists; checking
+*Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
+design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
 ## Build and run
 

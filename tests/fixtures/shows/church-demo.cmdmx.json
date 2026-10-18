@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "meta": {
     "name": "Church demo",
     "created": "2026-10-18T09:00:00Z",
@@ -13,7 +13,10 @@
     "wheel_step_normal": 0.003921569,
     "wheel_step_fine": 0.000015259022,
     "wheel_step_coarse": 0.04,
-    "colour_model": "Rgb"
+    "colour_model": "Rgb",
+    "palette_time": 0.0,
+    "palette_overlap": 100.0,
+    "record_by": "Mixed"
   },
   "profiles": {
     "Showtec/LED Par 56": {
@@ -523,6 +526,10 @@
       ]
     }
   ],
+  "palettes": {
+    "next_id": 1,
+    "palettes": []
+  },
   "playbacks": [
     {
       "id": 1,

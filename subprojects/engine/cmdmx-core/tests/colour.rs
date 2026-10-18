@@ -209,7 +209,7 @@ fn prg_15_contents_carry_the_colour_value() {
         c,
         BTreeMap::from([(
             201,
-            BTreeMap::from([("Colour".to_string(), Value::Colour(rgb(0.0, 0.0, 1.0)))])
+            BTreeMap::from([("Colour".to_string(), rgb(0.0, 0.0, 1.0).into())])
         )])
     );
 }
@@ -433,7 +433,7 @@ fn lib_03_colour_defaults_to_open_white() {
 #[test]
 fn lib_03_released_colour_holds_its_last_value() {
     let mut e = rig();
-    let red = BTreeMap::from([("Colour".to_string(), Value::Colour(rgb(1.0, 0.0, 0.0)))]);
+    let red = BTreeMap::from([("Colour".to_string(), rgb(1.0, 0.0, 0.0).into())]);
     e.add_playback(Playback {
         id: 1,
         priority: Priority::Normal,

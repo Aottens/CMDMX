@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-18 — Palettes follow Titan, market practice over the church (P1-03, owner)
+
+**Decision:** `specs/modules/palettes.md` PAL-01..32. A palette is a reference: programmer and playbacks store `{"palette": id, "value": fallback}`; the merge resolves it every tick and uses the fallback when the palette resolves nothing or is deleted (Titan's delete behaviour). Global covers intensity, Pan, Tilt and Colour as on Titan, with Pan/Tilt stored in degrees via the profile's physical ranges. Record By defaults to Mixed (Channel as option). A palette lives on the cell it was recorded on and gets the next free number; its window only proposes the record mask (not ONYX's place-decides model). No Edit in phase 1 (Include + Record → Merge); icons via SF Symbols plus own glyphs, the show stores only our own icon ids; overlap time is per fixture.
+
+**Alternatives considered:** freezing current values on delete; Pan/Tilt shared only (church-sized); Channel as default; fixed number ranges per window (the sketch); an open SVG icon set (Lucide).
+
+**Reasoning:** the owner wants ColourmotionDMX to be market-conform, not church-sized; Titan is the behavioural reference; a place-decides model is what the owner finds annoying in ONYX.
+
+**Reversal trigger:** Avolites users find a deviation in practice, or a browser remote needs icon files (then map our ids to an open set).
+
 ## 2026-10-18 — Eurolite MK2: 250000 baud over Apple's VCP driver, not auto-detected
 
 **Decision:** The serial node opens the port at 250000 8N1 (OUT-20, was 115200). An FTDI port with a generic product string ("FT232R USB UART") is never opened automatically; the "no interface" log line names it with a `--serial <path>` hint (OUT-09/23). The owner chose this over treating every FTDI 0403:6001 port as ENTTEC Pro and over a serial-number allowlist.

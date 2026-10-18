@@ -1,8 +1,8 @@
 //! The programmer: selection, sub-selection and manual values.
 //!
 //! Implements `specs/modules/programmer.md` PRG-01..07 and PRG-14; the merge
-//! reads its values at `Priority::Programmer` (PRG-12/13). Palette references
-//! come later. The view also carries the values and the picker colour (IPC-21, IPC-22).
+//! reads its values at `Priority::Programmer` (PRG-12/13). A value is manual or a palette
+//! reference (PAL-08). The view also carries the values and the picker colour (IPC-21, IPC-22).
 
 use std::collections::BTreeMap;
 
@@ -10,8 +10,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
+use crate::palette::PaletteId;
 use crate::patch::FixtureId;
-use crate::value::Value;
+use crate::value::{Stored, Value};
 
 pub type GroupId = u32;
 
@@ -93,7 +94,7 @@ pub struct Programmer {
     sub: Sub,
     /// Set by a value change; the next select starts a new selection (PRG-03).
     changed: bool,
-    values: BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    values: BTreeMap<FixtureId, BTreeMap<String, Stored>>,
     /// Engine activation counter at the last value change: orders the
     /// programmer against other sources in LTP ties (ENG-04).
     activated: u64,
@@ -119,11 +120,20 @@ impl Programmer {
         }
     }
 
+    /// The manual value; `None` for a palette reference (see [`Programmer::stored`]).
     pub fn value(&self, fixture: FixtureId, attribute: &str) -> Option<Value> {
+        match self.stored(fixture, attribute)? {
+            Stored::Value(v) => Some(v),
+            Stored::Reference(_) => None,
+        }
+    }
+
+    /// The programmer's entry for an attribute: a manual value or a palette reference.
+    pub fn stored(&self, fixture: FixtureId, attribute: &str) -> Option<Stored> {
         self.values.get(&fixture)?.get(attribute).copied()
     }
 
-    pub fn values(&self) -> &BTreeMap<FixtureId, BTreeMap<String, Value>> {
+    pub fn values(&self) -> &BTreeMap<FixtureId, BTreeMap<String, Stored>> {
         &self.values
     }
 
@@ -248,11 +258,18 @@ impl Programmer {
         }
     }
 
+    /// PAL-18: references to a deleted palette become their fallback values.
+    pub(crate) fn dereference(&mut self, palette: PaletteId) {
+        for stored in self.values.values_mut().flat_map(|a| a.values_mut()) {
+            *stored = stored.without_palette(palette);
+        }
+    }
+
     pub(crate) fn set_value(
         &mut self,
         fixture: FixtureId,
         attribute: &str,
-        value: Value,
+        value: Stored,
         activated: u64,
     ) {
         self.activated = activated;

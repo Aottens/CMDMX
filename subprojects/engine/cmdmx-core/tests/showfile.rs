@@ -64,7 +64,7 @@ fn rig() -> Engine {
     common::select(&mut e, &[306, 305, 304, 303, 302, 301]);
     e.record_group(4).unwrap();
     e.clear_selection();
-    let mut washes: BTreeMap<u32, BTreeMap<String, cmdmx_core::value::Value>> = (101..=104)
+    let mut washes: BTreeMap<u32, BTreeMap<String, cmdmx_core::value::Stored>> = (101..=104)
         .map(|id| (id, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])))
         .collect();
     washes
@@ -128,12 +128,13 @@ fn shw_01_top_level_keys_in_order() {
             "profiles",
             "patch",
             "groups",
+            "palettes",
             "playbacks"
         ]
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
-    assert_eq!(SCHEMA_VERSION, 1);
+    assert_eq!(SCHEMA_VERSION, 2); // PAL-23
     assert_eq!(
         v["meta"],
         json!({"name": "Church demo", "created": "2026-10-18T09:00:00Z",
@@ -297,7 +298,7 @@ fn shw_04_newer_schema_is_refused_with_a_clear_message() {
     assert!(err.contains("Church demo"), "{err}");
     assert!(err.contains("newer"), "{err}");
     assert!(err.contains("schema 3"), "{err}");
-    assert!(err.contains("up to 1"), "{err}");
+    assert!(err.contains("up to 2"), "{err}");
 }
 
 #[test]
