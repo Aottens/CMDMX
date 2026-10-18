@@ -1229,4 +1229,132 @@ mod tests {
         let after = engine.to_show(before.meta.clone());
         assert_eq!(before, after);
     }
+
+    #[test]
+    fn pbk_36_playback_commands_reach_the_engine() {
+        use cmdmx_core::playback::{FaderMode, PlaybackChange, PlaybackRecord};
+        let mut engine = demo_engine().unwrap();
+        let run = |engine: &mut Engine, cmd| apply(engine, cmd, 0.0).unwrap();
+        engine
+            .execute_command(&["201", "@", "100", "Enter"])
+            .unwrap();
+        run(
+            &mut engine,
+            ipc::Command::PlaybackRecord(PlaybackRecord::at(3, 1)),
+        );
+        let id = engine
+            .playbacks()
+            .find(|p| (p.page, p.slot) == (3, 1))
+            .unwrap()
+            .id;
+        run(
+            &mut engine,
+            ipc::Command::PlaybackChange {
+                id,
+                change: PlaybackChange {
+                    fader_mode: Some(FaderMode::Mode1),
+                    fade_out: Some(2.0),
+                    ..PlaybackChange::default()
+                },
+            },
+        );
+        assert_eq!(engine.playback(id).unwrap().fader_mode, FaderMode::Mode1);
+        assert_eq!(engine.playback(id).unwrap().cues[0].fade_out, 2.0);
+        run(
+            &mut engine,
+            ipc::Command::PlaybackLegend {
+                id,
+                legend: "Pulpit".into(),
+                icon: None,
+                halo: None,
+            },
+        );
+        assert_eq!(engine.playback(id).unwrap().legend, "Pulpit");
+        run(
+            &mut engine,
+            ipc::Command::PlaybackCopy {
+                id,
+                page: 3,
+                slot: 2,
+            },
+        );
+        run(
+            &mut engine,
+            ipc::Command::PlaybackMove {
+                id,
+                page: 3,
+                slot: 3,
+            },
+        );
+        assert_eq!(engine.playback(id).unwrap().slot, 3);
+        run(&mut engine, ipc::Command::PlaybackFlash { id, on: true });
+        assert!(engine.playback_state(id).unwrap().flash);
+        run(&mut engine, ipc::Command::PlaybackFlash { id, on: false });
+        run(&mut engine, ipc::Command::PlaybackSwop { id, on: true });
+        assert!(engine.playback_state(id).unwrap().swop);
+        run(&mut engine, ipc::Command::PlaybackSwop { id, on: false });
+        run(&mut engine, ipc::Command::PlaybackLatch { id });
+        assert!(engine.playback_state(id).unwrap().latched);
+        engine.tick(0.0);
+        run(&mut engine, ipc::Command::PlaybackRelease { id });
+        engine.tick(0.025);
+        assert!(!engine.playback_state(id).unwrap().is_active());
+        run(
+            &mut engine,
+            ipc::Command::PageLegend {
+                page: 3,
+                legend: "Service".into(),
+            },
+        );
+        assert_eq!(engine.page_legend(3), Some("Service"));
+        run(&mut engine, ipc::Command::DboSet { on: true });
+        assert!(engine.dbo());
+        run(
+            &mut engine,
+            ipc::Command::SettingsPlayback(cmdmx_core::engine::PlaybackSettingsChange {
+                fade_in: Some(1.5),
+                ..Default::default()
+            }),
+        );
+        assert_eq!(engine.settings().cue_fade_in, 1.5);
+        run(&mut engine, ipc::Command::PlaybackDelete { id });
+        assert!(engine.playback(id).is_none());
+    }
+
+    #[test]
+    fn pbk_36_refusals_change_nothing() {
+        use cmdmx_core::playback::{PlaybackChange, PlaybackRecord};
+        let mut engine = demo_engine().unwrap();
+        let before = engine.to_show(cmdmx_core::show::Meta {
+            name: "Demo".into(),
+            created: String::new(),
+            modified: String::new(),
+            app_version: String::new(),
+        });
+        for cmd in [
+            ipc::Command::PlaybackRecord(PlaybackRecord::at(1, 1)),
+            ipc::Command::PlaybackRecord(PlaybackRecord::at(3, 1)),
+            ipc::Command::PlaybackCopy {
+                id: 1,
+                page: 1,
+                slot: 2,
+            },
+            ipc::Command::PlaybackDelete { id: 99 },
+            ipc::Command::PlaybackFlash { id: 99, on: true },
+            ipc::Command::PlaybackChange {
+                id: 1,
+                change: PlaybackChange {
+                    fade_in: Some(700.0),
+                    ..PlaybackChange::default()
+                },
+            },
+            ipc::Command::PageLegend {
+                page: 11,
+                legend: "x".into(),
+            },
+        ] {
+            assert!(apply(&mut engine, cmd.clone(), 0.0).is_err(), "{cmd:?}");
+        }
+        assert_eq!(engine.to_show(before.meta.clone()), before);
+    }
 }

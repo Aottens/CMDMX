@@ -1259,7 +1259,7 @@ mod tests {
         assert_eq!(v["type"], "snapshot");
         assert_eq!(v["faders_per_page"], 8);
         assert_eq!(v["grand_master"], 1.0);
-        assert_eq!(v["playbacks"], json!([{"id":1,"level":0.0,"active":false}]));
+        assert_eq!(v["playbacks"], json!([playback_entry()]));
     }
 
     /// IPC-20: three nodes in three states.
@@ -1913,7 +1913,8 @@ mod tests {
         assert_eq!(d.len(), 1);
         assert_eq!(
             parse(&d[0]),
-            json!({"v":0,"type":"playback","id":1,"level":0.5,"active":true})
+            json!({"v":0,"type":"playback","id":1,"level":0.5,"state":"active",
+                   "flash":false,"latched":false})
         );
         e.tick(0.05);
         assert!(
@@ -2412,6 +2413,420 @@ mod tests {
             r#"{"v":0,"cmd":"palette.delete","number":-1}"#,
             r#"{"v":0,"cmd":"palette.legend","number":3}"#,
             r#"{"v":0,"cmd":"settings.palette","record_by":"Group"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    // ---- playbacks (PBK-35, 36, VS2-22) -------------------------------------------------------
+
+    /// PBK-35: the test engine's playback 1 (1.1, Dimmer 1.0 on fixture 1), untouched.
+    fn playback_entry() -> Value {
+        json!({"id":1,"page":1,"slot":1,"legend":"","icon":null,
+               "auto_icon":{"value":{"attribute":"Dimmer","value":1.0}},"halo":null,
+               "level":0.0,"state":"off","flash":false,"latched":false,
+               "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete",
+                          "release_mask":null,"release_time":null,"paging":"Unlocked","group":null},
+               "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"overlap":100.0}})
+    }
+
+    #[test]
+    fn pbk_35_snapshot_playback_entries() {
+        let mut e = engine();
+        e.set_playback_legend(
+            1,
+            "Walk-in",
+            Some("service.walk-in"),
+            Some(cmdmx_core::colour::TargetColour {
+                r: 1.0,
+                g: 0.5,
+                b: 0.0,
+            }),
+        )
+        .unwrap();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let mut want = playback_entry();
+        want["legend"] = json!("Walk-in");
+        want["icon"] = json!("service.walk-in");
+        want["halo"] = json!({"r":1.0,"g":0.5,"b":0.0});
+        assert_eq!(v["playbacks"], json!([want]));
+    }
+
+    #[test]
+    fn pbk_35_snapshot_pages_dbo_and_playback_settings() {
+        let mut e = engine();
+        e.set_page_legend(2, "Service").unwrap();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let pages: Vec<Value> = (1..=10)
+            .map(|n| json!({"number": n, "legend": if n == 2 { "Service" } else { "" }}))
+            .collect();
+        assert_eq!(v["pages"], json!(pages));
+        assert_eq!(v["dbo"], json!(false));
+        assert_eq!(
+            v["playback_settings"],
+            json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,
+                   "overlap":100.0,"release_mask":[],"release_time":2.0})
+        );
+    }
+
+    #[test]
+    fn pbk_35_live_changes_are_small_playback_deltas() {
+        let mut e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_flash(1, true, 0.0).unwrap();
+        e.tick(0.0);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1, "{d:?}");
+        assert_eq!(
+            parse(&d[0]),
+            json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
+                   "flash":true,"latched":false})
+        );
+        e.set_flash(1, false, 0.025).unwrap();
+        e.latch_flash(1, 0.025).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(
+            parse(&d[0]),
+            json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
+                   "flash":true,"latched":true}),
+            "flash means held or latched"
+        );
+    }
+
+    #[test]
+    fn pbk_35_releasing_is_a_state() {
+        let mut e = engine();
+        e.add_profile(
+            "mover",
+            Profile::from_attributes(vec![AttributeDef::new(
+                "Pan",
+                AttributeGroup::P,
+                AttributeKind::Ltp,
+                1,
+            )]),
+        )
+        .unwrap();
+        e.patch(Fixture {
+            id: 2,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "mover".into(),
+            mode: None,
+            universe: 1,
+            address: 5,
+        })
+        .unwrap();
+        let mut pb = Playback::new(
+            2,
+            1,
+            2,
+            BTreeMap::from([(2, BTreeMap::from([("Pan".to_string(), 1.0.into())]))]),
+        );
+        pb.release_mask = Some(vec![AttributeGroup::P]);
+        pb.release_time = Some(4.0);
+        e.add_playback(pb);
+        e.set_fader(2, 1.0, 0.0).unwrap();
+        e.tick(0.0);
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_fader(2, 0.0, 0.025).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1, "{d:?}");
+        assert_eq!(parse(&d[0])["state"], "releasing");
+    }
+
+    #[test]
+    fn pbk_35_stored_changes_send_the_whole_list() {
+        let mut e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_fader(1, 0.5, 0.0).unwrap();
+        e.tick(0.0);
+        let d = published.diff(&e, &[], &show_state());
+        assert!(
+            d.iter().all(|m| parse(m)["type"] == "playback"),
+            "a fader move is not a stored change: {d:?}"
+        );
+        e.set_playback_legend(1, "Front", None, None).unwrap();
+        e.copy_playback(1, 2, 3).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(
+            d.iter().filter(|m| parse(m)["type"] == "playbacks").count(),
+            1,
+            "one whole-list delta for both changes: {d:?}"
+        );
+        let list = d
+            .iter()
+            .map(|m| parse(m))
+            .find(|v| v["type"] == "playbacks")
+            .unwrap();
+        let entries = list["playbacks"].as_array().unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0]["legend"], "Front");
+        assert_eq!(
+            entries[0]["level"], 0.5,
+            "entries carry the live values too"
+        );
+        assert_eq!(entries[1]["page"], 2);
+        e.delete_playback(2).unwrap();
+        e.tick(0.05);
+        let d = published.diff(&e, &[], &show_state());
+        let list = d
+            .iter()
+            .map(|m| parse(m))
+            .find(|v| v["type"] == "playbacks")
+            .unwrap();
+        assert_eq!(
+            list["playbacks"].as_array().unwrap().len(),
+            1,
+            "a delete is in the list"
+        );
+        e.tick(0.075);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
+    fn pbk_35_pages_dbo_and_settings_deltas() {
+        let mut e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_page_legend(3, "Video").unwrap();
+        e.set_dbo(true);
+        e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+            release_time: Some(1.0),
+            ..Default::default()
+        })
+        .unwrap();
+        e.tick(0.0);
+        let d: Vec<Value> = published
+            .diff(&e, &[], &show_state())
+            .iter()
+            .map(|m| parse(m))
+            .collect();
+        assert_eq!(d.len(), 3, "{d:?}");
+        let of = |t: &str| d.iter().find(|v| v["type"] == t).unwrap().clone();
+        assert_eq!(
+            of("pages")["pages"][2],
+            json!({"number":3,"legend":"Video"})
+        );
+        assert_eq!(of("dbo"), json!({"v":0,"type":"dbo","on":true}));
+        assert_eq!(of("playback_settings")["release_time"], 1.0);
+        e.tick(0.025);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
+    fn pbk_36_playback_commands_parse() {
+        use cmdmx_core::colour::TargetColour;
+        use cmdmx_core::engine::PlaybackSettingsChange;
+        use cmdmx_core::palette::{RecordBy, RecordMode};
+        use cmdmx_core::playback::{
+            FaderMode, KillPoint, Paging, PlaybackChange, PlaybackRecord, Priority,
+        };
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.record","page":1,"slot":2}"#),
+            Command::PlaybackRecord(PlaybackRecord::at(1, 2))
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mask":["I","C"],
+                   "record_by":"Mixed","mode":"Update"}"#
+            ),
+            Command::PlaybackRecord(PlaybackRecord {
+                mask: Some(vec![AttributeGroup::I, AttributeGroup::C]),
+                record_by: Some(RecordBy::Mixed),
+                mode: Some(RecordMode::QuickMerge),
+                ..PlaybackRecord::at(1, 2)
+            })
+        );
+        for (mode, want) in [
+            ("Replace", RecordMode::Replace),
+            ("Merge", RecordMode::Merge),
+        ] {
+            let text =
+                format!(r#"{{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"{mode}"}}"#);
+            assert_eq!(
+                ok(&text),
+                Command::PlaybackRecord(PlaybackRecord {
+                    mode: Some(want),
+                    ..PlaybackRecord::at(1, 2)
+                })
+            );
+        }
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.flash","id":3,"on":true}"#),
+            Command::PlaybackFlash { id: 3, on: true }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.swop","id":3,"on":false}"#),
+            Command::PlaybackSwop { id: 3, on: false }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.latch","id":3}"#),
+            Command::PlaybackLatch { id: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.release","id":3}"#),
+            Command::PlaybackRelease { id: 3 }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.options","id":3,"priority":"High","fader_mode":1,
+                   "kill_point":"FaderAtZero","release_mask":["I"],"release_time":0.5,
+                   "paging":"Locked","group":4}"#
+            ),
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange {
+                    priority: Some(Priority::High),
+                    fader_mode: Some(FaderMode::Mode1),
+                    kill_point: Some(KillPoint::FaderAtZero),
+                    release_mask: Some(Some(vec![AttributeGroup::I])),
+                    release_time: Some(Some(0.5)),
+                    paging: Some(Paging::Locked),
+                    group: Some(Some(4)),
+                    ..PlaybackChange::default()
+                }
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.options","id":3,"release_mask":null,"release_time":null,"group":null}"#
+            ),
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange {
+                    release_mask: Some(None),
+                    release_time: Some(None),
+                    group: Some(None),
+                    ..PlaybackChange::default()
+                }
+            },
+            "null = back to the global setting / no group"
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.options","id":3}"#),
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange::default()
+            },
+            "absent = unchanged"
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.times","id":3,"delay":1.0,"fade_in":3.0,"fade_out":4.0,"overlap":50}"#
+            ),
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange {
+                    delay: Some(1.0),
+                    fade_in: Some(3.0),
+                    fade_out: Some(4.0),
+                    overlap: Some(50.0),
+                    ..PlaybackChange::default()
+                }
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"Walk-in","icon":"service.walk-in",
+                   "halo":{"r":1.0,"g":0.5,"b":0.0}}"#
+            ),
+            Command::PlaybackLegend {
+                id: 3,
+                legend: "Walk-in".into(),
+                icon: Some("service.walk-in".into()),
+                halo: Some(TargetColour {
+                    r: 1.0,
+                    g: 0.5,
+                    b: 0.0
+                }),
+            }
+        );
+        for automatic in [
+            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x","icon":null,"halo":null}"#,
+            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x"}"#,
+        ] {
+            assert_eq!(
+                ok(automatic),
+                Command::PlaybackLegend {
+                    id: 3,
+                    legend: "x".into(),
+                    icon: None,
+                    halo: None
+                }
+            );
+        }
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#),
+            Command::PlaybackCopy {
+                id: 3,
+                page: 2,
+                slot: 4
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#),
+            Command::PlaybackMove {
+                id: 3,
+                page: 2,
+                slot: 4
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.delete","id":3}"#),
+            Command::PlaybackDelete { id: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"page.legend","page":2,"legend":"Service"}"#),
+            Command::PageLegend {
+                page: 2,
+                legend: "Service".into()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"dbo.set","on":true}"#),
+            Command::DboSet { on: true }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"settings.playback","record_by":"Mixed","fade_in":2.0,
+                   "release_mask":["I","P"],"release_time":1.0}"#
+            ),
+            Command::SettingsPlayback(PlaybackSettingsChange {
+                record_by: Some(RecordBy::Mixed),
+                fade_in: Some(2.0),
+                release_mask: Some(vec![AttributeGroup::I, AttributeGroup::P]),
+                release_time: Some(1.0),
+                ..PlaybackSettingsChange::default()
+            })
+        );
+    }
+
+    #[test]
+    fn pbk_36_bad_playback_commands_are_errors() {
+        for bad in [
+            r#"{"v":0,"cmd":"playback.record","page":1}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"QuickMerge"}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mask":["Q"]}"#,
+            r#"{"v":0,"cmd":"playback.flash","id":3}"#,
+            r#"{"v":0,"cmd":"playback.swop","id":3,"on":"yes"}"#,
+            r#"{"v":0,"cmd":"playback.latch"}"#,
+            r#"{"v":0,"cmd":"playback.release","id":-1}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"fader_mode":3}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"paging":"Sticky"}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"priority":"Highest"}"#,
+            r#"{"v":0,"cmd":"playback.times","id":3,"fade_in":"3"}"#,
+            r#"{"v":0,"cmd":"playback.legend","id":3}"#,
+            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x","halo":"red"}"#,
+            r#"{"v":0,"cmd":"playback.copy","id":3,"to":{"page":2}}"#,
+            r#"{"v":0,"cmd":"playback.move","id":3}"#,
+            r#"{"v":0,"cmd":"playback.delete"}"#,
+            r#"{"v":0,"cmd":"page.legend","page":2}"#,
+            r#"{"v":0,"cmd":"dbo.set"}"#,
+            r#"{"v":0,"cmd":"settings.playback","record_by":"Fixture"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }

@@ -1,0 +1,75 @@
+# App playbacks checklist (PBK-35..42) — template
+
+No Swift test target exists (CLAUDE.md), so the playback strips, function buttons, Playback
+Options screen, Active playbacks window and DBO of `specs/modules/playbacks.md` PBK-37..41 are
+checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
+
+Setup: two terminals, and a fresh shows folder so your real one stays untouched.
+- `rm -rf /tmp/cmdmx-pbk`
+- Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-pbk`.
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+- Demo show: playbacks 1–8 on page 1 (one dimmer each, channels 1–8), page 2 slot 1 = the washes
+  101–104 at full, slot 2 = the front spots 301–306 at full.
+
+Output over time (fades, release, overlap) cannot be seen without lamps: Claude listens to the
+daemon's Art-Net on universe 1 during the run and reports the measured values and times.
+
+## Strips (PBK-37)
+- [ ] Page 1 shows eight strips with legends "1.1" … "1.8" (no legend set yet), the icon reads
+      "DIMMER 100%"; page 2 shows "2.1" and "2.2". No halo bar (no colour in these cues).
+- [ ] Hold Swop and Flash on 1.1: the level shows full while held, back to 0 on release. While
+      Flash 1.1 is held, raise 1.2 to 50 % and press Swop on 1.3: 1.1 and 1.2 go dark on
+      Art-Net, 1.3 is full.
+- [ ] Raise 1.1: the strip gets its green bottom strip. Pull it down: the green strip goes.
+
+## Recording on handles (PBK-38)
+- [ ] Select 201–208, set Dimmer 100 % and a red (colour picker), then tap palette-free values
+      only. Record, tap the legend of page 3 slot 1 (go to page 3 first): a new playback "3.1"
+      with a red halo bar and a red swatch icon.
+- [ ] Apply a colour palette to 211–216 (record one first if the show has none), Record, tap 3.2:
+      the Programmer's cyan reference is stored; re-record the palette blue and raise 3.2: the
+      pars come up blue (reference, PAL-11).
+- [ ] Record, tap 3.1 again: the softkeys show Replace, Merge, Cancel; Cancel changes nothing.
+      Record → Mask lets you drop C for this record; Record By switches Channel / Mixed.
+- [ ] Clear the programmer twice. Record, tap an empty handle: refused on the command line
+      ("Nothing in the programmer to record").
+- [ ] Update, tap 3.1 with only 201 Dimmer 50 % in the programmer: 3.1 keeps its other fixtures,
+      201 now at 50 %.
+- [ ] Copy, tap 3.1, tap 3.4: a copy with the same legend and halo. Move, tap 3.4, tap 3.5.
+      Delete, tap 3.5, confirm on softkey A: gone.
+
+## Options and times (PBK-39)
+- [ ] Options, tap 3.1 (and: right-click on the 3.1 legend): the Playback Options screen replaces
+      the window grid; the strips, GM and status bar stay. Tabs Fader, Times, Release, Playback,
+      Handle. Exit closes it.
+- [ ] Times: fade in 3 s. Raise 3.1 to full in one move: Claude reports the pars reaching full
+      after about 3 s. Mode 1 with fade out 4 s: pulling the fader down fades out over about 4 s.
+- [ ] Mode 2: raise 3.1 halfway: the colour is half way between the previous colour and red.
+- [ ] Release tab: Local, I only, release time 0; give 3.1 a Shutter or Strobe value if the pars
+      have one, otherwise check with Pan on a wash playback: after the fader goes to 0 the
+      attribute goes back to its previous value.
+- [ ] Kill point Fader at 0 with fade out 4 s: pulling the fader down cuts the light at once.
+- [ ] Playback: priority High on 3.1, group 1 on 3.1 and 3.2: raising 3.2 takes 3.1 out; 3.1's
+      fader has to go to 0 before it fires again.
+- [ ] Handle: Locked on 2.2 (front spots): go to pages 1, 3, 5: slot 2 shows the front spots with
+      a lock mark and "page 2". A second Locked on slot 2 is refused with a message.
+
+## Release, Latch, legends (PBK-38)
+- [ ] Release, tap a running playback: it goes out at once (amber while its masked attributes
+      fade back), its fader stays up and does not fire it again until it has been at 0.
+- [ ] Latch, then Flash on 1.4: it stays full after letting go; Flash on 1.4 again unlatches it.
+- [ ] Set Legend, tap 3.1: the editor shows the text field, the icon library with Auto, and a
+      halo row (Auto, colours, a picker). Type "Walk-in", pick an icon and a green halo: the strip
+      shows them. Halo back to Auto: red again.
+- [ ] Set Legend, tap the page 3 button: type "Service": the pages column shows it.
+
+## Active playbacks and DBO (PBK-40, 41)
+- [ ] Workspace F4: Active playbacks lists every running playback in fire order with handle,
+      legend, level, state and groups; a releasing one shows "releasing". Tap a row: it releases.
+- [ ] DBO under the GM: click it: everything dark (Art-Net intensity 0, Pan/Tilt stay), the DBO
+      button is amber and the status bar shows DBO. Click again: back.
+
+## Restart (PBK-34, 42)
+- [ ] Quit the daemon (Ctrl-C) and start it again with the same `--show-dir`: the recorded
+      playbacks, legends, halos, options, the lock and the page legend are back; nothing is
+      running, DBO is off, the app shows page 1.

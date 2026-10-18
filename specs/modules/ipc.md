@@ -113,6 +113,13 @@ saturation for the colour picker) are specified in `ui.md`, approved by the owne
 ## Out of scope (this version)
 Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), a colour picker or swatch (UX-02), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.
 
+### Playbacks (VS2-22; behaviour in `playbacks.md`)
+The playback messages are specified in `playbacks.md` as PBK-35 (snapshot `playbacks` entries
+with handle, legend, icons, halo, `state`, Flash/Latch, options and times; the small `playback`
+delta for live changes and the whole-list `playbacks` delta for stored ones; `pages`, `dbo`,
+`playback_settings` with their deltas) and PBK-36 (the `playback.*`, `page.legend`, `dbo.set`
+and `settings.playback` commands). IPC-03's `active` is replaced by `state`.
+
 ### Palettes (VS2-19; behaviour in `palettes.md`)
 The palette messages are specified in `palettes.md` as PAL-25 (snapshot `palettes` and the
 `palettes` delta), PAL-26 (programmer state: `palettes {in_use, relevant}` by palette id, a
