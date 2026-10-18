@@ -25,6 +25,7 @@ mod library;
 mod output;
 mod sacn_out;
 mod serial_out;
+mod shows;
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
@@ -558,6 +559,19 @@ mod tests {
             .chain(221..=226)
             .chain(301..=306)
             .collect()
+    }
+
+    #[test]
+    fn shw_09_shows_folder_and_state_file() {
+        let cli = parse_args(args("")).unwrap();
+        assert!(cli.show_dir.ends_with("Documents/ColourmotionDMX/Shows"));
+        assert!(cli
+            .state_file
+            .ends_with("Library/Application Support/ColourmotionDMX/state.json"));
+        let cli = parse_args(args("--show-dir /tmp/shows")).unwrap();
+        assert_eq!(cli.show_dir, PathBuf::from("/tmp/shows"));
+        assert_eq!(cli.state_file, PathBuf::from("/tmp/shows/state.json"));
+        assert!(parse_args(args("--show-dir")).is_err());
     }
 
     #[test]

@@ -897,7 +897,7 @@ mod tests {
 
     #[test]
     fn ipc_03_snapshot_has_settings_grand_master_and_playbacks() {
-        let v = parse(&snapshot(&engine(), &[]));
+        let v = parse(&snapshot(&engine(), &[], &show_state()));
         assert_eq!(v["v"], 0);
         assert_eq!(v["type"], "snapshot");
         assert_eq!(v["faders_per_page"], 8);
@@ -926,14 +926,14 @@ mod tests {
 
     #[test]
     fn ipc_20_snapshot_lists_the_output_nodes() {
-        let v = parse(&snapshot(&engine(), &outputs()));
+        let v = parse(&snapshot(&engine(), &outputs(), &show_state()));
         assert_eq!(
             v["outputs"],
             json!([{"name":"art-net","state":"Ok"},
                    {"name":"sacn","state":"Degraded"},
                    {"name":"serial","state":"Degraded","detail":"no interface"}])
         );
-        assert_eq!(parse(&snapshot(&engine(), &[]))["outputs"], json!([]));
+        assert_eq!(parse(&snapshot(&engine(), &[], &show_state()))["outputs"], json!([]));
     }
 
     #[test]
@@ -941,17 +941,17 @@ mod tests {
         use crate::output::OutputState;
         let e = engine();
         let mut outs = outputs();
-        let mut published = Published::new(&e, &outs);
-        assert!(published.diff(&e, &outs).is_empty());
+        let mut published = Published::new(&e, &outs, &show_state());
+        assert!(published.diff(&e, &outs, &show_state()).is_empty());
         outs[0].state = OutputState::Stopped;
-        let d = published.diff(&e, &outs);
+        let d = published.diff(&e, &outs, &show_state());
         assert_eq!(d.len(), 1);
         let v = parse(&d[0]);
         assert_eq!(v["v"], 0);
         assert_eq!(v["type"], "outputs");
         assert_eq!(v["outputs"][0], json!({"name":"art-net","state":"Stopped"}));
         assert_eq!(v["outputs"].as_array().unwrap().len(), 3);
-        assert!(published.diff(&e, &outs).is_empty(), "no change, no delta");
+        assert!(published.diff(&e, &outs, &show_state()).is_empty(), "no change, no delta");
     }
 
     fn no_values(available_i: bool) -> Value {
@@ -970,7 +970,7 @@ mod tests {
         e.select_fixture(1).unwrap();
         e.record_group(1).unwrap();
         e.clear();
-        let v = parse(&snapshot(&e, &[]));
+        let v = parse(&snapshot(&e, &[], &show_state()));
         assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
         assert_eq!(
@@ -1006,7 +1006,7 @@ mod tests {
         })
         .unwrap();
         e.patch_name(2, "Front left").unwrap();
-        let v = parse(&snapshot(&e, &[]));
+        let v = parse(&snapshot(&e, &[], &show_state()));
         assert_eq!(
             v["fixtures"],
             json!([dimmer_entry(),
@@ -1020,13 +1020,13 @@ mod tests {
     #[test]
     fn pat_09_fixtures_delta_after_a_patch_change_only() {
         let mut e = engine();
-        let mut published = Published::new(&e, &[]);
+        let mut published = Published::new(&e, &[], &show_state());
         e.tick(0.0);
-        assert!(published.diff(&e, &[]).is_empty());
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
         e.patch_renumber(1, 42).unwrap();
         e.tick(0.025);
         let d: Vec<Value> = published
-            .diff(&e, &[])
+            .diff(&e, &[], &show_state())
             .iter()
             .map(|m| parse(m))
             .filter(|m| m["type"] == "fixtures")
@@ -1035,9 +1035,9 @@ mod tests {
         assert_eq!(d[0]["v"], 0);
         assert_eq!(d[0]["fixtures"][0]["number"], 42);
         e.tick(0.05);
-        assert!(published.diff(&e, &[]).is_empty(), "no change, no delta");
+        assert!(published.diff(&e, &[], &show_state()).is_empty(), "no change, no delta");
         e.patch_move(1, 2, 100).unwrap();
-        let d = published.diff(&e, &[]);
+        let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
         assert_eq!(parse(&d[0])["fixtures"][0]["universe"], 2);
         assert_eq!(parse(&d[0])["fixtures"][0]["address"], 100);
@@ -1183,7 +1183,7 @@ mod tests {
     fn ipc_11_programmer_state_object() {
         let mut e = engine();
         e.select_fixture(1).unwrap();
-        let v = parse(&snapshot(&e, &[]));
+        let v = parse(&snapshot(&e, &[], &show_state()));
         assert_eq!(
             v["programmer"],
             json!({"selection":[1],"targets":[1],"active_group":"I",
@@ -1192,7 +1192,7 @@ mod tests {
                    "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
-        let v = parse(&snapshot(&e, &[]));
+        let v = parse(&snapshot(&e, &[], &show_state()));
         assert_eq!(
             v["programmer"]["wheels"],
             json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false}])
@@ -1209,13 +1209,13 @@ mod tests {
     #[test]
     fn ipc_12_programmer_and_groups_deltas_only_on_change() {
         let mut e = engine();
-        let mut published = Published::new(&e, &[]);
+        let mut published = Published::new(&e, &[], &show_state());
         e.tick(0.0);
-        assert!(published.diff(&e, &[]).is_empty());
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
 
         e.select_fixture(1).unwrap();
         e.tick(0.025);
-        let d = published.diff(&e, &[]);
+        let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
         let p = parse(&d[0]);
         assert_eq!(p["v"], 0);
@@ -1224,11 +1224,11 @@ mod tests {
         assert_eq!(p["wheels"][0]["attribute"], "Dimmer");
 
         e.tick(0.05);
-        assert!(published.diff(&e, &[]).is_empty(), "no change, no delta");
+        assert!(published.diff(&e, &[], &show_state()).is_empty(), "no change, no delta");
 
         e.record_group(4).unwrap();
         e.tick(0.075);
-        let d = published.diff(&e, &[]);
+        let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
         assert_eq!(
             parse(&d[0]),
@@ -1349,12 +1349,12 @@ mod tests {
     #[test]
     fn ipc_18_colour_model_change_is_a_programmer_delta() {
         let mut e = engine();
-        let mut published = Published::new(&e, &[]);
+        let mut published = Published::new(&e, &[], &show_state());
         e.tick(0.0);
-        assert!(published.diff(&e, &[]).is_empty());
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
         e.set_colour_model(ColourModel::Cmy);
         e.tick(0.025);
-        let d = published.diff(&e, &[]);
+        let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
         let p = parse(&d[0]);
         assert_eq!(p["type"], "programmer");
@@ -1507,23 +1507,23 @@ mod tests {
     #[test]
     fn ipc_05_deltas_only_for_changed_items() {
         let mut e = engine();
-        let mut published = Published::new(&e, &[]);
+        let mut published = Published::new(&e, &[], &show_state());
         e.tick(0.0);
-        assert!(published.diff(&e, &[]).is_empty());
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
 
         e.set_fader(1, 0.5, 0.025).unwrap();
         e.tick(0.025);
-        let d = published.diff(&e, &[]);
+        let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
         assert_eq!(
             parse(&d[0]),
             json!({"v":0,"type":"playback","id":1,"level":0.5,"active":true})
         );
         e.tick(0.05);
-        assert!(published.diff(&e, &[]).is_empty(), "no change, no delta");
+        assert!(published.diff(&e, &[], &show_state()).is_empty(), "no change, no delta");
 
         e.set_grand_master(0.25).unwrap();
-        let d = published.diff(&e, &[]);
+        let d = published.diff(&e, &[], &show_state());
         assert_eq!(
             parse(&d[0]),
             json!({"v":0,"type":"grand_master","level":0.25})
@@ -1566,7 +1566,7 @@ mod tests {
         let Event::Connected(tx) = next_event(&rx) else {
             panic!("expected Connected")
         };
-        tx.send(snapshot(&engine(), &[])).unwrap();
+        tx.send(snapshot(&engine(), &[], &show_state())).unwrap();
         let msg = ws.read().unwrap();
         assert_eq!(parse(msg.to_text().unwrap())["type"], "snapshot");
 
@@ -1613,5 +1613,99 @@ mod tests {
             .insert("Origin", "http://evil.example".parse().unwrap());
         assert!(tungstenite::client(req, stream).is_err());
         assert!(rx.recv_timeout(Duration::from_millis(200)).is_err());
+    }
+
+    // ---- SHW-15 --------------------------------------------------------------
+
+    fn show_state() -> crate::shows::ShowState {
+        crate::shows::ShowState {
+            name: "Kerk".into(),
+            saved_at: Some("2026-10-18T09:00:05Z".into()),
+            autosave_ok: true,
+        }
+    }
+
+    #[test]
+    fn shw_15_snapshot_has_the_show_state() {
+        let v = parse(&snapshot(&engine(), &[], &show_state()));
+        assert_eq!(
+            v["show"],
+            json!({"name":"Kerk","saved_at":"2026-10-18T09:00:05Z","autosave_ok":true})
+        );
+        let fresh = crate::shows::ShowState {
+            saved_at: None,
+            ..show_state()
+        };
+        assert_eq!(parse(&snapshot(&engine(), &[], &fresh))["show"]["saved_at"], Value::Null);
+    }
+
+    #[test]
+    fn shw_15_show_delta_only_when_the_state_changes() {
+        let e = engine();
+        let mut state = show_state();
+        let mut published = Published::new(&e, &[], &state);
+        assert!(published.diff(&e, &[], &state).is_empty());
+        state.autosave_ok = false;
+        let d = published.diff(&e, &[], &state);
+        assert_eq!(d.len(), 1);
+        assert_eq!(
+            parse(&d[0]),
+            json!({"v":0,"type":"show","name":"Kerk","saved_at":"2026-10-18T09:00:05Z","autosave_ok":false})
+        );
+        assert!(published.diff(&e, &[], &state).is_empty(), "no change, no delta");
+        state.saved_at = Some("2026-10-18T09:00:10Z".into());
+        assert_eq!(published.diff(&e, &[], &state).len(), 1);
+    }
+
+    #[test]
+    fn shw_15_show_commands_parse() {
+        use crate::shows::ShowRequest;
+        let cases = [
+            (r#"{"v":0,"cmd":"show.list"}"#, ShowRequest::List),
+            (
+                r#"{"v":0,"cmd":"show.new","name":"Kerst"}"#,
+                ShowRequest::New { name: "Kerst".into() },
+            ),
+            (
+                r#"{"v":0,"cmd":"show.open","name":"Kerk"}"#,
+                ShowRequest::Open { name: "Kerk".into() },
+            ),
+            (
+                r#"{"v":0,"cmd":"show.save_as","name":"Kerk 2"}"#,
+                ShowRequest::SaveAs { name: "Kerk 2".into() },
+            ),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(parse_command(text), Ok(Command::Show(expected)), "{text}");
+        }
+        for bad in [
+            r#"{"v":0,"cmd":"show.new"}"#,
+            r#"{"v":0,"cmd":"show.open","name":3}"#,
+            r#"{"v":0,"cmd":"show.save_as"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn shw_15_list_answers_the_asking_client() {
+        let dir = std::env::temp_dir().join(format!("cmdmx-shw-15-list-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let shows = crate::shows::Shows::new(dir.join("Shows"), dir.join("state.json"));
+        let json = engine()
+            .to_show(cmdmx_core::show::Meta {
+                name: "Kerk".into(),
+                created: "2026-10-18T09:00:00Z".into(),
+                modified: "2026-10-18T09:00:00Z".into(),
+                app_version: "0.1.0".into(),
+            })
+            .to_json();
+        crate::shows::write_atomic(&shows.path("Kerk"), &json).unwrap();
+        let v = parse(&answer_show_list(&shows));
+        assert_eq!(v["v"], 0);
+        assert_eq!(v["type"], "show.list");
+        assert_eq!(v["shows"].as_array().unwrap().len(), 1);
+        assert_eq!(v["shows"][0]["name"], "Kerk");
+        assert!(v["shows"][0]["modified"].as_str().unwrap().ends_with('Z'));
     }
 }
