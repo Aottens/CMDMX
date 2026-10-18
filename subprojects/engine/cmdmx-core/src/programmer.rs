@@ -68,6 +68,8 @@ pub struct FixtureValues {
     pub values: BTreeMap<String, Value>,
     /// PAL-26: the attributes among `values` that are palette references.
     pub palettes: BTreeMap<String, PaletteId>,
+    /// PAL-26: attribute → progress 0.0–1.0 of a palette fade still running at the last tick.
+    pub fading: BTreeMap<String, f32>,
 }
 
 /// PAL-26: which palettes the programmer and the selection touch.
@@ -121,6 +123,12 @@ impl Fade {
     fn elapsed(&self, now: Timestamp) -> Option<f32> {
         let e = (now - self.start?) as f32 - self.delay;
         (e > 0.0).then_some(e)
+    }
+
+    /// PAL-26: 0.0–1.0 at `now`; 0.0 before the clock starts or while waiting for the overlap turn.
+    pub(crate) fn progress(&self, now: Timestamp) -> f32 {
+        self.elapsed(now)
+            .map_or(0.0, |e| (e / self.duration).min(1.0))
     }
 
     /// PAL-13: linear from `from` to `to`; Colour per component in linear target RGB.

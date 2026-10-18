@@ -534,11 +534,13 @@ fn ipc_21_view_contents_are_the_programmer_values() {
                     ("Dimmer".to_string(), Value::Level(0.5)),
                 ]),
                 palettes: BTreeMap::new(),
+                fading: BTreeMap::new(),
             },
             FixtureValues {
                 fixture: 301,
                 values: BTreeMap::from([("Dimmer".to_string(), Value::Level(1.0))]),
                 palettes: BTreeMap::new(),
+                fading: BTreeMap::new(),
             },
         ]
     );

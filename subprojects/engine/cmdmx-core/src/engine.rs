@@ -1255,6 +1255,16 @@ impl Engine {
                             Stored::Value(_) => None,
                         })
                         .collect(),
+                    fading: values
+                        .keys()
+                        .filter_map(|name| {
+                            let fade = self.programmer.fade(fixture, name)?;
+                            Some((
+                                name.clone(),
+                                fade.progress(self.last_tick.unwrap_or_default()),
+                            ))
+                        })
+                        .collect(),
                 })
                 .collect(),
             colour,
