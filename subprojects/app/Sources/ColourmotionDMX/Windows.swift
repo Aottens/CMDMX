@@ -184,11 +184,7 @@ struct GroupsWindow: View {
         PanelWindow(
             title: "Groups",
             info: "\(engine.groups.count) groups",
-            accessory: {
-                // Moves to the Record function button in UX-02c (UI-16).
-                Button("Record") { ui.recordArmed.toggle() }
-                    .buttonStyle(FlatButton(fill: ui.recordArmed ? .red : nil, compact: true))
-            }
+            accessory: { EmptyView() }   // Record is a function button now (UI-16)
         ) {
             CellScroll {
                 ForEach(1...cells, id: \.self) { id in

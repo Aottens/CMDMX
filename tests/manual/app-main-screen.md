@@ -4,7 +4,7 @@ No Swift test target exists (CLAUDE.md), so the main screen is checked by hand a
 sketch `specs/ux/main-screen.html` (open it in a browser next to the app). Copy to
 `tests/manual/runs/<date>-<task>.md` and tick it there. Sections grow with UX-02b–d.
 
-Setup: daemon `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`; app
+Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-main` (a fresh Demo); app
 `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
 
 ## UX-02a — the shell
@@ -28,7 +28,7 @@ Setup: daemon `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`;
       in programmer = red top strip; the fill never changes
 
 ### Status bar (UI-06, IPC-20)
-- [ ] Left: "Demo show", engine dot green, a dot per output node: Art-Net green, serial amber
+- [ ] Left: the show name ("Demo"), engine dot green, a dot per output node: Art-Net green, serial amber
       with "no interface" (no Eurolite on the desk); no sACN dot because of `--no-sacn`
 - [ ] Restart the daemon without `--no-sacn`: an sACN dot appears, green
 - [ ] Stop the daemon: the engine dot goes grey with an amber line in the bar (no big banner);
@@ -36,7 +36,7 @@ Setup: daemon `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`;
 - [ ] Right: Console, Keys, Keypad, Day/Night toggles and a running clock
 
 ### Rail, workspaces and windows (UI-07..13)
-- [ ] The rail shows four workspaces with F1–F4, then Patch, Macros (disabled), Show (disabled),
+- [ ] The rail shows four workspaces with F1–F4, then Patch, Macros (disabled), Show,
       then Shapes, Pixelmapper, Keystone disabled ("later")
 - [ ] Each workspace shows its four windows: 1 Groups / Colours / Positions / Gobos & Beams,
       2 Fixtures / Groups / Colours / Programmer, 3 Fixtures / Colour picker / Colours /
@@ -76,8 +76,8 @@ Setup: daemon `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`;
 - [ ] Drag, scroll, Option (fine) and Shift (coarse) work as before (IPC-16); Hue shows degrees
 - [ ] Programmer summary: "4 fx · I C" in red with values, "empty" in grey without; Clear glows
       red while something is selected or in the programmer
-- [ ] The command line shows a `›` prompt in monospace; typing + Return still works; the message
-      zone shows a refusal in amber (`201 Banana`)
+- [ ] The command line shows a `›` prompt in monospace; the message zone shows a refusal in amber
+      (UX-02c replaces the text field with tokens, see below)
 
 ### Programmer window (UI-14, IPC-21)
 - [ ] Workspace 2: empty programmer shows the note; select 201–204 `@ 50`, then give 201 a blue
@@ -94,3 +94,58 @@ Setup: daemon `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`;
       follow; drag around: the colour follows the pointer
 - [ ] Drag the White bar: only the RGBW pars' white channel moves (PRG-34)
 - [ ] The gel row is there but disabled (IDEA-02)
+
+## UX-02c — side column, token command line, Mac keys
+
+### Function buttons (UI-16)
+- [ ] Two columns in Titan order: Record, Update, Edit, Select If, Delete, Unfold, Copy, Move,
+      Include, Release, Patch, Disk, Help, System, Blind, Off, Fan, Options, Latch, Shape
+- [ ] Record, Patch and Disk are live; every other button is greyed and its tooltip names its spec
+- [ ] Select 201–204, press Record: a red ring; the softkeys header says Record; tap group cell 5
+      in the Groups window: group 5 is recorded with 201–204, the ring goes out
+- [ ] Record, then Clear (keypad): the ring goes out, nothing is recorded
+- [ ] The Groups window has no Record button of its own any more
+- [ ] Patch opens the Patch screen, Disk the Show screen
+
+### Keypad and token command line (UI-17, UI-19)
+- [ ] 30 keys in the sketch's order; Palette, Macro, Avo, View, Set, Highlight and Locate greyed
+      with their spec in the tooltip
+- [ ] Clicks only: `Fixture 2 0 1 Thro 2 0 4 @ 5 0 Enter`: the line shows the tokens
+      `Fixture 201 Thro 204 @ 50` while typing, Enter sends it, 201–204 go to 50 % and the line
+      empties
+- [ ] Digits join into one number (2, 0, 1 → `201`); Back removes the last digit, then the last
+      token; Exit empties the line
+- [ ] `Group 3 Enter` selects group 3; `2 0 1 And 3 0 1 Enter` selects both
+- [ ] A refused line (`Thro Enter`) shows the warning in amber and the line empties
+- [ ] Clear glows red while something is selected or in the programmer; it clears (PRG-29)
+- [ ] Fix −1 / Fix +1 step through the selection, Odd/Even keeps every other fixture
+- [ ] The cursor blinks after the tokens (not with Reduce Motion on in macOS Accessibility)
+- [ ] The Keypad toggle hides and shows the keypad; on a window narrower than 1440 pt it hides
+      by itself
+
+### Softkeys (UI-18)
+- [ ] Nothing selected: header "Softkeys · Main"; Edit Times, Playback Options, Set Legend,
+      Shapes & Effects, Timecode, Lock and Undo all greyed with their spec
+- [ ] Select something: header "Selection"; Next, Previous, All and Odd/Even work; Set Legend and
+      Playback Options greyed
+- [ ] Record armed: header "Record"; only Cancel works (it disarms); Merge/Replace, Record by and
+      Mask greyed
+
+### Mac keys (UI-19) and history (UI-27)
+- [ ] Keys off (default the first time): typing on the Mac keyboard does nothing to the command
+      line; ⌘1–⌘4 still switch workspaces
+- [ ] Keys on: `201-204@50` + Return selects 201–204 at 50 %; `f` = Fixture, `g` = Group,
+      `+` = And, Esc empties the line, Backspace = Back; F1–F4 switch workspaces
+- [ ] Keys stays on after quitting and reopening the app
+- [ ] With Keys on, typing in the Patch screen's search field or the Show screen's name fields
+      types there, not on the command line
+- [ ] Send three lines, then Up: the last line comes back; Up again: the one before; Down: forward
+      again; Down past the newest: an empty line
+- [ ] Recall a line with Up, change the level with Backspace and digits, Enter: the edited line is
+      sent and is the newest history entry; sending the same line twice adds it once
+- [ ] Quit and reopen the app: Up still recalls the lines from before
+
+### One grey (UI-28)
+- [ ] Rail entries (Macros, Shapes, …), the status bar toggles, function buttons, keypad keys,
+      softkeys, unavailable attribute tabs and Undo all look equally dim when disabled (empty
+      palette cells keep their own look)

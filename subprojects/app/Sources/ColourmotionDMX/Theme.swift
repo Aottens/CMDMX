@@ -12,6 +12,8 @@ struct Theme {
     // State colours: red = programmer / unstored / armed, blue = selection, green = running / OK,
     // amber = fading / warning, cyan = from palette, violet = Blind.
     let red, blue, green, amber, cyan, violet: Color
+    /// The one dim level of every disabled control (UI-28).
+    let disabled = 0.3
 
     static let dark = Theme(
         chassis: Color(hex: 0x08090A), panel: Color(hex: 0x16181A), bg: Color(hex: 0x121314),
