@@ -205,12 +205,18 @@ lists) store, so they come first.
   "auto_icon":{"colours":[{"r":1.0,"g":0.62,"b":0.3}]},"kind":"G","groups":["C"]}]`, sorted by
   number, `groups` being the attribute groups the palette holds in I P C G B E S FX order. A
   `{"v":0,"type":"palettes","palettes":[…]}` delta with the whole list follows any tick in which
-  a palette was recorded, merged, renamed, copied, moved or deleted.
+  a palette was recorded, merged, renamed, copied, moved or deleted. The snapshot also carries
+  `"palette_settings":{"time":0.0,"overlap":100.0,"record_by":"Mixed"}` (PAL-15, PAL-02), and a
+  `{"v":0,"type":"palette_settings",…}` delta follows a change, so the Palette softkeys can show
+  the current values (added 2026-10-18, VS2-19).
 - **PAL-26** The programmer state (IPC-11) gains `"palettes":{"in_use":[1],"relevant":[1,2,7]}`
   (`in_use`: palettes referenced in the programmer; `relevant`: palettes that resolve something
   for a target, or all palettes when nothing is selected), each `wheels` entry gains
   `"palette": id` or `null`, and each `contents` entry (IPC-21) gains `"palettes":{"Colour":1}`
-  for its referenced attributes.
+  for its referenced attributes and `"fading":{"Colour":0.4}` for its attributes with a palette
+  fade still running (PAL-13/14): the progress 0.0–1.0 at the last tick, 0.0 while the fixture
+  waits for its overlap turn; the entry disappears when the fade is done (amended 2026-10-18,
+  owner, VS2-19 run).
 - **PAL-27** Commands (numbers and cells, not ids; refusals are warnings, IPC-06):
   `palette.record {"window":"Colours","handle":4,"number":12,"mask":["C"],"record_by":"Mixed",
   "record_as":"Auto","mode":"Merge"}` (all but the cell optional: `number` only for a new
@@ -224,7 +230,7 @@ lists) store, so they come first.
 
 ### App (UI v0.1; amends `ui.md` UI-13, 16, 17, 18, 19 when approved)
 - **PAL-28** The Colours, Positions and Gobos & Beams windows show their palettes on their
-  handles, rows of 8, at least 32 cells and always one empty row after the last used cell,
+  handles, rows of 6 (UI-05), at least 36 cells and always one empty row after the last used cell,
   scrolling inside the window (UI-13 amended: no fixed number ranges). A used cell follows
   UI-05: number top-left, kind tag (G/S/N) top-right, icon (picked or automatic) and legend, and
   the IPCGBES mask strip from `groups`. In use in the programmer = red top strip; not relevant
@@ -248,7 +254,10 @@ lists) store, so they come first.
     the number on the command line; without one they show the current value) and Set Overlap
     (the number on the line is the overlap for the next tap only).
 - **PAL-30** The Programmer window (UI-14) shows referenced values in cyan with the palette's
-  legend; a wheel whose value comes from a palette shows its value in cyan (UI-03).
+  legend; a wheel whose value comes from a palette shows its value in cyan (UI-03). A value
+  that is still fading keeps showing its target, with an amber marker and its progress (UI-03:
+  amber = fading) until the fade is done; the live output itself is for IDEA-10 (owner,
+  VS2-19 run).
 - **PAL-31** `tests/manual/app-palettes.md` walks recording, Quick Record, G/S/N on the mixed
   pars, applying with and without a selection, a timed apply with overlap, Merge, Copy/Move,
   Delete, legends and icons, and a restart of the daemon with the palettes back from the show.

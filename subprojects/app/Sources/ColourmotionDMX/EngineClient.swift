@@ -162,10 +162,12 @@ struct WheelState: Decodable, Identifiable, Equatable {
     let value: Double
     let touched: Bool
     let sixteenBit: Bool
+    /// PAL-26: the palette the value comes from (first target), nil for a manual or output value.
+    let palette: Int?
     var id: String { attribute }
 
     private enum CodingKeys: String, CodingKey {
-        case attribute, value, touched
+        case attribute, value, touched, palette
         case sixteenBit = "sixteen_bit"
     }
 
@@ -175,6 +177,7 @@ struct WheelState: Decodable, Identifiable, Equatable {
         value = try c.decode(Double.self, forKey: .value)
         touched = try c.decode(Bool.self, forKey: .touched)
         sixteenBit = (try? c.decode(Bool.self, forKey: .sixteenBit)) ?? false
+        palette = try? c.decode(Int.self, forKey: .palette)
     }
 }
 
@@ -199,15 +202,21 @@ enum ProgrammerValue: Decodable, Equatable {
 struct ProgrammerContent: Decodable, Identifiable, Equatable {
     let fixture: Int
     let values: [String: ProgrammerValue]
+    /// PAL-26: attribute name → palette id, for the values that are palette references.
+    let palettes: [String: Int]
+    /// PAL-26: attribute name → progress 0...1 of a palette fade still running; absent once done.
+    let fading: [String: Double]
     var id: Int { fixture }
 
-    private enum CodingKeys: String, CodingKey { case fixture, values }
+    private enum CodingKeys: String, CodingKey { case fixture, values, palettes, fading }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         fixture = try c.decode(Int.self, forKey: .fixture)
         let raw = (try? c.decode([String: Tolerant<ProgrammerValue>].self, forKey: .values)) ?? [:]
         values = raw.compactMapValues(\.value)
+        palettes = (try? c.decode([String: Int].self, forKey: .palettes)) ?? [:]
+        fading = (try? c.decode([String: Double].self, forKey: .fading)) ?? [:]
     }
 }
 
@@ -218,6 +227,104 @@ struct TargetColour: Decodable, Equatable {
     let r: Double
     let g: Double
     let b: Double
+}
+
+/// PAL-26: `in_use` = palettes the programmer references, `relevant` = palettes that resolve
+/// something for a target (all of them when nothing is selected).
+struct PaletteUse: Decodable, Equatable {
+    var inUse: [Int] = []
+    var relevant: [Int] = []
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case inUse = "in_use"
+        case relevant
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        inUse = (try? c.decode([Int].self, forKey: .inUse)) ?? []
+        relevant = (try? c.decode([Int].self, forKey: .relevant)) ?? []
+    }
+}
+
+/// The automatic icon the engine computes from a palette's values (PAL-21): colours as sRGB 0...1,
+/// pan/tilt points 0...1, or the first stored attribute with its value.
+enum AutoIcon: Decodable, Equatable {
+    struct RGB: Decodable, Equatable { let r, g, b: Double }
+    struct Point: Equatable { let pan, tilt: Double }
+
+    case colours([RGB])
+    case position([Point])
+    case value(attribute: String, value: Double)
+
+    private struct Raw: Decodable {
+        struct Value: Decodable { let attribute: String; let value: Double }
+        let colours: [RGB]?
+        let position: [[Double]]?
+        let value: Value?
+    }
+
+    init(from decoder: Decoder) throws {
+        let raw = try Raw(from: decoder)
+        if let colours = raw.colours, !colours.isEmpty {
+            self = .colours(colours)
+        } else if let points = raw.position, !points.isEmpty {
+            self = .position(points.compactMap { $0.count == 2 ? Point(pan: $0[0], tilt: $0[1]) : nil })
+        } else if let v = raw.value {
+            self = .value(attribute: v.attribute, value: v.value)
+        } else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "no auto icon"))
+        }
+    }
+}
+
+/// One palette (PAL-25). `id` is the engine's internal id (references use it), `number` the user
+/// number (commands use it). `window` is `Colours`, `Positions` or `Beams`; `handle` is 1-based.
+struct PaletteInfo: Decodable, Identifiable, Equatable {
+    let id: Int
+    let number: Int
+    let window: String
+    let handle: Int
+    let legend: String
+    /// A picked icon id of the app's library, else nil (the auto icon is drawn).
+    let icon: String?
+    let autoIcon: AutoIcon?
+    /// `G`, `S` or `N`.
+    let kind: String
+    /// Attribute groups the palette holds, in I P C G B E S FX order.
+    let groups: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case id, number, window, handle, legend, icon, kind, groups
+        case autoIcon = "auto_icon"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        number = try c.decode(Int.self, forKey: .number)
+        window = try c.decode(String.self, forKey: .window)
+        handle = try c.decode(Int.self, forKey: .handle)
+        legend = (try? c.decode(String.self, forKey: .legend)) ?? ""
+        icon = try? c.decode(String.self, forKey: .icon)
+        autoIcon = try? c.decode(AutoIcon.self, forKey: .autoIcon)
+        kind = (try? c.decode(String.self, forKey: .kind)) ?? "N"
+        groups = (try? c.decode([String].self, forKey: .groups)) ?? []
+    }
+}
+
+/// PAL-25: master fade time (s), master overlap (%) and the default Record By (`Channel` / `Mixed`).
+struct PaletteSettings: Decodable, Equatable {
+    let time: Double
+    let overlap: Double
+    let recordBy: String
+
+    private enum CodingKeys: String, CodingKey {
+        case time, overlap
+        case recordBy = "record_by"
+    }
 }
 
 /// Mirror of the engine's programmer state (IPC-11). Fields missing from a
@@ -234,11 +341,13 @@ struct ProgrammerState: Decodable, Equatable {
     /// IPC-21: programmer values per fixture; IPC-22: the first target's colour, nil without one.
     var contents: [ProgrammerContent] = []
     var colour: TargetColour?
+    /// PAL-26: palette ids referenced in the programmer, and those relevant to the selection.
+    var palettes = PaletteUse()
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case selection, targets, wheels, contents, colour
+        case selection, targets, wheels, contents, colour, palettes
         case activeGroup = "active_group"
         case attributeGroups = "attribute_groups"
         case inProgrammer = "in_programmer"
@@ -256,6 +365,7 @@ struct ProgrammerState: Decodable, Equatable {
         colourModel = (try? c.decode(String.self, forKey: .colourModel)) ?? "Hsi"
         contents = ((try? c.decode([Tolerant<ProgrammerContent>].self, forKey: .contents)) ?? []).compactMap(\.value)
         colour = try? c.decode(TargetColour.self, forKey: .colour)
+        palettes = (try? c.decode(PaletteUse.self, forKey: .palettes)) ?? PaletteUse()
     }
 }
 
@@ -335,6 +445,10 @@ final class EngineClient: ObservableObject {
     /// IPC-10..12: all straight from the snapshot / deltas.
     @Published private(set) var fixtures: [FixtureInfo] = []
     @Published private(set) var groups: [GroupInfo] = []
+    /// PAL-25: all palettes, sorted by number.
+    @Published private(set) var palettes: [PaletteInfo] = []
+    /// PAL-25: the engine's master time, overlap and default Record By; nil until the snapshot.
+    @Published private(set) var paletteSettings: PaletteSettings?
     /// Reply to the last `library.search` (this client only).
     @Published private(set) var libraryResults: [LibraryItem] = []
     /// Last query sent; a reply that arrives after the field was emptied is ignored.
@@ -522,6 +636,48 @@ final class EngineClient: ObservableObject {
     func patchName(id: Int, name: String) { patch("patch.name", ["id": id, "name": name]) }
     func patchChangeMode(id: Int, mode: String) { patch("patch.change_mode", ["id": id, "mode": mode]) }
 
+    // Palette commands (PAL-27). Numbers and cells, never ids; a refusal comes back as a warning.
+
+    func recordPalette(window: String, handle: Int, mask: [String]? = nil, recordBy: String? = nil,
+                       recordAs: String? = nil, mode: String? = nil) {
+        var fields: [String: Any] = ["window": window, "handle": handle]
+        if let mask { fields["mask"] = mask }
+        if let recordBy { fields["record_by"] = recordBy }
+        if let recordAs, recordAs != "Auto" { fields["record_as"] = recordAs }
+        if let mode { fields["mode"] = mode }
+        patch("palette.record", fields)
+    }
+    func applyPalette(_ number: Int, time: Double? = nil, overlap: Double? = nil) {
+        var fields: [String: Any] = ["number": number]
+        if let time { fields["time"] = time }
+        if let overlap { fields["overlap"] = overlap }
+        patch("palette.apply", fields)
+    }
+    func includePalette(_ number: Int) { patch("palette.include", ["number": number]) }
+    func copyPalette(_ number: Int, window: String, handle: Int) {
+        patch("palette.copy", ["number": number, "to": ["window": window, "handle": handle]])
+    }
+    func movePalette(_ number: Int, window: String, handle: Int) {
+        patch("palette.move", ["number": number, "to": ["window": window, "handle": handle]])
+    }
+    func renumberPalette(_ number: Int, to: Int) { patch("palette.renumber", ["number": number, "to": to]) }
+    func deletePalette(_ number: Int) { patch("palette.delete", ["number": number]) }
+    /// `icon` nil = the automatic icon.
+    func setPaletteLegend(_ number: Int, legend: String, icon: String?) {
+        patch("palette.legend", ["number": number, "legend": legend, "icon": icon.map { $0 as Any } ?? NSNull()])
+    }
+    /// `settings.palette`: master fade time (s) and/or overlap (%). The `palette_settings` delta
+    /// shows the result.
+    func setPaletteMaster(time: Double? = nil, overlap: Double? = nil) {
+        var fields: [String: Any] = [:]
+        if let time { fields["time"] = time }
+        if let overlap { fields["overlap"] = overlap }
+        patch("settings.palette", fields)
+    }
+
+    /// A hint for the operator in the message zone (the app's own, not an engine warning).
+    func say(_ text: String) { lastMessage = text }
+
     // Show commands (SHW-15). The engine checks names and refuses with a warning.
 
     func listShows() { sendJSON("show.list") }
@@ -618,6 +774,8 @@ final class EngineClient: ObservableObject {
         let message: String?
         let fixtures: [FixtureInfo]?
         let groups: [GroupInfo]?
+        fileprivate let palettes: Tolerant<[Tolerant<PaletteInfo>]>?
+        fileprivate let paletteSettings: Tolerant<PaletteSettings>?
         let programmer: ProgrammerState?
         let items: [LibraryItem]?
         fileprivate let outputs: Tolerant<[OutputStatus]>?
@@ -625,9 +783,10 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, page, playbacks, id, level, active, message, fixtures, groups, programmer, items, outputs, show, shows
+            case type, page, playbacks, id, level, active, message, fixtures, groups, palettes, programmer, items, outputs, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
+            case paletteSettings = "palette_settings"
         }
     }
 
@@ -652,6 +811,8 @@ final class EngineClient: ObservableObject {
             grandMaster = (incoming.grandMaster ?? grandMaster).clamped01
             fixtures = incoming.fixtures ?? []
             groups = incoming.groups ?? []
+            palettes = (incoming.palettes?.value ?? []).compactMap(\.value)
+            paletteSettings = incoming.paletteSettings?.value
             programmer = incoming.programmer ?? ProgrammerState()
             outputs = incoming.outputs?.value ?? []
             if let show = incoming.show?.value { self.show = show }
@@ -678,6 +839,11 @@ final class EngineClient: ObservableObject {
             if !lastLibraryQuery.trimmingCharacters(in: .whitespaces).isEmpty { libraryResults = incoming.items ?? [] }
         case "groups":
             if let groups = incoming.groups { self.groups = groups }
+        case "palette_settings":
+            // The delta carries the settings at top level.
+            if let state = try? JSONDecoder().decode(PaletteSettings.self, from: data) { paletteSettings = state }
+        case "palettes":
+            if let list = incoming.palettes?.value { palettes = list.compactMap(\.value) }
         case "playback":
             if let id = incoming.id, let level = incoming.level, let active = incoming.active {
                 storePlayback(id: id, level: level, active: active)

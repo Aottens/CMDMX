@@ -88,16 +88,25 @@ struct ProgrammerWindow: View {
         if mine.isEmpty {
             Text("·").foregroundStyle(t.fg3)
         } else {
-            let items = mine.map { name, value in
+            // Red = touched by hand; cyan + the palette's legend = referenced from a palette (PAL-30).
+            let items = mine.map { name, value -> Text in
+                let text: Text
                 switch value {
                 case .level(let v):
-                    Text(mine.count > 1 ? "\(name) \(percent(v))" : percent(v))
+                    text = Text(mine.count > 1 ? "\(name) \(percent(v))" : percent(v))
                 case .colour(let r, let g, let b):
-                    Text("\(Text(Image(systemName: "square.fill")).font(.system(size: 8)).foregroundStyle(Color(red: r, green: g, blue: b))) \(Self.hex(r, g, b))")
+                    text = Text("\(Text(Image(systemName: "square.fill")).font(.system(size: 8)).foregroundStyle(Color(red: r, green: g, blue: b))) \(Self.hex(r, g, b))")
                 }
+                guard let id = row.palettes[name] else { return text.foregroundStyle(t.red) }
+                let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
+                let target = Text("\(text) \(legend)").foregroundStyle(t.cyan)
+                // A fade still running keeps its target and adds an amber bar filling up (PAL-30).
+                guard let progress = row.fading[name] else { return target }
+                let filled = Int((progress.clamped01 * 5).rounded(.down))
+                let bar = String(repeating: "▰", count: filled) + String(repeating: "▱", count: 5 - filled)
+                return Text("\(target) \(Text(bar).foregroundStyle(t.amber))")
             }
             items.dropFirst().reduce(items[0]) { Text("\($0) · \($1)") }
-                .foregroundStyle(t.red)   // every programmer value is touched
         }
     }
 

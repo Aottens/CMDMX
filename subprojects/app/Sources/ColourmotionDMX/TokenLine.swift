@@ -17,6 +17,17 @@ final class TokenLine: ObservableObject {
     /// Index into `history` while browsing with Up / Down; nil = a line of its own.
     private var recall: Int?
 
+    /// The line holds one number and nothing else: the fade time of a palette tap (PAL-28).
+    var onlyNumber: Double? {
+        tokens.count == 1 && isNumeric(tokens[0]) ? Double(tokens[0]) : nil
+    }
+
+    /// The number on the line (alone, or after `Palette`), for Master Time, Master Overlap and Set Overlap.
+    var paletteArgument: Double? {
+        if tokens.count == 1 { return onlyNumber }
+        return tokens.count == 2 && tokens[0] == "Palette" && isNumeric(tokens[1]) ? Double(tokens[1]) : nil
+    }
+
     /// Digits and `.` join the number being typed; any other token stands alone.
     func add(_ token: String) {
         recall = nil
@@ -93,8 +104,8 @@ enum MacKeys {
         guard ui.screen == nil else { return false }
 
         switch event.keyCode {
-        case 36, 76: line.send(engine)      // Return, keypad Enter
-        case 53: line.clear()               // Esc
+        case 36, 76: line.send(engine); ui.paletteMenu = false   // Return, keypad Enter
+        case 53: line.clear(); ui.paletteMenu = false            // Esc
         case 51: line.back()                // Backspace
         case 126: line.older()              // Up
         case 125: line.newer()              // Down
@@ -107,7 +118,10 @@ enum MacKeys {
             case "@": line.add("@")
             case "f": line.add("Fixture")
             case "g": line.add("Group")
-            default: return false           // includes P (Palette, disabled until P1-03)
+            case "p":
+                if line.tokens.isEmpty { ui.paletteMenu = true }
+                line.add("Palette")
+            default: return false
             }
         }
         return true

@@ -5,6 +5,24 @@ import SwiftUI
 // resizes with the window; the other zones keep their size. Everything shown comes from
 // `EngineClient`; nothing is computed here.
 
+/// A function button armed for palettes (UI-16, PAL-29); the next palette tap uses it.
+enum PaletteFunction: String {
+    case update = "Update", include = "Include", copy = "Copy", move = "Move", delete = "Delete", legend = "Set Legend"
+}
+
+/// A used cell tapped while Record is armed (PAL-29): the softkeys ask how to record onto it.
+struct UsedCell: Equatable {
+    let window: String
+    let handle: Int
+    let number: Int
+}
+
+/// The palette whose legend editor is open.
+struct PaletteRef: Identifiable {
+    let number: Int
+    var id: Int { number }
+}
+
 /// UI-only state shared by the zones. None of this reaches the engine.
 @MainActor
 final class UIState: ObservableObject {
@@ -14,8 +32,52 @@ final class UIState: ObservableObject {
     /// A full screen (Patch UI-10, Show SHW-17) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
     @Published var screen: Screen?
-    /// Record armed with the Record function button (UI-16); the next group tap records.
-    @Published var recordArmed = false
+    /// Record armed with the Record function button (UI-16); the next group or palette tap records.
+    /// Disarming forgets the record choices below (they hold for one record only, PAL-29).
+    @Published var recordArmed = false { didSet { if !recordArmed { resetRecord() } } }
+    /// Record + tap on a used cell: waiting for Replace / Merge / Quick Merge (PAL-06).
+    @Published var usedCell: UsedCell?
+    /// Record choices for this record only (PAL-29); nil = the window's mask / the engine's setting.
+    @Published var recordMask: Set<String>?
+    @Published var recordBy: String?
+    @Published var recordAs = "Auto"
+    /// The Mask softkeys (IPCGBES toggles) are showing instead of the Record softkeys.
+    @Published var maskMenu = false
+    /// Update, Include, Copy, Move, Delete or Set Legend armed (PAL-29).
+    @Published var function: PaletteFunction?
+    /// Copy / Move: the id of the source palette, after its tap.
+    @Published var source: Int?
+    /// Delete: the palette number waiting for the confirmation on softkey A (two-step, PAT-10).
+    @Published var deleteTarget: Int?
+    @Published var legendEditing: PaletteRef?
+    /// Set Overlap (PAL-29): the overlap in % for the next palette tap only.
+    @Published var pendingOverlap: Double?
+    /// The Palette softkeys (PAL-29): opened by the Palette key on an empty line, they stay open
+    /// until Cancel, Exit or another context is chosen.
+    @Published var paletteMenu = false
+
+    func resetRecord() {
+        usedCell = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
+    }
+
+    /// Disarms Record and every palette function.
+    func cancelModes() {
+        recordArmed = false
+        function = nil; source = nil; deleteTarget = nil
+        paletteMenu = false
+    }
+
+    /// A function button: arms it (disarming the others), or disarms it when it is the armed one.
+    func arm(_ f: PaletteFunction) {
+        let on = function != f
+        cancelModes()
+        if on { function = f }
+    }
+
+    /// The Record choices as the command wants them: console order.
+    var orderedRecordMask: [String]? {
+        recordMask.map { mask in attributeGroupOrder.filter(mask.contains) }
+    }
 
     /// Rail entries and the workspace keys (F1–F4, ⌘1–⌘4) all come here.
     func show(workspace index: Int) {
@@ -47,6 +109,7 @@ private struct Frame: View {
     @EnvironmentObject private var line: TokenLine
     @EnvironmentObject private var engine: EngineClient
     @AppStorage("keypadVisible") private var keypad = true
+    @AppStorage("dayTheme") private var day = false
     @State private var keyMonitor: Any?
 
     var body: some View {
@@ -80,6 +143,12 @@ private struct Frame: View {
         }
         .background(t.bg)
         .foregroundStyle(t.fg)
+        .sheet(item: $ui.legendEditing, onDismiss: { ui.cancelModes() }) { ref in
+            LegendEditor(number: ref.number)
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
         .onAppear {
             // Mac keys (UI-19): the monitor stays installed; the handler checks the Keys toggle.
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [ui, line, engine] event in

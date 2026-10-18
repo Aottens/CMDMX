@@ -23,6 +23,7 @@ use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::library::channel_list::ChannelList;
+use cmdmx_core::palette::{AutoIcon, Cell, PaletteId, PaletteKind, Record, RecordBy, Timing};
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{PlaybackId, PAGES};
 use cmdmx_core::profile::Profile;
@@ -125,6 +126,40 @@ pub enum Command {
         id: FixtureId,
         handle: Handle,
     },
+    /// PAL-27: the palette commands name palettes by number and cells by window and handle.
+    PaletteRecord(Record),
+    PaletteApply {
+        number: u32,
+        timing: Timing,
+    },
+    PaletteInclude {
+        number: u32,
+    },
+    PaletteCopy {
+        number: u32,
+        to: Cell,
+    },
+    PaletteMove {
+        number: u32,
+        to: Cell,
+    },
+    PaletteRenumber {
+        number: u32,
+        to: u32,
+    },
+    PaletteDelete {
+        number: u32,
+    },
+    PaletteLegend {
+        number: u32,
+        legend: String,
+        icon: Option<String>,
+    },
+    SettingsPalette {
+        time: Option<f32>,
+        overlap: Option<f32>,
+        record_by: Option<RecordBy>,
+    },
 }
 
 /// LIB-14: the fixture library requests.
@@ -177,6 +212,28 @@ fn opt_uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<Option<
         None => Ok(None),
         Some(_) => uint(v, key).map(Some),
     }
+}
+
+/// An optional number field: absent is `None`, present but not a number is an error.
+fn opt_f32(v: &serde_json::Value, key: &str) -> Result<Option<f32>, String> {
+    match v.get(key) {
+        None => Ok(None),
+        Some(n) => n
+            .as_f64()
+            .map(|n| Some(n as f32))
+            .ok_or_else(|| format!("invalid \"{key}\" (expected a number)")),
+    }
+}
+
+/// A field that deserialises as `T` (a cell, an enum).
+fn field<T: serde::de::DeserializeOwned>(
+    v: &serde_json::Value,
+    key: &str,
+    expected: &str,
+) -> Result<T, String> {
+    v.get(key)
+        .and_then(|f| serde_json::from_value(f.clone()).ok())
+        .ok_or_else(|| format!("missing or invalid \"{key}\" (expected {expected})"))
 }
 
 /// IPC-04/06/13: one JSON text frame to a command, or a human-readable error.
@@ -338,6 +395,55 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 slot: uint(&v, "slot")?,
             },
         }),
+        Some("palette.record") => Ok(Command::PaletteRecord(
+            serde_json::from_value(v.clone())
+                .map_err(|e| format!("invalid palette.record: {e}"))?,
+        )),
+        Some("palette.apply") => Ok(Command::PaletteApply {
+            number: uint(&v, "number")?,
+            timing: Timing {
+                time: opt_f32(&v, "time")?,
+                overlap: opt_f32(&v, "overlap")?,
+            },
+        }),
+        Some("palette.include") => Ok(Command::PaletteInclude {
+            number: uint(&v, "number")?,
+        }),
+        Some("palette.copy") => Ok(Command::PaletteCopy {
+            number: uint(&v, "number")?,
+            to: field(&v, "to", "{window, handle}")?,
+        }),
+        Some("palette.move") => Ok(Command::PaletteMove {
+            number: uint(&v, "number")?,
+            to: field(&v, "to", "{window, handle}")?,
+        }),
+        Some("palette.renumber") => Ok(Command::PaletteRenumber {
+            number: uint(&v, "number")?,
+            to: uint(&v, "to")?,
+        }),
+        Some("palette.delete") => Ok(Command::PaletteDelete {
+            number: uint(&v, "number")?,
+        }),
+        Some("palette.legend") => Ok(Command::PaletteLegend {
+            number: uint(&v, "number")?,
+            legend: string(&v, "legend")?,
+            icon: match v.get("icon") {
+                None | Some(serde_json::Value::Null) => None,
+                Some(i) => Some(
+                    i.as_str()
+                        .map(String::from)
+                        .ok_or("invalid \"icon\" (expected a string or null)")?,
+                ),
+            },
+        }),
+        Some("settings.palette") => Ok(Command::SettingsPalette {
+            time: opt_f32(&v, "time")?,
+            overlap: opt_f32(&v, "overlap")?,
+            record_by: match v.get("record_by") {
+                None => None,
+                Some(_) => Some(field(&v, "record_by", "Channel or Mixed")?),
+            },
+        }),
         Some(other) => Err(format!("unknown cmd '{other}'")),
         None => Err("missing \"cmd\"".into()),
     }
@@ -400,6 +506,74 @@ struct GroupInfo<'a> {
     fixtures: &'a [FixtureId],
 }
 
+/// PAL-25: one palette as clients draw it.
+#[derive(Serialize, Clone, PartialEq)]
+struct PaletteInfo {
+    id: PaletteId,
+    number: u32,
+    window: cmdmx_core::palette::Window,
+    handle: u16,
+    legend: String,
+    icon: Option<String>,
+    auto_icon: Option<AutoIcon>,
+    kind: PaletteKind,
+    groups: Vec<AttributeGroup>,
+}
+
+/// PAL-25: the master time (s) and overlap (%) and the default Record By, as clients show them.
+#[derive(Serialize, Clone, PartialEq)]
+struct PaletteSettings {
+    time: f32,
+    overlap: f32,
+    record_by: RecordBy,
+}
+
+fn palette_settings(engine: &Engine) -> PaletteSettings {
+    let s = engine.settings();
+    PaletteSettings {
+        time: s.palette_time,
+        overlap: s.palette_overlap,
+        record_by: s.record_by,
+    }
+}
+
+#[derive(Serialize)]
+struct PaletteSettingsDelta {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    #[serde(flatten)]
+    settings: PaletteSettings,
+}
+
+#[derive(Serialize)]
+struct PalettesDelta<'a> {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    palettes: &'a [PaletteInfo],
+}
+
+/// PAL-25: sorted by number.
+fn palette_infos(engine: &Engine) -> Vec<PaletteInfo> {
+    let mut list: Vec<PaletteInfo> = engine
+        .palettes()
+        .map(|p| PaletteInfo {
+            id: p.id,
+            number: p.number,
+            window: p.window,
+            handle: p.handle,
+            legend: p.legend.clone(),
+            icon: p.icon.clone(),
+            auto_icon: engine.palette_auto_icon(p.number),
+            kind: p.kind(),
+            groups: engine.palette_groups(p.number),
+        })
+        .collect();
+    list.sort_by_key(|p| p.number);
+    list
+}
+
 #[derive(Serialize)]
 struct Snapshot<'a> {
     v: u8,
@@ -411,6 +585,8 @@ struct Snapshot<'a> {
     playbacks: Vec<PlaybackInfo>,
     fixtures: Vec<FixtureInfo<'a>>,
     groups: Vec<GroupInfo<'a>>,
+    palettes: Vec<PaletteInfo>,
+    palette_settings: PaletteSettings,
     programmer: &'a ProgrammerView,
     outputs: Vec<OutputJson>,
     show: &'a ShowState,
@@ -588,6 +764,8 @@ pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> 
         playbacks: infos(engine).collect(),
         fixtures: fixture_infos(engine),
         groups: group_infos(engine.groups()),
+        palettes: palette_infos(engine),
+        palette_settings: palette_settings(engine),
         programmer: &engine.programmer_view(),
         outputs: output_jsons(outputs),
         show,
@@ -617,6 +795,8 @@ pub struct Published {
     page: PageInfo,
     programmer: ProgrammerView,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    palettes: Vec<PaletteInfo>,
+    palette_settings: PaletteSettings,
     fixtures: Vec<Fixture>,
     outputs: Vec<OutputStatus>,
     show: ShowState,
@@ -630,6 +810,8 @@ impl Published {
             page: page_info(engine),
             programmer: engine.programmer_view(),
             groups: engine.groups().clone(),
+            palettes: palette_infos(engine),
+            palette_settings: palette_settings(engine),
             fixtures: engine.fixtures().cloned().collect(),
             outputs: outputs.to_vec(),
             show: show.clone(),
@@ -689,6 +871,26 @@ impl Published {
                 kind: "groups",
                 groups: group_infos(&self.groups),
             }));
+        }
+        // PAL-25: the whole list, once, after any change of it.
+        let palettes = palette_infos(engine);
+        if palettes != self.palettes {
+            out.push(to_json(&PalettesDelta {
+                v: 0,
+                kind: "palettes",
+                palettes: &palettes,
+            }));
+            self.palettes = palettes;
+        }
+        // PAL-25: the settings, once, after any change of them.
+        let settings = palette_settings(engine);
+        if settings != self.palette_settings {
+            out.push(to_json(&PaletteSettingsDelta {
+                v: 0,
+                kind: "palette_settings",
+                settings: settings.clone(),
+            }));
+            self.palette_settings = settings;
         }
         // PAT-09: the whole list, once, after any patch change.
         if !engine.fixtures().eq(self.fixtures.iter()) {
@@ -1138,7 +1340,7 @@ mod tests {
             v["programmer"],
             json!({"selection":[],"targets":[],"active_group":"I",
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
-                   "contents":[],"colour":null})
+                   "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]}})
         );
     }
 
@@ -1378,20 +1580,21 @@ mod tests {
             v["programmer"],
             json!({"selection":[1],"targets":[1],"active_group":"I",
                    "attribute_groups": no_values(true),
-                   "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false}],
-                   "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null})
+                   "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false,"palette":null}],
+                   "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null,
+                   "palettes":{"in_use":[],"relevant":[]}})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(&e, &[], &show_state()));
         assert_eq!(
             v["programmer"]["wheels"],
-            json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false}])
+            json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false,"palette":null}])
         );
         assert_eq!(v["programmer"]["in_programmer"], json!([1]));
         // IPC-21: programmer values per fixture.
         assert_eq!(
             v["programmer"]["contents"],
-            json!([{"fixture":1,"values":{"Dimmer":1.0}}])
+            json!([{"fixture":1,"values":{"Dimmer":1.0},"palettes":{},"fading":{}}])
         );
         assert_eq!(v["programmer"]["attribute_groups"][0]["has_values"], true);
     }
@@ -1955,6 +2158,260 @@ mod tests {
             r#"{"v":0,"cmd":"page.set"}"#,
             r#"{"v":0,"cmd":"page.set","page":"2"}"#,
             r#"{"v":0,"cmd":"page.set","page":-1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    // ---- palettes (PAL-25..27, VS2-19) -----------------------------------------------------
+
+    /// The test engine plus palette id 7 = number 2 "Full" (global Dimmer) in Beams cell 1 and
+    /// id 8 = number 5 "Red" (global Colour, fits no fixture here) in Colours cell 1.
+    fn engine_with_palettes() -> Engine {
+        use cmdmx_core::colour::TargetColour;
+        use cmdmx_core::palette::{GlobalValue, Palette, Window};
+        let mut e = engine();
+        let palette = |id, number, window, legend: &str, attribute: &str, value| Palette {
+            id,
+            number,
+            window,
+            handle: 1,
+            legend: legend.into(),
+            icon: None,
+            global: BTreeMap::from([(attribute.to_string(), GlobalValue::Value(value))]),
+            shared: BTreeMap::new(),
+            fixtures: BTreeMap::new(),
+        };
+        e.add_palette(palette(
+            8,
+            5,
+            Window::Colours,
+            "Red",
+            "Colour",
+            cmdmx_core::value::Value::Colour(TargetColour {
+                r: 1.0,
+                g: 0.0,
+                b: 0.0,
+            }),
+        ))
+        .unwrap();
+        e.add_palette(palette(
+            7,
+            2,
+            Window::Beams,
+            "Full",
+            "Dimmer",
+            cmdmx_core::value::Value::Level(1.0),
+        ))
+        .unwrap();
+        e
+    }
+
+    #[test]
+    fn pal_25_snapshot_lists_palettes_by_number() {
+        let mut e = engine_with_palettes();
+        e.set_palette_legend(2, "Full", Some("beam.zoom")).unwrap();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        assert_eq!(
+            v["palettes"],
+            json!([
+                {"id":7,"number":2,"window":"Beams","handle":1,"legend":"Full","icon":"beam.zoom",
+                 "auto_icon":{"value":{"attribute":"Dimmer","value":1.0}},"kind":"G","groups":["I"]},
+                {"id":8,"number":5,"window":"Colours","handle":1,"legend":"Red","icon":null,
+                 "auto_icon":{"colours":[{"r":1.0,"g":0.0,"b":0.0}]},"kind":"G","groups":["C"]}
+            ])
+        );
+    }
+
+    #[test]
+    fn pal_25_palettes_delta_after_a_change_only() {
+        let mut e = engine_with_palettes();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.tick(0.0);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+        e.set_palette_legend(5, "Warm", None).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1, "{d:?}");
+        let v = parse(&d[0]);
+        assert_eq!(v["v"], 0);
+        assert_eq!(v["type"], "palettes");
+        assert_eq!(v["palettes"].as_array().unwrap().len(), 2);
+        assert_eq!(v["palettes"][1]["legend"], "Warm");
+        e.tick(0.05);
+        assert!(
+            published.diff(&e, &[], &show_state()).is_empty(),
+            "no change, no delta"
+        );
+        e.move_palette(
+            5,
+            cmdmx_core::palette::Cell::new(cmdmx_core::palette::Window::Positions, 3),
+        )
+        .unwrap();
+        e.tick(0.075);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1);
+        assert_eq!(parse(&d[0])["palettes"][1]["window"], "Positions");
+    }
+
+    #[test]
+    fn pal_25_palette_settings_in_the_snapshot_and_a_delta_on_change() {
+        let mut e = engine_with_palettes();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        assert_eq!(
+            v["palette_settings"],
+            json!({"time":0.0,"overlap":100.0,"record_by":"Mixed"})
+        );
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_palette_master(Some(2.0), Some(50.0)).unwrap();
+        e.set_record_by(cmdmx_core::palette::RecordBy::Channel);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1, "{d:?}");
+        assert_eq!(
+            parse(&d[0]),
+            json!({"v":0,"type":"palette_settings","time":2.0,"overlap":50.0,"record_by":"Channel"})
+        );
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
+    fn pal_26_programmer_state_carries_palette_use() {
+        let mut e = engine_with_palettes();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        assert_eq!(
+            v["programmer"]["palettes"],
+            json!({"in_use":[],"relevant":[7,8]}),
+            "nothing selected: every palette is relevant (quick palette)"
+        );
+        e.select_fixture(1).unwrap();
+        e.apply_palette(2, cmdmx_core::palette::Timing::default())
+            .unwrap();
+        let p = &parse(&snapshot(&e, &[], &show_state()))["programmer"];
+        assert_eq!(p["palettes"], json!({"in_use":[7],"relevant":[7]}));
+        assert_eq!(
+            p["wheels"],
+            json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false,"palette":7}])
+        );
+        assert_eq!(
+            p["contents"],
+            json!([{"fixture":1,"values":{"Dimmer":1.0},"palettes":{"Dimmer":7},"fading":{}}])
+        );
+    }
+
+    #[test]
+    fn pal_27_palette_commands_parse() {
+        use cmdmx_core::palette::{Cell, Record, RecordAs, RecordBy, RecordMode, Timing, Window};
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":4}"#),
+            Command::PaletteRecord(Record::at(Cell::new(Window::Colours, 4)))
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"palette.record","window":"Beams","handle":2,"number":12,
+                  "mask":["I","B"],"record_by":"Channel","record_as":"Shared","mode":"QuickMerge"}"#
+            ),
+            Command::PaletteRecord(Record {
+                number: Some(12),
+                mask: Some(vec![AttributeGroup::I, AttributeGroup::B]),
+                record_by: Some(RecordBy::Channel),
+                record_as: RecordAs::Shared,
+                mode: Some(RecordMode::QuickMerge),
+                ..Record::at(Cell::new(Window::Beams, 2))
+            })
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.apply","number":3}"#),
+            Command::PaletteApply {
+                number: 3,
+                timing: Timing::default()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.apply","number":3,"time":2.0,"overlap":50}"#),
+            Command::PaletteApply {
+                number: 3,
+                timing: Timing {
+                    time: Some(2.0),
+                    overlap: Some(50.0)
+                }
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.include","number":3}"#),
+            Command::PaletteInclude { number: 3 }
+        );
+        let to = Cell::new(Window::Colours, 5);
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.copy","number":3,"to":{"window":"Colours","handle":5}}"#),
+            Command::PaletteCopy { number: 3, to }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.move","number":3,"to":{"window":"Colours","handle":5}}"#),
+            Command::PaletteMove { number: 3, to }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.renumber","number":3,"to":30}"#),
+            Command::PaletteRenumber { number: 3, to: 30 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.delete","number":3}"#),
+            Command::PaletteDelete { number: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm","icon":"colour.drop"}"#),
+            Command::PaletteLegend {
+                number: 3,
+                legend: "Warm".into(),
+                icon: Some("colour.drop".into())
+            }
+        );
+        for automatic in [
+            r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm","icon":null}"#,
+            r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm"}"#,
+        ] {
+            assert_eq!(
+                ok(automatic),
+                Command::PaletteLegend {
+                    number: 3,
+                    legend: "Warm".into(),
+                    icon: None
+                }
+            );
+        }
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"settings.palette","time":2.0}"#),
+            Command::SettingsPalette {
+                time: Some(2.0),
+                overlap: None,
+                record_by: None
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"settings.palette","overlap":50,"record_by":"Channel"}"#),
+            Command::SettingsPalette {
+                time: None,
+                overlap: Some(50.0),
+                record_by: Some(RecordBy::Channel)
+            }
+        );
+    }
+
+    #[test]
+    fn pal_27_bad_palette_commands_are_errors() {
+        for bad in [
+            r#"{"v":0,"cmd":"palette.record","window":"Colours"}"#,
+            r#"{"v":0,"cmd":"palette.record","window":"Gobos","handle":1}"#,
+            r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":"1"}"#,
+            r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":1,"mode":"Overwrite"}"#,
+            r#"{"v":0,"cmd":"palette.apply"}"#,
+            r#"{"v":0,"cmd":"palette.apply","number":3,"time":"2"}"#,
+            r#"{"v":0,"cmd":"palette.copy","number":3}"#,
+            r#"{"v":0,"cmd":"palette.move","number":3,"to":{"window":"Colours"}}"#,
+            r#"{"v":0,"cmd":"palette.renumber","number":3}"#,
+            r#"{"v":0,"cmd":"palette.delete","number":-1}"#,
+            r#"{"v":0,"cmd":"palette.legend","number":3}"#,
+            r#"{"v":0,"cmd":"settings.palette","record_by":"Group"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }

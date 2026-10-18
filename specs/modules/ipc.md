@@ -112,3 +112,10 @@ saturation for the colour picker) are specified in `ui.md`, approved by the owne
 
 ## Out of scope (this version)
 Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), a colour picker or swatch (UX-02), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.
+
+### Palettes (VS2-19; behaviour in `palettes.md`)
+The palette messages are specified in `palettes.md` as PAL-25 (snapshot `palettes` and the
+`palettes` delta), PAL-26 (programmer state: `palettes {in_use, relevant}` by palette id, a
+`palette` id or `null` per wheel, a `palettes` map per contents entry) and PAL-27 (the
+`palette.*` and `settings.palette` commands). Commands name palettes by number; state names
+them by id, and the snapshot entries carry both.

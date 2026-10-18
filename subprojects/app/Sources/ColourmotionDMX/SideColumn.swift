@@ -44,7 +44,7 @@ private struct ColumnHeader: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(text.uppercased()).font(Typo.legend(11, .semibold)).tracking(1.1).foregroundStyle(t.fg2)
-                .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading).frame(height: 22)
+                .lineLimit(1).minimumScaleFactor(0.7).frame(maxWidth: .infinity, alignment: .leading).frame(height: 22)
             HLine()
         }
         .padding(.bottom, 2)
@@ -75,14 +75,24 @@ struct SideColumn: View {
 
 private struct FunctionButtons: View {
     @EnvironmentObject private var ui: UIState
+    @EnvironmentObject private var engine: EngineClient
+
+    /// What an armed palette function waits for (the sketch's MODE_HINT).
+    private static let hints = [
+        "Update": "Update: tap the palette to update with what is in the programmer.",
+        "Include": "Include: tap a palette; its values go into the programmer.",
+        "Delete": "Delete: tap the palette to delete. You confirm on softkey A.",
+        "Copy": "Copy: tap the source palette, then an empty cell.",
+        "Move": "Move: tap the source palette, then an empty cell.",
+    ]
 
     // Titan's order, two columns. An empty spec = live; otherwise the spec the key waits for.
     private static let keys: [(String, String)] = [
-        ("Record", ""), ("Update", "Palettes · P1-03"),
-        ("Edit", "Palettes · P1-03"), ("Select If", "later"),
-        ("Delete", "Palettes · P1-03"), ("Unfold", "later"),
-        ("Copy", "Palettes · P1-03"), ("Move", "Palettes · P1-03"),
-        ("Include", "Palettes · P1-03"), ("Release", "Playbacks · P1-04"),
+        ("Record", ""), ("Update", ""),
+        ("Edit", "Palettes · phase 2"), ("Select If", "later"),
+        ("Delete", ""), ("Unfold", "later"),
+        ("Copy", ""), ("Move", ""),
+        ("Include", ""), ("Release", "Playbacks · P1-04"),
         ("Patch", ""), ("Disk", ""),
         ("Help", "later"), ("System", "later"),
         ("Blind", "later"), ("Off", "Highlight and Off · VS2-05"),
@@ -95,7 +105,8 @@ private struct FunctionButtons: View {
             ColumnHeader(text: "Functions")
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(68), spacing: 2), count: 2), spacing: 2) {
                 ForEach(Self.keys, id: \.0) { label, spec in
-                    FunctionKey(label: label, spec: spec, ring: label == "Record" && ui.recordArmed,
+                    FunctionKey(label: label, spec: spec,
+                                ring: label == "Record" ? ui.recordArmed : ui.function?.rawValue == label,
                                 action: spec.isEmpty ? { press(label) } : nil)
                 }
             }
@@ -106,9 +117,19 @@ private struct FunctionButtons: View {
 
     private func press(_ label: String) {
         switch label {
-        case "Record": ui.recordArmed.toggle()   // the next group tap records (Groups window)
+        case "Record":
+            // The next group or palette tap records. In the Mask softkeys, Record steps back first.
+            if ui.maskMenu { ui.maskMenu = false } else if ui.recordArmed { ui.recordArmed = false } else {
+                ui.cancelModes()
+                ui.recordArmed = true
+            }
         case "Patch": ui.screen = .patch
-        default: ui.screen = .show               // Disk
+        case "Disk": ui.screen = .show
+        default:
+            if let function = PaletteFunction(rawValue: label) {   // PAL-29
+                ui.arm(function)
+                if ui.function != nil, let hint = Self.hints[label] { engine.say(hint) }
+            }
         }
     }
 }
@@ -150,14 +171,14 @@ private struct Keypad: View {
     // The sketch's 30 keys in order; the second field is the spec a disabled key waits for
     // (empty = live).
     private static let keys: [(String, String, KeyButton.Style)] = [
-        ("Fixture", "", .normal), ("Palette", "Palettes · P1-03", .normal),
+        ("Fixture", "", .normal), ("Palette", "", .normal),
         ("Macro", "later", .normal), ("Group", "", .normal),
         ("Back", "", .normal), ("Thro", "", .normal),
         ("And", "", .normal), ("@", "", .normal),
         ("7", "", .number), ("8", "", .number),
         ("9", "", .number), ("Avo", "later", .command),
         ("4", "", .number), ("5", "", .number),
-        ("6", "", .number), ("Set", "Set Legend", .normal),
+        ("6", "", .number), ("Set", "", .normal),
         ("1", "", .number), ("2", "", .number),
         ("3", "", .number), ("Clear", "", .normal),
         ("Exit", "", .command), ("0", "", .number),
@@ -188,12 +209,16 @@ private struct Keypad: View {
     private func press(_ label: String) {
         switch label {
         case "Back": line.back()
-        case "Exit": line.clear()
-        case "Enter": line.send(engine)
-        case "Clear": engine.clearProgrammer(); ui.recordArmed = false
+        case "Exit": line.clear(); ui.paletteMenu = false
+        case "Enter": line.send(engine); ui.paletteMenu = false
+        case "Clear": engine.clearProgrammer(); ui.cancelModes(); ui.pendingOverlap = nil
+        case "Set": ui.arm(.legend)   // Set Legend, as the softkey
         case "Fix -1": engine.step(-1)
         case "Fix +1": engine.step(1)
         case "Odd/Even": engine.pattern(2)
+        case "Palette":
+            if line.tokens.isEmpty { ui.paletteMenu = true }   // PAL-29: the Palette softkeys, until Cancel or Exit
+            line.add(label)
         default: line.add(label)   // digits, ".", Fixture, Group, Thro, And, @
         }
     }
@@ -220,6 +245,8 @@ private struct Softkey {
     var sub = ""
     /// The spec a disabled key waits for.
     var spec = ""
+    /// Switched on (a group in the Record mask): inverted, as on Titan.
+    var on = false
     var action: (() -> Void)?
 }
 
@@ -228,24 +255,21 @@ private struct Softkeys: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
 
-    /// The context follows the state: Record armed, else a selection, else Main (UI-18).
+    @EnvironmentObject private var line: TokenLine
+
+    /// The context follows the state: Record armed, an armed palette function, the Palette key,
+    /// else a selection, else Main (UI-18).
     private var context: (name: String, keys: [Softkey?]) {
-        if ui.recordArmed {
-            return ("Record", [
-                Softkey(name: "Merge / Replace", spec: "Palettes · P1-03"),
-                Softkey(name: "Record by", spec: "Palettes · P1-03"),
-                Softkey(name: "Mask", spec: "Palettes · P1-03"),
-                nil, nil, nil,
-                Softkey(name: "Cancel", action: { ui.recordArmed = false }),
-            ])
-        }
+        if ui.recordArmed { return recordContext }
+        if let function = ui.function { return functionContext(function) }
+        if ui.paletteMenu { return paletteContext }
         if !engine.programmer.selection.isEmpty {
             return ("Selection", [
                 Softkey(name: "Next", sub: "Fix +1", action: { engine.step(1) }),
                 Softkey(name: "Previous", sub: "Fix −1", action: { engine.step(-1) }),
                 Softkey(name: "All", sub: "whole selection", action: { engine.selectAll() }),
                 Softkey(name: "Odd/Even", action: { engine.pattern(2) }),
-                Softkey(name: "Set Legend", spec: "Set Legend"),
+                setLegendKey,
                 Softkey(name: "Playback Options", spec: "Playbacks · P1-04"),
                 Softkey(name: "Undo", sub: "nothing", spec: "Undo · P1-10"),
             ])
@@ -253,7 +277,7 @@ private struct Softkeys: View {
         return ("Main", [
             Softkey(name: "Edit Times", sub: "selected playback", spec: "Cue lists · P1-08"),
             Softkey(name: "Playback Options", spec: "Playbacks · P1-04"),
-            Softkey(name: "Set Legend", spec: "Set Legend"),
+            setLegendKey,
             Softkey(name: "Shapes & Effects", sub: "phase 2", spec: "Shapes · phase 2"),
             Softkey(name: "Timecode", sub: "phase 3", spec: "Timecode · phase 3"),
             Softkey(name: "Lock", sub: "venue mode", spec: "later"),
@@ -261,21 +285,117 @@ private struct Softkeys: View {
         ])
     }
 
+    private var setLegendKey: Softkey {
+        Softkey(name: "Set Legend", sub: "then tap a palette", action: { ui.arm(.legend); engine.say("Set Legend: tap a palette.") })
+    }
+
+    // MARK: Record (PAL-06, PAL-29)
+
+    /// Record armed. After a tap on a used cell, A–C pick the mode; D–F are for this record only.
+    private var recordContext: (name: String, keys: [Softkey?]) {
+        let used = ui.usedCell
+        if ui.maskMenu {
+            let base = used.flatMap { PaletteWindowKind.of(wire: $0.window) }?.mask ?? workspaceMaskBase
+            let mask = ui.recordMask ?? Set(base)
+            return ("Record · Mask", Array(attributeGroupOrder.prefix(7)).map { group in
+                Softkey(name: group, sub: mask.contains(group) ? "on" : "off", on: mask.contains(group)) {
+                    var m = mask
+                    if m.contains(group) { m.remove(group) } else { m.insert(group) }
+                    ui.recordMask = m
+                }
+            })
+        }
+        let mode = { (name: String, sub: String, wire: String) -> Softkey? in
+            guard let used else { return nil }
+            return Softkey(name: name, sub: sub) {
+                engine.recordPalette(window: used.window, handle: used.handle, mask: ui.orderedRecordMask,
+                                     recordBy: ui.recordBy, recordAs: ui.recordAs, mode: wire)
+                ui.recordArmed = false
+            }
+        }
+        return (used.map { "Record · \($0.number)" } ?? "Record", [
+            mode("Replace", "new contents", "Replace"),
+            mode("Merge", "add and overwrite", "Merge"),
+            mode("Quick Merge", "held attributes", "QuickMerge"),
+            Softkey(name: "Mask", sub: (ui.recordMask.map { attributeGroupOrder.filter($0.contains).joined() }) ?? "window") {
+                ui.maskMenu = true
+            },
+            Softkey(name: "Record By", sub: recordBy) { ui.recordBy = recordBy == "Channel" ? "Mixed" : "Channel" },
+            Softkey(name: "Record as", sub: ui.recordAs) {
+                ui.recordAs = ["Auto": "Normal", "Normal": "Shared"][ui.recordAs] ?? "Auto"
+            },
+            Softkey(name: "Cancel", action: { ui.recordArmed = false }),
+        ])
+    }
+
+    /// This record's Record By: the operator's choice, else the engine's setting (PAL-25).
+    private var recordBy: String { ui.recordBy ?? engine.paletteSettings?.recordBy ?? "Mixed" }
+
+    /// Where the Mask toggles start before a cell is tapped: the first palette window of the workspace.
+    private var workspaceMaskBase: [String] {
+        Workspace.all[safe: ui.workspace]?.windows.lazy.compactMap(\.paletteKind).first?.mask ?? ["C"]
+    }
+
+    // MARK: Update, Include, Copy, Move, Delete, Set Legend (PAL-29)
+
+    private func functionContext(_ function: PaletteFunction) -> (name: String, keys: [Softkey?]) {
+        var keys: [Softkey?] = Array(repeating: nil, count: 7)
+        if function == .delete, let number = ui.deleteTarget {
+            keys[0] = Softkey(name: "Confirm delete", sub: "palette \(number)") {
+                engine.deletePalette(number)
+                ui.cancelModes()
+            }
+        }
+        keys[6] = Softkey(name: "Cancel", action: { ui.cancelModes() })
+        return (function.rawValue, keys)
+    }
+
+    // MARK: Palette key (PAL-15, PAL-29)
+
+    /// Master Time and Master Overlap take the number on the line; without one they show the value.
+    private var paletteContext: (name: String, keys: [Softkey?]) {
+        func master(_ name: String, unit: String, current: Double?, send: @escaping (Double) -> Void) -> Softkey {
+            Softkey(name: name, sub: current.map { "\(plain($0)) \(unit)" } ?? "?") {
+                if let n = line.paletteArgument {
+                    send(n)
+                    line.clear()
+                } else {
+                    engine.say("\(name): \(current.map { "\(plain($0)) \(unit)" } ?? "unknown"). Type a number first to change it.")
+                }
+            }
+        }
+        return ("Palette", [
+            master("Master Time", unit: "s", current: engine.paletteSettings?.time) { engine.setPaletteMaster(time: $0) },
+            master("Master Overlap", unit: "%", current: engine.paletteSettings?.overlap) { engine.setPaletteMaster(overlap: $0) },
+            Softkey(name: "Set Overlap", sub: ui.pendingOverlap.map { "next tap \(plain($0)) %" } ?? "next tap only") {
+                if let n = line.paletteArgument {
+                    ui.pendingOverlap = n
+                    line.clear()
+                    engine.say("Overlap \(plain(n)) % for the next palette tap.")
+                } else {
+                    engine.say("Set Overlap: type the overlap in % first.")
+                }
+            },
+            nil, nil, nil,
+            Softkey(name: "Cancel", action: { line.clear(); ui.paletteMenu = false }),
+        ])
+    }
+
     var body: some View {
         let context = context
         VStack(spacing: 0) {
-            ColumnHeader(text: "Softkeys · \(context.name)")
+            ColumnHeader(text: context.name)
             VStack(spacing: 2) {
                 ForEach(Array(context.keys.enumerated()), id: \.offset) { index, key in
                     Button { key?.action?() } label: {
                         ZStack(alignment: .topLeading) {
-                            SoftkeyShape().fill(t.surf2)
-                            Text(String(UnicodeScalar(UInt8(65 + index)))).font(Typo.mono(11, .semibold)).foregroundStyle(t.fg3)
+                            SoftkeyShape().fill(key?.on == true ? t.fg : t.surf2)
+                            Text(String(UnicodeScalar(UInt8(65 + index)))).font(Typo.mono(11, .semibold)).foregroundStyle(key?.on == true ? t.bg : t.fg3)
                                 .padding(.leading, 14).padding(.top, 6)
                             if let key {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(key.name).font(Typo.legend()).foregroundStyle(t.fg)
-                                    if !key.sub.isEmpty { Text(key.sub).font(Typo.mono(Typo.small)).foregroundStyle(t.fg2) }
+                                    Text(key.name).font(Typo.legend()).foregroundStyle(key.on ? t.bg : t.fg)
+                                    if !key.sub.isEmpty { Text(key.sub).font(Typo.mono(Typo.small)).foregroundStyle(key.on ? t.bg : t.fg2) }
                                 }
                                 .padding(.leading, 28).padding(.top, 6)
                             }

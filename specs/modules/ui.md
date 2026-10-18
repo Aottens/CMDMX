@@ -47,7 +47,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   SF Pro for UI text, SF Mono with tabular digits for every number and for the command line.
   Three sizes only: 10–11, 12–13 and 15–20 pt. Tags are uppercase with tracking.
 - **UI-05 [now]** One button system for fixture, group and palette cells, as in the sketch:
-  - The cell is 54 pt high, on a fixed 8-column grid with 2 pt gaps.
+  - The cell is about 72 pt high, on a fixed 6-column grid with 2 pt gaps (amended 2026-10-18,
+    owner, VS2-19 run: 54 pt in 8 columns was too small next to a Titan).
   - The number sits top-left and a tag top-right; the legend is condensed, two lines at most.
   - Empty = outline only with a faint number. Selected = 2 pt blue inner border and a blue
     number. In programmer = 3 pt red top strip. Not relevant = 38 % opacity.
@@ -92,8 +93,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   table.
 
 ### Windows (UX-02a; Programmer and Colour picker in UX-02b)
-- **UI-11 [now]** Fixtures: one cell per fixture, in handle order (PAT-14). There are 8 cells per
-  row and `handles_per_page` cells per handle page, with page tabs in the title row when there is
+- **UI-11 [now]** Fixtures: one cell per fixture, in handle order (PAT-14). There are 6 cells per
+  row (UI-05) and `handles_per_page` cells per handle page, with page tabs in the title row when there is
   more than one page.
   - The cell shows the user number, the selection order top-right in blue, and the fixture's
     name, or else its profile's model, as the legend.
@@ -109,15 +110,15 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     (UI-16).
   - The IPCGBES mask strip is drawn empty [later; it needs the groups' attribute groups over
     IPC].
-- **UI-13 [now]** The Colours, Positions and Gobos & Beams windows show their 32 empty, numbered,
-  disabled cells (Colours 1–32, Positions 41–72, Gobos & Beams 81–112, as in the sketch) and the
-  info "Palettes · P1-03". Cue list and Active playbacks show the sketch's column headers, an
+- **UI-13 [now]** The Colours, Positions and Gobos & Beams windows are live palette windows as
+  `palettes.md` PAL-28 describes (palettes on handles, no fixed number ranges; amended
+  2026-10-18, VS2-19). Cue list and Active playbacks show the sketch's column headers, an
   empty table and the info "Cue lists · P1-08" or "Playbacks · P1-04".
 - **UI-14 [now, UX-02b]** Programmer: a table with one row per fixture that has programmer values
   (IPC-21): # (user number), Fixture (name or model), I, P, C, B.
   - A touched value is red. A Colour value shows a swatch plus its hex. An attribute the fixture
     lacks shows "·".
-  - Palette references in cyan [with P1-03].
+  - Palette references in cyan with the palette's legend (PAL-30).
   - When the programmer is empty, the window shows the sketch's one-line note.
 - **UI-15 [now, UX-02b]** Colour picker:
   - A hue/saturation field with a marker at the first target's colour (IPC-22). Clicking or
@@ -139,8 +140,9 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Live now: **Record**, which arms with a red ring; the next group tap sends `group.record`
     and Clear disarms it. **Patch** opens the Patch screen. **Disk** opens the Show screen
     (SHW-17; owner, 2026-10-18).
-  - Every other button is disabled with its spec in the tooltip: Update, Edit, Delete, Copy,
-    Move and Include with P1-03; Release, Options and Latch with P1-04; Off with VS2-05; Help
+  - Update, Delete, Copy, Move and Include work on palettes as PAL-29 describes (VS2-19).
+  - Every other button is disabled with its spec in the tooltip: Edit "phase 2" (palettes
+    decision 4); Release, Options and Latch with P1-04; Off with VS2-05; Help
     and System later; Select If, Unfold, Blind, Fan and Shape "later" as in the
     sketch.
 - **UI-17 [now]** The keypad has the sketch's 30 keys in its order. Keys that work now:
@@ -150,7 +152,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Clear (`programmer.clear`), which glows red while the selection or programmer is non-empty.
   - Fix −1 / Fix +1 (`programmer.step`) and Odd/Even (`programmer.pattern` 2).
 
-  Disabled: Palette (P1-03), Macro (later), Avo and View (later), Set (with Set Legend),
+  Palette adds the `Palette` token, and with an empty line opens the Palette softkeys (PAL-29).
+  Set arms Set Legend (PAL-29, as Titan's Set key). Disabled: Macro (later), Avo and View (later),
   Highlight and Locate (VS2-05).
 
   The Keypad toggle in the status bar hides the keypad, and it is hidden automatically on a
@@ -158,13 +161,16 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   minimum window of UI-01 the threshold has to be wider.
 - **UI-18 [now]** Softkeys A–G in the sketch's arrow shape, with the context name in the
   header.
-  - Main context: Edit Times, Playback Options and Set Legend are disabled with their specs;
+  - Main context: Set Legend works on palettes (PAL-29); Edit Times and Playback Options are
+    disabled with their specs;
     Shapes & Effects (phase 2), Timecode (phase 3) and Lock (later) are disabled; Undo is
     disabled until P1-10.
   - Selection context (when something is selected): Next and Previous (Fix ±1), All
-    (`programmer.all`) and Odd/Even work; Set Legend and Playback Options are disabled.
-  - Record context (Record armed): only Cancel works; Merge/Replace, Record by and Mask are
-    disabled with P1-03.
+    (`programmer.all`), Odd/Even and Set Legend (palettes, PAL-29) work; Playback Options is
+    disabled.
+  - Record context (Record armed): Cancel, plus the palette softkeys of PAL-29 (Replace, Merge,
+    Quick Merge after a tap on a used cell; Mask, Record By, Record as).
+  - Palette context (PAL-29): Master Time, Master Overlap, Set Overlap, Cancel.
 
   A right-click on a cell is reserved for its context softkeys [with P1-03/P1-04].
 
@@ -175,7 +181,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   While **Keys** is live (status bar toggle, off by default), the Mac keyboard drives the keypad:
   - The digits and `.`.
   - `-` = Thro, `+` = And, `@`, Return = Enter, Esc = Exit, Backspace = Back.
-  - F = Fixture, G = Group, P = Palette (disabled until P1-03).
+  - F = Fixture, G = Group, P = Palette.
   - F1–F4 = workspaces.
   - Up and Down = command history (UI-27).
 

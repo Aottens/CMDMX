@@ -6,11 +6,12 @@ import SwiftUI
 
 // MARK: - Cell (UI-05)
 
-/// One button of the fixed 8-column grid: 54 pt high, number top-left, tag or selection order
+/// One button of the fixed 6-column grid: 72 pt high, number top-left, tag or selection order
 /// top-right, condensed legend. State never changes the fill.
 struct Cell: View {
     @Environment(\.theme) private var t
-    let number: Int
+    /// nil: no number (an empty palette cell gets its number when it is recorded).
+    let number: Int?
     var tag: String?
     var legend = ""
     /// 1-based selection order, shown top-right in blue (replaces the tag).
@@ -27,15 +28,26 @@ struct Cell: View {
     /// Disabled output lamp stripe (fixtures, IDEA-10) / empty IPCGBES mask strip (groups).
     var lamp = false
     var mask = false
+    /// With `mask`: the attribute groups that are lit in the IPCGBES strip (palettes, PAL-28).
+    var maskGroups: [String] = []
+    /// Not relevant to the selection: 38 % opacity (UI-05).
+    var faded = false
+    /// A palette's icon, between the number row and the legend.
+    var icon: AnyView?
     var action: (() -> Void)?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Rectangle().fill(empty ? Color.clear : t.surf)
 
-            Text("\(number)").font(Typo.mono(Typo.small))
-                .foregroundStyle(selected ? t.blue.opacity(dimmed ? 0.4 : 1) : empty ? (armed ? t.red : t.fg3) : t.fg2)
-                .padding(.leading, 4).padding(.top, 4)
+            if let number {
+                Text("\(number)").font(Typo.mono(Typo.small))
+                    .foregroundStyle(selected ? t.blue.opacity(dimmed ? 0.4 : 1) : empty ? (armed ? t.red : t.fg3) : t.fg2)
+                    .padding(.leading, 4).padding(.top, 4)
+            } else if armed {
+                // Record armed: an empty palette cell shows a red mark where its number will be.
+                Text("+").font(Typo.mono(Typo.small)).foregroundStyle(t.red).padding(.leading, 4).padding(.top, 4)
+            }
 
             if !empty {
                 VStack(spacing: 0) {
@@ -52,13 +64,21 @@ struct Cell: View {
                     .padding(.horizontal, 4).padding(.bottom, 3)
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
+            if let icon {
+                icon.padding(.horizontal, 4).padding(.top, 19)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
             if mask {
-                HStack(spacing: 1) { ForEach(0..<8, id: \.self) { _ in Rectangle().fill(t.line).frame(height: 3) } }
+                HStack(spacing: 1) {
+                    ForEach(attributeGroupOrder, id: \.self) { group in
+                        Rectangle().fill(maskGroups.contains(group) ? Theme.groupHue(group) : t.line).frame(height: 3)
+                    }
+                }
                     .padding(.horizontal, 3).padding(.bottom, 2)
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
-        .frame(maxWidth: .infinity).frame(height: 54)
+        .frame(maxWidth: .infinity).frame(height: 72)
         .overlay(alignment: .topTrailing) {
             if let order {
                 Text("\(order)").font(Typo.mono(Typo.small, .semibold)).foregroundStyle(t.blue.opacity(dimmed ? 0.4 : 1)).padding(4)
@@ -82,6 +102,7 @@ struct Cell: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: radius))
+        .opacity(faded ? 0.38 : 1)
         .contentShape(Rectangle())
         .onTapGesture { action?() }
         .accessibilityElement(children: .combine)
@@ -94,7 +115,7 @@ private struct CellScroll<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) { content }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 6), spacing: 2) { content }
                 .padding(3)
         }
     }
@@ -177,8 +198,8 @@ struct GroupsWindow: View {
 
     var body: some View {
         let byId = Dictionary(engine.groups.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        // 24 cells, or more (whole rows of 8) when the show has higher group numbers.
-        let cells = max(24, ((engine.groups.map(\.id).max() ?? 0) + 7) / 8 * 8)
+        // 24 cells, or more (whole rows of 6) when the show has higher group numbers.
+        let cells = max(24, ((engine.groups.map(\.id).max() ?? 0) + 5) / 6 * 6)
         let selection = Set(engine.programmer.selection)
 
         PanelWindow(
@@ -213,22 +234,7 @@ struct GroupsWindow: View {
     }
 }
 
-// MARK: - Placeholders for later specs (UI-13)
-
-/// Colours, Positions or Gobos & Beams: 32 empty, numbered, disabled cells.
-struct PaletteWindow: View {
-    let title: String
-    let first: Int
-
-    var body: some View {
-        PanelWindow(title: title, info: "Palettes · P1-03", accessory: { EmptyView() }) {
-            CellScroll {
-                ForEach(first..<(first + 32), id: \.self) { Cell(number: $0, empty: true) }
-            }
-            .help("Palettes · P1-03")
-        }
-    }
-}
+// MARK: - Placeholders for later specs
 
 /// Cue list or Active playbacks: the sketch's column headers over an empty table.
 struct TablePlaceholderWindow: View {
@@ -260,13 +266,23 @@ struct TablePlaceholderWindow: View {
 enum WindowKind {
     case groups, fixtures, colours, positions, beams, programmer, picker, cues, active
 
+    /// The palette window this is, if it is one.
+    var paletteKind: PaletteWindowKind? {
+        switch self {
+        case .colours: return .colours
+        case .positions: return .positions
+        case .beams: return .beams
+        default: return nil
+        }
+    }
+
     @ViewBuilder var view: some View {
         switch self {
         case .groups: GroupsWindow()
         case .fixtures: FixturesWindow()
-        case .colours: PaletteWindow(title: "Colours", first: 1)
-        case .positions: PaletteWindow(title: "Positions", first: 41)
-        case .beams: PaletteWindow(title: "Gobos & Beams", first: 81)
+        case .colours: PaletteWindow(kind: .colours)
+        case .positions: PaletteWindow(kind: .positions)
+        case .beams: PaletteWindow(kind: .beams)
         case .programmer: ProgrammerWindow()
         case .picker: ColourPickerWindow()
         case .cues: TablePlaceholderWindow(title: "Cue list", spec: "Cue lists · P1-08", columns: ["Q", "Name", "Delay", "Fade", "Link"])

@@ -57,9 +57,11 @@ Early, under active development, not yet for real shows. What works today:
   (Global/Shared/Normal decided automatically, also across fixture types; positions in degrees),
   apply them by tap or `Palette 3 Enter`, with or without a selection, snapping or fading over a
   typed or master time with fixture overlap. Cues and playbacks keep a reference, so changing a
-  palette changes every place that uses it. Not in the app yet.
+  palette changes every place that uses it. In the app: Colours, Positions and Gobos & Beams
+  windows with automatic icons (colour swatch, pan/tilt plot) or one from a built-in library,
+  Record/Update/Include/Copy/Move/Delete and legends, as on Titan.
 
-Next: the palette windows in the app, then playbacks and cue lists; checking
+Next: playbacks and cue lists; checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
