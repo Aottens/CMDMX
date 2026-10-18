@@ -1,4 +1,5 @@
-//! PBK-01, PBK-02: pages of playbacks (`specs/modules/playbacks.md`, VS1-06 subset).
+//! PBK-01, PBK-02: pages of playbacks (`specs/modules/playbacks.md`, VS1-06 subset). Since
+//! P1-04 the playbacks are stored on handles (PBK-06); the rig stores them where PBK-01 put them.
 
 #![allow(
     clippy::panic,
@@ -12,7 +13,7 @@ mod common;
 use std::collections::BTreeMap;
 
 use cmdmx_core::engine::{Engine, Settings};
-use cmdmx_core::playback::{FaderMode, Playback, Priority, PAGES};
+use cmdmx_core::playback::{Playback, PAGES};
 
 /// The church rig with one playback per id in `ids`, each putting one wash's Dimmer at full.
 fn rig(settings: Option<Settings>, ids: &[u32]) -> Engine {
@@ -30,13 +31,17 @@ fn rig(settings: Option<Settings>, ids: &[u32]) -> Engine {
         })
         .0;
     }
+    // Each playback stored where PBK-01 put it (the schema 3 migration keeps that, PBK-45).
+    let per_page = u32::from(e.settings().faders_per_page);
     for &id in ids {
-        e.add_playback(Playback {
+        let page = u16::try_from((id - 1) / per_page + 1).unwrap();
+        let slot = u16::try_from((id - 1) % per_page + 1).unwrap();
+        e.add_playback(Playback::new(
             id,
-            priority: Priority::Normal,
-            fader_mode: FaderMode::Mode0,
-            values: BTreeMap::from([(101, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
-        });
+            page,
+            slot,
+            BTreeMap::from([(101, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
+        ));
     }
     e
 }

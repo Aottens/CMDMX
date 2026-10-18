@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-18 — Playbacks follow Titan; a playback holds a list of cues (P1-04, owner)
+
+**Decision:** `specs/modules/playbacks.md` PBK-06..45. Playbacks live on stored handles (page.slot) with Titan's paging locks; recording stores the programmer (touched attributes only by default, Record By Channel) with palette references and fallback values; fader modes 0/1/2 with delay/fade in/fade out/overlap per cue (mode 1 falls no faster than full scale per fade-out time); Titan kill point, release mask (empty global default) and release time (2 s); fixed Swop/Flash plus Latch; automatic halo from the cue's colour; DBO as live toggle. A playback stores a list of cues (one in phase 1), so P1-08 cue lists need no second migration. Chases with BPM/Rate masters move to P1-08; group masters get their own spec (P1-16); attribute-group times come with P1-08.
+
+**Alternatives considered:** Mixed or By Fixture as record default; Titan key profiles now; halo only as a user choice; a separate cue-list storage kind; chases and masters inside `playbacks.md`.
+
+**Reasoning:** market-conform Titan behaviour; touched-only cues keep phase-2 tracking open; one storage shape for memories and cue lists keeps the show file stable.
+
+**Reversal trigger:** a Titan behaves differently in modes 0/1, or operators miss key profiles in the church.
+
 ## 2026-10-18 — Palettes follow Titan, market practice over the church (P1-03, owner)
 
 **Decision:** `specs/modules/palettes.md` PAL-01..32. A palette is a reference: programmer and playbacks store `{"palette": id, "value": fallback}`; the merge resolves it every tick and uses the fallback when the palette resolves nothing or is deleted (Titan's delete behaviour). Global covers intensity, Pan, Tilt and Colour as on Titan, with Pan/Tilt stored in degrees via the profile's physical ranges. Record By defaults to Mixed (Channel as option). A palette lives on the cell it was recorded on and gets the next free number; its window only proposes the record mask (not ONYX's place-decides model). No Edit in phase 1 (Include + Record → Merge); icons via SF Symbols plus own glyphs, the show stores only our own icon ids; overlap time is per fixture.

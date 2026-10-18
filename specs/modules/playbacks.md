@@ -2,8 +2,8 @@
 
 Owner: `cmdmx-core::playback` (pure: storage, recording, fader modes, release, flash/swop),
 `cmdmx-daemon` (IPC), the playback area and Playback Options in `subprojects/app`.
-Status: **PBK-01..05 approved by owner 2026-10-18 (VS1-06 subset). PBK-06..45 draft for owner
-approval (P1-04, 2026-10-18); open questions at the end.**
+Status: **PBK-01..05 approved by owner 2026-10-18 (VS1-06 subset); PBK-06..45 approved by owner
+2026-10-18 (P1-04), owner decisions at the end.**
 Behavioural reference: Avolites Titan v19 manual, *Cues* (https://manual.avolites.com/docs/cues:
 Creating a Cue, Cue Playback, Cue Timing, Playback Options, Copying/Moving/Linking/Deleting) and
 the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1 (`specs/ux/main-screen.html`:
@@ -78,7 +78,10 @@ playback unless it says "per cue".
   - `Locked`: shown at its slot on every page; a playback stored at that slot on another page is
     not reachable while the lock exists.
   - `TransparentLock`: shown at its slot on every page whose own slot is empty.
-  Two `Locked` playbacks on the same slot: setting the second is refused with a warning. Church:
+  Two `Locked` playbacks on the same slot: setting the second is refused with a warning. Record,
+  Copy and Move onto a slot address what it shows: a slot covered by a `Locked` playback is used
+  (that playback); a slot showing a `TransparentLock` one from another page is empty, and a
+  playback recorded there covers it on that page. Church:
   the front spots 301–306 on handle 1.8, `Locked`, so they can go out for a video from any page.
 - **PBK-08** Page legends: 0–32 characters, empty by default; an empty page legend shows nothing
   next to the number (UI-21). Live state that stays out of the show: the current page (PBK-02).
@@ -94,7 +97,7 @@ playback unless it says "per cue".
   the palette references for 201–208.
 - **PBK-10** *Record By* for playbacks: setting `cue_record_by`, default `Channel` (only touched
   attributes, so tracking can follow in phase 2, `PROJECT.md`), overridable per record; `Mixed`
-  behaves as PAL-02 (whole P and C groups of a touched fixture). *(Open question 1.)*
+  behaves as PAL-02 (whole P and C groups of a touched fixture). (Owner decision 1.)
 - **PBK-11** Palette references stay references: a programmer value `{"palette": id, "value": …}`
   is stored as a reference to the same palette, its fallback `value` set to what the reference
   resolves to at the moment of recording (PAL definitions, PAL-11, PAL-18). Manual values are
@@ -128,8 +131,7 @@ playback unless it says "per cue".
 - **PBK-16** **Mode 1.** As mode 0, and a falling level lowers *m* no faster than full scale per
   `fade_out` (from 100 % to 0 in `fade_out`; at once when 0), so pulling the fader down fades the
   intensity out over the fade-out time. LTP values stay as the cue set them. Washes at full,
-  `fade_out` 4 s, fader pulled to 0 at t = 0 → Dimmer 50 % at 2 s, 0 at 4 s. *(Open question 2:
-  the exact Titan time model of modes 0/1.)*
+  `fade_out` 4 s, fader pulled to 0 at t = 0 → Dimmer 50 % at 2 s, 0 at 4 s. (Owner decision 2.)
 - **PBK-17** **Mode 2.** Times are ignored. *m* is the effective level, and every LTP value
   crossfades with the fader from the value the attribute output in the tick before the playback
   fired (captured per fixture and attribute) to the cue's value: output = from + *f* · (cue −
@@ -185,7 +187,7 @@ playback unless it says "per cue".
   Latch is armed for one press; Clear or Exit disarms it.
 - **PBK-29** Flash and Swop are the two fixed buttons per handle in phase 1, the same for every
   playback (upper Swop, lower Flash, UI-22). P1-08 decides what they do on a playback with more
-  than one cue (Titan key profiles: Go, Flash and Go). *(Open question 3.)*
+  than one cue (Titan key profiles: Go, Flash and Go). (Owner decision 3.)
 
 ### Grand Master and DBO
 - **PBK-30** **DBO** (Dead Black Out) is a toggle: while on, every HTP output is 0 after the merge,
@@ -203,7 +205,7 @@ playback unless it says "per cue".
 - **PBK-33** Halo: `null` means **automatic**: the first colour of the automatic icon when it has
   colours, else no halo; a picked colour is used as is. The halo is drawn as the strip's top bar
   (UI-22, sketch) and is separate from every state colour (UI-03). It is the colour later sent to
-  a control surface's fader LEDs where one has them (CTL). *(Open question 4.)*
+  a control surface's fader LEDs where one has them (CTL). (Owner decision 4.)
 
 ### Show file (extends `showfile.md`)
 - **PBK-34** Schema version 3 (SHW-04 migration from 2): `settings` gains `cue_record_by`,
@@ -312,42 +314,38 @@ on `cmdmx-core` (`tests/playbacks.rs`, `tests/showfile.rs`); everything that rea
   PAL-13/14) is the one a Go uses between cues.
 - Cues store touched attributes only by default (PBK-10), so tracking can follow in phase 2.
 
-## Build tasks (proposed, `BACKLOG.md` after approval)
-1. **VS2-20** core: stored handles and locks, record/Update/Copy/Move/Delete, fader modes with
-   times, kill point, release, groups, Flash/Swop/Latch, DBO, automatic icon and halo, show
-   schema 3 with migration (PBK-06..34, 43..45). Tests: `cmdmx-core/tests/playbacks.rs`,
-   scenarios PBK-15..30. Size L (may split into a storage task and a playback-behaviour task).
-2. **VS2-21** IPC and the app: strips, function buttons on handles, Playback Options screen,
+## Build tasks (`BACKLOG.md`)
+1. **VS2-20** core storage: stored handles and locks, record/Replace/Merge/Update,
+   Copy/Move/Delete, palette and patch changes, legends, automatic icon and halo, settings, show
+   schema 3 with migration and lenient load (PBK-06..14, 24, 31..34, 43..45). Tests:
+   `cmdmx-core/tests/playbacks.rs`, `tests/showfile.rs`.
+2. **VS2-21** core behaviour on the frame: fader modes with times, references while fading, kill
+   point, release, Release, groups, Flash/Swop/Latch, DBO (PBK-15..23, 25..30). Tests: scenarios
+   `tests/scenarios/PBK-*.json`, `cmdmx-core/tests/playback_modes.rs`.
+3. **VS2-22** IPC and the app: strips, function buttons on handles, Playback Options screen,
    Active playbacks, DBO, `tests/manual/app-playbacks.md` (PBK-35..42).
 
 ## Out of scope (phase 1 unless noted)
 Fader mode 3 (crossfade cue) and Cross Fade HTP (phase 2); fade curves; per attribute-group and
-per-attribute times (Titan *Set Attribute Times*; with P1-08 or phase 2, open question 5);
+per-attribute times (Titan *Set Attribute Times*; with P1-08, owner decision 5);
 Fixture Order (overlap follows user-number order); key profiles beyond the fixed Swop/Flash;
 Preload, Timed Flash, Go on a single-cue playback; Release all (double Release) and the Release
 Priority setting; Release to Home; Off Playback with mask; Run On Startup; shapes and effect
-options (phase 2); Blind; **chases, the BPM/Rate/Size masters and group masters** (open question
-6); virtual faders and executor buttons; physical fader pickup and motor behaviour on page change
+options (phase 2); Blind; chases with the BPM and Rate masters (P1-08) and group masters (P1-16; owner decision 6); Size
+masters (with shapes, phase 2); virtual faders and executor buttons; physical fader pickup and motor behaviour on page change
 (VS1-07, CTL); undo (P1-10).
 
-## Open questions (owner decides at gate 1)
-1. **Record By for playbacks** (PBK-10): `Channel` by default (touched only, the phase-1 decision
-   that keeps tracking possible), or follow palettes and default to `Mixed`, or Titan's own
-   default *By Fixture*? Proposal: `Channel`, with `Mixed` as option.
-2. **Time model of modes 0/1** (PBK-15/16): fade-in as a fade on fire scaled by the fader, and
-   mode 1's fade-out as "no faster than full scale per `fade_out`". The Titan manual describes
-   the modes only in words; if you know a Titan does it differently (e.g. mode 1 fades out only
-   once the fader reaches 0), say so and the criterion follows Titan.
-3. **Key profiles** (PBK-29): fixed Swop/Flash (+ Latch) in phase 1, Titan's per-key action
-   choice (Flash, Swop, Latch, Go, Release, …) later? Proposal: fixed now, P1-08 adds Go for
-   cue lists.
-4. **Automatic halo** (PBK-33): the sketch colours the halo from the cue's colour; on Titan the
-   halo is only a user choice. Proposal: automatic by default, a picked colour or "none" on top.
-5. **Attribute-group times** (Titan: own delay/fade per IPCGBES group, e.g. colour slower than
-   intensity): with P1-08 cue lists (where they matter most), or phase 2?
-6. **Chases and masters**: P1-04 in `BACKLOG.md` names chases and masters. Proposal: chases (a
-   cue list run by a tempo, BPM/tap) go into P1-08's `cuelists.md` together with the BPM and
-   Rate masters; group masters (Scale/HTP/Limit/TakeOver) become a small spec of their own
-   (P1-16) later in phase 1. Or keep them all here?
-7. **Default release time 2 s** and an empty global release mask (Titan defaults, PBK-20): fine
-   for the church?
+## Owner decisions (2026-10-18)
+All seven proposals accepted by the owner at gate 1.
+
+1. Record By for playbacks defaults to `Channel` (touched attributes only), `Mixed` as option
+   per record and as setting (PBK-10).
+2. Modes 0/1 use the time model of PBK-15/16 (fade-in on fire scaled by the fader; mode 1 falls
+   no faster than full scale per `fade_out`). Reversal trigger: a Titan behaves differently.
+3. Flash and Swop (plus Latch) are fixed buttons in phase 1; P1-08 adds Go for cue lists; key
+   profiles later (PBK-29).
+4. The halo is automatic from the cue's colour by default; a picked colour or none on top (PBK-33).
+5. Attribute-group times come with P1-08 (cue lists).
+6. Chases with the BPM and Rate masters go into P1-08 (`cuelists.md`); group masters become
+   their own small spec, P1-16, later in phase 1.
+7. Release defaults as Titan: release time 2 s, empty global release mask (PBK-20).

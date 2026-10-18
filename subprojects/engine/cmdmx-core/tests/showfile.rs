@@ -71,17 +71,16 @@ fn rig() -> Engine {
         .get_mut(&101)
         .unwrap()
         .insert("Pan".into(), 0.5.into());
+    e.add_playback(Playback::new(1, 1, 1, washes));
     e.add_playback(Playback {
-        id: 1,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: washes,
-    });
-    e.add_playback(Playback {
-        id: 2,
         priority: Priority::High,
         fader_mode: FaderMode::Mode2,
-        values: BTreeMap::from([(301, BTreeMap::from([("Dimmer".to_string(), 0.8.into())]))]),
+        ..Playback::new(
+            2,
+            1,
+            2,
+            BTreeMap::from([(301, BTreeMap::from([("Dimmer".to_string(), 0.8.into())]))]),
+        )
     });
     e.set_colour_model(ColourModel::Rgb);
     e
@@ -129,6 +128,7 @@ fn shw_01_top_level_keys_in_order() {
             "patch",
             "groups",
             "palettes",
+            "pages",
             "playbacks"
         ]
     );
@@ -178,9 +178,12 @@ fn shw_01_patch_groups_and_playbacks_shape() {
         v["groups"][1],
         json!({"id": 4, "fixtures": [306, 305, 304, 303, 302, 301]})
     );
-    assert_eq!(v["playbacks"][1]["priority"], json!("High"));
-    assert_eq!(v["playbacks"][1]["fader_mode"], json!(2));
-    assert_eq!(v["playbacks"][0]["values"]["101"]["Pan"], json!(0.5));
+    assert_eq!(v["playbacks"]["playbacks"][1]["priority"], json!("High"));
+    assert_eq!(v["playbacks"]["playbacks"][1]["fader_mode"], json!(2));
+    assert_eq!(
+        v["playbacks"]["playbacks"][0]["cues"][0]["values"]["101"]["Pan"],
+        json!(0.5)
+    );
 }
 
 // ---- SHW-02 ------------------------------------------------------------------
@@ -222,12 +225,7 @@ fn shw_02_collections_sorted_by_id() {
     .unwrap();
     common::select(&mut e, &[50]);
     e.record_group(2).unwrap();
-    e.add_playback(Playback {
-        id: 0,
-        priority: Priority::Normal,
-        fader_mode: FaderMode::Mode0,
-        values: BTreeMap::new(),
-    });
+    e.add_playback(Playback::new(0, 1, 3, BTreeMap::new()));
     let v = as_json(&e.to_show(meta()));
     let ids = |key: &str, list: &Json| -> Vec<u64> {
         list.as_array()
@@ -241,7 +239,7 @@ fn shw_02_collections_sorted_by_id() {
     sorted.sort();
     assert_eq!(fixtures, sorted);
     assert_eq!(ids("id", &v["groups"]), [1, 2, 4]);
-    assert_eq!(ids("id", &v["playbacks"]), [0, 1, 2]);
+    assert_eq!(ids("id", &v["playbacks"]["playbacks"]), [0, 1, 2]);
 }
 
 // ---- SHW-03 ------------------------------------------------------------------
@@ -293,12 +291,12 @@ fn shw_03_fixture_show_is_the_church_rig() {
 #[test]
 fn shw_04_newer_schema_is_refused_with_a_clear_message() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["schema_version"] = json!(3);
+    v["schema_version"] = json!(4);
     let err = Show::from_json(&v.to_string()).unwrap_err().to_string();
     assert!(err.contains("Church demo"), "{err}");
     assert!(err.contains("newer"), "{err}");
-    assert!(err.contains("schema 3"), "{err}");
-    assert!(err.contains("up to 2"), "{err}");
+    assert!(err.contains("schema 4"), "{err}");
+    assert!(err.contains("up to 3"), "{err}");
 }
 
 #[test]
@@ -450,7 +448,7 @@ fn shw_07_dangling_group_members_and_playback_values_are_left_out() {
         .as_array_mut()
         .unwrap()
         .push(json!(999));
-    v["playbacks"][0]["values"]["998"] = json!({"Dimmer": 1.0});
+    v["playbacks"]["playbacks"][0]["cues"][0]["values"]["998"] = json!({"Dimmer": 1.0});
     let (engine, warnings) = load(&v);
     assert_eq!(warnings.len(), 2, "{warnings:?}");
     assert!(warnings.iter().any(|w| w.contains("999")), "{warnings:?}");
