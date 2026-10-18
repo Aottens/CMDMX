@@ -42,10 +42,13 @@ Early, under active development, not yet for real shows. What works today:
   crash, and opens the last show again when it starts. The Show screen opens, creates and saves
   shows under a new name; the status bar shows the show and when it was last saved.
 
+- The church rig (56 fixtures from the owner's Lightkey patch) is patched by a one-off
+  (`cargo run -p cmdmx-daemon --example church -- <export.tsv>`) into the show *Kerk*.
+
 - Console keypad, function buttons and softkeys work. The command line is built from tokens, and
   with Keys on the Mac keyboard drives it. Up and Down recall earlier commands.
 
-Next: the church patch from the Lightkey export, and the playback area of the main screen. The design is a clickable sketch in
+Next: the playback area of the main screen, and checking *Kerk* on the real rig. The design is a clickable sketch in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html). After that come palettes, playbacks
 and cue lists. Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

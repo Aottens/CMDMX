@@ -151,3 +151,17 @@ have").
 **Outcome (2026-10-17):** owner: phase 1, built with UX-02c. Open: keep the history across app restarts or
 only per session (decided when UI-19 is amended at the start of UX-02c).
 **Done (2026-10-18):** UI-27 with UX-02c; history kept across app restarts (owner).
+
+### IDEA-13 — Easy editing of wheel and slot names (2026-10-18, VS2-13)
+**Owner's intent:** slot names (colour wheel, gobo, prism, programs) must exist on every fixture,
+also ones built from a channel list, and editing them has to be user-friendly; ONYX does this
+well (owner does not remember how Avolites does it).
+**Triage:**
+- Proposed phase 1, with P1-14 (library browsing and the Add panel rethink): a slot editor in
+  the profile editor (LIB-12): per channel a list of ranges (from–to DMX, name, optional colour
+  or gobo picture), with a split/merge of ranges and a live DMX test on the selected fixture.
+  Look at ONYX's fixture editor and Titan's Fixture Tools/Personality Builder before the spec.
+- Touches now: nothing. The church Phantom 25 and Fuze 75S (PAT-16) are patched with plain
+  wheel channels; their slot data is in the Lightkey show and can be filled in once this exists.
+- Open questions: phase (1 with P1-14, or later); take the slots from the Lightkey show
+  automatically (a Lightkey profile importer) or enter them by hand in the editor.
