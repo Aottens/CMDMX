@@ -31,6 +31,14 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - UX-02d + VS1-06 on branch `ux-02d-playback-area` (pushed, no PR yet): pages of playbacks (PBK-01..05 approved 2026-10-18), playback area, fader echo settling. Owner run `tests/manual/runs/2026-10-18-UX-02d.md` paused with 3 lines left (holding a fader, Go block, GM); then PR. UX-02c awaits owner review (#33); the church Lightkey export follows after the owner's next church visit
 
 ## Blocked
+- **Eurolite finding (2026-10-18, owner attached the MK2 to the Mac):** macOS sees it as
+  `/dev/cu.usbserial-AQ01FA9F`, FTDI VID/PID 0403:6001, but its USB product string is the FTDI
+  default **"FT232R USB UART"**, not "Eurolite DMX512 Pro". The daemon detects by product string
+  (OUT-09, CLAUDE.md), so it reports "no ENTTEC Pro interface found". Next session (owner wants
+  the hardware test there): first a quick run with `--serial /dev/cu.usbserial-AQ01FA9F` to see
+  DMX on the dimmer, then decide with the owner how to detect it (e.g. probe FTDI 0403:6001 ports
+  with the ENTTEC "get widget parameters" request and accept those that answer; still never treat
+  it as Open DMX), amend OUT-09 and CLAUDE.md, then `tests/hardware/output.md` serial lines (VS4-02).
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
 
 ## Hardware available for testing
