@@ -3,7 +3,7 @@
 _Last updated: 2026-10-18_
 
 ## Current step
-SHW-a (show file in core) in review; next SHW-b (daemon: folder, autosave, IPC).
+SHW-a and SHW-b (show file in core and daemon) in review; next SHW-c (app).
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
@@ -24,13 +24,14 @@ SHW-a (show file in core) in review; next SHW-b (daemon: folder, autosave, IPC).
 - Output health over IPC (IPC-20, UX-02a): `output::OutputState` (Ok/Degraded/NoInterface/Stopped) and a lock-free `Status` per node thread; nodes report `state()`; snapshot `outputs` + `outputs` delta; the tick marks a dead node thread Stopped.
 - Programmer window and picker data (IPC-21..23, UX-02b): `ProgrammerView.contents` (`FixtureValues`), `colour` (`ColourView`, first target's colour as hue/saturation + rgb), `Engine::set_colour(hue, saturation)` keeping each target's brightness; fixture entries carry `attributes` {name: group}. VS2-15: a tap on a fully selected group deselects it (PRG-02 amended).
 - Show file (SHW-a, SHW-01..08): `show.rs` — `Show{schema_version, meta, settings, profiles, patch{next_id, fixtures}, groups, playbacks}`, `to_json` (stable, pretty, trailing newline), `from_json` (refuses not-JSON / no version / newer schema via `CoreError::InvalidShow`/`ShowTooNew`; `migrate` step per version, none yet); `Engine::to_show(meta)` (only used profiles, values of unpatched fixtures dropped) and `Engine::from_show` (never fails; one warning per left-out item). 22 tests in `tests/showfile.rs`, fixture `tests/fixtures/shows/church-demo.cmdmx.json`; daemon test `shw_03_demo_show_round_trips`.
+- Show file in the daemon (SHW-b, SHW-09..15): `shows.rs` — `Shows` (folder `--show-dir`, default `~/Documents/ColourmotionDMX/Shows`; `state.json` remembers the last show; `list/exists/open/start`), `open` settles a leftover `.tmp` (recover if newer and valid, else delete) and keeps a `.bak` after a lossy or migrated load; `start` falls back to Demo (built from `demo_engine`, "Demo N" if the Demo file is refused); `Autosave` compares `to_show` with the last written show every 5 s (live state never counts) and hands a `Job` to the `show-saver` thread (`write_atomic`: tmp + fsync + rename), warns once per failure streak. IPC: snapshot `show {name, saved_at, autosave_ok}` + `show` delta, `show.list` answered and `show.open` read in the client thread (`Event::ShowOpened`), New/Save As name-checked there; a switch flushes, installs, writes the new show at once, remembers it and re-snapshots every client. Startup warnings go to the first client.
 - Workspace lints deny unwrap/expect/panic/indexing/todo; `cargo clippy -D warnings` and `cargo fmt --check` pass.
 
 ## In progress
 - nothing
 
 ## Known gaps (by design, each waits for its spec)
-- Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, show file in the daemon (SHW-09..15), IPC (IPC-*), GDTF (LIB-*).
+- Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, output/control config in the show file, IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with
-`cargo test && cargo clippy --all-targets -- -D warnings`, then SHW-b (shows folder, autosave in place, recovery, `show.*` IPC), then VS2-13 (the church patch from the owner's Lightkey export). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.
+`cargo test && cargo clippy --all-targets -- -D warnings`, then SHW-c in the app, then VS2-13 (the church patch from the owner's Lightkey export). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.

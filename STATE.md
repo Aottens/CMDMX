@@ -6,7 +6,7 @@ _Last updated: 2026-10-18_
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
 
 ## Working
-- Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core: schema v1, `Engine::to_show/from_show`, stable JSON, version check, lenient load) in review
+- Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core: schema v1, `Engine::to_show/from_show`, stable JSON, version check, lenient load) in review (PR #30); SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.list/new/open/save_as` over IPC) in review, stacked on #30
 - Repo scaffold: meta-layer, ADR-001..004, PRD, module specs (3 written, 3 skeleton)
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
@@ -28,7 +28,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- SHW-a (PR open, owner review); the church Lightkey export follows after the owner's next church visit
+- SHW-a (PR #30) and SHW-b (stacked PR) await owner review; the church Lightkey export follows after the owner's next church visit
 
 ## Blocked
 - VS1-04 gate 3: the Eurolite MK2 is at the church; run the serial lines of `tests/hardware/output.md` on the next visit
@@ -44,9 +44,9 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 ## Resume next session with
 Start a fresh session (read PROJECT/STATE/ARCHITECTURE/DECISIONS, CLAUDE.md). The app now runs in
 its real main screen (`specs/modules/ui.md`, UI-01..26; README screenshot). The show file is
-specced (SHW-01..17) and its core is built (SHW-a). Next: **SHW-b** (daemon: shows folder, last
-show at start, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` IPC; extend
-`ipc.md`), then **SHW-c** (status bar + Show screen). Then, owner's choice:
+specced (SHW-01..17); core (SHW-a) and daemon (SHW-b) are built: the daemon opens the last show
+from `~/Documents/ColourmotionDMX/Shows/` and autosaves it. Next: **SHW-c** (status bar show name +
+autosave age, Show screen with Open/New/Save As, `tests/manual/app-show.md`). Then, owner's choice:
 - **VS2-13**: the church patch from the owner's Lightkey export (patch list or decoded show file),
   entered through the patch commands; `tests/hardware/church.md` (VS4-01).
 - **UX-02c**: side column live (UI-16..19): function buttons (Record moves from the Groups window),
