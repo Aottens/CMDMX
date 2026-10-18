@@ -520,6 +520,32 @@ struct PaletteInfo {
     groups: Vec<AttributeGroup>,
 }
 
+/// PAL-25: the master time (s) and overlap (%) and the default Record By, as clients show them.
+#[derive(Serialize, Clone, PartialEq)]
+struct PaletteSettings {
+    time: f32,
+    overlap: f32,
+    record_by: RecordBy,
+}
+
+fn palette_settings(engine: &Engine) -> PaletteSettings {
+    let s = engine.settings();
+    PaletteSettings {
+        time: s.palette_time,
+        overlap: s.palette_overlap,
+        record_by: s.record_by,
+    }
+}
+
+#[derive(Serialize)]
+struct PaletteSettingsDelta {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    #[serde(flatten)]
+    settings: PaletteSettings,
+}
+
 #[derive(Serialize)]
 struct PalettesDelta<'a> {
     v: u8,
@@ -560,6 +586,7 @@ struct Snapshot<'a> {
     fixtures: Vec<FixtureInfo<'a>>,
     groups: Vec<GroupInfo<'a>>,
     palettes: Vec<PaletteInfo>,
+    palette_settings: PaletteSettings,
     programmer: &'a ProgrammerView,
     outputs: Vec<OutputJson>,
     show: &'a ShowState,
@@ -738,6 +765,7 @@ pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> 
         fixtures: fixture_infos(engine),
         groups: group_infos(engine.groups()),
         palettes: palette_infos(engine),
+        palette_settings: palette_settings(engine),
         programmer: &engine.programmer_view(),
         outputs: output_jsons(outputs),
         show,
@@ -768,6 +796,7 @@ pub struct Published {
     programmer: ProgrammerView,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
     palettes: Vec<PaletteInfo>,
+    palette_settings: PaletteSettings,
     fixtures: Vec<Fixture>,
     outputs: Vec<OutputStatus>,
     show: ShowState,
@@ -782,6 +811,7 @@ impl Published {
             programmer: engine.programmer_view(),
             groups: engine.groups().clone(),
             palettes: palette_infos(engine),
+            palette_settings: palette_settings(engine),
             fixtures: engine.fixtures().cloned().collect(),
             outputs: outputs.to_vec(),
             show: show.clone(),
@@ -851,6 +881,16 @@ impl Published {
                 palettes: &palettes,
             }));
             self.palettes = palettes;
+        }
+        // PAL-25: the settings, once, after any change of them.
+        let settings = palette_settings(engine);
+        if settings != self.palette_settings {
+            out.push(to_json(&PaletteSettingsDelta {
+                v: 0,
+                kind: "palette_settings",
+                settings: settings.clone(),
+            }));
+            self.palette_settings = settings;
         }
         // PAT-09: the whole list, once, after any patch change.
         if !engine.fixtures().eq(self.fixtures.iter()) {

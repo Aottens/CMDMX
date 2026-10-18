@@ -315,13 +315,16 @@ private struct Softkeys: View {
             Softkey(name: "Mask", sub: (ui.recordMask.map { attributeGroupOrder.filter($0.contains).joined() }) ?? "window") {
                 ui.maskMenu = true
             },
-            Softkey(name: "Record By", sub: ui.recordBy ?? "Mixed") { ui.recordBy = ui.recordBy == "Channel" ? "Mixed" : "Channel" },
+            Softkey(name: "Record By", sub: recordBy) { ui.recordBy = recordBy == "Channel" ? "Mixed" : "Channel" },
             Softkey(name: "Record as", sub: ui.recordAs) {
                 ui.recordAs = ["Auto": "Normal", "Normal": "Shared"][ui.recordAs] ?? "Auto"
             },
             Softkey(name: "Cancel", action: { ui.recordArmed = false }),
         ])
     }
+
+    /// This record's Record By: the operator's choice, else the engine's setting (PAL-25).
+    private var recordBy: String { ui.recordBy ?? engine.paletteSettings?.recordBy ?? "Mixed" }
 
     /// Where the Mask toggles start before a cell is tapped: the first palette window of the workspace.
     private var workspaceMaskBase: [String] {
@@ -352,13 +355,13 @@ private struct Softkeys: View {
                     send(n)
                     line.clear()
                 } else {
-                    engine.say("\(name): \(current.map { "\(plain($0)) \(unit)" } ?? "not set in this session"). Type a number first to change it.")
+                    engine.say("\(name): \(current.map { "\(plain($0)) \(unit)" } ?? "unknown"). Type a number first to change it.")
                 }
             }
         }
         return ("Palette", [
-            master("Master Time", unit: "s", current: engine.paletteTime) { engine.setPaletteMaster(time: $0) },
-            master("Master Overlap", unit: "%", current: engine.paletteOverlap) { engine.setPaletteMaster(overlap: $0) },
+            master("Master Time", unit: "s", current: engine.paletteSettings?.time) { engine.setPaletteMaster(time: $0) },
+            master("Master Overlap", unit: "%", current: engine.paletteSettings?.overlap) { engine.setPaletteMaster(overlap: $0) },
             Softkey(name: "Set Overlap", sub: ui.pendingOverlap.map { "next tap \(plain($0)) %" } ?? "next tap only") {
                 if let n = line.paletteArgument {
                     ui.pendingOverlap = n

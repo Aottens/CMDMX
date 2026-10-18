@@ -312,6 +312,18 @@ struct PaletteInfo: Decodable, Identifiable, Equatable {
     }
 }
 
+/// PAL-25: master fade time (s), master overlap (%) and the default Record By (`Channel` / `Mixed`).
+struct PaletteSettings: Decodable, Equatable {
+    let time: Double
+    let overlap: Double
+    let recordBy: String
+
+    private enum CodingKeys: String, CodingKey {
+        case time, overlap
+        case recordBy = "record_by"
+    }
+}
+
 /// Mirror of the engine's programmer state (IPC-11). Fields missing from a
 /// message fall back to empty so a malformed message cannot drop a snapshot.
 struct ProgrammerState: Decodable, Equatable {
@@ -432,11 +444,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var groups: [GroupInfo] = []
     /// PAL-25: all palettes, sorted by number.
     @Published private(set) var palettes: [PaletteInfo] = []
-    /// What this app last set as master time (s) and overlap (%). The engine does not publish its
-    /// settings, so this is only what was sent in this session; nil = unknown.
-    @Published private(set) var paletteTime: Double?
-    @Published private(set) var paletteOverlap: Double?
-    private var previousMaster: (time: Double?, overlap: Double?)?
+    /// PAL-25: the engine's master time, overlap and default Record By; nil until the snapshot.
+    @Published private(set) var paletteSettings: PaletteSettings?
     /// Reply to the last `library.search` (this client only).
     @Published private(set) var libraryResults: [LibraryItem] = []
     /// Last query sent; a reply that arrives after the field was emptied is ignored.
@@ -654,13 +663,12 @@ final class EngineClient: ObservableObject {
     func setPaletteLegend(_ number: Int, legend: String, icon: String?) {
         patch("palette.legend", ["number": number, "legend": legend, "icon": icon.map { $0 as Any } ?? NSNull()])
     }
-    /// `settings.palette`: master fade time (s) and/or overlap (%). Remembered here for display until
-    /// the engine refuses it.
+    /// `settings.palette`: master fade time (s) and/or overlap (%). The `palette_settings` delta
+    /// shows the result.
     func setPaletteMaster(time: Double? = nil, overlap: Double? = nil) {
-        previousMaster = (paletteTime, paletteOverlap)
         var fields: [String: Any] = [:]
-        if let time { fields["time"] = time; paletteTime = time }
-        if let overlap { fields["overlap"] = overlap; paletteOverlap = overlap }
+        if let time { fields["time"] = time }
+        if let overlap { fields["overlap"] = overlap }
         patch("settings.palette", fields)
     }
 
@@ -683,7 +691,6 @@ final class EngineClient: ObservableObject {
     }
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
-        if cmd != "settings.palette" { previousMaster = nil }
         guard let socket,
               let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": 0, "cmd": cmd]) { a, _ in a }),
               let text = String(data: data, encoding: .utf8) else { return }
@@ -765,6 +772,7 @@ final class EngineClient: ObservableObject {
         let fixtures: [FixtureInfo]?
         let groups: [GroupInfo]?
         fileprivate let palettes: Tolerant<[Tolerant<PaletteInfo>]>?
+        fileprivate let paletteSettings: Tolerant<PaletteSettings>?
         let programmer: ProgrammerState?
         let items: [LibraryItem]?
         fileprivate let outputs: Tolerant<[OutputStatus]>?
@@ -775,6 +783,7 @@ final class EngineClient: ObservableObject {
             case type, page, playbacks, id, level, active, message, fixtures, groups, palettes, programmer, items, outputs, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
+            case paletteSettings = "palette_settings"
         }
     }
 
@@ -800,7 +809,7 @@ final class EngineClient: ObservableObject {
             fixtures = incoming.fixtures ?? []
             groups = incoming.groups ?? []
             palettes = (incoming.palettes?.value ?? []).compactMap(\.value)
-            previousMaster = nil
+            paletteSettings = incoming.paletteSettings?.value
             programmer = incoming.programmer ?? ProgrammerState()
             outputs = incoming.outputs?.value ?? []
             if let show = incoming.show?.value { self.show = show }
@@ -827,6 +836,9 @@ final class EngineClient: ObservableObject {
             if !lastLibraryQuery.trimmingCharacters(in: .whitespaces).isEmpty { libraryResults = incoming.items ?? [] }
         case "groups":
             if let groups = incoming.groups { self.groups = groups }
+        case "palette_settings":
+            // The delta carries the settings at top level.
+            if let state = try? JSONDecoder().decode(PaletteSettings.self, from: data) { paletteSettings = state }
         case "palettes":
             if let list = incoming.palettes?.value { palettes = list.compactMap(\.value) }
         case "playback":
@@ -839,8 +851,6 @@ final class EngineClient: ObservableObject {
                 if gmHeld { gmEngineLevel = level.clamped01; releaseGMIfEchoed() } else { grandMaster = level.clamped01 }
             }
         case "warning", "error":
-            // A refused `settings.palette` changed nothing: forget what we just remembered.
-            if let previous = previousMaster { (paletteTime, paletteOverlap) = previous }
             lastMessage = incoming.message
             print("engine \(incoming.type): \(incoming.message ?? "")")
         default:
