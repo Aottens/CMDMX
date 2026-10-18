@@ -417,6 +417,30 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         PatchName { id, name } => engine.patch_name(id, &name),
         PatchChangeMode { id, mode } => engine.patch_change_mode(id, &mode),
         PatchHandle { id, handle } => engine.patch_handle(id, handle),
+        PaletteRecord(record) => engine.record_palette(&record).map(drop),
+        PaletteApply { number, timing } => engine.apply_palette(number, timing),
+        PaletteInclude { number } => engine.include_palette(number),
+        PaletteCopy { number, to } => engine.copy_palette(number, to).map(drop),
+        PaletteMove { number, to } => engine.move_palette(number, to),
+        PaletteRenumber { number, to } => engine.renumber_palette(number, to),
+        PaletteDelete { number } => engine.delete_palette(number),
+        PaletteLegend {
+            number,
+            legend,
+            icon,
+        } => engine.set_palette_legend(number, &legend, icon.as_deref()),
+        // PAL-15/27: out of range refuses the whole command, so check before changing either.
+        SettingsPalette {
+            time,
+            overlap,
+            record_by,
+        } => {
+            engine.set_palette_master(time, overlap)?;
+            if let Some(record_by) = record_by {
+                engine.set_record_by(record_by);
+            }
+            Ok(())
+        }
     }
 }
 

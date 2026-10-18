@@ -6,7 +6,7 @@
 //! the profile key, `→ attribute → value`) and per fixture. Programmer and playbacks store a
 //! [`Reference`](crate::value::Reference) to its id, so a change shows on the next tick.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -246,6 +246,22 @@ impl Palette {
         self.global.contains_key(attribute)
             || self.shared.values().any(|a| a.contains_key(attribute))
             || self.fixtures.values().any(|a| a.contains_key(attribute))
+    }
+
+    /// Every attribute name the palette holds on any level, sorted.
+    pub fn attribute_names(&self) -> BTreeSet<&str> {
+        (self.global.keys().map(String::as_str))
+            .chain(
+                self.shared
+                    .values()
+                    .flat_map(|a| a.keys().map(String::as_str)),
+            )
+            .chain(
+                self.fixtures
+                    .values()
+                    .flat_map(|a| a.keys().map(String::as_str)),
+            )
+            .collect()
     }
 
     /// PAL-21. `group_of` gives an attribute's group (for the first-value icon).

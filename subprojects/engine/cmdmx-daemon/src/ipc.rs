@@ -23,6 +23,7 @@ use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::library::channel_list::ChannelList;
+use cmdmx_core::palette::{AutoIcon, Cell, PaletteId, PaletteKind, Record, RecordBy, Timing};
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{PlaybackId, PAGES};
 use cmdmx_core::profile::Profile;
@@ -125,6 +126,40 @@ pub enum Command {
         id: FixtureId,
         handle: Handle,
     },
+    /// PAL-27: the palette commands name palettes by number and cells by window and handle.
+    PaletteRecord(Record),
+    PaletteApply {
+        number: u32,
+        timing: Timing,
+    },
+    PaletteInclude {
+        number: u32,
+    },
+    PaletteCopy {
+        number: u32,
+        to: Cell,
+    },
+    PaletteMove {
+        number: u32,
+        to: Cell,
+    },
+    PaletteRenumber {
+        number: u32,
+        to: u32,
+    },
+    PaletteDelete {
+        number: u32,
+    },
+    PaletteLegend {
+        number: u32,
+        legend: String,
+        icon: Option<String>,
+    },
+    SettingsPalette {
+        time: Option<f32>,
+        overlap: Option<f32>,
+        record_by: Option<RecordBy>,
+    },
 }
 
 /// LIB-14: the fixture library requests.
@@ -177,6 +212,28 @@ fn opt_uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<Option<
         None => Ok(None),
         Some(_) => uint(v, key).map(Some),
     }
+}
+
+/// An optional number field: absent is `None`, present but not a number is an error.
+fn opt_f32(v: &serde_json::Value, key: &str) -> Result<Option<f32>, String> {
+    match v.get(key) {
+        None => Ok(None),
+        Some(n) => n
+            .as_f64()
+            .map(|n| Some(n as f32))
+            .ok_or_else(|| format!("invalid \"{key}\" (expected a number)")),
+    }
+}
+
+/// A field that deserialises as `T` (a cell, an enum).
+fn field<T: serde::de::DeserializeOwned>(
+    v: &serde_json::Value,
+    key: &str,
+    expected: &str,
+) -> Result<T, String> {
+    v.get(key)
+        .and_then(|f| serde_json::from_value(f.clone()).ok())
+        .ok_or_else(|| format!("missing or invalid \"{key}\" (expected {expected})"))
 }
 
 /// IPC-04/06/13: one JSON text frame to a command, or a human-readable error.
@@ -338,6 +395,55 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 slot: uint(&v, "slot")?,
             },
         }),
+        Some("palette.record") => Ok(Command::PaletteRecord(
+            serde_json::from_value(v.clone())
+                .map_err(|e| format!("invalid palette.record: {e}"))?,
+        )),
+        Some("palette.apply") => Ok(Command::PaletteApply {
+            number: uint(&v, "number")?,
+            timing: Timing {
+                time: opt_f32(&v, "time")?,
+                overlap: opt_f32(&v, "overlap")?,
+            },
+        }),
+        Some("palette.include") => Ok(Command::PaletteInclude {
+            number: uint(&v, "number")?,
+        }),
+        Some("palette.copy") => Ok(Command::PaletteCopy {
+            number: uint(&v, "number")?,
+            to: field(&v, "to", "{window, handle}")?,
+        }),
+        Some("palette.move") => Ok(Command::PaletteMove {
+            number: uint(&v, "number")?,
+            to: field(&v, "to", "{window, handle}")?,
+        }),
+        Some("palette.renumber") => Ok(Command::PaletteRenumber {
+            number: uint(&v, "number")?,
+            to: uint(&v, "to")?,
+        }),
+        Some("palette.delete") => Ok(Command::PaletteDelete {
+            number: uint(&v, "number")?,
+        }),
+        Some("palette.legend") => Ok(Command::PaletteLegend {
+            number: uint(&v, "number")?,
+            legend: string(&v, "legend")?,
+            icon: match v.get("icon") {
+                None | Some(serde_json::Value::Null) => None,
+                Some(i) => Some(
+                    i.as_str()
+                        .map(String::from)
+                        .ok_or("invalid \"icon\" (expected a string or null)")?,
+                ),
+            },
+        }),
+        Some("settings.palette") => Ok(Command::SettingsPalette {
+            time: opt_f32(&v, "time")?,
+            overlap: opt_f32(&v, "overlap")?,
+            record_by: match v.get("record_by") {
+                None => None,
+                Some(_) => Some(field(&v, "record_by", "Channel or Mixed")?),
+            },
+        }),
         Some(other) => Err(format!("unknown cmd '{other}'")),
         None => Err("missing \"cmd\"".into()),
     }
@@ -400,6 +506,48 @@ struct GroupInfo<'a> {
     fixtures: &'a [FixtureId],
 }
 
+/// PAL-25: one palette as clients draw it.
+#[derive(Serialize, Clone, PartialEq)]
+struct PaletteInfo {
+    id: PaletteId,
+    number: u32,
+    window: cmdmx_core::palette::Window,
+    handle: u16,
+    legend: String,
+    icon: Option<String>,
+    auto_icon: Option<AutoIcon>,
+    kind: PaletteKind,
+    groups: Vec<AttributeGroup>,
+}
+
+#[derive(Serialize)]
+struct PalettesDelta<'a> {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    palettes: &'a [PaletteInfo],
+}
+
+/// PAL-25: sorted by number.
+fn palette_infos(engine: &Engine) -> Vec<PaletteInfo> {
+    let mut list: Vec<PaletteInfo> = engine
+        .palettes()
+        .map(|p| PaletteInfo {
+            id: p.id,
+            number: p.number,
+            window: p.window,
+            handle: p.handle,
+            legend: p.legend.clone(),
+            icon: p.icon.clone(),
+            auto_icon: engine.palette_auto_icon(p.number),
+            kind: p.kind(),
+            groups: engine.palette_groups(p.number),
+        })
+        .collect();
+    list.sort_by_key(|p| p.number);
+    list
+}
+
 #[derive(Serialize)]
 struct Snapshot<'a> {
     v: u8,
@@ -411,6 +559,7 @@ struct Snapshot<'a> {
     playbacks: Vec<PlaybackInfo>,
     fixtures: Vec<FixtureInfo<'a>>,
     groups: Vec<GroupInfo<'a>>,
+    palettes: Vec<PaletteInfo>,
     programmer: &'a ProgrammerView,
     outputs: Vec<OutputJson>,
     show: &'a ShowState,
@@ -588,6 +737,7 @@ pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> 
         playbacks: infos(engine).collect(),
         fixtures: fixture_infos(engine),
         groups: group_infos(engine.groups()),
+        palettes: palette_infos(engine),
         programmer: &engine.programmer_view(),
         outputs: output_jsons(outputs),
         show,
@@ -617,6 +767,7 @@ pub struct Published {
     page: PageInfo,
     programmer: ProgrammerView,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    palettes: Vec<PaletteInfo>,
     fixtures: Vec<Fixture>,
     outputs: Vec<OutputStatus>,
     show: ShowState,
@@ -630,6 +781,7 @@ impl Published {
             page: page_info(engine),
             programmer: engine.programmer_view(),
             groups: engine.groups().clone(),
+            palettes: palette_infos(engine),
             fixtures: engine.fixtures().cloned().collect(),
             outputs: outputs.to_vec(),
             show: show.clone(),
@@ -689,6 +841,16 @@ impl Published {
                 kind: "groups",
                 groups: group_infos(&self.groups),
             }));
+        }
+        // PAL-25: the whole list, once, after any change of it.
+        let palettes = palette_infos(engine);
+        if palettes != self.palettes {
+            out.push(to_json(&PalettesDelta {
+                v: 0,
+                kind: "palettes",
+                palettes: &palettes,
+            }));
+            self.palettes = palettes;
         }
         // PAT-09: the whole list, once, after any patch change.
         if !engine.fixtures().eq(self.fixtures.iter()) {
@@ -2041,8 +2203,11 @@ mod tests {
             published.diff(&e, &[], &show_state()).is_empty(),
             "no change, no delta"
         );
-        e.move_palette(5, cmdmx_core::palette::Cell::new(cmdmx_core::palette::Window::Positions, 3))
-            .unwrap();
+        e.move_palette(
+            5,
+            cmdmx_core::palette::Cell::new(cmdmx_core::palette::Window::Positions, 3),
+        )
+        .unwrap();
         e.tick(0.075);
         let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
@@ -2082,8 +2247,10 @@ mod tests {
             Command::PaletteRecord(Record::at(Cell::new(Window::Colours, 4)))
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.record","window":"Beams","handle":2,"number":12,
-                  "mask":["I","B"],"record_by":"Channel","record_as":"Shared","mode":"QuickMerge"}"#),
+            ok(
+                r#"{"v":0,"cmd":"palette.record","window":"Beams","handle":2,"number":12,
+                  "mask":["I","B"],"record_by":"Channel","record_as":"Shared","mode":"QuickMerge"}"#
+            ),
             Command::PaletteRecord(Record {
                 number: Some(12),
                 mask: Some(vec![AttributeGroup::I, AttributeGroup::B]),

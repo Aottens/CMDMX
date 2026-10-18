@@ -26,8 +26,8 @@ use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{FaderMode, Playback, PlaybackId, PlaybackState, Priority, Values, PAGES};
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
-    AttributeGroupState, ColourView, Fade, FixtureValues, GroupId, Programmer, ProgrammerView,
-    Resolution, WheelState,
+    AttributeGroupState, ColourView, Fade, FixtureValues, GroupId, PaletteUse, Programmer,
+    ProgrammerView, Resolution, WheelState,
 };
 use crate::show::{
     Meta, Show, ShowGroup, ShowPalette, ShowPalettes, ShowPatch, ShowSettings, SCHEMA_VERSION,
@@ -1202,9 +1202,14 @@ impl Engine {
                     Value::Colour(c) => self.colour_model.wheel_value(&attribute, c)?,
                     Value::Level(v) => v,
                 };
+                let stored = self.programmer.stored(id, name);
                 Some(WheelState {
                     value,
-                    touched: self.programmer.stored(id, name).is_some(),
+                    touched: stored.is_some(),
+                    palette: match stored {
+                        Some(Stored::Reference(r)) => Some(r.palette),
+                        _ => None,
+                    },
                     sixteen_bit: l.sixteen_bit,
                     attribute,
                 })
@@ -1225,6 +1230,7 @@ impl Engine {
                 b: c.b,
             })
         });
+        let palettes = self.palette_use(&targets);
         ProgrammerView {
             selection: self.programmer.selection().to_vec(),
             targets,
@@ -1242,10 +1248,37 @@ impl Engine {
                             (name.clone(), self.resolve_stored(fixture, name, *stored))
                         })
                         .collect(),
+                    palettes: values
+                        .iter()
+                        .filter_map(|(name, stored)| match stored {
+                            Stored::Reference(r) => Some((name.clone(), r.palette)),
+                            Stored::Value(_) => None,
+                        })
+                        .collect(),
                 })
                 .collect(),
             colour,
+            palettes,
         }
+    }
+
+    /// PAL-26: palettes referenced in the programmer, and those that resolve something for the
+    /// targets (all of them when nothing is selected).
+    fn palette_use(&self, targets: &[FixtureId]) -> PaletteUse {
+        let mut in_use: Vec<PaletteId> = (self.programmer.values().values())
+            .flat_map(|attrs| attrs.values())
+            .filter_map(|s| match s {
+                Stored::Reference(r) => Some(r.palette),
+                Stored::Value(_) => None,
+            })
+            .collect();
+        in_use.sort_unstable();
+        in_use.dedup();
+        let relevant = (self.palettes.values())
+            .filter(|p| targets.is_empty() || self.palette_plan(p.number, targets).is_ok())
+            .map(|p| p.id)
+            .collect();
+        PaletteUse { in_use, relevant }
     }
 
     /// PRG-30: how Colour is shown on the wheels; the colour itself does not change.
@@ -1822,13 +1855,30 @@ impl Engine {
 
     /// PAL-21: the icon drawn when no icon was picked.
     pub fn palette_auto_icon(&self, number: u32) -> Option<palette::AutoIcon> {
-        self.palette(number)?.auto_icon(|name| {
-            self.profiles
-                .values()
-                .flat_map(|p| &p.modes)
-                .find_map(|m| m.logical(name).map(|l| l.group))
-                .unwrap_or(AttributeGroup::Fx)
-        })
+        self.palette(number)?
+            .auto_icon(|name| self.attribute_group(name))
+    }
+
+    /// PAL-25: the attribute groups palette `number` holds values in, in I P C G B E S FX order.
+    pub fn palette_groups(&self, number: u32) -> Vec<AttributeGroup> {
+        let groups: BTreeSet<AttributeGroup> = (self.palette(number).into_iter())
+            .flat_map(|p| p.attribute_names())
+            .map(|name| self.attribute_group(name))
+            .collect();
+        groups.into_iter().collect()
+    }
+
+    /// The group of an attribute name, from the profiles (FX when no profile has it).
+    fn attribute_group(&self, name: &str) -> AttributeGroup {
+        (self.profiles.values())
+            .flat_map(|p| &p.modes)
+            .find_map(|m| m.logical(name).map(|l| l.group))
+            .unwrap_or(AttributeGroup::Fx)
+    }
+
+    /// PAL-27: the default Record By of palettes.
+    pub fn set_record_by(&mut self, record_by: RecordBy) {
+        self.settings.record_by = record_by;
     }
 
     // ---- tick ------------------------------------------------------------

@@ -57,6 +57,8 @@ pub struct WheelState {
     pub touched: bool,
     /// The attribute has a fine channel in its profile.
     pub sixteen_bit: bool,
+    /// PAL-26: the palette the first target's value references, if any.
+    pub palette: Option<PaletteId>,
 }
 
 /// IPC-21: one fixture's programmer values.
@@ -64,6 +66,17 @@ pub struct WheelState {
 pub struct FixtureValues {
     pub fixture: FixtureId,
     pub values: BTreeMap<String, Value>,
+    /// PAL-26: the attributes among `values` that are palette references.
+    pub palettes: BTreeMap<String, PaletteId>,
+}
+
+/// PAL-26: which palettes the programmer and the selection touch.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct PaletteUse {
+    /// Palette ids referenced in the programmer, sorted.
+    pub in_use: Vec<PaletteId>,
+    /// Palettes that resolve something for a target (all when nothing is selected), by id.
+    pub relevant: Vec<PaletteId>,
 }
 
 /// IPC-22: the first colour target's colour as hue/saturation (0.0-1.0) and sRGB as stored.
@@ -88,6 +101,7 @@ pub struct ProgrammerView {
     pub colour_model: ColourModel,
     pub contents: Vec<FixtureValues>,
     pub colour: Option<ColourView>,
+    pub palettes: PaletteUse,
 }
 
 /// PAL-13/14: a palette fade of one attribute. Live state, never saved.
