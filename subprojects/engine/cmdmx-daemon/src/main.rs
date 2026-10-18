@@ -561,6 +561,23 @@ mod tests {
     }
 
     #[test]
+    fn shw_03_demo_show_round_trips() {
+        let meta = cmdmx_core::show::Meta {
+            name: "Demo".into(),
+            created: "2026-10-18T09:00:00Z".into(),
+            modified: "2026-10-18T09:00:00Z".into(),
+            app_version: "0.1.0".into(),
+        };
+        let show = demo_engine().unwrap().to_show(meta.clone());
+        let (engine, warnings) = Engine::from_show(&show);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(engine.to_show(meta), show);
+        let (reread, migrations) = cmdmx_core::show::Show::from_json(&show.to_json()).unwrap();
+        assert!(migrations.is_empty());
+        assert_eq!(reread, show);
+    }
+
+    #[test]
     fn ipc_14_demo_show_patches_the_church_rig_and_groups() {
         let engine = demo_engine().unwrap();
         let ids: Vec<u32> = engine.fixtures().map(|f| f.id).collect();
