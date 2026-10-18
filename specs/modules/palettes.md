@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::palette` (pure: storage, recording, resolving, fades), `cmdmx-daemon` (IPC),
 the palette windows in `subprojects/app`.
-Status: **draft for owner approval (P1-03, 2026-10-18)**. Open questions at the end.
+Status: **draft for owner approval (P1-03, 2026-10-18)**; owner decisions at the end.
 Behavioural reference: Avolites Titan v19 manual, *Palettes*
 (https://manual.avolites.com/docs/palettes: Creating, Using, Editing, Copying/Moving/Deleting,
 Timing with Palettes) and the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1
@@ -20,11 +20,14 @@ lists) store, so they come first.
 
 ## Definitions
 - **Palette:** a store of attribute values recorded from the programmer, with an internal **id**
-  (assigned by the engine, never reused, like fixture ids in PAT-12) and a user **number**
-  1–120. Commands and the command line use numbers; references use ids.
-- **Window:** the number decides the palette's window and its default record mask (Titan Quick
-  Record): **Colours** 1–40 (mask C), **Positions** 41–80 (mask P), **Gobos & Beams** 81–120
-  (mask I G B E S). Church examples: 3 "Warm", 41 "Pulpit", 81 "Zoom wide".
+  (assigned by the engine, never reused, like fixture ids in PAT-12), a user **number** 1–9999
+  (unique) and a **cell**: its window and its handle (1-based position) in that window.
+  Commands and the command line use numbers or cells; references use ids.
+- **Window:** `Colours`, `Positions` or `Beams` (shown as "Gobos & Beams"). A palette lives in
+  the window and cell it was recorded on, as on Titan; the window gives only the default record
+  mask (Titan Quick Record): Colours C, Positions P, Beams I G B E S. What a palette holds comes
+  from its values, never from where it sits (owner decision 6). Church examples: 1 "Warm"
+  (Colours, cell 1), 2 "Pulpit" (Positions, cell 1), 3 "Zoom wide" (Beams, cell 1).
 - **Fixture type:** a fixture's profile key (`patch.md`); all modes of one profile are one type.
 - **Levels:** a palette holds values on three levels: **global** (`attribute → value`, for any
   fixture that has the attribute), **shared** (`fixture type → attribute → value`) and **per
@@ -44,14 +47,16 @@ lists) store, so they come first.
 ## Acceptance criteria
 
 ### Recording (`Engine::record_palette`)
-- **PAL-01** Recording onto an empty number stores the programmer's contents in the record mask
-  (PRG-15) for **every fixture in the programmer**, not only the selected ones. The mask defaults
-  to the window's mask. Located and highlight values are never recorded (PRG-23, 26). With
+- **PAL-01** Recording onto an empty cell creates a palette there with the next free number
+  (the lowest unused one, or a number the operator gives that is free), storing the programmer's
+  contents in the record mask (PRG-15) for **every fixture in the programmer**, not only the
+  selected ones. The mask defaults to the cell's window mask. Located and highlight values are never recorded (PRG-23, 26). With
   nothing in the mask, the record is refused with a warning and nothing changes ("Nothing in the
   programmer for Colours (mask C)"). Programmer 201 Dimmer 0.8 + Colour red, record 3 → palette
   3 holds only the Colour.
-- **PAL-02** *Record By* (setting `record_by`, overridable per record): `Channel` stores only the
-  touched attributes. `Mixed` (default) stores Position and Colour as a whole group: a fixture
+- **PAL-02** *Record By* (setting `record_by`, default `Mixed`, overridable per record; owner
+  decision 2): `Channel` stores only the
+  touched attributes. `Mixed` stores Position and Colour as a whole group: a fixture
   with any touched attribute in group P (or C) also stores every other attribute of that group
   it has, untouched ones at their current output value (PRG-20); other groups stay per channel.
   101 with only Pan touched, record 41 in `Mixed` → Pan and Tilt; in `Channel` → Pan only.
@@ -75,12 +80,12 @@ lists) store, so they come first.
 - **PAL-05** *Record as* `Normal` or `Shared` can only narrow the detected kind: `Normal`
   stores every value per fixture; `Shared` keeps the global level empty, and is refused with a
   warning when the values differ inside a type.
-- **PAL-06** Recording onto a used number needs a mode, else it is refused with a warning
+- **PAL-06** Recording onto a used cell needs a mode, else it is refused with a warning
   ("Palette 3 is used: Replace, Merge or Quick Merge"). `Replace` stores the new contents as on
-  an empty number. `Merge` detects the new contents on their own (PAL-04) and writes them over
+  an empty cell. `Merge` detects the new contents on their own (PAL-04) and writes them over
   the existing values at their own level, keeping everything else. `QuickMerge` does the same
-  but only for attributes the palette already holds on any level. Number, id, legend and icon
-  stay. Shared Red for the RGBW type, then RGB+Lime pars set to orange-red and merged → the
+  but only for attributes the palette already holds on any level. Id, number, cell, legend and
+  icon stay. Shared Red for the RGBW type, then RGB+Lime pars set to orange-red and merged → the
   palette also holds a shared entry for the RGB+Lime type; the RGBW entry is unchanged.
 
 ### Resolving and applying
@@ -135,21 +140,23 @@ lists) store, so they come first.
   starts its own fade from there.
 
 ### Managing palettes
-- **PAL-17** Copy to an empty number makes a new palette (new id) with the same values, legend
-  and icon; references keep pointing at the original. Move to an empty number changes only the
-  number (same id), so every reference follows. Copy or Move onto a used number, or onto a number
-  outside 1–120, is refused with a warning.
+- **PAL-17** Copy to an empty cell (any window) makes a new palette there (new id, next free
+  number) with the same values, legend and icon; references keep pointing at the original. Move
+  to an empty cell changes only the cell (same id and number), so every reference follows.
+  Renumber gives a palette a free number 1–9999; references follow (they use the id). Copy or
+  Move onto a used cell, or Renumber onto a used or out-of-range number, is refused with a
+  warning.
 - **PAL-18** Deleting a palette turns every reference to it, in the programmer and in every
   playback (later cue), into its fallback `value`, as on Titan: a playback goes back to the
-  values it had when it was recorded (owner decision 1). Its number is free again; its id is
-  never reused. Palette 1 was red when playback 1 was recorded and is blue now; delete palette
+  values it had when it was recorded (owner decision 1). Its number and cell are free again; its
+  id is never reused. Palette 1 was red when playback 1 was recorded and is blue now; delete palette
   1 → playback 1 holds 201 Colour red.
 - **PAL-19** Patch changes: removing fixtures (PAT-05) removes their per-fixture entries from
   every palette; a palette left without values stays (with its legend) and resolves nothing.
   Changing a fixture's mode keeps the stored values; an attribute the new mode lacks resolves
   nothing for that fixture.
 - **PAL-20** Legend and icon: `legend` is 0–32 characters; an empty legend shows the window name
-  and number ("Colour 3", "Position 41", "Beam 81"). `icon` is an icon id from the built-in
+  and number ("Colour 1", "Position 2", "Beam 3"). `icon` is an icon id from the built-in
   library (PAL-22) or `null` for the automatic icon (PAL-21).
 
 ### Icons (IDEA-14, phase-1 part)
@@ -169,25 +176,28 @@ lists) store, so they come first.
   app owns the built-in library: one line style (research.md: 1.25 pt, monochrome, so the only
   colour on a button is a colour palette's own), categories colour, position, beam and gobo,
   effect, fixture, service moments and generic, drawn with SF Symbols where one fits and as own
-  glyphs otherwise (open question 5). An id the app does not know is drawn as the automatic
+  glyphs for what SF Symbols lacks (gobo, moving head, par, beam angle; owner decision 5). An id the app does not know is drawn as the automatic
   icon. The user folder with imported SVG/PNG icons is phase 2 (IDEA-14).
 
 ### Show file (extends `showfile.md`)
 - **PAL-23** Schema version 2 (SHW-04 migration from 1, which adds the defaults): `settings`
   gains `palette_time`, `palette_overlap` and `record_by`; a new key `palettes` after `groups`
-  holds `{"next_id": n, "palettes": [{id, number, legend, icon, global, shared, fixtures}]}`,
+  holds `{"next_id": n, "palettes": [{id, number, window, handle, legend, icon, global, shared,
+  fixtures}]}`,
   sorted by id, maps sorted by key (SHW-02); a global Pan or Tilt is `{"degrees": -90.0}`; a
   playback value may be a reference `{"palette": id, "value": …}`. Live
   state (programmer references, running fades) is not saved (SHW decision 3).
 - **PAL-24** Lenient load (SHW-07): each of these is left out with one warning naming it: a
-  palette with an id or number used by an earlier one or a number outside 1–120, a per-fixture
+  palette with an id, number or cell used by an earlier one, a number outside 1–9999 or an
+  unknown window, a per-fixture
   entry for a fixture not in the patch, and a value that is not a level, colour, degrees (global
   Pan/Tilt only) or reference. A playback reference to a palette that does not exist becomes
   its fallback value, with a warning. Shared entries for a type no fixture uses are kept
   without a warning.
 
 ### IPC (extends `ipc.md`)
-- **PAL-25** The snapshot gains `"palettes":[{"id":1,"number":3,"legend":"Warm","icon":null,
+- **PAL-25** The snapshot gains `"palettes":[{"id":1,"number":1,"window":"Colours","handle":1,
+  "legend":"Warm","icon":null,
   "auto_icon":{"colours":[{"r":1.0,"g":0.62,"b":0.3}]},"kind":"G","groups":["C"]}]`, sorted by
   number, `groups` being the attribute groups the palette holds in I P C G B E S FX order. A
   `{"v":0,"type":"palettes","palettes":[…]}` delta with the whole list follows any tick in which
@@ -197,25 +207,27 @@ lists) store, so they come first.
   for a target, or all palettes when nothing is selected), each `wheels` entry gains
   `"palette": id` or `null`, and each `contents` entry (IPC-21) gains `"palettes":{"Colour":1}`
   for its referenced attributes.
-- **PAL-27** Commands (numbers, not ids; refusals are warnings, IPC-06):
-  `palette.record {"number":3,"mask":["C"],"record_by":"Mixed","record_as":"Auto",
-  "mode":"Merge"}` (all but `number` optional: mask from the window, `record_by` from the
-  setting, `record_as` Auto, `mode` only for a used number) · `palette.apply {"number":3,
-  "time":2.0,"overlap":50}` (`time` s and `overlap` % optional, PAL-15) ·
-  `palette.include {"number":3}` · `palette.copy {"from":3,"to":4}` ·
-  `palette.move {"from":3,"to":4}` · `palette.delete {"number":3}` ·
+- **PAL-27** Commands (numbers and cells, not ids; refusals are warnings, IPC-06):
+  `palette.record {"window":"Colours","handle":4,"number":12,"mask":["C"],"record_by":"Mixed",
+  "record_as":"Auto","mode":"Merge"}` (all but the cell optional: `number` only for a new
+  palette, mask from the window, `record_by` from the setting, `record_as` Auto, `mode` only for
+  a used cell) · `palette.apply {"number":3,"time":2.0,"overlap":50}` (`time` s and `overlap` %
+  optional, PAL-15) · `palette.include {"number":3}` ·
+  `palette.copy {"number":3,"to":{"window":"Colours","handle":5}}` · `palette.move` (same
+  fields) · `palette.renumber {"number":3,"to":30}` · `palette.delete {"number":3}` ·
   `palette.legend {"number":3,"legend":"Warm","icon":"colour.drop"}` (`icon: null` = automatic) ·
   `settings.palette {"time":0.0,"overlap":100,"record_by":"Mixed"}` (each field optional).
 
 ### App (UI v0.1; amends `ui.md` UI-13, 16, 17, 18, 19 when approved)
-- **PAL-28** The Colours, Positions and Gobos & Beams windows show one cell per number of their
-  range (40, 5 rows of 8, scrolling inside the window; UI-13 showed 32). A used cell follows
+- **PAL-28** The Colours, Positions and Gobos & Beams windows show their palettes on their
+  handles, rows of 8, at least 32 cells and always one empty row after the last used cell,
+  scrolling inside the window (UI-13 amended: no fixed number ranges). A used cell follows
   UI-05: number top-left, kind tag (G/S/N) top-right, icon (picked or automatic) and legend, and
   the IPCGBES mask strip from `groups`. In use in the programmer = red top strip; not relevant
   to the selection = 38 % opacity (Titan *Filter Relevant Palettes*). A tap applies the palette;
   when the command line holds only a number, that number is the fade time in seconds (Titan:
   type the time, touch the palette) and the line is cleared. The window title shows
-  "mask C · 7/40".
+  "mask C · 7 palettes".
 - **PAL-29** Function buttons and softkeys come alive:
   - **Record** + tap an empty cell records it (PAL-01). Record + tap a used cell shows the Record
     softkeys Replace, Merge, Quick Merge and Cancel; tapping the same cell again is Quick Merge
@@ -225,8 +237,8 @@ lists) store, so they come first.
   - A double-click on an empty cell without Record armed records it too (Titan Quick Record).
   - **Update** + tap = Quick Merge; **Include** + tap = PAL-12; **Copy** / **Move**: tap the
     source, then an empty cell; **Delete** + tap, confirmed on softkey A (two-step, PAT-10).
-  - **Set Legend** + tap a palette opens a legend editor: a text field, the icon library as a
-    grid by category, and "Auto" with the automatic icon.
+  - **Set Legend** + tap a palette opens a legend editor: a text field, the number (Renumber,
+    PAL-17), the icon library as a grid by category, and "Auto" with the automatic icon.
   - The keypad **Palette** key and the P key (UI-19) add the `Palette` token. Pressed with an
     empty command line, Palette opens the Palette softkeys: Master Time and Master Overlap (take
     the number on the command line; without one they show the current value) and Set Overlap
@@ -248,7 +260,7 @@ shape) and a `pal` action:
 
 ```json
 { "t": 0.0, "prg": { "select": [201, 211, 221] } }
-{ "t": 0.1, "pal": { "record": { "number": 3, "mask": ["C"] } } }
+{ "t": 0.1, "pal": { "record": { "window": "Colours", "handle": 1, "number": 3 } } }
 { "t": 0.2, "pal": { "apply": { "number": 3, "time": 2.0, "overlap": 50 } } }
 "expect": [ { "t": 1.2, "universe": 1, "channels": { "37": 128 } } ]
 ```
@@ -269,22 +281,22 @@ Nested palettes and *Fire Nested Palettes*, time palettes and palettes fired wit
 times, effect and shape palettes (phase 2, `PROJECT.md`); *Blind to Live* (with Blind);
 *Release to quick palette* (Titan v19, with P1-04 release); applying a palette to all fixtures of
 a playback; the Palette View window with per-value Off (phase 2); halos (with P1-04, for every
-handle kind at once); the user icon folder (phase 2, IDEA-14); global Pan/Tilt in degrees (with
-recording a palette from the command line (`Record Palette n`); **Edit** (Titan: set the
+handle kind at once); the user icon folder (phase 2, IDEA-14); recording a palette from the command line (`Record Palette n`); **Edit** (Titan: set the
 programmer aside, edit, Update, get the programmer back; owner decision 4: Include + Record →
 Merge covers it, the Edit button stays disabled); undo (P1-10).
 
-## Open questions for the owner
-2. **Record By default (PAL-02):** `Mixed` or `Channel`.
-5. **Icon library (PAL-22):** SF Symbols plus own glyphs, or an open SVG set (Lucide, ISC).
-6. **Palette numbers (Definitions, PAL-28):** fixed ranges per window (1–40, 41–80, 81–120), or
-   Titan's model where a palette simply lives in the window it was recorded in and gets the next
-   free number.
-
 ## Owner decisions (2026-10-18)
+None open; all seven answered on 2026-10-18.
+
 1. Deleting a used palette behaves as on Titan: references fall back to the values they had when
    they were made (PAL-18). Hence the fallback `value` in every reference.
+2. Record By defaults to `Mixed`, with `Channel` as the option per record and as a setting.
 3. Market practice over the church: Global covers intensity, Pan, Tilt and Colour as on Titan;
    Pan/Tilt global in degrees via the physical ranges (PAL-04, PAL-07).
 4. No Edit in phase 1; Include + Record → Merge.
+5. Icons: SF Symbols in the app, plus own glyphs where the lighting world needs them; the show
+   stores only ColourmotionDMX ids (PAL-22).
+6. No number ranges per window: a palette lives where it was recorded and gets the next free
+   number, as on Titan; its window never decides what it is (owner: the ONYX way, where the
+   place decides, is the annoying one).
 7. Overlap as Titan's fixture overlap: the typed time is per fixture (PAL-14).
