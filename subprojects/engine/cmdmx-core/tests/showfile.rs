@@ -1,6 +1,11 @@
 //! SHW-01..08: the show file (`specs/modules/showfile.md`).
 
-#![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing)]
+#![allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::indexing_slicing
+)]
 
 mod common;
 
@@ -116,7 +121,15 @@ fn shw_01_top_level_keys_in_order() {
     let json = rig().to_show(meta()).to_json();
     assert_eq!(
         top_level_keys(&json),
-        ["schema_version", "meta", "settings", "profiles", "patch", "groups", "playbacks"]
+        [
+            "schema_version",
+            "meta",
+            "settings",
+            "profiles",
+            "patch",
+            "groups",
+            "playbacks"
+        ]
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
@@ -178,7 +191,10 @@ fn shw_02_writing_twice_is_byte_identical() {
     assert_eq!(a, show.to_json());
     assert_eq!(a, rig().to_show(meta()).to_json());
     assert!(a.ends_with("}\n"));
-    assert!(a.contains("\n  \"meta\": {\n    \"name\""), "two-space indents");
+    assert!(
+        a.contains("\n  \"meta\": {\n    \"name\""),
+        "two-space indents"
+    );
 }
 
 #[test]
@@ -386,7 +402,10 @@ fn shw_07_invalid_profile_leaves_out_its_fixtures() {
     assert!(warnings.iter().any(|w| w.contains("wash")), "{warnings:?}");
     let ids = fixture_ids(&engine);
     assert!(!ids.iter().any(|id| (101..=104).contains(id)));
-    assert!(ids.contains(&201) && ids.contains(&401), "the rest still loads");
+    assert!(
+        ids.contains(&201) && ids.contains(&401),
+        "the rest still loads"
+    );
 }
 
 #[test]
@@ -457,4 +476,14 @@ fn shw_08_no_machine_specific_data() {
     assert!(!json.contains("/Users/"));
     let keys = top_level_keys(&json);
     assert!(!keys.iter().any(|k| k == "output" || k == "control"));
+}
+
+#[test]
+fn shw_03_a_group_emptied_by_removes_survives_the_round_trip() {
+    let mut e = rig();
+    e.patch_remove(&[301, 302, 303, 304, 305, 306]).unwrap();
+    let show = e.to_show(meta());
+    let (loaded, warnings) = Engine::from_show(&show);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(loaded.to_show(meta()), show);
 }
