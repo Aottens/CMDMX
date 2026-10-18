@@ -67,8 +67,8 @@ struct PaletteWindow: View {
     var body: some View {
         let mine = engine.palettes.filter { $0.window == kind.wire }
         let byHandle = Dictionary(mine.map { ($0.handle, $0) }, uniquingKeysWith: { a, _ in a })
-        // At least 32 cells, and always one empty row after the last used cell (PAL-28).
-        let rows = max(4, ((mine.map(\.handle).max() ?? 0) + 7) / 8 + 1)
+        // At least 36 cells (6 rows of 6), and always one empty row after the last used cell (PAL-28).
+        let rows = max(6, ((mine.map(\.handle).max() ?? 0) + 5) / 6 + 1)
         let programmer = engine.programmer
         let inUse = Set(programmer.palettes.inUse), relevant = Set(programmer.palettes.relevant)
         let hasSelection = !programmer.selection.isEmpty
@@ -79,8 +79,8 @@ struct PaletteWindow: View {
             accessory: { EmptyView() }
         ) {
             ScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
-                    ForEach(1...(rows * 8), id: \.self) { handle in
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 6), spacing: 2) {
+                    ForEach(1...(rows * 6), id: \.self) { handle in
                         if let p = byHandle[handle] {
                             Cell(number: p.number, tag: p.kind, legend: p.shownLegend,
                                  selected: ui.source == p.id || ui.deleteTarget == p.number,

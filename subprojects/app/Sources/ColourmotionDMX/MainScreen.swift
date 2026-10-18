@@ -52,6 +52,9 @@ final class UIState: ObservableObject {
     @Published var legendEditing: PaletteRef?
     /// Set Overlap (PAL-29): the overlap in % for the next palette tap only.
     @Published var pendingOverlap: Double?
+    /// The Palette softkeys (PAL-29): opened by the Palette key on an empty line, they stay open
+    /// until Cancel, Exit or another context is chosen.
+    @Published var paletteMenu = false
 
     func resetRecord() {
         usedCell = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
@@ -61,6 +64,7 @@ final class UIState: ObservableObject {
     func cancelModes() {
         recordArmed = false
         function = nil; source = nil; deleteTarget = nil
+        paletteMenu = false
     }
 
     /// A function button: arms it (disarming the others), or disarms it when it is the armed one.

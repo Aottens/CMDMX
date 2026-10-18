@@ -44,7 +44,7 @@ private struct ColumnHeader: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(text.uppercased()).font(Typo.legend(11, .semibold)).tracking(1.1).foregroundStyle(t.fg2)
-                .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading).frame(height: 22)
+                .lineLimit(1).minimumScaleFactor(0.7).frame(maxWidth: .infinity, alignment: .leading).frame(height: 22)
             HLine()
         }
         .padding(.bottom, 2)
@@ -209,14 +209,17 @@ private struct Keypad: View {
     private func press(_ label: String) {
         switch label {
         case "Back": line.back()
-        case "Exit": line.clear()
-        case "Enter": line.send(engine)
+        case "Exit": line.clear(); ui.paletteMenu = false
+        case "Enter": line.send(engine); ui.paletteMenu = false
         case "Clear": engine.clearProgrammer(); ui.cancelModes(); ui.pendingOverlap = nil
         case "Set": ui.arm(.legend)   // Set Legend, as the softkey
         case "Fix -1": engine.step(-1)
         case "Fix +1": engine.step(1)
         case "Odd/Even": engine.pattern(2)
-        default: line.add(label)   // digits, ".", Fixture, Group, Palette, Thro, And, @; the Palette softkeys follow the line
+        case "Palette":
+            if line.tokens.isEmpty { ui.paletteMenu = true }   // PAL-29: the Palette softkeys, until Cancel or Exit
+            line.add(label)
+        default: line.add(label)   // digits, ".", Fixture, Group, Thro, And, @
         }
     }
 }
@@ -242,6 +245,8 @@ private struct Softkey {
     var sub = ""
     /// The spec a disabled key waits for.
     var spec = ""
+    /// Switched on (a group in the Record mask): inverted, as on Titan.
+    var on = false
     var action: (() -> Void)?
 }
 
@@ -257,7 +262,7 @@ private struct Softkeys: View {
     private var context: (name: String, keys: [Softkey?]) {
         if ui.recordArmed { return recordContext }
         if let function = ui.function { return functionContext(function) }
-        if line.paletteMenu { return paletteContext }
+        if ui.paletteMenu { return paletteContext }
         if !engine.programmer.selection.isEmpty {
             return ("Selection", [
                 Softkey(name: "Next", sub: "Fix +1", action: { engine.step(1) }),
@@ -293,7 +298,7 @@ private struct Softkeys: View {
             let base = used.flatMap { PaletteWindowKind.of(wire: $0.window) }?.mask ?? workspaceMaskBase
             let mask = ui.recordMask ?? Set(base)
             return ("Record · Mask", Array(attributeGroupOrder.prefix(7)).map { group in
-                Softkey(name: group, sub: mask.contains(group) ? "on" : "off") {
+                Softkey(name: group, sub: mask.contains(group) ? "on" : "off", on: mask.contains(group)) {
                     var m = mask
                     if m.contains(group) { m.remove(group) } else { m.insert(group) }
                     ui.recordMask = m
@@ -372,25 +377,25 @@ private struct Softkeys: View {
                 }
             },
             nil, nil, nil,
-            Softkey(name: "Cancel", action: { line.clear() }),
+            Softkey(name: "Cancel", action: { line.clear(); ui.paletteMenu = false }),
         ])
     }
 
     var body: some View {
         let context = context
         VStack(spacing: 0) {
-            ColumnHeader(text: "Softkeys · \(context.name)")
+            ColumnHeader(text: context.name)
             VStack(spacing: 2) {
                 ForEach(Array(context.keys.enumerated()), id: \.offset) { index, key in
                     Button { key?.action?() } label: {
                         ZStack(alignment: .topLeading) {
-                            SoftkeyShape().fill(t.surf2)
-                            Text(String(UnicodeScalar(UInt8(65 + index)))).font(Typo.mono(11, .semibold)).foregroundStyle(t.fg3)
+                            SoftkeyShape().fill(key?.on == true ? t.fg : t.surf2)
+                            Text(String(UnicodeScalar(UInt8(65 + index)))).font(Typo.mono(11, .semibold)).foregroundStyle(key?.on == true ? t.bg : t.fg3)
                                 .padding(.leading, 14).padding(.top, 6)
                             if let key {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(key.name).font(Typo.legend()).foregroundStyle(t.fg)
-                                    if !key.sub.isEmpty { Text(key.sub).font(Typo.mono(Typo.small)).foregroundStyle(t.fg2) }
+                                    Text(key.name).font(Typo.legend()).foregroundStyle(key.on ? t.bg : t.fg)
+                                    if !key.sub.isEmpty { Text(key.sub).font(Typo.mono(Typo.small)).foregroundStyle(key.on ? t.bg : t.fg2) }
                                 }
                                 .padding(.leading, 28).padding(.top, 6)
                             }

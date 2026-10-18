@@ -6,7 +6,7 @@ import SwiftUI
 
 // MARK: - Cell (UI-05)
 
-/// One button of the fixed 8-column grid: 54 pt high, number top-left, tag or selection order
+/// One button of the fixed 6-column grid: 72 pt high, number top-left, tag or selection order
 /// top-right, condensed legend. State never changes the fill.
 struct Cell: View {
     @Environment(\.theme) private var t
@@ -53,7 +53,7 @@ struct Cell: View {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     Text(legend).font(Typo.legend()).foregroundStyle(t.fg)
-                        .lineLimit(icon == nil ? 2 : 1).multilineTextAlignment(.leading)
+                        .lineLimit(2).multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 4).padding(.bottom, 10)
                 }
@@ -65,7 +65,7 @@ struct Cell: View {
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
             if let icon {
-                icon.padding(.horizontal, 4).padding(.top, 16)
+                icon.padding(.horizontal, 4).padding(.top, 19)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             if mask {
@@ -78,7 +78,7 @@ struct Cell: View {
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
-        .frame(maxWidth: .infinity).frame(height: 54)
+        .frame(maxWidth: .infinity).frame(height: 72)
         .overlay(alignment: .topTrailing) {
             if let order {
                 Text("\(order)").font(Typo.mono(Typo.small, .semibold)).foregroundStyle(t.blue.opacity(dimmed ? 0.4 : 1)).padding(4)
@@ -115,7 +115,7 @@ private struct CellScroll<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) { content }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 6), spacing: 2) { content }
                 .padding(3)
         }
     }
@@ -198,8 +198,8 @@ struct GroupsWindow: View {
 
     var body: some View {
         let byId = Dictionary(engine.groups.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        // 24 cells, or more (whole rows of 8) when the show has higher group numbers.
-        let cells = max(24, ((engine.groups.map(\.id).max() ?? 0) + 7) / 8 * 8)
+        // 24 cells, or more (whole rows of 6) when the show has higher group numbers.
+        let cells = max(24, ((engine.groups.map(\.id).max() ?? 0) + 5) / 6 * 6)
         let selection = Set(engine.programmer.selection)
 
         PanelWindow(

@@ -204,9 +204,11 @@ struct ProgrammerContent: Decodable, Identifiable, Equatable {
     let values: [String: ProgrammerValue]
     /// PAL-26: attribute name → palette id, for the values that are palette references.
     let palettes: [String: Int]
+    /// PAL-26: attribute name → progress 0...1 of a palette fade still running; absent once done.
+    let fading: [String: Double]
     var id: Int { fixture }
 
-    private enum CodingKeys: String, CodingKey { case fixture, values, palettes }
+    private enum CodingKeys: String, CodingKey { case fixture, values, palettes, fading }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -214,6 +216,7 @@ struct ProgrammerContent: Decodable, Identifiable, Equatable {
         let raw = (try? c.decode([String: Tolerant<ProgrammerValue>].self, forKey: .values)) ?? [:]
         values = raw.compactMapValues(\.value)
         palettes = (try? c.decode([String: Int].self, forKey: .palettes)) ?? [:]
+        fading = (try? c.decode([String: Double].self, forKey: .fading)) ?? [:]
     }
 }
 

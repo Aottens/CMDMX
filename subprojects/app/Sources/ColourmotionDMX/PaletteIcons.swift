@@ -125,7 +125,7 @@ enum PaletteIcons {
 struct IconGlyph: View {
     @Environment(\.theme) private var t
     let entry: IconEntry
-    var size: CGFloat = 12
+    var size: CGFloat = 15
 
     var body: some View {
         switch entry {
@@ -156,7 +156,7 @@ struct AutoIconView: View {
                     Rectangle().fill(Color(red: c.r, green: c.g, blue: c.b))
                 }
             }
-            .frame(height: 8).clipShape(RoundedRectangle(cornerRadius: 1))
+            .frame(height: 12).clipShape(RoundedRectangle(cornerRadius: 1))
         case .position(let points):
             Canvas { ctx, size in
                 // The sketch's plot: a floor line, and a beam from the rig down to each point.
@@ -169,7 +169,7 @@ struct AutoIconView: View {
                     ctx.fill(Path(ellipseIn: CGRect(x: x - 1.8, y: y - 1.8, width: 3.6, height: 3.6)), with: .color(t.fg))
                 }
             }
-            .frame(width: 34, height: 12)
+            .frame(width: 48, height: 16)
         case .value(let attribute, let value):
             Text("\(attribute.uppercased()) \(Int((value * 100).rounded()))%")
                 .font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1).minimumScaleFactor(0.7)

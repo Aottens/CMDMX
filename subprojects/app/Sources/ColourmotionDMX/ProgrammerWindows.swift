@@ -99,7 +99,12 @@ struct ProgrammerWindow: View {
                 }
                 guard let id = row.palettes[name] else { return text.foregroundStyle(t.red) }
                 let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
-                return Text("\(text) \(legend)").foregroundStyle(t.cyan)
+                let target = Text("\(text) \(legend)").foregroundStyle(t.cyan)
+                // A fade still running keeps its target and adds an amber bar filling up (PAL-30).
+                guard let progress = row.fading[name] else { return target }
+                let filled = Int((progress.clamped01 * 5).rounded(.down))
+                let bar = String(repeating: "▰", count: filled) + String(repeating: "▱", count: 5 - filled)
+                return Text("\(target) \(Text(bar).foregroundStyle(t.amber))")
             }
             items.dropFirst().reduce(items[0]) { Text("\($0) · \($1)") }
         }

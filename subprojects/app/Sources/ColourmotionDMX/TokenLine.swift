@@ -22,14 +22,10 @@ final class TokenLine: ObservableObject {
         tokens.count == 1 && isNumeric(tokens[0]) ? Double(tokens[0]) : nil
     }
 
-    /// The Palette key opens the Palette softkeys while the line is `Palette` or `Palette n` (PAL-29).
-    var paletteMenu: Bool {
-        tokens.first == "Palette" && (tokens.count == 1 || (tokens.count == 2 && isNumeric(tokens[1])))
-    }
-
-    /// The number typed after `Palette`, for Master Time, Master Overlap and Set Overlap.
+    /// The number on the line (alone, or after `Palette`), for Master Time, Master Overlap and Set Overlap.
     var paletteArgument: Double? {
-        paletteMenu && tokens.count == 2 ? Double(tokens[1]) : nil
+        if tokens.count == 1 { return onlyNumber }
+        return tokens.count == 2 && tokens[0] == "Palette" && isNumeric(tokens[1]) ? Double(tokens[1]) : nil
     }
 
     /// Digits and `.` join the number being typed; any other token stands alone.
@@ -108,8 +104,8 @@ enum MacKeys {
         guard ui.screen == nil else { return false }
 
         switch event.keyCode {
-        case 36, 76: line.send(engine)      // Return, keypad Enter
-        case 53: line.clear()               // Esc
+        case 36, 76: line.send(engine); ui.paletteMenu = false   // Return, keypad Enter
+        case 53: line.clear(); ui.paletteMenu = false            // Esc
         case 51: line.back()                // Backspace
         case 126: line.older()              // Up
         case 125: line.newer()              // Down
@@ -122,7 +118,9 @@ enum MacKeys {
             case "@": line.add("@")
             case "f": line.add("Fixture")
             case "g": line.add("Group")
-            case "p": line.add("Palette")
+            case "p":
+                if line.tokens.isEmpty { ui.paletteMenu = true }
+                line.add("Palette")
             default: return false
             }
         }
