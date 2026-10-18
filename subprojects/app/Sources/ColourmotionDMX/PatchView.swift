@@ -156,7 +156,10 @@ private struct SelectedPanel: View {
                         Button("Set") { engine.patchName(id: fixture.id, name: name) }.buttonStyle(FlatButton())
                     }
                     labelled("Mode") {
-                        TextField("mode name", text: $mode).textFieldStyle(.roundedBorder)
+                        Picker("", selection: $mode) {
+                            ForEach(fixture.modes, id: \.self) { Text($0).tag($0) }
+                        }
+                        .labelsHidden()
                         Button(armed == .mode ? "Confirm change" : "Change") {
                             if armed == .mode {
                                 engine.patchChangeMode(id: fixture.id, mode: mode)
@@ -164,7 +167,9 @@ private struct SelectedPanel: View {
                             } else {
                                 armed = .mode
                             }
-                        }.buttonStyle(FlatButton(fill: armed == .mode ? .red : nil))
+                        }
+                        .buttonStyle(FlatButton(fill: armed == .mode ? .red : nil))
+                        .disabled(mode == fixture.mode)
                     }
                     Button(armed == .remove ? "Confirm remove" : "Remove") {
                         if armed == .remove {

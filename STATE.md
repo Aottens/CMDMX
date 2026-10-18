@@ -30,7 +30,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 
 ## In progress
 - VS4-02 (#34) and VS2-13 (#35) merged; *Kerk* is in the owner's Shows folder (56 fixtures, 9 user profiles). Run `tests/hardware/runs/2026-10-18-church.md`: the Patch-screen line passed at home; the desk lines wait for the Eurolite, the rest for the church
-- Next: VS2-16 (Change Mode as a dropdown, owner finding from that run)
+- VS2-16 in review: snapshot `fixtures` entries carry `modes` (PAT-09 amended), Change Mode is a dropdown of them (PAT-10 amended); owner ticks the two new lines of `tests/manual/app-patch.md`
 
 ## Blocked
 - VS4-02 / VS1-04 gate 3 (Eurolite MK2, on the owner's desk): run `tests/hardware/runs/2026-10-18-VS4-02.md`
@@ -54,7 +54,7 @@ its real main screen (`specs/modules/ui.md`, UI-01..28; README screenshot); the 
 done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
-- **VS2-16**: Change Mode as a dropdown of the fixture's modes (next, owner).
+- **VS2-16** review: tick the Change Mode lines of `tests/manual/app-patch.md`.
 - **VS2-13** gate 3: finish `tests/hardware/runs/2026-10-18-church.md` (desk lines with the Eurolite, the rest at the church).
 - **UX-02d** with VS1-06: playback area and paging.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
