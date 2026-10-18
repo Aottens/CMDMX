@@ -94,6 +94,14 @@ The patch messages (snapshot `fixtures` entries, `fixtures` delta, `patch.*` com
 Patch screen are specified in `patch.md` PAT-09 and PAT-10; IPC-10's `fixtures` entries grow to
 the PAT-09 shape.
 
+### Show file (SHW-b)
+The show messages (snapshot `show`, `show` delta, `show.list/new/open/save_as`) are specified in
+`showfile.md` SHW-15. Wire details (SHW-b, within the approved criterion): `show.list` is
+answered by the client thread like `library.*`; `modified` is the file's modification time as
+ISO-8601 UTC; names are checked (SHW-09) and an Open is read from disk in the client thread, so
+the tick never waits on a show file; a switch (new, open, save as) reaches the tick as one event,
+which flushes the current show (SHW-11), installs the new one and sends every client a snapshot.
+
 ### Main screen (UX-02)
 IPC-20..23 (output health, programmer contents, the first target's colour, absolute hue and
 saturation for the colour picker) are specified in `ui.md`, approved by the owner 2026-10-17.

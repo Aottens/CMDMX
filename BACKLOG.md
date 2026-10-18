@@ -64,8 +64,8 @@ after the specs are added when each spec is approved (no sizing of code before i
 | P1-08 | Write `cuelists.md` (Titan cue list: record, Go/Back, fade/delay, link/follow; touched attributes only so tracking can follow in phase 2). | CUE | M | todo |
 | P1-04 | Write `playbacks.md` (fader modes 0/1/2, priority, release mask/time, kill point, locks, playback groups, chases, masters). | PBK | L | todo |
 | P1-09 | Write `showfile.md` criteria (SHW): one readable JSON, autosave + atomic rename, versioned schema. | SHW | M | done (2026-10-18; SHW-01..17 approved) |
-| SHW-a | Show file in `cmdmx-core::show`: schema v1, `Engine::to_show`/`from_show`, stable JSON, version check, lenient load; `cmdmx-core/tests/showfile.rs` and `tests/fixtures/shows/church-demo.cmdmx.json` green. | SHW-01..08 | M | review |
-| SHW-b | Daemon: shows folder, last show at start (Demo fallback), autosave in place on a saver thread, `.bak` after a lossy load, failing-autosave warning, `.tmp` recovery, `show.*` over IPC (extend `ipc.md`). Needs SHW-a. | SHW-09..15 | M | todo |
+| SHW-a | Show file in `cmdmx-core::show`: schema v1, `Engine::to_show`/`from_show`, stable JSON, version check, lenient load; `cmdmx-core/tests/showfile.rs` and `tests/fixtures/shows/church-demo.cmdmx.json` green. | SHW-01..08 | M | done (2026-10-18, #30) |
+| SHW-b | Daemon: shows folder, last show at start (Demo fallback), autosave in place on a saver thread, `.bak` after a lossy load, failing-autosave warning, `.tmp` recovery, `show.*` over IPC (extend `ipc.md`). Needs SHW-a. | SHW-09..15 | M | review |
 | SHW-c | App: show name and autosave age in the status bar, Show screen with Open/New/Save As and two-step confirm; `tests/manual/app-show.md` run by the owner. Needs SHW-b. | SHW-16, 17 | M | todo |
 | VS3-01 | Demo: a service-sized cue list (walk-in, worship, sermon, video, walk-out) plus the 6 front spots on their own fader runs with Go/Back and survives a daemon restart via the show file. | CUE, PBK, SHW | — | todo (split after specs) |
 

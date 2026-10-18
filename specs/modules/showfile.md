@@ -63,7 +63,9 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
 - **SHW-09** Shows live in the shows folder, created when missing (`--show-dir <path>` overrides
   it for tests). A show name is 1–64 characters, has no `/` or `:` and does not start with `.`;
   names are unique ignoring case (APFS). The daemon remembers the open show's name in
-  `~/Library/Application Support/ColourmotionDMX/state.json`.
+  `~/Library/Application Support/ColourmotionDMX/state.json`; with `--show-dir` that file is
+  `<show-dir>/state.json`, so a test run never changes the owner's last show (SHW-b detail).
+  The list holds only `*.cmdmx.json` files, sorted by name ignoring case.
 - **SHW-10** At start the daemon opens the last show. With no last show, or when its file is gone,
   it opens the show *Demo*, creating it from the built-in demo rig (IPC-14) if it does not exist.
   When the last show is refused (SHW-04), the daemon opens *Demo* as well, warns, and never writes
