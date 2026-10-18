@@ -1195,7 +1195,12 @@ fn pal_23_palettes_and_references_round_trip() {
     let json = show.to_json();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], serde_json::json!(2));
-    let keys: Vec<&String> = v.as_object().unwrap().keys().collect();
+    // Top-level keys in file order: lines with exactly two spaces of indent.
+    let keys: Vec<&str> = json
+        .lines()
+        .filter_map(|l| l.strip_prefix("  \""))
+        .filter_map(|l| l.split('"').next())
+        .collect();
     let groups = keys.iter().position(|k| *k == "groups").unwrap();
     assert_eq!(keys[groups + 1], "palettes");
     assert_eq!(v["palettes"]["next_id"], serde_json::json!(3));

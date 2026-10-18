@@ -205,3 +205,5 @@ third fixture ("1 in 3"), and further options; ONYX has this, as far as the owne
   offset, blocks of *n*.
 - Open questions: is "1 in 3" wanted earlier than phase 2 (it would be a small UI-only task);
   does random reshuffle on every press or stay until the selection changes?
+**Outcome (2026-10-18):** owner: phase 2, "1 in 3" included. Random reshuffles on every press
+(each press takes a new seed, so the same actions still give the same result, ENG-11).
