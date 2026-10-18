@@ -152,7 +152,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Fix −1 / Fix +1 (`programmer.step`) and Odd/Even (`programmer.pattern` 2).
 
   Palette adds the `Palette` token, and with an empty line opens the Palette softkeys (PAL-29).
-  Disabled: Macro (later), Avo and View (later), Set (with Set Legend),
+  Set arms Set Legend (PAL-29, as Titan's Set key). Disabled: Macro (later), Avo and View (later),
   Highlight and Locate (VS2-05).
 
   The Keypad toggle in the status bar hides the keypad, and it is hidden automatically on a
@@ -165,7 +165,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     Shapes & Effects (phase 2), Timecode (phase 3) and Lock (later) are disabled; Undo is
     disabled until P1-10.
   - Selection context (when something is selected): Next and Previous (Fix ±1), All
-    (`programmer.all`) and Odd/Even work; Set Legend and Playback Options are disabled.
+    (`programmer.all`), Odd/Even and Set Legend (palettes, PAL-29) work; Playback Options is
+    disabled.
   - Record context (Record armed): Cancel, plus the palette softkeys of PAL-29 (Replace, Merge,
     Quick Merge after a tap on a used cell; Mask, Record By, Record as).
   - Palette context (PAL-29): Master Time, Master Overlap, Set Overlap, Cancel.

@@ -205,7 +205,10 @@ lists) store, so they come first.
   "auto_icon":{"colours":[{"r":1.0,"g":0.62,"b":0.3}]},"kind":"G","groups":["C"]}]`, sorted by
   number, `groups` being the attribute groups the palette holds in I P C G B E S FX order. A
   `{"v":0,"type":"palettes","palettes":[…]}` delta with the whole list follows any tick in which
-  a palette was recorded, merged, renamed, copied, moved or deleted.
+  a palette was recorded, merged, renamed, copied, moved or deleted. The snapshot also carries
+  `"palette_settings":{"time":0.0,"overlap":100.0,"record_by":"Mixed"}` (PAL-15, PAL-02), and a
+  `{"v":0,"type":"palette_settings",…}` delta follows a change, so the Palette softkeys can show
+  the current values (added 2026-10-18, VS2-19).
 - **PAL-26** The programmer state (IPC-11) gains `"palettes":{"in_use":[1],"relevant":[1,2,7]}`
   (`in_use`: palettes referenced in the programmer; `relevant`: palettes that resolve something
   for a target, or all palettes when nothing is selected), each `wheels` entry gains

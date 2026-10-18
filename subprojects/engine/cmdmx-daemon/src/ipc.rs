@@ -2215,6 +2215,26 @@ mod tests {
     }
 
     #[test]
+    fn pal_25_palette_settings_in_the_snapshot_and_a_delta_on_change() {
+        let mut e = engine_with_palettes();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        assert_eq!(
+            v["palette_settings"],
+            json!({"time":0.0,"overlap":100.0,"record_by":"Mixed"})
+        );
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_palette_master(Some(2.0), Some(50.0)).unwrap();
+        e.set_record_by(cmdmx_core::palette::RecordBy::Channel);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1, "{d:?}");
+        assert_eq!(
+            parse(&d[0]),
+            json!({"v":0,"type":"palette_settings","time":2.0,"overlap":50.0,"record_by":"Channel"})
+        );
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
     fn pal_26_programmer_state_carries_palette_use() {
         let mut e = engine_with_palettes();
         let v = parse(&snapshot(&e, &[], &show_state()));
