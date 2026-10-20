@@ -7,7 +7,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 
 ## Working
 - Church patch (VS2-13, merged #35): `patch.md` PAT-15..18 approved (owner, 2026-10-18); `cargo run -p cmdmx-daemon --example church -- ~/Documents/ColourmotionDMX/Lightkey/BGS_Shows.tsv` writes the show *Kerk* (56 fixtures, numbers in blocks of 100 per type: 101–120 Showtec pars … 1201) and 9 user profiles, never overwrites; checklist `tests/hardware/church.md` (gate 3). Dry run into a temp folder opened in the daemon without warnings. The Lightkey files stay out of git
-- Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core, #30) and SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` over IPC, #31) merged; SHW-c (app: show name + autosave age in the status bar, Show screen with Open/New/Save As) merged (#32)
+- Show file spec `specs/modules/showfile.md` SHW-01..17 approved (P1-09, 2026-10-18), SHW-18 (2026-10-18): autosave in place, shows in `~/Documents/ColourmotionDMX/Shows/`, live state not saved. SHW-a (core, #30) and SHW-b (daemon: shows folder, last show at start with Demo fallback, autosave in place on a saver thread, `.bak`, `.tmp` recovery, `show.*` over IPC, #31) merged; SHW-c (app: show name + autosave age in the status bar, Show screen with Open/New/Save As) merged (#32)
 - Repo scaffold: meta-layer, ADR-001..004, PRD, module specs (3 written, 3 skeleton)
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
@@ -31,6 +31,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 
 ## In progress
 - P1-04 playbacks: `specs/modules/playbacks.md` PBK-06..45 approved (owner, 2026-10-18; all seven proposals: Record By Channel, the mode 0/1 time model, fixed Swop/Flash/Latch, automatic halo, attribute-group times and chases with BPM/Rate masters in P1-08, group masters P1-16, Titan release defaults). VS2-20 (core storage, #44) merged; VS2-21 (behaviour on the frame, #45) merged; VS2-22 (IPC + app: strips, handles, Playback Options, Active playbacks, DBO; PBK-35 amended with the owner: whole-list `playbacks` delta for stored changes, `groups` and `fired` per entry; PBK-37 icon placement) in review, owner run passed 2026-10-20
+- SHW-d merged (#47): `cmdmx-daemon --help` printed nothing and started the daemon, which opened and migrated *Kerk*; now `--help`/`-h` prints the flags and exits 0, an unknown argument or a bad `--ticks` value exits 2, both before any show is opened (SHW-18)
 - VS4-02 (#34) and VS2-13 (#35) merged; *Kerk* is in the owner's Shows folder (56 fixtures, 9 user profiles). Run `tests/hardware/runs/2026-10-18-church.md`: the Patch-screen line passed at home; the desk lines wait for the Eurolite, the rest for the church
 - VS2-16 merged (#38): snapshot `fixtures` entries carry `modes` (PAT-09 amended), Change Mode is a dropdown of them (PAT-10 amended); owner run `tests/manual/runs/2026-10-18-VS2-16.md` passed
 

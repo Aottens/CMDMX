@@ -50,9 +50,14 @@ fn main() {
         Ok(c) => c,
         Err(e) => {
             eprintln!("cmdmx-daemon: {e}");
+            eprint!("{USAGE}");
             std::process::exit(2);
         }
     };
+    if cli.help {
+        print!("{USAGE}");
+        return;
+    }
     let ticks_limit = cli.ticks;
     // OUT-15/16/22: slice-only output config until node config lives in the show file.
     // Each entry: (hand-off to its thread, its shared state). `statuses` is the IPC-20 view
@@ -465,7 +470,28 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
     }
 }
 
+/// SHW-18: printed by `--help` (stdout, exit 0) and after a bad argument (stderr, exit 2).
+const USAGE: &str = "\
+usage: cmdmx-daemon [options]
+  --ticks <n>             stop after n ticks (default: run until stopped)
+  --no-artnet             turn Art-Net output off
+  --artnet-target <ip>    Art-Net destination (default 255.255.255.255)
+  --no-sacn               turn sACN output off
+  --sacn-unicast <ip>     sACN unicast destination (default: multicast universe 1)
+  --sacn-priority <n>     sACN priority 0..200 (default 100)
+  --no-serial             turn serial DMX output off
+  --serial <path>         serial DMX device (default: detect the interface)
+  --ipc-port <n>          WebSocket port on 127.0.0.1 (default 7319)
+  --demo                  fader 1 breathes
+  --qlcplus-dir <path>    QLC+ fixture files (default: bundled vendor/qlcplus/fixtures)
+  --profiles-dir <path>   saved profiles (default ~/Library/Application Support/ColourmotionDMX/profiles)
+  --show-dir <path>       shows folder (default ~/Documents/ColourmotionDMX/Shows)
+  -h, --help              print this and exit
+";
+
 struct Cli {
+    /// `--help`/`-h`: print USAGE and exit 0 (SHW-18).
+    help: bool,
     ticks: Option<u64>,
     /// `None` = Art-Net disabled (`--no-artnet`).
     artnet: Option<SocketAddrV4>,
@@ -494,6 +520,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
         .map(PathBuf::from)
         .unwrap_or_default();
     let mut cli = Cli {
+        help: false,
         ticks: None,
         artnet: Some(artnet_out::default_target()),
         sacn_enabled: true,
@@ -513,7 +540,17 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "--ticks" => cli.ticks = args.next().and_then(|v| v.parse().ok()),
+            "--help" | "-h" => {
+                cli.help = true;
+                return Ok(cli);
+            }
+            "--ticks" => {
+                let v = args.next().unwrap_or_default();
+                cli.ticks = Some(
+                    v.parse()
+                        .map_err(|_| format!("--ticks: '{v}' is not a whole number"))?,
+                );
+            }
             "--no-artnet" => cli.artnet = None,
             "--artnet-target" => {
                 let ip = parse_ipv4("--artnet-target", args.next())?;
@@ -553,7 +590,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
                 cli.show_dir = args.next().ok_or("--show-dir: missing path")?.into();
                 cli.state_file = cli.show_dir.join("state.json");
             }
-            _ => {}
+            other => return Err(format!("unknown argument '{other}'")),
         }
     }
     Ok(cli)
@@ -788,6 +825,66 @@ mod tests {
         assert_eq!(cli.show_dir, PathBuf::from("/tmp/shows"));
         assert_eq!(cli.state_file, PathBuf::from("/tmp/shows/state.json"));
         assert!(parse_args(args("--show-dir")).is_err());
+    }
+
+    /// Every flag `parse_args` knows, `--help` included.
+    const FLAGS: [&str; 15] = [
+        "--help",
+        "--ticks",
+        "--no-artnet",
+        "--artnet-target",
+        "--no-sacn",
+        "--sacn-unicast",
+        "--sacn-priority",
+        "--no-serial",
+        "--serial",
+        "--ipc-port",
+        "--demo",
+        "--qlcplus-dir",
+        "--profiles-dir",
+        "--show-dir",
+        "-h",
+    ];
+
+    #[test]
+    fn shw_18_help_flag_asks_for_usage() {
+        assert!(!parse_args(args("")).unwrap().help);
+        assert!(parse_args(args("--help")).unwrap().help);
+        assert!(parse_args(args("-h")).unwrap().help);
+        assert!(parse_args(args("--show-dir /tmp/x --help")).unwrap().help);
+    }
+
+    #[test]
+    fn shw_18_usage_names_every_flag_one_per_line() {
+        // A flag's line starts with it (`-h, --help` shares one line).
+        for flag in FLAGS {
+            let lines = USAGE
+                .lines()
+                .filter(|l| {
+                    l.split_whitespace()
+                        .take(2)
+                        .any(|w| w.trim_end_matches(',') == flag)
+                })
+                .count();
+            assert_eq!(lines, 1, "{flag} must start exactly one usage line");
+        }
+    }
+
+    #[test]
+    fn shw_18_unknown_argument_is_an_error() {
+        let e = parse_args(args("--bogus")).err().unwrap();
+        assert_eq!(e, "unknown argument '--bogus'");
+        assert!(parse_args(args("--ticks 1 -x")).is_err());
+        assert!(parse_args(args("Kerk")).is_err());
+        assert!(parse_args(args("--show-dir /tmp/x --helpme")).is_err());
+    }
+
+    #[test]
+    fn shw_18_ticks_value_must_be_a_whole_number() {
+        assert_eq!(parse_args(args("--ticks 5")).unwrap().ticks, Some(5));
+        assert!(parse_args(args("--ticks nope")).is_err());
+        assert!(parse_args(args("--ticks -1")).is_err());
+        assert!(parse_args(args("--ticks")).is_err());
     }
 
     #[test]

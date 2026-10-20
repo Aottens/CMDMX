@@ -87,6 +87,13 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
   newer than the show file and loads without being refused, the crash came between write and
   rename: the `.tmp` is renamed over the show file and a warning says the autosave of <time> was
   recovered. Any other `.tmp` is deleted with a warning.
+- **SHW-18** The daemon's command line never reaches the shows folder by accident (an earlier
+  `--help` opened and migrated the owner's show *Kerk*). `--help` or `-h` prints a usage text to
+  stdout, one line per flag naming the flag, its value and its default, and exits 0. Any other
+  argument the daemon does not know prints `cmdmx-daemon: unknown argument '<arg>'` plus the same
+  usage to stderr and exits 2, and so does a `--ticks` value that is missing or not a whole
+  number (it used to run forever). All of this happens before the daemon opens a show, a socket
+  or a serial port.
 
 ### IPC and app
 - **SHW-15** IPC (extends `ipc.md`): the snapshot carries `show: {name, saved_at, autosave_ok}`
