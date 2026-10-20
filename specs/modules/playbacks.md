@@ -253,8 +253,9 @@ playback unless it says "per cue".
   `dbo.set {"on":true}` · `settings.playback {…}` (PBK-12 and PBK-20 settings, each optional).
 
 ### App (UI v0.1; amends `ui.md` UI-13, 16, 18, 21, 22, 24 when approved)
-- **PBK-37** Strips (UI-22): the legend area shows the halo as a 3 pt top bar, the icon (picked
-  or automatic) and the legend (else `page.slot`), and a lock mark for `Locked`/`TransparentLock`
+- **PBK-37** Strips (UI-22): the legend area shows the halo as a 3 pt top bar, the legend (else
+  `page.slot`) on the left and the icon (picked or automatic, 26 pt) on the right (owner, VS2-22
+  run), and a lock mark for `Locked`/`TransparentLock`
   with the home page when it is not the current one. Swop and Flash are live: press and hold
   sends `on: true`, release `on: false`; a latched Flash is shown inverted. Running = green
   bottom strip, releasing = amber bottom strip (UI-03).

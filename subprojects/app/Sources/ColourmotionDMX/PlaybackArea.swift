@@ -185,13 +185,16 @@ private struct StripLegend: View {
         ZStack(alignment: .topLeading) {
             t.bg
             if let info {
-                VStack(alignment: .leading, spacing: 1) {
-                    icon(info).frame(height: 14, alignment: .leading)
-                    Text(info.shownLegend).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1)
-                    meta(info)
+                // Text left, a 26 pt icon right (owner, VS2-22 run: the icon above the text was too small).
+                HStack(alignment: .top, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(info.shownLegend).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(2)
+                        meta(info)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    icon(info).frame(width: 26, height: 26)
                 }
-                .padding(.horizontal, 5).padding(.top, 5)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 5).padding(.top, 6)
                 if let halo = info.stored.halo {
                     Rectangle().fill(Color(red: halo.r, green: halo.g, blue: halo.b)).frame(height: 3)
                 }
@@ -206,7 +209,7 @@ private struct StripLegend: View {
 
     @ViewBuilder private func icon(_ info: PlaybackInfo) -> some View {
         if let id = info.stored.icon, let entry = PaletteIcons.entry(id) {
-            IconGlyph(entry: entry, size: 10).foregroundStyle(t.fg)
+            IconGlyph(entry: entry, size: 15).foregroundStyle(t.fg)
         } else {
             AutoIconView(icon: info.stored.autoIcon).clipped()
         }
