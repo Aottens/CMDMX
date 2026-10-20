@@ -112,8 +112,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     IPC].
 - **UI-13 [now]** The Colours, Positions and Gobos & Beams windows are live palette windows as
   `palettes.md` PAL-28 describes (palettes on handles, no fixed number ranges; amended
-  2026-10-18, VS2-19). Cue list and Active playbacks show the sketch's column headers, an
-  empty table and the info "Cue lists · P1-08" or "Playbacks · P1-04".
+  2026-10-18, VS2-19). Active playbacks is live as `playbacks.md` PBK-40 describes (VS2-22). Cue
+  list shows the sketch's column headers, an empty table and the info "Cue lists · P1-08".
 - **UI-14 [now, UX-02b]** Programmer: a table with one row per fixture that has programmer values
   (IPC-21): # (user number), Fixture (name or model), I, P, C, B.
   - A touched value is red. A Colour value shows a swatch plus its hex. An attribute the fixture
@@ -141,8 +141,10 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     and Clear disarms it. **Patch** opens the Patch screen. **Disk** opens the Show screen
     (SHW-17; owner, 2026-10-18).
   - Update, Delete, Copy, Move and Include work on palettes as PAL-29 describes (VS2-19).
+  - Record, Update, Copy, Move, Delete, Release, Options, Latch and Set Legend work on playback
+    handles as PBK-38/39 describe (VS2-22).
   - Every other button is disabled with its spec in the tooltip: Edit "phase 2" (palettes
-    decision 4); Release, Options and Latch with P1-04; Off with VS2-05; Help
+    decision 4); Off with VS2-05; Help
     and System later; Select If, Unfold, Blind, Fan and Shape "later" as in the
     sketch.
 - **UI-17 [now]** The keypad has the sketch's 30 keys in its order. Keys that work now:
@@ -161,18 +163,18 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   minimum window of UI-01 the threshold has to be wider.
 - **UI-18 [now]** Softkeys A–G in the sketch's arrow shape, with the context name in the
   header.
-  - Main context: Set Legend works on palettes (PAL-29); Edit Times and Playback Options are
-    disabled with their specs;
+  - Main context: Set Legend works on palettes and handles (PAL-29, PBK-38); Playback Options
+    and Edit Times open the Playback Options screen for the last tapped handle (PBK-39);
     Shapes & Effects (phase 2), Timecode (phase 3) and Lock (later) are disabled; Undo is
     disabled until P1-10.
   - Selection context (when something is selected): Next and Previous (Fix ±1), All
-    (`programmer.all`), Odd/Even and Set Legend (palettes, PAL-29) work; Playback Options is
-    disabled.
+    (`programmer.all`), Odd/Even, Set Legend (PAL-29) and Playback Options (PBK-39) work.
   - Record context (Record armed): Cancel, plus the palette softkeys of PAL-29 (Replace, Merge,
     Quick Merge after a tap on a used cell; Mask, Record By, Record as).
   - Palette context (PAL-29): Master Time, Master Overlap, Set Overlap, Cancel.
 
-  A right-click on a cell is reserved for its context softkeys [with P1-03/P1-04].
+  A right-click on a strip's legend opens Playback Options (PBK-39); on other cells it is
+  reserved for their context softkeys [later].
 
 ### Command line and Mac keys (UX-02c; the field itself in UX-02b)
 - **UI-19 [now]** The command line in the attribute bar shows tokens, not a free text field: the
@@ -225,13 +227,13 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   degrees); Pan and Tilt in degrees come with the profile's ranges [later].
 
 ### Playback area (UX-02d, built with VS1-06)
-- **UI-21 [now]** Pages column: page buttons (the whole button is clickable) with their number (legends [with P1-04]), plus a
+- **UI-21 [now]** Pages column: page buttons (the whole button is clickable) with their number and page legend (PBK-08, VS2-22), plus a
   "per page" read-out of `faders_per_page`. Paging itself comes with VS1-06 in the same task.
 - **UI-22 [now]** `faders_per_page` playback strips, each 92 pt wide:
-  - From top to bottom: a legend (playback number; name and halo with P1-04), a level bar with
-    its % in SF Mono and a draggable cap (`fader.set`), then Swop and Flash, disabled until
-    P1-04.
-  - An active playback has a green strip along the bottom edge.
+  - From top to bottom: a legend (PBK-37: halo bar, icon, legend or `page.slot`, lock mark), a
+    level bar with its % in SF Mono and a draggable cap (`fader.set`), then Swop and Flash, live
+    while held (PBK-37, VS2-22).
+  - An active playback has a green strip along the bottom edge, a releasing one an amber strip.
   - The strips a connected control surface drives sit in a framed bank labelled with that
     surface and its faders, e.g. "BCF2000 · faders 1–8" (research §5). Without a connected
     surface there is no frame (owner, UX-02d run 2026-10-18); the frame comes with VS1-07.
@@ -248,7 +250,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   button with Back / Stop / Release are drawn disabled with "Cue lists · P1-08". It is never
   covered by anything.
 - **UI-24 [now]** Grand Master (70 pt): a level bar like a strip (`grand_master.set`), turning
-  amber below 100 %, with DBO under it disabled [with its engine criterion, P1-04].
+  amber below 100 %, with DBO under it, live as PBK-41 describes (VS2-22).
 
 ### IPC additions (daemon, UX-02a/b; extend `ipc.md` when approved)
 - **IPC-20** The snapshot gains `"outputs":[{"name":"art-net","state":"Ok"}]` with one entry per

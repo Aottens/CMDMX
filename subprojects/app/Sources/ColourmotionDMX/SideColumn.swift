@@ -15,11 +15,13 @@ struct KeyButton: View {
     var height: CGFloat = 40
     /// Red ring: there is something to clear (Clear key).
     var ring = false
+    /// Amber fill: a switch that is on (DBO, PBK-41).
+    var lit = false
     var action: (() -> Void)?
 
     var body: some View {
-        let background: Color = style == .enter ? t.fg : style == .command ? t.bg : t.surf2
-        let foreground: Color = ring ? t.red : style == .enter ? t.bg : style == .command ? t.fg2 : t.fg
+        let background: Color = lit ? t.amber : style == .enter ? t.fg : style == .command ? t.bg : t.surf2
+        let foreground: Color = lit ? t.bg : ring ? t.red : style == .enter ? t.bg : style == .command ? t.fg2 : t.fg
         Button { action?() } label: {
             Text(label)
                 .font(style == .number ? Typo.mono(Typo.large) : Typo.legend(style == .command ? 11 : Typo.body))
@@ -79,11 +81,14 @@ private struct FunctionButtons: View {
 
     /// What an armed palette function waits for (the sketch's MODE_HINT).
     private static let hints = [
-        "Update": "Update: tap the palette to update with what is in the programmer.",
+        "Update": "Update: tap the palette or playback handle to update with what is in the programmer.",
         "Include": "Include: tap a palette; its values go into the programmer.",
-        "Delete": "Delete: tap the palette to delete. You confirm on softkey A.",
-        "Copy": "Copy: tap the source palette, then an empty cell.",
-        "Move": "Move: tap the source palette, then an empty cell.",
+        "Delete": "Delete: tap the palette or playback handle to delete. You confirm on softkey A.",
+        "Copy": "Copy: tap the source palette or playback handle, then an empty cell or handle.",
+        "Move": "Move: tap the source palette or playback handle, then an empty cell or handle.",
+        "Release": "Release: tap a running playback handle to release it.",
+        "Options": "Options: tap a playback handle to open its options.",
+        "Latch": "Latch: now press Flash on a handle to latch it.",
     ]
 
     // Titan's order, two columns. An empty spec = live; otherwise the spec the key waits for.
@@ -92,12 +97,12 @@ private struct FunctionButtons: View {
         ("Edit", "Palettes · phase 2"), ("Select If", "later"),
         ("Delete", ""), ("Unfold", "later"),
         ("Copy", ""), ("Move", ""),
-        ("Include", ""), ("Release", "Playbacks · P1-04"),
+        ("Include", ""), ("Release", ""),
         ("Patch", ""), ("Disk", ""),
         ("Help", "later"), ("System", "later"),
         ("Blind", "later"), ("Off", "Highlight and Off · VS2-05"),
-        ("Fan", "later"), ("Options", "Playbacks · P1-04"),
-        ("Latch", "Playbacks · P1-04"), ("Shape", "later"),
+        ("Fan", "later"), ("Options", ""),
+        ("Latch", ""), ("Shape", "later"),
     ]
 
     var body: some View {
@@ -209,7 +214,7 @@ private struct Keypad: View {
     private func press(_ label: String) {
         switch label {
         case "Back": line.back()
-        case "Exit": line.clear(); ui.paletteMenu = false
+        case "Exit": line.clear(); ui.cancelModes()   // also disarms Record and the function buttons (PBK-28)
         case "Enter": line.send(engine); ui.paletteMenu = false
         case "Clear": engine.clearProgrammer(); ui.cancelModes(); ui.pendingOverlap = nil
         case "Set": ui.arm(.legend)   // Set Legend, as the softkey
@@ -270,13 +275,13 @@ private struct Softkeys: View {
                 Softkey(name: "All", sub: "whole selection", action: { engine.selectAll() }),
                 Softkey(name: "Odd/Even", action: { engine.pattern(2) }),
                 setLegendKey,
-                Softkey(name: "Playback Options", spec: "Playbacks · P1-04"),
+                optionsKey,
                 Softkey(name: "Undo", sub: "nothing", spec: "Undo · P1-10"),
             ])
         }
         return ("Main", [
-            Softkey(name: "Edit Times", sub: "selected playback", spec: "Cue lists · P1-08"),
-            Softkey(name: "Playback Options", spec: "Playbacks · P1-04"),
+            Softkey(name: "Edit Times", sub: "last tapped handle", action: { openLastHandle(.times) }),
+            optionsKey,
             setLegendKey,
             Softkey(name: "Shapes & Effects", sub: "phase 2", spec: "Shapes · phase 2"),
             Softkey(name: "Timecode", sub: "phase 3", spec: "Timecode · phase 3"),
@@ -286,16 +291,31 @@ private struct Softkeys: View {
     }
 
     private var setLegendKey: Softkey {
-        Softkey(name: "Set Legend", sub: "then tap a palette", action: { ui.arm(.legend); engine.say("Set Legend: tap a palette.") })
+        Softkey(name: "Set Legend", sub: "then tap a palette or handle",
+                action: { ui.arm(.legend); engine.say("Set Legend: tap a palette, a playback handle or a page.") })
+    }
+
+    /// PBK-39: the Playback Options screen for the handle tapped last.
+    private var optionsKey: Softkey {
+        Softkey(name: "Playback Options", sub: "last tapped handle", action: { openLastHandle(.fader) })
+    }
+
+    private func openLastHandle(_ tab: PlaybackOptionsTab) {
+        if let id = ui.lastHandle, engine.playback(id) != nil {
+            ui.openOptions(id, tab: tab)
+        } else {
+            engine.say("Tap a playback handle first.")
+        }
     }
 
     // MARK: Record (PAL-06, PAL-29)
 
     /// Record armed. After a tap on a used cell, A–C pick the mode; D–F are for this record only.
     private var recordContext: (name: String, keys: [Softkey?]) {
-        let used = ui.usedCell
+        let used = ui.usedCell, handle = ui.usedHandle
         if ui.maskMenu {
-            let base = used.flatMap { PaletteWindowKind.of(wire: $0.window) }?.mask ?? workspaceMaskBase
+            let base = used.flatMap { PaletteWindowKind.of(wire: $0.window) }?.mask
+                ?? (handle != nil ? attributeGroupOrder : workspaceMaskBase)
             let mask = ui.recordMask ?? Set(base)
             return ("Record · Mask", Array(attributeGroupOrder.prefix(7)).map { group in
                 Softkey(name: group, sub: mask.contains(group) ? "on" : "off", on: mask.contains(group)) {
@@ -304,6 +324,25 @@ private struct Softkeys: View {
                     ui.recordMask = m
                 }
             })
+        }
+        let maskKey = Softkey(name: "Mask", sub: (ui.recordMask.map { attributeGroupOrder.filter($0.contains).joined() }) ?? (handle != nil ? "all" : "window")) {
+            ui.maskMenu = true
+        }
+        let recordByKey = Softkey(name: "Record By", sub: recordBy) { ui.recordBy = recordBy == "Channel" ? "Mixed" : "Channel" }
+        let cancelKey = Softkey(name: "Cancel", action: { ui.recordArmed = false })
+        if let handle {
+            // PBK-38: a used handle takes Replace or Merge; Mask and Record By are for this record.
+            let mode = { (name: String, sub: String, wire: String) -> Softkey in
+                Softkey(name: name, sub: sub) {
+                    engine.recordPlayback(page: handle.page, slot: handle.slot, mask: ui.orderedRecordMask,
+                                          recordBy: ui.recordBy, mode: wire)
+                    ui.recordArmed = false
+                }
+            }
+            return ("Record · \(handle.page).\(handle.slot)", [
+                mode("Replace", "new contents", "Replace"), mode("Merge", "add and overwrite", "Merge"),
+                nil, maskKey, recordByKey, nil, cancelKey,
+            ])
         }
         let mode = { (name: String, sub: String, wire: String) -> Softkey? in
             guard let used else { return nil }
@@ -317,23 +356,25 @@ private struct Softkeys: View {
             mode("Replace", "new contents", "Replace"),
             mode("Merge", "add and overwrite", "Merge"),
             mode("Quick Merge", "held attributes", "QuickMerge"),
-            Softkey(name: "Mask", sub: (ui.recordMask.map { attributeGroupOrder.filter($0.contains).joined() }) ?? "window") {
-                ui.maskMenu = true
-            },
-            Softkey(name: "Record By", sub: recordBy) { ui.recordBy = recordBy == "Channel" ? "Mixed" : "Channel" },
+            maskKey,
+            recordByKey,
             Softkey(name: "Record as", sub: ui.recordAs) {
                 ui.recordAs = ["Auto": "Normal", "Normal": "Shared"][ui.recordAs] ?? "Auto"
             },
-            Softkey(name: "Cancel", action: { ui.recordArmed = false }),
+            cancelKey,
         ])
     }
 
     /// This record's Record By: the operator's choice, else the engine's setting (PAL-25).
-    private var recordBy: String { ui.recordBy ?? engine.paletteSettings?.recordBy ?? "Mixed" }
+    /// For a playback record (a used handle tapped) the default is the cue setting (PBK-10).
+    private var recordBy: String {
+        ui.recordBy ?? (ui.usedHandle != nil ? engine.playbackSettings?.recordBy ?? "Channel" : engine.paletteSettings?.recordBy ?? "Mixed")
+    }
 
-    /// Where the Mask toggles start before a cell is tapped: the first palette window of the workspace.
+    /// Where the Mask toggles start before a cell is tapped: the first palette window of the workspace,
+    /// else every group (the Playbacks workspace, where the next tap is a handle).
     private var workspaceMaskBase: [String] {
-        Workspace.all[safe: ui.workspace]?.windows.lazy.compactMap(\.paletteKind).first?.mask ?? ["C"]
+        Workspace.all[safe: ui.workspace]?.windows.lazy.compactMap(\.paletteKind).first?.mask ?? attributeGroupOrder
     }
 
     // MARK: Update, Include, Copy, Move, Delete, Set Legend (PAL-29)
@@ -343,6 +384,12 @@ private struct Softkeys: View {
         if function == .delete, let number = ui.deleteTarget {
             keys[0] = Softkey(name: "Confirm delete", sub: "palette \(number)") {
                 engine.deletePalette(number)
+                ui.cancelModes()
+            }
+        }
+        if function == .delete, let id = ui.deletePlayback {
+            keys[0] = Softkey(name: "Confirm delete", sub: "playback \(engine.playback(id)?.homeHandle ?? "")") {
+                engine.deletePlayback(id)
                 ui.cancelModes()
             }
         }

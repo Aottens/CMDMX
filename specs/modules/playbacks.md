@@ -228,9 +228,15 @@ playback unless it says "per cue".
   `auto_icon` (PAL-21 shape), `halo` (the effective colour or `null`), `state` (`"off"`,
   `"active"` or `"releasing"`, replacing `active`), `flash` (held or latched), `latched`, and
   `options {priority, fader_mode, kill_point, release_mask, release_time, paging, group}` and
-  `times {delay, fade_in, fade_out, overlap}` (of the first cue). The `playback` delta (IPC-05)
-  carries the same object after any change to it; level-only changes stay as small as today
-  (`id, level, state`). The snapshot gains `"pages":[{"number":1,"legend":""},…]` (10 entries,
+  `times {delay, fade_in, fade_out, overlap}` (of the first cue), `groups` (the attribute groups
+  its first cue holds, in I P C G B E S FX order, as PAL-25) and `fired` (a number that orders the
+  active playbacks by when they fired, `null` while off; added 2026-10-18 for PBK-40, VS2-22);
+  `halo` and `auto_icon` colours
+  use the encoding of PAL-25. Live changes (level, state, Flash, Latch) send the small `playback`
+  delta (IPC-05) `{"id","level","state","flash","latched","fired"}`; any stored change (record, copy,
+  move, delete, options, times, legend, or a new automatic icon or halo) sends one
+  `{"type":"playbacks","playbacks":[…]}` delta with the whole list, so a deleted playback
+  disappears (amended 2026-10-18, VS2-22). The snapshot gains `"pages":[{"number":1,"legend":""},…]` (10 entries,
   a `pages` delta after a legend change), `"dbo": false` (and a `dbo` delta), and
   `"playback_settings"` with the PBK-12 and PBK-20 settings (and a delta). The PBK-03 `page`
   object's slots carry the playback the slot shows, locks included (PBK-07).
@@ -247,8 +253,9 @@ playback unless it says "per cue".
   `dbo.set {"on":true}` · `settings.playback {…}` (PBK-12 and PBK-20 settings, each optional).
 
 ### App (UI v0.1; amends `ui.md` UI-13, 16, 18, 21, 22, 24 when approved)
-- **PBK-37** Strips (UI-22): the legend area shows the halo as a 3 pt top bar, the icon (picked
-  or automatic) and the legend (else `page.slot`), and a lock mark for `Locked`/`TransparentLock`
+- **PBK-37** Strips (UI-22): the legend area shows the halo as a 3 pt top bar, the legend (else
+  `page.slot`) on the left and the icon (picked or automatic, 26 pt) on the right (owner, VS2-22
+  run), and a lock mark for `Locked`/`TransparentLock`
   with the home page when it is not the current one. Swop and Flash are live: press and hold
   sends `on: true`, release `on: false`; a latched Flash is shown inverted. Running = green
   bottom strip, releasing = amber bottom strip (UI-03).

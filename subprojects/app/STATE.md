@@ -3,7 +3,7 @@
 _Last updated: 2026-10-18_
 
 ## Current step
-VS2-19 in review (PAL-28..30): palette windows, function buttons and softkeys, legend editor with the icon library, cyan palette values in the Programmer window and on the wheels. Checklist `tests/manual/app-palettes.md` (not yet run by the owner).
+VS2-22 in review (PBK-37..41): playback strips with halo bar, icon, legend or page.slot and lock mark; live Swop/Flash (press and hold) and Latch; Record/Update/Copy/Move/Delete/Release/Options/Latch/Set Legend on handles (`PlaybackViews.swift` `HandleTaps`, legend editor with halo row, page legends); Playback Options screen (`PlaybackOptions.swift`, tabs Fader/Times/Release/Playback/Handle); Active playbacks window in fire order with groups; DBO live and in the status bar; Esc = Exit and disarms. Owner run `tests/manual/runs/2026-10-18-VS2-22.md` passed (2026-10-20): the strip state is always the engine's (no local guess), the strip icon sits 26 pt right of the legend. VS2-19 (palettes) merged.
 
 Before that:
 The app connects to the daemon over WebSocket (`EngineClient.swift`, IPC-08/09): offline banner + 1 s retry, snapshot rebuilds state, faders and grand master send commands and follow deltas. Builds with `swift build`; no test target (CLT), checked with `tests/manual/app-ipc.md`.

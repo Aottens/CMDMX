@@ -8,14 +8,193 @@ enum EngineConnection: Equatable {
 }
 
 /// What the UI knows about one slot on the current page. The engine says which playback a slot
-/// holds (PBK-03); level and active state mirror its `PlaybackState`. The app never computes these.
+/// holds (PBK-03); level and state mirror its `PlaybackState`. The app never computes these.
 struct PlaybackSlot: Identifiable, Equatable {
-    let id: Int          // 0-based slot index on the page
-    var playback: Int?   // nil: an empty slot (PBK-05)
-    var level: Double    // 0.0...1.0, as last reported by the engine
-    var isActive: Bool
-    /// UI-22: the legend is the playback number; names and halos come with P1-04.
-    var legend: String { playback.map(String.init) ?? "" }
+    let id: Int              // 0-based slot index on the page
+    var info: PlaybackInfo?  // nil: an empty slot (PBK-05)
+    var playback: Int? { info?.id }
+    var level: Double { info?.live.level ?? 0 }
+    /// In the merge (green strip, UI-22); a releasing playback is not (amber strip).
+    var isActive: Bool { info?.live.state == "active" }
+    var isReleasing: Bool { info?.live.state == "releasing" }
+}
+
+/// PBK-35: the live part of a playback entry, sent alone in the small `playback` delta.
+struct PlaybackLive: Decodable, Equatable {
+    var level = 0.0
+    /// `off`, `active` or `releasing`.
+    var state = "off"
+    /// Held or latched.
+    var flash = false
+    var latched = false
+    /// Orders the active playbacks by when they fired; nil while off or releasing.
+    var fired: Int?
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        level = ((try? c.decode(Double.self, forKey: .level)) ?? 0).clamped01
+        state = (try? c.decode(String.self, forKey: .state)) ?? "off"
+        flash = (try? c.decode(Bool.self, forKey: .flash)) ?? false
+        latched = (try? c.decode(Bool.self, forKey: .latched)) ?? false
+        fired = try? c.decode(Int.self, forKey: .fired)
+    }
+}
+
+/// PBK-35: what a playback has stored; changes only by an edit.
+struct PlaybackStored: Decodable, Identifiable, Equatable {
+    struct Options: Decodable, Equatable {
+        var priority = "Normal"
+        var faderMode = 0
+        var killPoint = "FadeOutComplete"
+        /// nil = the global release mask (PBK-20).
+        var releaseMask: [String]?
+        /// nil = the global release time.
+        var releaseTime: Double?
+        var paging = "Unlocked"
+        var group: Int?
+
+        init() {}
+
+        private enum CodingKeys: String, CodingKey {
+            case priority, paging, group
+            case faderMode = "fader_mode", killPoint = "kill_point"
+            case releaseMask = "release_mask", releaseTime = "release_time"
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            priority = (try? c.decode(String.self, forKey: .priority)) ?? "Normal"
+            faderMode = (try? c.decode(Int.self, forKey: .faderMode)) ?? 0
+            killPoint = (try? c.decode(String.self, forKey: .killPoint)) ?? "FadeOutComplete"
+            releaseMask = try? c.decode([String].self, forKey: .releaseMask)
+            releaseTime = try? c.decode(Double.self, forKey: .releaseTime)
+            paging = (try? c.decode(String.self, forKey: .paging)) ?? "Unlocked"
+            group = try? c.decode(Int.self, forKey: .group)
+        }
+    }
+
+    /// The first cue's times (PBK-34).
+    struct Times: Decodable, Equatable {
+        var delay = 0.0
+        var fadeIn = 0.0
+        var fadeOut = 0.0
+        var overlap = 100.0
+
+        init() {}
+
+        private enum CodingKeys: String, CodingKey {
+            case delay, overlap
+            case fadeIn = "fade_in", fadeOut = "fade_out"
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            delay = (try? c.decode(Double.self, forKey: .delay)) ?? 0
+            fadeIn = (try? c.decode(Double.self, forKey: .fadeIn)) ?? 0
+            fadeOut = (try? c.decode(Double.self, forKey: .fadeOut)) ?? 0
+            overlap = (try? c.decode(Double.self, forKey: .overlap)) ?? 100
+        }
+    }
+
+    let id: Int
+    /// The home handle (PBK-06).
+    let page: Int
+    let slot: Int
+    let legend: String
+    /// A picked icon id of the app's library, else nil (the auto icon is drawn).
+    let icon: String?
+    let autoIcon: AutoIcon?
+    /// The effective halo (PBK-33): picked, else the automatic icon's first colour, else nil.
+    let halo: AutoIcon.RGB?
+    let options: Options
+    let times: Times
+    /// Attribute groups the first cue holds, in I P C G B E S FX order.
+    let groups: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case id, page, slot, legend, icon, halo, options, times, groups
+        case autoIcon = "auto_icon"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        page = (try? c.decode(Int.self, forKey: .page)) ?? 1
+        slot = (try? c.decode(Int.self, forKey: .slot)) ?? 1
+        legend = (try? c.decode(String.self, forKey: .legend)) ?? ""
+        icon = try? c.decode(String.self, forKey: .icon)
+        autoIcon = try? c.decode(AutoIcon.self, forKey: .autoIcon)
+        halo = try? c.decode(AutoIcon.RGB.self, forKey: .halo)
+        options = (try? c.decode(Options.self, forKey: .options)) ?? Options()
+        times = (try? c.decode(Times.self, forKey: .times)) ?? Times()
+        groups = (try? c.decode([String].self, forKey: .groups)) ?? []
+    }
+}
+
+/// One `playbacks` entry (PBK-35): the stored part and the live part in one JSON object.
+struct PlaybackEntry: Decodable {
+    let stored: PlaybackStored
+    let live: PlaybackLive
+
+    init(from decoder: Decoder) throws {
+        stored = try PlaybackStored(from: decoder)
+        live = (try? PlaybackLive(from: decoder)) ?? PlaybackLive()
+    }
+}
+
+/// The `playback` delta: an id and the live part, flattened.
+private struct PlaybackLiveDelta: Decodable {
+    let id: Int
+    let live: PlaybackLive
+
+    private enum CodingKeys: String, CodingKey { case id }
+
+    init(from decoder: Decoder) throws {
+        id = try decoder.container(keyedBy: CodingKeys.self).decode(Int.self, forKey: .id)
+        live = try PlaybackLive(from: decoder)
+    }
+}
+
+/// A playback as the UI draws it: stored part plus the live values the app shows (a held fader
+/// parks the engine's level, UI-22).
+struct PlaybackInfo: Identifiable, Equatable {
+    let stored: PlaybackStored
+    var live: PlaybackLive
+
+    var id: Int { stored.id }
+    var homeHandle: String { "\(stored.page).\(stored.slot)" }
+    /// PBK-37: the legend, else the home handle ("2.3").
+    var shownLegend: String { stored.legend.isEmpty ? homeHandle : stored.legend }
+    var isRunning: Bool { live.state != "off" }
+}
+
+/// PBK-35: a page's number and legend.
+struct PageLegend: Decodable, Equatable, Identifiable {
+    let number: Int
+    let legend: String
+    var id: Int { number }
+}
+
+/// PBK-35: the cue and release settings (PBK-12, PBK-20). `releaseMask` and `releaseTime` are the
+/// global ones.
+struct PlaybackSettings: Decodable, Equatable {
+    let recordBy: String
+    let delay: Double
+    let fadeIn: Double
+    let fadeOut: Double
+    let overlap: Double
+    let releaseMask: [String]
+    let releaseTime: Double
+
+    private enum CodingKeys: String, CodingKey {
+        case delay, overlap
+        case recordBy = "record_by", fadeIn = "fade_in", fadeOut = "fade_out"
+        case releaseMask = "release_mask", releaseTime = "release_time"
+    }
 }
 
 /// The current page of playbacks (PBK-03): snapshot object or `page` delta (flattened).
@@ -436,8 +615,16 @@ final class EngineClient: ObservableObject {
     /// PBK-03: the current page and the playback each slot holds; `slots` is derived from it.
     @Published private(set) var page = PageState()
     @Published private(set) var slots: [PlaybackSlot] = []
-    /// Level and active state per playback id, so a page switch shows the right values at once.
-    private var playbackStates: [Int: (level: Double, active: Bool)] = [:]
+    /// PBK-35: every playback, sorted by id (the engine's order); `slots` and the Active
+    /// playbacks window are derived from it.
+    @Published private(set) var playbacks: [PlaybackInfo] = []
+    /// PBK-35: the ten pages' legends, `dbo` and the cue / release settings; nil until the snapshot.
+    @Published private(set) var pages: [PageLegend] = []
+    @Published private(set) var dbo = false
+    @Published private(set) var playbackSettings: PlaybackSettings?
+    /// Stored part and shown live part per playback id, so a page switch shows the right values at once.
+    private var playbackStored: [Int: PlaybackStored] = [:]
+    private var playbackLive: [Int: PlaybackLive] = [:]
     @Published private(set) var grandMaster: Double = 1.0
     /// Latest `warning` / `error` message from the engine; cleared when a
     /// `programmer.command` is sent (IPC-17).
@@ -466,8 +653,6 @@ final class EngineClient: ObservableObject {
     /// parking goes on until the engine echoes the level sent last (or `settleTimeout` passes), so
     /// older echoes still in flight never show; then the parked level is shown.
     private var heldFaders: [Int: Double?] = [:]
-    /// The engine's `active` is parked with the level, so a stale echo cannot light the strip (UI-22).
-    private var parkedActive: [Int: Bool] = [:]
     private var settling: Set<Int> = []
     private var lastSent: [Int: Double] = [:]
     private var gmHeld = false
@@ -494,7 +679,9 @@ final class EngineClient: ObservableObject {
     /// `fader.set` for the playback a slot holds (PBK-03) — optimistic local update; the engine's
     /// delta is authoritative.
     func setFader(playback id: Int, level: Double) {
-        playbackStates[id] = (level.clamped01, level > 0)
+        var live = playbackLive[id] ?? PlaybackLive()
+        live.level = level.clamped01 // the state (active, releasing) is always the engine's
+        playbackLive[id] = live
         lastSent[id] = level.clamped01
         rebuildSlots()
         send(FaderSet(playback: id, level: level.clamped01))
@@ -504,7 +691,7 @@ final class EngineClient: ObservableObject {
     /// pull the bar back while the wheel is still turning.
     func nudgeFader(playback id: Int, by delta: Double) {
         touchFader(playback: id, held: true)
-        setFader(playback: id, level: (playbackStates[id]?.level ?? 0) + delta)
+        setFader(playback: id, level: (playbackLive[id]?.level ?? 0) + delta)
         touchFader(playback: id, held: false)
     }
 
@@ -541,10 +728,8 @@ final class EngineClient: ObservableObject {
     private func releaseFader(_ id: Int) {
         releaseTasks.removeValue(forKey: id)?.cancel()
         settling.remove(id)
-        let active = parkedActive.removeValue(forKey: id)
-        if let parked = heldFaders.removeValue(forKey: id), let level = parked, playbackStates[id] != nil {
-            playbackStates[id]?.level = level
-            if let active { playbackStates[id]?.active = active }
+        if let parked = heldFaders.removeValue(forKey: id), let level = parked, playbackLive[id] != nil {
+            playbackLive[id]?.level = level
             rebuildSlots()
         }
     }
@@ -675,6 +860,40 @@ final class EngineClient: ObservableObject {
         patch("settings.palette", fields)
     }
 
+    // Playback commands (PBK-36). Ids, and pages and slots for handles; a refusal comes back as a warning.
+
+    func recordPlayback(page: Int, slot: Int, mask: [String]? = nil, recordBy: String? = nil, mode: String? = nil) {
+        var fields: [String: Any] = ["page": page, "slot": slot]
+        if let mask { fields["mask"] = mask }
+        if let recordBy { fields["record_by"] = recordBy }
+        if let mode { fields["mode"] = mode }
+        patch("playback.record", fields)
+    }
+    /// Press and hold: `on: true` on press, `false` on release (PBK-37).
+    func flashPlayback(_ id: Int, on: Bool) { sendJSON("playback.flash", ["id": id, "on": on]) }
+    func swopPlayback(_ id: Int, on: Bool) { sendJSON("playback.swop", ["id": id, "on": on]) }
+    func latchPlayback(_ id: Int) { sendJSON("playback.latch", ["id": id]) }
+    func releasePlayback(_ id: Int) { sendJSON("playback.release", ["id": id]) }
+    func deletePlayback(_ id: Int) { patch("playback.delete", ["id": id]) }
+    func copyPlayback(_ id: Int, page: Int, slot: Int) {
+        patch("playback.copy", ["id": id, "to": ["page": page, "slot": slot]])
+    }
+    func movePlayback(_ id: Int, page: Int, slot: Int) {
+        patch("playback.move", ["id": id, "to": ["page": page, "slot": slot]])
+    }
+    /// `playback.options` (PBK-36): only the given fields change; `NSNull()` clears a nullable one.
+    func setPlaybackOptions(_ id: Int, _ fields: [String: Any]) { patch("playback.options", fields.merging(["id": id]) { a, _ in a }) }
+    /// `playback.times`: delay, fade_in, fade_out (s) and overlap (%) of the first cue.
+    func setPlaybackTimes(_ id: Int, _ fields: [String: Any]) { patch("playback.times", fields.merging(["id": id]) { a, _ in a }) }
+    /// `icon` and `halo` nil = automatic (PBK-31, PBK-33).
+    func setPlaybackLegend(_ id: Int, legend: String, icon: String?, halo: AutoIcon.RGB?) {
+        patch("playback.legend", ["id": id, "legend": legend, "icon": icon.map { $0 as Any } ?? NSNull(),
+                                  "halo": halo.map { ["r": $0.r, "g": $0.g, "b": $0.b] as [String: Any] } ?? NSNull()])
+    }
+    func setPageLegend(_ page: Int, legend: String) { patch("page.legend", ["page": page, "legend": legend]) }
+    /// `dbo.set` (PBK-41); the engine's `dbo` delta shows the result.
+    func setDBO(_ on: Bool) { sendJSON("dbo.set", ["on": on]) }
+
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
     func say(_ text: String) { lastMessage = text }
 
@@ -758,19 +977,16 @@ final class EngineClient: ObservableObject {
 
     /// Union of all server message shapes; unused fields stay nil.
     private struct Incoming: Decodable {
-        struct Playback: Decodable {
-            let id: Int
-            let level: Double
-            let active: Bool
-        }
         let type: String
         fileprivate let page: Tolerant<PageState>?
         let fadersPerPage: Int?
         let grandMaster: Double?
-        let playbacks: [Playback]?
-        let id: Int?
+        fileprivate let playbacks: Tolerant<[Tolerant<PlaybackEntry>]>?
+        fileprivate let pages: Tolerant<[PageLegend]>?
+        let dbo: Bool?
+        let on: Bool?
+        fileprivate let playbackSettings: Tolerant<PlaybackSettings>?
         let level: Double?
-        let active: Bool?
         let message: String?
         let fixtures: [FixtureInfo]?
         let groups: [GroupInfo]?
@@ -783,10 +999,11 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, page, playbacks, id, level, active, message, fixtures, groups, palettes, programmer, items, outputs, show, shows
+            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, palettes, programmer, items, outputs, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
+            case playbackSettings = "playback_settings"
         }
     }
 
@@ -799,15 +1016,15 @@ final class EngineClient: ObservableObject {
         switch incoming.type {
         case "snapshot":
             releaseTasks.values.forEach { $0.cancel() }; releaseTasks = [:]
-            heldFaders = [:]; parkedActive = [:]; settling = []; lastSent = [:]
+            heldFaders = [:]; settling = []; lastSent = [:]
             gmHeld = false; gmSettling = false; gmLastSent = nil; gmEngineLevel = nil
             fadersPerPage = max(1, incoming.fadersPerPage ?? fadersPerPage)
             page = incoming.page?.value ?? PageState()
-            playbackStates = [:]
-            for pb in incoming.playbacks ?? [] {
-                storePlayback(id: pb.id, level: pb.level, active: pb.active)
-            }
-            rebuildSlots()
+            playbackStored = [:]; playbackLive = [:]
+            storePlaybackList(incoming.playbacks?.value)
+            pages = incoming.pages?.value ?? []
+            dbo = incoming.dbo ?? false
+            playbackSettings = incoming.playbackSettings?.value
             grandMaster = (incoming.grandMaster ?? grandMaster).clamped01
             fixtures = incoming.fixtures ?? []
             groups = incoming.groups ?? []
@@ -845,10 +1062,20 @@ final class EngineClient: ObservableObject {
         case "palettes":
             if let list = incoming.palettes?.value { palettes = list.compactMap(\.value) }
         case "playback":
-            if let id = incoming.id, let level = incoming.level, let active = incoming.active {
-                storePlayback(id: id, level: level, active: active)
+            // PBK-35: the small live delta; the stored part stays.
+            if let delta = try? JSONDecoder().decode(PlaybackLiveDelta.self, from: data), playbackStored[delta.id] != nil {
+                storeLive(id: delta.id, delta.live)
                 rebuildSlots()
             }
+        case "playbacks":
+            // PBK-35: the whole list after a stored change; a playback that is gone disappears.
+            storePlaybackList(incoming.playbacks?.value)
+        case "pages":
+            if let list = incoming.pages?.value { pages = list }
+        case "dbo":
+            if let on = incoming.on { dbo = on }
+        case "playback_settings":
+            if let state = try? JSONDecoder().decode(PlaybackSettings.self, from: data) { playbackSettings = state }
         case "grand_master":
             if let level = incoming.level {
                 if gmHeld { gmEngineLevel = level.clamped01; releaseGMIfEchoed() } else { grandMaster = level.clamped01 }
@@ -861,27 +1088,44 @@ final class EngineClient: ObservableObject {
         }
     }
 
-    /// Keeps the engine's level and active state per playback id. A held fader parks the level (UI-22).
-    private func storePlayback(id: Int, level: Double, active: Bool) {
-        var state = playbackStates[id] ?? (level: 0, active: false)
+    /// Keeps the engine's live values per playback id. A held fader parks only the level (UI-22);
+    /// the state is always shown as the engine reports it, so a mode-1 fade-out stays green.
+    private func storeLive(id: Int, _ new: PlaybackLive) {
+        var state = playbackLive[id] ?? PlaybackLive()
+        state.flash = new.flash; state.latched = new.latched; state.fired = new.fired
+        state.state = new.state
         if heldFaders[id] != nil {
-            heldFaders[id] = .some(level.clamped01); parkedActive[id] = active
+            heldFaders[id] = .some(new.level.clamped01)
         } else {
-            state.level = level.clamped01; state.active = active
+            state.level = new.level.clamped01
         }
-        playbackStates[id] = state
+        playbackLive[id] = state
         releaseIfEchoed(id)
+    }
+
+    /// Replaces the stored part of every playback (snapshot, `playbacks` delta).
+    private func storePlaybackList(_ list: [Tolerant<PlaybackEntry>]?) {
+        let entries = (list ?? []).compactMap(\.value)
+        playbackStored = Dictionary(entries.map { ($0.stored.id, $0.stored) }, uniquingKeysWith: { _, last in last })
+        playbackLive = playbackLive.filter { playbackStored[$0.key] != nil }
+        for entry in entries { storeLive(id: entry.stored.id, entry.live) }
+        rebuildSlots()
     }
 
     /// PBK-01/05: the strips show the current page's slots; the engine decides which playback each holds.
     private func rebuildSlots() {
+        playbacks = playbackStored.values.sorted { $0.id < $1.id }.map {
+            PlaybackInfo(stored: $0, live: playbackLive[$0.id] ?? PlaybackLive())
+        }
+        let byId = Dictionary(playbacks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let byNumber = Dictionary(page.slots.map { ($0.slot, $0.playback) }, uniquingKeysWith: { first, _ in first })
         slots = (0..<fadersPerPage).map { index in
-            let playback = byNumber[index + 1].flatMap { $0 }
-            let state = playback.flatMap { playbackStates[$0] }
-            return PlaybackSlot(id: index, playback: playback, level: state?.level ?? 0, isActive: state?.active ?? false)
+            PlaybackSlot(id: index, info: byNumber[index + 1].flatMap { $0 }.flatMap { byId[$0] })
         }
     }
+
+    /// The playback with this id, if it still exists.
+    func playback(_ id: Int) -> PlaybackInfo? { playbacks.first { $0.id == id } }
 }
 
 extension Double {

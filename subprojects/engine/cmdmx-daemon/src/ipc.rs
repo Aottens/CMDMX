@@ -21,11 +21,16 @@ use std::time::Duration;
 
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
-use cmdmx_core::engine::Engine;
+use cmdmx_core::colour::TargetColour;
+use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
 use cmdmx_core::library::channel_list::ChannelList;
-use cmdmx_core::palette::{AutoIcon, Cell, PaletteId, PaletteKind, Record, RecordBy, Timing};
+use cmdmx_core::palette::{
+    AutoIcon, Cell, PaletteId, PaletteKind, Record, RecordBy, RecordMode, Timing,
+};
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
-use cmdmx_core::playback::{PlaybackId, PAGES};
+use cmdmx_core::playback::{
+    FaderMode, KillPoint, Paging, PlaybackChange, PlaybackId, PlaybackRecord, Priority, PAGES,
+};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{GroupId, ProgrammerView, Resolution};
 use cmdmx_core::UniverseId;
@@ -160,6 +165,54 @@ pub enum Command {
         overlap: Option<f32>,
         record_by: Option<RecordBy>,
     },
+    /// PBK-36: the playback commands name playbacks by id and handles by page and slot.
+    PlaybackRecord(PlaybackRecord),
+    PlaybackFlash {
+        id: PlaybackId,
+        on: bool,
+    },
+    PlaybackSwop {
+        id: PlaybackId,
+        on: bool,
+    },
+    PlaybackLatch {
+        id: PlaybackId,
+    },
+    PlaybackRelease {
+        id: PlaybackId,
+    },
+    /// `playback.options` and `playback.times` both land here.
+    PlaybackChange {
+        id: PlaybackId,
+        change: PlaybackChange,
+    },
+    PlaybackLegend {
+        id: PlaybackId,
+        legend: String,
+        icon: Option<String>,
+        halo: Option<TargetColour>,
+    },
+    PlaybackCopy {
+        id: PlaybackId,
+        page: u16,
+        slot: u16,
+    },
+    PlaybackMove {
+        id: PlaybackId,
+        page: u16,
+        slot: u16,
+    },
+    PlaybackDelete {
+        id: PlaybackId,
+    },
+    PageLegend {
+        page: u16,
+        legend: String,
+    },
+    DboSet {
+        on: bool,
+    },
+    SettingsPlayback(PlaybackSettingsChange),
 }
 
 /// LIB-14: the fixture library requests.
@@ -234,6 +287,75 @@ fn field<T: serde::de::DeserializeOwned>(
     v.get(key)
         .and_then(|f| serde_json::from_value(f.clone()).ok())
         .ok_or_else(|| format!("missing or invalid \"{key}\" (expected {expected})"))
+}
+
+/// A boolean field.
+fn boolean(v: &serde_json::Value, key: &str) -> Result<bool, String> {
+    v.get(key)
+        .and_then(|b| b.as_bool())
+        .ok_or_else(|| format!("missing or invalid \"{key}\" (expected true or false)"))
+}
+
+/// An optional field that deserialises as `T`: absent is `None`, present but invalid is an error.
+fn opt_field<T: serde::de::DeserializeOwned>(
+    v: &serde_json::Value,
+    key: &str,
+    expected: &str,
+) -> Result<Option<T>, String> {
+    match v.get(key) {
+        None => Ok(None),
+        Some(_) => field(v, key, expected).map(Some),
+    }
+}
+
+/// A nullable optional field (PBK-36): absent is `None`, `null` is `Some(None)`.
+fn nullable<T: serde::de::DeserializeOwned>(
+    v: &serde_json::Value,
+    key: &str,
+    expected: &str,
+) -> Result<Option<Option<T>>, String> {
+    match v.get(key) {
+        None => Ok(None),
+        Some(serde_json::Value::Null) => Ok(Some(None)),
+        Some(_) => field(v, key, expected).map(|x| Some(Some(x))),
+    }
+}
+
+/// PBK-36: the handle `{"page":2,"slot":4}` under `to`.
+fn target_handle(v: &serde_json::Value) -> Result<(u16, u16), String> {
+    let to = v
+        .get("to")
+        .ok_or("missing \"to\" (expected {page, slot})")?;
+    Ok((uint(to, "page")?, uint(to, "slot")?))
+}
+
+/// PBK-36: the fields of `playback.options` and `playback.times`, all optional.
+fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
+    Ok(PlaybackChange {
+        priority: opt_field::<Priority>(
+            v,
+            "priority",
+            "Low, Normal, High, Programmer or VeryHigh",
+        )?,
+        fader_mode: match v.get("fader_mode") {
+            None => None,
+            Some(m) => Some(match m.as_u64() {
+                Some(0) => FaderMode::Mode0,
+                Some(1) => FaderMode::Mode1,
+                Some(2) => FaderMode::Mode2,
+                _ => return Err("invalid \"fader_mode\" (expected 0, 1 or 2)".into()),
+            }),
+        },
+        kill_point: opt_field::<KillPoint>(v, "kill_point", "FadeOutComplete or FaderAtZero")?,
+        release_mask: nullable(v, "release_mask", "an array of attribute groups or null")?,
+        release_time: nullable(v, "release_time", "a number or null")?,
+        paging: opt_field::<Paging>(v, "paging", "Unlocked, Locked or TransparentLock")?,
+        group: nullable(v, "group", "1 to 99 or null")?,
+        delay: opt_f32(v, "delay")?,
+        fade_in: opt_f32(v, "fade_in")?,
+        fade_out: opt_f32(v, "fade_out")?,
+        overlap: opt_f32(v, "overlap")?,
+    })
 }
 
 /// IPC-04/06/13: one JSON text frame to a command, or a human-readable error.
@@ -444,16 +566,250 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 Some(_) => Some(field(&v, "record_by", "Channel or Mixed")?),
             },
         }),
+        Some("playback.record") => Ok(Command::PlaybackRecord(PlaybackRecord {
+            page: uint(&v, "page")?,
+            slot: uint(&v, "slot")?,
+            mask: opt_field(&v, "mask", "an array of attribute groups")?,
+            record_by: opt_field(&v, "record_by", "Channel or Mixed")?,
+            mode: match v.get("mode").map(|m| m.as_str()) {
+                None => None,
+                Some(Some("Replace")) => Some(RecordMode::Replace),
+                Some(Some("Merge")) => Some(RecordMode::Merge),
+                Some(Some("Update")) => Some(RecordMode::QuickMerge),
+                Some(_) => {
+                    return Err("invalid \"mode\" (expected Replace, Merge or Update)".into())
+                }
+            },
+        })),
+        Some("playback.flash") => Ok(Command::PlaybackFlash {
+            id: uint(&v, "id")?,
+            on: boolean(&v, "on")?,
+        }),
+        Some("playback.swop") => Ok(Command::PlaybackSwop {
+            id: uint(&v, "id")?,
+            on: boolean(&v, "on")?,
+        }),
+        Some("playback.latch") => Ok(Command::PlaybackLatch {
+            id: uint(&v, "id")?,
+        }),
+        Some("playback.release") => Ok(Command::PlaybackRelease {
+            id: uint(&v, "id")?,
+        }),
+        Some("playback.options" | "playback.times") => Ok(Command::PlaybackChange {
+            id: uint(&v, "id")?,
+            change: playback_change(&v)?,
+        }),
+        Some("playback.legend") => Ok(Command::PlaybackLegend {
+            id: uint(&v, "id")?,
+            legend: string(&v, "legend")?,
+            icon: nullable::<String>(&v, "icon", "a string or null")?.flatten(),
+            halo: nullable(&v, "halo", "{r, g, b} or null")?.flatten(),
+        }),
+        Some("playback.copy") => {
+            let (page, slot) = target_handle(&v)?;
+            Ok(Command::PlaybackCopy {
+                id: uint(&v, "id")?,
+                page,
+                slot,
+            })
+        }
+        Some("playback.move") => {
+            let (page, slot) = target_handle(&v)?;
+            Ok(Command::PlaybackMove {
+                id: uint(&v, "id")?,
+                page,
+                slot,
+            })
+        }
+        Some("playback.delete") => Ok(Command::PlaybackDelete {
+            id: uint(&v, "id")?,
+        }),
+        Some("page.legend") => Ok(Command::PageLegend {
+            page: uint(&v, "page")?,
+            legend: string(&v, "legend")?,
+        }),
+        Some("dbo.set") => Ok(Command::DboSet {
+            on: boolean(&v, "on")?,
+        }),
+        Some("settings.playback") => Ok(Command::SettingsPlayback(PlaybackSettingsChange {
+            record_by: opt_field(&v, "record_by", "Channel or Mixed")?,
+            delay: opt_f32(&v, "delay")?,
+            fade_in: opt_f32(&v, "fade_in")?,
+            fade_out: opt_f32(&v, "fade_out")?,
+            overlap: opt_f32(&v, "overlap")?,
+            release_mask: opt_field(&v, "release_mask", "an array of attribute groups")?,
+            release_time: opt_f32(&v, "release_time")?,
+        })),
         Some(other) => Err(format!("unknown cmd '{other}'")),
         None => Err("missing \"cmd\"".into()),
     }
 }
 
-#[derive(Serialize)]
-struct PlaybackInfo {
+/// PBK-35: what a playback has stored (the part that changes only by an edit).
+#[derive(Serialize, Clone, PartialEq)]
+struct StoredInfo {
     id: PlaybackId,
+    page: u16,
+    slot: u16,
+    legend: String,
+    icon: Option<String>,
+    auto_icon: Option<AutoIcon>,
+    /// The effective halo (PBK-33).
+    halo: Option<TargetColour>,
+    options: OptionsInfo,
+    times: TimesInfo,
+    /// Attribute groups the first cue holds, I P C G B E S FX order.
+    groups: Vec<AttributeGroup>,
+}
+
+#[derive(Serialize, Clone, PartialEq)]
+struct OptionsInfo {
+    priority: Priority,
+    fader_mode: FaderMode,
+    kill_point: KillPoint,
+    release_mask: Option<Vec<AttributeGroup>>,
+    release_time: Option<f32>,
+    paging: Paging,
+    group: Option<u8>,
+}
+
+/// The first cue's times.
+#[derive(Serialize, Clone, PartialEq)]
+struct TimesInfo {
+    delay: f32,
+    fade_in: f32,
+    fade_out: f32,
+    overlap: f32,
+}
+
+/// PBK-35: the live part, sent as a small `playback` delta when it changes.
+#[derive(Serialize, Clone, Copy, PartialEq)]
+struct LiveInfo {
     level: f32,
-    active: bool,
+    /// `off`, `active` or `releasing`.
+    state: &'static str,
+    /// Held or latched.
+    flash: bool,
+    latched: bool,
+    /// Orders the active playbacks by when they fired; `None` while off.
+    fired: Option<u64>,
+}
+
+#[derive(Serialize)]
+struct PlaybackEntry<'a> {
+    #[serde(flatten)]
+    stored: &'a StoredInfo,
+    #[serde(flatten)]
+    live: LiveInfo,
+}
+
+/// PBK-35: the pages' legends.
+#[derive(Serialize, Clone, PartialEq)]
+struct PageLegendInfo {
+    number: u16,
+    legend: String,
+}
+
+/// PBK-35: the cue and release settings of PBK-12 and PBK-20.
+#[derive(Serialize, Clone, PartialEq)]
+struct PlaybackSettingsInfo {
+    record_by: RecordBy,
+    delay: f32,
+    fade_in: f32,
+    fade_out: f32,
+    overlap: f32,
+    release_mask: Vec<AttributeGroup>,
+    release_time: f32,
+}
+
+fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
+    let s = engine.settings();
+    PlaybackSettingsInfo {
+        record_by: s.cue_record_by,
+        delay: s.cue_delay,
+        fade_in: s.cue_fade_in,
+        fade_out: s.cue_fade_out,
+        overlap: s.cue_overlap,
+        release_mask: s.release_mask.clone(),
+        release_time: s.release_time,
+    }
+}
+
+fn page_legends(engine: &Engine) -> Vec<PageLegendInfo> {
+    (1..=PAGES)
+        .map(|number| PageLegendInfo {
+            number,
+            legend: engine.page_legend(number).unwrap_or_default().to_string(),
+        })
+        .collect()
+}
+
+/// PBK-35, sorted by id.
+fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
+    engine
+        .playbacks()
+        .map(|p| {
+            let times = p.cues.first().map_or(
+                TimesInfo {
+                    delay: 0.0,
+                    fade_in: 0.0,
+                    fade_out: 0.0,
+                    overlap: 100.0,
+                },
+                |c| TimesInfo {
+                    delay: c.delay,
+                    fade_in: c.fade_in,
+                    fade_out: c.fade_out,
+                    overlap: c.overlap,
+                },
+            );
+            StoredInfo {
+                id: p.id,
+                page: p.page,
+                slot: p.slot,
+                legend: p.legend.clone(),
+                icon: p.icon.clone(),
+                auto_icon: engine.playback_auto_icon(p.id),
+                halo: engine.playback_halo(p.id),
+                options: OptionsInfo {
+                    priority: p.priority,
+                    fader_mode: p.fader_mode,
+                    kill_point: p.kill_point,
+                    release_mask: p.release_mask.clone(),
+                    release_time: p.release_time,
+                    paging: p.paging,
+                    group: p.group,
+                },
+                times,
+                groups: engine.playback_groups(p.id),
+            }
+        })
+        .collect()
+}
+
+fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
+    let Some(s) = engine.playback_state(id) else {
+        return LiveInfo {
+            level: 0.0,
+            state: "off",
+            flash: false,
+            latched: false,
+            fired: None,
+        };
+    };
+    LiveInfo {
+        level: s.level,
+        state: if s.is_active() {
+            "active"
+        } else if s.is_releasing() {
+            "releasing"
+        } else {
+            "off"
+        },
+        flash: s.flash || s.latched,
+        latched: s.latched,
+        fired: s.activated,
+    }
 }
 
 /// PBK-03: the current page and what its slots hold.
@@ -582,7 +938,10 @@ struct Snapshot<'a> {
     faders_per_page: u16,
     grand_master: f32,
     page: PageInfo,
-    playbacks: Vec<PlaybackInfo>,
+    playbacks: Vec<PlaybackEntry<'a>>,
+    pages: Vec<PageLegendInfo>,
+    dbo: bool,
+    playback_settings: PlaybackSettingsInfo,
     fixtures: Vec<FixtureInfo<'a>>,
     groups: Vec<GroupInfo<'a>>,
     palettes: Vec<PaletteInfo>,
@@ -674,8 +1033,42 @@ struct PlaybackDelta {
     v: u8,
     #[serde(rename = "type")]
     kind: &'static str,
+    id: PlaybackId,
     #[serde(flatten)]
-    info: PlaybackInfo,
+    live: LiveInfo,
+}
+
+#[derive(Serialize)]
+struct PlaybacksDelta<'a> {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    playbacks: Vec<PlaybackEntry<'a>>,
+}
+
+#[derive(Serialize)]
+struct PagesDelta<'a> {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    pages: &'a [PageLegendInfo],
+}
+
+#[derive(Serialize)]
+struct DboDelta {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    on: bool,
+}
+
+#[derive(Serialize)]
+struct PlaybackSettingsDelta<'a> {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    #[serde(flatten)]
+    settings: &'a PlaybackSettingsInfo,
 }
 
 #[derive(Serialize)]
@@ -709,12 +1102,15 @@ fn to_json(value: &impl Serialize) -> String {
     serde_json::to_string(value).unwrap_or_default()
 }
 
-fn infos(engine: &Engine) -> impl Iterator<Item = PlaybackInfo> + '_ {
-    engine.playback_states().map(|(id, s)| PlaybackInfo {
-        id: *id,
-        level: s.level,
-        active: s.activated.is_some(),
-    })
+/// The whole playback list, stored part and live part together.
+fn entries<'a>(stored: &'a [StoredInfo], engine: &Engine) -> Vec<PlaybackEntry<'a>> {
+    stored
+        .iter()
+        .map(|s| PlaybackEntry {
+            live: live_info(engine, s.id),
+            stored: s,
+        })
+        .collect()
 }
 
 fn group_infos(groups: &BTreeMap<GroupId, Vec<FixtureId>>) -> Vec<GroupInfo<'_>> {
@@ -755,13 +1151,17 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
 
 /// IPC-03/10/20: full state for a freshly connected client.
 pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> String {
+    let stored = stored_infos(engine);
     to_json(&Snapshot {
         v: 0,
         kind: "snapshot",
         faders_per_page: engine.settings().faders_per_page,
         grand_master: engine.grand_master(),
         page: page_info(engine),
-        playbacks: infos(engine).collect(),
+        playbacks: entries(&stored, engine),
+        pages: page_legends(engine),
+        dbo: engine.dbo(),
+        playback_settings: playback_settings(engine),
         fixtures: fixture_infos(engine),
         groups: group_infos(engine.groups()),
         palettes: palette_infos(engine),
@@ -790,9 +1190,13 @@ pub fn warning(msg: &str) -> String {
 
 /// What clients have last been told, to emit deltas only for changes (IPC-05, IPC-12).
 pub struct Published {
-    playbacks: BTreeMap<PlaybackId, (f32, bool)>,
+    stored: Vec<StoredInfo>,
+    live: BTreeMap<PlaybackId, LiveInfo>,
     grand_master: f32,
     page: PageInfo,
+    pages: Vec<PageLegendInfo>,
+    dbo: bool,
+    playback_settings: PlaybackSettingsInfo,
     programmer: ProgrammerView,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
     palettes: Vec<PaletteInfo>,
@@ -805,9 +1209,16 @@ pub struct Published {
 impl Published {
     pub fn new(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> Self {
         Self {
-            playbacks: infos(engine).map(|i| (i.id, (i.level, i.active))).collect(),
+            stored: stored_infos(engine),
+            live: engine
+                .playbacks()
+                .map(|p| (p.id, live_info(engine, p.id)))
+                .collect(),
             grand_master: engine.grand_master(),
             page: page_info(engine),
+            pages: page_legends(engine),
+            dbo: engine.dbo(),
+            playback_settings: playback_settings(engine),
             programmer: engine.programmer_view(),
             groups: engine.groups().clone(),
             palettes: palette_infos(engine),
@@ -825,14 +1236,31 @@ impl Published {
         show: &ShowState,
     ) -> Vec<String> {
         let mut out = Vec::new();
-        for info in infos(engine) {
-            let now = (info.level, info.active);
-            if self.playbacks.insert(info.id, now) != Some(now) {
-                out.push(to_json(&PlaybackDelta {
-                    v: 0,
-                    kind: "playback",
-                    info,
-                }));
+        // PBK-35: one whole-list delta after any stored change (it carries the live values
+        // too), else a small delta per playback whose live part changed.
+        let stored = stored_infos(engine);
+        if stored != self.stored {
+            out.push(to_json(&PlaybacksDelta {
+                v: 0,
+                kind: "playbacks",
+                playbacks: entries(&stored, engine),
+            }));
+            self.live = stored
+                .iter()
+                .map(|s| (s.id, live_info(engine, s.id)))
+                .collect();
+            self.stored = stored;
+        } else {
+            for s in &stored {
+                let now = live_info(engine, s.id);
+                if self.live.insert(s.id, now) != Some(now) {
+                    out.push(to_json(&PlaybackDelta {
+                        v: 0,
+                        kind: "playback",
+                        id: s.id,
+                        live: now,
+                    }));
+                }
             }
         }
         let gm = engine.grand_master();
@@ -853,6 +1281,32 @@ impl Published {
                 kind: "page",
                 page,
             }));
+        }
+        let pages = page_legends(engine);
+        if pages != self.pages {
+            out.push(to_json(&PagesDelta {
+                v: 0,
+                kind: "pages",
+                pages: &pages,
+            }));
+            self.pages = pages;
+        }
+        if engine.dbo() != self.dbo {
+            self.dbo = engine.dbo();
+            out.push(to_json(&DboDelta {
+                v: 0,
+                kind: "dbo",
+                on: self.dbo,
+            }));
+        }
+        let settings = playback_settings(engine);
+        if settings != self.playback_settings {
+            out.push(to_json(&PlaybackSettingsDelta {
+                v: 0,
+                kind: "playback_settings",
+                settings: &settings,
+            }));
+            self.playback_settings = settings;
         }
         // IPC-12: at most one programmer and one groups delta per tick.
         let view = engine.programmer_view();
@@ -1259,7 +1713,7 @@ mod tests {
         assert_eq!(v["type"], "snapshot");
         assert_eq!(v["faders_per_page"], 8);
         assert_eq!(v["grand_master"], 1.0);
-        assert_eq!(v["playbacks"], json!([{"id":1,"level":0.0,"active":false}]));
+        assert_eq!(v["playbacks"], json!([playback_entry()]));
     }
 
     /// IPC-20: three nodes in three states.
@@ -1911,9 +2365,13 @@ mod tests {
         e.tick(0.025);
         let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
+        let mut v = parse(&d[0]);
+        assert!(v["fired"].is_u64(), "{v}");
+        v.as_object_mut().unwrap().remove("fired");
         assert_eq!(
-            parse(&d[0]),
-            json!({"v":0,"type":"playback","id":1,"level":0.5,"active":true})
+            v,
+            json!({"v":0,"type":"playback","id":1,"level":0.5,"state":"active",
+                   "flash":false,"latched":false})
         );
         e.tick(0.05);
         assert!(
@@ -2412,6 +2870,450 @@ mod tests {
             r#"{"v":0,"cmd":"palette.delete","number":-1}"#,
             r#"{"v":0,"cmd":"palette.legend","number":3}"#,
             r#"{"v":0,"cmd":"settings.palette","record_by":"Group"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    // ---- playbacks (PBK-35, 36, VS2-22) -------------------------------------------------------
+
+    /// PBK-35: the test engine's playback 1 (1.1, Dimmer 1.0 on fixture 1), untouched.
+    fn playback_entry() -> Value {
+        json!({"id":1,"page":1,"slot":1,"legend":"","icon":null,
+               "auto_icon":{"value":{"attribute":"Dimmer","value":1.0}},"halo":null,
+               "level":0.0,"state":"off","flash":false,"latched":false,"fired":null,
+               "groups":["I"],
+               "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete",
+                          "release_mask":null,"release_time":null,"paging":"Unlocked","group":null},
+               "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"overlap":100.0}})
+    }
+
+    #[test]
+    fn pbk_35_snapshot_playback_entries() {
+        let mut e = engine();
+        e.set_playback_legend(
+            1,
+            "Walk-in",
+            Some("service.walk-in"),
+            Some(cmdmx_core::colour::TargetColour {
+                r: 1.0,
+                g: 0.5,
+                b: 0.0,
+            }),
+        )
+        .unwrap();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let mut want = playback_entry();
+        want["legend"] = json!("Walk-in");
+        want["icon"] = json!("service.walk-in");
+        want["halo"] = json!({"r":1.0,"g":0.5,"b":0.0});
+        assert_eq!(v["playbacks"], json!([want]));
+    }
+
+    #[test]
+    fn pbk_35_snapshot_pages_dbo_and_playback_settings() {
+        let mut e = engine();
+        e.set_page_legend(2, "Service").unwrap();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let pages: Vec<Value> = (1..=10)
+            .map(|n| json!({"number": n, "legend": if n == 2 { "Service" } else { "" }}))
+            .collect();
+        assert_eq!(v["pages"], json!(pages));
+        assert_eq!(v["dbo"], json!(false));
+        assert_eq!(
+            v["playback_settings"],
+            json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,
+                   "overlap":100.0,"release_mask":[],"release_time":2.0})
+        );
+    }
+
+    #[test]
+    fn pbk_35_live_changes_are_small_playback_deltas() {
+        let mut e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_flash(1, true, 0.0).unwrap();
+        e.tick(0.0);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1, "{d:?}");
+        let mut v = parse(&d[0]);
+        assert!(
+            v["fired"].is_u64(),
+            "a fired playback has a fire order: {v}"
+        );
+        v.as_object_mut().unwrap().remove("fired");
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
+                   "flash":true,"latched":false})
+        );
+        e.set_flash(1, false, 0.025).unwrap();
+        e.latch_flash(1, 0.025).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        let mut v = parse(&d[0]);
+        v.as_object_mut().unwrap().remove("fired");
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
+                   "flash":true,"latched":true}),
+            "flash means held or latched"
+        );
+    }
+
+    #[test]
+    fn pbk_35_fired_orders_the_active_playbacks() {
+        let mut e = engine();
+        e.add_playback(Playback::new(
+            2,
+            1,
+            2,
+            BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 0.5.into())]))]),
+        ));
+        e.set_fader(2, 1.0, 0.0).unwrap();
+        e.set_fader(1, 1.0, 0.0).unwrap();
+        e.tick(0.0);
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let fired = |i: usize| v["playbacks"][i]["fired"].as_u64().unwrap();
+        assert!(fired(1) < fired(0), "playback 2 fired first");
+        e.set_fader(1, 0.0, 0.025).unwrap();
+        e.tick(0.025);
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        assert!(v["playbacks"][0]["fired"].is_null(), "off again");
+    }
+
+    #[test]
+    fn pbk_35_releasing_is_a_state() {
+        let mut e = engine();
+        e.add_profile(
+            "mover",
+            Profile::from_attributes(vec![AttributeDef::new(
+                "Pan",
+                AttributeGroup::P,
+                AttributeKind::Ltp,
+                1,
+            )]),
+        )
+        .unwrap();
+        e.patch(Fixture {
+            id: 2,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "mover".into(),
+            mode: None,
+            universe: 1,
+            address: 5,
+        })
+        .unwrap();
+        let mut pb = Playback::new(
+            2,
+            1,
+            2,
+            BTreeMap::from([(2, BTreeMap::from([("Pan".to_string(), 1.0.into())]))]),
+        );
+        pb.release_mask = Some(vec![AttributeGroup::P]);
+        pb.release_time = Some(4.0);
+        e.add_playback(pb);
+        e.set_fader(2, 1.0, 0.0).unwrap();
+        e.tick(0.0);
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_fader(2, 0.0, 0.025).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(d.len(), 1, "{d:?}");
+        assert_eq!(parse(&d[0])["state"], "releasing");
+    }
+
+    #[test]
+    fn pbk_35_stored_changes_send_the_whole_list() {
+        let mut e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_fader(1, 0.5, 0.0).unwrap();
+        e.tick(0.0);
+        let d = published.diff(&e, &[], &show_state());
+        assert!(
+            d.iter().all(|m| parse(m)["type"] == "playback"),
+            "a fader move is not a stored change: {d:?}"
+        );
+        e.set_playback_legend(1, "Front", None, None).unwrap();
+        e.copy_playback(1, 2, 3).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(
+            d.iter().filter(|m| parse(m)["type"] == "playbacks").count(),
+            1,
+            "one whole-list delta for both changes: {d:?}"
+        );
+        let list = d
+            .iter()
+            .map(|m| parse(m))
+            .find(|v| v["type"] == "playbacks")
+            .unwrap();
+        let entries = list["playbacks"].as_array().unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0]["legend"], "Front");
+        assert_eq!(
+            entries[0]["level"], 0.5,
+            "entries carry the live values too"
+        );
+        assert_eq!(entries[1]["page"], 2);
+        e.delete_playback(2).unwrap();
+        e.tick(0.05);
+        let d = published.diff(&e, &[], &show_state());
+        let list = d
+            .iter()
+            .map(|m| parse(m))
+            .find(|v| v["type"] == "playbacks")
+            .unwrap();
+        assert_eq!(
+            list["playbacks"].as_array().unwrap().len(),
+            1,
+            "a delete is in the list"
+        );
+        e.tick(0.075);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
+    fn pbk_35_pages_dbo_and_settings_deltas() {
+        let mut e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_page_legend(3, "Video").unwrap();
+        e.set_dbo(true);
+        e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+            release_time: Some(1.0),
+            ..Default::default()
+        })
+        .unwrap();
+        e.tick(0.0);
+        let d: Vec<Value> = published
+            .diff(&e, &[], &show_state())
+            .iter()
+            .map(|m| parse(m))
+            .collect();
+        assert_eq!(d.len(), 3, "{d:?}");
+        let of = |t: &str| d.iter().find(|v| v["type"] == t).unwrap().clone();
+        assert_eq!(
+            of("pages")["pages"][2],
+            json!({"number":3,"legend":"Video"})
+        );
+        assert_eq!(of("dbo"), json!({"v":0,"type":"dbo","on":true}));
+        assert_eq!(of("playback_settings")["release_time"], 1.0);
+        e.tick(0.025);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
+    fn pbk_36_playback_commands_parse() {
+        use cmdmx_core::colour::TargetColour;
+        use cmdmx_core::engine::PlaybackSettingsChange;
+        use cmdmx_core::palette::{RecordBy, RecordMode};
+        use cmdmx_core::playback::{
+            FaderMode, KillPoint, Paging, PlaybackChange, PlaybackRecord, Priority,
+        };
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.record","page":1,"slot":2}"#),
+            Command::PlaybackRecord(PlaybackRecord::at(1, 2))
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mask":["I","C"],
+                   "record_by":"Mixed","mode":"Update"}"#
+            ),
+            Command::PlaybackRecord(PlaybackRecord {
+                mask: Some(vec![AttributeGroup::I, AttributeGroup::C]),
+                record_by: Some(RecordBy::Mixed),
+                mode: Some(RecordMode::QuickMerge),
+                ..PlaybackRecord::at(1, 2)
+            })
+        );
+        for (mode, want) in [
+            ("Replace", RecordMode::Replace),
+            ("Merge", RecordMode::Merge),
+        ] {
+            let text =
+                format!(r#"{{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"{mode}"}}"#);
+            assert_eq!(
+                ok(&text),
+                Command::PlaybackRecord(PlaybackRecord {
+                    mode: Some(want),
+                    ..PlaybackRecord::at(1, 2)
+                })
+            );
+        }
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.flash","id":3,"on":true}"#),
+            Command::PlaybackFlash { id: 3, on: true }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.swop","id":3,"on":false}"#),
+            Command::PlaybackSwop { id: 3, on: false }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.latch","id":3}"#),
+            Command::PlaybackLatch { id: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.release","id":3}"#),
+            Command::PlaybackRelease { id: 3 }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.options","id":3,"priority":"High","fader_mode":1,
+                   "kill_point":"FaderAtZero","release_mask":["I"],"release_time":0.5,
+                   "paging":"Locked","group":4}"#
+            ),
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange {
+                    priority: Some(Priority::High),
+                    fader_mode: Some(FaderMode::Mode1),
+                    kill_point: Some(KillPoint::FaderAtZero),
+                    release_mask: Some(Some(vec![AttributeGroup::I])),
+                    release_time: Some(Some(0.5)),
+                    paging: Some(Paging::Locked),
+                    group: Some(Some(4)),
+                    ..PlaybackChange::default()
+                }
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.options","id":3,"release_mask":null,"release_time":null,"group":null}"#
+            ),
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange {
+                    release_mask: Some(None),
+                    release_time: Some(None),
+                    group: Some(None),
+                    ..PlaybackChange::default()
+                }
+            },
+            "null = back to the global setting / no group"
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.options","id":3}"#),
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange::default()
+            },
+            "absent = unchanged"
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.times","id":3,"delay":1.0,"fade_in":3.0,"fade_out":4.0,"overlap":50}"#
+            ),
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange {
+                    delay: Some(1.0),
+                    fade_in: Some(3.0),
+                    fade_out: Some(4.0),
+                    overlap: Some(50.0),
+                    ..PlaybackChange::default()
+                }
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"Walk-in","icon":"service.walk-in",
+                   "halo":{"r":1.0,"g":0.5,"b":0.0}}"#
+            ),
+            Command::PlaybackLegend {
+                id: 3,
+                legend: "Walk-in".into(),
+                icon: Some("service.walk-in".into()),
+                halo: Some(TargetColour {
+                    r: 1.0,
+                    g: 0.5,
+                    b: 0.0
+                }),
+            }
+        );
+        for automatic in [
+            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x","icon":null,"halo":null}"#,
+            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x"}"#,
+        ] {
+            assert_eq!(
+                ok(automatic),
+                Command::PlaybackLegend {
+                    id: 3,
+                    legend: "x".into(),
+                    icon: None,
+                    halo: None
+                }
+            );
+        }
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#),
+            Command::PlaybackCopy {
+                id: 3,
+                page: 2,
+                slot: 4
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#),
+            Command::PlaybackMove {
+                id: 3,
+                page: 2,
+                slot: 4
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"playback.delete","id":3}"#),
+            Command::PlaybackDelete { id: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"page.legend","page":2,"legend":"Service"}"#),
+            Command::PageLegend {
+                page: 2,
+                legend: "Service".into()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"dbo.set","on":true}"#),
+            Command::DboSet { on: true }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"settings.playback","record_by":"Mixed","fade_in":2.0,
+                   "release_mask":["I","P"],"release_time":1.0}"#
+            ),
+            Command::SettingsPlayback(PlaybackSettingsChange {
+                record_by: Some(RecordBy::Mixed),
+                fade_in: Some(2.0),
+                release_mask: Some(vec![AttributeGroup::I, AttributeGroup::P]),
+                release_time: Some(1.0),
+                ..PlaybackSettingsChange::default()
+            })
+        );
+    }
+
+    #[test]
+    fn pbk_36_bad_playback_commands_are_errors() {
+        for bad in [
+            r#"{"v":0,"cmd":"playback.record","page":1}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"QuickMerge"}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mask":["Q"]}"#,
+            r#"{"v":0,"cmd":"playback.flash","id":3}"#,
+            r#"{"v":0,"cmd":"playback.swop","id":3,"on":"yes"}"#,
+            r#"{"v":0,"cmd":"playback.latch"}"#,
+            r#"{"v":0,"cmd":"playback.release","id":-1}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"fader_mode":3}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"paging":"Sticky"}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"priority":"Highest"}"#,
+            r#"{"v":0,"cmd":"playback.times","id":3,"fade_in":"3"}"#,
+            r#"{"v":0,"cmd":"playback.legend","id":3}"#,
+            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x","halo":"red"}"#,
+            r#"{"v":0,"cmd":"playback.copy","id":3,"to":{"page":2}}"#,
+            r#"{"v":0,"cmd":"playback.move","id":3}"#,
+            r#"{"v":0,"cmd":"playback.delete"}"#,
+            r#"{"v":0,"cmd":"page.legend","page":2}"#,
+            r#"{"v":0,"cmd":"dbo.set"}"#,
+            r#"{"v":0,"cmd":"settings.playback","record_by":"Fixture"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }

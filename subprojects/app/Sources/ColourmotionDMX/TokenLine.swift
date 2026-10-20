@@ -105,7 +105,7 @@ enum MacKeys {
 
         switch event.keyCode {
         case 36, 76: line.send(engine); ui.paletteMenu = false   // Return, keypad Enter
-        case 53: line.clear(); ui.paletteMenu = false            // Esc
+        case 53: line.clear(); ui.cancelModes()                  // Esc = Exit
         case 51: line.back()                // Backspace
         case 126: line.older()              // Up
         case 125: line.newer()              // Down
