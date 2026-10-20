@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-18_
+_Last updated: 2026-10-20_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -30,7 +30,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
-- P1-04 playbacks: `specs/modules/playbacks.md` PBK-06..45 approved (owner, 2026-10-18; all seven proposals: Record By Channel, the mode 0/1 time model, fixed Swop/Flash/Latch, automatic halo, attribute-group times and chases with BPM/Rate masters in P1-08, group masters P1-16, Titan release defaults). VS2-20 (core storage, #44) merged; VS2-21 (behaviour on the frame, #45) merged; VS2-22 (IPC + app: strips, handles, Playback Options, Active playbacks, DBO; PBK-35 amended with the owner: whole-list `playbacks` delta for stored changes, `groups` and `fired` per entry) in review, owner run `tests/manual/app-playbacks.md` pending
+- P1-04 playbacks: `specs/modules/playbacks.md` PBK-06..45 approved (owner, 2026-10-18; all seven proposals: Record By Channel, the mode 0/1 time model, fixed Swop/Flash/Latch, automatic halo, attribute-group times and chases with BPM/Rate masters in P1-08, group masters P1-16, Titan release defaults). VS2-20 (core storage, #44) merged; VS2-21 (behaviour on the frame, #45) merged; VS2-22 (IPC + app: strips, handles, Playback Options, Active playbacks, DBO; PBK-35 amended with the owner: whole-list `playbacks` delta for stored changes, `groups` and `fired` per entry; PBK-37 icon placement) in review, owner run passed 2026-10-20
 - VS4-02 (#34) and VS2-13 (#35) merged; *Kerk* is in the owner's Shows folder (56 fixtures, 9 user profiles). Run `tests/hardware/runs/2026-10-18-church.md`: the Patch-screen line passed at home; the desk lines wait for the Eurolite, the rest for the church
 - VS2-16 merged (#38): snapshot `fixtures` entries carry `modes` (PAT-09 amended), Change Mode is a dropdown of them (PAT-10 amended); owner run `tests/manual/runs/2026-10-18-VS2-16.md` passed
 
@@ -57,7 +57,7 @@ done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
 - **VS2-13** gate 3: finish `tests/hardware/runs/2026-10-18-church.md` (desk lines with the Eurolite, the rest at the church).
-- **VS2-22** owner run in progress: `tests/manual/runs/2026-10-18-VS2-22.md`, paused after the first strips line; resume at Swop/Flash (step 2). Setup: daemon with `--no-sacn --show-dir /tmp/cmdmx-pbk`, app via `scripts/bundle-app.sh`; Claude reads Art-Net with a small UDP 6454 listener. Open: channel 1 showed 10 at the start with nothing raised. Then P1-08 cue lists (with chases and BPM/Rate masters). A separate session works on `--help` / unknown daemon flags (the `--help` run touched the real shows folder: an identical `Kerk.cmdmx.json.bak`, harmless). After that P1-08 cue lists; IDEA-10 (output lamps) shows live fades.
+- **VS2-22** in review; owner run `tests/manual/runs/2026-10-18-VS2-22.md` passed (2026-10-20; fixed during the run: strip state always from the engine, strip icon 26 pt right of the legend). After the merge: P1-08 cue lists (with chases, BPM/Rate masters and attribute-group times), then P1-16 group masters.
 - Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
   (multi-select in the patch table), P1-08 cue lists, P1-05 control surfaces.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
