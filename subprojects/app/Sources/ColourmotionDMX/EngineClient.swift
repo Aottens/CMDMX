@@ -653,8 +653,6 @@ final class EngineClient: ObservableObject {
     /// parking goes on until the engine echoes the level sent last (or `settleTimeout` passes), so
     /// older echoes still in flight never show; then the parked level is shown.
     private var heldFaders: [Int: Double?] = [:]
-    /// The engine's `state` is parked with the level, so a stale echo cannot light the strip (UI-22).
-    private var parkedState: [Int: String] = [:]
     private var settling: Set<Int> = []
     private var lastSent: [Int: Double] = [:]
     private var gmHeld = false
@@ -682,8 +680,7 @@ final class EngineClient: ObservableObject {
     /// delta is authoritative.
     func setFader(playback id: Int, level: Double) {
         var live = playbackLive[id] ?? PlaybackLive()
-        live.level = level.clamped01
-        if level > 0 { live.state = "active" } else if live.state == "active" { live.state = "off" }
+        live.level = level.clamped01 // the state (active, releasing) is always the engine's
         playbackLive[id] = live
         lastSent[id] = level.clamped01
         rebuildSlots()
@@ -731,10 +728,8 @@ final class EngineClient: ObservableObject {
     private func releaseFader(_ id: Int) {
         releaseTasks.removeValue(forKey: id)?.cancel()
         settling.remove(id)
-        let state = parkedState.removeValue(forKey: id)
         if let parked = heldFaders.removeValue(forKey: id), let level = parked, playbackLive[id] != nil {
             playbackLive[id]?.level = level
-            if let state { playbackLive[id]?.state = state }
             rebuildSlots()
         }
     }
@@ -1021,7 +1016,7 @@ final class EngineClient: ObservableObject {
         switch incoming.type {
         case "snapshot":
             releaseTasks.values.forEach { $0.cancel() }; releaseTasks = [:]
-            heldFaders = [:]; parkedState = [:]; settling = []; lastSent = [:]
+            heldFaders = [:]; settling = []; lastSent = [:]
             gmHeld = false; gmSettling = false; gmLastSent = nil; gmEngineLevel = nil
             fadersPerPage = max(1, incoming.fadersPerPage ?? fadersPerPage)
             page = incoming.page?.value ?? PageState()
@@ -1093,14 +1088,16 @@ final class EngineClient: ObservableObject {
         }
     }
 
-    /// Keeps the engine's live values per playback id. A held fader parks the level and state (UI-22).
+    /// Keeps the engine's live values per playback id. A held fader parks only the level (UI-22);
+    /// the state is always shown as the engine reports it, so a mode-1 fade-out stays green.
     private func storeLive(id: Int, _ new: PlaybackLive) {
         var state = playbackLive[id] ?? PlaybackLive()
         state.flash = new.flash; state.latched = new.latched; state.fired = new.fired
+        state.state = new.state
         if heldFaders[id] != nil {
-            heldFaders[id] = .some(new.level.clamped01); parkedState[id] = new.state
+            heldFaders[id] = .some(new.level.clamped01)
         } else {
-            state.level = new.level.clamped01; state.state = new.state
+            state.level = new.level.clamped01
         }
         playbackLive[id] = state
         releaseIfEchoed(id)
