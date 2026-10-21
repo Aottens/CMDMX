@@ -51,7 +51,7 @@ Early, under active development, not yet for real shows. What works today:
   with Keys on the Mac keyboard drives it. Up and Down recall earlier commands.
 
 - Playback area: pages of playbacks with a pages bar, one strip per fader (legend, level,
-  active edge) and the Grand Master; the Go block waits for cue lists.
+  active edge), the Go block and the Grand Master.
 - Playbacks: record the programmer onto a handle (palette
   references stay references), Replace/Merge/Update, Copy/Move/Delete, Titan paging locks
   (a front-spots fader on every page), options and times per playback, legends with automatic
@@ -71,12 +71,13 @@ Early, under active development, not yet for real shows. What works today:
 - Cue lists (engine): numbered cues (Append, Insert, Q2.5) run with Go, Back, Stop, Go to cue
   and Set next, follow on by themselves (after or with the cue before), loop, and track as on
   Titan (Block, Cue Only, Solo, Update modes). Times per attribute group, the fader as intensity
-  master, Release resets to the top, and a handle's buttons become Go / Flash on a list. Not yet
-  in the app.
+  master, Release resets to the top, and a handle's buttons become Go / Flash on a list. In the
+  app: the Go block, a Cue list window, a Cue view with tracked values in magenta, Record
+  Append/Insert, cue softkeys, list and chase options, and Space = Go with Keys on.
 - Chases (engine): steps at a BPM with crossfade, Forward/Backward/Bounce/Random, loop or one
   round, Go/Back/Stop on the chase, Tap tempo that also puts the steps on the beat, and BPM
-  masters (tap, typed, or on the fader) and Rate masters that drive several chases at once. Not
-  yet in the app.
+  masters (tap, typed, or on the fader) and Rate masters that drive several chases at once, in
+  the app as well (Tap and BPM in the Go block).
 
 Next: the owner's fade check of the 33 Hz serial output on the LED par (VS4-05), then the Go block and cue lists in the app; checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
