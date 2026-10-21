@@ -1,0 +1,112 @@
+{
+  "spec": "CUE-13",
+  "profiles": {
+    "mover": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        },
+        {
+          "name": "Pan",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 2
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "mover",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "mover",
+      "universe": 1,
+      "address": 3
+    },
+    {
+      "id": 3,
+      "profile": "mover",
+      "universe": 1,
+      "address": 5
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "cues": [
+        {
+          "number": 1,
+          "values": {
+            "1": {
+              "Dimmer": 0.45
+            }
+          }
+        },
+        {
+          "number": 2,
+          "fade_out": 2.0,
+          "values": {
+            "2": {
+              "Dimmer": 0.8
+            }
+          }
+        }
+      ],
+      "list": {
+        "tracking": true,
+        "fader": "KillWithOff",
+        "fire_first_cue": true,
+        "loop": "StopOnFinal"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 1.0,
+      "go": {
+        "playback": 1
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.5,
+      "universe": 1,
+      "channels": {
+        "1": 115,
+        "3": 0
+      }
+    },
+    {
+      "t": 2.0,
+      "universe": 1,
+      "channels": {
+        "1": 115,
+        "3": 204
+      }
+    },
+    {
+      "t": 4.0,
+      "universe": 1,
+      "channels": {
+        "1": 115,
+        "3": 204
+      }
+    }
+  ]
+}
