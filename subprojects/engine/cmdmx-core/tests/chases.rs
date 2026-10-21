@@ -231,7 +231,11 @@ fn cue_28_the_live_state_of_a_chase() {
     assert!(!live.paused);
     assert!(close(live.progress, 0.5), "{}", live.progress);
     run(&mut e, 0.275, 1.1);
-    assert_eq!(e.list_live(1).unwrap().next, Some(q(1.0)), "Loop: 1 after 3");
+    assert_eq!(
+        e.list_live(1).unwrap().next,
+        Some(q(1.0)),
+        "Loop: 1 after 3"
+    );
     assert_eq!(e.effective_bpm(1), Some(120.0));
 }
 
@@ -278,7 +282,11 @@ fn cue_29_speed_sources_and_the_missing_master_fallback() {
     let rate = rate_master(&mut e, 3, 2, 200);
     source(&mut e, 1, SpeedSource::Rate(2));
     e.set_fader(rate, 0.75, 0.0).unwrap();
-    assert_eq!(e.effective_bpm(1), Some(150.0), "fader 75 % of 200 % = ×1.5");
+    assert_eq!(
+        e.effective_bpm(1),
+        Some(150.0),
+        "fader 75 % of 200 % = ×1.5"
+    );
     assert_eq!(e.effective_bpm(rate), None);
 }
 
@@ -299,7 +307,11 @@ fn cue_35_bpm_on_fader_until_a_tap_or_a_typed_tempo() {
     assert_eq!(e.effective_bpm(m), Some(100.0), "a typed tempo wins too");
     e.set_fader(m, 0.0, 3.0).unwrap();
     assert_eq!(e.effective_bpm(m), Some(0.0), "fader 0 stops it");
-    assert_eq!(master_bpm(&e, m), 100.0, "the fader's tempo is live, not saved");
+    assert_eq!(
+        master_bpm(&e, m),
+        100.0,
+        "the fader's tempo is live, not saved"
+    );
 }
 
 #[test]
@@ -324,7 +336,11 @@ fn cue_35_without_a_fader_mode_the_fader_does_nothing() {
     let mut e = common::church();
     let m = bpm_master(&mut e, 2, 120.0, 0.5, BpmFader::Unused);
     e.set_fader(m, 0.2, 0.0).unwrap();
-    assert_eq!(e.effective_bpm(m), Some(60.0), "bpm × the stored multiplier");
+    assert_eq!(
+        e.effective_bpm(m),
+        Some(60.0),
+        "bpm × the stored multiplier"
+    );
 }
 
 #[test]
@@ -332,7 +348,11 @@ fn cue_36_rate_scale_and_fader() {
     let mut e = chase(3, opts(120.0, Direction::Forward, LoopAction::Loop));
     let rate = rate_master(&mut e, 2, 1, 100);
     source(&mut e, 1, SpeedSource::Rate(1));
-    assert_eq!(e.effective_bpm(1), Some(0.0), "a rate master at 0 stops its chases");
+    assert_eq!(
+        e.effective_bpm(1),
+        Some(0.0),
+        "a rate master at 0 stops its chases"
+    );
     e.set_fader(rate, 0.5, 0.0).unwrap();
     assert_eq!(e.effective_bpm(1), Some(60.0), "50 % of 100 %");
     e.set_fader(rate, 1.0, 0.0).unwrap();
@@ -354,6 +374,27 @@ fn cue_37_masters_never_fire_or_enter_the_merge() {
             "master {id} fired"
         );
     }
+}
+
+#[test]
+fn cue_31_a_zero_sent_again_does_not_kill_a_chase_started_at_zero() {
+    let mut e = chase(3, opts(120.0, Direction::Forward, LoopAction::Loop));
+    act(&mut e, ListAction::Go, 0.0);
+    e.set_fader(1, 0.0, 0.1).unwrap(); // a touched fader at 0
+    e.tick(0.1);
+    assert!(e.playback_state(1).unwrap().is_active(), "no fall, no kill");
+    e.set_fader(1, 0.5, 0.2).unwrap();
+    e.set_fader(1, 0.0, 0.3).unwrap();
+    e.tick(0.3);
+    assert!(!e.playback_state(1).unwrap().is_active(), "the fall kills");
+}
+
+#[test]
+fn cue_33_a_tap_time_that_is_not_a_number_is_refused() {
+    let mut e = chase(3, opts(120.0, Direction::Forward, LoopAction::Loop));
+    assert!(e.tap(1, f64::NAN).is_err());
+    taps(&mut e, 1, &[0.0, 0.5]);
+    assert_eq!(bpm_of(&e, 1), 120.0);
 }
 
 // ---- CUE-30: direction -----------------------------------------------------------------------
@@ -393,7 +434,10 @@ fn cue_30_random_stop_on_final_shows_as_many_steps_as_the_chase_has() {
     e.set_fader(1, 1.0, 0.0).unwrap();
     let seq = shown(&mut e, 0.0, 5.0);
     assert_eq!(seq.len(), 4, "{seq:?}");
-    assert!(e.playback_state(1).unwrap().is_active(), "it stays on stage");
+    assert!(
+        e.playback_state(1).unwrap().is_active(),
+        "it stays on stage"
+    );
 }
 
 // ---- CUE-32: Go, Back, Stop, Go to cue on a chase --------------------------------------------
@@ -402,6 +446,7 @@ fn cue_30_random_stop_on_final_shows_as_many_steps_as_the_chase_has() {
 fn cue_32_back_wraps_with_loop_and_is_refused_at_the_start_without() {
     let mut e = chase(4, opts(60.0, Direction::Forward, LoopAction::Loop));
     act(&mut e, ListAction::Go, 0.0);
+    e.set_fader(1, 1.0, 0.0).unwrap(); // Go at fader 0 runs with HTP out (CUE-31)
     act(&mut e, ListAction::Back, 0.5);
     assert_eq!(step(&e), Some(4.0));
     assert_eq!(common::dmx(&e, 24), 255);
@@ -457,7 +502,13 @@ fn cue_32_a_paused_chase_steps_by_hand_and_stays_paused() {
 #[test]
 fn cue_32_go_on_a_chase_connects_it() {
     let mut e = chase(3, opts(120.0, Direction::Forward, LoopAction::Loop));
-    add_chase(&mut e, 2, 2, 3, opts(120.0, Direction::Forward, LoopAction::Loop));
+    add_chase(
+        &mut e,
+        2,
+        2,
+        3,
+        opts(120.0, Direction::Forward, LoopAction::Loop),
+    );
     e.cuelist(Some(2), ListAction::Go, 0.0).unwrap();
     assert_eq!(e.connected(), Some(2));
     e.tick(0.0);
@@ -567,7 +618,13 @@ fn cue_33_a_tap_on_a_chase_following_a_master_goes_to_the_master() {
 #[test]
 fn cue_33_a_master_tap_beat_syncs_every_chase_on_it() {
     let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
-    add_chase(&mut e, 2, 2, 4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    add_chase(
+        &mut e,
+        2,
+        2,
+        4,
+        opts(120.0, Direction::Forward, LoopAction::Loop),
+    );
     let m = bpm_master(&mut e, 3, 120.0, 1.0, BpmFader::Unused);
     source(&mut e, 1, SpeedSource::Bpm(1));
     source(&mut e, 2, SpeedSource::Bpm(1));
@@ -635,7 +692,11 @@ fn cue_34_typed_bpm_on_a_chase_and_a_master() {
     assert_eq!(master_bpm(&e, m), 100.0);
     source(&mut e, 1, SpeedSource::Bpm(1));
     e.set_bpm(1, 140.0).unwrap();
-    assert_eq!(master_bpm(&e, m), 140.0, "a chase on BPM 1 types into the master");
+    assert_eq!(
+        master_bpm(&e, m),
+        140.0,
+        "a chase on BPM 1 types into the master"
+    );
     assert_eq!(bpm_of(&e, 1), 90.0);
 }
 

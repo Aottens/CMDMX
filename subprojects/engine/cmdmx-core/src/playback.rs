@@ -355,7 +355,7 @@ impl ChaseOptions {
     }
 }
 
-fn check_bpm(bpm: f32) -> Result<(), CoreError> {
+pub(crate) fn check_bpm(bpm: f32) -> Result<(), CoreError> {
     if (1.0..=600.0).contains(&bpm) {
         Ok(())
     } else {
@@ -668,7 +668,9 @@ impl Playback {
         let Some(cue) = self.cues.get(at) else {
             return state;
         };
-        let first = if self.list.tracking && !matches!(cue.track, Track::Block | Track::Solo) {
+        // A chase never tracks: a step is its own values (CUE-29).
+        let tracks = self.list.tracking && self.kind != Kind::Chase;
+        let first = if tracks && !matches!(cue.track, Track::Block | Track::Solo) {
             let before = self.cues.get(..at).unwrap_or_default();
             before
                 .iter()
@@ -980,6 +982,12 @@ pub struct PlaybackState {
     pub(crate) release: Option<Release>,
     /// CUE-10..24: a cue list's current and next cue, pause, fades and link timer.
     pub(crate) run: ListRun,
+    /// CUE-33: the receive times of the last taps of this playback, the current series.
+    pub(crate) taps: Vec<Timestamp>,
+    /// CUE-35: a BPM master's fader moved after the last tap or typed tempo.
+    pub(crate) fader_moved: bool,
+    /// The effective level at the last input: a kill at 0 needs a fall (CUE-15, 31).
+    pub(crate) settled: f32,
 }
 
 impl PlaybackState {

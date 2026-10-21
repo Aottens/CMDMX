@@ -183,6 +183,16 @@ pub enum ActionKind {
     Connect {
         playback: PlaybackId,
     },
+    /// CUE-33: `at` is the time the tap was received.
+    Tap {
+        playback: PlaybackId,
+        at: Timestamp,
+    },
+    /// CUE-34.
+    Bpm {
+        playback: PlaybackId,
+        bpm: f32,
+    },
     /// CUE-55.
     Button {
         playback: PlaybackId,
@@ -340,6 +350,8 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                     engine.cuelist(*playback, ListAction::Next(cue), now)?;
                 }
                 ActionKind::Connect { playback } => engine.connect_list(*playback)?,
+                ActionKind::Tap { playback, at } => engine.tap(*playback, *at)?,
+                ActionKind::Bpm { playback, bpm } => engine.set_bpm(*playback, *bpm)?,
                 ActionKind::Button {
                     playback,
                     button,
