@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-21 — Chase details for VS3-04 (CUE-30..34, owner)
+
+**Decision:** Go on a chase whose fader is at 0 runs it with its HTP out; the kill point only acts when the level falls to 0 (as cue lists with `KillAtZero`). On a paused chase Back and Go to cue step with the crossfade and the chase stays paused; Stop again goes back; only Go resumes. Tap and a typed tempo on a chase following a BPM master go to the master, and a tap on a master starts the next step of every running chase on it at the tap (beat sync). Back goes one step against the direction (Random: the step shown before) and wraps with `Loop`; `StopOnFinal` runs one round per direction (Bounce 1 2 3 2 1, Random as many steps as the chase has).
+
+**Alternatives considered:** killing a chase at once at fader 0; Back resuming a paused chase as on a cue list; a master tap that only sets the tempo; Back in number order without wrapping, Bounce and Random always looping.
+
+**Reasoning:** common practice on Titan and grandMA (the fader is the intensity master, Prev/Next Step while stopped); a BPM master exists so several chases tap in time.
+
+**Reversal trigger:** operators at the church find a paused chase that does not resume on Back confusing.
+
 ## 2026-10-21 — Cue lists track in phase 1; one Go block on the connected list plus Go per handle (P1-08, owner)
 
 **Decision:** Answers to the first `specs/modules/cuelists.md` gate-1 questions. (1) A cue list lives on any handle with its own Go on a handle button; the Go block, Space and the Cue list window act on the connected list (last fired or tapped, else the first list in the show), as on Titan. (2) Handle buttons follow what is on the handle (memory Swop/Flash, cue list Go/Flash, chase Tap/Flash, BPM master Tap), configurable per kind for the show. (3) The cue-list fader at 0 keeps the list on its cue by default (`KillWithOff`), configurable. (4) **Tracking moves from phase 2 into phase 1** (Track/Block/Cue Only/Solo, Update modes, Cue view); this reverses that part of the 2026-10-17 phase-1 decision. (5) BPM masters by Tap/typing by default, Titan's fader modes as options; Rate masters 0–200 %. Ableton sync becomes IDEA-16 (phase 2). Follow-up the same day: a list or chase on a handle takes these best-practice buttons by default; the setting `handle_buttons` switches to Titan's factory Swop/Flash or a custom pair per kind. The spec (CUE-01..55) is approved.
