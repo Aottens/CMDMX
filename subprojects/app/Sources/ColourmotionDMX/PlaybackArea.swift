@@ -202,15 +202,16 @@ private struct StripLegend: View {
             t.bg
             if let info {
                 // Text left, a 26 pt icon right (owner, VS2-22 run: the icon above the text was too small).
-                HStack(alignment: .top, spacing: 3) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(info.shownLegend).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(2)
-                        meta(info)
+                // The meta line takes the full width under the icon (VS3-05 run: "BPM 1 · 120 ×1" was cut off).
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(alignment: .top, spacing: 3) {
+                        Text(info.shownLegend).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        icon(info).frame(width: 26, height: 22)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    icon(info).frame(width: 26, height: 26)
+                    meta(info)
                 }
-                .padding(.horizontal, 5).padding(.top, 6)
+                .padding(.horizontal, 5).padding(.top, 5)
                 if let halo = info.stored.halo {
                     Rectangle().fill(Color(red: halo.r, green: halo.g, blue: halo.b)).frame(height: 3)
                 }

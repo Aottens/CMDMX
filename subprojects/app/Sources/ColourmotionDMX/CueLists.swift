@@ -184,11 +184,14 @@ private struct BPMField: View {
 
     private var shown: String { plain((bpm * 10).rounded() / 10) }
 
+    /// Shows what was sent, as NumberField does (VS3-05 run: the old tempo stayed in the field).
     private func send() {
         if let n = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")), n != bpm {
             engine.setBPM(id, n)
+            text = plain((n * 10).rounded() / 10)
+        } else {
+            text = shown
         }
-        text = shown
     }
 }
 
