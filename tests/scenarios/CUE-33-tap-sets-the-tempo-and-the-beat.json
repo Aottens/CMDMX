@@ -1,0 +1,175 @@
+{
+  "spec": "CUE-33",
+  "profiles": {
+    "dim": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "dim",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "dim",
+      "universe": 1,
+      "address": 2
+    },
+    {
+      "id": 3,
+      "profile": "dim",
+      "universe": 1,
+      "address": 3
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "kind": "Chase",
+      "cues": [
+        {
+          "values": {
+            "1": {
+              "Dimmer": 1.0
+            }
+          }
+        },
+        {
+          "values": {
+            "2": {
+              "Dimmer": 1.0
+            }
+          }
+        },
+        {
+          "values": {
+            "3": {
+              "Dimmer": 1.0
+            }
+          }
+        }
+      ],
+      "chase": {
+        "bpm": 120,
+        "crossfade": 0.0,
+        "direction": "Forward",
+        "loop": "Loop",
+        "speed_source": "Free"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 1.01,
+      "tap": {
+        "playback": 1,
+        "at": 1.01
+      }
+    },
+    {
+      "t": 2.01,
+      "tap": {
+        "playback": 1,
+        "at": 2.01
+      }
+    },
+    {
+      "t": 3.01,
+      "tap": {
+        "playback": 1,
+        "at": 3.01
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 1.4,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 0,
+        "3": 255
+      }
+    },
+    {
+      "t": 1.6,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 0,
+        "3": 0
+      }
+    },
+    {
+      "t": 1.9,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 0,
+        "3": 0
+      }
+    },
+    {
+      "t": 2.1,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 0,
+        "3": 255
+      }
+    },
+    {
+      "t": 2.9,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 0,
+        "3": 255
+      }
+    },
+    {
+      "t": 3.1,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 0,
+        "3": 0
+      }
+    },
+    {
+      "t": 3.9,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 0,
+        "3": 0
+      }
+    },
+    {
+      "t": 4.1,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 255,
+        "3": 0
+      }
+    }
+  ]
+}
