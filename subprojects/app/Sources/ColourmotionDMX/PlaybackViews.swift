@@ -19,14 +19,25 @@ enum HandleTaps {
     }
 
     /// A tap on the legend area of the strip for `slot` (1-based) on the current page.
-    static func tap(slot: Int, info: PlaybackInfo?, engine: EngineClient, ui: UIState) {
+    static func tap(slot: Int, info: PlaybackInfo?, engine: EngineClient, ui: UIState, line: TokenLine) {
         let page = engine.page.number
         let used = isUsed(info, page: page)
         if let info { ui.lastHandle = info.id }
 
         if ui.recordArmed {
-            guard let info, used else {
-                engine.recordPlayback(page: page, slot: slot, mask: ui.orderedRecordMask, recordBy: ui.recordBy)
+            // CUE-45: BPM Master / Rate Master armed: an empty handle gets the master (IPC-26).
+            if let kind = ui.recordMaster {
+                guard !(info != nil && used) else { return engine.say("Pick an empty handle for the master.") }
+                engine.recordMaster(page: page, slot: slot, kind: kind)
+                ui.recordArmed = false
+                return
+            }
+            // CUE-45: Record, a cue number, then a handle records to that cue (CUE-04) and empties the line.
+            let cue = line.onlyNumber
+            guard let info, used, cue == nil else {
+                engine.recordPlayback(page: page, slot: slot, mask: ui.orderedRecordMask, recordBy: ui.recordBy,
+                                      cue: cue, updateMode: ui.updateMode)
+                if cue != nil { line.clear() }
                 ui.recordArmed = false
                 return
             }
@@ -39,7 +50,9 @@ enum HandleTaps {
         }
         guard let function = ui.function else {
             // The Options screen follows the handle tapped.
-            if ui.screen == .options, let info, used { ui.optionsFor = info.id }
+            if ui.screen == .options, let info, used { ui.optionsFor = info.id; ui.optionsCue = nil }
+            // CUE-44: a plain tap on a list's or chase's legend connects it (CUE-26).
+            else if let info, used, info.hasCues { engine.cuelist("connect", id: info.id) }
             return
         }
         let name = function.rawValue
@@ -91,15 +104,16 @@ enum HandleTaps {
         ui.openOptions(info.id)
     }
 
-    /// PBK-28, 37: a Flash press. With Latch armed, or on a latched playback, it is `playback.latch`
-    /// (on, or off again) instead of flash on and off; true = one-shot, nothing to send on release.
-    static func flashPress(_ id: Int, info: PlaybackInfo?, engine: EngineClient, ui: UIState) -> Bool {
-        if ui.function == .latch || info?.live.latched == true {
+    /// CUE-44, 55: a press of the handle button `which` (upper / lower) that does `function`. A Flash
+    /// with Latch armed, or on a latched playback, is `playback.latch` (on, or off again, PBK-28);
+    /// true = one-shot, nothing to send on release. Everything else is `playback.button`.
+    static func buttonPress(_ id: Int, which: String, function: String, info: PlaybackInfo?, engine: EngineClient, ui: UIState) -> Bool {
+        if function == "Flash", ui.function == .latch || info?.live.latched == true {
             engine.latchPlayback(id)
             if ui.function == .latch { ui.cancelModes() }
             return true
         }
-        engine.flashPlayback(id, on: true)
+        engine.pressButton(id, which, on: true)
         return false
     }
 }

@@ -266,6 +266,11 @@ private struct Softkeys: View {
     /// else a selection, else Main (UI-18).
     private var context: (name: String, keys: [Softkey?]) {
         if ui.recordArmed { return recordContext }
+        // CUE-54: the Cue view's softkeys while its window is on show; CUE-43: the Cue softkeys of a right-click.
+        if let ref = ui.cueView, ui.screen == nil, Workspace.all[safe: ui.workspace]?.windows.contains(.cues) == true {
+            return cueViewContext(ref)
+        }
+        if let ref = ui.cueMenu { return cueContext(ref) }
         if let function = ui.function { return functionContext(function) }
         if ui.paletteMenu { return paletteContext }
         if !engine.programmer.selection.isEmpty {
@@ -312,10 +317,11 @@ private struct Softkeys: View {
 
     /// Record armed. After a tap on a used cell, A–C pick the mode; D–F are for this record only.
     private var recordContext: (name: String, keys: [Softkey?]) {
-        let used = ui.usedCell, handle = ui.usedHandle
+        let used = ui.usedCell, handle = ui.usedHandle, cue = ui.usedCue
+        let onPlayback = handle != nil || cue != nil
         if ui.maskMenu {
             let base = used.flatMap { PaletteWindowKind.of(wire: $0.window) }?.mask
-                ?? (handle != nil ? attributeGroupOrder : workspaceMaskBase)
+                ?? (onPlayback ? attributeGroupOrder : workspaceMaskBase)
             let mask = ui.recordMask ?? Set(base)
             return ("Record · Mask", Array(attributeGroupOrder.prefix(7)).map { group in
                 Softkey(name: group, sub: mask.contains(group) ? "on" : "off", on: mask.contains(group)) {
@@ -325,24 +331,50 @@ private struct Softkeys: View {
                 }
             })
         }
-        let maskKey = Softkey(name: "Mask", sub: (ui.recordMask.map { attributeGroupOrder.filter($0.contains).joined() }) ?? (handle != nil ? "all" : "window")) {
+        let maskKey = Softkey(name: "Mask", sub: (ui.recordMask.map { attributeGroupOrder.filter($0.contains).joined() }) ?? (onPlayback ? "all" : "window")) {
             ui.maskMenu = true
         }
         let recordByKey = Softkey(name: "Record By", sub: recordBy) { ui.recordBy = recordBy == "Channel" ? "Mixed" : "Channel" }
         let cancelKey = Softkey(name: "Cancel", action: { ui.recordArmed = false })
+        // CUE-52: on a tracking list or chase an Update Mode softkey cycles the mode of this record.
+        let updateModeKey = { (list: PlaybackInfo?) -> Softkey? in
+            guard let list, list.hasCues, list.stored.list.tracking else { return nil }
+            let current = ui.updateMode ?? engine.playbackSettings?.updateMode ?? "Forwards"
+            return Softkey(name: "Update Mode", sub: Self.updateModes[current] ?? current) {
+                let order = Self.updateOrder
+                ui.updateMode = order[((order.firstIndex(of: current) ?? -1) + 1) % order.count]
+            }
+        }
         if let handle {
-            // PBK-38: a used handle takes Replace or Merge; Mask and Record By are for this record.
+            // PBK-38, CUE-45: a used handle takes Replace, Merge, Append or Insert; Mask, Record By
+            // and Update Mode are for this record.
             let mode = { (name: String, sub: String, wire: String) -> Softkey in
                 Softkey(name: name, sub: sub) {
                     engine.recordPlayback(page: handle.page, slot: handle.slot, mask: ui.orderedRecordMask,
-                                          recordBy: ui.recordBy, mode: wire)
+                                          recordBy: ui.recordBy, mode: wire, updateMode: ui.updateMode)
                     ui.recordArmed = false
                 }
             }
             return ("Record · \(handle.page).\(handle.slot)", [
                 mode("Replace", "new contents", "Replace"), mode("Merge", "add and overwrite", "Merge"),
-                nil, maskKey, recordByKey, nil, cancelKey,
-            ])
+                mode("Append", "new cue at the end", "Append"), mode("Insert", "new cue after current", "Insert"),
+                maskKey, recordByKey, updateModeKey(engine.playback(handle.playback)), cancelKey,
+            ].compactMap { $0 })
+        }
+        if let cue, let list = engine.playback(cue.playback) {
+            // CUE-45: a tapped row takes Replace, Merge or Update for that cue.
+            let mode = { (name: String, sub: String, wire: String) -> Softkey in
+                Softkey(name: name, sub: sub) {
+                    engine.recordPlayback(page: list.stored.page, slot: list.stored.slot, mask: ui.orderedRecordMask,
+                                          recordBy: ui.recordBy, mode: wire, cue: cue.cue, updateMode: ui.updateMode)
+                    ui.recordArmed = false
+                }
+            }
+            return ("Record · \(cueName(cue.cue))", [
+                mode("Replace", "new contents", "Replace"), mode("Merge", "add and overwrite", "Merge"),
+                mode("Update", "held attributes", "Update"),
+                maskKey, recordByKey, updateModeKey(list), cancelKey,
+            ].compactMap { $0 })
         }
         let mode = { (name: String, sub: String, wire: String) -> Softkey? in
             guard let used else { return nil }
@@ -352,9 +384,16 @@ private struct Softkeys: View {
                 ui.recordArmed = false
             }
         }
+        // CUE-45: with nothing tapped yet, A and B arm a speed master for the next empty handle.
+        let master = { (name: String, kind: String) -> Softkey in
+            Softkey(name: name, sub: "next empty handle", on: ui.recordMaster == kind) {
+                ui.recordMaster = ui.recordMaster == kind ? nil : kind
+                if ui.recordMaster != nil { engine.say("\(name): tap an empty handle.") }
+            }
+        }
         return (used.map { "Record · \($0.number)" } ?? "Record", [
-            mode("Replace", "new contents", "Replace"),
-            mode("Merge", "add and overwrite", "Merge"),
+            used == nil ? master("BPM Master", "Bpm") : mode("Replace", "new contents", "Replace"),
+            used == nil ? master("Rate Master", "Rate") : mode("Merge", "add and overwrite", "Merge"),
             mode("Quick Merge", "held attributes", "QuickMerge"),
             maskKey,
             recordByKey,
@@ -368,13 +407,79 @@ private struct Softkeys: View {
     /// This record's Record By: the operator's choice, else the engine's setting (PAL-25).
     /// For a playback record (a used handle tapped) the default is the cue setting (PBK-10).
     private var recordBy: String {
-        ui.recordBy ?? (ui.usedHandle != nil ? engine.playbackSettings?.recordBy ?? "Channel" : engine.paletteSettings?.recordBy ?? "Mixed")
+        ui.recordBy ?? (ui.usedHandle != nil || ui.usedCue != nil ? engine.playbackSettings?.recordBy ?? "Channel" : engine.paletteSettings?.recordBy ?? "Mixed")
     }
 
     /// Where the Mask toggles start before a cell is tapped: the first palette window of the workspace,
     /// else every group (the Playbacks workspace, where the next tap is a handle).
     private var workspaceMaskBase: [String] {
         Workspace.all[safe: ui.workspace]?.windows.lazy.compactMap(\.paletteKind).first?.mask ?? attributeGroupOrder
+    }
+
+    // MARK: Cue lists (CUE-43, 45, 54)
+
+    private static let updateOrder = ["Forwards", "CueOnly", "Backwards", "Both"]
+    private static let updateModes = ["Forwards": "Forwards", "CueOnly": "Cue Only", "Backwards": "Backwards", "Both": "Both"]
+
+    /// A right-click on a Cue list row (UI-18). Renumber and Copy take the number on the command
+    /// line; Delete asks for its confirmation on softkey A.
+    private func cueContext(_ ref: CueRef) -> (name: String, keys: [Softkey?]) {
+        let name = cueName(ref.cue)
+        if ui.cueDelete {
+            var keys: [Softkey?] = Array(repeating: nil, count: 7)
+            keys[0] = Softkey(name: "Confirm delete", sub: name) {
+                engine.deleteCue(ref.playback, cue: ref.cue)
+                ui.cancelModes()
+            }
+            keys[6] = Softkey(name: "Cancel", action: { ui.cancelModes() })
+            return ("Cue · \(name)", keys)
+        }
+        func numbered(_ title: String, _ send: @escaping (Double) -> Void) -> Softkey {
+            Softkey(name: title, sub: "number on the line") {
+                guard let n = line.onlyNumber else { return engine.say("\(title): type the cue number on the keypad first.") }
+                send(n)
+                line.clear()
+                ui.cancelModes()
+            }
+        }
+        return ("Cue · \(name)", [
+            Softkey(name: "Go to Cue", sub: "runs it now") { engine.cuelist("goto", id: ref.playback, cue: ref.cue); ui.cancelModes() },
+            Softkey(name: "View Cue", sub: "its whole state") { ui.cueView = ref; ui.cueValue = nil; ui.cancelModes() },
+            Softkey(name: "Edit Times", sub: "Times tab") { ui.openOptions(ref.playback, tab: .times, cue: ref.cue) },
+            Softkey(name: "Set Legend") { ui.cueLegendEditing = ref },
+            numbered("Renumber") { engine.renumberCue(ref.playback, cue: ref.cue, to: $0) },
+            numbered("Copy") { engine.copyCue(ref.playback, cue: ref.cue, to: $0) },
+            Softkey(name: "Delete", sub: "confirm on A") {
+                ui.cueDelete = true
+                engine.say("Delete cue \(name)? Confirm on softkey A.")
+            },
+            Softkey(name: "Cancel", action: { ui.cancelModes() }),
+        ])
+    }
+
+    /// The Cue view (CUE-54): Back to List, and Remove for the hard value last right-clicked (two-step).
+    private func cueViewContext(_ ref: CueRef) -> (name: String, keys: [Softkey?]) {
+        let name = cueName(ref.cue)
+        let target = ui.cueValue
+        let fixture = target.flatMap { t in engine.fixtures.first { $0.id == t.fixture }?.number }
+        let what = target.map { "\($0.attribute) of \(fixture ?? $0.fixture)" }
+        var keys: [Softkey?] = Array(repeating: nil, count: 7)
+        if ui.cueRemoveConfirm, let target {
+            keys[0] = Softkey(name: "Confirm remove", sub: what ?? "") {
+                engine.removeCueValue(ref.playback, cue: ref.cue, fixture: target.fixture, attribute: target.attribute)
+                engine.viewCue(ref.playback, cue: ref.cue)
+                ui.cueValue = nil; ui.cueRemoveConfirm = false
+            }
+            keys[6] = Softkey(name: "Cancel", action: { ui.cueRemoveConfirm = false })
+            return ("Cue view · \(name)", keys)
+        }
+        keys[0] = Softkey(name: "Back to List") { ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false }
+        keys[1] = Softkey(name: "Remove", sub: what ?? "right-click a value") {
+            guard target != nil else { return engine.say("Right-click a hard value in the Cue view first.") }
+            ui.cueRemoveConfirm = true
+            engine.say("Remove \(what ?? "") from \(name)? Confirm on softkey A.")
+        }
+        return ("Cue view · \(name)", keys)
     }
 
     // MARK: Update, Include, Copy, Move, Delete, Set Legend (PAL-29)

@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 
 // Playback area (UI-21..24): pages column, one strip per fader on the page, the Go block and
-// the Grand Master. Pages, strips, Swop/Flash, GM and DBO are live (PBK-01..05, PBK-37, PBK-41,
-// IPC-09); the Go block is drawn disabled until its spec lands (P1-08). What a tap on a legend
-// does by the armed function button is in PlaybackViews.swift (HandleTaps).
+// the Grand Master. Pages, strips, their two handle buttons, GM and DBO are live (PBK-01..05,
+// PBK-37, PBK-41, IPC-09, CUE-44); the Go block is in CueLists.swift. What a tap on a legend does
+// by the armed function button is in PlaybackViews.swift (HandleTaps).
 
 func percent(_ v: Double) -> String {
     "\(Int((v * 100).rounded())) %"
@@ -85,11 +85,23 @@ private struct StripsRow: View {
 private struct StripCell: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
+    @EnvironmentObject private var line: TokenLine
     let slot: PlaybackSlot
+
+    /// CUE-44, 55: a handle button presses and releases `playback.button`; the engine does what the
+    /// setting `handle_buttons` assigns. Latch armed (or a latched playback) turns a Flash press
+    /// into `playback.latch` (PBK-28).
+    private func hold(_ index: Int) -> HoldActions {
+        let function = slot.info?.stored.buttons[safe: index] ?? "None"
+        let which = index == 0 ? "upper" : "lower"
+        return HoldActions(press: { HandleTaps.buttonPress($0, which: which, function: function, info: slot.info, engine: engine, ui: ui) },
+                           release: { engine.pressButton($0, which, on: false) })
+    }
 
     var body: some View {
         FaderStrip(slot: slot, page: engine.page.number,
                    selected: slot.playback.map { ui.handleSource == $0 || ui.deletePlayback == $0 } ?? false,
+                   connected: slot.playback != nil && slot.playback == engine.connected,
                    armed: ui.recordArmed || (ui.function != nil && ui.function != .include && ui.function != .latch),
                    onChange: { level in
                        if let id = slot.playback { engine.setFader(playback: id, level: level) }
@@ -100,12 +112,9 @@ private struct StripCell: View {
                    onScroll: { steps, flags in
                        if let id = slot.playback { engine.nudgeFader(playback: id, by: Double(steps) * faderScrollStep(flags)) }
                    },
-                   onLegendTap: { HandleTaps.tap(slot: slot.id + 1, info: slot.info, engine: engine, ui: ui) },
+                   onLegendTap: { HandleTaps.tap(slot: slot.id + 1, info: slot.info, engine: engine, ui: ui, line: line) },
                    onRightClick: { HandleTaps.rightClick(info: slot.info, engine: engine, ui: ui) },
-                   swop: HoldActions(press: { engine.swopPlayback($0, on: true); return false },
-                                     release: { engine.swopPlayback($0, on: false) }),
-                   flash: HoldActions(press: { HandleTaps.flashPress($0, info: slot.info, engine: engine, ui: ui) },
-                                      release: { engine.flashPlayback($0, on: false) }))
+                   upper: hold(0), lower: hold(1))
     }
 }
 
@@ -133,6 +142,8 @@ private struct FaderStrip: View {
     let page: Int
     /// Copy / Move source or Delete target: blue border, as a selected cell (UI-05).
     let selected: Bool
+    /// CUE-26: the strip of the connected list has a 2 pt blue frame (UI-03).
+    let connected: Bool
     /// A function button is armed: the legends get a red hairline (the sketch's `.armed .leg`).
     let armed: Bool
     let onChange: (Double) -> Void
@@ -140,11 +151,12 @@ private struct FaderStrip: View {
     let onScroll: (Int, NSEvent.ModifierFlags) -> Void
     let onLegendTap: () -> Void
     let onRightClick: () -> Void
-    let swop: HoldActions
-    let flash: HoldActions
+    let upper: HoldActions
+    let lower: HoldActions
 
     var body: some View {
         let empty = slot.playback == nil
+        let functions = slot.info?.stored.buttons ?? ["None", "None"]
         VStack(spacing: 2) {
             StripLegend(info: slot.info, page: page)
                 .overlay { if armed { Rectangle().strokeBorder(t.red, lineWidth: 1) } }
@@ -154,17 +166,21 @@ private struct FaderStrip: View {
                 .help(empty ? "Empty handle \(page).\(slot.id + 1)" : "Right-click: Playback Options")
             if let info = slot.info {
                 LevelBar(value: Binding(get: { info.live.level }, set: onChange), running: slot.isActive,
+                         progress: slot.isActive ? info.live.cue.flatMap { $0.current != nil && $0.progress < 1 ? $0.progress : nil } : nil,
                          onTouch: onTouch, onScroll: onScroll)
             } else {
                 Rectangle().fill(t.bg)
             }
-            HoldKey(label: "Swop", target: slot.playback, inverted: false, actions: swop)
-            HoldKey(label: "Flash", target: slot.playback, inverted: slot.info?.live.latched == true, actions: flash)
+            ForEach(0..<2, id: \.self) { index in
+                let function = functions[safe: index] ?? "None"
+                HoldKey(label: function == "None" ? "" : function, target: function == "None" ? nil : slot.playback,
+                        inverted: function == "Flash" && slot.info?.live.latched == true, actions: index == 0 ? upper : lower)
+            }
         }
         .padding(2)
         .frame(width: 92)
         .background(RoundedRectangle(cornerRadius: radius).fill(empty ? Color.clear : t.surf))
-        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(connected ? t.blue : t.line, lineWidth: connected ? 2 : 1))
         .overlay(alignment: .bottom) {
             // UI-03: green = running, amber = releasing.
             if slot.isActive || slot.isReleasing {
@@ -223,6 +239,8 @@ private struct StripLegend: View {
             if paging != "Unlocked" && info.stored.page != page {
                 Image(systemName: paging == "Locked" ? "lock.fill" : "lock").font(.system(size: 8))
                 Text("page \(info.stored.page)")
+            } else if let summary = cueSummary(info) {
+                Text(summary)
             } else if !info.stored.legend.isEmpty {
                 Text(info.homeHandle)
             }
@@ -231,8 +249,22 @@ private struct StripLegend: View {
     }
 }
 
-/// A Swop or Flash key: `press` on mouse down, `release` on mouse up (PBK-37). Disabled without a
-/// playback (UI-28). A latched Flash is drawn inverted.
+/// CUE-44: the legend's second line on a list ("Q3 › 4"), a chase ("2/8 · 120") or a master
+/// ("BPM 1 · 120 ×1", "RATE 2 · ×1.0"); nil for a memory.
+private func cueSummary(_ info: PlaybackInfo) -> String? {
+    if let m = info.stored.master {
+        if let scale = m.rateScale { return "RATE \(m.number) · ×" + String(format: "%.1f", info.live.level * Double(scale) / 100) }
+        return "BPM \(m.number) · \(Int((info.live.bpm ?? m.bpm ?? 0).rounded())) ×\(plain(m.multiplier ?? 1))"
+    }
+    guard let cue = info.live.cue else { return nil }
+    if info.isChase {
+        return "\(cue.current.map(plain) ?? "–")/\(info.stored.cues.count) · \(Int((info.live.bpm ?? info.stored.chase.bpm).rounded()))"
+    }
+    return "Q\(cue.current.map(plain) ?? "–") › \(cue.next.map(plain) ?? "–")"
+}
+
+/// A handle button: `press` on mouse down, `release` on mouse up (PBK-37). Disabled without a
+/// playback or a function (UI-28). A latched Flash is drawn inverted.
 private struct HoldKey: View {
     @Environment(\.theme) private var t
     let label: String
@@ -260,7 +292,7 @@ private struct HoldKey: View {
                     .onEnded { _ in end() }
             )
             .onDisappear { end() }   // a strip that goes away mid-press must not leave Flash on
-            .help(target == nil ? "Empty handle" : "\(label): hold")
+            .help(target == nil ? (label.isEmpty ? "No function" : "Empty handle") : "\(label): hold")
     }
 
     private func end() {
@@ -272,7 +304,7 @@ private struct HoldKey: View {
 }
 
 /// Catches a right click without taking left clicks, scrolls or drags from the view below.
-private struct RightClickCatcher: NSViewRepresentable {
+struct RightClickCatcher: NSViewRepresentable {
     let action: () -> Void
 
     func makeNSView(context: Context) -> CatcherView { CatcherView() }
@@ -297,6 +329,8 @@ private struct LevelBar: View {
     var running = false
     /// Grand Master turns amber below 100 % (UI-24).
     var warnBelowFull = false
+    /// CUE-44: the running transition of a cue list, 0...1 (a green line along the bottom).
+    var progress: Double?
     /// UI-22 / IPC-05: true on the first drag event, false on release (motor-fader touch).
     var onTouch: (Bool) -> Void = { _ in }
     /// UI-22: scroll over the bar moves the level (whole steps, modifiers as for the wheels).
@@ -311,6 +345,7 @@ private struct LevelBar: View {
                 Rectangle().fill(t.bg)
                 Rectangle().fill(fill).frame(height: height * value)
                 Rectangle().fill(t.fg).frame(height: 2).offset(y: -(height * value) + 1)
+                if let progress { Rectangle().fill(t.green).frame(width: geo.size.width * progress, height: 3).frame(maxWidth: .infinity, alignment: .leading) }
                 Text(percent(value)).font(Typo.mono(11)).foregroundStyle(t.fg)
                     .padding(.top, 3).padding(.trailing, 4)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -327,42 +362,6 @@ private struct LevelBar: View {
         }
         .background { if let onScroll { ScrollCatcher(onSteps: onScroll) } }
         .clipped()
-    }
-}
-
-/// Cue list Go block: drawn disabled until P1-08 (UI-23), as in the sketch: header, "now" line,
-/// the big green-outlined GO and Back / Stop / Release.
-private struct GoBlock: View {
-    @Environment(\.theme) private var t
-    private let spec = "Cue lists · P1-08"
-
-    var body: some View {
-        VStack(spacing: 4) {
-            HStack {
-                Text("CUE LIST").tracking(0.5)
-                Spacer()
-                Text("live — · next —")
-            }
-            .font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1)
-            Text("—").font(Typo.legend(13)).foregroundStyle(t.fg)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Button {} label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("GO").font(Typo.legend(24, .semibold)).tracking(2.9).foregroundStyle(t.green)
-                    Text("no cue list").font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1)
-                }
-                .padding(.horizontal, 10).padding(.vertical, 8)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
-                .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.green, lineWidth: 2))
-            }
-            .buttonStyle(.plain).disabled(true).opacity(t.disabled)
-            HStack(spacing: 2) {
-                ForEach(["Back", "Stop", "Release"], id: \.self) { KeyButton(label: $0, spec: spec, height: 30) }
-            }
-        }
-        .padding(6)
-        .help(spec)
     }
 }
 

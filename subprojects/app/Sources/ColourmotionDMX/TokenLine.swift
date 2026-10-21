@@ -100,6 +100,11 @@ enum MacKeys {
             ui.show(workspace: index)
             return true
         }
+        // CUE-47: Space = Go, Shift+Space = Back on the connected list; a held key fires once.
+        if event.keyCode == 49 {
+            if !event.isARepeat { engine.cuelist(event.modifierFlags.contains(.shift) ? "back" : "go") }
+            return true
+        }
         // The command line is only on the workspace screens.
         guard ui.screen == nil else { return false }
 
