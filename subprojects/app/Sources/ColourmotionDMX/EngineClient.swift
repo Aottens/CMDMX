@@ -1401,7 +1401,7 @@ final class EngineClient: ObservableObject {
             // PBK-35: the small live delta; the stored part stays.
             if let delta = try? JSONDecoder().decode(PlaybackLiveDelta.self, from: data), playbackStored[delta.id] != nil {
                 storeLive(id: delta.id, delta.live)
-                rebuildSlots()
+                scheduleRebuild()
             }
         case "playbacks":
             // PBK-35: the whole list after a stored change; a playback that is gone disappears.
@@ -1452,6 +1452,22 @@ final class EngineClient: ObservableObject {
         for entry in entries { storeLive(id: entry.stored.id, entry.live) }
         storedRevision += 1
         rebuildSlots()
+    }
+
+    private var rebuildPending = false
+
+    /// Live deltas come up to 40 Hz per running list or chase; the views redraw from them at most
+    /// every 1/30 s (VS3-05 run: a running list and a chase kept the main thread at 100 % and the
+    /// screen seconds behind the engine). ponytail: one ObservableObject still redraws every zone
+    /// (~50 % CPU with a list and a chase running); split the live state per zone if that matters.
+    private func scheduleRebuild() {
+        guard !rebuildPending else { return }
+        rebuildPending = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 33_000_000)
+            self?.rebuildPending = false
+            self?.rebuildSlots()
+        }
     }
 
     /// PBK-01/05: the strips show the current page's slots; the engine decides which playback each holds.
