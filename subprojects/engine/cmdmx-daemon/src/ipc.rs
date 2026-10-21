@@ -2890,7 +2890,18 @@ mod tests {
                "groups":["I"],
                "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete",
                           "release_mask":null,"release_time":null,"paging":"Unlocked","group":null},
-               "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"overlap":100.0}})
+               "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"overlap":100.0},
+               "kind":"Cues",
+               "cues":[{"number":1.0,"legend":"","delay":0.0,"fade_in":0.0,"fade_out":0.0,
+                        "overlap":100.0,"link":{"type":"Wait"},"track":"Track",
+                        "group_times":{},"groups":["I"]}],
+               "list":{"tracking":true,"fader":"KillWithOff","fire_first_cue":true,
+                       "loop":"StopOnFinal"},
+               "chase":{"bpm":120.0,"crossfade":0.0,"direction":"Forward","loop":"Loop",
+                        "speed_source":"Free"},
+               "master":null,
+               "buttons":["Swop","Flash"],
+               "cue":null,"bpm":null})
     }
 
     #[test]
@@ -2928,7 +2939,9 @@ mod tests {
         assert_eq!(
             v["playback_settings"],
             json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,
-                   "overlap":100.0,"release_mask":[],"release_time":2.0})
+                   "overlap":100.0,"release_mask":[],"release_time":2.0,
+                   "auto_connect":true,"cue_list_fader":"KillWithOff","update_mode":"Forwards",
+                   "handle_buttons":"BestPractice"})
         );
     }
 
@@ -2949,7 +2962,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
-                   "flash":true,"latched":false})
+                   "flash":true,"latched":false,"cue":null,"bpm":null})
         );
         e.set_flash(1, false, 0.025).unwrap();
         e.latch_flash(1, 0.025).unwrap();
@@ -2960,7 +2973,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
-                   "flash":true,"latched":true}),
+                   "flash":true,"latched":true,"cue":null,"bpm":null}),
             "flash means held or latched"
         );
     }
@@ -3322,5 +3335,299 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    // ---- VS3-05: cue lists over IPC (CUE-40, 41, 54; IPC-24..28) ------------------------------
+
+    use cmdmx_core::playback::{Cue, CueNumber, Kind, MasterKind};
+
+    fn q(n: f64) -> CueNumber {
+        CueNumber::new(n).unwrap()
+    }
+
+    fn dimmer(fixture: u32, level: f32) -> cmdmx_core::playback::Values {
+        BTreeMap::from([(
+            fixture,
+            BTreeMap::from([("Dimmer".to_string(), level.into())]),
+        )])
+    }
+
+    /// `engine()` plus fixture 2 on channel 2 and list 2 on 1.2: Q1 fixture 1 at full, Q2
+    /// "Welcome" fixture 2 at 50 % with a 2 s fade in.
+    fn list_engine() -> Engine {
+        let mut e = engine();
+        e.patch(Fixture {
+            id: 2,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "dimmer".into(),
+            mode: None,
+            universe: 1,
+            address: 2,
+        })
+        .unwrap();
+        let q1 = Cue::new(dimmer(1, 1.0));
+        let q2 = Cue {
+            number: q(2.0),
+            legend: "Welcome".into(),
+            fade_in: 2.0,
+            ..Cue::new(dimmer(2, 0.5))
+        };
+        e.add_playback(Playback {
+            cues: vec![q1, q2],
+            ..Playback::new(2, 1, 2, BTreeMap::new())
+        });
+        e
+    }
+
+    fn entry(v: &Value, id: u64) -> Value {
+        v["playbacks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["id"] == json!(id))
+            .cloned()
+            .unwrap()
+    }
+
+    #[test]
+    fn cue_40_list_entry_has_cues_buttons_and_live_cue() {
+        let e = list_engine();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let p = entry(&v, 2);
+        assert_eq!(p["kind"], json!("Cues"));
+        assert_eq!(p["cues"].as_array().unwrap().len(), 2);
+        assert_eq!(p["cues"][1]["number"], json!(2.0));
+        assert_eq!(p["cues"][1]["legend"], json!("Welcome"));
+        assert_eq!(p["cues"][1]["fade_in"], json!(2.0));
+        assert!(
+            p["cues"][1].get("values").is_none(),
+            "cues come without values"
+        );
+        assert_eq!(p["buttons"], json!(["Go", "Flash"]));
+        assert_eq!(
+            p["cue"],
+            json!({"current":null,"next":1.0,"progress":0.0,"paused":false})
+        );
+        assert_eq!(p["bpm"], json!(null));
+        assert_eq!(
+            v["connected"],
+            json!(2),
+            "the first list when none is connected"
+        );
+    }
+
+    #[test]
+    fn cue_40_snapshot_without_a_list_has_no_connected_list() {
+        let v = parse(&snapshot(&engine(), &[], &show_state()));
+        assert_eq!(v["connected"], json!(null));
+    }
+
+    #[test]
+    fn cue_40_a_running_transition_sends_small_deltas_with_its_progress() {
+        let mut e = list_engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.cuelist(Some(2), cmdmx_core::playback::ListAction::Go, 0.0)
+            .unwrap();
+        e.tick(0.0);
+        let _ = published.diff(&e, &[], &show_state());
+        e.cuelist(Some(2), cmdmx_core::playback::ListAction::Go, 0.025)
+            .unwrap();
+        e.tick(0.025);
+        e.tick(0.5);
+        let d = published.diff(&e, &[], &show_state());
+        let deltas: Vec<Value> = d.iter().map(|m| parse(m)).collect();
+        let mine: Vec<&Value> = deltas
+            .iter()
+            .filter(|m| m["type"] == json!("playback") && m["id"] == json!(2))
+            .collect();
+        assert_eq!(mine.len(), 1, "one per tick: {deltas:?}");
+        let cue = &mine[0]["cue"];
+        assert_eq!(cue["current"], json!(2.0));
+        assert_eq!(cue["next"], json!(null));
+        let progress = cue["progress"].as_f64().unwrap();
+        assert!((0.2..0.3).contains(&progress), "{progress}");
+        assert!(
+            !deltas.iter().any(|m| m["type"] == json!("playbacks")),
+            "live changes never send the whole list"
+        );
+    }
+
+    #[test]
+    fn cue_40_connected_delta_on_change() {
+        let mut e = list_engine();
+        e.add_playback(Playback {
+            kind: Kind::Chase,
+            cues: vec![Cue::new(dimmer(1, 1.0)), Cue::new(dimmer(2, 1.0))],
+            ..Playback::new(3, 1, 3, BTreeMap::new())
+        });
+        let mut published = Published::new(&e, &[], &show_state());
+        e.connect_list(3).unwrap();
+        let d = published.diff(&e, &[], &show_state());
+        assert!(
+            d.iter()
+                .any(|m| parse(m) == json!({"v":0,"type":"connected","id":3})),
+            "{d:?}"
+        );
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
+    fn cue_40_chases_and_bpm_masters_carry_their_tempo() {
+        let mut e = list_engine();
+        e.add_playback(Playback {
+            kind: Kind::Chase,
+            cues: vec![Cue::new(dimmer(1, 1.0)), Cue::new(dimmer(2, 1.0))],
+            ..Playback::new(3, 1, 3, BTreeMap::new())
+        });
+        let master = e.record_master(1, 4, MasterKind::Bpm, 1).unwrap();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let chase = entry(&v, 3);
+        assert_eq!(chase["kind"], json!("Chase"));
+        assert_eq!(chase["bpm"], json!(120.0));
+        assert_eq!(chase["buttons"], json!(["Tap", "Flash"]));
+        assert!(chase["cue"].is_object());
+        let m = entry(&v, u64::from(master));
+        assert_eq!(m["kind"], json!("BpmMaster"));
+        assert_eq!(
+            m["master"],
+            json!({"number":1,"bpm":120.0,"multiplier":1.0,"fader":"None","fader_max":240.0})
+        );
+        assert_eq!(m["bpm"], json!(120.0));
+        assert_eq!(m["buttons"], json!(["None", "Tap"]));
+        assert_eq!(m["cue"], json!(null));
+    }
+
+    #[test]
+    fn cue_40_a_cue_edit_sends_the_whole_list() {
+        let mut e = list_engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.change_cue(
+            2,
+            q(2.0),
+            &cmdmx_core::playback::CueChange {
+                legend: Some("Worship".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let d = published.diff(&e, &[], &show_state());
+        let whole = d
+            .iter()
+            .map(|m| parse(m))
+            .find(|m| m["type"] == json!("playbacks"))
+            .expect("a playbacks delta");
+        assert_eq!(entry(&whole, 2)["cues"][1]["legend"], json!("Worship"));
+    }
+
+    #[test]
+    fn cue_41_commands_parse() {
+        for good in [
+            r#"{"v":0,"cmd":"cuelist.go"}"#,
+            r#"{"v":0,"cmd":"cuelist.go","id":2}"#,
+            r#"{"v":0,"cmd":"cuelist.back"}"#,
+            r#"{"v":0,"cmd":"cuelist.stop","id":2}"#,
+            r#"{"v":0,"cmd":"cuelist.goto","cue":2.5}"#,
+            r#"{"v":0,"cmd":"cuelist.next","id":2,"cue":3}"#,
+            r#"{"v":0,"cmd":"cuelist.connect","id":2}"#,
+            r#"{"v":0,"cmd":"playback.release"}"#,
+            r#"{"v":0,"cmd":"playback.button","id":2,"button":"upper","on":true}"#,
+            r#"{"v":0,"cmd":"playback.tap","id":3}"#,
+            r#"{"v":0,"cmd":"playback.bpm","id":3,"bpm":128}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"Append"}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"Insert"}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"cue":4}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"cue":2,"mode":"Update",
+                "update_mode":"Backwards"}"#,
+            r#"{"v":0,"cmd":"playback.options","id":2,"kind":"Chase"}"#,
+            r#"{"v":0,"cmd":"playback.options","id":2,"list":{"tracking":false}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"chase":{"bpm":90,"direction":"Bounce",
+                "speed_source":{"Bpm":1}}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"multiplier":2}}"#,
+            r#"{"v":0,"cmd":"cue.times","id":2,"cue":2,"fade_in":3,
+                "link":{"type":"After","offset":1},"group_times":{"P":{"delay":1,"fade":5}}}"#,
+            r#"{"v":0,"cmd":"cue.legend","id":2,"cue":2,"legend":"Welcome"}"#,
+            r#"{"v":0,"cmd":"cue.track","id":2,"cue":2,"track":"CueOnly"}"#,
+            r#"{"v":0,"cmd":"cue.delete","id":2,"cue":2}"#,
+            r#"{"v":0,"cmd":"cue.renumber","id":2,"cue":2,"to":2.5}"#,
+            r#"{"v":0,"cmd":"cue.renumber_all","id":2}"#,
+            r#"{"v":0,"cmd":"cue.copy","id":2,"cue":2,"to":7}"#,
+            r#"{"v":0,"cmd":"cue.view","id":2,"cue":2}"#,
+            r#"{"v":0,"cmd":"cue.remove","id":2,"cue":2,"fixture":201}"#,
+            r#"{"v":0,"cmd":"cue.remove","id":2,"cue":2,"fixture":201,"attribute":"Dimmer"}"#,
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Rate","number":2}"#,
+            r#"{"v":0,"cmd":"settings.playback","auto_connect":false,"cue_list_fader":"KillAtZero",
+                "update_mode":"Both","handle_buttons":{"Custom":{"CueList":["Go","Back"]}}}"#,
+        ] {
+            assert!(
+                parse_command(good).is_ok(),
+                "{good}: {:?}",
+                parse_command(good)
+            );
+        }
+    }
+
+    #[test]
+    fn cue_41_bad_commands_are_errors() {
+        for bad in [
+            r#"{"v":0,"cmd":"cuelist.go","id":"two"}"#,
+            r#"{"v":0,"cmd":"cuelist.goto","id":2}"#,
+            r#"{"v":0,"cmd":"cuelist.next","cue":"x"}"#,
+            r#"{"v":0,"cmd":"cuelist.goto","cue":2.0001}"#,
+            r#"{"v":0,"cmd":"cuelist.connect"}"#,
+            r#"{"v":0,"cmd":"playback.button","id":2,"button":"middle","on":true}"#,
+            r#"{"v":0,"cmd":"playback.button","id":2,"button":"upper"}"#,
+            r#"{"v":0,"cmd":"playback.tap"}"#,
+            r#"{"v":0,"cmd":"playback.bpm","id":3}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"Append","cue":3}"#,
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"update_mode":"Sideways"}"#,
+            r#"{"v":0,"cmd":"playback.options","id":2,"kind":"Timeline"}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"chase":{"direction":"Sideways"}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":3,"list":"Loop"}"#,
+            r#"{"v":0,"cmd":"cue.times","id":2,"fade_in":3}"#,
+            r#"{"v":0,"cmd":"cue.times","id":2,"cue":2,"link":{"type":"Later"}}"#,
+            r#"{"v":0,"cmd":"cue.legend","id":2,"cue":2}"#,
+            r#"{"v":0,"cmd":"cue.track","id":2,"cue":2,"track":"Hold"}"#,
+            r#"{"v":0,"cmd":"cue.delete","id":2}"#,
+            r#"{"v":0,"cmd":"cue.renumber","id":2,"cue":2}"#,
+            r#"{"v":0,"cmd":"cue.renumber_all"}"#,
+            r#"{"v":0,"cmd":"cue.copy","id":2,"cue":2}"#,
+            r#"{"v":0,"cmd":"cue.view","id":2}"#,
+            r#"{"v":0,"cmd":"cue.remove","id":2,"cue":2}"#,
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Size"}"#,
+            r#"{"v":0,"cmd":"master.record","page":1,"kind":"Bpm"}"#,
+            r#"{"v":0,"cmd":"settings.playback","handle_buttons":"Avolites"}"#,
+            r#"{"v":0,"cmd":"settings.playback","update_mode":"Sideways"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn cue_54_cue_view_message() {
+        let e = list_engine();
+        let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"cue.view","playback":2,"cue":2.0,"fixtures":[
+                {"fixture":1,"values":{"Dimmer":{"value":1.0,"from":1.0}}},
+                {"fixture":2,"values":{"Dimmer":{"value":0.5,"from":2.0}}}]})
+        );
+        assert!(cue_view(&e, 2, q(9.0)).is_err());
+        assert!(cue_view(&e, 9, q(1.0)).is_err());
+    }
+
+    #[test]
+    fn ipc_25_stamp_sets_the_receive_time_of_taps_and_buttons_only() {
+        let tap = parse_command(r#"{"v":0,"cmd":"playback.tap","id":3}"#).unwrap();
+        assert_ne!(stamp(tap.clone(), 1.5), tap, "a tap carries its time");
+        let button =
+            parse_command(r#"{"v":0,"cmd":"playback.button","id":3,"button":"upper","on":true}"#)
+                .unwrap();
+        assert_ne!(stamp(button.clone(), 1.5), button);
+        let go = parse_command(r#"{"v":0,"cmd":"cuelist.go"}"#).unwrap();
+        assert_eq!(stamp(go.clone(), 1.5), go);
     }
 }

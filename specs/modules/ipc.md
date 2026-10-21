@@ -133,7 +133,7 @@ The cue-list messages are specified in `cuelists.md` as CUE-40 (snapshot `playba
 `connected` in the snapshot with its delta; the CUE-38 settings in `playback_settings`), CUE-41
 (the `cuelist.*`, `playback.button/tap/bpm`, `cue.*`, `master.record` commands and the new
 `playback.record`, `playback.options` and `settings.playback` fields) and CUE-54 (`cue.view`,
-`cue.remove`). Wire details (VS3-05, within the approved criteria; proposed 2026-10-21):
+`cue.remove`). Wire details (VS3-05, within the approved criteria; IPC-24..27 approved by owner 2026-10-21):
 - **IPC-24** `cue.view` is answered by the tick, because the cue state lives in the engine: the
   client thread hands the request to the tick together with its own outgoing queue, and the tick
   puts the answer on that queue only, without waiting (IPC-07: a full queue drops the answer;
@@ -153,3 +153,9 @@ The cue-list messages are specified in `cuelists.md` as CUE-40 (snapshot `playba
   takes `kind` (`Cues`/`Chase`), and `list`, `chase` and `master` as objects whose fields are each
   optional: a missing field keeps its stored value, and the merged whole is checked as CUE-29/35
   say before anything changes.
+- **IPC-28** Entry shape (VS3-05): `list` and `chase` are always present, `master` is `null` except on
+  masters; the live part gains `cue` (`null` except on lists) and `bpm` (the effective BPM of a
+  chase or BPM master, else `null`), so CUE-40's `effective_bpm` is this live `bpm`; the stored
+  part gains `buttons` (the two functions `handle_buttons` gives this handle now, e.g.
+  `["Go","Flash"]`, CUE-25), so the app labels strips without knowing the setting's rules. The
+  `connected` delta is `{"v":0,"type":"connected","id":1}` (`id` `null` when none).

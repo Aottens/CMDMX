@@ -36,6 +36,13 @@
 //!   fades (a cue that changes nothing is complete at once); Update on a tracking list takes the
 //!   cue's state, tracked values included; KillAtZero kills when the level falls to 0, so Go at
 //!   fader 0 runs the list with its HTP out; a Solo cue before *n* is not there for *n*.
+//! - VS3-05, CUE-54: `Engine::cue_view(id, cue) -> Result<CueView, CoreError>` with `CueView =
+//!   BTreeMap<FixtureId, BTreeMap<String, CueValue>>` and `CueValue { value: Stored, from:
+//!   CueNumber }` (`Debug, Clone, PartialEq`; in `playback`): the cue's state (CUE-50), `from`
+//!   the cue the value is hard in. Unknown playback or cue refused. `Engine::remove_cue_value(id,
+//!   cue, fixture, attribute: Option<&str>)` takes a hard value (or all of the fixture's) out of
+//!   the cue; a value the cue does not hold is refused and changes nothing; an edit to the
+//!   current state is on stage at once (CUE-53).
 
 #![allow(
     clippy::panic,
@@ -52,9 +59,9 @@ use std::collections::BTreeMap;
 use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
 use cmdmx_core::palette::RecordMode;
 use cmdmx_core::playback::{
-    AddCue, Button, ButtonKind, Cue, CueChange, CueNumber, FaderMode, HandleButton, HandleButtons,
-    Kind, Link, ListAction, ListFader, ListLive, ListOptions, LoopAction, MasterKind, Playback,
-    PlaybackChange, PlaybackRecord, Track, UpdateMode, Values,
+    AddCue, Button, ButtonKind, Cue, CueChange, CueNumber, CueValue, FaderMode, HandleButton,
+    HandleButtons, Kind, Link, ListAction, ListFader, ListLive, ListOptions, LoopAction,
+    MasterKind, Playback, PlaybackChange, PlaybackRecord, Track, UpdateMode, Values,
 };
 use cmdmx_core::show::{Meta, Show};
 use cmdmx_core::value::{Stored, Value};
@@ -1398,4 +1405,117 @@ fn cue_53_a_track_change_to_the_current_cue_is_on_stage_at_once() {
     tick(&mut e, 7.025);
     assert_eq!(dmx(&e, 21), 0, "Q1's par no longer tracks into Q2");
     assert_eq!(dmx(&e, 22), 255);
+}
+
+// ---- CUE-54: the Cue view and removing a hard value (VS3-05) ----------------------------------
+
+fn viewed(e: &Engine, n: f64, fixture: u32, attribute: &str) -> Option<(f32, f64)> {
+    let view = e.cue_view(1, q(n)).unwrap();
+    view.get(&fixture)
+        .and_then(|a| a.get(attribute))
+        .map(|v: &CueValue| match v.value {
+            Stored::Value(Value::Level(l)) => (l, v.from.as_f64()),
+            ref other => panic!("not a level: {other:?}"),
+        })
+}
+
+#[test]
+fn cue_54_view_shows_hard_and_tracked_values_with_their_cue() {
+    let e = update_list();
+    assert_eq!(
+        viewed(&e, 3.0, 203, "Dimmer"),
+        Some((1.0, 3.0)),
+        "hard here"
+    );
+    assert_eq!(
+        viewed(&e, 3.0, 201, "Dimmer"),
+        Some((0.5, 1.0)),
+        "tracked from Q1"
+    );
+    assert_eq!(viewed(&e, 3.0, 101, "Pan"), Some((0.2, 1.0)));
+    assert_eq!(viewed(&e, 4.0, 201, "Dimmer"), Some((0.8, 4.0)));
+    assert_eq!(
+        viewed(&e, 1.0, 202, "Dimmer"),
+        None,
+        "nothing tracks backwards"
+    );
+}
+
+#[test]
+fn cue_54_view_without_tracking_is_the_cue_s_own_values() {
+    let mut e = update_list();
+    options(
+        &mut e,
+        1,
+        ListOptions {
+            tracking: false,
+            ..ListOptions::default()
+        },
+    );
+    assert_eq!(viewed(&e, 3.0, 201, "Dimmer"), None);
+    assert_eq!(viewed(&e, 3.0, 203, "Dimmer"), Some((1.0, 3.0)));
+}
+
+#[test]
+fn cue_54_view_follows_block() {
+    let mut e = update_list();
+    change(
+        &mut e,
+        3.0,
+        CueChange {
+            track: Some(Track::Block),
+            ..CueChange::default()
+        },
+    );
+    assert_eq!(viewed(&e, 3.0, 201, "Dimmer"), None);
+    assert_eq!(viewed(&e, 3.0, 203, "Dimmer"), Some((1.0, 3.0)));
+}
+
+#[test]
+fn cue_54_view_refuses_unknown_playback_or_cue() {
+    let e = update_list();
+    assert!(e.cue_view(1, q(9.0)).is_err());
+    assert!(e.cue_view(99, q(1.0)).is_err());
+}
+
+#[test]
+fn cue_54_remove_takes_a_hard_value_out_so_it_tracks_again() {
+    let mut e = update_list();
+    e.remove_cue_value(1, q(4.0), 201, Some("Dimmer")).unwrap();
+    assert_eq!(hard(&e, 4.0, 201, "Dimmer"), None);
+    assert_eq!(viewed(&e, 4.0, 201, "Dimmer"), Some((0.5, 1.0)));
+}
+
+#[test]
+fn cue_54_remove_without_attribute_takes_all_of_the_fixture() {
+    let mut e = update_list();
+    e.remove_cue_value(1, q(1.0), 101, None).unwrap();
+    assert_eq!(hard(&e, 1.0, 101, "Pan"), None);
+    assert_eq!(
+        hard(&e, 1.0, 201, "Dimmer"),
+        Some(0.5),
+        "other fixtures stay"
+    );
+}
+
+#[test]
+fn cue_54_remove_refuses_a_value_the_cue_does_not_hold() {
+    let mut e = update_list();
+    let before = e.playback(1).unwrap().clone();
+    assert!(
+        e.remove_cue_value(1, q(3.0), 201, Some("Dimmer")).is_err(),
+        "tracked"
+    );
+    assert!(e.remove_cue_value(1, q(3.0), 204, None).is_err());
+    assert!(e.remove_cue_value(1, q(9.0), 203, None).is_err());
+    assert_eq!(e.playback(1).unwrap(), &before);
+}
+
+#[test]
+fn cue_54_remove_on_the_current_cue_is_on_stage_at_once() {
+    let mut e = on_q2();
+    e.remove_cue_value(1, q(2.0), 202, None).unwrap();
+    tick(&mut e, 7.025);
+    assert_eq!(dmx(&e, 22), 0);
+    assert_eq!(dmx(&e, 21), 128, "Q1 still tracks");
 }

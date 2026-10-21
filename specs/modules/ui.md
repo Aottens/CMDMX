@@ -2,7 +2,7 @@
 
 Owner: `subprojects/app` (rendering, input), with four small IPC additions in `cmdmx-daemon`.
 Status: **draft for owner approval (UX-02.0, 2026-10-17); open questions answered by owner 2026-10-17**.
-UI-03, 13, 18, 19, 22, 23 amended for cue lists (VS3-05, 2026-10-21): **proposed, awaiting owner approval**.
+UI-03, 13, 18, 19, 22, 23 amended for cue lists: **approved by owner 2026-10-21 (VS3-05)**.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.

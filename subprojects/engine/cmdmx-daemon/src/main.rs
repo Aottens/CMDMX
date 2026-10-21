@@ -1479,4 +1479,277 @@ mod tests {
         }
         assert_eq!(engine.to_show(before.meta.clone()), before);
     }
+
+    /// VS3-05: one parsed JSON command applied to the engine.
+    fn send(engine: &mut Engine, json: &str) -> Result<(), CoreError> {
+        apply(engine, ipc::parse_command(json).unwrap(), 0.0)
+    }
+
+    fn at(engine: &Engine, page: u16, slot: u16) -> u32 {
+        engine
+            .playbacks()
+            .find(|p| (p.page, p.slot) == (page, slot))
+            .unwrap()
+            .id
+    }
+
+    fn numbers(engine: &Engine, id: u32) -> Vec<f64> {
+        let p = engine.playback(id).unwrap();
+        p.cues.iter().map(|c| c.number.as_f64()).collect()
+    }
+
+    #[test]
+    fn cue_41_record_and_cue_commands_reach_the_engine() {
+        use cmdmx_core::playback::{Link, Track};
+        let mut engine = demo_engine().unwrap();
+        let ok = |engine: &mut Engine, json: &str| send(engine, json).unwrap();
+        engine
+            .execute_command(&["201", "@", "100", "Enter"])
+            .unwrap();
+        ok(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1}"#,
+        );
+        let id = at(&engine, 3, 1);
+        ok(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+        );
+        ok(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Insert"}"#,
+        );
+        ok(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"cue":5}"#,
+        );
+        assert_eq!(numbers(&engine, id), vec![1.0, 2.0, 3.0, 5.0]);
+        ok(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"cue":2,"mode":"Merge",
+                "update_mode":"CueOnly"}"#,
+        );
+        let s = format!(r#""id":{id},"cue":2"#);
+        ok(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cue.legend",{s},"legend":"Welcome"}}"#),
+        );
+        ok(
+            &mut engine,
+            &format!(
+                r#"{{"v":0,"cmd":"cue.times",{s},"fade_in":3,"link":{{"type":"After","offset":1}},
+                    "group_times":{{"P":{{"delay":1,"fade":5}}}}}}"#
+            ),
+        );
+        ok(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cue.track",{s},"track":"Block"}}"#),
+        );
+        let q2 = engine.playback(id).unwrap().cues[1].clone();
+        assert_eq!(q2.legend, "Welcome");
+        assert_eq!(q2.fade_in, 3.0);
+        assert_eq!(q2.link, Link::After { offset: 1.0 });
+        assert_eq!(q2.track, Track::Block);
+        assert_eq!(q2.group_times.len(), 1);
+        ok(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cue.copy",{s},"to":7}}"#),
+        );
+        ok(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cue.renumber","id":{id},"cue":7,"to":8}}"#),
+        );
+        ok(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cue.delete","id":{id},"cue":8}}"#),
+        );
+        ok(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cue.renumber_all","id":{id}}}"#),
+        );
+        assert_eq!(numbers(&engine, id), vec![1.0, 2.0, 3.0, 4.0]);
+        ok(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cue.remove","id":{id},"cue":1,"fixture":201}}"#),
+        );
+        assert!(engine.playback(id).unwrap().cues[0].values.is_empty());
+    }
+
+    #[test]
+    fn cue_41_running_commands_reach_the_engine() {
+        let mut engine = demo_engine().unwrap();
+        engine
+            .execute_command(&["201", "@", "100", "Enter"])
+            .unwrap();
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1}"#,
+        )
+        .unwrap();
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+        )
+        .unwrap();
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+        )
+        .unwrap();
+        let id = at(&engine, 3, 1);
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cuelist.connect","id":{id}}}"#),
+        )
+        .unwrap();
+        assert_eq!(engine.connected(), Some(id));
+        send(&mut engine, r#"{"v":0,"cmd":"cuelist.go"}"#).unwrap();
+        engine.tick(0.0);
+        let cur = |e: &Engine| e.list_live(id).unwrap().current.map(|c| c.as_f64());
+        assert_eq!(cur(&engine), Some(1.0));
+        send(&mut engine, r#"{"v":0,"cmd":"cuelist.next","cue":3}"#).unwrap();
+        assert_eq!(
+            engine.list_live(id).unwrap().next.map(|c| c.as_f64()),
+            Some(3.0)
+        );
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"playback.button","id":{id},"button":"upper","on":true}}"#),
+        )
+        .unwrap();
+        engine.tick(0.025);
+        assert_eq!(
+            cur(&engine),
+            Some(3.0),
+            "the upper button is Go on a cue list"
+        );
+        send(&mut engine, r#"{"v":0,"cmd":"cuelist.back"}"#).unwrap();
+        engine.tick(0.05);
+        assert_eq!(cur(&engine), Some(2.0));
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"cuelist.goto","id":{id},"cue":1}}"#),
+        )
+        .unwrap();
+        engine.tick(0.075);
+        assert_eq!(cur(&engine), Some(1.0));
+        send(&mut engine, r#"{"v":0,"cmd":"playback.release"}"#).unwrap();
+        engine.tick(0.1);
+        assert!(!engine.playback_state(id).unwrap().is_active());
+        assert!(send(&mut engine, r#"{"v":0,"cmd":"cuelist.goto","cue":9}"#).is_err());
+    }
+
+    #[test]
+    fn cue_41_options_masters_tempo_and_settings_reach_the_engine() {
+        use cmdmx_core::playback::{
+            Direction, HandleButtons, Kind, ListFader, LoopAction, Master, UpdateMode,
+        };
+        let mut engine = demo_engine().unwrap();
+        engine
+            .execute_command(&["201", "@", "100", "Enter"])
+            .unwrap();
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1}"#,
+        )
+        .unwrap();
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+        )
+        .unwrap();
+        let id = at(&engine, 3, 1);
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"playback.options","id":{id},"list":{{"loop":"Loop"}}}}"#),
+        )
+        .unwrap();
+        let p = engine.playback(id).unwrap();
+        assert_eq!(p.list.looping, LoopAction::Loop);
+        assert!(p.list.tracking, "fields left out keep their value (IPC-27)");
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"playback.options","id":{id},"kind":"Chase","chase":{{"bpm":90,"direction":"Bounce"}}}}"#),
+        )
+        .unwrap();
+        let p = engine.playback(id).unwrap();
+        assert_eq!(p.kind, Kind::Chase);
+        assert_eq!(p.chase.bpm, 90.0);
+        assert_eq!(p.chase.direction, Direction::Bounce);
+        assert_eq!(p.chase.crossfade, 0.0);
+        assert!(send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"playback.options","id":{id},"chase":{{"bpm":900}}}}"#)
+        )
+        .is_err());
+        assert_eq!(engine.playback(id).unwrap().chase.bpm, 90.0);
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"playback.bpm","id":{id},"bpm":100}}"#),
+        )
+        .unwrap();
+        assert_eq!(engine.playback(id).unwrap().chase.bpm, 100.0);
+
+        // IPC-26: no number → the lowest free one.
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"master.record","page":3,"slot":4,"kind":"Bpm"}"#,
+        )
+        .unwrap();
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"master.record","page":3,"slot":5,"kind":"Bpm"}"#,
+        )
+        .unwrap();
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"master.record","page":3,"slot":6,"kind":"Rate","number":3}"#,
+        )
+        .unwrap();
+        let number = |e: &Engine, slot| {
+            e.playback(at(e, 3, slot))
+                .unwrap()
+                .master
+                .as_ref()
+                .unwrap()
+                .number()
+        };
+        assert_eq!(
+            (number(&engine, 4), number(&engine, 5), number(&engine, 6)),
+            (1, 2, 3)
+        );
+        let m = at(&engine, 3, 4);
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"playback.options","id":{m},"master":{{"multiplier":2}}}}"#),
+        )
+        .unwrap();
+        let Some(Master::Bpm(b)) = engine.playback(m).unwrap().master.clone() else {
+            panic!()
+        };
+        assert_eq!((b.multiplier, b.bpm), (2.0, 120.0));
+
+        // IPC-25: taps carry their receive time.
+        for t in [0.0, 0.4] {
+            let tap =
+                ipc::parse_command(&format!(r#"{{"v":0,"cmd":"playback.tap","id":{m}}}"#)).unwrap();
+            apply(&mut engine, ipc::stamp(tap, t), 9.0).unwrap();
+        }
+        let Some(Master::Bpm(b)) = engine.playback(m).unwrap().master.clone() else {
+            panic!()
+        };
+        assert_eq!(b.bpm, 150.0, "0.4 s apart");
+
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"settings.playback","auto_connect":false,"cue_list_fader":"KillAtZero",
+                "update_mode":"Both","handle_buttons":"Titan"}"#,
+        )
+        .unwrap();
+        let s = engine.settings();
+        assert!(!s.auto_connect);
+        assert_eq!(s.cue_list_fader, ListFader::KillAtZero);
+        assert_eq!(s.update_mode, UpdateMode::Both);
+        assert_eq!(s.handle_buttons, HandleButtons::Titan);
+    }
 }
