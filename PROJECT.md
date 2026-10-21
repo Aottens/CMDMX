@@ -16,13 +16,13 @@ them as cue lists, busking pages or (later) a timeline.
   - **Programmer as the core:** ordered selection, touched attributes only, wheels (encoders), colour picker in RGB/CMY/HSI, Locate/Highlight, Clear options, 16-bit
   - Palettes (Global/Shared/Normal, reference model, quick palette, fade + overlap)
   - Recording cues onto playbacks and into cue lists; chases (BPM, tap)
-  - Running what you programmed: playbacks with fader modes 0/1/2, priority, release mask/time, kill point; cue lists with Go/Back, fade/delay per cue, link/follow (no tracking yet — cues store only touched attributes, so tracking can follow without changing the show file)
+  - Running what you programmed: playbacks with fader modes 0/1/2, priority, release mask/time, kill point; cue lists with Go/Back, fade/delay per cue, attribute-group times, link/follow and tracking (Track/Block/Cue Only/Solo, Update modes; pulled into phase 1 by the owner 2026-10-21)
   - Pages of N faders (8 default, configurable), Grand Master, BPM master, group masters, playback groups
   - HTP/LTP engine with 5 priority levels
   - Output: Art-Net, sACN, ENTTEC-Pro-compatible USB (Eurolite USB-DMX512 PRO MK2 as reference)
   - Input: Mackie Control driver (BCF2000 in MC mode, X-Touch), free MIDI note/CC mapping, OSC schema
   - Show file: one readable JSON file, autosave, git-friendly
-- Phase 2: cue-list tracking and show-running depth, shape generator, fader mode 3, nested/time palettes, fan/align, virtual faders, scene master, gel picker + colour calibration (IDEA-02/03), more USB interfaces (IDEA-01)
+- Phase 2: show-running depth (tracking views, Move In Dark, …), shape generator, fader mode 3, nested/time palettes, fan/align, virtual faders, scene master, gel picker + colour calibration (IDEA-02/03), more USB interfaces (IDEA-01)
 - Phase 3+: timeline synced to Ableton/timecode (IDEA-05), pixel mapper, key frame shapes, set list, sACN input, visualiser
 - Ideas not yet placed: `IDEAS.md`
 

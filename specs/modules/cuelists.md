@@ -3,7 +3,10 @@
 Owner: `cmdmx-core::playback` (cue lists, chases and masters are playbacks), `cmdmx-daemon`
 (IPC, tap timestamps), the Go block, Cue list window, strips and Playback Options in
 `subprojects/app`.
-Status: **draft for owner approval (P1-08, 2026-10-21); open questions at the end (gate 1).**
+Status: **draft for owner approval (P1-08, 2026-10-21); the owner answered the first five
+questions the same day (decisions at the end): tracking moves into phase 1 (CUE-50..54), handle
+buttons follow the content and are configurable, BPM masters get configurable fader modes. Open
+questions left at the end (gate 1).**
 Behavioural reference: Avolites Titan v19 manual, *Cue Lists* (https://manual.avolites.com/docs/cue-lists:
 Creating, Playback, Editing, Timing, Options), *Chases* (https://manual.avolites.com/docs/chases:
 Playback, Timing, Options) and *Running the Show → Playback controls* (speed masters, key
@@ -22,9 +25,11 @@ paging, legend, halo), and add Go/Back/Stop, cue numbers, links and the chase cl
 runs a service as one cue list (walk-in, welcome, worship, prayer, sermon, video, walk-out)
 next to the front spots on their own fader, with one big Go always in the same place.
 
-Phase 1 has **no tracking** (`PROJECT.md`, DECISIONS 2026-10-17): a cue stores only touched
-attributes (PBK-10), and what a cue does not hold is handled by CUE-13. Tracking (Track, Block,
-Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
+Cue lists **track** in phase 1 (owner, 2026-10-21, pulled forward from phase 2): a cue stores
+only touched attributes (PBK-10), and what it does not hold carries on from the cues before it
+(CUE-50), as on Titan. Block, Cue Only and Solo per cue and the Update modes come with it
+(CUE-51, 52). A list with tracking off, and every chase, behaves as CUE-13 says for a cue's own
+values.
 
 ## Definitions
 - **Memory, cue list, chase:** a playback of kind `Cues` with one cue is a memory and behaves
@@ -38,6 +43,9 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
 - **Current cue:** the cue a running list last started (by Go, a link, Go to cue or Back), `none`
   while the list is off. **Next cue:** the cue Go will start: the one after the current cue in
   number order, the first cue while the list is off, or the cue the operator set (CUE-19).
+- **Cue state:** what a cue puts on stage, fixture by fixture and attribute by attribute (CUE-50):
+  with tracking, its own (**hard**) values plus the values **tracked** from the cues before it;
+  without tracking, its own values only.
 - **Transition:** what starting a cue does to the output (CUE-13). Its **duration** is the
   longest delay + fade (overlap and group times included) over the cue's attributes; its
   **progress** runs from 0 to 1 over that duration (1 at once when it is 0).
@@ -61,8 +69,8 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
   kind keeps its output and continues by the new kind's rules from its current cue or step. A
   playback cannot be switched to or from a master kind (CUE-35).
 - **CUE-02** A cue has `number` (CUE definitions), `legend` (0–32 characters, empty by default),
-  the PBK times (`delay`, `fade_in`, `fade_out`, `overlap`), `link` (CUE-20) and `group_times`
-  (CUE-14), and its values. A memory's single cue has the same fields; they only take effect
+  the PBK times (`delay`, `fade_in`, `fade_out`, `overlap`), `link` (CUE-20), `track` (CUE-51)
+  and `group_times` (CUE-14), and its values. A memory's single cue has the same fields; they only take effect
   once the playback holds more cues (its `group_times` also apply on fire, CUE-14).
 
 ### Recording into a list (extends PBK-09..13)
@@ -117,19 +125,24 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
   them with the time they had left; it does not start the next cue. Stop on a paused list does
   Back (Titan: Stop while paused goes back to the previous cue). Stop on a list with nothing
   running does nothing. Paused is live state.
-- **CUE-13** **The transition.** When cue B starts, for each attribute of each fixture:
-  - B holds it: it fades after B's delay from its current value to B's value, staggered by B's
-    overlap as PBK-15 (fixtures in user-number order), `Colour` in linear target RGB, palette
-    references live (PBK-18). The current value of an HTP attribute is the list's own level for
-    it before the fader (not the merged output); of an LTP attribute its current output. HTP
-    rises over `fade_in` and falls over `fade_out`; LTP fades over `fade_in`.
-  - The list output it before and B does not hold it: HTP fades to 0 over B's `fade_out` after
-    B's delay; LTP keeps its current value as the list's value (held, not asserted again, so it
-    does not beat a later LTP source, ENG-02).
-  - A fade of an earlier cue on an attribute B does not hold runs on to its end.
-  So without tracking a cue is the whole intensity look of the list, and moving attributes stay
-  where the last cue put them. Service list, Q1 pars 201–208 at 45 %, Q2 spots 301–306 at 80 %
-  with `fade_out` 2 s: Go → the pars fade from 45 % to 0 in 2 s while the spots rise.
+- **CUE-13** **The transition.** When cue B starts (by Go, a link, Go to cue or Back), for each
+  attribute of each fixture:
+  - B's state (CUE-50) holds it at another value than the one it has or is fading to: it fades
+    after B's delay from its current value to that value, staggered by B's overlap as PBK-15
+    (fixtures in user-number order), `Colour` in linear target RGB, palette references live
+    (PBK-18). B's times are used for tracked values too, so a jump to a cue fades everything to
+    that cue's state in that cue's times. The current value of an HTP attribute is the list's own
+    level for it before the fader (not the merged output); of an LTP attribute its current
+    output. HTP rises over `fade_in` and falls over `fade_out`; LTP fades over `fade_in`.
+  - B's state holds it at the value it has or is fading to (a tracked value after a plain Go):
+    nothing changes; a running fade of an earlier cue runs on to its end.
+  - The list output it before and B's state does not hold it: HTP fades to 0 over B's
+    `fade_out` after B's delay; LTP keeps its current value as the list's value (held, not
+    asserted again, so it does not beat a later LTP source, ENG-02).
+
+  Service list, Q1 pars 201–208 at 45 %, Q2 only spots 301–306 at 80 % with `fade_out` 2 s:
+  with tracking, Go → the spots rise and the pars stay at 45 % (tracked from Q1); with tracking
+  off, the pars fade to 0 in 2 s while the spots rise.
 - **CUE-14** **Attribute-group times** (owner decision 5 of `playbacks.md`): a cue's
   `group_times` maps attribute groups (I P C G B E S FX) to `{delay, fade}`. For the attributes of
   a listed group the group's `delay` replaces the cue's delay and its `fade` replaces both
@@ -141,8 +154,9 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
 - **CUE-15** **The fader on a cue list** is its intensity master: *m* = the effective level (fader,
   Flash) at once; the list's HTP values are scaled by *m*, its LTP values are not. Fader modes
   0/1/2 and the kill point (PBK-15..17, 19) do not apply to a cue list; the cues' times do the
-  fading. The list option `fader` decides what 0 means (open question 3):
-  - `KillWithOff` (proposed default, Titan *Intensity Kill With Off*): at 0 the list stays active
+  fading. The list option `fader` decides what 0 means (owner, 2026-10-21: configurable per list;
+  the setting `cue_list_fader` is the value a playback gets when it becomes a cue list):
+  - `KillWithOff` (default, Titan *Intensity Kill With Off*): at 0 the list stays active
     on its current cue (HTP out, LTP held, Go still works); only Release kills it (CUE-17).
   - `KillAtZero` (Titan *Intensity Kill At 0*): at 0 the list is killed (CUE-17).
 - **CUE-16** **Fire first cue** (list option `fire_first_cue`, default on): the effective level
@@ -175,7 +189,7 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
   last cue on stage with nothing next; `Loop` makes the first cue the next one after the last.
 - **CUE-22** **Flash on a cue list** works as PBK-26 on the effective level; on a list that is off
   it fires the list at its next cue (released at fader 0 with `KillAtZero`, the list is killed).
-  Swop is not on a cue list's handle in phase 1 (CUE-25).
+  Swop works on a list as PBK-27 says when `handle_buttons` puts it on a button (CUE-25).
 - **CUE-23** Priority, playback groups, release mask and time, paging locks, legends, icons and
   halos are per playback and apply to a list unchanged (PBK-07, 20, 24, 25, 31..33). The
   automatic icon and halo come from the first cue (PBK-32). Copy, Move and Delete of a playback
@@ -184,22 +198,75 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
   transition, running fades and link timers) is not saved (SHW decision 3); after a daemon start
   every list is off with its first cue next.
 
+### Tracking (owner, 2026-10-21: pulled forward from phase 2)
+- **CUE-50** **Tracking** (list option `tracking`, default on, Titan; chases never track). With
+  tracking on, the state of cue *n* holds, for every fixture and attribute, the value of the last
+  cue at or before *n* in number order that holds it (hard in that cue, tracked in the cues after
+  it), looking back no further than the nearest Block or Solo cue at or before *n*, and skipping
+  Cue Only and Solo cues before *n* (CUE-51). With tracking off, the state of cue *n* is its own
+  values. Switching tracking changes no cue and applies from the next cue started. Church: Q3
+  Worship holds only the washes' colour and position; the pars' Q2 look tracks into Q3, so no
+  cue has to repeat the pars.
+- **CUE-51** Per cue `track` (Titan's cue tracking options): `Track` (default); `Block`: nothing
+  tracks into this cue (its state is its own values) and later cues track from it; `CueOnly`: its
+  values do not track into later cues, so the next cue's state is as if this cue were not there
+  and what it changed comes back; `Solo`: Block and Cue Only together. Q6 Video `CueOnly` takes
+  the pars to 15 % and the spots to 0; Go to Q7 Walk-out brings back the Q5 state for everything
+  Q7 does not hold.
+- **CUE-52** **Update modes** (Titan): with tracking on, Update and Merge on a cue (CUE-04, 06) store
+  each changed attribute by the setting `update_mode` (default `Forwards`, overridable per record):
+  - `Forwards`: in the cue; later cues that do not hold it track the new value.
+  - `CueOnly`: in the cue, and the next cue that neither holds it nor is a Block or Solo cue gets
+    the attribute's old state value as a hard value, so later cues keep what they had (an
+    attribute the state did not hold before gets 0 there when it is HTP; an LTP one tracks on).
+  - `Backwards`: in the cue its value tracks from (the cue itself when the value is hard there or
+    new), so every cue in between changes too, and protected after the cue as `CueOnly`.
+  - `Both`: in the cue its value tracks from, without protection, so it also changes forwards
+    until a cue holds it.
+
+  With tracking off every mode stores in the cue. `Replace` stores the cue's new contents; later
+  cues track from them.
+- **CUE-53** Tracking follows the stored order: a cue that is inserted, recorded to a new number or
+  copied tracks into the cues after it; after a Delete the cues after it track from the cue
+  before it (what only the deleted cue set is gone from them); Renumber changes the order tracking
+  follows. An edit that changes the current cue's state is on stage on the next tick without a
+  fade (PBK-13); the other cues show their new state when they start.
+- **CUE-54** **Cue view.** `cue.view {id, cue}` → to the asking client only (as LIB-14)
+  `{"v":0,"type":"cue.view","playback":1,"cue":3.0,"fixtures":[{"fixture":201,
+  "values":{"Dimmer":{"value":0.45,"from":1.0}}}]}`: the cue's state sorted by fixture, `from` the
+  cue the value is hard in (this cue when hard), references and colours as PAL-25. The app asks
+  again after a `playbacks` delta while the view is open. `cue.remove {id, cue, fixture,
+  attribute?}` takes a hard value (or all of a fixture's) out of a cue, so it tracks from earlier
+  cues again. App: the Cue softkey **View Cue** shows the Cue view in place of the Cue list window:
+  a row per fixture, columns as the Programmer window (UI-14), hard values in normal text,
+  tracked values magenta, references cyan; a right-click on a hard value offers Remove (two-step).
+  The Cue list window gains a Track column (`·`, B, CO, S). UI-03 gains magenta = tracked value
+  (research: the cross-vendor rule).
+
 ### Handle buttons (answers PBK-29)
-- **CUE-25** The two buttons of a handle depend on its kind (fixed in phase 1, key profiles later;
-  open question 2):
+- **CUE-25** The two buttons of a handle follow what is on it (owner, 2026-10-21; Titan's key
+  profiles have a section per kind for the same reason). Defaults:
 
   | Kind | Upper button | Lower button |
   | --- | --- | --- |
   | Memory | Swop (PBK-27) | Flash (PBK-26) |
   | Cue list | **Go** (CUE-10 on this list) | Flash (CUE-22) |
   | Chase | **Tap** (CUE-33) | Flash (CUE-31) |
-  | BPM master | — (disabled) | **Tap** (CUE-35) |
-  | Rate master | — (disabled) | — (disabled) |
+  | BPM master | — | **Tap** (CUE-33, 35) |
+  | Rate master | — | — |
 
-  A handle's Go acts on its own list, wherever the Go block points. `playback.swop` on a list and
-  `playback.flash` on a master are refused with a warning.
+  The setting `handle_buttons` changes the pair per kind (a small key profile for the whole show;
+  key profiles per user stay later). Each button is one of: Flash, Swop, Go, Back, Stop, Tap,
+  Release or none, as far as the kind has it (Go/Back/Stop on lists, Tap on chases and BPM
+  masters, Flash/Swop/Release on everything but masters). A handle's Go acts on its own list,
+  wherever the Go block points.
+- **CUE-55** `playback.button {id, button: "upper"|"lower", on}` presses or releases a handle
+  button; the engine does what `handle_buttons` assigns (held functions, Flash and Swop, follow
+  `on`; the others act on the press). The app's strips and later the control surfaces (CTL) send
+  this, so the assignment lives in the engine. `playback.flash`/`playback.swop` stay (PBK-36)
+  and work on lists too; `playback.flash` on a master is refused with a warning.
 
-### The connected list and the Go block (owner's question, open question 1)
+### The connected list and the Go block (owner decision 1)
 - **CUE-26** The engine keeps one **connected** list (live state, not saved): a cue list or a
   chase, or none. It changes:
   - by `cuelist.connect {id}` (in the app: a plain tap on a list's strip legend, CUE-44);
@@ -250,13 +317,21 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
 - **CUE-34** `playback.bpm {id, bpm}` types a tempo for a chase or a BPM master (1–600, else
   refused); the Go block's BPM field sends it.
 
-### Speed masters (owner decision 6 of `playbacks.md`; open question 5)
+### Speed masters (owner decision 6 of `playbacks.md`; owner decision 5)
 - **CUE-35** **BPM masters 1–8** (Titan *BPM 1–8*). `master.record {page, slot, kind: "Bpm",
   number}` puts one on an empty handle (a used handle, a number in use or outside 1–8 is refused).
-  It holds `bpm` (default 120, saved), set by Tap on its lower button (CUE-33) and by
-  `playback.bpm`. Proposed for phase 1: its fader is not used (strip shows the BPM instead of a
-  level); a `multiplier` option (/4, /2, ×1, ×2, ×4, default ×1) scales the tempo it gives
-  chases. Alternative (Titan default): the fader sets the BPM.
+  It holds `bpm` (default 120, saved), set by Tap (CUE-33) and by `playback.bpm`, and a
+  `multiplier` (/4, /2, ×1, ×2, ×4, default ×1) that scales the tempo it gives chases. Its
+  `fader` option (owner, 2026-10-21: tap or type by default, Titan's behaviour possible):
+  - `None` (default): the fader is not used; the strip shows the tempo instead of a level.
+  - `Bpm` (Titan *BPM On Fader*): the fader sets the BPM, 0 % → 0 (stopped) to 100 % →
+    `fader_max` (option, default 240 BPM); the last of a fader move, a tap or a typed tempo sets
+    the tempo, so a tap is never undone until the fader moves again.
+  - `Multiplier` (Titan *Multiplier on Fader*): the fader picks the multiplier in five equal
+    zones /4, /2, ×1, ×2, ×4; the tempo comes from Tap or typing.
+
+  Ableton sync (IDEA-16) would be a third tempo source next to Tap and typing; it gets no
+  criteria until its phase is set.
 - **CUE-36** **Rate masters 1–4** (Titan *Rate 1–4*). `master.record {…, kind: "Rate", number}`
   as CUE-35. Its rate is fader · `rate_scale` (option 100 or 200 %, default 200 %: fader 50 % =
   ×1, full = ×2, 0 = stopped); the fader level is live state like every level. Rate masters
@@ -268,41 +343,45 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
 
 ### Show file (extends `showfile.md`, `playbacks.md` PBK-34)
 - **CUE-38** Schema version 4 (SHW-04 migration from 3):
-  - each cue gains `number`, `legend`, `link` and `group_times` (only the groups set, in I P C G
-    B E S FX order), after `overlap` and before `values`;
-  - each playback gains, after `group`, `kind`, `list` (`{"fader":"KillWithOff",
+  - each cue gains `number`, `legend`, `link`, `track` and `group_times` (only the groups set, in
+    I P C G B E S FX order), after `overlap` and before `values`;
+  - each playback gains, after `group`, `kind`, `list` (`{"tracking":true,"fader":"KillWithOff",
     "fire_first_cue":true,"loop":"StopOnFinal"}`) and `chase` (`{"bpm":120.0,"crossfade":0.0,
     "direction":"Forward","loop":"Loop","speed_source":"Free"}`), always written, and `master`
-    (`{"number":1,"bpm":120.0,"multiplier":1.0}` or `{"number":1,"rate_scale":200}`) on masters
+    (`{"number":1,"bpm":120.0,"multiplier":1.0,"fader":"None","fader_max":240.0}` or
+    `{"number":1,"rate_scale":200}`) on masters
     only; `speed_source` is `"Free"`, `{"Bpm":n}` or `{"Rate":n}`;
-  - `settings` gains `auto_connect` (true).
+  - `settings` gains `auto_connect` (true), `cue_list_fader` (`KillWithOff`), `update_mode`
+    (`Forwards`) and `handle_buttons` (the CUE-25 defaults, one pair per kind).
 
   The 3 → 4 migration numbers each playback's cues 1, 2, 3 … in their order, with empty legends,
-  link `Wait`, no group times, kind `Cues` and the default `list` and `chase` options.
+  link `Wait`, track `Track`, no group times, kind `Cues` and the default `list` and `chase`
+  options.
 - **CUE-39** Lenient load (SHW-07), each with one warning naming it: a cue whose number is out of
   range, has more than three decimals or repeats an earlier one is left out (a playback left
   without cues stays, PBK-44); a link, group time or list/chase option out of range is set to its
-  default; a master whose number is out of range or used by an earlier master of its kind is left
+  default; a `handle_buttons` entry a kind cannot have is set to that kind's default; a master whose number is out of range or used by an earlier master of its kind is left
   out; a master with cues loads without them.
 
 ### IPC (extends `ipc.md`, PBK-35/36)
 - **CUE-40** Each snapshot `playbacks` entry gains `kind`; `cues` (`[{"number":2.5,"legend":"Welcome",
-  "delay":0,"fade_in":2,"fade_out":2,"overlap":100,"link":{"type":"Wait"},"group_times":{},
+  "delay":0,"fade_in":2,"fade_out":2,"overlap":100,"link":{"type":"Wait"},"track":"Track","group_times":{},
   "groups":["I","C"]}]`, without values); `list`, `chase` and `master` as CUE-38, `chase` with
   `effective_bpm`; and live `cue` (`{"current":2.0,"next":3.0,"progress":0.4,"paused":false}`,
   `current`/`next` `null` when none; for a chase the step numbers). `groups` (PBK-35) becomes the
   groups of all cues. The small `playback` delta gains `cue` and, on chases and masters, `bpm`
   (effective); it is sent at most once per tick while a transition runs (IPC-05). Any stored cue
   change sends the PBK-35 `playbacks` delta. The snapshot gains `"connected": 1` (an id or `null`)
-  and a `connected` delta; `playback_settings` gains `auto_connect`.
+  and a `connected` delta; `playback_settings` gains the four CUE-38 settings.
 - **CUE-41** Commands (refusals are warnings, IPC-06), each `id` optional where CUE-27 says so:
   `cuelist.go {id}` · `cuelist.back {id}` · `cuelist.stop {id}` · `cuelist.goto {id, cue}` ·
-  `cuelist.next {id, cue}` · `cuelist.connect {id}` · `playback.tap {id}` · `playback.bpm {id, bpm}`
-  · `playback.record` gains `mode` `Append`/`Insert` and `cue` (CUE-03..06) ·
+  `cuelist.next {id, cue}` · `cuelist.connect {id}` · `playback.button` (CUE-55) ·
+  `playback.tap {id}` · `playback.bpm {id, bpm}`
+  · `playback.record` gains `mode` `Append`/`Insert`, `cue` and `update_mode` (CUE-03..06, 52) ·
   `playback.options` gains `kind`, `list {…}`, `chase {…}`, `master {…}` (each field optional) ·
   `cue.times`, `cue.legend`, `cue.delete`, `cue.renumber`, `cue.renumber_all`, `cue.copy`
-  (CUE-07..09) · `master.record {page, slot, kind, number}` · `settings.playback` gains
-  `auto_connect`.
+  (CUE-07..09) · `cue.track {id, cue, track}` (CUE-51) · `cue.view`, `cue.remove` (CUE-54) ·
+  `master.record {page, slot, kind, number}` · `settings.playback` gains the CUE-38 settings.
 
 ### App (UI v0.1; amends `ui.md` UI-13, 18, 19, 22, 23 and PBK-37..39 when approved)
 - **CUE-42** **Go block** (UI-23) shows the connected list:
@@ -319,13 +398,15 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
   - with no connected list, the block is disabled with "No cue list". It is never covered (UI-23).
 - **CUE-43** **Cue list window** (UI-13) shows the connected list: title "Cue list · <legend>",
   info "1.1 · 7 cues"; columns Q, Legend, Delay, Fade (in/out), Link (`·`, "follow +1s", "with
-  +2s"), Groups; the current row marked green, the next row outlined; a running transition shows
+  +2s"), Track (CUE-54), Groups; the current row marked green, the next row outlined; a running transition shows
   its progress in its row. A tap on a row sets it next (CUE-19), so a tap can never change the
-  stage. A right-click on a row opens the Cue softkeys: Go to cue (CUE-18), Edit Times (the
+  stage. A right-click on a row opens the Cue softkeys: Go to cue (CUE-18), View Cue (CUE-54),
+  Edit Times (the
   Times tab for that cue, CUE-46), Set Legend, Renumber (type a number), Copy (type a number),
   Delete (two-step). With no list: the sketch's empty table and "No cue list connected".
-- **CUE-44** **Strips** (UI-22, PBK-37): the upper button shows GO on a cue list and TAP on a
-  chase, a BPM master's lower button shows TAP (CUE-25; live while pressed); the legend's second
+- **CUE-44** **Strips** (UI-22, PBK-37): the two buttons are labelled with what `handle_buttons`
+  assigns to the kind (GO, TAP, FLASH, …; CUE-25), send `playback.button` (CUE-55) and are live
+  while pressed; the legend's second
   line shows "Q3 › 4" on a cue list, the step and BPM on a chase ("2/8 · 120"), "BPM 1 · 120 ×1"
   or "RATE 2 · ×1.0" on a master; the level bar of a running cue list shows the transition's
   progress (sketch); the connected list's strip has a 2 pt blue frame (UI-03: the selected
@@ -333,21 +414,25 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
 - **CUE-45** **Record** on a used handle shows the softkeys Replace, Merge, **Append**, **Insert**
   and Cancel (PBK-38). Record + tap a row of the Cue list window shows Replace, Merge, Update and
   Cancel for that cue (CUE-04). Record, a number on the keypad, then a tap on a handle records to
-  that cue number (Titan *Record, Cue n*).
-- **CUE-46** **Playback Options** (PBK-39) gains, by kind: a **Cue list** tab (kind, fader,
-  fire first cue, loop) and a **Chase** tab (kind, BPM, crossfade, direction, loop, speed source);
+  that cue number (Titan *Record, Cue n*). On a tracking list the Record context has an Update
+  Mode softkey (Forwards, Cue Only, Backwards, Both; CUE-52) for this record.
+- **CUE-46** **Playback Options** (PBK-39) gains, by kind: a **Cue list** tab (kind, tracking,
+  fader, fire first cue, loop) and a **Chase** tab (kind, BPM, crossfade, direction, loop, speed source);
   the **Times** tab gets a cue picker (default the current, else the first cue), link type and
-  offset, and an IPCGBES row of group times (delay, fade, or "—" for the cue's times); a master
-  shows Handle and **Master** tabs (number, multiplier or rate scale). `Auto connect` sits in the
-  Playback settings.
+  offset, track (CUE-51), and an IPCGBES row of group times (delay, fade, or "—" for the cue's times); a master
+  shows Handle and **Master** tabs (number, multiplier, fader mode and maximum, or rate scale).
+  `Auto connect`, the cue-list fader default, the update mode and the handle buttons per kind
+  sit in the Playback settings.
 - **CUE-47** **Keys** (UI-19 amended): while Keys is live, Space = Go and Shift+Space = Back on the
   connected list; never while a text field has focus (UI-19). Space does nothing while Keys is
   off, so a stray key never fires a cue (research: "Space = Go only when armed").
 - **CUE-48** `tests/manual/app-cuelists.md` walks the service list (VS3-01): Append Q1..Q7 without
-  Clear between cues, Insert Q2.5, renumber all, link Q5 → Q6, group times on the washes, Go /
+  Clear between cues and with tracking, a Cue Only video cue, Update in each mode, the Cue view,
+  Insert Q2.5, renumber all, link Q5 → Q6, group times on the washes, Go /
   Back / Stop / Go to cue / Set next from the Go block, Space and the handle's Go, a second list
   connected by a tap and by auto connect, the fader options, Release and reset, a chase with Tap,
-  crossfade, Bounce and a BPM and a Rate master, read on Art-Net; and a daemon restart with the
+  crossfade, Bounce and a BPM master in each fader mode and a Rate master, changed handle
+  buttons, read on Art-Net; and a daemon restart with the
   lists back from the show.
 
 ### Safety and determinism
@@ -358,10 +443,11 @@ Cue Only, Solo, Update forwards/backwards) is phase 2 and changes no stored cue.
 
 ## Scenario test format
 Scenario playback entries gain the CUE-38 fields (`kind`, `list`, `chase`, `master`, and per cue
-`number`, `legend`, `link`, `group_times`; `number` may be left out and then counts 1, 2, 3 … in
+`number`, `legend`, `link`, `track`, `group_times`; `number` may be left out and then counts 1, 2, 3 … in
 file order). New actions: `go`, `back`, `stop` `{playback}` (no `playback` = the connected list),
 `goto`/`next {playback, cue}`, `connect {playback}`, `tap {playback, at}` (`at` = the receive
-time, CUE-33), `bpm {playback, bpm}`. Example, CUE-20 follow with fire first cue:
+time, CUE-33), `bpm {playback, bpm}`, `button {playback, button, on}` (CUE-55); scenarios may
+set `settings` (`handle_buttons`, `update_mode`). Example, CUE-20 follow with fire first cue:
 
 ```json
 "playbacks": [ { "id": 1, "page": 1, "slot": 1,
@@ -382,53 +468,54 @@ tests on `cmdmx-core` (`tests/cuelists.rs`, `tests/showfile.rs`); everything tha
 ## Build tasks (`BACKLOG.md`, sized after approval)
 1. **VS3-02** core storage: kinds, cue numbers and fields, Append / Insert / record to a cue,
    cue edits, masters on handles, list/chase/master options, schema 4 with migration and lenient
-   load (CUE-01..09, 23, 35..39 storage). Tests: `cmdmx-core/tests/cuelists.rs`, `tests/showfile.rs`.
+   load (CUE-01..09, 23, 35..39 storage, the CUE-51 field). Tests: `cmdmx-core/tests/cuelists.rs`, `tests/showfile.rs`.
 2. **VS3-03** cue-list behaviour on the frame: transitions, group times, Go / Back / Stop / Go to
-   / Set next, links, the fader options, fire first cue, kill and reset, Flash, the connected list
-   (CUE-10..27, 49). Tests: scenarios `CUE-*.json`, `cmdmx-core/tests/cuelist_run.rs`.
+   / Set next, links, the fader options, fire first cue, kill and reset, Flash, the connected list,
+   tracking with Block / Cue Only / Solo and the Update modes, handle buttons
+   (CUE-10..27, 49..53, 55). Tests: scenarios `CUE-*.json`, `cmdmx-core/tests/cuelist_run.rs`.
 3. **VS3-04** chases, Tap and the speed masters (CUE-28..37). Tests: scenarios, unit tests for tap
    and the random order.
 4. **VS3-05** IPC and the app: Go block, Cue list window, strips, Record softkeys, Options tabs,
-   Space, `tests/manual/app-cuelists.md` (CUE-40..48); the owner's run is VS3-01's demo.
+   Space, the Cue view, `tests/manual/app-cuelists.md` (CUE-40..48, 54); the owner's run is VS3-01's demo.
 
 ## Out of scope (phase 1 unless noted)
-Tracking and its cue options (Track, Block, Cue Only, Solo, tracking views, Update forwards /
-backwards; phase 2); the manual crossfader fader mode (with fader mode 3, phase 2); a typed time
-on Go ("3 Go"); Snap / Snap Back and Cut Next Cue To Live; Move In Dark; Cue Release; disabling a
-cue; Cue Links Disabled; link offsets in %; Delay Out and per-attribute or per-fixture times;
-per-step times, fixture overlap and speed multipliers (×/÷) on chases; LocalClock and Edge Sync;
-the Rate Grand Master; Size masters and shapes following masters (phase 2); key profiles beyond
-CUE-25; a Cue / Connect key on the keypad; copying cues between lists; Quick Build and Record
-Stage; autoloads, macros and timecode / MIDI triggers in cues (phase 3 for timecode); Blind
-editing; the set list.
+Editing in a tracking view (turning hard values into tracked ones and back), Update on several
+cues at once, shape tracking (with shapes, phase 2); the manual crossfader fader mode (with fader
+mode 3, phase 2); a typed time on Go ("3 Go"); Snap / Snap Back and Cut Next Cue To Live; Move In
+Dark; Cue Release; disabling a cue; Cue Links Disabled; link offsets in %; Delay Out and
+per-attribute or per-fixture times; per-step times, fixture overlap and speed multipliers (×/÷)
+on chases; LocalClock and Edge Sync; Ableton or MIDI-clock sync (IDEA-16, phase to set); the Rate
+Grand Master; Size masters and shapes following masters (phase 2); key profiles per user and
+beyond the two handle buttons (CUE-25); a Cue / Connect key on the keypad; copying cues between
+lists; Quick Build and Record Stage; autoloads, macros and timecode / MIDI triggers in cues
+(phase 3 for timecode); Blind editing; the set list.
+
+## Owner decisions (2026-10-21, answers to the first gate-1 questions)
+1. **Go per fader and one Go block (A):** a cue list sits on any handle with its own Go
+   (CUE-25); the Go block, Space and the Cue list window follow the connected list (CUE-26: a tap
+   on its legend, auto connect when it fires, else the first list in the show). Not chosen: a Go
+   block pinned to one list (B), no Go block (C).
+2. **Handle buttons follow what is on the handle** (CUE-25, 55). Owner asked what is usual:
+   Titan's key profiles assign the buttons per kind (cues, chases, cue lists, masters), with
+   Flash/Swop as the factory default for all; operators commonly put Go on a cue list's button,
+   and Go or Tap on a chase's. The CUE-25 table is that practice; `handle_buttons` makes it
+   configurable per kind for the whole show.
+3. **Cue-list fader at 0:** `KillWithOff` by default, configurable per list and as the setting
+   for new lists (CUE-15).
+4. **Tracking comes into phase 1** (CUE-50..54): Track / Block / Cue Only / Solo per cue, Update
+   modes, a Cue view with tracked values in magenta. Reverses part of DECISIONS 2026-10-17
+   ("cue-list tracking moves to phase 2"); the cue data model was made for this (touched
+   attributes only), so no stored format changes beyond schema 4.
+5. **Speed masters:** BPM masters by Tap or typing by default, with Titan's BPM-on-fader and
+   multiplier-on-fader as options (CUE-35); Rate masters 0–200 %, 50 % = normal speed (CUE-36).
+   Ableton sync with subdivisions and multiples is a new idea, IDEA-16.
 
 ## Open questions for the owner (gate 1)
-1. **One Go bottom right, or Go on the faders?** (owner, 2026-10-21: "cue lists can also go on
-   faders, right? Why does it have to be one button bottom right?") On Titan a cue list is a
-   playback like any other: it sits on any handle or fader and has its own Go through the handle's
-   buttons (key profile). The big Go/Back block acts on the **connected** list, the one fired or
-   selected last, so the operator always finds one Go in the same place, also on a page where the
-   list's handle is not shown. Proposal (A, Titan): both. Every cue list on a fader has Go on its
-   upper button (CUE-25); the Go block, Space and the Cue list window follow the connected list
-   (CUE-26: tap its legend, or auto connect when it fires, or the first list in the show).
-   Alternatives: (B) as A, but the Go block is pinned to one list chosen in the settings, so firing
-   a chase never moves it; (C) no Go block, Go only on the handles. With A, `auto_connect` off
-   gives B's calm without a pinned setting.
-2. **Handle buttons per kind** (CUE-25): Go / Flash on a cue list (Swop is lost there in phase 1),
-   Tap / Flash on a chase, Tap on a BPM master. Alternatives: Go / Back on a cue list; Swop / Flash
-   kept everywhere and Go only in the Go block.
-3. **Cue-list fader at 0** (CUE-15): `KillWithOff` as default (pulling the fader never loses your
-   place in the service; only Release resets the list) or Titan's `KillAtZero` (the fader to 0
-   ends the list, as on a memory)?
-4. **No tracking in phase 1** (CUE-13): a cue is the whole intensity look of its list (what the
-   cue does not hold fades out on Go; positions and colours not in the cue stay). In practice you
-   record the service by setting each look and pressing Append without Clear in between (Titan's
-   own tip), so each cue holds everything touched so far. Is that acceptable until phase 2?
-5. **Speed masters** (CUE-35, 38): BPM masters set by Tap and typing with an unused fader (or the
-   fader sets the BPM, Titan's default); Rate masters 0–200 % with 50 % = normal speed (or
-   0–100 %, full = normal, can only slow down)?
+1. **Approve the new parts:** tracking (CUE-50..54, `update_mode` default `Forwards`), the
+   configurable handle buttons (CUE-25, 55) and the BPM-master fader modes (CUE-35).
+2. **IDEA-16 (Ableton sync):** phase? Proposal in `IDEAS.md`.
 
 Smaller proposals the owner can veto at gate 1: cue numbers with up to three decimals; Back uses
 the previous cue's fades without delay; a tap on a Cue list row sets the next cue instead of
 jumping; `auto_connect` on by default; chase defaults 120 BPM, crossfade 0 %, Forward, Loop;
-Shift+Space = Back.
+Shift+Space = Back; Cue Only on an attribute the state did not hold puts HTP 0 in the next cue.

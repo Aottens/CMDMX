@@ -8,7 +8,7 @@ Program the building blocks of any show on a Mac, the Titan way: a robust progra
 Finish line: a real Sunday morning service in the church run on ColourmotionDMX instead of Lightkey (`PROJECT.md`, reference venue). Baseline: the church rig, ~30 fixtures on one universe. Headroom target (provisional): 16 universes, 500 fixtures, 1000 cues per show.
 
 ## Non-goals (phase 1)
-Cue-list tracking, shapes, pixel mapper, timelines and timecode, media, visualiser, multi-console.
+Shapes, pixel mapper, timelines and timecode, media, visualiser, multi-console.
 
 ## Module map
 
@@ -21,7 +21,7 @@ Cue-list tracking, shapes, pixel mapper, timelines and timecode, media, visualis
 | Patch | profile + mode + universe + address + user number; cells | `specs/modules/patch.md` | PAT |
 | Programmer & wheels | **the core of phase 1**: ordered selection, groups, touched attributes only, colour picker RGB/CMY/HSI, Locate/Highlight outside programmer, Clear options, 16-bit, encoders | `specs/modules/programmer.md` | PRG |
 | Palettes & preset grid | reference model; Global/Shared/Normal auto; quick record with window mask; quick palette; typed fade + overlap; auto-legend + halo; configurable grid | `specs/modules/palettes.md` | PAL |
-| Cue lists | record cues (touched attributes only), Go/Back, fade + delay per cue, link/follow; no tracking in phase 1 | `specs/modules/cuelists.md` (to write) | CUE |
+| Cue lists | record cues (touched attributes only), Go/Back, fade + delay per cue, attribute-group times, link/follow, tracking (owner, 2026-10-21), chases with BPM/Tap, BPM and Rate masters | `specs/modules/cuelists.md` | CUE |
 | Playbacks & pages | fader modes 0/1/2, priority, release mask/time, kill point, handle paging locks, Flash/Swop + key profiles, `faders_per_page` config, Grand Master, BPM master, group masters, playback groups, chases | `specs/modules/playbacks.md` | PBK |
 | Control surfaces | MCU driver (BCF2000/X-Touch) with motor feedback; generic MIDI mapping; OSC schema | `specs/modules/control-surfaces.md` | CTL |
 | IPC & app shell | daemon ↔ app contract, reconnect, engine-offline state, thin client | `specs/modules/ipc.md` | IPC |

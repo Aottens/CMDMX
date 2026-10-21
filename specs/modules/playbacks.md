@@ -102,7 +102,7 @@ playback unless it says "per cue".
   Programmer 201–208 Dimmer 1.0 + palette 3, record onto 1.1 → playback on 1.1 holds Dimmer and
   the palette references for 201–208.
 - **PBK-10** *Record By* for playbacks: setting `cue_record_by`, default `Channel` (only touched
-  attributes, so tracking can follow in phase 2, `PROJECT.md`), overridable per record; `Mixed`
+  attributes, so cue lists can track, `cuelists.md` CUE-50), overridable per record; `Mixed`
   behaves as PAL-02 (whole P and C groups of a touched fixture). (Owner decision 1.)
 - **PBK-11** Palette references stay references: a programmer value `{"palette": id, "value": …}`
   is stored as a reference to the same palette, its fallback `value` set to what the reference
@@ -326,7 +326,8 @@ on `cmdmx-core` (`tests/playbacks.rs`, `tests/showfile.rs`); everything that rea
   what Flash/Swop do on a cue list (PBK-29).
 - The fade machinery (from current output to target over time with delay and overlap, PBK-15,
   PAL-13/14) is the one a Go uses between cues.
-- Cues store touched attributes only by default (PBK-10), so tracking can follow in phase 2.
+- Cues store touched attributes only by default (PBK-10), so cue lists can track (pulled into
+  phase 1, owner 2026-10-21).
 
 ## Build tasks (`BACKLOG.md`)
 1. **VS2-20** core storage: stored handles and locks, record/Replace/Merge/Update,
