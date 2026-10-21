@@ -244,3 +244,4 @@ on the same engine the operator uses ("that is new, we must have it").
   for a patched rig, import a Lightkey or other show, explain what is on stage)? Blind only or
   also live? Its own binary (stdio MCP, Rust or Swift) or inside the daemon? Which clients
   (Claude Desktop, Claude Code, others)?
+**Outcome (2026-10-21):** owner: phase 2; details later.
