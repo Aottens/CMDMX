@@ -69,6 +69,8 @@ struct PlaybackOptionsView: View {
                     }
                 }
                 .id(playback.id)
+                // The "Options: tap a playback handle" prompt is done once the screen is open (VS3-05 run).
+                .onAppear { engine.clearMessage() }
             } else {
                 Text("This playback no longer exists.").font(Typo.ui(11)).foregroundStyle(t.fg2).padding(14)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
