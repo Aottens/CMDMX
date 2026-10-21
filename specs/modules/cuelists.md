@@ -44,8 +44,9 @@ values.
   with tracking, its own (**hard**) values plus the values **tracked** from the cues before it;
   without tracking, its own values only.
 - **Transition:** what starting a cue does to the output (CUE-13). Its **duration** is the
-  longest delay + fade (overlap and group times included) over the cue's attributes; its
-  **progress** runs from 0 to 1 over that duration (1 at once when it is 0).
+  longest delay + fade (overlap and group times included) over the attributes the transition
+  fades, HTP fading out included (owner, 2026-10-21: a cue that changes nothing is complete at
+  once); its **progress** runs from 0 to 1 over that duration (1 at once when it is 0).
 - **Connected list:** the one list the Go block, Space and the Cue list window act on (CUE-26).
 - **Effective BPM / step time:** a chase's tempo after its speed source (CUE-29); one step lasts
   *T* = 60 / effective BPM seconds.
@@ -155,7 +156,9 @@ values.
   the setting `cue_list_fader` is the value a playback gets when it becomes a cue list):
   - `KillWithOff` (default, Titan *Intensity Kill With Off*): at 0 the list stays active
     on its current cue (HTP out, LTP held, Go still works); only Release kills it (CUE-17).
-  - `KillAtZero` (Titan *Intensity Kill At 0*): at 0 the list is killed (CUE-17).
+  - `KillAtZero` (Titan *Intensity Kill At 0*): when the effective level falls to 0 the list is
+    killed (CUE-17). Go with the fader already at 0 runs the list with its HTP out (owner,
+    2026-10-21), as `KillWithOff`.
 - **CUE-16** **Fire first cue** (list option `fire_first_cue`, default on): the effective level
   rising above 0 on a list that is off fires it at its next cue, as Go. Off: the list becomes
   active with nothing on stage until Go.
@@ -199,8 +202,9 @@ values.
 - **CUE-50** **Tracking** (list option `tracking`, default on, Titan; chases never track). With
   tracking on, the state of cue *n* holds, for every fixture and attribute, the value of the last
   cue at or before *n* in number order that holds it (hard in that cue, tracked in the cues after
-  it), looking back no further than the nearest Block or Solo cue at or before *n*, and skipping
-  Cue Only and Solo cues before *n* (CUE-51). With tracking off, the state of cue *n* is its own
+  it), looking back no further than the nearest Block cue at or before *n* (or *n* itself when it
+  is a Solo cue), and skipping Cue Only and Solo cues before *n* (CUE-51: a Solo cue before *n*
+  is not there for *n*, as a Cue Only cue). With tracking off, the state of cue *n* is its own
   values. Switching tracking changes no cue and applies from the next cue started. Church: Q3
   Worship holds only the washes' colour and position; the pars' Q2 look tracks into Q3, so no
   cue has to repeat the pars.
@@ -211,10 +215,12 @@ values.
   the pars to 15 % and the spots to 0; Go to Q7 Walk-out brings back the Q5 state for everything
   Q7 does not hold.
 - **CUE-52** **Update modes** (Titan): with tracking on, Update and Merge on a cue (CUE-04, 06) store
-  each changed attribute by the setting `update_mode` (default `Forwards`, overridable per record):
+  each changed attribute by the setting `update_mode` (default `Forwards`, overridable per record).
+  On a tracking list Update takes the attributes of the cue's state, tracked ones included (owner,
+  2026-10-21); with tracking off, those the cue holds (PBK-13).
   - `Forwards`: in the cue; later cues that do not hold it track the new value.
-  - `CueOnly`: in the cue, and the next cue that neither holds it nor is a Block or Solo cue gets
-    the attribute's old state value as a hard value, so later cues keep what they had (an
+  - `CueOnly`: in the cue, and the cue right after it, when it neither holds it nor is a Block or
+    Solo cue, gets the attribute's old state value as a hard value, so later cues keep what they had (an
     attribute the state did not hold before gets 0 there when it is HTP; an LTP one tracks on).
   - `Backwards`: in the cue its value tracks from (the cue itself when the value is hard there or
     new), so every cue in between changes too, and protected after the cue as `CueOnly`.

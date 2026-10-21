@@ -23,15 +23,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{ColourModel, TargetColour};
 use crate::command::{self, Item, Kind};
+use crate::cuelist::{Ctx, Env, ListRun};
 use crate::palette::{
     self, Cell, Detected, Entry, Limit, Palette, PaletteId, Record, RecordBy, RecordMode, Timing,
 };
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
-    fade_progress, ChaseOptions, Cue, CueChange, CueNumber, FaderMode, GroupTime, HandleButtons,
-    KillPoint, Kind as PlaybackKind, Link, ListFader, Master, MasterKind, Origin, Origins, Paging,
-    Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority, Release,
-    UpdateMode, Values, PAGES,
+    fade_progress, AddCue, Button, ButtonKind, ChaseOptions, Cue, CueChange, CueNumber, FaderMode,
+    GroupTime, HandleButton, HandleButtons, KillPoint, Kind as PlaybackKind, Link, ListAction,
+    ListFader, ListLive, Master, MasterKind, Origin, Origins, Paging, Playback, PlaybackChange,
+    PlaybackId, PlaybackRecord, PlaybackState, Priority, Release, UpdateMode, Values, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -255,6 +256,8 @@ pub struct Engine {
     /// Last value of every LTP logical attribute per fixture: what it outputs while
     /// nothing proposes it, and where a wheel starts (LIB-03, PRG-20).
     held: BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    /// CUE-26: the list the Go block acts on. Live state, not in the show.
+    connected: Option<PlaybackId>,
 }
 
 /// PAL-08: what applying a palette puts in the programmer: fixture, attribute, resolved value.
@@ -294,6 +297,7 @@ impl Engine {
             active_group: AttributeGroup::I,
             colour_model: ColourModel::default(),
             held: BTreeMap::new(),
+            connected: None,
         }
     }
 
@@ -1129,6 +1133,7 @@ impl Engine {
         on: bool,
         _now: Timestamp,
     ) -> Result<(), CoreError> {
+        self.not_a_master(id)?;
         let state = self.live_state(id)?;
         state.flash = on;
         state.blocked &= !on; // a press is a deliberate fire
@@ -1138,6 +1143,7 @@ impl Engine {
 
     /// PBK-27: Swop held or released; the later of two held Swops wins.
     pub fn set_swop(&mut self, id: PlaybackId, on: bool, _now: Timestamp) -> Result<(), CoreError> {
+        self.not_a_master(id)?;
         self.activation_seq = self.activation_seq.saturating_add(1);
         let seq = self.activation_seq;
         let state = self.live_state(id)?;
@@ -1152,6 +1158,7 @@ impl Engine {
 
     /// PBK-28: latch Flash on, or off again (the engine toggles; arming Latch is the UI's).
     pub fn latch_flash(&mut self, id: PlaybackId, _now: Timestamp) -> Result<(), CoreError> {
+        self.not_a_master(id)?;
         let state = self.live_state(id)?;
         state.latched = !state.latched;
         state.blocked &= !state.latched;
@@ -1166,6 +1173,149 @@ impl Engine {
         self.live_state(id)?;
         self.kill_playback(id, true, None);
         Ok(())
+    }
+
+    /// CUE-10..12, 18, 19, 27: Go, Back, Stop, Go to cue, Set next or Release on a cue list; `None`
+    /// is the connected list. Go and Go to cue fire a list that is off at once (even at fader 0);
+    /// the others only record what to do and the next tick performs it. A refused action changes
+    /// nothing (CUE-49).
+    pub fn cuelist(
+        &mut self,
+        id: Option<PlaybackId>,
+        action: ListAction,
+        now: Timestamp,
+    ) -> Result<(), CoreError> {
+        let id = match id {
+            Some(id) => id,
+            None => self.connected().ok_or(CoreError::NoCueListConnected)?,
+        };
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        if playback.kind == PlaybackKind::Chase {
+            // ponytail: chases are VS3-04; their Go, Back and Stop come with the chase clock.
+            return Err(CoreError::InvalidCommand(format!(
+                "playback {id} is a chase: it has no cue list actions yet"
+            )));
+        }
+        if !playback.is_cue_list() {
+            return Err(CoreError::NotACueList(id));
+        }
+        let idle = ListRun::default();
+        let run = self.states.get(&id).map_or(&idle, |s| &s.run);
+        let cue_name = |n: CueNumber| match playback.cues.iter().find(|c| c.number == n) {
+            Some(c) if !c.legend.is_empty() => format!("Q{n} {}", c.legend),
+            _ => format!("Q{n}"),
+        };
+        let list_name = || match playback.legend.as_str() {
+            "" => format!("{}.{}", playback.page, playback.slot),
+            legend => legend.to_string(),
+        };
+        let name = |current: Option<CueNumber>| current.map_or_else(list_name, cue_name);
+        match action {
+            ListAction::Release => return self.release_playback(id, now),
+            ListAction::Go if !run.paused() && run.next_cue(playback).is_none() => {
+                let last = format!("{} is the last cue", name(run.current));
+                return Err(CoreError::ListRefused(last));
+            }
+            ListAction::Back if run.current.is_none() => {
+                let off = format!("{} is not running", name(None));
+                return Err(CoreError::ListRefused(off));
+            }
+            ListAction::Back if run.current.and_then(|c| playback.cue_before(c)).is_none() => {
+                let first = format!("{} is the first cue", name(run.current));
+                return Err(CoreError::ListRefused(first));
+            }
+            ListAction::Goto(n) | ListAction::Next(n)
+                if !playback.cues.iter().any(|c| c.number == n) =>
+            {
+                return Err(CoreError::UnknownCue(n));
+            }
+            _ => {}
+        }
+        let connects = matches!(
+            action,
+            ListAction::Go | ListAction::Goto(_) | ListAction::Next(_)
+        );
+        if connects && self.settings.auto_connect {
+            self.connected = Some(id);
+        }
+        if matches!(action, ListAction::Go | ListAction::Goto(_)) {
+            self.fire(id);
+        }
+        let state = self.live_state(id)?;
+        match action {
+            ListAction::Next(n) => state.run.next = Some(n),
+            // Back and Stop need a list that runs.
+            ListAction::Back | ListAction::Stop if !state.is_active() => {}
+            _ => state.run.pending.push(action),
+        }
+        Ok(())
+    }
+
+    /// CUE-26: the Go block follows this list (a cue list or a chase). Nothing on stage changes.
+    pub fn connect_list(&mut self, id: PlaybackId) -> Result<(), CoreError> {
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        if !is_list(playback) {
+            return Err(CoreError::NotACueList(id));
+        }
+        self.connected = Some(id);
+        Ok(())
+    }
+
+    /// CUE-26: the connected list, else the first list in handle order (page, then slot).
+    pub fn connected(&self) -> Option<PlaybackId> {
+        let stored = self
+            .connected
+            .filter(|id| self.playbacks.get(id).is_some_and(is_list));
+        stored.or_else(|| {
+            (self.playbacks.values().filter(|p| is_list(p)))
+                .min_by_key(|p| (p.page, p.slot))
+                .map(|p| p.id)
+        })
+    }
+
+    /// CUE-40: the live state of a cue list; `None` for anything else.
+    pub fn list_live(&self, id: PlaybackId) -> Option<ListLive> {
+        let playback = self.playbacks.get(&id).filter(|p| p.is_cue_list())?;
+        let run = self.states.get(&id).map(|s| &s.run);
+        Some(run.unwrap_or(&ListRun::default()).live(playback))
+    }
+
+    /// CUE-55: press or release a handle button; it does what `handle_buttons` assigns to the
+    /// kind of playback on the handle (CUE-25). Flash and Swop follow `on`, the others act on the
+    /// press, on this playback's own list.
+    pub fn press_button(
+        &mut self,
+        id: PlaybackId,
+        button: HandleButton,
+        on: bool,
+        now: Timestamp,
+    ) -> Result<(), CoreError> {
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        let kind = button_kind(playback);
+        let best = kind.best_practice();
+        let pair = match &self.settings.handle_buttons {
+            HandleButtons::BestPractice => best,
+            HandleButtons::Titan => match kind {
+                ButtonKind::BpmMaster | ButtonKind::RateMaster => best,
+                _ => [Button::Swop, Button::Flash],
+            },
+            HandleButtons::Custom(pairs) => pairs.get(&kind).copied().unwrap_or(best),
+        };
+        let function = match button {
+            HandleButton::Upper => pair[0],
+            HandleButton::Lower => pair[1],
+        };
+        match function {
+            Button::Flash => self.set_flash(id, on, now),
+            Button::Swop => self.set_swop(id, on, now),
+            _ if !on => Ok(()),
+            Button::Go => self.cuelist(Some(id), ListAction::Go, now),
+            Button::Back => self.cuelist(Some(id), ListAction::Back, now),
+            Button::Stop => self.cuelist(Some(id), ListAction::Stop, now),
+            Button::Release => self.release_playback(id, now),
+            // ponytail: Tap is the chase clock's (VS3-04).
+            Button::Tap | Button::None => Ok(()),
+        }
     }
 
     /// PBK-30: Dead Black Out on or off. Live state: not in the show.
@@ -1185,9 +1335,20 @@ impl Engine {
         Ok(self.states.entry(id).or_default())
     }
 
+    /// CUE-55: Flash, Swop and Latch are for playbacks that output something, not for masters.
+    fn not_a_master(&self, id: PlaybackId) -> Result<(), CoreError> {
+        match self.playbacks.get(&id) {
+            Some(p) if p.kind.is_master() => Err(CoreError::InvalidCommand(format!(
+                "playback {id} is a master: Flash, Swop and Latch are not for it"
+            ))),
+            _ => Ok(()),
+        }
+    }
+
     /// After an input changed: fire an inactive playback whose effective level is above 0
     /// (killing the rest of its group, PBK-25), trigger its LTP values at the trigger point.
-    /// An effective level of 0 lets a blocked playback fire again (PBK-22, 25).
+    /// An effective level of 0 lets a blocked playback fire again (PBK-22, 25) and kills a cue
+    /// list with `KillAtZero` (CUE-15).
     fn settle(&mut self, id: PlaybackId) {
         let trigger = self.settings.ltp_trigger_level;
         let Some(state) = self.states.get_mut(&id) else {
@@ -1196,23 +1357,38 @@ impl Engine {
         let level = state.effective_level();
         if level <= 0.0 {
             state.blocked = false;
+            let list = self.playbacks.get(&id).filter(|p| p.is_cue_list());
+            if list.is_some_and(|p| p.list.fader == ListFader::KillAtZero) {
+                self.kill_playback(id, false, None);
+            }
             return;
         }
-        let fired = !state.is_active();
-        if fired {
-            if state.blocked {
-                return;
+        if !state.is_active() && state.blocked {
+            return;
+        }
+        let fired = self.fire(id);
+        if let Some(state) = self.states.get_mut(&id) {
+            if state.triggered.is_none() && level >= trigger {
+                self.activation_seq = self.activation_seq.saturating_add(1);
+                state.triggered = Some(self.activation_seq);
             }
-            self.activation_seq = self.activation_seq.saturating_add(1);
-            state.activated = Some(self.activation_seq);
-            state.release = None; // PBK-21: firing again stops the release
         }
-        if state.triggered.is_none() && level >= trigger {
-            self.activation_seq = self.activation_seq.saturating_add(1);
-            state.triggered = Some(self.activation_seq);
+        if fired {
+            self.list_fired(id);
         }
+    }
+
+    /// Put an inactive playback in the merge, killing the rest of its group (PBK-25). False when
+    /// it was active already.
+    fn fire(&mut self, id: PlaybackId) -> bool {
+        let Some(state) = self.states.get_mut(&id).filter(|s| !s.is_active()) else {
+            return false;
+        };
+        self.activation_seq = self.activation_seq.saturating_add(1);
+        state.activated = Some(self.activation_seq);
+        state.release = None; // PBK-21: firing again stops the release
         let group = self.playbacks.get(&id).and_then(|p| p.group);
-        if let (true, Some(group)) = (fired, group) {
+        if let Some(group) = group {
             let others: Vec<PlaybackId> = self
                 .playbacks
                 .iter()
@@ -1222,6 +1398,21 @@ impl Engine {
             for other in others {
                 self.kill_playback(other, false, None);
             }
+        }
+        true
+    }
+
+    /// CUE-16, 26: a cue list fired by its fader or Flash connects and starts its next cue.
+    fn list_fired(&mut self, id: PlaybackId) {
+        let Some(list) = self.playbacks.get(&id).filter(|p| p.is_cue_list()) else {
+            return;
+        };
+        let fire_first = list.list.fire_first_cue;
+        if self.settings.auto_connect {
+            self.connected = Some(id);
+        }
+        if let Some(state) = self.states.get_mut(&id) {
+            state.run.fire_first = fire_first;
         }
     }
 
@@ -1271,6 +1462,7 @@ impl Engine {
             state.was_holding = false;
             state.from.clear();
             state.release = release;
+            state.run = ListRun::default(); // CUE-17
         }
     }
 
@@ -1287,25 +1479,41 @@ impl Engine {
             let (true, Some(playback)) = (state.is_active(), self.playbacks.get(id)) else {
                 continue;
             };
+            if state.swop && swop.is_none_or(|(seq, _)| state.swop_seq > seq) {
+                swop = Some((state.swop_seq, *id));
+            }
+            if playback.is_cue_list() {
+                // CUE-15: the fader is the intensity master, at once; the cues do the fading.
+                let mut cx = Ctx {
+                    playback,
+                    from: &mut state.from,
+                    env: Env {
+                        fixtures: &self.fixtures,
+                        profiles: &self.profiles,
+                        palettes: &self.palettes,
+                        held: &self.held,
+                    },
+                    seq: &mut self.activation_seq,
+                    now,
+                };
+                state.run.tick(&mut cx);
+                state.master = state.effective_level();
+                continue;
+            }
             let times = playback.times();
             let mode2 = playback.fader_mode == FaderMode::Mode2;
-            let stagger = times.fade_in * (1.0 - times.overlap / 100.0);
             if state.fired_at.is_none() {
                 state.fired_at = Some(now);
                 if mode2 {
-                    state.from = origins(playback, &self.fixtures, &self.profiles, &self.held, 0.0);
+                    state.from =
+                        origins(playback, &self.fixtures, &self.profiles, &self.held, false);
                 }
             }
             if state.triggered.is_some() && state.trigger_at.is_none() {
                 state.trigger_at = Some(now);
                 if !mode2 {
-                    state.from = origins(
-                        playback,
-                        &self.fixtures,
-                        &self.profiles,
-                        &self.held,
-                        stagger,
-                    );
+                    state.from =
+                        origins(playback, &self.fixtures, &self.profiles, &self.held, true);
                 }
             }
             let level = state.effective_level();
@@ -1337,9 +1545,6 @@ impl Engine {
                 state.master = target;
             }
             state.was_holding = holding;
-            if state.swop && swop.is_none_or(|(seq, _)| state.swop_seq > seq) {
-                swop = Some((state.swop_seq, *id));
-            }
             if level <= 0.0
                 && (playback.kill_point == KillPoint::FaderAtZero || state.master <= 0.0)
             {
@@ -1515,8 +1720,13 @@ impl Engine {
         if record.cue.is_some_and(|n| !n.is_valid()) {
             return Err(CoreError::InvalidCueNumber);
         }
-        // The cue a mode acts on; `None` is a new cue. CUE-06: a list that is off has no
-        // current cue yet (VS3-03), so every list needs a number.
+        // CUE-06: the cue of a running list that is current, by position.
+        let running =
+            (held.zip(existing).filter(|(pb, _)| pb.is_cue_list())).and_then(|(pb, id)| {
+                let current = self.states.get(&id)?.run.current?;
+                pb.cues.iter().position(|c| c.number == current)
+            });
+        // The cue a mode acts on; `None` is a new cue.
         let target = match (held, record.add, record.cue) {
             (Some(pb), None, Some(n)) => {
                 let at = pb.cues.iter().position(|c| c.number == n);
@@ -1529,7 +1739,7 @@ impl Engine {
                 if record.mode.is_none() {
                     return Err(CoreError::HandleUsedRecord { page, slot });
                 }
-                if pb.cues.len() > 1 {
+                if pb.cues.len() > 1 && running.is_none() {
                     let name = if pb.legend.is_empty() {
                         format!("{page}.{slot}")
                     } else {
@@ -1537,17 +1747,32 @@ impl Engine {
                     };
                     return Err(CoreError::NameACue(name));
                 }
-                Some(0)
+                Some(running.unwrap_or(0))
             }
             _ => None,
         };
-        // CUE-03, 05: Insert goes after the last cue too until a list can be running (VS3-03).
+        // CUE-03, 05: Append goes after the last cue, Insert after the current one.
+        let insert_after = match (held, existing, record.add) {
+            (Some(pb), Some(id), Some(AddCue::Insert)) if pb.is_cue_list() => {
+                self.states.get(&id).and_then(|s| s.run.current)
+            }
+            _ => None,
+        };
         let new_number = match (held, target) {
-            (Some(pb), None) => Some(match (record.cue, pb.cues.last()) {
-                (Some(n), _) => n,
-                (None, Some(last)) => CueNumber::between(last.number, None)
+            (Some(pb), None) => Some(match (record.cue, insert_after, pb.cues.last()) {
+                (Some(n), _, _) => n,
+                (None, Some(current), _) => {
+                    let after = pb.cues.iter().map(|c| c.number).find(|&n| n > current);
+                    CueNumber::between(current, after).ok_or_else(|| {
+                        CoreError::NoCueRoom(match after {
+                            Some(after) => format!("between Q{current} and Q{after}"),
+                            None => format!("after Q{current}"),
+                        })
+                    })?
+                }
+                (None, None, Some(last)) => CueNumber::between(last.number, None)
                     .ok_or_else(|| CoreError::NoCueRoom(format!("after Q{}", last.number)))?,
-                (None, None) => CueNumber::default(),
+                (None, None, None) => CueNumber::default(),
             }),
             _ => None,
         };
@@ -1577,11 +1802,19 @@ impl Engine {
                 }
             }
         }
+        // Update takes what the cue holds; on a tracking list its state, tracked values included
+        // (CUE-52).
+        let tracking = held.is_some_and(|p| p.is_cue_list() && p.list.tracking);
         if let (Some(at), Some(RecordMode::QuickMerge)) = (target, record.mode) {
-            let held = held.and_then(|p| p.cues.get(at)).map(|c| &c.values);
+            let state = held.filter(|_| tracking).map(|p| p.cue_state(at));
+            let own = held.and_then(|p| p.cues.get(at)).map(|c| &c.values);
             values.retain(|fixture, attrs| {
-                let held = held.and_then(|h| h.get(fixture));
-                attrs.retain(|name, _| held.is_some_and(|h| h.contains_key(name)));
+                attrs.retain(|name, _| match &state {
+                    Some(state) => (state.get(fixture)).is_some_and(|a| a.contains_key(name)),
+                    None => own
+                        .and_then(|h| h.get(fixture))
+                        .is_some_and(|h| h.contains_key(name)),
+                });
                 !attrs.is_empty()
             });
         }
@@ -1611,7 +1844,17 @@ impl Engine {
             if playback.cues.is_empty() {
                 playback.cues.push(Cue::new(Values::new()));
             }
-            if let Some(cue) = target.and_then(|at| playback.cues.get_mut(at)) {
+            let tracked = tracking && !matches!(record.mode, Some(RecordMode::Replace) | None);
+            if let (true, Some(at)) = (tracked, target) {
+                // CUE-52: each attribute goes where the update mode says.
+                let mode = record.update_mode.unwrap_or(self.settings.update_mode);
+                let (fixtures, profiles) = (&self.fixtures, &self.profiles);
+                let htp = |fixture: FixtureId, name: &str| {
+                    let mode = resolve_mode(profiles, fixtures.get(&fixture)?)?;
+                    Some(mode.logical(name)?.kind == AttributeKind::Htp)
+                };
+                playback.store_tracked(at, values, mode, htp);
+            } else if let Some(cue) = target.and_then(|at| playback.cues.get_mut(at)) {
                 match record.mode {
                     Some(RecordMode::Replace) | None => cue.values = values,
                     Some(RecordMode::Merge | RecordMode::QuickMerge) => {
@@ -1620,6 +1863,27 @@ impl Engine {
                         }
                     }
                 }
+            }
+        }
+        // CUE-53: a running list shows the edit at the next tick; CUE-03, 05: the new cue is next.
+        let added = new_number.filter(|_| record.cue.is_none());
+        // CUE-01, 03: a memory on stage that becomes a list stands on its cue, so it keeps its output.
+        let became = (self.playbacks.get(&id))
+            .filter(|p| !was_list && p.is_cue_list())
+            .and_then(|p| p.cues.first().map(|c| (c.number, p.cue_after(c.number))));
+        if let Some(state) = self.states.get_mut(&id) {
+            if let (Some((first, after)), true) = (became, state.is_active()) {
+                state.run.current = Some(first);
+                state.run.next = after;
+            }
+            let run = &mut state.run;
+            run.edited = true;
+            match (record.add, added) {
+                (Some(AddCue::Insert), Some(n)) if run.current.is_some() => run.next = Some(n),
+                (Some(AddCue::Append), Some(n)) if run.current.is_some() && run.next.is_none() => {
+                    run.next = Some(n);
+                }
+                _ => {}
             }
         }
         Ok(id)
@@ -1690,6 +1954,14 @@ impl Engine {
             return Err(CoreError::LastCue(cue));
         }
         playback.cues.remove(at);
+        // The cue after the deleted one is next when that was (CUE-07); tracking follows (CUE-53).
+        let after = playback.cue_after(cue);
+        if let Some(run) = self.states.get_mut(&id).map(|s| &mut s.run) {
+            if run.next == Some(cue) {
+                run.next = after;
+            }
+            run.edited = true;
+        }
         Ok(())
     }
 
@@ -1706,6 +1978,10 @@ impl Engine {
             .ok_or(CoreError::UnknownCue(cue))?
             .number = to;
         playback.cues.sort_by_key(|c| c.number);
+        if let Some(run) = self.states.get_mut(&id).map(|s| &mut s.run) {
+            run.renumbered(|n| if n == cue { to } else { n }); // CUE-08
+            run.edited = true;
+        }
         Ok(())
     }
 
@@ -1717,8 +1993,18 @@ impl Engine {
             .take(playback.cues.len())
             .collect();
         let numbers = numbers.ok_or(CoreError::InvalidCueNumber)?;
-        for (cue, number) in playback.cues.iter_mut().zip(numbers) {
+        let old: Vec<CueNumber> = playback.cues.iter().map(|c| c.number).collect();
+        for (cue, &number) in playback.cues.iter_mut().zip(&numbers) {
             cue.number = number;
+        }
+        if let Some(run) = self.states.get_mut(&id).map(|s| &mut s.run) {
+            let to = |n: CueNumber| {
+                old.iter()
+                    .position(|&o| o == n)
+                    .and_then(|i| numbers.get(i))
+            };
+            run.renumbered(|n| to(n).copied().unwrap_or(n)); // CUE-08
+            run.edited = true;
         }
         Ok(())
     }
@@ -1740,6 +2026,9 @@ impl Engine {
         };
         playback.cues.push(copy);
         playback.cues.sort_by_key(|c| c.number);
+        if let Some(state) = self.states.get_mut(&id) {
+            state.run.edited = true; // CUE-53
+        }
         Ok(())
     }
 
@@ -1795,6 +2084,9 @@ impl Engine {
         }
         if let Some(v) = &change.group_times {
             cue.group_times = v.clone();
+        }
+        if let Some(state) = self.states.get_mut(&id) {
+            state.run.edited = true; // CUE-53: a track change shows on the next tick
         }
         Ok(())
     }
@@ -3184,6 +3476,22 @@ impl Engine {
     }
 }
 
+/// CUE-26: a cue list or a chase.
+fn is_list(playback: &Playback) -> bool {
+    playback.is_cue_list() || playback.kind == PlaybackKind::Chase
+}
+
+/// CUE-25: the kind of handle the buttons are assigned for.
+fn button_kind(playback: &Playback) -> ButtonKind {
+    match playback.kind {
+        PlaybackKind::Chase => ButtonKind::Chase,
+        PlaybackKind::BpmMaster => ButtonKind::BpmMaster,
+        PlaybackKind::RateMaster => ButtonKind::RateMaster,
+        PlaybackKind::Cues if playback.is_cue_list() => ButtonKind::CueList,
+        PlaybackKind::Cues => ButtonKind::Memory,
+    }
+}
+
 /// PAL-15: times 0-600 s, overlaps 0-100 %; NaN is refused too.
 fn check_palette_timing(time: f32, overlap: f32) -> Result<(), CoreError> {
     if !(0.0..=600.0).contains(&time) {
@@ -3273,7 +3581,7 @@ fn lookup_mode<'a>(
 }
 
 /// The fixture's mode: the named one, or the profile's first.
-fn resolve_mode<'a>(
+pub(crate) fn resolve_mode<'a>(
     profiles: &'a BTreeMap<String, Profile>,
     fixture: &Fixture,
 ) -> Option<&'a Mode> {
@@ -3324,14 +3632,14 @@ struct MergeSources<'a> {
 }
 
 /// Where the LTP attributes of a playback's cue fade from (PBK-15, 17): the output of the tick
-/// before the playback asserted them, the fixtures staggered by `stagger` seconds each in user
-/// number order (PAL-14).
+/// before the playback asserted them; `staggered`: the fixtures start one after the other in
+/// user number order by the cue's overlap (PAL-14), each attribute by its fade (CUE-14).
 fn origins(
     playback: &Playback,
     fixtures: &BTreeMap<FixtureId, Fixture>,
     profiles: &BTreeMap<String, Profile>,
     held: &BTreeMap<FixtureId, BTreeMap<String, Value>>,
-    stagger: f32,
+    staggered: bool,
 ) -> Origins {
     let mut out = Origins::new();
     let Some(values) = playback.values() else {
@@ -3342,6 +3650,7 @@ fn origins(
         .filter_map(|id| Some((fixtures.get(id)?.number, *id)))
         .collect();
     order.sort_unstable();
+    let overlap = playback.times().overlap;
     for (rank, (_, id)) in order.into_iter().enumerate() {
         let (Some(fixture), Some(attributes)) = (fixtures.get(&id), values.get(&id)) else {
             continue;
@@ -3357,6 +3666,12 @@ fn origins(
                 .and_then(|attributes| attributes.get(l.name))
                 .copied()
                 .unwrap_or(l.default);
+            let (_, fade) = playback.ltp_times(l.group);
+            let stagger = if staggered {
+                fade * (1.0 - overlap / 100.0)
+            } else {
+                0.0
+            };
             out.entry(id).or_default().insert(
                 name.clone(),
                 Origin {
@@ -3393,13 +3708,18 @@ fn merge_attribute(
         let Some(activated) = state.activated else {
             continue;
         };
-        let Some(raw) = playback
-            .values()
-            .and_then(|values| values.get(&fixture.id))
-            .and_then(|attrs| attrs.get(attr.name))
-            .map(|s| resolve(*s))
-            .filter(|v| v.same_kind(&attr.default))
-        else {
+        // A cue list proposes what its fades give now (CUE-13); anything else its first cue.
+        let from_list = playback
+            .is_cue_list()
+            .then(|| state.run.fade_value(fixture.id, attr.name, now, resolve));
+        let raw = match from_list {
+            Some(fade) => fade,
+            None => (playback.values())
+                .and_then(|values| values.get(&fixture.id))
+                .and_then(|attrs| attrs.get(attr.name))
+                .map(|s| (resolve(*s), 0)),
+        };
+        let Some((raw, list_order)) = raw.filter(|(v, _)| v.same_kind(&attr.default)) else {
             continue;
         };
 
@@ -3412,6 +3732,8 @@ fn merge_attribute(
                 }
                 (raw.scaled(state.master), activated)
             }
+            // CUE-15: a list's LTP values are not scaled and not gated by the trigger level.
+            AttributeKind::Ltp if playback.is_cue_list() => (raw, list_order),
             AttributeKind::Ltp => {
                 let from = (state.from.get(&fixture.id)).and_then(|attrs| attrs.get(attr.name));
                 match playback.fader_mode {
@@ -3427,9 +3749,9 @@ fn merge_attribute(
                         };
                         let value = match (state.trigger_at, from) {
                             (Some(at), Some(o)) => {
-                                let times = playback.times();
-                                let elapsed = (now - at) as f32 - times.delay - o.lag;
-                                o.value.lerp(raw, fade_progress(elapsed, times.fade_in))
+                                let (delay, fade) = playback.ltp_times(attr.group); // CUE-14
+                                let elapsed = (now - at) as f32 - delay - o.lag;
+                                o.value.lerp(raw, fade_progress(elapsed, fade))
                             }
                             _ => raw,
                         };
@@ -3513,7 +3835,7 @@ fn merge_attribute(
 
 /// A stored value, or what its palette resolves for this fixture and attribute (PAL-07),
 /// falling back to the reference's own value (PAL-11).
-fn resolve_stored(
+pub(crate) fn resolve_stored(
     palettes: &BTreeMap<PaletteId, Palette>,
     fixture: &Fixture,
     mode: &Mode,
