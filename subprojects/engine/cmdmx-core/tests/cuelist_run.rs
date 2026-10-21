@@ -53,7 +53,7 @@ use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
 use cmdmx_core::palette::RecordMode;
 use cmdmx_core::playback::{
     AddCue, Button, ButtonKind, Cue, CueChange, CueNumber, FaderMode, HandleButton, HandleButtons,
-    Kind, Link, ListAction, ListLive, ListOptions, LoopAction, MasterKind, Playback,
+    Kind, Link, ListAction, ListFader, ListLive, ListOptions, LoopAction, MasterKind, Playback,
     PlaybackChange, PlaybackRecord, Track, UpdateMode, Values,
 };
 use cmdmx_core::show::{Meta, Show};
@@ -400,6 +400,23 @@ fn cue_13_a_cue_that_changes_nothing_is_complete_at_once() {
 }
 
 // ---- CUE-15: the fader -----------------------------------------------------------------------
+
+#[test]
+fn cue_15_a_zero_sent_again_does_not_kill_a_kill_at_zero_list_started_by_go() {
+    let mut e = three();
+    options(
+        &mut e,
+        1,
+        ListOptions {
+            fader: ListFader::KillAtZero,
+            ..ListOptions::default()
+        },
+    );
+    act(&mut e, ListAction::Go, 0.0);
+    e.set_fader(1, 0.0, 0.1).unwrap(); // a touched fader at 0: no fall
+    tick(&mut e, 0.1);
+    assert_eq!(current(&e), Some(1.0));
+}
 
 #[test]
 fn cue_15_fader_modes_and_the_kill_point_do_not_apply_to_a_cue_list() {

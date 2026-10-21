@@ -1,0 +1,117 @@
+{
+  "spec": "CUE-29",
+  "profiles": {
+    "dim": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "dim",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "dim",
+      "universe": 1,
+      "address": 2
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "kind": "Chase",
+      "cues": [
+        {
+          "values": {
+            "1": {
+              "Dimmer": 1.0
+            }
+          }
+        },
+        {
+          "values": {
+            "2": {
+              "Dimmer": 1.0
+            }
+          }
+        }
+      ],
+      "chase": {
+        "bpm": 60,
+        "crossfade": 50.0,
+        "direction": "Forward",
+        "loop": "Loop",
+        "speed_source": "Free"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.25,
+      "universe": 1,
+      "channels": {
+        "1": 128,
+        "2": 0
+      }
+    },
+    {
+      "t": 0.75,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 0
+      }
+    },
+    {
+      "t": 1.25,
+      "universe": 1,
+      "channels": {
+        "1": 128,
+        "2": 128
+      }
+    },
+    {
+      "t": 1.75,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 255
+      }
+    },
+    {
+      "t": 2.25,
+      "universe": 1,
+      "channels": {
+        "1": 128,
+        "2": 128
+      }
+    },
+    {
+      "t": 2.75,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 0
+      }
+    }
+  ]
+}

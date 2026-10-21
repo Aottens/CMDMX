@@ -73,8 +73,12 @@ Early, under active development, not yet for real shows. What works today:
   Titan (Block, Cue Only, Solo, Update modes). Times per attribute group, the fader as intensity
   master, Release resets to the top, and a handle's buttons become Go / Flash on a list. Not yet
   in the app.
+- Chases (engine): steps at a BPM with crossfade, Forward/Backward/Bounce/Random, loop or one
+  round, Go/Back/Stop on the chase, Tap tempo that also puts the steps on the beat, and BPM
+  masters (tap, typed, or on the fader) and Rate masters that drive several chases at once. Not
+  yet in the app.
 
-Next: chases with Tap and BPM/Rate masters, then the Go block in the app; checking
+Next: VS4-05 (serial output at 33 Hz), then the Go block and cue lists in the app; checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

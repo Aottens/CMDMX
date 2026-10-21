@@ -29,10 +29,11 @@ use crate::palette::{
 };
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
-    fade_progress, AddCue, Button, ButtonKind, ChaseOptions, Cue, CueChange, CueNumber, FaderMode,
-    GroupTime, HandleButton, HandleButtons, KillPoint, Kind as PlaybackKind, Link, ListAction,
-    ListFader, ListLive, Master, MasterKind, Origin, Origins, Paging, Playback, PlaybackChange,
-    PlaybackId, PlaybackRecord, PlaybackState, Priority, Release, UpdateMode, Values, PAGES,
+    check_bpm, fade_progress, AddCue, BpmFader, BpmMaster, Button, ButtonKind, ChaseOptions, Cue,
+    CueChange, CueNumber, FaderMode, GroupTime, HandleButton, HandleButtons, KillPoint,
+    Kind as PlaybackKind, Link, ListAction, ListFader, ListLive, Master, MasterKind, Origin,
+    Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority,
+    Release, SpeedSource, UpdateMode, Values, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -1111,7 +1112,7 @@ impl Engine {
     /// Move a playback fader. The playback fires when the effective level rises above 0 and its
     /// LTP values trigger at the trigger point (PBK, Definitions); it is killed by the next tick
     /// once its kill point is reached (PBK-19). Every time counts from that tick (PBK, Timing),
-    /// so `_now` is not needed.
+    /// so `_now` is not needed. A master never fires (CUE-37): its level is read when asked.
     pub fn set_fader(
         &mut self,
         id: PlaybackId,
@@ -1121,8 +1122,14 @@ impl Engine {
         if !(0.0..=1.0).contains(&level) || level.is_nan() {
             return Err(CoreError::InvalidLevel(level));
         }
-        self.live_state(id)?.level = level;
-        self.settle(id);
+        let master = self.playbacks.get(&id).is_some_and(|p| p.kind.is_master());
+        let state = self.live_state(id)?;
+        state.level = level;
+        if master {
+            state.fader_moved = true; // CUE-35: the fader's tempo counts again
+        } else {
+            self.settle(id);
+        }
         Ok(())
     }
 
@@ -1175,8 +1182,9 @@ impl Engine {
         Ok(())
     }
 
-    /// CUE-10..12, 18, 19, 27: Go, Back, Stop, Go to cue, Set next or Release on a cue list; `None`
-    /// is the connected list. Go and Go to cue fire a list that is off at once (even at fader 0);
+    /// CUE-10..12, 18, 19, 27, 32: Go, Back, Stop, Go to cue, Set next or Release on a cue list or
+    /// a chase; `None` is the connected list. Go and Go to cue fire a list that is off at once
+    /// (even at fader 0);
     /// the others only record what to do and the next tick performs it. A refused action changes
     /// nothing (CUE-49).
     pub fn cuelist(
@@ -1190,13 +1198,7 @@ impl Engine {
             None => self.connected().ok_or(CoreError::NoCueListConnected)?,
         };
         let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
-        if playback.kind == PlaybackKind::Chase {
-            // ponytail: chases are VS3-04; their Go, Back and Stop come with the chase clock.
-            return Err(CoreError::InvalidCommand(format!(
-                "playback {id} is a chase: it has no cue list actions yet"
-            )));
-        }
-        if !playback.is_cue_list() {
+        if !is_list(playback) {
             return Err(CoreError::NotACueList(id));
         }
         let idle = ListRun::default();
@@ -1220,7 +1222,7 @@ impl Engine {
                 let off = format!("{} is not running", name(None));
                 return Err(CoreError::ListRefused(off));
             }
-            ListAction::Back if run.current.and_then(|c| playback.cue_before(c)).is_none() => {
+            ListAction::Back if run.back_cue(playback).is_none() => {
                 let first = format!("{} is the first cue", name(run.current));
                 return Err(CoreError::ListRefused(first));
             }
@@ -1273,9 +1275,9 @@ impl Engine {
         })
     }
 
-    /// CUE-40: the live state of a cue list; `None` for anything else.
+    /// CUE-40: the live state of a cue list or a chase; `None` for anything else.
     pub fn list_live(&self, id: PlaybackId) -> Option<ListLive> {
-        let playback = self.playbacks.get(&id).filter(|p| p.is_cue_list())?;
+        let playback = self.playbacks.get(&id).filter(|p| is_list(p))?;
         let run = self.states.get(&id).map(|s| &s.run);
         Some(run.unwrap_or(&ListRun::default()).live(playback))
     }
@@ -1313,9 +1315,159 @@ impl Engine {
             Button::Back => self.cuelist(Some(id), ListAction::Back, now),
             Button::Stop => self.cuelist(Some(id), ListAction::Stop, now),
             Button::Release => self.release_playback(id, now),
-            // ponytail: Tap is the chase clock's (VS3-04).
-            Button::Tap | Button::None => Ok(()),
+            Button::Tap => self.tap(id, now),
+            Button::None => Ok(()),
         }
+    }
+
+    /// CUE-33: a tap of a chase or a BPM master, timed `at` the moment the daemon received it.
+    /// The first tap, or one more than 2 s after the last, starts a series and changes nothing;
+    /// each further tap sets the BPM from the mean of the series' last three intervals (1–600,
+    /// rounded to 0.1) and beat-syncs. Refused on a memory, a cue list and a Rate master.
+    pub fn tap(&mut self, id: PlaybackId, at: Timestamp) -> Result<(), CoreError> {
+        if !at.is_finite() {
+            return Err(CoreError::InvalidCommand(format!("tap time {at}")));
+        }
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        if !has_tempo(playback) {
+            return Err(CoreError::InvalidCommand(format!(
+                "playback {id} has no tempo to tap"
+            )));
+        }
+        let state = self.live_state(id)?;
+        let series = &mut state.taps;
+        if series
+            .last()
+            .is_some_and(|&last| !(0.0..=2.0).contains(&(at - last)))
+        {
+            series.clear();
+        }
+        series.push(at);
+        series.drain(..series.len().saturating_sub(4));
+        let (Some(&first), Some(&last)) = (series.first(), series.last()) else {
+            return Ok(());
+        };
+        let intervals = series.len().saturating_sub(1);
+        if intervals == 0 {
+            return Ok(());
+        }
+        let mean = (last - first) / intervals as f64;
+        let bpm = ((60.0 / mean) as f32).clamp(1.0, 600.0);
+        self.set_tempo(id, (bpm * 10.0).round() / 10.0, Some(at))
+    }
+
+    /// CUE-34: type a tempo (1–600) for a chase or a BPM master. It changes no running step.
+    pub fn set_bpm(&mut self, id: PlaybackId, bpm: f32) -> Result<(), CoreError> {
+        check_bpm(bpm)?;
+        self.set_tempo(id, bpm, None)
+    }
+
+    /// CUE-33, 34: a tempo for `id` goes to the BPM master a chase follows, else to the chase's
+    /// own `bpm`, or to the BPM master itself; it clears the master's "fader moved last" (CUE-35).
+    /// With `sync` the running chases on it start their next step at that tap time.
+    fn set_tempo(
+        &mut self,
+        id: PlaybackId,
+        bpm: f32,
+        sync: Option<Timestamp>,
+    ) -> Result<(), CoreError> {
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        let master = match (&playback.master, playback.kind) {
+            (Some(Master::Bpm(m)), _) => Some((id, m.number)),
+            (_, PlaybackKind::Chase) => match playback.chase.speed_source {
+                SpeedSource::Bpm(n) => self.find_master(MasterKind::Bpm, n).map(|(m, _)| (m, n)),
+                _ => None,
+            },
+            _ => {
+                return Err(CoreError::InvalidCommand(format!(
+                    "playback {id} has no tempo to set"
+                )))
+            }
+        };
+        if let Some((master, number)) = master {
+            let stored = (self.playbacks.get_mut(&master)).and_then(|p| p.master.as_mut());
+            if let Some(Master::Bpm(m)) = stored {
+                m.bpm = bpm;
+            }
+            self.live_state(master)?.fader_moved = false;
+            if let Some(at) = sync {
+                for (other, state) in &mut self.states {
+                    let follows = self.playbacks.get(other).is_some_and(|p| {
+                        p.kind == PlaybackKind::Chase
+                            && p.chase.speed_source == SpeedSource::Bpm(number)
+                    });
+                    if follows && state.is_active() && !state.run.paused() {
+                        state.run.sync = Some(at);
+                    }
+                }
+            }
+        } else {
+            self.playback_mut(id)?.chase.bpm = bpm;
+            let state = self.live_state(id)?;
+            if sync.is_some() && state.is_active() && !state.run.paused() {
+                state.run.sync = sync;
+            }
+        }
+        Ok(())
+    }
+
+    /// CUE-29, 35: a chase's tempo after its speed source, a BPM master's tempo; `None` for
+    /// anything else.
+    pub fn effective_bpm(&self, id: PlaybackId) -> Option<f32> {
+        let playback = self.playbacks.get(&id)?;
+        match &playback.master {
+            Some(Master::Bpm(m)) => Some(self.master_tempo(id, m)),
+            Some(Master::Rate(_)) => None,
+            None => (playback.kind == PlaybackKind::Chase).then(|| self.chase_bpm(&playback.chase)),
+        }
+    }
+
+    /// CUE-29: a source whose master does not exist runs as `Free`.
+    fn chase_bpm(&self, chase: &ChaseOptions) -> f32 {
+        let (kind, number) = match chase.speed_source {
+            SpeedSource::Free => return chase.bpm,
+            SpeedSource::Bpm(n) => (MasterKind::Bpm, n),
+            SpeedSource::Rate(n) => (MasterKind::Rate, n),
+        };
+        match self.find_master(kind, number) {
+            Some((id, Master::Bpm(m))) => self.master_tempo(id, m),
+            Some((id, Master::Rate(m))) => {
+                let level = self.states.get(&id).map_or(0.0, |s| s.level);
+                chase.bpm * (level * f32::from(m.rate_scale) / 100.0) // CUE-36
+            }
+            None => chase.bpm,
+        }
+    }
+
+    /// CUE-35: the BPM master's tempo: its fader's or its `bpm`, times its multiplier (or the
+    /// fader's zone).
+    fn master_tempo(&self, id: PlaybackId, m: &BpmMaster) -> f32 {
+        let state = self.states.get(&id);
+        let level = state.map_or(0.0, |s| s.level);
+        let (bpm, multiplier) = match m.fader {
+            BpmFader::Bpm if state.is_some_and(|s| s.fader_moved) => {
+                (level * m.fader_max, m.multiplier)
+            }
+            BpmFader::Multiplier => {
+                let zone = ((level * 5.0) as usize).min(4); // /4 /2 ×1 ×2 ×4
+                (
+                    m.bpm,
+                    [0.25, 0.5, 1.0, 2.0, 4.0].get(zone).copied().unwrap_or(1.0),
+                )
+            }
+            _ => (m.bpm, m.multiplier),
+        };
+        bpm * multiplier
+    }
+
+    /// The playback holding speed master `kind` `number`.
+    fn find_master(&self, kind: MasterKind, number: u8) -> Option<(PlaybackId, &Master)> {
+        self.playbacks.values().find_map(|p| {
+            let master = p.master.as_ref();
+            master
+                .filter(|m| m.kind() == kind && m.number() == number)
+                .map(|m| (p.id, m))
+        })
     }
 
     /// PBK-30: Dead Black Out on or off. Live state: not in the show.
@@ -1348,17 +1500,23 @@ impl Engine {
     /// After an input changed: fire an inactive playback whose effective level is above 0
     /// (killing the rest of its group, PBK-25), trigger its LTP values at the trigger point.
     /// An effective level of 0 lets a blocked playback fire again (PBK-22, 25) and kills a cue
-    /// list with `KillAtZero` (CUE-15).
+    /// list with `KillAtZero` (CUE-15) or a chase (CUE-31).
     fn settle(&mut self, id: PlaybackId) {
         let trigger = self.settings.ltp_trigger_level;
         let Some(state) = self.states.get_mut(&id) else {
             return;
         };
         let level = state.effective_level();
+        let was = std::mem::replace(&mut state.settled, level);
         if level <= 0.0 {
             state.blocked = false;
-            let list = self.playbacks.get(&id).filter(|p| p.is_cue_list());
-            if list.is_some_and(|p| p.list.fader == ListFader::KillAtZero) {
+            // CUE-15, 31: a chase or a `KillAtZero` list is killed when its level falls to 0, not
+            // by a 0 sent again (a touched fader) after Go at fader 0.
+            let list = self.playbacks.get(&id).filter(|p| is_list(p));
+            let kills = |p: &Playback| {
+                p.kind == PlaybackKind::Chase || p.list.fader == ListFader::KillAtZero
+            };
+            if was > 0.0 && list.is_some_and(kills) {
                 self.kill_playback(id, false, None);
             }
             return;
@@ -1402,12 +1560,13 @@ impl Engine {
         true
     }
 
-    /// CUE-16, 26: a cue list fired by its fader or Flash connects and starts its next cue.
+    /// CUE-16, 26, 28: a cue list or chase fired by its fader or Flash connects and starts its
+    /// next cue (a chase always starts its first step).
     fn list_fired(&mut self, id: PlaybackId) {
-        let Some(list) = self.playbacks.get(&id).filter(|p| p.is_cue_list()) else {
+        let Some(list) = self.playbacks.get(&id).filter(|p| is_list(p)) else {
             return;
         };
-        let fire_first = list.list.fire_first_cue;
+        let fire_first = list.kind == PlaybackKind::Chase || list.list.fire_first_cue;
         if self.settings.auto_connect {
             self.connected = Some(id);
         }
@@ -1472,6 +1631,11 @@ impl Engine {
     fn update_playbacks(&mut self, now: Timestamp) {
         let mut kills: Vec<PlaybackId> = Vec::new();
         let mut swop: Option<(u64, PlaybackId)> = None;
+        // The tempo of every chase, before the states are borrowed (CUE-29).
+        let tempos: BTreeMap<PlaybackId, f32> = (self.playbacks.values())
+            .filter(|p| p.kind == PlaybackKind::Chase)
+            .map(|p| (p.id, self.chase_bpm(&p.chase)))
+            .collect();
         for (id, state) in &mut self.states {
             if let Some(release) = &mut state.release {
                 release.start.get_or_insert(now);
@@ -1482,8 +1646,8 @@ impl Engine {
             if state.swop && swop.is_none_or(|(seq, _)| state.swop_seq > seq) {
                 swop = Some((state.swop_seq, *id));
             }
-            if playback.is_cue_list() {
-                // CUE-15: the fader is the intensity master, at once; the cues do the fading.
+            if is_list(playback) {
+                // CUE-15, 31: the fader is the intensity master, at once; the cues do the fading.
                 let mut cx = Ctx {
                     playback,
                     from: &mut state.from,
@@ -1495,6 +1659,7 @@ impl Engine {
                     },
                     seq: &mut self.activation_seq,
                     now,
+                    bpm: tempos.get(id).copied().unwrap_or(0.0),
                 };
                 state.run.tick(&mut cx);
                 state.master = state.effective_level();
@@ -3481,6 +3646,11 @@ fn is_list(playback: &Playback) -> bool {
     playback.is_cue_list() || playback.kind == PlaybackKind::Chase
 }
 
+/// CUE-33, 34: a chase or a BPM master has a tempo to tap or type.
+fn has_tempo(playback: &Playback) -> bool {
+    playback.kind == PlaybackKind::Chase || matches!(playback.master, Some(Master::Bpm(_)))
+}
+
 /// CUE-25: the kind of handle the buttons are assigned for.
 fn button_kind(playback: &Playback) -> ButtonKind {
     match playback.kind {
@@ -3708,10 +3878,9 @@ fn merge_attribute(
         let Some(activated) = state.activated else {
             continue;
         };
-        // A cue list proposes what its fades give now (CUE-13); anything else its first cue.
-        let from_list = playback
-            .is_cue_list()
-            .then(|| state.run.fade_value(fixture.id, attr.name, now, resolve));
+        // A cue list or chase proposes what its fades give now (CUE-13); anything else its first cue.
+        let from_list =
+            is_list(playback).then(|| state.run.fade_value(fixture.id, attr.name, now, resolve));
         let raw = match from_list {
             Some(fade) => fade,
             None => (playback.values())
@@ -3732,8 +3901,8 @@ fn merge_attribute(
                 }
                 (raw.scaled(state.master), activated)
             }
-            // CUE-15: a list's LTP values are not scaled and not gated by the trigger level.
-            AttributeKind::Ltp if playback.is_cue_list() => (raw, list_order),
+            // CUE-15, 31: a list's LTP values are not scaled and not gated by the trigger level.
+            AttributeKind::Ltp if is_list(playback) => (raw, list_order),
             AttributeKind::Ltp => {
                 let from = (state.from.get(&fixture.id)).and_then(|attrs| attrs.get(attr.name));
                 match playback.fader_mode {
