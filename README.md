@@ -68,11 +68,13 @@ Early, under active development, not yet for real shows. What works today:
   windows with automatic icons (colour swatch, pan/tilt plot) or one from a built-in library,
   Record/Update/Include/Copy/Move/Delete and legends, as on Titan.
 
-- Cue lists (started): the engine stores cue lists, chases and BPM/Rate masters on handles,
-  with numbered cues (Append, Insert, Q2.5), legends, links, tracking options and times per
-  attribute group. Running them (Go/Back, tracking, chase tempo) comes next.
+- Cue lists (engine): numbered cues (Append, Insert, Q2.5) run with Go, Back, Stop, Go to cue
+  and Set next, follow on by themselves (after or with the cue before), loop, and track as on
+  Titan (Block, Cue Only, Solo, Update modes). Times per attribute group, the fader as intensity
+  master, Release resets to the top, and a handle's buttons become Go / Flash on a list. Not yet
+  in the app.
 
-Next: running cue lists and chases, then the Go block in the app; checking
+Next: chases with Tap and BPM/Rate masters, then the Go block in the app; checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
