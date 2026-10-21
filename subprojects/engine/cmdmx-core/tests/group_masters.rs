@@ -228,14 +228,14 @@ fn grm_03_locks_copies_moves_and_deletes_as_a_playback() {
     )
     .unwrap();
     change(&mut e, id, |m| m.mode = GroupMode::Limit).unwrap();
-    let copy = e.copy_playback(id, 2, 8).unwrap();
+    let copy = e.copy_playback(id, 2, 7).unwrap(); // a Locked 1.8 holds slot 8 on every page
     let m = group_master(&e, copy);
     assert_eq!(
         (m.group, m.mode),
         (6, GroupMode::Limit),
         "same group, same options"
     );
-    e.move_playback(copy, 3, 8).unwrap();
+    e.move_playback(copy, 3, 6).unwrap(); // the copy is Locked at slot 7 too
     assert_eq!(e.playback(copy).unwrap().page, 3);
 
     e.set_fader(id, 0.0, 0.0).unwrap();
