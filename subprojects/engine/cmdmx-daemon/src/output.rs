@@ -127,9 +127,13 @@ pub fn open_udp() -> io::Result<UdpSocket> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
+    use std::collections::VecDeque;
+    use std::rc::Rc;
+    use std::sync::mpsc::RecvTimeoutError;
     use std::time::{Duration, Instant};
 
     #[test]
@@ -190,6 +194,140 @@ mod tests {
         // The tick marks a node whose thread is gone (OUT-11).
         status.set(OutputState::Stopped);
         assert_eq!(status.get(), OutputState::Stopped);
+    }
+
+    /// OUT-24: a fake clock plus a scripted channel. `recv(timeout)` returns the next
+    /// frame if it arrives within `timeout` (moving the clock to its arrival), else
+    /// moves the clock by `timeout` and times out; with no frames left the sender is gone.
+    fn scripted(
+        t0: Instant,
+        arrivals_ms: &[u64],
+    ) -> (
+        Rc<Cell<Instant>>,
+        impl FnMut() -> Instant,
+        impl FnMut(Duration) -> Result<FrameData, RecvTimeoutError>,
+    ) {
+        let clock = Rc::new(Cell::new(t0));
+        let mut queue: VecDeque<(Instant, FrameData)> = arrivals_ms
+            .iter()
+            .enumerate()
+            .map(|(i, ms)| (t0 + Duration::from_millis(*ms), [i as u8; UNIVERSE_SIZE]))
+            .collect();
+        let now = {
+            let clock = clock.clone();
+            move || clock.get()
+        };
+        let recv = {
+            let clock = clock.clone();
+            move |timeout: Duration| match queue.front() {
+                None => Err(RecvTimeoutError::Disconnected),
+                Some((at, _)) if at.saturating_duration_since(clock.get()) <= timeout => {
+                    clock.set(clock.get().max(*at));
+                    queue
+                        .pop_front()
+                        .map(|(_, f)| f)
+                        .ok_or(RecvTimeoutError::Disconnected)
+                }
+                Some(_) => {
+                    clock.set(clock.get() + timeout);
+                    Err(RecvTimeoutError::Timeout)
+                }
+            }
+        };
+        (clock, now, recv)
+    }
+
+    #[test]
+    fn out_24_paced_node_writes_the_latest_frame_every_30_ms() {
+        let t0 = Instant::now();
+        // The tick hands over a frame every 25 ms, the first at 10 ms.
+        let (_clock, mut now, mut recv) = scripted(t0, &[10, 35, 60, 85, 110, 135]);
+        let mut writes = Vec::new();
+        let mut send = |f: &FrameData, at: Instant| {
+            writes.push((at.duration_since(t0).as_millis() as u64, f[0]));
+            (None, OutputState::Ok)
+        };
+        let status = Status::new();
+        run_paced(
+            "test",
+            Duration::from_millis(30),
+            &mut send,
+            &mut recv,
+            &mut now,
+            &status,
+        );
+        // Nothing before the first frame; then every 30 ms with the newest frame:
+        // 10 → frame 0, 40 → 1 (35), 70 → 2 (60), 100 → 3 (85), 130 → 4 (110).
+        assert_eq!(writes, [(10, 0), (40, 1), (70, 2), (100, 3), (130, 4)]);
+    }
+
+    #[test]
+    fn out_24_paced_interval_counts_from_the_start_of_a_slow_write() {
+        let t0 = Instant::now();
+        let (clock, mut now, mut recv) = scripted(t0, &[0, 25, 50, 75, 100, 125]);
+        let mut writes = Vec::new();
+        let mut send = |_: &FrameData, at: Instant| {
+            writes.push(at.duration_since(t0).as_millis() as u64);
+            // A 518-byte frame takes ~21 ms at 250000 baud.
+            clock.set(clock.get() + Duration::from_millis(21));
+            (None, OutputState::Ok)
+        };
+        run_paced(
+            "test",
+            Duration::from_millis(30),
+            &mut send,
+            &mut recv,
+            &mut now,
+            &Status::new(),
+        );
+        assert_eq!(writes, [0, 30, 60, 90, 120]);
+    }
+
+    #[test]
+    fn out_24_paced_node_survives_a_panic_and_reports_its_state() {
+        let t0 = Instant::now();
+        let (_clock, mut now, mut recv) = scripted(t0, &[0, 25, 50, 75]);
+        let mut calls = 0;
+        let mut writes = Vec::new();
+        let mut send = |_: &FrameData, at: Instant| {
+            calls += 1;
+            if calls == 1 {
+                panic!("first write panics");
+            }
+            writes.push(at.duration_since(t0).as_millis() as u64);
+            (None, OutputState::Degraded)
+        };
+        let status = Status::new();
+        run_paced(
+            "test",
+            Duration::from_millis(30),
+            &mut send,
+            &mut recv,
+            &mut now,
+            &status,
+        );
+        assert_eq!(writes, [30, 60], "the timer carries on after the panic");
+        assert_eq!(status.get(), OutputState::Degraded);
+    }
+
+    /// OUT-24 on a real thread: one frame handed over keeps being written by the timer.
+    #[test]
+    fn out_24_spawn_paced_writes_without_new_frames() {
+        let calls = Arc::new(AtomicU8::new(0));
+        let counted = calls.clone();
+        let (tx, _status) = spawn_paced("test", Duration::from_millis(30), move |_, _| {
+            counted.fetch_add(1, Ordering::Relaxed);
+            (None, OutputState::Ok)
+        });
+        tx.send([0; UNIVERSE_SIZE]).unwrap();
+        let start = Instant::now();
+        while calls.load(Ordering::Relaxed) < 3 {
+            assert!(
+                start.elapsed() < Duration::from_secs(2),
+                "the timer did not write again"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
     }
 
     #[test]
