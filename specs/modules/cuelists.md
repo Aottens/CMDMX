@@ -340,7 +340,9 @@ values.
   ×1, full = ×2, 0 = stopped); the fader level is live state like every level. Rate masters
   scale chases in phase 1 (shapes in phase 2).
 - **CUE-37** Masters never enter the merge, are never killed or released, and ignore priority,
-  group and release options; they page, lock, Copy, Move and Delete as playbacks (PBK-07, 14).
+  group and release options; they page, lock, Copy, Move and Delete as playbacks (PBK-07, 14);
+  a copy gets the next free number of its kind (refused when there is none). Recording, Append or
+  Insert onto a master's handle is refused ("Handle 1.3 holds BPM 1").
   Their Playback Options show only Handle and Master tabs. Deleting a master makes its chases run
   as CUE-29 says for a missing master.
 

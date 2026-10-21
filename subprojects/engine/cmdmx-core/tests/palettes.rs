@@ -1255,7 +1255,11 @@ fn pal_23_a_version_1_show_is_migrated() {
     ))
     .unwrap();
     let (show, migrations) = Show::from_json(&v1).unwrap();
-    assert_eq!(migrations.len(), 2, "1 -> 2 and 2 -> 3: {migrations:?}");
+    assert_eq!(
+        migrations.len(),
+        3,
+        "1 -> 2, 2 -> 3 and 3 -> 4: {migrations:?}"
+    );
     let (engine, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(engine.palettes().count(), 0);
