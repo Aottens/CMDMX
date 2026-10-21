@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-21 — Group masters as on Titan, mastering everything after the merge (P1-16, owner)
+
+**Decision:** `specs/modules/group-masters.md` GRM-01..19 approved with its six recommendations: the master level is saved in the show (schema 5), so a restart never changes the stage; the programmer is mastered too, as by the Grand Master; Disabled locks the last effect and re-enabling jumps to the fader; masters of different modes on one fixture apply Scale → HTP → Limit, then the Grand Master/DBO; default buttons none/Flash with Swop as a `Custom` choice; several masters per group. Build tasks VS3-06 (core) and VS3-07 (IPC + app).
+
+**Alternatives considered:** every master at its no-effect level after a restart; mastering only playbacks; Disabled = no effect, or a pickup on re-enable; one master per group.
+
+**Reasoning:** the church's front spots on 1.8 must stay where they were after a daemon crash; a Limit has to be a hard limit; Titan allows a group button on any number of handles.
+
+**Reversal trigger:** operators find a dark programmed fixture under a master at 0 confusing despite the amber level (then master only playbacks).
+
 ## 2026-10-21 — Cue lists over IPC and in the app (VS3-05, owner)
 
 **Decision:** `ipc.md` IPC-24..28 and the `ui.md` amendments of UI-03, 13, 18, 19, 22, 23: `cue.view` is answered by the tick to the asking client only (never waiting); taps and handle buttons carry their receive time; `master.record` without a number takes the lowest free one; `playback.options` list/chase/master fields are each optional; entries carry the handle's button functions, so the app never applies `handle_buttons` itself. Magenta (#E54BB4 / #B8288A) means a tracked value. Show-wide playback settings sit in a Settings tab of Playback Options; BPM/Rate masters are recorded from Record-context softkeys.

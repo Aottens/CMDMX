@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (a group master is a playback of kind `GroupMaster`, like the
 speed masters), `cmdmx-core::engine` (the tick, after the merge), `cmdmx-daemon` (IPC), the
 strips and Playback Options in `subprojects/app`.
-Status: **draft for owner approval (P1-16, gate 1); open questions at the end.**
+Status: **approved (owner, 2026-10-21; the six questions at the end answered as recommended, DECISIONS 2026-10-21).** VS3-06 builds GRM-01..14, 19 in the core.
 Behavioural reference: Avolites Titan v19 manual, *Running the Show → Playback controls →
 Fixture Group Masters* (https://manual.avolites.com/docs/running-the-show/playback-controls):
 a group saved onto a fader handle masters the intensity of its fixtures, in one of the modes
@@ -184,7 +184,7 @@ Preset master (Pearl extras); the Scene Master (phase 2, Titan analysis); Size m
 Release All Masters; masters on LTP attributes; per-cell masters (P1-13); fader pickup on a
 physical surface (CTL).
 
-## Open questions for the owner (gate 1)
+## Owner decisions (2026-10-21: each as recommended)
 1. **The level is saved in the show** (GRM-05, 13), against the rule that levels are live
    state. Without it a restart puts every Scale master at 0 and takes its group out (the front
    spots dark after a daemon crash). Alternative: start every master at its no-effect level

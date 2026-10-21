@@ -1,0 +1,176 @@
+{
+  "spec": "GRM-08",
+  "profiles": {
+    "dimmer": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 2
+    },
+    {
+      "id": 3,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 3
+    }
+  ],
+  "groups": [
+    {
+      "id": 6,
+      "fixtures": [
+        1
+      ]
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "values": {
+        "1": {
+          "Dimmer": 0.8
+        }
+      }
+    },
+    {
+      "id": 2,
+      "values": {
+        "2": {
+          "Dimmer": 1.0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "page": 1,
+      "slot": 8,
+      "kind": "GroupMaster",
+      "cues": [],
+      "master": {
+        "group": 6,
+        "mode": "Htp",
+        "scale": 100,
+        "enabled": true,
+        "level": 0.0
+      }
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.5,
+      "fader": {
+        "playback": 3,
+        "level": 0.5
+      }
+    },
+    {
+      "t": 1.0,
+      "fader": {
+        "playback": 1,
+        "level": 0.3
+      }
+    },
+    {
+      "t": 1.5,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 2.0,
+      "swop": {
+        "playback": 2,
+        "on": true
+      }
+    },
+    {
+      "t": 2.5,
+      "swop": {
+        "playback": 2,
+        "on": false
+      }
+    },
+    {
+      "t": 3.0,
+      "fader": {
+        "playback": 1,
+        "level": 0.0
+      }
+    },
+    {
+      "t": 3.0,
+      "grand_master": 0.5
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.1,
+      "universe": 1,
+      "channels": {
+        "1": 0
+      }
+    },
+    {
+      "t": 0.6,
+      "universe": 1,
+      "channels": {
+        "1": 128
+      }
+    },
+    {
+      "t": 1.1,
+      "universe": 1,
+      "channels": {
+        "1": 128
+      }
+    },
+    {
+      "t": 1.6,
+      "universe": 1,
+      "channels": {
+        "1": 204
+      }
+    },
+    {
+      "t": 2.1,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 255
+      }
+    },
+    {
+      "t": 2.6,
+      "universe": 1,
+      "channels": {
+        "1": 204,
+        "2": 0
+      }
+    },
+    {
+      "t": 3.1,
+      "universe": 1,
+      "channels": {
+        "1": 64
+      }
+    }
+  ]
+}
