@@ -30,10 +30,11 @@ use crate::palette::{
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
     check_bpm, fade_progress, AddCue, BpmFader, BpmMaster, Button, ButtonKind, ChaseOptions, Cue,
-    CueChange, CueNumber, CueValue, CueView, FaderMode, GroupTime, HandleButton, HandleButtons,
-    KillPoint, Kind as PlaybackKind, Link, ListAction, ListFader, ListLive, Master, MasterKind,
-    Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
-    Priority, Release, SpeedSource, UpdateMode, Values, PAGES,
+    CueChange, CueNumber, CueValue, CueView, FaderMode, GroupMaster, GroupMode, GroupTime,
+    HandleButton, HandleButtons, KillPoint, Kind as PlaybackKind, Link, ListAction, ListFader,
+    ListLive, Master, MasterKind, Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId,
+    PlaybackRecord, PlaybackState, Priority, Release, SpeedSource, UpdateMode, Values,
+    GROUP_SCALES, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -728,7 +729,10 @@ impl Engine {
     /// next playback id is raised above its id.
     pub fn add_playback(&mut self, playback: Playback) {
         self.playback_next_id = self.playback_next_id.max(playback.id.saturating_add(1));
-        self.states.entry(playback.id).or_default();
+        let state = self.states.entry(playback.id).or_default();
+        if let Some(Master::Group(m)) = &playback.master {
+            state.level = m.level; // GRM-05: the fader starts at the saved level
+        }
         self.playbacks.insert(playback.id, playback);
     }
 
@@ -998,42 +1002,83 @@ impl Engine {
             PlaybackKind::RateMaster => Some(MasterKind::Rate),
             _ => None,
         };
-        match (master_kind, playback.master.take()) {
-            (None, None) => {}
-            (None, Some(_)) => {
-                warnings.push(format!(
-                    "playback {id}: only a master has master options, left out"
-                ));
-            }
-            (Some(kind), Some(mut master)) if master.kind() == kind => {
-                let number = master.number();
-                if let Err(e) = kind.check_number(number) {
-                    warnings.push(format!("playback {id} left out: {e}"));
-                    return None;
-                }
-                if self.master_in_use(kind, number) {
-                    warnings.push(format!(
-                        "playback {id} left out: {master} is already used by an earlier master"
-                    ));
-                    return None;
-                }
-                if master.check().is_err() {
-                    warnings.push(format!(
-                        "playback {id}: master options are out of range, set to their defaults"
-                    ));
-                    master = Master::new(kind, number);
-                }
-                playback.master = Some(master);
-                if !playback.cues.is_empty() {
-                    warnings.push(format!("playback {id}: a master has no cues, left out"));
-                    playback.cues.clear();
-                }
-            }
-            (Some(_), _) => {
+        if playback.kind == PlaybackKind::GroupMaster {
+            // GRM-14: a missing group is kept (it masters nothing), anything out of range gets
+            // its default, cues are dropped; one warning each.
+            let Some(Master::Group(mut m)) = playback.master.take() else {
                 warnings.push(format!(
                     "playback {id} left out: it is a master without its options"
                 ));
                 return None;
+            };
+            if !self.groups.contains_key(&m.group) {
+                warnings.push(format!(
+                    "playback {id}: group {} is not in the show, the master masters nothing",
+                    m.group
+                ));
+            }
+            if m.mode == GroupMode::Unknown {
+                warnings.push(format!(
+                    "playback {id}: unknown group master mode, set to Scale"
+                ));
+                m.mode = GroupMode::Scale;
+            }
+            if !(0.0..=1.0).contains(&m.level) {
+                m.level = GroupMaster::neutral_level(m.mode);
+                warnings.push(format!(
+                    "playback {id}: group master level is out of range, set to {}",
+                    m.level
+                ));
+            }
+            if !GROUP_SCALES.contains(&m.scale) {
+                m.scale = 100;
+                warnings.push(format!(
+                    "playback {id}: group master scale is out of range, set to 100"
+                ));
+            }
+            playback.master = Some(Master::Group(m));
+            if !playback.cues.is_empty() {
+                warnings.push(format!("playback {id}: a master has no cues, left out"));
+                playback.cues.clear();
+            }
+        } else {
+            match (master_kind, playback.master.take()) {
+                (None, None) => {}
+                (None, Some(_)) => {
+                    warnings.push(format!(
+                        "playback {id}: only a master has master options, left out"
+                    ));
+                }
+                (Some(kind), Some(mut master)) if master.kind() == Some(kind) => {
+                    let number = master.number();
+                    if let Err(e) = kind.check_number(number) {
+                        warnings.push(format!("playback {id} left out: {e}"));
+                        return None;
+                    }
+                    if self.master_in_use(kind, number) {
+                        warnings.push(format!(
+                            "playback {id} left out: {master} is already used by an earlier master"
+                        ));
+                        return None;
+                    }
+                    if master.check().is_err() {
+                        warnings.push(format!(
+                            "playback {id}: master options are out of range, set to their defaults"
+                        ));
+                        master = Master::new(kind, number);
+                    }
+                    playback.master = Some(master);
+                    if !playback.cues.is_empty() {
+                        warnings.push(format!("playback {id}: a master has no cues, left out"));
+                        playback.cues.clear();
+                    }
+                }
+                (Some(_), _) => {
+                    warnings.push(format!(
+                        "playback {id} left out: it is a master without its options"
+                    ));
+                    return None;
+                }
             }
         }
         if playback.chase.check().is_err() {
@@ -1130,6 +1175,14 @@ impl Engine {
         } else {
             self.settle(id);
         }
+        // GRM-05, 11: an enabled group master saves the fader; a disabled one is locked.
+        if let Some(Master::Group(m)) =
+            (self.playbacks.get_mut(&id)).and_then(|p| p.master.as_mut())
+        {
+            if m.enabled {
+                m.level = level;
+            }
+        }
         Ok(())
     }
 
@@ -1140,7 +1193,7 @@ impl Engine {
         on: bool,
         _now: Timestamp,
     ) -> Result<(), CoreError> {
-        self.not_a_master(id)?;
+        self.not_a_master(id, on)?;
         let state = self.live_state(id)?;
         state.flash = on;
         state.blocked &= !on; // a press is a deliberate fire
@@ -1150,7 +1203,7 @@ impl Engine {
 
     /// PBK-27: Swop held or released; the later of two held Swops wins.
     pub fn set_swop(&mut self, id: PlaybackId, on: bool, _now: Timestamp) -> Result<(), CoreError> {
-        self.not_a_master(id)?;
+        self.not_a_master(id, on)?;
         self.activation_seq = self.activation_seq.saturating_add(1);
         let seq = self.activation_seq;
         let state = self.live_state(id)?;
@@ -1165,7 +1218,8 @@ impl Engine {
 
     /// PBK-28: latch Flash on, or off again (the engine toggles; arming Latch is the UI's).
     pub fn latch_flash(&mut self, id: PlaybackId, _now: Timestamp) -> Result<(), CoreError> {
-        self.not_a_master(id)?;
+        let latches = !self.states.get(&id).is_some_and(|s| s.latched);
+        self.not_a_master(id, latches)?;
         let state = self.live_state(id)?;
         state.latched = !state.latched;
         state.blocked &= !state.latched;
@@ -1293,7 +1347,7 @@ impl Engine {
         match &self.settings.handle_buttons {
             HandleButtons::BestPractice => best,
             HandleButtons::Titan => match kind {
-                ButtonKind::BpmMaster | ButtonKind::RateMaster => best,
+                ButtonKind::BpmMaster | ButtonKind::RateMaster | ButtonKind::GroupMaster => best,
                 _ => [Button::Swop, Button::Flash],
             },
             HandleButtons::Custom(pairs) => pairs.get(&kind).copied().unwrap_or(best),
@@ -1426,7 +1480,7 @@ impl Engine {
         let playback = self.playbacks.get(&id)?;
         match &playback.master {
             Some(Master::Bpm(m)) => Some(self.master_tempo(id, m)),
-            Some(Master::Rate(_)) => None,
+            Some(Master::Rate(_) | Master::Group(_)) => None,
             None => (playback.kind == PlaybackKind::Chase).then(|| self.chase_bpm(&playback.chase)),
         }
     }
@@ -1444,7 +1498,7 @@ impl Engine {
                 let level = self.states.get(&id).map_or(0.0, |s| s.level);
                 chase.bpm * (level * f32::from(m.rate_scale) / 100.0) // CUE-36
             }
-            None => chase.bpm,
+            None | Some((_, Master::Group(_))) => chase.bpm,
         }
     }
 
@@ -1474,7 +1528,7 @@ impl Engine {
         self.playbacks.values().find_map(|p| {
             let master = p.master.as_ref();
             master
-                .filter(|m| m.kind() == kind && m.number() == number)
+                .filter(|m| m.kind() == Some(kind) && m.number() == number)
                 .map(|m| (p.id, m))
         })
     }
@@ -1496,12 +1550,23 @@ impl Engine {
         Ok(self.states.entry(id).or_default())
     }
 
-    /// CUE-55: Flash, Swop and Latch are for playbacks that output something, not for masters.
-    fn not_a_master(&self, id: PlaybackId) -> Result<(), CoreError> {
+    /// CUE-55, GRM-12: Flash, Swop and Latch are for playbacks that output something, not for
+    /// speed masters; a group master has them unless it is in Take Over or disabled. `on` is
+    /// false for a release, which is never refused (nothing stays stuck).
+    fn not_a_master(&self, id: PlaybackId, on: bool) -> Result<(), CoreError> {
         match self.playbacks.get(&id) {
-            Some(p) if p.kind.is_master() => Err(CoreError::InvalidCommand(format!(
-                "playback {id} is a master: Flash, Swop and Latch are not for it"
-            ))),
+            Some(p) if p.kind.is_master() => match &p.master {
+                Some(Master::Group(m)) if !on || (m.enabled && m.mode != GroupMode::TakeOver) => {
+                    Ok(())
+                }
+                Some(Master::Group(_)) => Err(CoreError::InvalidCommand(format!(
+                    "playback {id} is a group master in Take Over or disabled: \
+                     Flash, Swop and Latch are refused"
+                ))),
+                _ => Err(CoreError::InvalidCommand(format!(
+                    "playback {id} is a master: Flash, Swop and Latch are not for it"
+                ))),
+            },
             _ => Ok(()),
         }
     }
@@ -1511,6 +1576,10 @@ impl Engine {
     /// An effective level of 0 lets a blocked playback fire again (PBK-22, 25) and kills a cue
     /// list with `KillAtZero` (CUE-15) or a chase (CUE-31).
     fn settle(&mut self, id: PlaybackId) {
+        // CUE-37, GRM-03: a master never fires.
+        if (self.playbacks.get(&id)).is_some_and(|p| p.kind.is_master()) {
+            return;
+        }
         let trigger = self.settings.ltp_trigger_level;
         let Some(state) = self.states.get_mut(&id) else {
             return;
@@ -1649,12 +1718,16 @@ impl Engine {
             if let Some(release) = &mut state.release {
                 release.start.get_or_insert(now);
             }
-            let (true, Some(playback)) = (state.is_active(), self.playbacks.get(id)) else {
-                continue;
-            };
-            if state.swop && swop.is_none_or(|(seq, _)| state.swop_seq > seq) {
+            let playback = self.playbacks.get(id);
+            // PBK-27, GRM-12: a held Swop counts for an active playback and a group master.
+            let swops =
+                state.is_active() || playback.is_some_and(|p| p.kind == PlaybackKind::GroupMaster);
+            if state.swop && swops && swop.is_none_or(|(seq, _)| state.swop_seq > seq) {
                 swop = Some((state.swop_seq, *id));
             }
+            let (true, Some(playback)) = (state.is_active(), playback) else {
+                continue;
+            };
             if is_list(playback) {
                 // CUE-15, 31: the fader is the intensity master, at once; the cues do the fading.
                 let mut cx = Ctx {
@@ -2080,7 +2153,7 @@ impl Engine {
     fn master_in_use(&self, kind: MasterKind, number: u8) -> bool {
         (self.playbacks.values())
             .filter_map(|p| p.master.as_ref())
-            .any(|m| m.kind() == kind && m.number() == number)
+            .any(|m| m.kind() == Some(kind) && m.number() == number)
     }
 
     /// CUE-35, 36, IPC-26: the lowest number of this kind no master uses; `None` when all are.
@@ -2112,6 +2185,27 @@ impl Engine {
                 MasterKind::Rate => PlaybackKind::RateMaster,
             },
             master: Some(master),
+            cues: Vec::new(),
+            ..Playback::new(id, page, slot, Values::new())
+        });
+        Ok(id)
+    }
+
+    /// GRM-01: put a group master of `group` on an empty handle. A group may have several.
+    pub fn record_group_master(
+        &mut self,
+        page: u16,
+        slot: u16,
+        group: GroupId,
+    ) -> Result<PlaybackId, CoreError> {
+        if !self.groups.contains_key(&group) {
+            return Err(CoreError::UnknownGroup(group));
+        }
+        self.check_empty_handle(page, slot)?;
+        let id = self.playback_next_id;
+        self.add_playback(Playback {
+            kind: PlaybackKind::GroupMaster,
+            master: Some(Master::Group(GroupMaster::new(group))),
             cues: Vec::new(),
             ..Playback::new(id, page, slot, Values::new())
         });
@@ -2338,8 +2432,8 @@ impl Engine {
             .ok_or(CoreError::UnknownPlayback(id))?
             .clone();
         self.check_empty_handle(page, slot)?;
-        if let Some(master) = &mut source.master {
-            let kind = master.kind();
+        // A group master keeps its group and options; a speed master gets a free number.
+        if let Some((kind, master)) = (source.master.as_mut()).and_then(|m| Some((m.kind()?, m))) {
             let free = self.free_master_number(kind);
             master.set_number(free.ok_or_else(|| {
                 CoreError::InvalidCommand(format!("no free {master} number left"))
@@ -2401,13 +2495,16 @@ impl Engine {
         }
         if let Some(master) = &change.master {
             master.check()?;
-            let same = playback
-                .master
-                .as_ref()
-                .is_some_and(|m| m.kind() == master.kind() && m.number() == master.number());
+            let same = match (playback.master.as_ref(), master) {
+                (Some(Master::Group(old)), Master::Group(new)) => old.group == new.group,
+                (Some(old), new) => {
+                    old.kind().is_some() && old.kind() == new.kind() && old.number() == new.number()
+                }
+                (None, _) => false,
+            };
             if !same {
                 return Err(CoreError::InvalidOption(
-                    "master (it keeps its kind and number)".into(),
+                    "master (it keeps its kind and number, a group master its group)".into(),
                 ));
             }
         }
@@ -2470,7 +2567,22 @@ impl Engine {
             playback.chase = v.clone();
         }
         if let Some(v) = &change.master {
-            playback.master = Some(v.clone());
+            // GRM-04, 11: the level in a change is ignored; enabling takes the fader.
+            let new = match (v, playback.master.as_ref()) {
+                (Master::Group(new), Some(Master::Group(old))) => {
+                    let fader = self.states.get(&id).map_or(old.level, |s| s.level);
+                    Master::Group(GroupMaster {
+                        level: if new.enabled && !old.enabled {
+                            fader
+                        } else {
+                            old.level
+                        },
+                        ..new.clone()
+                    })
+                }
+                _ => v.clone(),
+            };
+            playback.master = Some(new);
         }
         if let Some(cue) = playback.cues.first_mut() {
             if let Some(v) = change.delay {
@@ -2485,6 +2597,11 @@ impl Engine {
             if let Some(v) = change.overlap {
                 cue.overlap = v;
             }
+        }
+        // GRM-12: Take Over and Disabled have no Flash, Swop or Latch; let go of what is held.
+        let no_flash = matches!(&change.master, Some(Master::Group(m)) if !m.enabled || m.mode == GroupMode::TakeOver);
+        if let (true, Some(state)) = (no_flash, self.states.get_mut(&id)) {
+            (state.flash, state.swop, state.latched) = (false, false, false);
         }
         Ok(())
     }
@@ -3596,6 +3713,16 @@ impl Engine {
             palettes: &self.palettes,
             swop_owner: self.swop_owner,
         };
+        let masters = GroupMasters {
+            sources: &sources,
+            groups: &self.groups,
+            any: self
+                .playbacks
+                .values()
+                .any(|p| p.kind == PlaybackKind::GroupMaster),
+        };
+        // GRM-10: (Take Over master, fixture, level) of the passes this tick.
+        let mut pickups: Vec<(PlaybackId, FixtureId, f32)> = Vec::new();
         for (fixture_id, fixture) in &self.fixtures {
             let Some(mode) = resolve_mode(&self.profiles, fixture) else {
                 self.warnings.push(Warning {
@@ -3627,8 +3754,14 @@ impl Engine {
                         }
                         v
                     }
-                    (Some(v), AttributeKind::Htp) => v.scaled(grand_master),
-                    (None, AttributeKind::Htp) => Value::Level(0.0),
+                    (merged, AttributeKind::Htp) => {
+                        // ENG-07: nobody proposing is 0. GRM-06: the group masters, then the GM.
+                        let v = masters.apply(*fixture_id, merged.unwrap_or(Value::Level(0.0)));
+                        if l.name == DIMMER {
+                            masters.pickups(*fixture_id, v.level(), &mut pickups);
+                        }
+                        v.scaled(grand_master)
+                    }
                     (None, AttributeKind::Ltp) => held.get(l.name).copied().unwrap_or(l.default),
                 };
                 if virtual_dimmer && l.name == DIMMER {
@@ -3637,11 +3770,56 @@ impl Engine {
                 write_value(frame, fixture.address, mode, &l, value, scale);
             }
         }
+        self.follow_take_over(&pickups);
         self.programmer.drop_finished_fades(now);
         for state in self.states.values_mut() {
             if state.release.as_ref().is_some_and(|r| r.finished(now)) {
                 state.release = None; // PBK-20: this tick was its last
             }
+        }
+    }
+
+    /// GRM-10: after the frame of a tick, put the fixtures a Take Over master has just passed in
+    /// the programmer at its level, and keep every fixture it has taken at that level; a taken
+    /// fixture that left the programmer or the group is let go.
+    fn follow_take_over(&mut self, pickups: &[(PlaybackId, FixtureId, f32)]) {
+        let put = |programmer: &mut Programmer, seq: &mut u64, fixture: FixtureId, g: f32| {
+            *seq = seq.saturating_add(1);
+            let level = Stored::Value(Value::Level(g));
+            programmer.set_value(fixture, DIMMER, level, *seq);
+        };
+        for &(id, fixture, g) in pickups {
+            if let Some(state) = self.states.get_mut(&id) {
+                state.taken.insert(fixture);
+                put(&mut self.programmer, &mut self.activation_seq, fixture, g);
+            }
+        }
+        for (id, state) in &mut self.states {
+            let Some(Master::Group(m)) = (self.playbacks.get(id)).and_then(|p| p.master.as_ref())
+            else {
+                continue;
+            };
+            if m.mode != GroupMode::TakeOver {
+                state.taken.clear();
+                state.takeover_prev = None;
+                continue;
+            }
+            let g = if m.enabled {
+                state.effective_level()
+            } else {
+                m.level
+            };
+            state.takeover_prev = Some(g);
+            let members = self.groups.get(&m.group);
+            let level = Some(Stored::Value(Value::Level(g)));
+            state.taken.retain(|&f| {
+                let current = self.programmer.stored(f, DIMMER);
+                let keep = current.is_some() && members.is_some_and(|g| g.contains(&f));
+                if keep && current != level {
+                    put(&mut self.programmer, &mut self.activation_seq, f, g);
+                }
+                keep
+            });
         }
     }
 
@@ -3736,6 +3914,7 @@ fn button_kind(playback: &Playback) -> ButtonKind {
         PlaybackKind::Chase => ButtonKind::Chase,
         PlaybackKind::BpmMaster => ButtonKind::BpmMaster,
         PlaybackKind::RateMaster => ButtonKind::RateMaster,
+        PlaybackKind::GroupMaster => ButtonKind::GroupMaster,
         PlaybackKind::Cues if playback.is_cue_list() => ButtonKind::CueList,
         PlaybackKind::Cues => ButtonKind::Memory,
     }
@@ -3878,6 +4057,103 @@ struct MergeSources<'a> {
     palettes: &'a BTreeMap<PaletteId, Palette>,
     /// PBK-27: the Swop that is held, if any; every other playback's HTP is silent.
     swop_owner: Option<PlaybackId>,
+}
+
+/// GRM-06..10: the group masters, read while a tick merges.
+struct GroupMasters<'a> {
+    sources: &'a MergeSources<'a>,
+    groups: &'a BTreeMap<GroupId, Vec<FixtureId>>,
+    /// False when no playback is a group master: nothing to look for.
+    any: bool,
+}
+
+impl GroupMasters<'_> {
+    /// The masters of `mode` holding `fixture` with their level *g*: the fader (or 1.0 while
+    /// Flash or Swop is held or latched), the saved level while disabled (GRM-11). GRM-19: an
+    /// iterator over the playbacks, no list per fixture. ponytail: O(playbacks × group size)
+    /// per fixture and attribute; index the masters per tick if a big rig ever shows it.
+    fn holding(
+        &self,
+        fixture: FixtureId,
+        mode: GroupMode,
+    ) -> impl Iterator<Item = (PlaybackId, f32)> + '_ {
+        let (playbacks, states) = (self.sources.playbacks, self.sources.states);
+        playbacks.iter().filter_map(move |(id, p)| {
+            let Some(Master::Group(m)) = &p.master else {
+                return None;
+            };
+            let holds = self
+                .groups
+                .get(&m.group)
+                .is_some_and(|f| f.contains(&fixture));
+            if m.mode != mode || !holds {
+                return None;
+            }
+            let fader = states
+                .get(id)
+                .map_or(m.level, PlaybackState::effective_level);
+            Some((*id, if m.enabled { fader } else { m.level }))
+        })
+    }
+
+    /// GRM-06: Scale (× *g* × scale), then HTP (the highest), then Limit (the lowest). Only
+    /// Scale reaches a colour. The Grand Master comes after.
+    fn apply(&self, fixture: FixtureId, value: Value) -> Value {
+        if !self.any {
+            return value;
+        }
+        let owner = self.sources.swop_owner;
+        let scale = |v: Value, (id, g): (PlaybackId, f32)| {
+            let percent = match self
+                .sources
+                .playbacks
+                .get(&id)
+                .and_then(|p| p.master.as_ref())
+            {
+                Some(Master::Group(m)) => f32::from(m.scale),
+                _ => 100.0,
+            };
+            match v {
+                Value::Level(l) => Value::Level((l * g * percent / 100.0).min(1.0)),
+                colour => colour.scaled((g * percent / 100.0).min(1.0)),
+            }
+        };
+        let value = self.holding(fixture, GroupMode::Scale).fold(value, scale);
+        let Value::Level(level) = value else {
+            return value;
+        };
+        // GRM-08: during another playback's Swop an HTP master adds nothing.
+        let htp = self.holding(fixture, GroupMode::Htp);
+        let level = htp
+            .filter(|&(id, _)| owner.is_none_or(|o| o == id))
+            .fold(level, |l, (_, g)| l.max(g));
+        let limit = self.holding(fixture, GroupMode::Limit);
+        Value::Level(limit.fold(level, |l, (_, g)| l.min(g)))
+    }
+
+    /// GRM-10: the Take Over masters whose level just passed `output` (the fixture's Dimmer
+    /// after the masters, before the Grand Master). Only a pass allocates.
+    fn pickups(
+        &self,
+        fixture: FixtureId,
+        output: f32,
+        out: &mut Vec<(PlaybackId, FixtureId, f32)>,
+    ) {
+        if !self.any {
+            return;
+        }
+        for (id, g) in self.holding(fixture, GroupMode::TakeOver) {
+            let Some(state) = self.sources.states.get(&id) else {
+                continue;
+            };
+            let passed = state
+                .takeover_prev
+                .is_some_and(|a| a != g && output >= a.min(g) && output <= a.max(g));
+            if passed && !state.taken.contains(&fixture) {
+                out.push((id, fixture, g));
+            }
+        }
+    }
 }
 
 /// Where the LTP attributes of a playback's cue fade from (PBK-15, 17): the output of the tick

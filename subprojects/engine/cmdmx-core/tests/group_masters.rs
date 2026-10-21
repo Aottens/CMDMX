@@ -127,7 +127,10 @@ fn grm_01_record_a_group_master_on_an_empty_handle() {
         }))
     );
     assert_eq!(GroupMaster::new(6), group_master(&e, id));
-    assert_eq!(Master::Group(GroupMaster::new(6)).to_string(), "the master of group 6");
+    assert_eq!(
+        Master::Group(GroupMaster::new(6)).to_string(),
+        "the master of group 6"
+    );
 }
 
 #[test]
@@ -227,7 +230,11 @@ fn grm_03_locks_copies_moves_and_deletes_as_a_playback() {
     change(&mut e, id, |m| m.mode = GroupMode::Limit).unwrap();
     let copy = e.copy_playback(id, 2, 8).unwrap();
     let m = group_master(&e, copy);
-    assert_eq!((m.group, m.mode), (6, GroupMode::Limit), "same group, same options");
+    assert_eq!(
+        (m.group, m.mode),
+        (6, GroupMode::Limit),
+        "same group, same options"
+    );
     e.move_playback(copy, 3, 8).unwrap();
     assert_eq!(e.playback(copy).unwrap().page, 3);
 
@@ -251,12 +258,18 @@ fn grm_04_options_are_checked() {
     for scale in [0, 150, 300, 1001] {
         assert!(change(&mut e, id, |m| m.scale = scale).is_err(), "{scale}");
     }
-    assert!(change(&mut e, id, |m| m.group = 7).is_err(), "the group is not an option");
+    assert!(
+        change(&mut e, id, |m| m.group = 7).is_err(),
+        "the group is not an option"
+    );
     let bpm = PlaybackChange {
         master: Some(Master::new(MasterKind::Bpm, 1)),
         ..PlaybackChange::default()
     };
-    assert!(e.change_playback(id, &bpm).is_err(), "a group master stays one");
+    assert!(
+        e.change_playback(id, &bpm).is_err(),
+        "a group master stays one"
+    );
     assert_eq!(group_master(&e, id).scale, 1000);
 }
 
@@ -271,7 +284,11 @@ fn grm_04_a_change_applies_from_the_next_tick_without_a_fade() {
     e.tick(0.025);
     assert_eq!(dmx(&e, addr(301)), 128, "min(0.8, 0.5)");
     change(&mut e, id, |m| m.level = 0.0).unwrap();
-    assert_eq!(group_master(&e, id).level, 0.5, "the level is not an option");
+    assert_eq!(
+        group_master(&e, id).level,
+        0.5,
+        "the level is not an option"
+    );
 }
 
 // ---- GRM-05: start level -------------------------------------------------------------------------
@@ -399,7 +416,10 @@ fn grm_10_passing_puts_dimmer_in_the_programmer_and_it_follows() {
             "{spot}"
         );
     }
-    assert!(e.programmer().selection().is_empty(), "the selection does not change");
+    assert!(
+        e.programmer().selection().is_empty(),
+        "the selection does not change"
+    );
     assert_eq!(dmx(&e, addr(301)), 255);
     e.set_fader(id, 0.2, 0.075).unwrap();
     e.tick(0.075);
@@ -473,7 +493,11 @@ fn grm_11_disabled_locks_the_last_effect_and_enabling_jumps_to_the_fader() {
     e.set_fader(id, 0.0, 0.0).unwrap();
     e.tick(0.0);
     assert_eq!(dmx(&e, addr(301)), 102, "locked at 50 %");
-    assert_eq!(group_master(&e, id).level, 0.5, "the locked level is the saved one");
+    assert_eq!(
+        group_master(&e, id).level,
+        0.5,
+        "the locked level is the saved one"
+    );
     assert!(e.set_flash(id, true, 0.0).is_err(), "Flash is refused");
     change(&mut e, id, |m| m.enabled = true).unwrap();
     e.tick(0.025);
@@ -487,7 +511,10 @@ fn grm_11_disabled_locks_the_last_effect_and_enabling_jumps_to_the_fader() {
 fn grm_12_default_buttons_are_none_and_flash() {
     let mut e = church();
     let id = e.record_group_master(1, 8, 6).unwrap();
-    assert_eq!(ButtonKind::GroupMaster.best_practice(), [Button::None, Button::Flash]);
+    assert_eq!(
+        ButtonKind::GroupMaster.best_practice(),
+        [Button::None, Button::Flash]
+    );
     assert_eq!(e.handle_buttons(id), Some([Button::None, Button::Flash]));
     e.set_playback_settings(&PlaybackSettingsChange {
         handle_buttons: Some(HandleButtons::Titan),
@@ -508,7 +535,11 @@ fn grm_12_custom_buttons_are_flash_swop_or_none() {
     ] {
         let mut custom = BTreeMap::new();
         custom.insert(ButtonKind::GroupMaster, pair);
-        assert_eq!(HandleButtons::Custom(custom).check().is_ok(), ok, "{pair:?}");
+        assert_eq!(
+            HandleButtons::Custom(custom).check().is_ok(),
+            ok,
+            "{pair:?}"
+        );
     }
 }
 
@@ -520,7 +551,8 @@ fn grm_12_flash_puts_the_master_at_full() {
     e.press_button(id, HandleButton::Lower, true, 0.0).unwrap();
     e.tick(0.0);
     assert_eq!(dmx(&e, addr(301)), 204);
-    e.press_button(id, HandleButton::Lower, false, 0.025).unwrap();
+    e.press_button(id, HandleButton::Lower, false, 0.025)
+        .unwrap();
     e.tick(0.025);
     assert_eq!(dmx(&e, addr(301)), 0);
 }
@@ -540,7 +572,11 @@ fn grm_12_flash_swop_and_latch_are_refused_on_take_over_and_disabled() {
         assert!(fresh.set_flash(id, true, 0.0).is_err());
         assert!(fresh.set_swop(id, true, 0.0).is_err());
         assert!(fresh.latch_flash(id, 0.0).is_err());
-        assert_eq!(fresh.playback_state(id).cloned(), before, "GRM-19: nothing changed");
+        assert_eq!(
+            fresh.playback_state(id).cloned(),
+            before,
+            "GRM-19: nothing changed"
+        );
     }
     e.set_flash(id, true, 0.0).unwrap();
     e.set_flash(id, false, 0.0).unwrap();

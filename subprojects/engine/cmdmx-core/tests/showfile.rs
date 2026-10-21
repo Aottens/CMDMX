@@ -580,7 +580,10 @@ fn grm_14_options_out_of_range_get_their_default() {
     for (edit, expect) in [
         (json!({"scale": 300}), (GroupMode::Scale, 100, 0.25)),
         (json!({"level": 1.5}), (GroupMode::Scale, 100, 1.0)),
-        (json!({"mode": "Htp", "level": -0.5}), (GroupMode::Htp, 100, 0.0)),
+        (
+            json!({"mode": "Htp", "level": -0.5}),
+            (GroupMode::Htp, 100, 0.0),
+        ),
         (json!({"mode": "Bogus"}), (GroupMode::Scale, 100, 0.25)),
     ] {
         let (e, warnings) = load_edited(|pb| {
@@ -591,7 +594,11 @@ fn grm_14_options_out_of_range_get_their_default() {
         assert_eq!(warnings.len(), 1, "{edit}: {warnings:?}");
         let m = group_master_of(&e, 3);
         assert_eq!((m.mode, m.scale, m.level), expect, "{edit}");
-        assert_eq!(e.playback_state(3).map(|s| s.level), Some(expect.2), "{edit}");
+        assert_eq!(
+            e.playback_state(3).map(|s| s.level),
+            Some(expect.2),
+            "{edit}"
+        );
     }
 }
 
