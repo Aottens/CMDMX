@@ -223,3 +223,4 @@ subdivisions or multiples of Ableton's tempo ("isn't that a sick new feature?").
 - Open questions: Link's SDK is C++ and dual-licensed GPLv2+ or proprietary (check before
   choosing), so with Link the open licence question (MIT or GPL-3.0, `BACKLOG.md`) leans to GPL;
   MIDI clock has no such tie. Should a chase step on the beat (phase), or only follow the tempo?
+**Outcome (2026-10-21):** owner: phase 2.

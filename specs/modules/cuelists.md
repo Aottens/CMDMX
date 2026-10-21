@@ -3,10 +3,7 @@
 Owner: `cmdmx-core::playback` (cue lists, chases and masters are playbacks), `cmdmx-daemon`
 (IPC, tap timestamps), the Go block, Cue list window, strips and Playback Options in
 `subprojects/app`.
-Status: **draft for owner approval (P1-08, 2026-10-21); the owner answered the first five
-questions the same day (decisions at the end): tracking moves into phase 1 (CUE-50..54), handle
-buttons follow the content and are configurable, BPM masters get configurable fader modes. Open
-questions left at the end (gate 1).**
+Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.**
 Behavioural reference: Avolites Titan v19 manual, *Cue Lists* (https://manual.avolites.com/docs/cue-lists:
 Creating, Playback, Editing, Timing, Options), *Chases* (https://manual.avolites.com/docs/chases:
 Playback, Timing, Options) and *Running the Show → Playback controls* (speed masters, key
@@ -255,10 +252,17 @@ values.
   | BPM master | — | **Tap** (CUE-33, 35) |
   | Rate master | — | — |
 
-  The setting `handle_buttons` changes the pair per kind (a small key profile for the whole show;
-  key profiles per user stay later). Each button is one of: Flash, Swop, Go, Back, Stop, Tap,
-  Release or none, as far as the kind has it (Go/Back/Stop on lists, Tap on chases and BPM
-  masters, Flash/Swop/Release on everything but masters). A handle's Go acts on its own list,
+  The setting `handle_buttons` (a small key profile for the whole show; key profiles per user
+  stay later; owner, 2026-10-21) is one of:
+  - `BestPractice` (default): the table above, so a playback takes the buttons of its kind the
+    moment it becomes a cue list or chase (Append, Insert, a kind change) and loses them when it
+    goes back to a memory.
+  - `Titan`: Titan's factory key profile, Swop / Flash on every kind except masters (a BPM master
+    keeps Tap); Go is then in the Go block and Space only.
+  - `Custom`: a pair per kind (`Memory`, `CueList`, `Chase`, `BpmMaster`, `RateMaster`; a kind
+    left out uses `BestPractice`). Each button is one of: Flash, Swop, Go, Back, Stop, Tap,
+    Release or none, as far as the kind has it (Go/Back/Stop on lists, Tap on chases and BPM
+    masters, Flash/Swop/Release on everything but masters). A handle's Go acts on its own list,
   wherever the Go block points.
 - **CUE-55** `playback.button {id, button: "upper"|"lower", on}` presses or releases a handle
   button; the engine does what `handle_buttons` assigns (held functions, Flash and Swop, follow
@@ -330,8 +334,7 @@ values.
   - `Multiplier` (Titan *Multiplier on Fader*): the fader picks the multiplier in five equal
     zones /4, /2, ×1, ×2, ×4; the tempo comes from Tap or typing.
 
-  Ableton sync (IDEA-16) would be a third tempo source next to Tap and typing; it gets no
-  criteria until its phase is set.
+  Ableton sync (IDEA-16, phase 2) will be a third tempo source next to Tap and typing.
 - **CUE-36** **Rate masters 1–4** (Titan *Rate 1–4*). `master.record {…, kind: "Rate", number}`
   as CUE-35. Its rate is fader · `rate_scale` (option 100 or 200 %, default 200 %: fader 50 % =
   ×1, full = ×2, 0 = stopped); the fader level is live state like every level. Rate masters
@@ -352,7 +355,8 @@ values.
     `{"number":1,"rate_scale":200}`) on masters
     only; `speed_source` is `"Free"`, `{"Bpm":n}` or `{"Rate":n}`;
   - `settings` gains `auto_connect` (true), `cue_list_fader` (`KillWithOff`), `update_mode`
-    (`Forwards`) and `handle_buttons` (the CUE-25 defaults, one pair per kind).
+    (`Forwards`) and `handle_buttons` (`"BestPractice"`, `"Titan"` or
+    `{"Custom":{"CueList":["Go","Back"]}}`, CUE-25).
 
   The 3 → 4 migration numbers each playback's cues 1, 2, 3 … in their order, with empty legends,
   link `Wait`, track `Track`, no group times, kind `Cues` and the default `list` and `chase`
@@ -360,7 +364,8 @@ values.
 - **CUE-39** Lenient load (SHW-07), each with one warning naming it: a cue whose number is out of
   range, has more than three decimals or repeats an earlier one is left out (a playback left
   without cues stays, PBK-44); a link, group time or list/chase option out of range is set to its
-  default; a `handle_buttons` entry a kind cannot have is set to that kind's default; a master whose number is out of range or used by an earlier master of its kind is left
+  default; a `Custom` button a kind cannot have is set to that kind's `BestPractice` button; a
+  master whose number is out of range or used by an earlier master of its kind is left
   out; a master with cues loads without them.
 
 ### IPC (extends `ipc.md`, PBK-35/36)
@@ -484,7 +489,7 @@ cues at once, shape tracking (with shapes, phase 2); the manual crossfader fader
 mode 3, phase 2); a typed time on Go ("3 Go"); Snap / Snap Back and Cut Next Cue To Live; Move In
 Dark; Cue Release; disabling a cue; Cue Links Disabled; link offsets in %; Delay Out and
 per-attribute or per-fixture times; per-step times, fixture overlap and speed multipliers (×/÷)
-on chases; LocalClock and Edge Sync; Ableton or MIDI-clock sync (IDEA-16, phase to set); the Rate
+on chases; LocalClock and Edge Sync; Ableton or MIDI-clock sync (IDEA-16, phase 2); the Rate
 Grand Master; Size masters and shapes following masters (phase 2); key profiles per user and
 beyond the two handle buttons (CUE-25); a Cue / Connect key on the keypad; copying cues between
 lists; Quick Build and Record Stage; autoloads, macros and timecode / MIDI triggers in cues
@@ -498,7 +503,9 @@ lists; Quick Build and Record Stage; autoloads, macros and timecode / MIDI trigg
 2. **Handle buttons follow what is on the handle** (CUE-25, 55). Owner asked what is usual:
    Titan's key profiles assign the buttons per kind (cues, chases, cue lists, masters), with
    Flash/Swop as the factory default for all; operators commonly put Go on a cue list's button,
-   and Go or Tap on a chase's. The CUE-25 table is that practice; `handle_buttons` makes it
+   and Go or Tap on a chase's. The CUE-25 table is that practice and the default (a list or chase
+   on a handle gets it at once); `handle_buttons` switches to Titan's Swop/Flash or a custom pair
+   per kind (owner follow-up, same day), and makes it
    configurable per kind for the whole show.
 3. **Cue-list fader at 0:** `KillWithOff` by default, configurable per list and as the setting
    for new lists (CUE-15).
@@ -509,13 +516,11 @@ lists; Quick Build and Record Stage; autoloads, macros and timecode / MIDI trigg
 5. **Speed masters:** BPM masters by Tap or typing by default, with Titan's BPM-on-fader and
    multiplier-on-fader as options (CUE-35); Rate masters 0–200 %, 50 % = normal speed (CUE-36).
    Ableton sync with subdivisions and multiples is a new idea, IDEA-16.
+6. **Approval (same day):** tracking (CUE-50..54, `update_mode` default `Forwards`), the
+   handle buttons (CUE-25 with `BestPractice` / `Titan` / `Custom`, CUE-55) and the BPM-master
+   fader modes (CUE-35) approved; IDEA-16 (Ableton sync) is phase 2.
 
-## Open questions for the owner (gate 1)
-1. **Approve the new parts:** tracking (CUE-50..54, `update_mode` default `Forwards`), the
-   configurable handle buttons (CUE-25, 55) and the BPM-master fader modes (CUE-35).
-2. **IDEA-16 (Ableton sync):** phase? Proposal in `IDEAS.md`.
-
-Smaller proposals the owner can veto at gate 1: cue numbers with up to three decimals; Back uses
+Smaller proposals, accepted with the approval: cue numbers with up to three decimals; Back uses
 the previous cue's fades without delay; a tap on a Cue list row sets the next cue instead of
 jumping; `auto_connect` on by default; chase defaults 120 BPM, crossfade 0 %, Forward, Loop;
 Shift+Space = Back; Cue Only on an attribute the state did not hold puts HTP 0 in the next cue.
