@@ -85,7 +85,8 @@ after the specs are added when each spec is approved (no sizing of code before i
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
 | VS4-01 | Write `tests/hardware/church.md`: checklist for running a service (rig patched, all fixture types match, front-out works, fallback to Lightkey ready). | — | S | todo |
-| VS4-02 | VS1-04 serial lines of `tests/hardware/output.md` pass with the Eurolite (now on the owner's desk). | OUT-09, 20..24 | S | in progress: 250000 baud (OUT-20), no auto-detect + hint (OUT-23), 20 Hz (OUT-24) in PR; left: mid-run unplug (OUT-12), visible steps in a dragged fade (20 Hz vs 33 Hz own timer, compare with Lightkey) |
+| VS4-02 | VS1-04 serial lines of `tests/hardware/output.md` pass with the Eurolite (now on the owner's desk). | OUT-09, 20..24 | S | in progress: 250000 baud (OUT-20), no auto-detect + hint (OUT-23), 20 Hz (OUT-24) in PR; left: mid-run unplug (OUT-12), visible steps in a dragged fade (20 Hz vs 33 Hz own timer, compare with Lightkey) → VS4-05 |
+| VS4-05 | Serial node writes on its own 30 ms timer instead of every second tick (33 Hz instead of 20 Hz, OUT-24 amended); owner drags a fade on the RGBL par at 361 with no flicker and compares the steps with Lightkey on the same par. If steps remain at 33 Hz, record a criterion for frames cut to the highest patched channel. **Next after VS3-03** (owner, 2026-10-21). | OUT-24 | S | todo (spec amendment first) |
 | VS4-04 | The church TouchOSC layout drives ColourmotionDMX through OSC (CTL/P1-05), so the remote in the other room keeps working. | CTL | M | todo |
 | VS4-03 | One real Sunday morning service run entirely on ColourmotionDMX, Lightkey on standby as fallback; checklist ticked. | all phase 1 | — | todo |
 
