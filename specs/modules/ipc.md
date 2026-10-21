@@ -126,3 +126,30 @@ The palette messages are specified in `palettes.md` as PAL-25 (snapshot `palette
 `palette` id or `null` per wheel, a `palettes` map per contents entry) and PAL-27 (the
 `palette.*` and `settings.palette` commands). Commands name palettes by number; state names
 them by id, and the snapshot entries carry both.
+
+### Cue lists, chases and speed masters (VS3-05; behaviour in `cuelists.md`)
+The cue-list messages are specified in `cuelists.md` as CUE-40 (snapshot `playbacks` entries with
+`kind`, `cues`, `list`, `chase`, `master` and live `cue`; `bpm` in the small `playback` delta;
+`connected` in the snapshot with its delta; the CUE-38 settings in `playback_settings`), CUE-41
+(the `cuelist.*`, `playback.button/tap/bpm`, `cue.*`, `master.record` commands and the new
+`playback.record`, `playback.options` and `settings.playback` fields) and CUE-54 (`cue.view`,
+`cue.remove`). Wire details (VS3-05, within the approved criteria; proposed 2026-10-21):
+- **IPC-24** `cue.view` is answered by the tick, because the cue state lives in the engine: the
+  client thread hands the request to the tick together with its own outgoing queue, and the tick
+  puts the answer on that queue only, without waiting (IPC-07: a full queue drops the answer;
+  the client asks again after the next `playbacks` delta). A refused view (unknown playback or
+  cue) is a `warning` to every client, as other refusals (IPC-06). Each value is
+  `{"value":…,"from":3.0}` with `value` a level 0.0–1.0 or sRGB `{"r","g","b"}` as in `contents`
+  (IPC-21), plus `"palette":<id>` when it is a palette reference (as PAL-26).
+- **IPC-25** `playback.tap` and `playback.button` are stamped with the time the client thread
+  received them, on the tick's clock (seconds since the daemon started), and carry that time to
+  the engine (CUE-33: a tap is never rounded to the tick).
+- **IPC-26** `master.record {page, slot, kind, number?}`: without `number` the master gets the
+  lowest free number of its kind (refused when there is none, as a copy, CUE-37), so the app
+  never chooses numbers itself.
+- **IPC-27** `playback.record` `mode` takes `Replace`, `Merge`, `Update` (PBK-36), `Append` and
+  `Insert` (CUE-03, 05); `cue` is a number (CUE-04, not together with `Append`/`Insert`) and
+  `update_mode` one of `Forwards`, `CueOnly`, `Backwards`, `Both` (CUE-52). `playback.options`
+  takes `kind` (`Cues`/`Chase`), and `list`, `chase` and `master` as objects whose fields are each
+  optional: a missing field keeps its stored value, and the merged whole is checked as CUE-29/35
+  say before anything changes.

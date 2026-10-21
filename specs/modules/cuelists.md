@@ -416,7 +416,8 @@ values.
   `playback.options` gains `kind`, `list {…}`, `chase {…}`, `master {…}` (each field optional) ·
   `cue.times`, `cue.legend`, `cue.delete`, `cue.renumber`, `cue.renumber_all`, `cue.copy`
   (CUE-07..09) · `cue.track {id, cue, track}` (CUE-51) · `cue.view`, `cue.remove` (CUE-54) ·
-  `master.record {page, slot, kind, number}` · `settings.playback` gains the CUE-38 settings.
+  `master.record {page, slot, kind, number?}` (no number: the lowest free one, `ipc.md` IPC-26) ·
+  `settings.playback` gains the CUE-38 settings. Wire details: `ipc.md` IPC-24..27 (VS3-05).
 
 ### App (UI v0.1; amends `ui.md` UI-13, 18, 19, 22, 23 and PBK-37..39 when approved)
 - **CUE-42** **Go block** (UI-23) shows the connected list:

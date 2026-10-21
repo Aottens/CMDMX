@@ -2,6 +2,7 @@
 
 Owner: `subprojects/app` (rendering, input), with four small IPC additions in `cmdmx-daemon`.
 Status: **draft for owner approval (UX-02.0, 2026-10-17); open questions answered by owner 2026-10-17**.
+UI-03, 13, 18, 19, 22, 23 amended for cue lists (VS3-05, 2026-10-21): **proposed, awaiting owner approval**.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -41,7 +42,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   not follow the macOS appearance. The choice is remembered across launches.
 - **UI-03 [now]** Colour means state only, everywhere: red = programmer or unstored or Record
   armed, blue = selection, green = running or OK, amber = fading or warning, cyan = from palette,
-  violet = Blind. Attribute-group hues (sketch `--gI`…`--gFX`) are used only for tags and tab
+  violet = Blind, magenta = tracked value (CUE-54; amended 2026-10-21, VS3-05: #E54BB4 dark,
+  #B8288A day). Attribute-group hues (sketch `--gI`…`--gFX`) are used only for tags and tab
   underlines. No other accent colours exist.
 - **UI-04 [now]** Type: SF Pro condensed (SwiftUI `.width(.condensed)`) for legends and titles,
   SF Pro for UI text, SF Mono with tabular digits for every number and for the command line.
@@ -113,7 +115,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 - **UI-13 [now]** The Colours, Positions and Gobos & Beams windows are live palette windows as
   `palettes.md` PAL-28 describes (palettes on handles, no fixed number ranges; amended
   2026-10-18, VS2-19). Active playbacks is live as `playbacks.md` PBK-40 describes (VS2-22). Cue
-  list shows the sketch's column headers, an empty table and the info "Cue lists · P1-08".
+  list is live as `cuelists.md` CUE-43 describes, and View Cue shows the Cue view in its place
+  (CUE-54); amended 2026-10-21, VS3-05.
 - **UI-14 [now, UX-02b]** Programmer: a table with one row per fixture that has programmer values
   (IPC-21): # (user number), Fixture (name or model), I, P, C, B.
   - A touched value is red. A Colour value shows a swatch plus its hex. An attribute the fixture
@@ -172,9 +175,24 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Record context (Record armed): Cancel, plus the palette softkeys of PAL-29 (Replace, Merge,
     Quick Merge after a tap on a used cell; Mask, Record By, Record as).
   - Palette context (PAL-29): Master Time, Master Overlap, Set Overlap, Cancel.
+  - Cue lists (amended 2026-10-21, VS3-05; `cuelists.md` CUE-43..46, 54):
+    - Record context on a used handle: Replace, Merge, Append, Insert, Cancel (CUE-45); after a
+      tap on a Cue list row: Replace, Merge, Update, Cancel for that cue; on a tracking list an
+      Update Mode softkey cycles Forwards / Cue Only / Backwards / Both for this record (CUE-52).
+      With digits on the command line, a handle tap records to that cue number (CUE-04) and
+      empties the line.
+    - Record context, also: **BPM Master** and **Rate Master** arm a master; the next tap on an
+      empty handle sends `master.record` without a number (IPC-26).
+    - Cue context (a right-click on a Cue list row): Go to Cue, View Cue, Edit Times, Set Legend,
+      Renumber, Copy, Delete (two-step on softkey A), Cancel. Renumber and Copy take the number
+      typed on the command line.
+    - Cue view context: Back to List, Remove (two-step, on the hard value last right-clicked).
 
-  A right-click on a strip's legend opens Playback Options (PBK-39); on other cells it is
-  reserved for their context softkeys [later].
+  A right-click on a strip's legend opens Playback Options (PBK-39); on a Cue list row the Cue
+  context; on other cells it is reserved for their context softkeys [later].
+  Playback Options gains a **Settings** tab, marked "show-wide", with the CUE-38 settings: Auto
+  connect, the cue-list fader for new lists, the update mode and the handle buttons (Best
+  practice, Titan, or Custom with a pair per kind) (CUE-46; amended 2026-10-21, VS3-05).
 
 ### Command line and Mac keys (UX-02c; the field itself in UX-02b)
 - **UI-19 [now]** The command line in the attribute bar shows tokens, not a free text field: the
@@ -187,8 +205,10 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - F1–F4 = workspaces.
   - Up and Down = command history (UI-27).
 
-  ⌘1–⌘4 switch workspaces too, also while Keys is off (owner, UX-02a run). Space = Go comes with
-  P1-08. Keys never fire while a text field (Patch, Show, legends) has focus. The Keys toggle is
+  - Space = Go and Shift+Space = Back on the connected list (CUE-47; amended 2026-10-21, VS3-05).
+    Space does nothing while Keys is off.
+
+  ⌘1–⌘4 switch workspaces too, also while Keys is off (owner, UX-02a run). Keys never fire while a text field (Patch, Show, legends) has focus. The Keys toggle is
   remembered across launches, like Console.
 - **UI-27 [now]** Command history (IDEA-12; owner, 2026-10-18): every line sent with Enter is
   added to the history, except a line equal to the newest entry. While Keys is live, Up replaces
@@ -231,8 +251,11 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   "per page" read-out of `faders_per_page`. Paging itself comes with VS1-06 in the same task.
 - **UI-22 [now]** `faders_per_page` playback strips, each 92 pt wide:
   - From top to bottom: a legend (PBK-37: halo bar, icon, legend or `page.slot`, lock mark), a
-    level bar with its % in SF Mono and a draggable cap (`fader.set`), then Swop and Flash, live
-    while held (PBK-37, VS2-22).
+    level bar with its % in SF Mono and a draggable cap (`fader.set`), then the two handle
+    buttons, live while held (PBK-37, VS2-22). They are labelled and act as `handle_buttons`
+    assigns (GO, TAP, FLASH, …), the legend shows the cue, step or tempo, the connected list
+    has a blue frame and a plain tap on a list's legend connects it (CUE-44; amended
+    2026-10-21, VS3-05).
   - An active playback has a green strip along the bottom edge, a releasing one an amber strip.
   - The strips a connected control surface drives sit in a framed bank labelled with that
     surface and its faders, e.g. "BCF2000 · faders 1–8" (research §5). Without a connected
@@ -247,8 +270,9 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     follows the engine again. The level never jumps back to an earlier value on its way to 0
     (owner, UX-02d run 2026-10-18).
 - **UI-23 [now]** Go block (210 pt): the header, the "now" line and the big green-outlined GO
-  button with Back / Stop / Release are drawn disabled with "Cue lists · P1-08". It is never
-  covered by anything.
+  button with Back / Stop / Release, live on the connected list as `cuelists.md` CUE-42
+  describes (amended 2026-10-21, VS3-05; was disabled until P1-08), with Tap and the BPM field on
+  a chase. It is never covered by anything.
 - **UI-24 [now]** Grand Master (70 pt): a level bar like a strip (`grand_master.set`), turning
   amber below 100 %, with DBO under it, live as PBK-41 describes (VS2-22).
 
