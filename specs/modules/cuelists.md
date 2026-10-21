@@ -89,8 +89,8 @@ values.
   decimals (between Q2 and Q3 → Q2.5; between Q2 and Q2.5 → Q2.25), or ⌊current⌋ + 1 when there
   is no next cue. Refused when no number fits ("No room between Q2.001 and Q2.002: renumber").
   It becomes the next cue, so Go runs it.
-- **CUE-06** `Replace`, `Merge` and `Update` on a cue list without a `cue` number act on its
-  current cue (Titan: update the live cue); on a list that is off they are refused ("Name a cue:
+- **CUE-06** `Replace`, `Merge` and `Update` on a cue list or chase without a `cue` number act on
+  its current cue (Titan: update the live cue); on a list that is off they are refused ("Name a cue:
   Service is not running"). On a memory they act on its cue as before (PBK-13).
 
 ### Editing cues

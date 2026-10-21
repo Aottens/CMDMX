@@ -28,8 +28,10 @@ use crate::palette::{
 };
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
-    fade_progress, Cue, FaderMode, KillPoint, Origin, Origins, Paging, Playback, PlaybackChange,
-    PlaybackId, PlaybackRecord, PlaybackState, Priority, Release, Values, PAGES,
+    fade_progress, ChaseOptions, Cue, CueChange, CueNumber, FaderMode, GroupTime, HandleButtons,
+    KillPoint, Kind as PlaybackKind, Link, ListFader, Master, MasterKind, Origin, Origins, Paging,
+    Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority, Release,
+    UpdateMode, Values, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -152,6 +154,11 @@ pub struct Settings {
     /// The global release mask and time (PBK-20).
     pub release_mask: Vec<AttributeGroup>,
     pub release_time: f32,
+    /// CUE-26, CUE-15, CUE-52, CUE-25.
+    pub auto_connect: bool,
+    pub cue_list_fader: ListFader,
+    pub update_mode: UpdateMode,
+    pub handle_buttons: HandleButtons,
 }
 
 /// PBK-12, PBK-20 (`settings.playback`): every field optional, all or nothing.
@@ -164,6 +171,10 @@ pub struct PlaybackSettingsChange {
     pub overlap: Option<f32>,
     pub release_mask: Option<Vec<AttributeGroup>>,
     pub release_time: Option<f32>,
+    pub auto_connect: Option<bool>,
+    pub cue_list_fader: Option<ListFader>,
+    pub update_mode: Option<UpdateMode>,
+    pub handle_buttons: Option<HandleButtons>,
 }
 
 /// PBK-09: the default record mask, every group.
@@ -197,6 +208,10 @@ impl Default for Settings {
             cue_overlap: 100.0,
             release_mask: Vec::new(),
             release_time: 2.0,
+            auto_connect: true,
+            cue_list_fader: ListFader::KillWithOff,
+            update_mode: UpdateMode::Forwards,
+            handle_buttons: HandleButtons::BestPractice,
         }
     }
 }
@@ -741,6 +756,10 @@ impl Engine {
                 cue_overlap: s.cue_overlap,
                 release_mask: s.release_mask.clone(),
                 release_time: s.release_time,
+                auto_connect: s.auto_connect,
+                cue_list_fader: s.cue_list_fader,
+                update_mode: s.update_mode,
+                handle_buttons: s.handle_buttons.clone(),
             },
             profiles: self
                 .profiles
@@ -817,9 +836,29 @@ impl Engine {
             cue_overlap: s.cue_overlap,
             release_mask: s.release_mask.clone(),
             release_time: s.release_time,
+            auto_connect: s.auto_connect,
+            cue_list_fader: s.cue_list_fader,
+            update_mode: s.update_mode,
+            handle_buttons: s.handle_buttons.clone(),
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
+        // CUE-39: a button a kind cannot have becomes the kind's BestPractice button.
+        if let HandleButtons::Custom(pairs) = &mut engine.settings.handle_buttons {
+            for (kind, pair) in pairs {
+                let mut fixed = false;
+                for (button, best) in pair.iter_mut().zip(kind.best_practice()) {
+                    if !kind.allows(*button) {
+                        (*button, fixed) = (best, true);
+                    }
+                }
+                if fixed {
+                    warnings.push(format!(
+                        "handle_buttons: a button {kind:?} cannot have is set to its best practice"
+                    ));
+                }
+            }
+        }
         let mut invalid = BTreeSet::new();
         for (key, profile) in &show.profiles {
             if let Err(e) = engine.add_profile(key.clone(), profile.clone()) {
@@ -949,7 +988,83 @@ impl Engine {
             ));
             playback.paging = Paging::Unlocked;
         }
+        let master_kind = match playback.kind {
+            PlaybackKind::BpmMaster => Some(MasterKind::Bpm),
+            PlaybackKind::RateMaster => Some(MasterKind::Rate),
+            _ => None,
+        };
+        match (master_kind, playback.master.take()) {
+            (None, None) => {}
+            (None, Some(_)) => {
+                warnings.push(format!(
+                    "playback {id}: only a master has master options, left out"
+                ));
+            }
+            (Some(kind), Some(mut master)) if master.kind() == kind => {
+                let number = master.number();
+                if let Err(e) = kind.check_number(number) {
+                    warnings.push(format!("playback {id} left out: {e}"));
+                    return None;
+                }
+                if self.master_in_use(kind, number) {
+                    warnings.push(format!(
+                        "playback {id} left out: {master} is already used by an earlier master"
+                    ));
+                    return None;
+                }
+                if master.check().is_err() {
+                    warnings.push(format!(
+                        "playback {id}: master options are out of range, set to their defaults"
+                    ));
+                    master = Master::new(kind, number);
+                }
+                playback.master = Some(master);
+                if !playback.cues.is_empty() {
+                    warnings.push(format!("playback {id}: a master has no cues, left out"));
+                    playback.cues.clear();
+                }
+            }
+            (Some(_), _) => {
+                warnings.push(format!(
+                    "playback {id} left out: it is a master without its options"
+                ));
+                return None;
+            }
+        }
+        if playback.chase.check().is_err() {
+            warnings.push(format!(
+                "playback {id}: chase options are out of range, set to their defaults"
+            ));
+            playback.chase = ChaseOptions::default();
+        }
+        let mut position = 0;
+        let mut seen = BTreeSet::new();
+        playback.cues.retain(|cue| {
+            position += 1;
+            let keep = cue.number.is_valid() && seen.insert(cue.number);
+            if !keep {
+                warnings.push(format!(
+                    "playback {id}: cue {position} left out, its number is out of range or used before"
+                ));
+            }
+            keep
+        });
+        playback.cues.sort_by_key(|cue| cue.number);
         for cue in &mut playback.cues {
+            if check_link(&cue.link).is_err() {
+                warnings.push(format!(
+                    "playback {id}: Q{} link is out of range, set to Wait",
+                    cue.number
+                ));
+                cue.link = Link::Wait;
+            }
+            if check_group_times(&cue.group_times).is_err() {
+                warnings.push(format!(
+                    "playback {id}: Q{} group times are out of range, left out",
+                    cue.number
+                ));
+                cue.group_times.clear();
+            }
             for (name, value, max, default) in [
                 ("delay", &mut cue.delay, 600.0, 0.0),
                 ("fade in", &mut cue.fade_in, 600.0, 0.0),
@@ -1336,9 +1451,24 @@ impl Engine {
         if let Some(overlap) = change.overlap {
             check_overlap(overlap)?;
         }
+        if let Some(v) = &change.handle_buttons {
+            v.check()?;
+        }
         let s = &mut self.settings;
         if let Some(v) = change.record_by {
             s.cue_record_by = v;
+        }
+        if let Some(v) = change.auto_connect {
+            s.auto_connect = v;
+        }
+        if let Some(v) = change.cue_list_fader {
+            s.cue_list_fader = v;
+        }
+        if let Some(v) = change.update_mode {
+            s.update_mode = v;
+        }
+        if let Some(v) = &change.handle_buttons {
+            s.handle_buttons = v.clone();
         }
         if let Some(v) = change.delay {
             s.cue_delay = v;
@@ -1361,16 +1491,67 @@ impl Engine {
         Ok(())
     }
 
-    /// PBK-09..13: record the programmer's contents in the mask onto a handle. An empty handle
-    /// gets a new playback; a used one (or the playback a lock puts on it, PBK-07) needs a mode.
-    /// Palette references stay references with the value they resolve to now as fallback
-    /// (PBK-11). Refused records change nothing.
+    /// PBK-09..13, CUE-03..06: record the programmer's contents in the mask onto a handle. An
+    /// empty handle gets a new playback; a used one (or the playback a lock puts on it, PBK-07)
+    /// needs a mode, or `add` (a new cue at the end), or a `cue` number (a new cue, or a mode
+    /// for a held one). Palette references stay references with the value they resolve to now
+    /// as fallback (PBK-11). Refused records change nothing.
     pub fn record_playback(&mut self, record: &PlaybackRecord) -> Result<PlaybackId, CoreError> {
         let (page, slot) = (record.page, record.slot);
         let existing = self.handle_target(page, slot)?;
-        if existing.is_some() && record.mode.is_none() {
-            return Err(CoreError::HandleUsedRecord { page, slot });
+        let held = existing.and_then(|id| self.playbacks.get(&id));
+        if let Some(master) = held.and_then(|p| p.master.as_ref()) {
+            return Err(CoreError::HoldsMaster {
+                page,
+                slot,
+                master: master.to_string(),
+            });
         }
+        if record.add.is_some() && (record.mode.is_some() || record.cue.is_some()) {
+            return Err(CoreError::InvalidCommand(
+                "Append and Insert take no mode and no cue number".into(),
+            ));
+        }
+        if record.cue.is_some_and(|n| !n.is_valid()) {
+            return Err(CoreError::InvalidCueNumber);
+        }
+        // The cue a mode acts on; `None` is a new cue. CUE-06: a list that is off has no
+        // current cue yet (VS3-03), so every list needs a number.
+        let target = match (held, record.add, record.cue) {
+            (Some(pb), None, Some(n)) => {
+                let at = pb.cues.iter().position(|c| c.number == n);
+                if at.is_some() && record.mode.is_none() {
+                    return Err(CoreError::CueExists(n));
+                }
+                at
+            }
+            (Some(pb), None, None) => {
+                if record.mode.is_none() {
+                    return Err(CoreError::HandleUsedRecord { page, slot });
+                }
+                if pb.cues.len() > 1 {
+                    let name = if pb.legend.is_empty() {
+                        format!("{page}.{slot}")
+                    } else {
+                        pb.legend.clone()
+                    };
+                    return Err(CoreError::NameACue(name));
+                }
+                Some(0)
+            }
+            _ => None,
+        };
+        // CUE-03, 05: Insert goes after the last cue too until a list can be running (VS3-03).
+        let new_number = match (held, target) {
+            (Some(pb), None) => Some(match (record.cue, pb.cues.last()) {
+                (Some(n), _) => n,
+                (None, Some(last)) => CueNumber::between(last.number, None)
+                    .ok_or_else(|| CoreError::NoCueRoom(format!("after Q{}", last.number)))?,
+                (None, None) => CueNumber::default(),
+            }),
+            _ => None,
+        };
+        let was_list = held.is_some_and(Playback::is_cue_list);
         let mask = (record.mask.clone()).unwrap_or_else(|| ALL_GROUPS.to_vec());
         let mut values = self.contents(&mask);
         for (&id, attrs) in &mut values {
@@ -1396,8 +1577,8 @@ impl Engine {
                 }
             }
         }
-        if let (Some(id), Some(RecordMode::QuickMerge)) = (existing, record.mode) {
-            let held = self.playbacks.get(&id).and_then(Playback::values);
+        if let (Some(at), Some(RecordMode::QuickMerge)) = (target, record.mode) {
+            let held = held.and_then(|p| p.cues.get(at)).map(|c| &c.values);
             values.retain(|fixture, attrs| {
                 let held = held.and_then(|h| h.get(fixture));
                 attrs.retain(|name, _| held.is_some_and(|h| h.contains_key(name)));
@@ -1408,23 +1589,29 @@ impl Engine {
             return Err(CoreError::NothingToRecordPlayback);
         }
         let Some(id) = existing else {
-            let s = &self.settings;
-            let mut playback = Playback::new(self.playback_next_id, page, slot, values);
-            if let Some(cue) = playback.cues.first_mut() {
-                cue.delay = s.cue_delay;
-                cue.fade_in = s.cue_fade_in;
-                cue.fade_out = s.cue_fade_out;
-                cue.overlap = s.cue_overlap;
-            }
+            let number = record.cue.unwrap_or_default();
+            let mut playback = Playback::new(self.playback_next_id, page, slot, Values::new());
+            playback.cues = vec![self.new_cue(values, number)];
             let id = playback.id;
             self.add_playback(playback);
             return Ok(id);
         };
-        if let Some(playback) = self.playbacks.get_mut(&id) {
+        if let Some(number) = new_number {
+            // CUE-15: a playback that becomes a cue list takes the setting.
+            let fader = self.settings.cue_list_fader;
+            let cue = self.new_cue(values, number);
+            if let Some(playback) = self.playbacks.get_mut(&id) {
+                playback.cues.push(cue);
+                playback.cues.sort_by_key(|c| c.number);
+                if !was_list && playback.is_cue_list() {
+                    playback.list.fader = fader;
+                }
+            }
+        } else if let Some(playback) = self.playbacks.get_mut(&id) {
             if playback.cues.is_empty() {
                 playback.cues.push(Cue::new(Values::new()));
             }
-            if let Some(cue) = playback.cues.first_mut() {
+            if let Some(cue) = target.and_then(|at| playback.cues.get_mut(at)) {
                 match record.mode {
                     Some(RecordMode::Replace) | None => cue.values = values,
                     Some(RecordMode::Merge | RecordMode::QuickMerge) => {
@@ -1438,20 +1625,201 @@ impl Engine {
         Ok(id)
     }
 
-    /// PBK-14: a new playback (new id) on an empty handle with the same cues, legend, icon,
-    /// halo and options.
+    /// PBK-12: a new cue with the times of the settings and link `Wait`.
+    fn new_cue(&self, values: Values, number: CueNumber) -> Cue {
+        let s = &self.settings;
+        Cue {
+            delay: s.cue_delay,
+            fade_in: s.cue_fade_in,
+            fade_out: s.cue_fade_out,
+            overlap: s.cue_overlap,
+            number,
+            ..Cue::new(values)
+        }
+    }
+
+    /// CUE-35, 36: is a master of this kind with this number on a handle?
+    fn master_in_use(&self, kind: MasterKind, number: u8) -> bool {
+        (self.playbacks.values())
+            .filter_map(|p| p.master.as_ref())
+            .any(|m| m.kind() == kind && m.number() == number)
+    }
+
+    /// CUE-35, 36: put a speed master on an empty handle. The number is 1–8 for BPM and 1–4 for
+    /// Rate, and not used by another master of its kind.
+    pub fn record_master(
+        &mut self,
+        page: u16,
+        slot: u16,
+        kind: MasterKind,
+        number: u8,
+    ) -> Result<PlaybackId, CoreError> {
+        kind.check_number(number)?;
+        let master = Master::new(kind, number);
+        if self.master_in_use(kind, number) {
+            return Err(CoreError::InvalidCommand(format!(
+                "{master} is already in use"
+            )));
+        }
+        self.check_empty_handle(page, slot)?;
+        let id = self.playback_next_id;
+        self.add_playback(Playback {
+            kind: match kind {
+                MasterKind::Bpm => PlaybackKind::BpmMaster,
+                MasterKind::Rate => PlaybackKind::RateMaster,
+            },
+            master: Some(master),
+            cues: Vec::new(),
+            ..Playback::new(id, page, slot, Values::new())
+        });
+        Ok(id)
+    }
+
+    fn playback_mut(&mut self, id: PlaybackId) -> Result<&mut Playback, CoreError> {
+        self.playbacks
+            .get_mut(&id)
+            .ok_or(CoreError::UnknownPlayback(id))
+    }
+
+    /// CUE-07: remove a cue; the last one stays.
+    pub fn delete_cue(&mut self, id: PlaybackId, cue: CueNumber) -> Result<(), CoreError> {
+        let playback = self.playback_mut(id)?;
+        let at = (playback.cues.iter().position(|c| c.number == cue))
+            .ok_or(CoreError::UnknownCue(cue))?;
+        if playback.cues.len() == 1 {
+            return Err(CoreError::LastCue(cue));
+        }
+        playback.cues.remove(at);
+        Ok(())
+    }
+
+    /// CUE-08: give a cue a free number; it moves to its place in the order.
+    pub fn renumber_cue(
+        &mut self,
+        id: PlaybackId,
+        cue: CueNumber,
+        to: CueNumber,
+    ) -> Result<(), CoreError> {
+        let playback = self.playback_mut(id)?;
+        check_new_cue_number(playback, to)?;
+        (playback.cues.iter_mut().find(|c| c.number == cue))
+            .ok_or(CoreError::UnknownCue(cue))?
+            .number = to;
+        playback.cues.sort_by_key(|c| c.number);
+        Ok(())
+    }
+
+    /// CUE-08: number every cue 1, 2, 3 … in their order.
+    pub fn renumber_cues(&mut self, id: PlaybackId) -> Result<(), CoreError> {
+        let playback = self.playback_mut(id)?;
+        let numbers: Option<Vec<CueNumber>> = (1u32..)
+            .map(|n| CueNumber::new(f64::from(n)))
+            .take(playback.cues.len())
+            .collect();
+        let numbers = numbers.ok_or(CoreError::InvalidCueNumber)?;
+        for (cue, number) in playback.cues.iter_mut().zip(numbers) {
+            cue.number = number;
+        }
+        Ok(())
+    }
+
+    /// CUE-08: copy a cue to a free number of the same playback.
+    pub fn copy_cue(
+        &mut self,
+        id: PlaybackId,
+        cue: CueNumber,
+        to: CueNumber,
+    ) -> Result<(), CoreError> {
+        let playback = self.playback_mut(id)?;
+        check_new_cue_number(playback, to)?;
+        let copy = Cue {
+            number: to,
+            ..(playback.cues.iter().find(|c| c.number == cue))
+                .ok_or(CoreError::UnknownCue(cue))?
+                .clone()
+        };
+        playback.cues.push(copy);
+        playback.cues.sort_by_key(|c| c.number);
+        Ok(())
+    }
+
+    /// CUE-09, 51: change one cue's legend, times, link, tracking and group times; refused as a
+    /// whole when one is out of range.
+    pub fn change_cue(
+        &mut self,
+        id: PlaybackId,
+        cue: CueNumber,
+        change: &CueChange,
+    ) -> Result<(), CoreError> {
+        if let Some(legend) = &change.legend {
+            check_legend(legend)?;
+        }
+        for time in [change.delay, change.fade_in, change.fade_out]
+            .into_iter()
+            .flatten()
+        {
+            check_time(time)?;
+        }
+        if let Some(overlap) = change.overlap {
+            check_overlap(overlap)?;
+        }
+        if let Some(link) = &change.link {
+            check_link(link)?;
+        }
+        if let Some(times) = &change.group_times {
+            check_group_times(times)?;
+        }
+        let cue = (self.playback_mut(id)?.cues.iter_mut())
+            .find(|c| c.number == cue)
+            .ok_or(CoreError::UnknownCue(cue))?;
+        if let Some(v) = &change.legend {
+            cue.legend = v.clone();
+        }
+        if let Some(v) = change.delay {
+            cue.delay = v;
+        }
+        if let Some(v) = change.fade_in {
+            cue.fade_in = v;
+        }
+        if let Some(v) = change.fade_out {
+            cue.fade_out = v;
+        }
+        if let Some(v) = change.overlap {
+            cue.overlap = v;
+        }
+        if let Some(v) = change.link {
+            cue.link = v;
+        }
+        if let Some(v) = change.track {
+            cue.track = v;
+        }
+        if let Some(v) = &change.group_times {
+            cue.group_times = v.clone();
+        }
+        Ok(())
+    }
+
+    /// PBK-14, CUE-23, CUE-37: a new playback (new id) on an empty handle with the same cues,
+    /// legend, icon, halo and options. A master gets the next free number of its kind.
     pub fn copy_playback(
         &mut self,
         id: PlaybackId,
         page: u16,
         slot: u16,
     ) -> Result<PlaybackId, CoreError> {
-        let source = self
+        let mut source = self
             .playbacks
             .get(&id)
             .ok_or(CoreError::UnknownPlayback(id))?
             .clone();
         self.check_empty_handle(page, slot)?;
+        if let Some(master) = &mut source.master {
+            let kind = master.kind();
+            let free = (1..=kind.max()).find(|&n| !self.master_in_use(kind, n));
+            master.set_number(free.ok_or_else(|| {
+                CoreError::InvalidCommand(format!("no free {master} number left"))
+            })?);
+        }
         let new = self.playback_next_id;
         self.add_playback(Playback {
             id: new,
@@ -1484,18 +1852,40 @@ impl Engine {
         Ok(())
     }
 
-    /// PBK-24, 36: change options and the first cue's times; refused as a whole when one is out
-    /// of range or a second `Locked` would share a slot (PBK-07).
+    /// PBK-24, 36, CUE-01, 29, 35, 38: change options and the first cue's times; refused as a
+    /// whole when one is out of range or a second `Locked` would share a slot (PBK-07).
     pub fn change_playback(
         &mut self,
         id: PlaybackId,
         change: &PlaybackChange,
     ) -> Result<(), CoreError> {
-        let slot = self
+        let playback = self
             .playbacks
             .get(&id)
-            .ok_or(CoreError::UnknownPlayback(id))?
-            .slot;
+            .ok_or(CoreError::UnknownPlayback(id))?;
+        let slot = playback.slot;
+        if let Some(kind) = change.kind {
+            if kind != playback.kind && (kind.is_master() || playback.kind.is_master()) {
+                return Err(CoreError::InvalidOption(
+                    "kind (a master stays one, and a playback cannot become one)".into(),
+                ));
+            }
+        }
+        if let Some(chase) = &change.chase {
+            chase.check()?;
+        }
+        if let Some(master) = &change.master {
+            master.check()?;
+            let same = playback
+                .master
+                .as_ref()
+                .is_some_and(|m| m.kind() == master.kind() && m.number() == master.number());
+            if !same {
+                return Err(CoreError::InvalidOption(
+                    "master (it keeps its kind and number)".into(),
+                ));
+            }
+        }
         for time in [
             change.delay,
             change.fade_in,
@@ -1544,6 +1934,18 @@ impl Engine {
         }
         if let Some(v) = change.group {
             playback.group = v;
+        }
+        if let Some(v) = change.kind {
+            playback.kind = v;
+        }
+        if let Some(v) = &change.list {
+            playback.list = v.clone();
+        }
+        if let Some(v) = &change.chase {
+            playback.chase = v.clone();
+        }
+        if let Some(v) = &change.master {
+            playback.master = Some(v.clone());
         }
         if let Some(cue) = playback.cues.first_mut() {
             if let Some(v) = change.delay {
@@ -2809,6 +3211,32 @@ fn check_overlap(overlap: f32) -> Result<(), CoreError> {
     } else {
         Err(CoreError::InvalidOverlap(overlap))
     }
+}
+
+/// CUE-08: a number a cue can move or be copied to: valid and not used in the playback.
+fn check_new_cue_number(playback: &Playback, number: CueNumber) -> Result<(), CoreError> {
+    if !number.is_valid() {
+        Err(CoreError::InvalidCueNumber)
+    } else if playback.cues.iter().any(|c| c.number == number) {
+        Err(CoreError::CueNumberInUse(number))
+    } else {
+        Ok(())
+    }
+}
+
+/// CUE-09: a link offset runs from 0 to 600 s.
+fn check_link(link: &Link) -> Result<(), CoreError> {
+    match *link {
+        Link::Wait => Ok(()),
+        Link::After { offset } | Link::With { offset } => check_time(offset),
+    }
+}
+
+/// CUE-09: group delays and fades run from 0 to 600 s.
+fn check_group_times(times: &BTreeMap<AttributeGroup, GroupTime>) -> Result<(), CoreError> {
+    times
+        .values()
+        .try_for_each(|t| check_time(t.delay).and_then(|()| check_time(t.fade)))
 }
 
 /// PAL-20, PBK-31: a legend is at most 32 characters.

@@ -1194,7 +1194,7 @@ fn pal_23_palettes_and_references_round_trip() {
     let show = e.to_show(meta());
     let json = show.to_json();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(v["schema_version"], serde_json::json!(3));
+    assert_eq!(v["schema_version"], serde_json::json!(4));
     // Top-level keys in file order: lines with exactly two spaces of indent.
     let keys: Vec<&str> = json
         .lines()

@@ -141,7 +141,7 @@ fn numbers(e: &Engine, id: u32) -> Vec<f64> {
         .collect()
 }
 
-fn cue_at<'a>(e: &'a Engine, id: u32, n: f64) -> &'a Cue {
+fn cue_at(e: &Engine, id: u32, n: f64) -> &Cue {
     e.playback(id)
         .unwrap()
         .cues

@@ -431,7 +431,7 @@ pub fn spawn_saver() -> io::Result<(Sender<Job>, Receiver<Done>)> {
 mod tests {
     use super::*;
     use cmdmx_core::engine::Engine;
-    use cmdmx_core::show::{Meta, Show};
+    use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -598,8 +598,10 @@ mod tests {
     #[test]
     fn shw_10_a_refused_last_show_falls_back_to_demo_and_is_never_written() {
         let s = shows("start-refused");
-        let json =
-            save(&s, "Kerk", &demo()).replace("\"schema_version\": 3", "\"schema_version\": 9");
+        let json = save(&s, "Kerk", &demo()).replace(
+            &format!("\"schema_version\": {SCHEMA_VERSION}"),
+            "\"schema_version\": 9",
+        );
         fs::write(s.path("Kerk"), &json).unwrap();
         s.remember("Kerk").unwrap();
         let opened = s.start(demo, WALL);
@@ -837,8 +839,10 @@ mod tests {
     #[test]
     fn shw_10_a_refused_demo_file_is_never_written_either() {
         let s = shows("start-refused-demo");
-        let json =
-            save(&s, "Demo", &demo()).replace("\"schema_version\": 3", "\"schema_version\": 9");
+        let json = save(&s, "Demo", &demo()).replace(
+            &format!("\"schema_version\": {SCHEMA_VERSION}"),
+            "\"schema_version\": 9",
+        );
         fs::write(s.path("Demo"), &json).unwrap();
         let opened = s.start(demo, WALL);
         assert_eq!(opened.name, "Demo 2", "the built Demo gets a free name");
@@ -864,8 +868,10 @@ mod tests {
     fn shw_04_a_refusal_names_the_file_not_the_name_inside_it() {
         // A copy of Kerk saved by a newer version under another file name (SHW-c run).
         let s = shows("refused-copy");
-        let json =
-            save(&s, "Kerk", &demo()).replace("\"schema_version\": 3", "\"schema_version\": 9");
+        let json = save(&s, "Kerk", &demo()).replace(
+            &format!("\"schema_version\": {SCHEMA_VERSION}"),
+            "\"schema_version\": 9",
+        );
         fs::write(s.path("Toekomst"), json).unwrap();
         let err = s.open("Toekomst").unwrap_err();
         assert!(err.contains("Toekomst") && err.contains("newer"), "{err}");

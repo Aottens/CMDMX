@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "meta": {
     "name": "Church demo",
     "created": "2026-10-18T09:00:00Z",
@@ -23,7 +23,11 @@
     "cue_fade_out": 0.0,
     "cue_overlap": 100.0,
     "release_mask": [],
-    "release_time": 2.0
+    "release_time": 2.0,
+    "auto_connect": true,
+    "cue_list_fader": "KillWithOff",
+    "update_mode": "Forwards",
+    "handle_buttons": "BestPractice"
   },
   "profiles": {
     "Showtec/LED Par 56": {
@@ -555,12 +559,33 @@
         "release_time": null,
         "paging": "Unlocked",
         "group": null,
+        "kind": "Cues",
+        "list": {
+          "tracking": true,
+          "fader": "KillWithOff",
+          "fire_first_cue": true,
+          "loop": "StopOnFinal"
+        },
+        "chase": {
+          "bpm": 120.0,
+          "crossfade": 0.0,
+          "direction": "Forward",
+          "loop": "Loop",
+          "speed_source": "Free"
+        },
         "cues": [
           {
             "delay": 0.0,
             "fade_in": 0.0,
             "fade_out": 0.0,
             "overlap": 100.0,
+            "number": 1.0,
+            "legend": "",
+            "link": {
+              "type": "Wait"
+            },
+            "track": "Track",
+            "group_times": {},
             "values": {
               "101": {
                 "Dimmer": 1.0,
@@ -593,12 +618,33 @@
         "release_time": null,
         "paging": "Unlocked",
         "group": null,
+        "kind": "Cues",
+        "list": {
+          "tracking": true,
+          "fader": "KillWithOff",
+          "fire_first_cue": true,
+          "loop": "StopOnFinal"
+        },
+        "chase": {
+          "bpm": 120.0,
+          "crossfade": 0.0,
+          "direction": "Forward",
+          "loop": "Loop",
+          "speed_source": "Free"
+        },
         "cues": [
           {
             "delay": 0.0,
             "fade_in": 0.0,
             "fade_out": 0.0,
             "overlap": 100.0,
+            "number": 1.0,
+            "legend": "",
+            "link": {
+              "type": "Wait"
+            },
+            "track": "Track",
+            "group_times": {},
             "values": {
               "301": {
                 "Dimmer": 0.8

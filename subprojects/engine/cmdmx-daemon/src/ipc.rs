@@ -355,6 +355,7 @@ fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
         fade_in: opt_f32(v, "fade_in")?,
         fade_out: opt_f32(v, "fade_out")?,
         overlap: opt_f32(v, "overlap")?,
+        ..PlaybackChange::default()
     })
 }
 
@@ -580,6 +581,9 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                     return Err("invalid \"mode\" (expected Replace, Merge or Update)".into())
                 }
             },
+            cue: None,
+            add: None,
+            update_mode: None,
         })),
         Some("playback.flash") => Ok(Command::PlaybackFlash {
             id: uint(&v, "id")?,
@@ -639,6 +643,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             overlap: opt_f32(&v, "overlap")?,
             release_mask: opt_field(&v, "release_mask", "an array of attribute groups")?,
             release_time: opt_f32(&v, "release_time")?,
+            ..PlaybackSettingsChange::default()
         })),
         Some(other) => Err(format!("unknown cmd '{other}'")),
         None => Err("missing \"cmd\"".into()),

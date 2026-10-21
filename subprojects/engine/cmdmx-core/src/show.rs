@@ -12,13 +12,13 @@ use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
 use crate::palette::{Palette, PaletteId, RecordBy};
 use crate::patch::{Fixture, FixtureId};
-use crate::playback::{Playback, PlaybackId};
+use crate::playback::{HandleButtons, ListFader, Playback, PlaybackId, UpdateMode};
 use crate::profile::Profile;
 use crate::programmer::GroupId;
 use crate::CoreError;
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -52,6 +52,11 @@ pub struct ShowSettings {
     /// PBK-20: the global release mask and time.
     pub release_mask: Vec<AttributeGroup>,
     pub release_time: f32,
+    /// CUE-38.
+    pub auto_connect: bool,
+    pub cue_list_fader: ListFader,
+    pub update_mode: UpdateMode,
+    pub handle_buttons: HandleButtons,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -187,6 +192,9 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
     if version < 3 {
         migrations.push(migrate_2_to_3(value));
     }
+    if version < 4 {
+        migrations.push(migrate_3_to_4(value));
+    }
     migrations
 }
 
@@ -262,4 +270,60 @@ fn migrate_2_to_3(value: &mut serde_json::Value) -> String {
     );
     show.insert("schema_version".into(), 3.into());
     "2 -> 3: playbacks stored on handles with one cue each, playback settings at their defaults, no page legends".into()
+}
+
+/// CUE-38: each playback's cues are numbered 1, 2, 3 … in their order and gain the cue fields;
+/// the playbacks gain kind `Cues` and the default list and chase options.
+fn migrate_3_to_4(value: &mut serde_json::Value) -> String {
+    use serde_json::json;
+    let Some(show) = value.as_object_mut() else {
+        return "3 -> 4: not an object, left as it is".into();
+    };
+    if let Some(settings) = show
+        .get_mut("settings")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for (key, default) in [
+            ("auto_connect", json!(true)),
+            ("cue_list_fader", json!("KillWithOff")),
+            ("update_mode", json!("Forwards")),
+            ("handle_buttons", json!("BestPractice")),
+        ] {
+            settings.insert(key.into(), default);
+        }
+    }
+    let playbacks = show
+        .get_mut("playbacks")
+        .and_then(|p| p.get_mut("playbacks"))
+        .and_then(serde_json::Value::as_array_mut);
+    for playback in playbacks.into_iter().flatten() {
+        let Some(playback) = playback.as_object_mut() else {
+            continue;
+        };
+        playback.insert("kind".into(), json!("Cues"));
+        playback.insert(
+            "list".into(),
+            json!({"tracking": true, "fader": "KillWithOff", "fire_first_cue": true,
+                "loop": "StopOnFinal"}),
+        );
+        playback.insert(
+            "chase".into(),
+            json!({"bpm": 120.0, "crossfade": 0.0, "direction": "Forward", "loop": "Loop",
+                "speed_source": "Free"}),
+        );
+        let cues = playback
+            .get_mut("cues")
+            .and_then(serde_json::Value::as_array_mut);
+        for (n, cue) in (1..).zip(cues.into_iter().flatten()) {
+            if let Some(cue) = cue.as_object_mut() {
+                cue.insert("number".into(), json!(n));
+                cue.insert("legend".into(), json!(""));
+                cue.insert("link".into(), json!({"type": "Wait"}));
+                cue.insert("track".into(), json!("Track"));
+                cue.insert("group_times".into(), json!({}));
+            }
+        }
+    }
+    show.insert("schema_version".into(), 4.into());
+    "3 -> 4: cues numbered 1, 2, 3 … with legends, links, tracking and group times at their defaults, playbacks are memories with default list and chase options, cue list settings added".into()
 }
