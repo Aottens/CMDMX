@@ -41,11 +41,11 @@ enum HandleTaps {
                 ui.recordArmed = false
                 return
             }
-            // A used handle needs Replace or Merge (PBK-13): the softkeys ask.
+            // A used handle needs Replace, Merge, Append or Insert (PBK-13, CUE-45): the softkeys ask.
             ui.usedCell = nil
             ui.maskMenu = false
             ui.usedHandle = UsedHandle(page: page, slot: slot, playback: info.id)
-            engine.say("Handle \(page).\(slot) is used: Replace or Merge on the softkeys.")
+            engine.say("Handle \(page).\(slot) is used: Replace, Merge, Append or Insert on the softkeys.")
             return
         }
         guard let function = ui.function else {

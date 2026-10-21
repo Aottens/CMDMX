@@ -335,7 +335,7 @@ private struct Softkeys: View {
             ui.maskMenu = true
         }
         let recordByKey = Softkey(name: "Record By", sub: recordBy) { ui.recordBy = recordBy == "Channel" ? "Mixed" : "Channel" }
-        let cancelKey = Softkey(name: "Cancel", action: { ui.recordArmed = false })
+        let cancelKey = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.recordArmed = false })
         // CUE-52: on a tracking list or chase an Update Mode softkey cycles the mode of this record.
         let updateModeKey = { (list: PlaybackInfo?) -> Softkey? in
             guard let list, list.hasCues, list.stored.list.tracking else { return nil }
@@ -431,7 +431,7 @@ private struct Softkeys: View {
                 engine.deleteCue(ref.playback, cue: ref.cue)
                 ui.cancelModes()
             }
-            keys[6] = Softkey(name: "Cancel", action: { ui.cancelModes() })
+            keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() })
             return ("Cue · \(name)", keys)
         }
         func numbered(_ title: String, _ send: @escaping (Double) -> Void) -> Softkey {
@@ -453,7 +453,7 @@ private struct Softkeys: View {
                 ui.cueDelete = true
                 engine.say("Delete cue \(name)? Confirm on softkey A.")
             },
-            Softkey(name: "Cancel", action: { ui.cancelModes() }),
+            Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() }),
         ])
     }
 
@@ -470,7 +470,7 @@ private struct Softkeys: View {
                 engine.viewCue(ref.playback, cue: ref.cue)
                 ui.cueValue = nil; ui.cueRemoveConfirm = false
             }
-            keys[6] = Softkey(name: "Cancel", action: { ui.cueRemoveConfirm = false })
+            keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cueRemoveConfirm = false })
             return ("Cue view · \(name)", keys)
         }
         keys[0] = Softkey(name: "Back to List") { ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false }
@@ -498,7 +498,7 @@ private struct Softkeys: View {
                 ui.cancelModes()
             }
         }
-        keys[6] = Softkey(name: "Cancel", action: { ui.cancelModes() })
+        keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() })
         return (function.rawValue, keys)
     }
 
@@ -529,7 +529,7 @@ private struct Softkeys: View {
                 }
             },
             nil, nil, nil,
-            Softkey(name: "Cancel", action: { line.clear(); ui.paletteMenu = false }),
+            Softkey(name: "Cancel", action: { engine.clearMessage(); line.clear(); ui.paletteMenu = false }),
         ])
     }
 
