@@ -346,7 +346,7 @@ per-attribute times (Titan *Set Attribute Times*; with P1-08, owner decision 5);
 Fixture Order (overlap follows user-number order); key profiles beyond the fixed Swop/Flash;
 Preload, Timed Flash, Go on a single-cue playback; Release all (double Release) and the Release
 Priority setting; Release to Home; Off Playback with mask; Run On Startup; shapes and effect
-options (phase 2); Blind; chases with the BPM and Rate masters (P1-08) and group masters (P1-16; owner decision 6); Size
+options (phase 2); Blind; chases with the BPM and Rate masters (P1-08) and group masters (P1-16, `group-masters.md`; owner decision 6); Size
 masters (with shapes, phase 2); virtual faders and executor buttons; physical fader pickup and motor behaviour on page change
 (VS1-07, CTL); undo (P1-10).
 
