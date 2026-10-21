@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-20_
+_Last updated: 2026-10-21_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -30,6 +30,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
+- P1-08 cue lists: `specs/modules/cuelists.md` CUE-01..49 drafted for gate 1 (2026-10-21): cue lists and chases are playbacks with more than one cue (show schema 4 for cue numbers, links, group times, kinds), Append/Insert/record to a cue, Go/Back/Stop/Go to/Set next, links, attribute-group times, chases with BPM/Tap/crossfade, BPM and Rate masters on handles, the connected list for the Go block, IPC and app. Waiting for the owner on five open questions (Go block vs handle Go, handle buttons per kind, cue-list fader at 0, no tracking in phase 1, speed masters)
 - P1-04 playbacks: `specs/modules/playbacks.md` PBK-06..45 approved (owner, 2026-10-18; all seven proposals: Record By Channel, the mode 0/1 time model, fixed Swop/Flash/Latch, automatic halo, attribute-group times and chases with BPM/Rate masters in P1-08, group masters P1-16, Titan release defaults). VS2-20 (core storage, #44) merged; VS2-21 (behaviour on the frame, #45) merged; VS2-22 (IPC + app: strips, handles, Playback Options, Active playbacks, DBO; PBK-35 amended with the owner: whole-list `playbacks` delta for stored changes, `groups` and `fired` per entry; PBK-37 icon placement) in review, owner run passed 2026-10-20
 - SHW-d merged (#47): `cmdmx-daemon --help` printed nothing and started the daemon, which opened and migrated *Kerk*; now `--help`/`-h` prints the flags and exits 0, an unknown argument or a bad `--ticks` value exits 2, both before any show is opened (SHW-18)
 - VS4-02 (#34) and VS2-13 (#35) merged; *Kerk* is in the owner's Shows folder (56 fixtures, 9 user profiles). Run `tests/hardware/runs/2026-10-18-church.md`: the Patch-screen line passed at home; the desk lines wait for the Eurolite, the rest for the church
