@@ -87,8 +87,12 @@ fn main() {
     }
     if cli.serial_enabled {
         let mut node = serial_out::SerialNode::new(cli.serial_path);
-        let send = move |f: &output::FrameData| (node.send(f, Instant::now()), node.state());
-        outputs.push(output::spawn("serial", send));
+        let send = move |f: &output::FrameData, now: Instant| (node.send(f, now), node.state());
+        outputs.push(output::spawn_paced(
+            "serial",
+            serial_out::MIN_WRITE_INTERVAL,
+            send,
+        ));
         // Not scanned yet, so no interface until the thread says otherwise (IPC-20).
         statuses.push(ipc::OutputStatus {
             name: "serial",

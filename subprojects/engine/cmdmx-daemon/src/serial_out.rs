@@ -12,9 +12,10 @@ use crate::output::{Health, OutputState};
 
 const RESCAN: Duration = Duration::from_secs(1);
 const WRITE_TIMEOUT: Duration = Duration::from_millis(100);
-/// OUT-24 calibration constant: the Eurolite MK2 restarts its DMX frame when a
-/// new USB frame arrives; 40 Hz flickered, <= 33 Hz was steady.
-const MIN_WRITE_INTERVAL: Duration = Duration::from_millis(30);
+/// OUT-24 calibration constant, the period of the serial node's own timer (~33 Hz):
+/// the Eurolite MK2 restarts its DMX frame when a new USB frame arrives; 40 Hz
+/// flickered, <= 33 Hz was steady. `SerialNode::send` also enforces it as a safety net.
+pub const MIN_WRITE_INTERVAL: Duration = Duration::from_millis(30);
 
 /// OUT-09: the lowest `/dev/cu.*` path whose USB product string is a known
 /// ENTTEC Pro one, with that product string. Anything else is never used.

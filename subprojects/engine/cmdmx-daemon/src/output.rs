@@ -6,8 +6,9 @@ use std::io;
 use std::net::{Ipv4Addr, UdpSocket};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
+use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, SyncSender, TrySendError};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use cmdmx_core::UNIVERSE_SIZE;
 
@@ -114,6 +115,67 @@ fn run(
     }
 }
 
+/// OUT-24: like `spawn`, but the thread writes the latest frame on its own timer
+/// every `interval` instead of once per received frame.
+pub fn spawn_paced(
+    name: &'static str,
+    interval: Duration,
+    mut send: impl FnMut(&FrameData, Instant) -> (Option<String>, OutputState) + Send + 'static,
+) -> (SyncSender<FrameData>, Status) {
+    let (tx, rx) = sync_channel(1);
+    let status = Status::new();
+    let shared = status.clone();
+    std::thread::spawn(move || {
+        run_paced(
+            name,
+            interval,
+            &mut send,
+            &mut |d| rx.recv_timeout(d),
+            &mut Instant::now,
+            &shared,
+        )
+    });
+    (tx, status)
+}
+
+/// OUT-24: nothing is written before the first frame, then the first write is
+/// immediate and each next one is due `interval` after the previous write STARTED
+/// (a slow write or a panic does not shift the timer). Time and channel come in as
+/// closures so the pacing is testable; returns when the sender is gone.
+pub fn run_paced(
+    name: &str,
+    interval: Duration,
+    send: &mut impl FnMut(&FrameData, Instant) -> (Option<String>, OutputState),
+    recv: &mut impl FnMut(Duration) -> Result<FrameData, RecvTimeoutError>,
+    now: &mut impl FnMut() -> Instant,
+    status: &Status,
+) {
+    let Ok(mut latest) = recv(Duration::MAX) else {
+        return;
+    };
+    let mut due = now();
+    loop {
+        let t = now();
+        if t >= due {
+            due = t.checked_add(interval).unwrap_or(t);
+            match catch_unwind(AssertUnwindSafe(|| send(&latest, t))) {
+                Ok((log, state)) => {
+                    status.set(state);
+                    if let Some(msg) = log {
+                        eprintln!("{msg}");
+                    }
+                }
+                Err(_) => eprintln!("{name} output: panic caught, continuing"),
+            }
+        }
+        match recv(due.saturating_duration_since(now())) {
+            Ok(f) => latest = f,
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => return,
+        }
+    }
+}
+
 /// OUT-11: hand a frame to the output thread without blocking. A full
 /// channel drops this frame; `false` means the thread is gone.
 pub fn publish(tx: &SyncSender<FrameData>, frame: &FrameData) -> bool {
@@ -127,9 +189,13 @@ pub fn open_udp() -> io::Result<UdpSocket> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
+    use std::collections::VecDeque;
+    use std::rc::Rc;
+    use std::sync::mpsc::RecvTimeoutError;
     use std::time::{Duration, Instant};
 
     #[test]
@@ -190,6 +256,141 @@ mod tests {
         // The tick marks a node whose thread is gone (OUT-11).
         status.set(OutputState::Stopped);
         assert_eq!(status.get(), OutputState::Stopped);
+    }
+
+    /// OUT-24: a fake clock plus a scripted channel. `recv(timeout)` returns the next
+    /// frame if it arrives within `timeout` (moving the clock to its arrival), else
+    /// moves the clock by `timeout` and times out; with no frames left the sender is gone.
+    #[allow(clippy::type_complexity)]
+    fn scripted(
+        t0: Instant,
+        arrivals_ms: &[u64],
+    ) -> (
+        Rc<Cell<Instant>>,
+        impl FnMut() -> Instant,
+        impl FnMut(Duration) -> Result<FrameData, RecvTimeoutError>,
+    ) {
+        let clock = Rc::new(Cell::new(t0));
+        let mut queue: VecDeque<(Instant, FrameData)> = arrivals_ms
+            .iter()
+            .enumerate()
+            .map(|(i, ms)| (t0 + Duration::from_millis(*ms), [i as u8; UNIVERSE_SIZE]))
+            .collect();
+        let now = {
+            let clock = clock.clone();
+            move || clock.get()
+        };
+        let recv = {
+            let clock = clock.clone();
+            move |timeout: Duration| match queue.front() {
+                None => Err(RecvTimeoutError::Disconnected),
+                Some((at, _)) if at.saturating_duration_since(clock.get()) <= timeout => {
+                    clock.set(clock.get().max(*at));
+                    queue
+                        .pop_front()
+                        .map(|(_, f)| f)
+                        .ok_or(RecvTimeoutError::Disconnected)
+                }
+                Some(_) => {
+                    clock.set(clock.get() + timeout);
+                    Err(RecvTimeoutError::Timeout)
+                }
+            }
+        };
+        (clock, now, recv)
+    }
+
+    #[test]
+    fn out_24_paced_node_writes_the_latest_frame_every_30_ms() {
+        let t0 = Instant::now();
+        // The tick hands over a frame every 25 ms, the first at 10 ms.
+        let (_clock, mut now, mut recv) = scripted(t0, &[10, 35, 60, 85, 110, 135]);
+        let mut writes = Vec::new();
+        let mut send = |f: &FrameData, at: Instant| {
+            writes.push((at.duration_since(t0).as_millis() as u64, f[0]));
+            (None, OutputState::Ok)
+        };
+        let status = Status::new();
+        run_paced(
+            "test",
+            Duration::from_millis(30),
+            &mut send,
+            &mut recv,
+            &mut now,
+            &status,
+        );
+        // Nothing before the first frame; then every 30 ms with the newest frame:
+        // 10 → frame 0, 40 → 1 (35), 70 → 2 (60), 100 → 3 (85), 130 → 4 (110).
+        assert_eq!(writes, [(10, 0), (40, 1), (70, 2), (100, 3), (130, 4)]);
+    }
+
+    #[test]
+    fn out_24_paced_interval_counts_from_the_start_of_a_slow_write() {
+        let t0 = Instant::now();
+        let (clock, mut now, mut recv) = scripted(t0, &[0, 25, 50, 75, 100, 125]);
+        let mut writes = Vec::new();
+        let mut send = |_: &FrameData, at: Instant| {
+            writes.push(at.duration_since(t0).as_millis() as u64);
+            // A 518-byte frame takes ~21 ms at 250000 baud.
+            clock.set(clock.get() + Duration::from_millis(21));
+            (None, OutputState::Ok)
+        };
+        run_paced(
+            "test",
+            Duration::from_millis(30),
+            &mut send,
+            &mut recv,
+            &mut now,
+            &Status::new(),
+        );
+        assert_eq!(writes, [0, 30, 60, 90, 120]);
+    }
+
+    #[test]
+    fn out_24_paced_node_survives_a_panic_and_reports_its_state() {
+        let t0 = Instant::now();
+        let (_clock, mut now, mut recv) = scripted(t0, &[0, 25, 50, 75]);
+        let mut calls = 0;
+        let mut writes = Vec::new();
+        let mut send = |_: &FrameData, at: Instant| {
+            calls += 1;
+            if calls == 1 {
+                panic!("first write panics");
+            }
+            writes.push(at.duration_since(t0).as_millis() as u64);
+            (None, OutputState::Degraded)
+        };
+        let status = Status::new();
+        run_paced(
+            "test",
+            Duration::from_millis(30),
+            &mut send,
+            &mut recv,
+            &mut now,
+            &status,
+        );
+        assert_eq!(writes, [30, 60], "the timer carries on after the panic");
+        assert_eq!(status.get(), OutputState::Degraded);
+    }
+
+    /// OUT-24 on a real thread: one frame handed over keeps being written by the timer.
+    #[test]
+    fn out_24_spawn_paced_writes_without_new_frames() {
+        let calls = Arc::new(AtomicU8::new(0));
+        let counted = calls.clone();
+        let (tx, _status) = spawn_paced("test", Duration::from_millis(30), move |_, _| {
+            counted.fetch_add(1, Ordering::Relaxed);
+            (None, OutputState::Ok)
+        });
+        tx.send([0; UNIVERSE_SIZE]).unwrap();
+        let start = Instant::now();
+        while calls.load(Ordering::Relaxed) < 3 {
+            assert!(
+                start.elapsed() < Duration::from_secs(2),
+                "the timer did not write again"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
     }
 
     #[test]

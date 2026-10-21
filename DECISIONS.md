@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-21 — Serial output on its own 30 ms timer (VS4-05, OUT-24, owner)
+
+**Decision:** The serial node's thread keeps the latest frame handed over and writes it every 30 ms, counted from the start of the previous write (~33 Hz), instead of skipping every second tick (20 Hz). Art-Net and sACN stay on the 40 Hz tick.
+
+**Alternatives considered:** keep 20 Hz; a slower 25 ms tick for everything; frames cut to the highest patched channel (shorter writes, kept as the next step if fades still step).
+
+**Reasoning:** the upgrade path named on 2026-10-18: a dragged fade on the RGBL par showed visible steps at 20 Hz, and 33 Hz was steady on the MK2 in the C-sender test. The tick stays 40 Hz and never waits on the serial port (OUT-11).
+
+**Reversal trigger:** the par flickers at 33 Hz on the real rig, or steps remain (then frames cut to the highest patched channel).
+
 ## 2026-10-21 — Chase details for VS3-04 (CUE-30..34, owner)
 
 **Decision:** Go on a chase whose fader is at 0 runs it with its HTP out; the kill point only acts when the level falls to 0 (as cue lists with `KillAtZero`). On a paused chase Back and Go to cue step with the crossfade and the chase stays paused; Stop again goes back; only Go resumes. Tap and a typed tempo on a chase following a BPM master go to the master, and a tap on a master starts the next step of every running chase on it at the tap (beat sync). Back goes one step against the direction (Random: the step shown before) and wraps with `Loop`; `StopOnFinal` runs one round per direction (Bounce 1 2 3 2 1, Random as many steps as the chase has).

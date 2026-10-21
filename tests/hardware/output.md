@@ -8,6 +8,7 @@ par on its XLR.
 - [ ] Daemon started without `--serial`: one line `serial: no ENTTEC Pro interface found; FTDI "FT232R USB UART" at /dev/cu.usbserial-… not used (start with --serial …)`; the par stays dark, nothing is sent to the FTDI port (OUT-09/23)
 - [ ] Restart with `--serial <path from ls> --demo`: log `serial: ENTTEC Pro "--serial" at <path>`, no `Degraded` lines; the par follows the breathing fader smoothly, no flicker, no stepping (OUT-20/22)
 - [ ] An LED fixture held at a static level (e.g. 30 %) with `--serial` does not flicker; nothing else lights up (OUT-24)
+- [ ] A fader dragged 0→100→0 % over ~8 s fades the LED fixture without flicker and without steps you would not see on Lightkey (OUT-24, ~33 Hz own timer)
 - [ ] With `--serial <path>`, start the daemon with the Eurolite unplugged: one `Degraded` line, daemon keeps ticking; plug it in: within ~1 s `Ok again` and the par follows (OUT-21/22)
 - [ ] Restart with `--no-serial`: the par stays dark (OUT-22)
 - [ ] Art-Net monitor shows universe 0 (line 1) packets at ~40 Hz with the same values (OUT-03)
