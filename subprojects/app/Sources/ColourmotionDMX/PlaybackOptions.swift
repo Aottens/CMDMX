@@ -29,9 +29,7 @@ struct PlaybackOptionsView: View {
             title: "Playback options",
             info: playback.map { "\($0.homeHandle) · \($0.stored.legend.isEmpty ? "no legend" : $0.stored.legend)" } ?? "—",
             framed: true,
-            accessory: {
-                Button("Exit") { ui.screen = nil }.buttonStyle(FlatButton(compact: true)).keyboardShortcut(.cancelAction)
-            }
+            accessory: { EmptyView() }
         ) {
             if let playback {
                 let tabs = PlaybackOptionsTab.tabs(for: playback)
@@ -43,6 +41,8 @@ struct PlaybackOptionsView: View {
                                 .buttonStyle(FlatButton(fill: shown == tab ? .blue : nil))
                         }
                         Spacer(minLength: 0)
+                        // Full size and blue, at the end of the tabs (VS3-05 run: the title-row Exit was hard to find).
+                        Button("Exit") { ui.screen = nil }.buttonStyle(FlatButton(fill: .blue)).keyboardShortcut(.cancelAction)
                     }
                     .padding(8)
                     HLine()
@@ -136,11 +136,15 @@ private struct NumberField: View {
         .onChange(of: value) { _, new in if !focused { text = plain(new) } }
     }
 
+    /// Shows what was sent (VS3-05 run: showing the old value until the engine answered looked
+    /// like the field had jumped back); a refused value shows its warning below.
     private func send() {
         if let n = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")), n != value {
             commit(n)
+            text = plain(n)
+        } else {
+            text = plain(value)
         }
-        text = plain(value)
     }
 }
 
