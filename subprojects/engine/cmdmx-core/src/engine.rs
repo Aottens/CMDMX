@@ -30,10 +30,10 @@ use crate::palette::{
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
     check_bpm, fade_progress, AddCue, BpmFader, BpmMaster, Button, ButtonKind, ChaseOptions, Cue,
-    CueChange, CueNumber, FaderMode, GroupTime, HandleButton, HandleButtons, KillPoint,
-    Kind as PlaybackKind, Link, ListAction, ListFader, ListLive, Master, MasterKind, Origin,
-    Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority,
-    Release, SpeedSource, UpdateMode, Values, PAGES,
+    CueChange, CueNumber, CueValue, CueView, FaderMode, GroupTime, HandleButton, HandleButtons,
+    KillPoint, Kind as PlaybackKind, Link, ListAction, ListFader, ListLive, Master, MasterKind,
+    Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
+    Priority, Release, SpeedSource, UpdateMode, Values, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -1282,6 +1282,24 @@ impl Engine {
         Some(run.unwrap_or(&ListRun::default()).live(playback))
     }
 
+    /// CUE-25: the two functions of a playback's handle buttons now; `None` for an unknown id.
+    pub fn handle_buttons(&self, id: PlaybackId) -> Option<[Button; 2]> {
+        self.playbacks.get(&id).map(|p| self.button_pair(p))
+    }
+
+    fn button_pair(&self, playback: &Playback) -> [Button; 2] {
+        let kind = button_kind(playback);
+        let best = kind.best_practice();
+        match &self.settings.handle_buttons {
+            HandleButtons::BestPractice => best,
+            HandleButtons::Titan => match kind {
+                ButtonKind::BpmMaster | ButtonKind::RateMaster => best,
+                _ => [Button::Swop, Button::Flash],
+            },
+            HandleButtons::Custom(pairs) => pairs.get(&kind).copied().unwrap_or(best),
+        }
+    }
+
     /// CUE-55: press or release a handle button; it does what `handle_buttons` assigns to the
     /// kind of playback on the handle (CUE-25). Flash and Swop follow `on`, the others act on the
     /// press, on this playback's own list.
@@ -1293,16 +1311,7 @@ impl Engine {
         now: Timestamp,
     ) -> Result<(), CoreError> {
         let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
-        let kind = button_kind(playback);
-        let best = kind.best_practice();
-        let pair = match &self.settings.handle_buttons {
-            HandleButtons::BestPractice => best,
-            HandleButtons::Titan => match kind {
-                ButtonKind::BpmMaster | ButtonKind::RateMaster => best,
-                _ => [Button::Swop, Button::Flash],
-            },
-            HandleButtons::Custom(pairs) => pairs.get(&kind).copied().unwrap_or(best),
-        };
+        let pair = self.button_pair(playback);
         let function = match button {
             HandleButton::Upper => pair[0],
             HandleButton::Lower => pair[1],
@@ -2074,6 +2083,11 @@ impl Engine {
             .any(|m| m.kind() == kind && m.number() == number)
     }
 
+    /// CUE-35, 36, IPC-26: the lowest number of this kind no master uses; `None` when all are.
+    pub fn free_master_number(&self, kind: MasterKind) -> Option<u8> {
+        (1..=kind.max()).find(|&n| !self.master_in_use(kind, n))
+    }
+
     /// CUE-35, 36: put a speed master on an empty handle. The number is 1–8 for BPM and 1–4 for
     /// Rate, and not used by another master of its kind.
     pub fn record_master(
@@ -2197,6 +2211,60 @@ impl Engine {
         Ok(())
     }
 
+    /// CUE-54: the state of a cue per fixture and attribute, with the cue each value is hard in.
+    pub fn cue_view(&self, id: PlaybackId, cue: CueNumber) -> Result<CueView, CoreError> {
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        let at = (playback.cues.iter().position(|c| c.number == cue))
+            .ok_or(CoreError::UnknownCue(cue))?;
+        let mut view = CueView::new();
+        for (fixture, attributes) in playback.cue_state(at) {
+            for (name, (value, i)) in attributes {
+                let from = playback.cues.get(i).map_or(cue, |c| c.number);
+                (view.entry(fixture).or_default()).insert(name, CueValue { value, from });
+            }
+        }
+        Ok(view)
+    }
+
+    /// CUE-54: take a hard value (or all of a fixture's) out of a cue so it tracks from earlier
+    /// cues again; refused, changing nothing, when the cue does not hold it. On stage at once
+    /// (CUE-53).
+    pub fn remove_cue_value(
+        &mut self,
+        id: PlaybackId,
+        cue: CueNumber,
+        fixture: FixtureId,
+        attribute: Option<&str>,
+    ) -> Result<(), CoreError> {
+        let playback = self.playback_mut(id)?;
+        let cue = (playback.cues.iter_mut())
+            .find(|c| c.number == cue)
+            .ok_or(CoreError::UnknownCue(cue))?;
+        let held = cue.values.get_mut(&fixture);
+        let removed = match (held, attribute) {
+            (Some(_), None) => cue.values.remove(&fixture).is_some(),
+            (Some(attributes), Some(name)) => {
+                let removed = attributes.remove(name).is_some();
+                if attributes.is_empty() {
+                    cue.values.remove(&fixture);
+                }
+                removed
+            }
+            (None, _) => false,
+        };
+        if !removed {
+            let what = attribute.map_or(format!("fixture {fixture}"), str::to_string);
+            return Err(CoreError::InvalidCommand(format!(
+                "Q{} holds no {what} of its own",
+                cue.number
+            )));
+        }
+        if let Some(state) = self.states.get_mut(&id) {
+            state.run.edited = true;
+        }
+        Ok(())
+    }
+
     /// CUE-09, 51: change one cue's legend, times, link, tracking and group times; refused as a
     /// whole when one is out of range.
     pub fn change_cue(
@@ -2272,7 +2340,7 @@ impl Engine {
         self.check_empty_handle(page, slot)?;
         if let Some(master) = &mut source.master {
             let kind = master.kind();
-            let free = (1..=kind.max()).find(|&n| !self.master_in_use(kind, n));
+            let free = self.free_master_number(kind);
             master.set_number(free.ok_or_else(|| {
                 CoreError::InvalidCommand(format!("no free {master} number left"))
             })?);
@@ -3428,7 +3496,7 @@ impl Engine {
     }
 
     /// A stored value, or what its palette resolves for this fixture now (PAL-11).
-    fn resolve_stored(&self, fixture: FixtureId, attribute: &str, stored: Stored) -> Value {
+    pub fn resolve_stored(&self, fixture: FixtureId, attribute: &str, stored: Stored) -> Value {
         match (self.fixtures.get(&fixture), self.mode_of(fixture)) {
             (Some(f), Some(mode)) => resolve_stored(&self.palettes, f, mode, attribute, stored),
             _ => stored.value(),
@@ -3469,14 +3537,25 @@ impl Engine {
         groups.into_iter().collect()
     }
 
-    /// PBK-35: the attribute groups the playback's first cue holds values in, in I P C G B E S FX order.
+    /// PBK-35, CUE-40: the attribute groups all the playback's cues hold values in, in
+    /// I P C G B E S FX order.
     pub fn playback_groups(&self, id: PlaybackId) -> Vec<AttributeGroup> {
-        let groups: BTreeSet<AttributeGroup> =
-            (self.playback(id).and_then(Playback::values).into_iter())
-                .flat_map(|values| values.values())
-                .flat_map(|attrs| attrs.keys())
-                .map(|name| self.attribute_group(name))
-                .collect();
+        let cues = self.playback(id).map(|p| p.cues.as_slice()).unwrap_or(&[]);
+        self.groups_of(cues.iter())
+    }
+
+    /// CUE-40: the attribute groups one cue holds values in (empty for an unknown cue).
+    pub fn cue_groups(&self, id: PlaybackId, cue: CueNumber) -> Vec<AttributeGroup> {
+        let cues = self.playback(id).map(|p| p.cues.as_slice()).unwrap_or(&[]);
+        self.groups_of(cues.iter().filter(|c| c.number == cue))
+    }
+
+    fn groups_of<'a>(&self, cues: impl Iterator<Item = &'a Cue>) -> Vec<AttributeGroup> {
+        let groups: BTreeSet<AttributeGroup> = cues
+            .flat_map(|c| c.values.values())
+            .flat_map(|attrs| attrs.keys())
+            .map(|name| self.attribute_group(name))
+            .collect();
         groups.into_iter().collect()
     }
 

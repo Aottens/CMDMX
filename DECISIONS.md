@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-21 — Cue lists over IPC and in the app (VS3-05, owner)
+
+**Decision:** `ipc.md` IPC-24..28 and the `ui.md` amendments of UI-03, 13, 18, 19, 22, 23: `cue.view` is answered by the tick to the asking client only (never waiting); taps and handle buttons carry their receive time; `master.record` without a number takes the lowest free one; `playback.options` list/chase/master fields are each optional; entries carry the handle's button functions, so the app never applies `handle_buttons` itself. Magenta (#E54BB4 / #B8288A) means a tracked value. Show-wide playback settings sit in a Settings tab of Playback Options; BPM/Rate masters are recorded from Record-context softkeys.
+
+**Alternatives considered:** the app choosing master numbers and button labels itself; a separate settings screen; broadcasting the Cue view to every client.
+
+**Reasoning:** the app stays a thin client (CLAUDE.md); a tap must not be rounded to the 25 ms tick (CUE-33).
+
+**Reversal trigger:** the Cue view needs live refresh on edits from other clients (then a revision counter on entries).
+
 ## 2026-10-21 — Serial output on its own 30 ms timer (VS4-05, OUT-24, owner)
 
 **Decision:** The serial node's thread keeps the latest frame handed over and writes it every 30 ms, counted from the start of the previous write (~33 Hz), instead of skipping every second tick (20 Hz). Art-Net and sACN stay on the 40 Hz tick.

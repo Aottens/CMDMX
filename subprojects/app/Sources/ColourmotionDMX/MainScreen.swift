@@ -43,6 +43,20 @@ struct PaletteRef: Identifiable {
     var id: Int { number }
 }
 
+/// A cue of a cue list (CUE-43): what the Cue softkeys, Record on a row, the Cue view and the cue
+/// legend editor act on.
+struct CueRef: Equatable, Identifiable {
+    let playback: Int
+    let cue: Double
+    var id: String { "\(playback)/\(cue)" }
+}
+
+/// The hard value last right-clicked in the Cue view (CUE-54): what Remove takes out.
+struct CueValueRef: Equatable {
+    let fixture: Int
+    let attribute: String
+}
+
 /// UI-only state shared by the zones. None of this reaches the engine.
 @MainActor
 final class UIState: ObservableObject {
@@ -56,9 +70,9 @@ final class UIState: ObservableObject {
     /// Disarming forgets the record choices below (they hold for one record only, PAL-29).
     @Published var recordArmed = false { didSet { if !recordArmed { resetRecord() } } }
     /// Record + tap on a used cell: waiting for Replace / Merge / Quick Merge (PAL-06).
-    @Published var usedCell: UsedCell?
+    @Published var usedCell: UsedCell? { didSet { if usedCell != nil { usedCue = nil } } }
     /// Record + tap on a used handle: waiting for Replace / Merge (PBK-38).
-    @Published var usedHandle: UsedHandle?
+    @Published var usedHandle: UsedHandle? { didSet { if usedHandle != nil { usedCue = nil } } }
     /// Record choices for this record only (PAL-29); nil = the window's mask / the engine's setting.
     @Published var recordMask: Set<String>?
     @Published var recordBy: String?
@@ -83,6 +97,22 @@ final class UIState: ObservableObject {
     /// The playback shown on the Playback Options screen and its tab (PBK-39).
     @Published var optionsFor: Int?
     @Published var optionsTab = PlaybackOptionsTab.fader
+    /// Cue lists (CUE-43..45, 54): the row a right-click opened the Cue softkeys on, Delete waiting
+    /// for its confirmation on softkey A, the row tapped while Record is armed, this record's update
+    /// mode (nil = the setting) and a master record armed ("Bpm" / "Rate").
+    @Published var cueMenu: CueRef?
+    @Published var cueDelete = false
+    @Published var usedCue: CueRef?
+    @Published var updateMode: String?
+    @Published var recordMaster: String?
+    /// The Cue view shown in place of the Cue list window, the hard value last right-clicked in it
+    /// and Remove waiting for its confirmation.
+    @Published var cueView: CueRef?
+    @Published var cueValue: CueValueRef?
+    @Published var cueRemoveConfirm = false
+    @Published var cueLegendEditing: CueRef?
+    /// The cue the Times tab opens on (Edit Times on a row).
+    @Published var optionsCue: Double?
     /// Set Overlap (PAL-29): the overlap in % for the next palette tap only.
     @Published var pendingOverlap: Double?
     /// The Palette softkeys (PAL-29): opened by the Palette key on an empty line, they stay open
@@ -91,6 +121,7 @@ final class UIState: ObservableObject {
 
     func resetRecord() {
         usedCell = nil; usedHandle = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
+        usedCue = nil; updateMode = nil; recordMaster = nil
     }
 
     /// Disarms Record and every palette function.
@@ -98,13 +129,15 @@ final class UIState: ObservableObject {
         recordArmed = false
         function = nil; source = nil; deleteTarget = nil
         handleSource = nil; deletePlayback = nil
+        cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
         paletteMenu = false
     }
 
     /// PBK-39: open the Playback Options screen on a playback.
-    func openOptions(_ playback: Int, tab: PlaybackOptionsTab = .fader) {
+    func openOptions(_ playback: Int, tab: PlaybackOptionsTab = .fader, cue: Double? = nil) {
         cancelModes()
         optionsFor = playback
+        optionsCue = cue
         optionsTab = tab
         screen = .options
     }
@@ -200,6 +233,12 @@ private struct Frame: View {
         }
         .sheet(item: $ui.pageLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
             PageLegendEditor(page: ref.number)
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
+        .sheet(item: $ui.cueLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
+            CueLegendEditor(ref: ref)
                 .environmentObject(engine).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)

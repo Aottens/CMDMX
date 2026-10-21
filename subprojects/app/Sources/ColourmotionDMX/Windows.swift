@@ -234,33 +234,6 @@ struct GroupsWindow: View {
     }
 }
 
-// MARK: - Placeholders for later specs
-
-/// Cue list: the sketch's column headers over an empty table.
-struct TablePlaceholderWindow: View {
-    @Environment(\.theme) private var t
-    let title: String
-    let spec: String
-    let columns: [String]
-
-    var body: some View {
-        PanelWindow(title: title, info: spec, accessory: { EmptyView() }) {
-            VStack(spacing: 0) {
-                HStack(spacing: 0) {
-                    ForEach(Array(columns.enumerated()), id: \.offset) { index, name in
-                        Text(name.uppercased()).font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3)
-                            .frame(maxWidth: index == 0 ? 34 : .infinity, alignment: .leading)
-                    }
-                }
-                .padding(.horizontal, 7).padding(.vertical, 2)
-                HLine()
-                Spacer(minLength: 0)
-            }
-            .help(spec)
-        }
-    }
-}
-
 // MARK: - Workspaces (UI-08)
 
 enum WindowKind {
@@ -285,7 +258,7 @@ enum WindowKind {
         case .beams: PaletteWindow(kind: .beams)
         case .programmer: ProgrammerWindow()
         case .picker: ColourPickerWindow()
-        case .cues: TablePlaceholderWindow(title: "Cue list", spec: "Cue lists · P1-08", columns: ["Q", "Name", "Delay", "Fade", "Link"])
+        case .cues: CueWindow()
         case .active: ActivePlaybacksWindow()
         }
     }
