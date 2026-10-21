@@ -27,7 +27,7 @@ out.*
 Early, under active development, not yet for real shows. What works today:
 
 - The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
-  USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, 20 Hz, start with `--serial <path>`).
+  USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own timer, start with `--serial <path>`).
 - Patch: pick a fixture from the library, set its mode, count, address and user number. Clashes
   are refused, and you can move, renumber, rename, change mode (from a list of the fixture's modes)
   and remove.
@@ -78,7 +78,7 @@ Early, under active development, not yet for real shows. What works today:
   masters (tap, typed, or on the fader) and Rate masters that drive several chases at once. Not
   yet in the app.
 
-Next: VS4-05 (serial output at 33 Hz), then the Go block and cue lists in the app; checking
+Next: the owner's fade check of the 33 Hz serial output on the LED par (VS4-05), then the Go block and cue lists in the app; checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
