@@ -6,8 +6,9 @@ use std::io;
 use std::net::{Ipv4Addr, UdpSocket};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
+use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, SyncSender, TrySendError};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use cmdmx_core::UNIVERSE_SIZE;
 
@@ -114,6 +115,67 @@ fn run(
     }
 }
 
+/// OUT-24: like `spawn`, but the thread writes the latest frame on its own timer
+/// every `interval` instead of once per received frame.
+pub fn spawn_paced(
+    name: &'static str,
+    interval: Duration,
+    mut send: impl FnMut(&FrameData, Instant) -> (Option<String>, OutputState) + Send + 'static,
+) -> (SyncSender<FrameData>, Status) {
+    let (tx, rx) = sync_channel(1);
+    let status = Status::new();
+    let shared = status.clone();
+    std::thread::spawn(move || {
+        run_paced(
+            name,
+            interval,
+            &mut send,
+            &mut |d| rx.recv_timeout(d),
+            &mut Instant::now,
+            &shared,
+        )
+    });
+    (tx, status)
+}
+
+/// OUT-24: nothing is written before the first frame, then the first write is
+/// immediate and each next one is due `interval` after the previous write STARTED
+/// (a slow write or a panic does not shift the timer). Time and channel come in as
+/// closures so the pacing is testable; returns when the sender is gone.
+pub fn run_paced(
+    name: &str,
+    interval: Duration,
+    send: &mut impl FnMut(&FrameData, Instant) -> (Option<String>, OutputState),
+    recv: &mut impl FnMut(Duration) -> Result<FrameData, RecvTimeoutError>,
+    now: &mut impl FnMut() -> Instant,
+    status: &Status,
+) {
+    let Ok(mut latest) = recv(Duration::MAX) else {
+        return;
+    };
+    let mut due = now();
+    loop {
+        let t = now();
+        if t >= due {
+            due = t.checked_add(interval).unwrap_or(t);
+            match catch_unwind(AssertUnwindSafe(|| send(&latest, t))) {
+                Ok((log, state)) => {
+                    status.set(state);
+                    if let Some(msg) = log {
+                        eprintln!("{msg}");
+                    }
+                }
+                Err(_) => eprintln!("{name} output: panic caught, continuing"),
+            }
+        }
+        match recv(due.saturating_duration_since(now())) {
+            Ok(f) => latest = f,
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => return,
+        }
+    }
+}
+
 /// OUT-11: hand a frame to the output thread without blocking. A full
 /// channel drops this frame; `false` means the thread is gone.
 pub fn publish(tx: &SyncSender<FrameData>, frame: &FrameData) -> bool {
@@ -199,6 +261,7 @@ mod tests {
     /// OUT-24: a fake clock plus a scripted channel. `recv(timeout)` returns the next
     /// frame if it arrives within `timeout` (moving the clock to its arrival), else
     /// moves the clock by `timeout` and times out; with no frames left the sender is gone.
+    #[allow(clippy::type_complexity)]
     fn scripted(
         t0: Instant,
         arrivals_ms: &[u64],
