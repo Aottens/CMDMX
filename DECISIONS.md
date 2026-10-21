@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-21 — Cue lists track in phase 1; one Go block on the connected list plus Go per handle (P1-08, owner)
+
+**Decision:** Answers to the first `specs/modules/cuelists.md` gate-1 questions. (1) A cue list lives on any handle with its own Go on a handle button; the Go block, Space and the Cue list window act on the connected list (last fired or tapped, else the first list in the show), as on Titan. (2) Handle buttons follow what is on the handle (memory Swop/Flash, cue list Go/Flash, chase Tap/Flash, BPM master Tap), configurable per kind for the show. (3) The cue-list fader at 0 keeps the list on its cue by default (`KillWithOff`), configurable. (4) **Tracking moves from phase 2 into phase 1** (Track/Block/Cue Only/Solo, Update modes, Cue view); this reverses that part of the 2026-10-17 phase-1 decision. (5) BPM masters by Tap/typing by default, Titan's fader modes as options; Rate masters 0–200 %. Ableton sync becomes IDEA-16 (phase 2). Follow-up the same day: a list or chase on a handle takes these best-practice buttons by default; the setting `handle_buttons` switches to Titan's factory Swop/Flash or a custom pair per kind. The spec (CUE-01..55) is approved.
+
+**Alternatives considered:** a Go block pinned to one list, or no Go block; fixed Swop/Flash everywhere; Titan's Kill At 0 as default; cue lists without tracking until phase 2 (each cue a whole intensity look); BPM on the fader only.
+
+**Reasoning:** Titan practice; the owner programs big shows, where a list without tracking is not workable; cues already store touched attributes only, so tracking needs no change to stored cues.
+
+**Reversal trigger:** tracking makes the church service harder to program than Lightkey, or the connected-list model confuses operators at the church.
+
 ## 2026-10-18 — Playbacks follow Titan; a playback holds a list of cues (P1-04, owner)
 
 **Decision:** `specs/modules/playbacks.md` PBK-06..45. Playbacks live on stored handles (page.slot) with Titan's paging locks; recording stores the programmer (touched attributes only by default, Record By Channel) with palette references and fallback values; fader modes 0/1/2 with delay/fade in/fade out/overlap per cue (mode 1 falls no faster than full scale per fade-out time); Titan kill point, release mask (empty global default) and release time (2 s); fixed Swop/Flash plus Latch; automatic halo from the cue's colour; DBO as live toggle. A playback stores a list of cues (one in phase 1), so P1-08 cue lists need no second migration. Chases with BPM/Rate masters move to P1-08; group masters get their own spec (P1-16); attribute-group times come with P1-08.

@@ -1194,7 +1194,7 @@ fn pal_23_palettes_and_references_round_trip() {
     let show = e.to_show(meta());
     let json = show.to_json();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(v["schema_version"], serde_json::json!(3));
+    assert_eq!(v["schema_version"], serde_json::json!(4));
     // Top-level keys in file order: lines with exactly two spaces of indent.
     let keys: Vec<&str> = json
         .lines()
@@ -1255,7 +1255,11 @@ fn pal_23_a_version_1_show_is_migrated() {
     ))
     .unwrap();
     let (show, migrations) = Show::from_json(&v1).unwrap();
-    assert_eq!(migrations.len(), 2, "1 -> 2 and 2 -> 3: {migrations:?}");
+    assert_eq!(
+        migrations.len(),
+        3,
+        "1 -> 2, 2 -> 3 and 3 -> 4: {migrations:?}"
+    );
     let (engine, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(engine.palettes().count(), 0);

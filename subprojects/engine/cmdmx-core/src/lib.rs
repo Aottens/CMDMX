@@ -150,6 +150,28 @@ pub enum CoreError {
     SlotAlreadyLocked { slot: u16 },
     #[error("invalid halo colour (components are 0.0 to 1.0)")]
     InvalidHalo,
+    #[error("Q{0} exists: Replace, Merge or Update")]
+    CueExists(crate::playback::CueNumber),
+    #[error("Name a cue: {0} is not running")]
+    NameACue(String),
+    #[error("Handle {page}.{slot} holds {master}")]
+    HoldsMaster {
+        page: u16,
+        slot: u16,
+        master: String,
+    },
+    #[error("there is no cue Q{0}")]
+    UnknownCue(crate::playback::CueNumber),
+    #[error("Q{0} is already in use")]
+    CueNumberInUse(crate::playback::CueNumber),
+    #[error("cue numbers run from 0.001 to 9999.999 with at most three decimals")]
+    InvalidCueNumber,
+    #[error("No room {0}: renumber")]
+    NoCueRoom(String),
+    #[error("Q{0} is the last cue: Delete the playback instead")]
+    LastCue(crate::playback::CueNumber),
+    #[error("invalid {0}")]
+    InvalidOption(String),
     #[error("invalid command: {0}")]
     InvalidCommand(String),
     #[error("not a show file: {0}")]

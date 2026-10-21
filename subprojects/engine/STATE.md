@@ -1,9 +1,9 @@
 # engine — State
 
-_Last updated: 2026-10-18_
+_Last updated: 2026-10-21_
 
 ## Current step
-VS2-22 in review: playbacks over IPC (PBK-35, 36). VS2-20 (#44), VS2-21 (#45) and SHW-d (#47: `--help`, unknown arguments and bad `--ticks` refused, SHW-18) merged.
+VS3-02 in review: cue-list core storage (CUE-01..09, 15, 23, 29, 35..39). Next: VS3-03, running cue lists.
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
@@ -41,3 +41,4 @@ VS2-22 in review: playbacks over IPC (PBK-35, 36). VS2-20 (#44), VS2-21 (#45) an
 
 ## Resume with
 `cargo test && cargo clippy --all-targets -- -D warnings`, then the owner's next pick (P1-14, P1-03, P1-04). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.
+- Cue-list storage (VS3-02, CUE-01..09, 15, 23, 29, 35..39): `playback.rs` — `Kind` (Cues/Chase/BpmMaster/RateMaster), `ListOptions`, `ChaseOptions`, `Master` (Bpm/Rate, untagged), `CueNumber` (thousandths, invalid sentinel 0 for lenient load, `between`), `Cue{…, number, legend, link, track, group_times}` kept sorted, `HandleButtons`/`ButtonKind::allows`, `UpdateMode`, `CueChange`, `AddCue`. Engine: `record_playback` with `cue`/`add` (Append/Insert, Insert = Append until lists run), `record_master`, `delete/renumber/copy/change_cue`, `renumber_cues`, masters copied to the next free number, `change_playback` kind/list/chase/master. Show schema 4 (migration 3→4 numbers cues 1, 2, 3 …), lenient load in `lenient_playback`. 45 tests in `tests/cuelists.rs`, fixture `church-demo-v3.cmdmx.json`.

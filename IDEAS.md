@@ -207,3 +207,20 @@ third fixture ("1 in 3"), and further options; ONYX has this, as far as the owne
   does random reshuffle on every press or stay until the selection changes?
 **Outcome (2026-10-18):** owner: phase 2, "1 in 3" included. Random reshuffles on every press
 (each press takes a new seed, so the same actions still give the same result, ENG-11).
+
+### IDEA-16 — BPM masters follow Ableton, with subdivisions and multiples (2026-10-21, P1-08)
+**Owner's intent:** besides Tap and typing, a BPM master can sync to Ableton and run chases at
+subdivisions or multiples of Ableton's tempo ("isn't that a sick new feature?").
+**Triage:**
+- Proposed phase 2 (busking depth), before the Ableton timeline of IDEA-05 (phase 3), which
+  needs the same link. Owner to confirm or pull it into phase 1.
+- Touches now: only the shape of the BPM master. `cuelists.md` CUE-35 gives it a tempo set by
+  Tap or typing plus a multiplier (/4 … ×4); a sync source would be a third way to set that
+  tempo, so nothing has to be redone. No criteria until its phase is planned.
+- Two ways in: **Ableton Link** (tempo *and* beat phase over the network, so chase steps can land
+  on Ableton's beat; also used by Traktor, Rekordbox and many apps) or **MIDI clock** (24 pulses
+  per beat over CoreMIDI/IAC, tempo only, no phase; the daemon gets MIDI anyway for CTL).
+- Open questions: Link's SDK is C++ and dual-licensed GPLv2+ or proprietary (check before
+  choosing), so with Link the open licence question (MIT or GPL-3.0, `BACKLOG.md`) leans to GPL;
+  MIDI clock has no such tie. Should a chase step on the beat (phase), or only follow the tempo?
+**Outcome (2026-10-21):** owner: phase 2.

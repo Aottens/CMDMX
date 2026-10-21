@@ -68,7 +68,11 @@ Early, under active development, not yet for real shows. What works today:
   windows with automatic icons (colour swatch, pan/tilt plot) or one from a built-in library,
   Record/Update/Include/Copy/Move/Delete and legends, as on Titan.
 
-Next: cue lists (and chases); checking
+- Cue lists (started): the engine stores cue lists, chases and BPM/Rate masters on handles,
+  with numbered cues (Append, Insert, Q2.5), legends, links, tracking options and times per
+  attribute group. Running them (Go/Back, tracking, chase tempo) comes next.
+
+Next: running cue lists and chases, then the Go block in the app; checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
