@@ -3,7 +3,7 @@
 _Last updated: 2026-10-21_
 
 ## Current step
-VS3-05 in review: cue lists over IPC (CUE-40, 41, 54; IPC-24..28). VS4-05 merged (#52), its gate-3 run (`tests/hardware/runs/2026-10-21-VS4-05.md`) still open.
+VS3-05 done (#53): cue lists over IPC (CUE-40, 41, 54; IPC-24..28). P1-16 group masters spec (`group-masters.md`) in review; no engine code until it is approved. VS4-05 merged (#52), its gate-3 run (`tests/hardware/runs/2026-10-21-VS4-05.md`) still open.
 
 ## Working
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
