@@ -17,7 +17,7 @@ use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender, TryRecvError};
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
@@ -29,12 +29,17 @@ use cmdmx_core::palette::{
 };
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{
-    FaderMode, KillPoint, Paging, PlaybackChange, PlaybackId, PlaybackRecord, Priority, PAGES,
+    AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode, GroupTime,
+    HandleButton, HandleButtons, KillPoint, Kind, Link, ListAction, ListFader, ListOptions,
+    LoopAction, Master, MasterKind, Paging, PlaybackChange, PlaybackId, PlaybackRecord, Priority,
+    SpeedSource, Track, UpdateMode, PAGES,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{GroupId, ProgrammerView, Resolution};
+use cmdmx_core::value::{Stored, Value};
+use cmdmx_core::CoreError;
 use cmdmx_core::UniverseId;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tungstenite::handshake::server::{ErrorResponse, Request, Response};
 use tungstenite::http::StatusCode;
 use tungstenite::{Error as WsError, Message};
@@ -213,6 +218,164 @@ pub enum Command {
         on: bool,
     },
     SettingsPlayback(PlaybackSettingsChange),
+    /// CUE-41: `id` `None` is the connected list (CUE-27).
+    CuelistAction {
+        id: Option<PlaybackId>,
+        action: ListAction,
+    },
+    CuelistConnect {
+        id: PlaybackId,
+    },
+    /// IPC-25: `at` is the receive time, set by `stamp`.
+    PlaybackButton {
+        id: PlaybackId,
+        button: HandleButton,
+        on: bool,
+        at: f64,
+    },
+    PlaybackTap {
+        id: PlaybackId,
+        at: f64,
+    },
+    PlaybackBpm {
+        id: PlaybackId,
+        bpm: f32,
+    },
+    /// `playback.options` with a `list`, `chase` or `master` object: merged with the stored
+    /// value by the tick (IPC-27).
+    PlaybackOptions {
+        id: PlaybackId,
+        change: PlaybackChange,
+        list: Option<ListPatch>,
+        chase: Option<ChasePatch>,
+        master: Option<MasterPatch>,
+    },
+    /// `cue.times`, `cue.legend` and `cue.track` all land here.
+    CueEdit {
+        id: PlaybackId,
+        cue: CueNumber,
+        change: CueChange,
+    },
+    CueDelete {
+        id: PlaybackId,
+        cue: CueNumber,
+    },
+    CueRenumber {
+        id: PlaybackId,
+        cue: CueNumber,
+        to: CueNumber,
+    },
+    CueRenumberAll {
+        id: PlaybackId,
+    },
+    CueCopy {
+        id: PlaybackId,
+        cue: CueNumber,
+        to: CueNumber,
+    },
+    /// IPC-24: handed to the tick as `Event::CueView`, never applied.
+    CueView {
+        id: PlaybackId,
+        cue: CueNumber,
+    },
+    CueRemove {
+        id: PlaybackId,
+        cue: CueNumber,
+        fixture: FixtureId,
+        attribute: Option<String>,
+    },
+    /// IPC-26: `number` `None` is the lowest free one.
+    MasterRecord {
+        page: u16,
+        slot: u16,
+        kind: MasterKind,
+        number: Option<u8>,
+    },
+}
+
+/// IPC-27: the fields of `playback.options` `list`, each optional.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ListPatch {
+    tracking: Option<bool>,
+    fader: Option<ListFader>,
+    fire_first_cue: Option<bool>,
+    #[serde(rename = "loop")]
+    looping: Option<LoopAction>,
+}
+
+impl ListPatch {
+    pub fn over(&self, mut o: ListOptions) -> ListOptions {
+        o.tracking = self.tracking.unwrap_or(o.tracking);
+        o.fader = self.fader.unwrap_or(o.fader);
+        o.fire_first_cue = self.fire_first_cue.unwrap_or(o.fire_first_cue);
+        o.looping = self.looping.unwrap_or(o.looping);
+        o
+    }
+}
+
+/// IPC-27: the fields of `playback.options` `chase`, each optional.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ChasePatch {
+    bpm: Option<f32>,
+    crossfade: Option<f32>,
+    direction: Option<Direction>,
+    #[serde(rename = "loop")]
+    looping: Option<LoopAction>,
+    speed_source: Option<SpeedSource>,
+}
+
+impl ChasePatch {
+    pub fn over(&self, mut o: ChaseOptions) -> ChaseOptions {
+        o.bpm = self.bpm.unwrap_or(o.bpm);
+        o.crossfade = self.crossfade.unwrap_or(o.crossfade);
+        o.direction = self.direction.unwrap_or(o.direction);
+        o.looping = self.looping.unwrap_or(o.looping);
+        o.speed_source = self.speed_source.unwrap_or(o.speed_source);
+        o
+    }
+}
+
+/// IPC-27: the fields of `playback.options` `master`, each optional; the ones that do not
+/// belong to the stored master's kind are refused.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct MasterPatch {
+    number: Option<u8>,
+    bpm: Option<f32>,
+    multiplier: Option<f32>,
+    fader: Option<BpmFader>,
+    fader_max: Option<f32>,
+    rate_scale: Option<u16>,
+}
+
+impl MasterPatch {
+    pub fn over(&self, master: Master) -> Result<Master, CoreError> {
+        let wrong = |what: &str| CoreError::InvalidOption(format!("{what} (not on a {master})"));
+        match master.clone() {
+            Master::Bpm(mut m) => {
+                if self.rate_scale.is_some() {
+                    return Err(wrong("rate_scale"));
+                }
+                m.number = self.number.unwrap_or(m.number);
+                m.bpm = self.bpm.unwrap_or(m.bpm);
+                m.multiplier = self.multiplier.unwrap_or(m.multiplier);
+                m.fader = self.fader.unwrap_or(m.fader);
+                m.fader_max = self.fader_max.unwrap_or(m.fader_max);
+                Ok(Master::Bpm(m))
+            }
+            Master::Rate(mut m) => {
+                let bpm_only = [self.bpm, self.multiplier, self.fader_max];
+                if self.fader.is_some() || bpm_only.iter().any(Option::is_some) {
+                    return Err(wrong("a BPM field"));
+                }
+                m.number = self.number.unwrap_or(m.number);
+                m.rate_scale = self.rate_scale.unwrap_or(m.rate_scale);
+                Ok(Master::Rate(m))
+            }
+        }
+    }
 }
 
 /// LIB-14: the fixture library requests.
@@ -232,6 +395,12 @@ pub enum Event {
     ShowOpened(Box<Opened>),
     /// SHW-15: a refused show request, for every client (IPC-06).
     Warning(String),
+    /// IPC-24: the answer goes to `reply`, the asking client's own queue, and nowhere else.
+    CueView {
+        id: PlaybackId,
+        cue: CueNumber,
+        reply: SyncSender<String>,
+    },
 }
 
 /// An unsigned integer field that fits `T`.
@@ -287,6 +456,25 @@ fn field<T: serde::de::DeserializeOwned>(
     v.get(key)
         .and_then(|f| serde_json::from_value(f.clone()).ok())
         .ok_or_else(|| format!("missing or invalid \"{key}\" (expected {expected})"))
+}
+
+/// A number field (any f32).
+fn number(v: &serde_json::Value, key: &str) -> Result<f32, String> {
+    opt_f32(v, key)?.ok_or_else(|| format!("missing \"{key}\""))
+}
+
+/// CUE-02: a cue number, a JSON number of 0.001–9999.999 with at most three decimals.
+fn cue_number(v: &serde_json::Value, key: &str) -> Result<CueNumber, String> {
+    (v.get(key).and_then(|n| n.as_f64()).and_then(CueNumber::new)).ok_or_else(|| {
+        format!("missing or invalid \"{key}\" (expected a cue number, 0.001 to 9999.999)")
+    })
+}
+
+fn opt_cue_number(v: &serde_json::Value, key: &str) -> Result<Option<CueNumber>, String> {
+    match v.get(key) {
+        None => Ok(None),
+        Some(_) => cue_number(v, key).map(Some),
+    }
 }
 
 /// A boolean field.
@@ -351,12 +539,24 @@ fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
         release_time: nullable(v, "release_time", "a number or null")?,
         paging: opt_field::<Paging>(v, "paging", "Unlocked, Locked or TransparentLock")?,
         group: nullable(v, "group", "1 to 99 or null")?,
+        kind: opt_field::<Kind>(v, "kind", "Cues or Chase")?,
         delay: opt_f32(v, "delay")?,
         fade_in: opt_f32(v, "fade_in")?,
         fade_out: opt_f32(v, "fade_out")?,
         overlap: opt_f32(v, "overlap")?,
         ..PlaybackChange::default()
     })
+}
+
+/// IPC-25: set the time the client thread received a tap or button press; other commands pass.
+pub fn stamp(cmd: Command, at: f64) -> Command {
+    match cmd {
+        Command::PlaybackTap { id, .. } => Command::PlaybackTap { id, at },
+        Command::PlaybackButton { id, button, on, .. } => {
+            Command::PlaybackButton { id, button, on, at }
+        }
+        other => other,
+    }
 }
 
 /// IPC-04/06/13: one JSON text frame to a command, or a human-readable error.
@@ -567,24 +767,37 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 Some(_) => Some(field(&v, "record_by", "Channel or Mixed")?),
             },
         }),
-        Some("playback.record") => Ok(Command::PlaybackRecord(PlaybackRecord {
-            page: uint(&v, "page")?,
-            slot: uint(&v, "slot")?,
-            mask: opt_field(&v, "mask", "an array of attribute groups")?,
-            record_by: opt_field(&v, "record_by", "Channel or Mixed")?,
-            mode: match v.get("mode").map(|m| m.as_str()) {
-                None => None,
-                Some(Some("Replace")) => Some(RecordMode::Replace),
-                Some(Some("Merge")) => Some(RecordMode::Merge),
-                Some(Some("Update")) => Some(RecordMode::QuickMerge),
+        Some("playback.record") => {
+            let (mode, add) = match v.get("mode").map(|m| m.as_str()) {
+                None => (None, None),
+                Some(Some("Replace")) => (Some(RecordMode::Replace), None),
+                Some(Some("Merge")) => (Some(RecordMode::Merge), None),
+                Some(Some("Update")) => (Some(RecordMode::QuickMerge), None),
+                Some(Some("Append")) => (None, Some(AddCue::Append)),
+                Some(Some("Insert")) => (None, Some(AddCue::Insert)),
                 Some(_) => {
-                    return Err("invalid \"mode\" (expected Replace, Merge or Update)".into())
+                    return Err(
+                        "invalid \"mode\" (expected Replace, Merge, Update, Append or \
+                                Insert)"
+                            .into(),
+                    )
                 }
-            },
-            cue: None,
-            add: None,
-            update_mode: None,
-        })),
+            };
+            let cue = opt_cue_number(&v, "cue")?;
+            if add.is_some() && cue.is_some() {
+                return Err("\"cue\" cannot go with the mode Append or Insert".into());
+            }
+            Ok(Command::PlaybackRecord(PlaybackRecord {
+                page: uint(&v, "page")?,
+                slot: uint(&v, "slot")?,
+                mask: opt_field(&v, "mask", "an array of attribute groups")?,
+                record_by: opt_field(&v, "record_by", "Channel or Mixed")?,
+                mode,
+                cue,
+                add,
+                update_mode: opt_field(&v, "update_mode", "Forwards, CueOnly, Backwards or Both")?,
+            }))
+        }
         Some("playback.flash") => Ok(Command::PlaybackFlash {
             id: uint(&v, "id")?,
             on: boolean(&v, "on")?,
@@ -596,13 +809,31 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("playback.latch") => Ok(Command::PlaybackLatch {
             id: uint(&v, "id")?,
         }),
-        Some("playback.release") => Ok(Command::PlaybackRelease {
-            id: uint(&v, "id")?,
+        Some("playback.release") => Ok(match opt_uint(&v, "id")? {
+            Some(id) => Command::PlaybackRelease { id },
+            None => Command::CuelistAction {
+                id: None,
+                action: ListAction::Release,
+            },
         }),
-        Some("playback.options" | "playback.times") => Ok(Command::PlaybackChange {
-            id: uint(&v, "id")?,
-            change: playback_change(&v)?,
-        }),
+        Some("playback.options" | "playback.times") => {
+            let id = uint(&v, "id")?;
+            let change = playback_change(&v)?;
+            let list = opt_field(&v, "list", "an object of cue list options")?;
+            let chase = opt_field(&v, "chase", "an object of chase options")?;
+            let master = opt_field(&v, "master", "an object of master options")?;
+            Ok(if (list.is_none() && chase.is_none()) && master.is_none() {
+                Command::PlaybackChange { id, change }
+            } else {
+                Command::PlaybackOptions {
+                    id,
+                    change,
+                    list,
+                    chase,
+                    master,
+                }
+            })
+        }
         Some("playback.legend") => Ok(Command::PlaybackLegend {
             id: uint(&v, "id")?,
             legend: string(&v, "legend")?,
@@ -643,8 +874,122 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             overlap: opt_f32(&v, "overlap")?,
             release_mask: opt_field(&v, "release_mask", "an array of attribute groups")?,
             release_time: opt_f32(&v, "release_time")?,
-            ..PlaybackSettingsChange::default()
+            auto_connect: opt_field(&v, "auto_connect", "true or false")?,
+            cue_list_fader: opt_field(&v, "cue_list_fader", "KillWithOff or KillAtZero")?,
+            update_mode: opt_field(&v, "update_mode", "Forwards, CueOnly, Backwards or Both")?,
+            handle_buttons: opt_field(
+                &v,
+                "handle_buttons",
+                "BestPractice, Titan or {\"Custom\": {kind: [upper, lower]}}",
+            )?,
         })),
+        Some("cuelist.go") => Ok(Command::CuelistAction {
+            id: opt_uint(&v, "id")?,
+            action: ListAction::Go,
+        }),
+        Some("cuelist.back") => Ok(Command::CuelistAction {
+            id: opt_uint(&v, "id")?,
+            action: ListAction::Back,
+        }),
+        Some("cuelist.stop") => Ok(Command::CuelistAction {
+            id: opt_uint(&v, "id")?,
+            action: ListAction::Stop,
+        }),
+        Some("cuelist.goto") => Ok(Command::CuelistAction {
+            id: opt_uint(&v, "id")?,
+            action: ListAction::Goto(cue_number(&v, "cue")?),
+        }),
+        Some("cuelist.next") => Ok(Command::CuelistAction {
+            id: opt_uint(&v, "id")?,
+            action: ListAction::Next(cue_number(&v, "cue")?),
+        }),
+        Some("cuelist.connect") => Ok(Command::CuelistConnect {
+            id: uint(&v, "id")?,
+        }),
+        Some("playback.button") => Ok(Command::PlaybackButton {
+            id: uint(&v, "id")?,
+            button: field(&v, "button", "upper or lower")?,
+            on: boolean(&v, "on")?,
+            at: 0.0,
+        }),
+        Some("playback.tap") => Ok(Command::PlaybackTap {
+            id: uint(&v, "id")?,
+            at: 0.0,
+        }),
+        Some("playback.bpm") => Ok(Command::PlaybackBpm {
+            id: uint(&v, "id")?,
+            bpm: number(&v, "bpm")?,
+        }),
+        Some("cue.times") => Ok(Command::CueEdit {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            change: CueChange {
+                delay: opt_f32(&v, "delay")?,
+                fade_in: opt_f32(&v, "fade_in")?,
+                fade_out: opt_f32(&v, "fade_out")?,
+                overlap: opt_f32(&v, "overlap")?,
+                link: opt_field::<Link>(&v, "link", "{type: Wait, After or With, offset}")?,
+                group_times: opt_field(&v, "group_times", "{group: {delay, fade}}")?,
+                ..CueChange::default()
+            },
+        }),
+        Some("cue.legend") => Ok(Command::CueEdit {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            change: CueChange {
+                legend: Some(string(&v, "legend")?),
+                ..CueChange::default()
+            },
+        }),
+        Some("cue.track") => Ok(Command::CueEdit {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            change: CueChange {
+                track: Some(field::<Track>(
+                    &v,
+                    "track",
+                    "Track, Block, CueOnly or Solo",
+                )?),
+                ..CueChange::default()
+            },
+        }),
+        Some("cue.delete") => Ok(Command::CueDelete {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+        }),
+        Some("cue.renumber") => Ok(Command::CueRenumber {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            to: cue_number(&v, "to")?,
+        }),
+        Some("cue.renumber_all") => Ok(Command::CueRenumberAll {
+            id: uint(&v, "id")?,
+        }),
+        Some("cue.copy") => Ok(Command::CueCopy {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            to: cue_number(&v, "to")?,
+        }),
+        Some("cue.view") => Ok(Command::CueView {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+        }),
+        Some("cue.remove") => Ok(Command::CueRemove {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            fixture: uint(&v, "fixture")?,
+            attribute: opt_field(&v, "attribute", "a string")?,
+        }),
+        Some("master.record") => Ok(Command::MasterRecord {
+            page: uint(&v, "page")?,
+            slot: uint(&v, "slot")?,
+            kind: match v.get("kind").and_then(|k| k.as_str()) {
+                Some("Bpm") => MasterKind::Bpm,
+                Some("Rate") => MasterKind::Rate,
+                _ => return Err("missing or invalid \"kind\" (expected Bpm or Rate)".into()),
+            },
+            number: opt_uint(&v, "number")?,
+        }),
         Some(other) => Err(format!("unknown cmd '{other}'")),
         None => Err("missing \"cmd\"".into()),
     }
@@ -663,7 +1008,32 @@ struct StoredInfo {
     halo: Option<TargetColour>,
     options: OptionsInfo,
     times: TimesInfo,
-    /// Attribute groups the first cue holds, I P C G B E S FX order.
+    /// Attribute groups all cues hold, I P C G B E S FX order.
+    groups: Vec<AttributeGroup>,
+    /// CUE-40, IPC-28.
+    kind: Kind,
+    /// Without values.
+    cues: Vec<CueInfo>,
+    list: ListOptions,
+    chase: ChaseOptions,
+    master: Option<Master>,
+    /// CUE-25: what the two buttons of the handle do now.
+    buttons: [Button; 2],
+}
+
+/// CUE-40: a cue without its values.
+#[derive(Serialize, Clone, PartialEq)]
+struct CueInfo {
+    number: CueNumber,
+    legend: String,
+    delay: f32,
+    fade_in: f32,
+    fade_out: f32,
+    overlap: f32,
+    link: Link,
+    track: Track,
+    group_times: BTreeMap<AttributeGroup, GroupTime>,
+    /// The attribute groups this cue holds.
     groups: Vec<AttributeGroup>,
 }
 
@@ -698,6 +1068,19 @@ struct LiveInfo {
     latched: bool,
     /// Orders the active playbacks by when they fired; `None` while off.
     fired: Option<u64>,
+    /// CUE-40: a cue list's or chase's current and next cue; `None` for anything else.
+    cue: Option<CueLive>,
+    /// CUE-40, IPC-28: the effective BPM of a chase or BPM master.
+    bpm: Option<f32>,
+}
+
+/// CUE-40: `ListLive` on the wire.
+#[derive(Serialize, Clone, Copy, PartialEq)]
+struct CueLive {
+    current: Option<CueNumber>,
+    next: Option<CueNumber>,
+    progress: f32,
+    paused: bool,
 }
 
 #[derive(Serialize)]
@@ -725,6 +1108,10 @@ struct PlaybackSettingsInfo {
     overlap: f32,
     release_mask: Vec<AttributeGroup>,
     release_time: f32,
+    auto_connect: bool,
+    cue_list_fader: ListFader,
+    update_mode: UpdateMode,
+    handle_buttons: HandleButtons,
 }
 
 fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
@@ -737,6 +1124,10 @@ fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
         overlap: s.cue_overlap,
         release_mask: s.release_mask.clone(),
         release_time: s.release_time,
+        auto_connect: s.auto_connect,
+        cue_list_fader: s.cue_list_fader,
+        update_mode: s.update_mode,
+        handle_buttons: s.handle_buttons.clone(),
     }
 }
 
@@ -787,12 +1178,40 @@ fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
                 },
                 times,
                 groups: engine.playback_groups(p.id),
+                kind: p.kind,
+                cues: (p.cues.iter())
+                    .map(|c| CueInfo {
+                        number: c.number,
+                        legend: c.legend.clone(),
+                        delay: c.delay,
+                        fade_in: c.fade_in,
+                        fade_out: c.fade_out,
+                        overlap: c.overlap,
+                        link: c.link,
+                        track: c.track,
+                        group_times: c.group_times.clone(),
+                        groups: engine.cue_groups(p.id, c.number),
+                    })
+                    .collect(),
+                list: p.list.clone(),
+                chase: p.chase.clone(),
+                master: p.master.clone(),
+                buttons: engine
+                    .handle_buttons(p.id)
+                    .unwrap_or([Button::None, Button::None]),
             }
         })
         .collect()
 }
 
 fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
+    let cue = engine.list_live(id).map(|l| CueLive {
+        current: l.current,
+        next: l.next,
+        progress: l.progress,
+        paused: l.paused,
+    });
+    let bpm = engine.effective_bpm(id);
     let Some(s) = engine.playback_state(id) else {
         return LiveInfo {
             level: 0.0,
@@ -800,6 +1219,8 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
             flash: false,
             latched: false,
             fired: None,
+            cue,
+            bpm,
         };
     };
     LiveInfo {
@@ -814,6 +1235,8 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
         flash: s.flash || s.latched,
         latched: s.latched,
         fired: s.activated,
+        cue,
+        bpm,
     }
 }
 
@@ -944,6 +1367,8 @@ struct Snapshot<'a> {
     grand_master: f32,
     page: PageInfo,
     playbacks: Vec<PlaybackEntry<'a>>,
+    /// CUE-26, CUE-40: the connected list.
+    connected: Option<PlaybackId>,
     pages: Vec<PageLegendInfo>,
     dbo: bool,
     playback_settings: PlaybackSettingsInfo,
@@ -1041,6 +1466,14 @@ struct PlaybackDelta {
     id: PlaybackId,
     #[serde(flatten)]
     live: LiveInfo,
+}
+
+#[derive(Serialize)]
+struct ConnectedDelta {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    id: Option<PlaybackId>,
 }
 
 #[derive(Serialize)]
@@ -1164,6 +1597,7 @@ pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> 
         grand_master: engine.grand_master(),
         page: page_info(engine),
         playbacks: entries(&stored, engine),
+        connected: engine.connected(),
         pages: page_legends(engine),
         dbo: engine.dbo(),
         playback_settings: playback_settings(engine),
@@ -1175,6 +1609,64 @@ pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> 
         outputs: output_jsons(outputs),
         show,
     })
+}
+
+/// IPC-24: one value of a cue's state.
+#[derive(Serialize)]
+struct CueViewValue {
+    value: Value,
+    from: CueNumber,
+    /// Only for a palette reference.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    palette: Option<PaletteId>,
+}
+
+#[derive(Serialize)]
+struct CueViewFixture {
+    fixture: FixtureId,
+    values: BTreeMap<String, CueViewValue>,
+}
+
+#[derive(Serialize)]
+struct CueViewMessage {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    playback: PlaybackId,
+    cue: CueNumber,
+    fixtures: Vec<CueViewFixture>,
+}
+
+/// CUE-54, IPC-24: the answer to `cue.view`, sorted by fixture; a palette reference shows what
+/// its palette resolves (as `contents`, IPC-21) with its id.
+pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<String, CoreError> {
+    let fixtures = (engine.cue_view(id, cue)?.into_iter())
+        .map(|(fixture, attributes)| CueViewFixture {
+            fixture,
+            values: (attributes.into_iter())
+                .map(|(name, v)| {
+                    let palette = match v.value {
+                        Stored::Reference(r) => Some(r.palette),
+                        Stored::Value(_) => None,
+                    };
+                    let value = engine.resolve_stored(fixture, &name, v.value);
+                    let shown = CueViewValue {
+                        value,
+                        from: v.from,
+                        palette,
+                    };
+                    (name, shown)
+                })
+                .collect(),
+        })
+        .collect();
+    Ok(to_json(&CueViewMessage {
+        v: 0,
+        kind: "cue.view",
+        playback: id,
+        cue,
+        fixtures,
+    }))
 }
 
 pub fn error(msg: &str) -> String {
@@ -1197,6 +1689,7 @@ pub fn warning(msg: &str) -> String {
 pub struct Published {
     stored: Vec<StoredInfo>,
     live: BTreeMap<PlaybackId, LiveInfo>,
+    connected: Option<PlaybackId>,
     grand_master: f32,
     page: PageInfo,
     pages: Vec<PageLegendInfo>,
@@ -1219,6 +1712,7 @@ impl Published {
                 .playbacks()
                 .map(|p| (p.id, live_info(engine, p.id)))
                 .collect(),
+            connected: engine.connected(),
             grand_master: engine.grand_master(),
             page: page_info(engine),
             pages: page_legends(engine),
@@ -1267,6 +1761,16 @@ impl Published {
                     }));
                 }
             }
+        }
+        // CUE-26, 40: the connected list, once, when it changes.
+        let connected = engine.connected();
+        if connected != self.connected {
+            self.connected = connected;
+            out.push(to_json(&ConnectedDelta {
+                v: 0,
+                kind: "connected",
+                id: connected,
+            }));
         }
         let gm = engine.grand_master();
         if gm != self.grand_master {
@@ -1511,16 +2015,23 @@ fn show_event(shows: &Shows, req: ShowRequest) -> Event {
 pub fn spawn_server(port: u16) -> std::io::Result<(Receiver<Event>, SocketAddr)> {
     let dir = std::env::temp_dir().join(format!("cmdmx-ipc-shows-{}", std::process::id()));
     let shows = Shows::new(dir.join("Shows"), dir.join("state.json"));
-    spawn_server_with(port, Arc::new(RwLock::new(None)), Arc::new(shows))
+    spawn_server_with(
+        port,
+        Arc::new(RwLock::new(None)),
+        Arc::new(shows),
+        Instant::now(),
+    )
 }
 
 /// IPC-01: listen on loopback (port 0 = ephemeral); events flow to the tick, library
 /// requests are answered by the client threads from `library` (LIB-14) and the show requests
-/// from `shows` (SHW-15).
+/// from `shows` (SHW-15). `started` is the tick's clock: taps and buttons are stamped with the
+/// seconds since it when a client thread receives them (IPC-25).
 pub fn spawn_server_with(
     port: u16,
     library: SharedLibrary,
     shows: Arc<Shows>,
+    started: Instant,
 ) -> std::io::Result<(Receiver<Event>, SocketAddr)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port))?;
     let addr = listener.local_addr()?;
@@ -1538,7 +2049,7 @@ pub fn spawn_server_with(
                     .spawn(move || {
                         // IPC-07: a panic closes only this client.
                         if catch_unwind(AssertUnwindSafe(|| {
-                            serve_client(stream, &events, &library, &shows)
+                            serve_client(stream, &events, &library, &shows, started)
                         }))
                         .is_err()
                         {
@@ -1578,6 +2089,7 @@ fn serve_client(
     events: &Sender<Event>,
     library: &RwLock<Option<Library>>,
     shows: &Shows,
+    started: Instant,
 ) {
     let Ok(mut ws) = tungstenite::accept_hdr(stream, refuse_origin) else {
         return;
@@ -1586,6 +2098,9 @@ fn serve_client(
     if events.send(Event::Connected(tx)).is_err() {
         return;
     }
+    // IPC-24: the tick answers `cue.view` into this queue. It is not `tx`, because a sender kept
+    // here would stop `out` from reporting that the tick dropped this client (IPC-07).
+    let (reply, replies) = sync_channel::<String>(QUEUE);
     // After the handshake: short timeouts so one thread can both read and write.
     let tcp = ws.get_mut();
     if tcp
@@ -1616,7 +2131,14 @@ fn serve_client(
                         return;
                     }
                 }
+                Ok(Command::CueView { id, cue }) => {
+                    let reply = reply.clone();
+                    if events.send(Event::CueView { id, cue, reply }).is_err() {
+                        return;
+                    }
+                }
                 Ok(cmd) => {
+                    let cmd = stamp(cmd, started.elapsed().as_secs_f64());
                     if events
                         .send(Event::Command(attach_profile(library, cmd)))
                         .is_err()
@@ -1646,6 +2168,11 @@ fn serve_client(
                 Err(TryRecvError::Empty) => break,
                 // The tick dropped this client (queue full, IPC-07) or is gone.
                 Err(TryRecvError::Disconnected) => return,
+            }
+        }
+        while let Ok(msg) = replies.try_recv() {
+            if ws.send(Message::text(msg)).is_err() {
+                return;
             }
         }
     }
@@ -2376,7 +2903,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.5,"state":"active",
-                   "flash":false,"latched":false})
+                   "flash":false,"latched":false,"cue":null,"bpm":null})
         );
         e.tick(0.05);
         assert!(

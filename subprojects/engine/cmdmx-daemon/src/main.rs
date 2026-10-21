@@ -136,8 +136,10 @@ fn main() {
 
     // IPC-01: a bound port that is already taken most likely means another daemon runs.
     let library: ipc::SharedLibrary = Default::default();
+    // The tick's clock; the client threads stamp taps and buttons on it (IPC-25).
+    let started = Instant::now();
     let (events, ipc_addr) =
-        match ipc::spawn_server_with(cli.ipc_port, library.clone(), Arc::clone(&shows)) {
+        match ipc::spawn_server_with(cli.ipc_port, library.clone(), Arc::clone(&shows), started) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("cmdmx-daemon: cannot open IPC port {}: {e}", cli.ipc_port);
@@ -174,7 +176,6 @@ fn main() {
     let mut published = ipc::Published::new(&engine, &statuses, &autosave.state());
 
     eprintln!("cmdmx-daemon 0.1.0 — 40 Hz tick loop running.");
-    let started = Instant::now();
     let mut next = started;
     let mut tick: u64 = 0;
     let mut last_report = started;
@@ -196,6 +197,10 @@ fn main() {
                 ipc::Event::Warning(e) => {
                     warn(&mut clients, &e);
                     continue;
+                }
+                // IPC-24: to the asking client only; a full queue drops the answer (IPC-07).
+                ipc::Event::CueView { id, cue, reply } => {
+                    ipc::cue_view(&engine, id, cue).map(|msg| drop(reply.try_send(msg)))
                 }
                 // SHW-11/14/15: write the current show at once, then continue in the next one.
                 event
@@ -471,6 +476,55 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             Ok(())
         }
         SettingsPlayback(change) => engine.set_playback_settings(&change),
+        CuelistAction { id, action } => engine.cuelist(id, action, now),
+        CuelistConnect { id } => engine.connect_list(id),
+        PlaybackButton { id, button, on, at } => engine.press_button(id, button, on, at),
+        PlaybackTap { id, at } => engine.tap(id, at),
+        PlaybackBpm { id, bpm } => engine.set_bpm(id, bpm),
+        // IPC-27: merge the partial objects into the stored ones; the engine checks the whole.
+        PlaybackOptions {
+            id,
+            mut change,
+            list,
+            chase,
+            master,
+        } => {
+            let stored = engine.playback(id).ok_or(CoreError::UnknownPlayback(id))?;
+            change.list = list.map(|p| p.over(stored.list.clone()));
+            change.chase = chase.map(|p| p.over(stored.chase.clone()));
+            if let Some(patch) = master {
+                let base = stored.master.clone();
+                let base = base.ok_or_else(|| CoreError::InvalidOption("master".into()))?;
+                change.master = Some(patch.over(base)?);
+            }
+            engine.change_playback(id, &change)
+        }
+        CueEdit { id, cue, change } => engine.change_cue(id, cue, &change),
+        CueDelete { id, cue } => engine.delete_cue(id, cue),
+        CueRenumber { id, cue, to } => engine.renumber_cue(id, cue, to),
+        CueRenumberAll { id } => engine.renumber_cues(id),
+        CueCopy { id, cue, to } => engine.copy_cue(id, cue, to),
+        // Answered through `Event::CueView` (IPC-24).
+        CueView { .. } => Ok(()),
+        CueRemove {
+            id,
+            cue,
+            fixture,
+            attribute,
+        } => engine.remove_cue_value(id, cue, fixture, attribute.as_deref()),
+        // IPC-26: no number is the lowest free one.
+        MasterRecord {
+            page,
+            slot,
+            kind,
+            number,
+        } => {
+            let number = number.or_else(|| engine.free_master_number(kind));
+            let number = number.ok_or_else(|| {
+                CoreError::InvalidCommand(format!("no free {kind:?} master number left"))
+            })?;
+            engine.record_master(page, slot, kind, number).map(drop)
+        }
     }
 }
 
@@ -723,7 +777,7 @@ fn report(engine: &Engine) {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::panic)]
 mod tests {
     use super::*;
     use cmdmx_core::colour::ColourModel;

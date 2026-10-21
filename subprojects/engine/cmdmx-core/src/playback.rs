@@ -757,6 +757,16 @@ impl Playback {
     }
 }
 
+/// CUE-54: a value of a cue's state and the cue it is hard in.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CueValue {
+    pub value: Stored,
+    pub from: CueNumber,
+}
+
+/// CUE-54: the state of one cue per fixture and attribute.
+pub type CueView = BTreeMap<FixtureId, BTreeMap<String, CueValue>>;
+
 /// CUE-50: fixture → attribute → (value, index of the cue it is hard in).
 pub(crate) type State = BTreeMap<FixtureId, BTreeMap<String, (Stored, usize)>>;
 
