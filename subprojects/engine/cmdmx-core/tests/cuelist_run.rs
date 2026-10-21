@@ -1005,6 +1005,26 @@ fn cue_03_append_elsewhere_keeps_the_next_cue() {
 }
 
 #[test]
+fn cue_03_a_memory_on_stage_that_becomes_a_list_keeps_its_output() {
+    let mut e = common::church();
+    add(&mut e, 1, 1, 1, vec![cue(1.0, &[(201, "Dimmer", 1.0)])]);
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 0.5);
+    let out = frame(&e);
+    program(&mut e, 202, "Dimmer", 1.0);
+    e.record_playback(&PlaybackRecord {
+        add: Some(AddCue::Append),
+        ..PlaybackRecord::at(1, 1)
+    })
+    .unwrap();
+    e.clear_selection();
+    e.clear();
+    run(&mut e, 0.525, 1.0);
+    assert_eq!(frame(&e), out, "the output does not change");
+    assert_eq!((current(&e), next(&e)), (Some(1.0), Some(2.0)));
+}
+
+#[test]
 fn cue_05_insert_goes_after_the_current_cue_and_becomes_next() {
     let mut e = three();
     act(&mut e, ListAction::Goto(q(2.0)), 0.0);

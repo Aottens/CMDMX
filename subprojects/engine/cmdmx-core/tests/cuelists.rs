@@ -465,23 +465,27 @@ fn cue_04_replace_merge_and_update_act_on_that_cue_and_keep_its_fields() {
     );
     assert_eq!(*cue_at(&e, 1, 1.0), q1, "other cues untouched");
 
-    // Update: only what Q3 already holds (washes' Dimmer), so 221 stays out.
+    // Update: only what Q3's state holds (CUE-52 amended, owner 2026-10-21): the washes' Dimmer
+    // and 221 tracked from Q2; 222 is in no cue, so it stays out.
     e.clear_selection();
     e.clear();
-    common::select(&mut e, &[101, 221]);
+    common::select(&mut e, &[101, 221, 222]);
     e.set_programmer_value(101, "Dimmer", 0.2).unwrap();
     e.set_programmer_value(221, "Dimmer", 0.9).unwrap();
+    e.set_programmer_value(222, "Dimmer", 0.4).unwrap();
     e.record_playback(&to_cue(3.0, Some(RecordMode::QuickMerge)))
         .unwrap();
     let q3 = cue_at(&e, 1, 3.0);
     assert_eq!(q3.values[&101]["Dimmer"], Stored::Value(Value::Level(0.2)));
-    assert!(!q3.values.contains_key(&221));
+    assert_eq!(q3.values[&221]["Dimmer"], Stored::Value(Value::Level(0.9)));
+    assert!(!q3.values.contains_key(&222));
 
     // Replace: only the programmer's contents.
     e.record_playback(&to_cue(3.0, Some(RecordMode::Replace)))
         .unwrap();
     let mut both = dimmers(&[101], 0.2);
     both.extend(dimmers(&[221], 0.9));
+    both.extend(dimmers(&[222], 0.4));
     assert_eq!(cue_at(&e, 1, 3.0).values, both);
     assert_eq!(numbers(&e, 1), [1.0, 2.0, 3.0]);
 }
