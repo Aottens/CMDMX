@@ -246,17 +246,18 @@ private struct StripLegend: View {
                 Text(info.homeHandle)
             }
         }
-        .font(Typo.mono(9)).foregroundStyle(t.fg2).lineLimit(1)
+        .font(Typo.mono(9)).foregroundStyle(t.fg2).lineLimit(1).minimumScaleFactor(0.75)
     }
 }
 
 /// CUE-44: the legend's second line on a list ("Q3 › 4"), a chase ("2/8 · 120") or a master
-/// ("BPM 1 · 120 ×1", "RATE 2 · ×1.0", "GRP · SCALE 100 %"); nil for a memory.
+/// ("BPM 1 · 120 ×1", "RATE 2 · ×1.0", "GRP·SCALE 100%"); nil for a memory.
 private func cueSummary(_ info: PlaybackInfo) -> String? {
     if let m = info.stored.master {
         if info.stored.isGroupMaster {
-            let mode = ["Scale": "SCALE \(m.scale ?? 100) %", "Htp": "HTP", "Limit": "LIMIT", "TakeOver": "TAKE OVER"][m.mode ?? ""] ?? "?"
-            return "GRP · \(mode)" + (m.enabled == false ? " · LOCKED" : "")
+            // Short enough for a 92 pt strip (VS3-07 run): LOCKED takes GRP's place while disabled.
+            let mode = ["Scale": "SCALE \(m.scale ?? 100)%", "Htp": "HTP", "Limit": "LIMIT", "TakeOver": "TAKE OVER"][m.mode ?? ""] ?? "?"
+            return (m.enabled == false ? "LOCKED" : "GRP") + "·" + mode
         }
         if let scale = m.rateScale { return "RATE \(m.number) · ×" + String(format: "%.1f", info.live.level * Double(scale) / 100) }
         return "BPM \(m.number) · \(Int((info.live.bpm ?? m.bpm ?? 0).rounded())) ×\(plain(m.multiplier ?? 1))"

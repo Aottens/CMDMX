@@ -129,7 +129,8 @@ does; a group master can also take them down.)
 ### App (amends `ui.md` UI-22, PBK-37, CUE-44, 46)
 - **GRM-16** The strip of a group master shows "Group 6" (the group's legend once groups have names, UI-12) and the meta
   line "GRP · SCALE 100 %", "GRP · HTP", "GRP · LIMIT", "GRP · TAKE OVER", with "LOCKED" added
-  while disabled; the level bar is the master level. A `Scale` or `Limit` master below 100 %, and
+  while disabled (amended 2026-10-22, VS3-07 run: written "GRP·SCALE 100%", and "LOCKED" takes
+  the place of "GRP" while disabled, "LOCKED·LIMIT", so it fits a 92 pt strip); the level bar is the master level. A `Scale` or `Limit` master below 100 %, and
   an `Htp` master above 0, show the level in amber, so a dark or lit group is explained (Titan:
   the handle's LED flashes at zero).
 - **GRM-17** Playback Options on a group master shows Handle and **Master** tabs (CUE-46): mode
