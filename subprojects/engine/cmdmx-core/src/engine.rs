@@ -38,8 +38,8 @@ use crate::playback::{
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
-    AttributeGroupState, ColourView, Fade, FixtureValues, GroupId, PaletteUse, Programmer,
-    ProgrammerView, Resolution, WheelState,
+    AttributeGroupState, ColourView, EditPart, Fade, FixtureValues, GroupId, PaletteUse,
+    Programmer, ProgrammerView, Resolution, WheelState,
 };
 use crate::show::{
     Meta, Show, ShowGroup, ShowPage, ShowPalette, ShowPalettes, ShowPatch, ShowPlaybacks,
@@ -260,6 +260,22 @@ pub struct Engine {
     held: BTreeMap<FixtureId, BTreeMap<String, Value>>,
     /// CUE-26: the list the Go block acts on. Live state, not in the show.
     connected: Option<PlaybackId>,
+}
+
+/// UNDO (ADR-008): everything an edit command changes, as one snapshot. Not in it, so live or
+/// never-reused: fades, `activated`, id counters, playback states, GM, DBO, page, held values,
+/// the wheels' group and colour model, the connected list, frames.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EditState {
+    settings: Settings,
+    profiles: BTreeMap<String, Profile>,
+    fixtures: BTreeMap<FixtureId, Fixture>,
+    numbers: BTreeMap<u32, FixtureId>,
+    playbacks: BTreeMap<PlaybackId, Playback>,
+    page_legends: Vec<String>,
+    groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    palettes: BTreeMap<PaletteId, Palette>,
+    programmer: EditPart,
 }
 
 /// PAL-08: what applying a palette puts in the programmer: fixture, attribute, resolved value.
@@ -613,10 +629,20 @@ impl Engine {
 
     /// Store a checked fixture: number index, handle, held defaults and frame (LIB-03).
     fn install(&mut self, mut fixture: Fixture) -> Result<(), CoreError> {
-        let mode = lookup_mode(&self.profiles, &fixture.profile, fixture.mode.as_deref())?;
+        lookup_mode(&self.profiles, &fixture.profile, fixture.mode.as_deref())?;
         if fixture.handle.is_none() {
             fixture.handle = self.first_free_handle();
         }
+        self.init_held(&fixture)?;
+        self.numbers.insert(fixture.number, fixture.id);
+        self.next_id = self.next_id.max(fixture.id.saturating_add(1));
+        self.fixtures.insert(fixture.id, fixture);
+        Ok(())
+    }
+
+    /// Held LTP values and frame slots of a fixture start at the mode defaults (LIB-03).
+    fn init_held(&mut self, fixture: &Fixture) -> Result<(), CoreError> {
+        let mode = lookup_mode(&self.profiles, &fixture.profile, fixture.mode.as_deref())?;
         let frame = self.frames.entry(fixture.universe).or_default();
         let held = self.held.entry(fixture.id).or_default();
         held.clear();
@@ -629,9 +655,6 @@ impl Engine {
             held.insert(l.name.to_string(), l.default);
             write_value(frame, fixture.address, mode, &l, l.default, scale);
         }
-        self.numbers.insert(fixture.number, fixture.id);
-        self.next_id = self.next_id.max(fixture.id.saturating_add(1));
-        self.fixtures.insert(fixture.id, fixture);
         Ok(())
     }
 
@@ -734,6 +757,82 @@ impl Engine {
             state.level = m.level; // GRM-05: the fader starts at the saved level
         }
         self.playbacks.insert(playback.id, playback);
+    }
+
+    // ---- undo (UNDO, ADR-008) ----------------------------------------------
+
+    pub fn edit_state(&self) -> EditState {
+        EditState {
+            settings: self.settings.clone(),
+            profiles: self.profiles.clone(),
+            fixtures: self.fixtures.clone(),
+            numbers: self.numbers.clone(),
+            playbacks: self.playbacks.clone(),
+            page_legends: self.page_legends.clone(),
+            groups: self.groups.clone(),
+            palettes: self.palettes.clone(),
+            programmer: self.programmer.edit_part(),
+        }
+    }
+
+    /// UNDO-10..12. Infallible: a whole-snapshot swap cannot fail to apply (UNDO-17).
+    pub(crate) fn restore_edit_state(&mut self, s: EditState) {
+        let same_place = |a: &Fixture, b: &Fixture| {
+            (a.universe, a.address, &a.profile, &a.mode)
+                == (b.universe, b.address, &b.profile, &b.mode)
+        };
+        // Old channels of removed or changed fixtures go dark (old profiles still in place).
+        let gone: Vec<(UniverseId, u16, u16)> = self
+            .fixtures
+            .values()
+            .filter(|f| s.fixtures.get(&f.id).is_none_or(|n| !same_place(f, n)))
+            .map(|f| (f.universe, f.address, self.footprint_of(f).unwrap_or(0)))
+            .collect();
+        for (universe, address, footprint) in gone {
+            self.clear_channels(universe, address, footprint);
+        }
+        self.settings = s.settings;
+        self.profiles = s.profiles;
+        self.numbers = s.numbers;
+        self.page_legends = s.page_legends;
+        self.groups = s.groups;
+        self.palettes = s.palettes;
+        let old_fixtures = std::mem::replace(&mut self.fixtures, s.fixtures);
+        self.held.retain(|id, _| self.fixtures.contains_key(id));
+        let fixtures: Vec<Fixture> = self.fixtures.values().cloned().collect();
+        for f in fixtures {
+            self.frames.entry(f.universe).or_default();
+            let kept = old_fixtures
+                .get(&f.id)
+                .is_some_and(|o| (&o.profile, &o.mode) == (&f.profile, &f.mode));
+            if !kept && self.init_held(&f).is_err() {
+                self.held.remove(&f.id);
+            }
+        }
+        // Playbacks: removed ones are killed, returned ones start fresh, changed ones keep
+        // running and snap to their contents; a group master keeps its current level.
+        let mut new = s.playbacks;
+        self.states.retain(|id, _| new.contains_key(id));
+        for pb in new.values_mut() {
+            let old = self.playbacks.get(&pb.id);
+            if let (Some(Master::Group(m)), Some(Master::Group(o))) =
+                (&mut pb.master, old.and_then(|o| o.master.as_ref()))
+            {
+                m.level = o.level;
+            }
+            let state = self.states.entry(pb.id).or_default();
+            match old {
+                Some(o) => state.run.edited |= o != &*pb,
+                None => {
+                    if let Some(Master::Group(m)) = &pb.master {
+                        state.level = m.level;
+                    }
+                }
+            }
+        }
+        self.playbacks = new;
+        self.programmer.restore_edit_part(s.programmer);
+        self.follow_active_group();
     }
 
     // ---- show file (SHW-01..08) --------------------------------------------

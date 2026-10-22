@@ -25,6 +25,7 @@ use crate::playback::{
 use crate::profile::Profile;
 use crate::programmer::Resolution;
 use crate::show::ShowGroup;
+use crate::undo::History;
 use crate::{CoreError, Timestamp, UniverseId};
 
 pub const TICK_SECONDS: f64 = 1.0 / 40.0;
@@ -209,6 +210,9 @@ pub enum ActionKind {
     GrandMaster(f32),
     Prg(PrgAction),
     Pal(PalAction),
+    /// UNDO: `{"undo": {}}`.
+    Undo {},
+    Redo {},
 }
 
 /// Palette actions in a scenario (`specs/modules/palettes.md`, "Scenario test format").
@@ -242,28 +246,60 @@ pub enum PrgAction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Expectation {
     pub t: Timestamp,
+    #[serde(default)]
     pub universe: UniverseId,
     /// 1-based DMX address → expected raw value 0..=255.
+    #[serde(default)]
     pub channels: BTreeMap<String, u8>,
+    /// UNDO: the labels the next Undo and Redo would act on.
+    pub history: Option<HistoryExpectation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryExpectation {
+    pub undo: Option<String>,
+    pub redo: Option<String>,
 }
 
 /// One failed expectation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Mismatch {
-    pub t_milli: u64,
-    pub universe: UniverseId,
-    pub address: u16,
-    pub expected: u8,
-    pub actual: Option<u8>,
+pub enum Mismatch {
+    Channel {
+        t_milli: u64,
+        universe: UniverseId,
+        address: u16,
+        expected: u8,
+        actual: Option<u8>,
+    },
+    History {
+        t_milli: u64,
+        expected: (Option<String>, Option<String>),
+        actual: (Option<String>, Option<String>),
+    },
 }
 
 impl std::fmt::Display for Mismatch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "t={}ms universe {} address {}: expected {}, got {:?}",
-            self.t_milli, self.universe, self.address, self.expected, self.actual
-        )
+        match self {
+            Mismatch::Channel {
+                t_milli,
+                universe,
+                address,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "t={t_milli}ms universe {universe} address {address}: expected {expected}, got {actual:?}"
+            ),
+            Mismatch::History {
+                t_milli,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "t={t_milli}ms history (undo, redo): expected {expected:?}, got {actual:?}"
+            ),
+        }
     }
 }
 
@@ -310,6 +346,7 @@ pub fn build_engine(scenario: &Scenario) -> Result<Engine, CoreError> {
 /// `>= expectation.t`. Both are tolerant to the 25 ms tick grid.
 pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
     let mut engine = build_engine(scenario)?;
+    let mut history = History::default();
 
     let mut actions: Vec<&Action> = scenario.actions.iter().collect();
     actions.sort_by(|a, b| a.t.total_cmp(&b.t));
@@ -337,6 +374,12 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
         while let Some(action) = actions.get(next_action) {
             if action.t > now + 1e-9 {
                 break;
+            }
+            if !matches!(
+                action.kind,
+                ActionKind::Prg(_) | ActionKind::Pal(_) | ActionKind::Undo {} | ActionKind::Redo {}
+            ) {
+                history.live();
             }
             match &action.kind {
                 ActionKind::Fader { playback, level } => {
@@ -372,34 +415,56 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                 ActionKind::Dbo { on } => engine.set_dbo(*on),
                 ActionKind::GrandMaster(level) => engine.set_grand_master(*level)?,
                 ActionKind::Prg(PrgAction::Select(ids)) => {
-                    for id in ids {
-                        engine.select_fixture(*id)?;
-                    }
+                    history.edit(&mut engine, "Select", Some("select"), |e| {
+                        ids.iter().try_for_each(|id| e.select_fixture(*id))
+                    })?;
                 }
                 ActionKind::Prg(PrgAction::Wheel {
                     attribute,
                     steps,
                     resolution,
-                }) => engine.turn_wheel(attribute, *steps, *resolution)?,
+                }) => history.edit(
+                    &mut engine,
+                    &format!("Wheel {attribute}"),
+                    Some(&format!("wheel:{attribute}")),
+                    |e| e.turn_wheel(attribute, *steps, *resolution),
+                )?,
                 ActionKind::Prg(PrgAction::Command(tokens)) => {
-                    let tokens: Vec<&str> = tokens.iter().map(String::as_str).collect();
-                    engine.execute_command(&tokens)?;
+                    let words: Vec<&str> = tokens.iter().map(String::as_str).collect();
+                    history.edit(&mut engine, &tokens.join(" "), None, |e| {
+                        e.execute_command(&words)
+                    })?;
                 }
                 ActionKind::Pal(PalAction::Record(record)) => {
-                    engine.record_palette(record)?;
+                    history.edit(&mut engine, "Record palette", None, |e| {
+                        e.record_palette(record).map(drop)
+                    })?;
                 }
                 ActionKind::Pal(PalAction::Apply {
                     number,
                     time,
                     overlap,
-                }) => engine.apply_palette(
-                    *number,
-                    Timing {
-                        time: *time,
-                        overlap: *overlap,
-                    },
+                }) => history.edit(&mut engine, &format!("Palette {number}"), None, |e| {
+                    e.apply_palette(
+                        *number,
+                        Timing {
+                            time: *time,
+                            overlap: *overlap,
+                        },
+                    )
+                })?,
+                ActionKind::Pal(PalAction::Delete(number)) => history.edit(
+                    &mut engine,
+                    &format!("Delete palette {number}"),
+                    None,
+                    |e| e.delete_palette(*number),
                 )?,
-                ActionKind::Pal(PalAction::Delete(number)) => engine.delete_palette(*number)?,
+                ActionKind::Undo {} => {
+                    history.undo(&mut engine)?;
+                }
+                ActionKind::Redo {} => {
+                    history.redo(&mut engine)?;
+                }
             }
             next_action += 1;
         }
@@ -410,13 +475,27 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
             if expectation.t > now + 1e-9 {
                 break;
             }
+            let t_milli = (now * 1000.0).round() as u64;
+            if let Some(h) = &expectation.history {
+                let actual = (
+                    history.undo_label().map(str::to_string),
+                    history.redo_label().map(str::to_string),
+                );
+                if actual != (h.undo.clone(), h.redo.clone()) {
+                    mismatches.push(Mismatch::History {
+                        t_milli,
+                        expected: (h.undo.clone(), h.redo.clone()),
+                        actual,
+                    });
+                }
+            }
             let frame = engine.frame(expectation.universe);
             for (address_text, expected) in &expectation.channels {
                 let address: u16 = address_text.parse().unwrap_or(0);
                 let actual = frame.and_then(|f| f.channel(address));
                 if actual != Some(*expected) {
-                    mismatches.push(Mismatch {
-                        t_milli: (now * 1000.0).round() as u64,
+                    mismatches.push(Mismatch::Channel {
+                        t_milli,
                         universe: expectation.universe,
                         address,
                         expected: *expected,

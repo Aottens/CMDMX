@@ -139,6 +139,15 @@ impl Fade {
     }
 }
 
+/// UNDO: the part of the programmer an undo step saves (ADR-008). Not the fades or `activated`.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct EditPart {
+    selection: Vec<FixtureId>,
+    sub: Sub,
+    changed: bool,
+    values: BTreeMap<FixtureId, BTreeMap<String, Stored>>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Programmer {
     selection: Vec<FixtureId>,
@@ -154,6 +163,34 @@ pub struct Programmer {
 }
 
 impl Programmer {
+    pub(crate) fn edit_part(&self) -> EditPart {
+        EditPart {
+            selection: self.selection.clone(),
+            sub: self.sub,
+            changed: self.changed,
+            values: self.values.clone(),
+        }
+    }
+
+    /// UNDO-12: put a saved part back. A palette fade survives only while its value is unchanged
+    /// (a fade always has a value); `activated` stays.
+    pub(crate) fn restore_edit_part(&mut self, part: EditPart) {
+        let old = std::mem::replace(&mut self.values, part.values);
+        self.selection = part.selection;
+        self.sub = part.sub;
+        self.changed = part.changed;
+        let values = &self.values;
+        for (fixture, attrs) in &mut self.fades {
+            attrs.retain(|a, _| {
+                let get = |m: &BTreeMap<FixtureId, BTreeMap<String, Stored>>| {
+                    m.get(fixture).and_then(|v| v.get(a)).copied()
+                };
+                get(values).is_some() && get(values) == get(&old)
+            });
+        }
+        self.fades.retain(|_, a| !a.is_empty());
+    }
+
     pub fn selection(&self) -> &[FixtureId] {
         &self.selection
     }
