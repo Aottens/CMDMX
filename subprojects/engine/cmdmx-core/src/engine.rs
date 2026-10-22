@@ -27,6 +27,7 @@ use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{ColourModel, TargetColour};
 use crate::command::{self, Item, Kind};
 use crate::cuelist::{Ctx, Env, ListRun};
+use crate::output::{self, Node, NodeId, NodeKind};
 use crate::palette::{
     self, Cell, Detected, Entry, Limit, Palette, PaletteId, Record, RecordBy, RecordMode, Timing,
 };
@@ -46,8 +47,8 @@ use crate::programmer::{
     Resolution, WheelState,
 };
 use crate::show::{
-    Meta, Show, ShowGroup, ShowPage, ShowPalette, ShowPalettes, ShowPatch, ShowPlaybacks,
-    ShowSettings, SCHEMA_VERSION,
+    Meta, Show, ShowGroup, ShowNode, ShowOutput, ShowPage, ShowPalette, ShowPalettes, ShowPatch,
+    ShowPlaybacks, ShowSettings, SCHEMA_VERSION,
 };
 use crate::value::{Reference, Stored, Value};
 use crate::{CoreError, Timestamp, UniverseId, Warning, UNIVERSE_SIZE};
@@ -262,6 +263,10 @@ pub struct Engine {
     palettes: BTreeMap<PaletteId, Palette>,
     /// Above every palette id ever used, so ids are never reused (PAL, Definitions).
     palette_next_id: PaletteId,
+    /// OUT-13: where each line is sent, by id.
+    nodes: BTreeMap<NodeId, Node>,
+    /// Above every node id ever used, so ids are never reused (OUT-13).
+    node_next_id: NodeId,
     /// Attribute group the wheels show (PRG-17/18).
     active_group: AttributeGroup,
     /// How the Colour wheels are shown (PRG-17, PRG-30).
@@ -288,6 +293,7 @@ pub struct EditState {
     page_legends: Vec<String>,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
     palettes: BTreeMap<PaletteId, Palette>,
+    nodes: BTreeMap<NodeId, Node>,
     programmer: EditPart,
 }
 
@@ -334,6 +340,27 @@ impl Engine {
             groups: BTreeMap::new(),
             palettes: BTreeMap::new(),
             palette_next_id: 1,
+            // OUT-25: line 1 goes out on Art-Net, sACN and the first serial interface.
+            nodes: [
+                NodeKind::default_artnet(1),
+                NodeKind::default_sacn(1),
+                NodeKind::Serial {
+                    port: "auto".into(),
+                },
+            ]
+            .into_iter()
+            .zip(1..)
+            .map(|(kind, id)| {
+                let node = Node {
+                    id,
+                    line: 1,
+                    enabled: true,
+                    kind,
+                };
+                (id, node)
+            })
+            .collect(),
+            node_next_id: 4,
             active_group: AttributeGroup::I,
             colour_model: ColourModel::default(),
             held: BTreeMap::new(),
@@ -435,6 +462,7 @@ impl Engine {
             placed.push((first_id + i, number, address));
             address += u32::from(footprint);
         }
+        let first_on_universe = self.universe_is_empty(add.universe);
         let mut ids = Vec::new();
         for (id, number, address) in placed {
             self.install(Fixture {
@@ -449,7 +477,90 @@ impl Engine {
             })?;
             ids.push(id);
         }
+        self.add_default_nodes(add.universe, first_on_universe);
         Ok(ids)
+    }
+
+    fn universe_is_empty(&self, universe: UniverseId) -> bool {
+        self.fixtures.values().all(|f| f.universe != universe)
+    }
+
+    /// OUT-26: the first fixture on a universe that has no node yet adds that line's default
+    /// Art-Net and sACN nodes (each only if its destination is free), with one warning.
+    fn add_default_nodes(&mut self, line: UniverseId, was_empty: bool) {
+        if !was_empty || self.nodes.values().any(|n| n.line == line) {
+            return;
+        }
+        let mut names = Vec::new();
+        let port_address = line.saturating_sub(1);
+        for (kind, label) in [
+            (
+                NodeKind::default_artnet(line),
+                format!("Art-Net {}", output::artnet_address(port_address)),
+            ),
+            (NodeKind::default_sacn(line), format!("sACN {line}")),
+        ] {
+            if self.output_add(line, true, kind).is_ok() {
+                names.push(label);
+            }
+        }
+        if !names.is_empty() {
+            let at = self.last_tick.unwrap_or(0.0);
+            self.warnings.push(Warning {
+                at,
+                message: format!("Universe {line} now goes out on {}", names.join(" and ")),
+            });
+        }
+    }
+
+    /// OUT-28: add a node; refused with a reason, nothing changes.
+    pub fn output_add(
+        &mut self,
+        line: UniverseId,
+        enabled: bool,
+        kind: NodeKind,
+    ) -> Result<NodeId, CoreError> {
+        let id = self.node_next_id;
+        let node = Node {
+            id,
+            line,
+            enabled,
+            kind,
+        };
+        output::check(&node, self.nodes.values())?;
+        self.node_next_id = id.saturating_add(1);
+        self.nodes.insert(id, node);
+        Ok(id)
+    }
+
+    /// OUT-28: replace a node by id; its kind cannot change.
+    pub fn output_edit(&mut self, node: Node) -> Result<(), CoreError> {
+        let old = self
+            .nodes
+            .get(&node.id)
+            .ok_or(CoreError::UnknownNode(node.id))?;
+        if std::mem::discriminant(&old.kind) != std::mem::discriminant(&node.kind) {
+            return Err(CoreError::NodeKindChanged(node.id));
+        }
+        output::check(&node, self.nodes.values())?;
+        self.nodes.insert(node.id, node);
+        Ok(())
+    }
+
+    /// OUT-28: remove nodes; all ids are checked first.
+    pub fn output_remove(&mut self, ids: &[NodeId]) -> Result<(), CoreError> {
+        if let Some(&unknown) = ids.iter().find(|id| !self.nodes.contains_key(id)) {
+            return Err(CoreError::UnknownNode(unknown));
+        }
+        for id in ids {
+            self.nodes.remove(id);
+        }
+        Ok(())
+    }
+
+    /// OUT-13: the nodes sorted by id.
+    pub fn nodes(&self) -> impl Iterator<Item = &Node> {
+        self.nodes.values()
     }
 
     /// PAT-04: give a fixture a new place. Its own old channels do not count as a clash; they
@@ -475,10 +586,12 @@ impl Engine {
         let (old_universe, old_address) = (fixture.universe, fixture.address);
         self.clear_channels(old_universe, old_address, footprint);
         self.frames.entry(universe).or_default();
+        let was_empty = self.universe_is_empty(universe);
         if let Some(f) = self.fixtures.get_mut(&id) {
             f.universe = universe;
             f.address = address;
         }
+        self.add_default_nodes(universe, was_empty);
         Ok(())
     }
 
@@ -794,6 +907,7 @@ impl Engine {
             page_legends: self.page_legends.clone(),
             groups: self.groups.clone(),
             palettes: self.palettes.clone(),
+            nodes: self.nodes.clone(),
             programmer: self.programmer.edit_part(),
         }
     }
@@ -821,6 +935,7 @@ impl Engine {
         self.page_legends = s.page_legends;
         self.groups = s.groups;
         self.palettes = s.palettes;
+        self.nodes = s.nodes;
         let old_fixtures = std::mem::replace(&mut self.fixtures, s.fixtures);
         self.held.retain(|id, _| self.fixtures.contains_key(id));
         let fixtures: Vec<Fixture> = self.fixtures.values().cloned().collect();
@@ -971,6 +1086,10 @@ impl Engine {
                     })
                     .collect(),
             },
+            output: ShowOutput {
+                next_node_id: self.node_next_id,
+                nodes: self.nodes.values().cloned().map(ShowNode::Node).collect(),
+            },
         }
     }
 
@@ -1089,6 +1208,32 @@ impl Engine {
             }
         }
         engine.palette_next_id = engine.palette_next_id.max(show.palettes.next_id);
+        engine.nodes.clear();
+        for entry in &show.output.nodes {
+            let node = match entry {
+                ShowNode::Node(node) => node,
+                ShowNode::Unreadable(v) => {
+                    warnings.push(format!("output node left out, not readable: {v}"));
+                    continue;
+                }
+            };
+            if engine.nodes.contains_key(&node.id) {
+                warnings.push(format!(
+                    "output node {} left out: the id is already used",
+                    node.id
+                ));
+            } else if let Err(e) = output::check(node, engine.nodes.values()) {
+                warnings.push(format!("output node {} left out: {e}", node.id));
+            } else {
+                engine.nodes.insert(node.id, node.clone());
+            }
+        }
+        let highest = engine
+            .nodes
+            .keys()
+            .next_back()
+            .map_or(1, |id| id.saturating_add(1));
+        engine.node_next_id = show.output.next_node_id.max(highest);
         for page in &show.pages {
             if let Err(e) = engine.set_page_legend(page.number, &page.legend) {
                 warnings.push(format!("page {} legend left out: {e}", page.number));

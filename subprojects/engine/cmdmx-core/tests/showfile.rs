@@ -522,7 +522,7 @@ fn group_master_of(e: &Engine, id: u32) -> GroupMaster {
 fn grm_13_a_group_master_is_saved_with_its_level() {
     let e = rig_with_group_master();
     let v = as_json(&e.to_show(meta()));
-    assert_eq!(v["schema_version"], json!(5));
+    assert_eq!(v["schema_version"], json!(6));
     let pb = &v["playbacks"]["playbacks"][2];
     assert_eq!(pb["kind"], json!("GroupMaster"));
     assert_eq!(

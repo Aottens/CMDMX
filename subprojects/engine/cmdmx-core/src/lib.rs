@@ -10,6 +10,7 @@
 //! - [`colour`]     colour as one value: target RGB, HSI/RGB/CMY wheel views (ADR-005)
 //! - [`value`]      what an attribute holds: a level or a colour
 //! - [`palette`]    palettes: storage, kind detection, resolving, icons (`specs/modules/palettes.md`)
+//! - [`output`]    output nodes: where a line is sent (`specs/modules/output-protocols.md` OUT-13, OUT-25..28)
 //! - [`patch`]      fixtures on universes/addresses
 //! - [`playback`]   playbacks: handles, cues, options, runtime level
 //! - `cuelist`      cue lists running: transitions, links, tracking (`specs/modules/cuelists.md`)
@@ -25,6 +26,7 @@ pub mod command;
 mod cuelist;
 pub mod engine;
 pub mod library;
+pub mod output;
 pub mod palette;
 pub mod patch;
 pub mod playback;
@@ -190,6 +192,13 @@ pub enum CoreError {
     InvalidOption(String),
     #[error("invalid command: {0}")]
     InvalidCommand(String),
+    /// OUT-28: an output node edit that is refused, with the reason as plain text.
+    #[error("{0}")]
+    InvalidOutput(String),
+    #[error("unknown output node {0}")]
+    UnknownNode(u32),
+    #[error("output node {0} cannot change its kind")]
+    NodeKindChanged(u32),
     #[error("not a show file: {0}")]
     InvalidShow(String),
     #[error("{name} was made by a newer ColourmotionDMX (schema {found}; this one reads up to {supported})")]

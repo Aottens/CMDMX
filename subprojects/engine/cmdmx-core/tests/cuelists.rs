@@ -1082,7 +1082,7 @@ fn cue_38_schema_4_shape() {
     let e = styled();
     let text = e.to_show(meta()).to_json();
     let v: Json = serde_json::from_str(&text).unwrap();
-    assert_eq!(v["schema_version"], json!(5));
+    assert_eq!(v["schema_version"], json!(6));
     keys_in_order(
         &text,
         "\"playbacks\": [",

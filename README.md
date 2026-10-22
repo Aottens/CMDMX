@@ -32,7 +32,7 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: output of every patched universe, set per show on an Output screen (spec approved). What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: output of every patched universe, set per show on an Output screen (the show file already stores the outputs; the daemon and the screen follow). What works today:
 
 - The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
   USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own timer, start with `--serial <path>`).

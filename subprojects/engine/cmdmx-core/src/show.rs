@@ -10,15 +10,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
+use crate::output::{Node, NodeId, NodeKind};
 use crate::palette::{Palette, PaletteId, RecordBy};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{HandleButtons, ListFader, Playback, PlaybackId, UpdateMode};
 use crate::profile::Profile;
 use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId};
-use crate::CoreError;
+use crate::{CoreError, UniverseId};
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -132,6 +133,31 @@ impl<'de> Deserialize<'de> for ShowPalette {
     }
 }
 
+/// OUT-13: `next_node_id` is above every node id ever used, so ids are never reused.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShowOutput {
+    pub next_node_id: NodeId,
+    pub nodes: Vec<ShowNode>,
+}
+
+/// An output node as saved, or an entry that is not one (OUT-28: left out with a warning on load).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum ShowNode {
+    Node(Node),
+    Unreadable(serde_json::Value),
+}
+
+impl<'de> Deserialize<'de> for ShowNode {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        Ok(match serde_json::from_value(value.clone()) {
+            Ok(node) => ShowNode::Node(node),
+            Err(_) => ShowNode::Unreadable(value),
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Show {
     pub schema_version: u32,
@@ -145,6 +171,8 @@ pub struct Show {
     /// PBK-34: only pages with a legend, sorted by number.
     pub pages: Vec<ShowPage>,
     pub playbacks: ShowPlaybacks,
+    /// OUT-13.
+    pub output: ShowOutput,
 }
 
 impl Show {
@@ -220,7 +248,67 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
         }
         migrations.push("4 -> 5: group masters may be saved, nothing else changes".into());
     }
+    if version < 6 {
+        migrations.push(migrate_5_to_6(value));
+    }
     migrations
+}
+
+/// OUT-27: line 1's defaults plus serial `auto`, then the defaults of every other universe the
+/// patch uses, in ascending order.
+fn migrate_5_to_6(value: &mut serde_json::Value) -> String {
+    let Some(show) = value.as_object_mut() else {
+        return "5 -> 6: not an object, left as it is".into();
+    };
+    let used: std::collections::BTreeSet<UniverseId> = show
+        .get("patch")
+        .and_then(|p| p.get("fixtures"))
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|f| f.get("universe")?.as_u64())
+        .filter_map(|u| UniverseId::try_from(u).ok())
+        .filter(|&u| u > 1)
+        .collect();
+    let mut kinds = vec![
+        (1, NodeKind::default_artnet(1)),
+        (1, NodeKind::default_sacn(1)),
+        (
+            1,
+            NodeKind::Serial {
+                port: "auto".into(),
+            },
+        ),
+    ];
+    for &line in &used {
+        kinds.push((line, NodeKind::default_artnet(line)));
+        kinds.push((line, NodeKind::default_sacn(line)));
+    }
+    let nodes: Vec<serde_json::Value> = (1..)
+        .zip(kinds)
+        .filter_map(|(id, (line, kind))| {
+            serde_json::to_value(Node {
+                id,
+                line,
+                enabled: true,
+                kind,
+            })
+            .ok()
+        })
+        .collect();
+    show.insert(
+        "output".into(),
+        serde_json::json!({ "next_node_id": nodes.len() + 1, "nodes": nodes }),
+    );
+    show.insert("schema_version".into(), 6.into());
+    let lines: Vec<String> = std::iter::once(1)
+        .chain(used)
+        .map(|u| u.to_string())
+        .collect();
+    format!(
+        "5 -> 6: output nodes added: Art-Net and sACN for universe {}, serial auto for universe 1",
+        lines.join(", ")
+    )
 }
 
 /// PBK-45: each playback keeps the place PBK-01 gave it (id *n* on page ⌈n / fpp⌉, slot

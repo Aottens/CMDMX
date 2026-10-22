@@ -130,8 +130,7 @@ fn out_13_output_is_the_last_key_with_nodes_sorted_by_id() {
     assert_eq!(v["schema_version"], json!(6));
     let last_key = text
         .lines()
-        .filter(|l| l.starts_with("  \"") && !l.starts_with("   "))
-        .last()
+        .rfind(|l| l.starts_with("  \"") && !l.starts_with("   "))
         .unwrap();
     assert!(last_key.starts_with("  \"output\""), "{last_key}");
     assert_eq!(
@@ -207,7 +206,11 @@ fn out_26_a_universe_with_fixtures_or_nodes_gets_none_added() {
     assert_eq!(nodes(&e), before, "universe 1 already had fixtures");
     e.output_add(3, false, sacn(3)).unwrap();
     let before = nodes(&e);
-    e.patch_add(&dimmer_on(3)).unwrap();
+    e.patch_add(&PatchAdd {
+        number: Some(901),
+        ..dimmer_on(3)
+    })
+    .unwrap();
     assert_eq!(
         nodes(&e),
         before,
