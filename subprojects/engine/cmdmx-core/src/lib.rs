@@ -32,6 +32,7 @@ pub mod profile;
 pub mod programmer;
 pub mod scenario;
 pub mod show;
+pub mod undo;
 pub mod value;
 
 /// Seconds on the caller's clock. Never read from the system clock inside core.
@@ -94,6 +95,10 @@ pub enum CoreError {
     UnknownGroup(u32),
     #[error("fixture {fixture} has no attribute '{attribute}'")]
     UnknownAttribute { fixture: u32, attribute: String },
+    #[error("Nothing to undo")]
+    NothingToUndo,
+    #[error("Nothing to redo")]
+    NothingToRedo,
     #[error("nothing is selected")]
     EmptySelection,
     #[error("no selected fixture has attribute '{0}'")]

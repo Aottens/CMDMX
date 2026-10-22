@@ -49,7 +49,11 @@ fn cmd(h: &mut History, e: &mut Engine, text: &str) {
 }
 
 fn dimmer(fixture: u32, level: f32) -> Values {
-    [(fixture, [("Dimmer".to_string(), Stored::Value(Value::Level(level)))].into())].into()
+    [(
+        fixture,
+        [("Dimmer".to_string(), Stored::Value(Value::Level(level)))].into(),
+    )]
+    .into()
 }
 
 fn add_dimmer(at: u16) -> PatchAdd {
@@ -218,10 +222,16 @@ fn undo_06_undo_and_redo_swap_the_saved_state() {
     let after = e.edit_state();
     assert_eq!(h.undo(&mut e).unwrap(), "201 @ 50 Enter");
     assert_eq!(e.edit_state(), empty);
-    assert_eq!((h.undo_label(), h.redo_label()), (None, Some("201 @ 50 Enter")));
+    assert_eq!(
+        (h.undo_label(), h.redo_label()),
+        (None, Some("201 @ 50 Enter"))
+    );
     assert_eq!(h.redo(&mut e).unwrap(), "201 @ 50 Enter");
     assert_eq!(e.edit_state(), after);
-    assert_eq!((h.undo_label(), h.redo_label()), (Some("201 @ 50 Enter"), None));
+    assert_eq!(
+        (h.undo_label(), h.redo_label()),
+        (Some("201 @ 50 Enter"), None)
+    );
 }
 
 #[test]
@@ -337,8 +347,10 @@ fn undo_10_returned_playback_comes_back_not_running() {
     e.set_fader(1, 1.0, 0.0).unwrap();
     e.tick(0.0);
     let mut h = History::default();
-    h.edit(&mut e, "Delete playback 1.1", None, |e| e.delete_playback(1))
-        .unwrap();
+    h.edit(&mut e, "Delete playback 1.1", None, |e| {
+        e.delete_playback(1)
+    })
+    .unwrap();
     e.tick(0.025);
     assert_eq!(dmx(&e, 21), 0);
     h.undo(&mut e).unwrap();
@@ -382,8 +394,10 @@ fn undo_10_a_group_master_keeps_its_current_level() {
     let id = e.record_group_master(1, 8, 6).unwrap();
     e.set_fader(id, 0.4, 0.0).unwrap();
     let mut h = History::default();
-    h.edit(&mut e, "Page legend 2", None, |e| e.set_page_legend(2, "Songs"))
-        .unwrap();
+    h.edit(&mut e, "Page legend 2", None, |e| {
+        e.set_page_legend(2, "Songs")
+    })
+    .unwrap();
     e.set_fader(id, 0.7, 0.1).unwrap();
     h.undo(&mut e).unwrap();
     assert_eq!(e.page_legend(2), Some(""));
@@ -407,7 +421,11 @@ fn undo_11_undo_never_lowers_the_id_counters() {
     let again = h
         .edit(&mut e, "Patch add", None, |e| e.patch_add(&add_dimmer(100)))
         .unwrap();
-    assert_eq!(again[0], first[0] + 1, "PAT-12: the undone id is not reused");
+    assert_eq!(
+        again[0],
+        first[0] + 1,
+        "PAT-12: the undone id is not reused"
+    );
 
     line(&mut e, "201 @ 100 Enter").unwrap();
     let pb = h
@@ -427,11 +445,15 @@ fn undo_11_undo_never_lowers_the_id_counters() {
     e.set_programmer_value(101, "Pan", 0.3).unwrap();
     let record = Record::at(Cell::new(Window::Positions, 1));
     let pal = h
-        .edit(&mut e, "Record palette", None, |e| e.record_palette(&record))
+        .edit(&mut e, "Record palette", None, |e| {
+            e.record_palette(&record)
+        })
         .unwrap();
     h.undo(&mut e).unwrap();
     let pal2 = h
-        .edit(&mut e, "Record palette", None, |e| e.record_palette(&record))
+        .edit(&mut e, "Record palette", None, |e| {
+            e.record_palette(&record)
+        })
         .unwrap();
     assert_eq!(pal2, pal + 1);
 }
@@ -462,8 +484,10 @@ fn undo_12_an_undone_patch_move_outputs_at_the_old_address() {
     let mut e = church();
     line(&mut e, "201 @ 100 Enter").unwrap();
     let mut h = History::default();
-    h.edit(&mut e, "Patch move 201", None, |e| e.patch_move(201, 1, 100))
-        .unwrap();
+    h.edit(&mut e, "Patch move 201", None, |e| {
+        e.patch_move(201, 1, 100)
+    })
+    .unwrap();
     e.tick(0.0);
     assert_eq!((dmx(&e, 21), dmx(&e, 100)), (0, 255));
     h.undo(&mut e).unwrap();
@@ -486,7 +510,11 @@ fn undo_12_a_returned_fixture_starts_from_its_ltp_defaults() {
         .unwrap();
     h.undo(&mut e).unwrap();
     e.tick(0.05);
-    assert_eq!(dmx(&e, 5), 0, "a patch edit starts held values at the default");
+    assert_eq!(
+        dmx(&e, 5),
+        0,
+        "a patch edit starts held values at the default"
+    );
 }
 
 // ---- UNDO-16 ----------------------------------------------------------------

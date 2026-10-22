@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (P1-10 undo spec approved; next VS5-01)_
+_Last updated: 2026-10-22 (VS5-01 undo core done; next VS5-02)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -31,6 +31,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 
 ## In progress
 - P1-10 done: `specs/modules/undo.md` UNDO-01..20, IPC-30/31 and ADR-008 approved (owner, 2026-10-22, the seven questions as recommended): snapshots of the edit state, edits only, linear redo, 100 steps, memory only, one shared history. Build tasks VS5-01..03 in BACKLOG
+- VS5-01 done: `cmdmx-core::undo::History` (100 steps, linear redo, coalescing by key, no clock) over `Engine::edit_state()` snapshots; undo kills removed playbacks, keeps group master levels and never lowers id counters; scenarios gain `undo`/`redo` steps and a `history` expectation
 - P1-17 done (owner, 2026-10-22): ADR-007 reserves room for the phase-2 FX generator (IDEA-18): `engine-merge.md` ENG-14..19 (base → effect → clamp → group masters → GM/DBO; one effect per attribute, chosen apart from the base owner; held LTP value stays the base), optional effect references in cue and palette contents (`cuelists.md`, `palettes.md`). Spec only; the current engine satisfies the criteria (no effect sources), tests land with the first effect task
 - P1-08 done: `specs/modules/cuelists.md` CUE-01..55 approved (owner, 2026-10-21; DECISIONS 2026-10-21): cue lists and chases are playbacks with more than one cue (show schema 4), tracking in phase 1, Go per handle plus the Go block on the connected list, best-practice handle buttons per kind (switchable to Titan's Swop/Flash or custom), BPM masters by Tap/typing with Titan's fader modes as options, Rate masters 0–200 %. Build tasks VS3-02..05 in BACKLOG; IDEA-16 (Ableton sync) is phase 2
 - VS3-02 merged (#48): cue-list core storage (CUE-01..09, 15, 23, 29, 35..39), show schema 4
@@ -67,7 +68,7 @@ done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, in this order (owner, 2026-10-22,
 DECISIONS; focus is a general console, the church is the first proof):
-1. **Undo** (`specs/modules/undo.md`, approved): VS5-01 core, VS5-02 daemon + IPC, VS5-03 app.
+1. **Undo** (`specs/modules/undo.md`, approved): VS5-01 core (done), VS5-02 daemon + IPC (next), VS5-03 app.
 2. **VS2-05** Locate, Highlight, Off, Rem Dim and Clear (spec approved, ready for tests).
 3. **P1-18** multi-universe output (OUT-13; the daemon sends line 1 only today).
 4. **P1-05** control surfaces spec, then VS1-07 (MCU) and VS4-04 (TouchOSC).
