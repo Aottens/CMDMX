@@ -29,10 +29,10 @@ use cmdmx_core::palette::{
 };
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{
-    AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode, GroupMode,
-    GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Link, ListAction, ListFader,
-    ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange, PlaybackId,
-    PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, PAGES,
+    AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
+    GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Link,
+    ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
+    PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, PAGES,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{GroupId, ProgrammerView, Resolution};
@@ -1252,26 +1252,26 @@ fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
 }
 
 /// IPC-29: whether anything stored changed, not counting the `level` of an enabled group master
-/// (it follows the fader, which has its own small delta). Both lists are left as they were.
-fn stored_changed(old: &mut [StoredInfo], new: &mut [StoredInfo]) -> bool {
-    fn level(s: &mut StoredInfo) -> Option<&mut f32> {
-        match &mut s.master {
-            Some(Master::Group(m)) if m.enabled => Some(&mut m.level),
-            _ => None,
-        }
-    }
-    old.len() != new.len()
-        || old.iter_mut().zip(new.iter_mut()).any(|(a, b)| {
-            let (la, lb) = (level(a).map(std::mem::take), level(b).map(std::mem::take));
-            let changed = a != b;
-            if let (Some(l), Some(x)) = (la, level(a)) {
-                *x = l;
+/// (it follows the fader, which has its own small delta).
+fn stored_changed(old: &[StoredInfo], new: &[StoredInfo]) -> bool {
+    let same = |a: &StoredInfo, b: &StoredInfo| {
+        a == b
+            || match (&a.master, &b.master) {
+                (Some(Master::Group(x)), Some(Master::Group(y))) if x.enabled && y.enabled => {
+                    let level = GroupMaster {
+                        level: y.level,
+                        ..x.clone()
+                    };
+                    let a = StoredInfo {
+                        master: Some(Master::Group(level)),
+                        ..a.clone()
+                    };
+                    a == *b
+                }
+                _ => false,
             }
-            if let (Some(l), Some(x)) = (lb, level(b)) {
-                *x = l;
-            }
-            changed
-        })
+    };
+    old.len() != new.len() || !old.iter().zip(new).all(|(a, b)| same(a, b))
 }
 
 fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
@@ -1807,8 +1807,8 @@ impl Published {
         let mut out = Vec::new();
         // PBK-35: one whole-list delta after any stored change (it carries the live values
         // too), else a small delta per playback whose live part changed.
-        let mut stored = stored_infos(engine);
-        if stored_changed(&mut self.stored, &mut stored) {
+        let stored = stored_infos(engine);
+        if stored_changed(&self.stored, &stored) {
             out.push(to_json(&PlaybacksDelta {
                 v: 0,
                 kind: "playbacks",
