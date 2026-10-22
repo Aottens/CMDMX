@@ -305,6 +305,8 @@ and palette contents.
   file / settings folder then moves: fine now, there are no users yet.
 - Check the name is free: a quick search for existing "CMDMX" products and domains
   (cmdmx.com / .app / .nl) before the website is built on it.
+**Owner's answer (2026-10-22):** the brand is **"CMDMX by Colourmotion"**. CMDMX is the product
+name; Colourmotion stays as the maker.
 
 ### IDEA-20 — Website to download CMDMX (2026-10-22)
 **Owner's intent:** a website that becomes the place where you download the tool.
