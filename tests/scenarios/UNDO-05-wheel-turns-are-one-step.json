@@ -1,0 +1,22 @@
+{
+  "spec": "UNDO-05",
+  "profiles": { "dimmer": { "attributes": [
+    { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 }
+  ] } },
+  "patch": [ { "id": 201, "profile": "dimmer", "universe": 1, "address": 1 } ],
+  "actions": [
+    { "t": 0.0, "prg": { "select": [201] } },
+    { "t": 0.1, "prg": { "wheel": { "attribute": "Dimmer", "steps": 5, "resolution": "Coarse" } } },
+    { "t": 0.2, "prg": { "wheel": { "attribute": "Dimmer", "steps": 5, "resolution": "Coarse" } } },
+    { "t": 0.5, "undo": {} },
+    { "t": 0.7, "redo": {} }
+  ],
+  "expect": [
+    { "t": 0.3, "universe": 1, "channels": { "1": 102 } },
+    { "t": 0.3, "history": { "undo": "Wheel Dimmer", "redo": null } },
+    { "t": 0.6, "universe": 1, "channels": { "1": 0 } },
+    { "t": 0.6, "history": { "undo": "Select", "redo": "Wheel Dimmer" } },
+    { "t": 0.8, "universe": 1, "channels": { "1": 102 } },
+    { "t": 0.8, "history": { "undo": "Wheel Dimmer", "redo": null } }
+  ]
+}
