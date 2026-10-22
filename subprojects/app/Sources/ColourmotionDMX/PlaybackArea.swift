@@ -354,7 +354,7 @@ private struct LevelBar: View {
                 Rectangle().fill(fill).frame(height: height * value)
                 Rectangle().fill(t.fg).frame(height: 2).offset(y: -(height * value) + 1)
                 if let progress { Rectangle().fill(t.green).frame(width: geo.size.width * progress, height: 3).frame(maxWidth: .infinity, alignment: .leading) }
-                Text(percent(value)).font(Typo.mono(11)).foregroundStyle(t.fg)
+                Text(percent(value)).font(Typo.mono(11)).foregroundStyle(warn ? t.amber : t.fg)  // GRM-16: also readable at 0 %
                     .padding(.top, 3).padding(.trailing, 4)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
