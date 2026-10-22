@@ -403,4 +403,292 @@ mod tests {
         assert!(h.record(&Ok(())).unwrap().contains("Ok"));
         assert_eq!(h.record(&Ok(())), None);
     }
+
+    // ---- OUT-29..33: nodes from the show, reconciled ----------------------------
+
+    use cmdmx_core::output::{Node, NodeKind};
+    use std::cell::RefCell;
+    use std::collections::BTreeMap;
+
+    fn artnet(id: u32, line: u16, port_address: u16) -> Node {
+        Node {
+            id,
+            line,
+            enabled: true,
+            kind: NodeKind::Artnet {
+                port_address,
+                target: "255.255.255.255".into(),
+            },
+        }
+    }
+
+    fn sacn(id: u32, line: u16) -> Node {
+        Node {
+            id,
+            line,
+            enabled: true,
+            kind: NodeKind::default_sacn(line),
+        }
+    }
+
+    fn serial(id: u32, port: &str) -> Node {
+        Node {
+            id,
+            line: 1,
+            enabled: true,
+            kind: NodeKind::Serial { port: port.into() },
+        }
+    }
+
+    /// A fake spawner: every spawn is recorded, and the test keeps each node's receiving end
+    /// (the latest one per id) and its `Status`, so it sees what the tick hands over.
+    struct Fake {
+        spawned: Rc<RefCell<Vec<u32>>>,
+        rx: Rc<RefCell<BTreeMap<u32, Receiver<FrameData>>>>,
+        status: Rc<RefCell<BTreeMap<u32, Status>>>,
+        live: Rc<RefCell<BTreeMap<u32, Live>>>,
+    }
+
+    fn fake(kill: Kill) -> (Outputs, Fake) {
+        let f = Fake {
+            spawned: Default::default(),
+            rx: Default::default(),
+            status: Default::default(),
+            live: Default::default(),
+        };
+        let (spawned, rx, status, live) = (
+            f.spawned.clone(),
+            f.rx.clone(),
+            f.status.clone(),
+            f.live.clone(),
+        );
+        let outputs = Outputs::new(
+            kill,
+            Box::new(move |node: &Node, l: &Live| {
+                let (tx, r) = sync_channel(1);
+                let s = Status::new();
+                spawned.borrow_mut().push(node.id);
+                rx.borrow_mut().insert(node.id, r);
+                status.borrow_mut().insert(node.id, s.clone());
+                live.borrow_mut().insert(node.id, l.clone());
+                (tx, s)
+            }),
+        );
+        (outputs, f)
+    }
+
+    fn frames(line: u16) -> Option<&'static FrameData> {
+        static ONE: FrameData = [1; UNIVERSE_SIZE];
+        (line == 1).then_some(&ONE)
+    }
+
+    #[test]
+    fn out_29_each_enabled_node_gets_its_lines_frame_or_zeros() {
+        let (mut outputs, f) = fake(Kill::default());
+        let mut off = sacn(3, 3);
+        off.enabled = false;
+        outputs.reconcile(&[artnet(1, 1, 0), sacn(2, 2), off]);
+        assert_eq!(*f.spawned.borrow(), [1, 2], "a disabled node never starts");
+        outputs.publish(frames);
+        let rx = f.rx.borrow();
+        assert_eq!(rx[&1].try_recv().unwrap()[0], 1, "line 1's frame");
+        assert_eq!(
+            rx[&2].try_recv().unwrap(),
+            [0; UNIVERSE_SIZE],
+            "nothing patched on line 2: 512 zeros"
+        );
+        let states: Vec<_> = outputs
+            .statuses()
+            .iter()
+            .map(|s| (s.node.id, s.state))
+            .collect();
+        assert_eq!(
+            states,
+            [
+                (1, OutputState::Ok),
+                (2, OutputState::Ok),
+                (3, OutputState::Disabled)
+            ]
+        );
+    }
+
+    #[test]
+    fn out_29_reconcile_keeps_unchanged_nodes_and_restarts_changed_destinations() {
+        let (mut outputs, f) = fake(Kill::default());
+        let mut nodes = vec![
+            artnet(1, 1, 0),
+            sacn(2, 1),
+            serial(3, "/dev/cu.usbserial-A"),
+        ];
+        outputs.reconcile(&nodes);
+        outputs.reconcile(&nodes);
+        assert_eq!(
+            *f.spawned.borrow(),
+            [1, 2, 3],
+            "the same list starts nothing"
+        );
+
+        // A new line for #1 is not a new destination: same thread, the other line's frame.
+        nodes[0].line = 2;
+        // A new sACN universe for #2 is a new destination: restarted. #4 is new.
+        nodes[1].kind = NodeKind::default_sacn(5);
+        nodes.push(artnet(4, 3, 2));
+        outputs.reconcile(&nodes);
+        assert_eq!(*f.spawned.borrow(), [1, 2, 3, 2, 4]);
+        outputs.publish(frames);
+        assert_eq!(
+            f.rx.borrow()[&1].try_recv().unwrap(),
+            [0; UNIVERSE_SIZE],
+            "#1 kept its thread and now sends line 2"
+        );
+
+        // A new serial port restarts #3; removing #4 and disabling #1 stops them.
+        nodes[2].kind = NodeKind::Serial {
+            port: "/dev/cu.usbserial-B".into(),
+        };
+        nodes[0].enabled = false;
+        nodes.pop();
+        let old_one = f.rx.borrow_mut().remove(&1).unwrap();
+        let old_four = f.rx.borrow_mut().remove(&4).unwrap();
+        outputs.reconcile(&nodes);
+        assert_eq!(*f.spawned.borrow(), [1, 2, 3, 2, 4, 3]);
+        assert!(matches!(
+            old_one.try_recv(),
+            Err(std::sync::mpsc::TryRecvError::Disconnected)
+        ));
+        assert!(matches!(
+            old_four.try_recv(),
+            Err(std::sync::mpsc::TryRecvError::Disconnected)
+        ));
+
+        // Enabled again: a fresh thread.
+        nodes[0].enabled = true;
+        outputs.reconcile(&nodes);
+        assert_eq!(*f.spawned.borrow(), [1, 2, 3, 2, 4, 3, 1]);
+    }
+
+    #[test]
+    fn out_29_a_new_priority_keeps_the_thread_and_reaches_it() {
+        let (mut outputs, f) = fake(Kill::default());
+        let mut nodes = vec![sacn(2, 1)];
+        outputs.reconcile(&nodes);
+        nodes[0].kind = NodeKind::Sacn {
+            universe: 1,
+            priority: 150,
+            unicast: None,
+        };
+        outputs.reconcile(&nodes);
+        assert_eq!(*f.spawned.borrow(), [2], "priority is not a destination");
+        assert_eq!(f.live.borrow()[&2].priority.load(Ordering::Relaxed), 150);
+        assert_eq!(
+            outputs.statuses()[0].node,
+            nodes[0],
+            "the status shows the edit"
+        );
+    }
+
+    #[test]
+    fn out_11_out_29_a_node_whose_thread_is_gone_is_stopped() {
+        let (mut outputs, f) = fake(Kill::default());
+        outputs.reconcile(&[artnet(1, 1, 0)]);
+        f.rx.borrow_mut().clear();
+        outputs.publish(frames);
+        assert_eq!(outputs.statuses()[0].state, OutputState::Stopped);
+    }
+
+    #[test]
+    fn out_33_statuses_follow_the_threads_and_carry_the_detail() {
+        let (mut outputs, f) = fake(Kill::default());
+        outputs.reconcile(&[artnet(1, 1, 0)]);
+        let status = f.status.borrow()[&1].clone();
+        status.set_detail(Some("no route to host".into()));
+        status.set(OutputState::Degraded);
+        outputs.publish(frames);
+        let s = &outputs.statuses()[0];
+        assert_eq!(
+            (s.state, s.detail.as_deref()),
+            (OutputState::Degraded, Some("no route to host"))
+        );
+    }
+
+    #[test]
+    fn out_33_statuses_are_sorted_by_line_then_id() {
+        let (mut outputs, _f) = fake(Kill::default());
+        outputs.reconcile(&[artnet(1, 3, 2), sacn(2, 1), artnet(3, 1, 0), sacn(4, 2)]);
+        let order: Vec<u32> = outputs.statuses().iter().map(|s| s.node.id).collect();
+        assert_eq!(order, [2, 3, 4, 1]);
+    }
+
+    #[test]
+    fn out_32_kill_switches_keep_the_nodes_but_do_not_send() {
+        let kill = Kill {
+            artnet: false,
+            sacn: true,
+            serial: true,
+        };
+        let (mut outputs, f) = fake(kill);
+        outputs.reconcile(&[artnet(1, 1, 0), sacn(2, 1), serial(3, "auto")]);
+        assert_eq!(*f.spawned.borrow(), [1]);
+        let states: Vec<_> = outputs
+            .statuses()
+            .iter()
+            .map(|s| (s.node.id, s.state, s.detail.clone()))
+            .collect();
+        assert_eq!(
+            states,
+            [
+                (1, OutputState::Ok, None),
+                (2, OutputState::Disabled, Some("--no-sacn".to_string())),
+                (3, OutputState::Disabled, Some("--no-serial".to_string())),
+            ]
+        );
+    }
+
+    #[test]
+    fn out_31_auto_knows_the_ports_other_serial_nodes_name() {
+        let (mut outputs, f) = fake(Kill::default());
+        let mut nodes = vec![serial(1, "auto"), serial(2, "/dev/cu.usbserial-A")];
+        outputs.reconcile(&nodes);
+        let claimed = f.live.borrow()[&1].claimed.clone();
+        assert_eq!(*claimed.lock().unwrap(), ["/dev/cu.usbserial-A"]);
+        nodes[1].enabled = false;
+        outputs.reconcile(&nodes);
+        assert!(
+            claimed.lock().unwrap().is_empty(),
+            "a disabled node names no port"
+        );
+    }
+
+    #[test]
+    fn out_30_log_line_names_the_node() {
+        assert_eq!(
+            describe(&artnet(3, 2, 1)),
+            "art-net #3: universe 2 → 0:0:1 at 255.255.255.255"
+        );
+        assert_eq!(
+            describe(&sacn(4, 2)),
+            "sacn #4: universe 2 → sACN 2 multicast, priority 100"
+        );
+        let mut unicast = sacn(6, 2);
+        unicast.kind = NodeKind::Sacn {
+            universe: 7,
+            priority: 50,
+            unicast: Some("10.0.0.5".into()),
+        };
+        assert_eq!(
+            describe(&unicast),
+            "sacn #6: universe 2 → sACN 7 at 10.0.0.5, priority 50"
+        );
+        assert_eq!(describe(&serial(5, "auto")), "serial #5: universe 1 → auto");
+    }
+
+    #[test]
+    fn out_33_health_keeps_the_last_error_as_detail() {
+        let mut h = Health::default();
+        assert_eq!(h.detail(), None);
+        h.record(&Err(io::Error::other("no route")));
+        assert_eq!(h.detail(), Some("no route"));
+        h.record(&Ok(()));
+        assert_eq!(h.detail(), None);
+    }
 }

@@ -97,3 +97,26 @@ fn shw_18_bad_ticks_value_exits_2_and_opens_nothing() {
     assert!(untouched(&dir), "--ticks nope touched {}", dir.display());
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn out_32_removed_output_flags_exit_2_and_open_nothing() {
+    for (name, flag, value) in [
+        ("serial", "--serial", "/dev/cu.usbserial-X"),
+        ("artnet-target", "--artnet-target", "192.168.1.20"),
+        ("sacn-unicast", "--sacn-unicast", "10.0.0.5"),
+        ("sacn-priority", "--sacn-priority", "150"),
+    ] {
+        let dir = temp(name);
+        let out = run(&dir, &[flag, value]);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(2), "{flag}");
+        assert!(
+            stderr.contains(&format!(
+                "cmdmx-daemon: {flag} is gone: output is set per show on the Output screen"
+            )),
+            "{flag}: {stderr}"
+        );
+        assert!(untouched(&dir), "{flag} touched {}", dir.display());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}

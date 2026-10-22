@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn out_03_each_frame_becomes_one_artdmx_with_rising_sequence() {
         let (rx, target) = receiver();
-        let mut node = ArtNetNode::new(target, 0);
+        let mut node = ArtNetNode::new("art-net #1".into(), target, 0);
         let mut frame = [0u8; 512];
         for seq in 1..=3u8 {
             frame[0] = seq * 10;
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn out_03_thread_sends_every_published_frame() {
         let (rx, target) = receiver();
-        let mut node = ArtNetNode::new(target, 0);
+        let mut node = ArtNetNode::new("art-net #1".into(), target, 0);
         let (tx, _status) = crate::output::spawn("art-net", move |f| (node.send(f), node.state()));
         for v in [1u8, 2, 3] {
             assert!(crate::output::publish(&tx, &[v; 512]));
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn out_04_socket_allows_broadcast_and_uses_ephemeral_source_port() {
         let (rx, target) = receiver();
-        let mut node = ArtNetNode::new(target, 0);
+        let mut node = ArtNetNode::new("art-net #1".into(), target, 0);
         assert_eq!(node.send(&[0; 512]), None);
         let sock = node.socket.as_ref().unwrap();
         assert!(sock.broadcast().unwrap());

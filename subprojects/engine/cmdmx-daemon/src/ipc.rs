@@ -2450,27 +2450,71 @@ mod tests {
         assert_eq!(v["playbacks"], json!([playback_entry()]));
     }
 
-    /// IPC-20: three nodes in three states.
+    /// OUT-33: one node per state, sorted by line then id as the reconciler keeps them.
     fn outputs() -> Vec<OutputStatus> {
-        use crate::output::OutputState;
+        use cmdmx_core::output::{Node, NodeKind};
+        let node = |id, line, kind| Node {
+            id,
+            line,
+            enabled: true,
+            kind,
+        };
+        let status = |node, state, detail: Option<&str>| OutputStatus {
+            node,
+            state,
+            detail: detail.map(String::from),
+        };
+        let mut off = node(5, 2, NodeKind::default_artnet(2));
+        off.enabled = false;
         vec![
-            OutputStatus {
-                name: "art-net",
-                state: OutputState::Ok,
-            },
-            OutputStatus {
-                name: "sacn",
-                state: OutputState::Degraded,
-            },
-            OutputStatus {
-                name: "serial",
-                state: OutputState::NoInterface,
-            },
+            status(
+                node(1, 1, NodeKind::default_artnet(1)),
+                OutputState::Ok,
+                None,
+            ),
+            status(
+                node(2, 1, NodeKind::default_sacn(1)),
+                OutputState::Degraded,
+                Some("no route to host"),
+            ),
+            status(
+                node(
+                    3,
+                    1,
+                    NodeKind::Serial {
+                        port: "auto".into(),
+                    },
+                ),
+                OutputState::NoInterface,
+                None,
+            ),
+            status(
+                node(
+                    4,
+                    1,
+                    NodeKind::Serial {
+                        port: "/dev/cu.usbserial-A".into(),
+                    },
+                ),
+                OutputState::PortNotFound,
+                None,
+            ),
+            status(off, OutputState::Disabled, None),
+            status(
+                node(6, 2, NodeKind::default_sacn(2)),
+                OutputState::Disabled,
+                Some("--no-sacn"),
+            ),
+            status(
+                node(7, 3, NodeKind::default_sacn(3)),
+                OutputState::Stopped,
+                None,
+            ),
         ]
     }
 
     #[test]
-    fn ipc_20_snapshot_lists_the_output_nodes() {
+    fn out_33_snapshot_lists_every_node_with_its_fields_and_state() {
         let v = parse(&snapshot(
             &engine(),
             &outputs(),
@@ -2479,9 +2523,22 @@ mod tests {
         ));
         assert_eq!(
             v["outputs"],
-            json!([{"name":"art-net","state":"Ok"},
-                   {"name":"sacn","state":"Degraded"},
-                   {"name":"serial","state":"Degraded","detail":"no interface"}])
+            json!([
+                {"id":1,"line":1,"enabled":true,"kind":"artnet","port_address":0,
+                 "target":"255.255.255.255","state":"Ok"},
+                {"id":2,"line":1,"enabled":true,"kind":"sacn","universe":1,"priority":100,
+                 "unicast":null,"state":"Degraded","detail":"no route to host"},
+                {"id":3,"line":1,"enabled":true,"kind":"serial","port":"auto",
+                 "state":"Degraded","detail":"no interface"},
+                {"id":4,"line":1,"enabled":true,"kind":"serial","port":"/dev/cu.usbserial-A",
+                 "state":"Degraded","detail":"port not found"},
+                {"id":5,"line":2,"enabled":false,"kind":"artnet","port_address":1,
+                 "target":"255.255.255.255","state":"Disabled"},
+                {"id":6,"line":2,"enabled":true,"kind":"sacn","universe":2,"priority":100,
+                 "unicast":null,"state":"Disabled","detail":"--no-sacn"},
+                {"id":7,"line":3,"enabled":true,"kind":"sacn","universe":3,"priority":100,
+                 "unicast":null,"state":"Stopped"}
+            ])
         );
         assert_eq!(
             parse(&snapshot(
@@ -2495,8 +2552,7 @@ mod tests {
     }
 
     #[test]
-    fn ipc_20_outputs_delta_only_when_a_state_changes() {
-        use crate::output::OutputState;
+    fn out_33_outputs_delta_when_a_state_or_a_node_changes() {
         let e = engine();
         let mut outs = outputs();
         let mut published = Published::new(&e, &outs, &show_state());
@@ -2507,11 +2563,140 @@ mod tests {
         let v = parse(&d[0]);
         assert_eq!(v["v"], 0);
         assert_eq!(v["type"], "outputs");
-        assert_eq!(v["outputs"][0], json!({"name":"art-net","state":"Stopped"}));
-        assert_eq!(v["outputs"].as_array().unwrap().len(), 3);
+        assert_eq!(v["outputs"][0]["state"], "Stopped");
+        assert_eq!(v["outputs"].as_array().unwrap().len(), 7);
         assert!(
             published.diff(&e, &outs, &show_state()).is_empty(),
             "no change, no delta"
+        );
+        // An edited node (here its line) is a change too; so is a removed one.
+        outs[1].node.line = 4;
+        assert_eq!(published.diff(&e, &outs, &show_state()).len(), 1);
+        outs.pop();
+        let d = published.diff(&e, &outs, &show_state());
+        assert_eq!(parse(&d[0])["outputs"].as_array().unwrap().len(), 6);
+    }
+
+    #[test]
+    fn out_34_output_commands_parse_with_the_lines_defaults() {
+        use cmdmx_core::output::NodeKind;
+        let ok = |s: &str| parse_command(s).unwrap_or_else(|e| panic!("{s}: {e}"));
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"output.add","line":2,"kind":"artnet"}"#),
+            Command::OutputAdd {
+                line: 2,
+                enabled: true,
+                kind: NodeKind::default_artnet(2),
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"output.add","line":3,"kind":"sacn","priority":150,"unicast":"10.0.0.5","enabled":false}"#
+            ),
+            Command::OutputAdd {
+                line: 3,
+                enabled: false,
+                kind: NodeKind::Sacn {
+                    universe: 3,
+                    priority: 150,
+                    unicast: Some("10.0.0.5".into()),
+                },
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":0,"cmd":"output.add","line":1,"kind":"artnet","port_address":17,"target":"2.255.255.255"}"#
+            ),
+            Command::OutputAdd {
+                line: 1,
+                enabled: true,
+                kind: NodeKind::Artnet {
+                    port_address: 17,
+                    target: "2.255.255.255".into(),
+                },
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"output.add","line":2,"kind":"serial"}"#),
+            Command::OutputAdd {
+                line: 2,
+                enabled: true,
+                kind: NodeKind::Serial {
+                    port: "auto".into()
+                },
+            }
+        );
+        let Command::OutputEdit { id, change } =
+            ok(r#"{"v":0,"cmd":"output.edit","id":3,"target":"10.0.0.9","enabled":false}"#)
+        else {
+            panic!("not an edit");
+        };
+        assert_eq!(id, 3);
+        assert_eq!(
+            serde_json::Value::Object(change),
+            json!({"target":"10.0.0.9","enabled":false}),
+            "only the fields to change; cmd, v and id are not among them"
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"output.remove","ids":[3,4]}"#),
+            Command::OutputRemove { ids: vec![3, 4] }
+        );
+        assert_eq!(ok(r#"{"v":0,"cmd":"output.ports"}"#), Command::OutputPorts);
+        for bad in [
+            r#"{"v":0,"cmd":"output.add","kind":"artnet"}"#,
+            r#"{"v":0,"cmd":"output.add","line":1}"#,
+            r#"{"v":0,"cmd":"output.add","line":1,"kind":"dmxking"}"#,
+            r#"{"v":0,"cmd":"output.add","line":1,"kind":"sacn","priority":"high"}"#,
+            r#"{"v":0,"cmd":"output.add","line":1,"kind":"artnet","port_address":-1}"#,
+            r#"{"v":0,"cmd":"output.edit","target":"10.0.0.9"}"#,
+            r#"{"v":0,"cmd":"output.remove","ids":3}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn out_35_ports_answer_lists_cu_ports_sorted_by_path() {
+        use serialport::{SerialPortInfo, SerialPortType, UsbPortInfo};
+        let usb = |path: &str, vid, pid, product: &str| SerialPortInfo {
+            port_name: path.into(),
+            port_type: SerialPortType::UsbPort(UsbPortInfo {
+                vid,
+                pid,
+                serial_number: None,
+                manufacturer: None,
+                product: Some(product.into()),
+            }),
+        };
+        let ports = [
+            usb("/dev/cu.usbserial-Z9", 0x0403, 0x6001, "DMX USB PRO"),
+            usb(
+                "/dev/tty.usbserial-A10KXYZ",
+                0x0403,
+                0x6001,
+                "FT232R USB UART",
+            ),
+            usb(
+                "/dev/cu.usbserial-A10KXYZ",
+                0x0403,
+                0x6001,
+                "FT232R USB UART",
+            ),
+            SerialPortInfo {
+                port_name: "/dev/cu.Bluetooth-Incoming-Port".into(),
+                port_type: SerialPortType::Unknown,
+            },
+        ];
+        assert_eq!(
+            parse(&ports_reply(&ports)),
+            json!({"v":0,"type":"ports","ports":[
+                {"path":"/dev/cu.Bluetooth-Incoming-Port","product":null,"vid":null,"pid":null,
+                 "enttec":false},
+                {"path":"/dev/cu.usbserial-A10KXYZ","product":"FT232R USB UART","vid":"0403",
+                 "pid":"6001","enttec":false},
+                {"path":"/dev/cu.usbserial-Z9","product":"DMX USB PRO","vid":"0403",
+                 "pid":"6001","enttec":true}
+            ]})
         );
     }
 

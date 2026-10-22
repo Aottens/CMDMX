@@ -1038,64 +1038,54 @@ mod tests {
     }
 
     #[test]
-    fn out_15_artnet_is_on_by_default_to_limited_broadcast() {
+    fn out_32_config_flags_are_gone_with_a_pointer_to_the_output_screen() {
+        for (flag, value) in [
+            ("--artnet-target", " 192.168.1.20"),
+            ("--sacn-unicast", " 10.0.0.5"),
+            ("--sacn-priority", " 150"),
+            ("--serial", " /dev/cu.usbserial-X"),
+            ("--serial", ""),
+        ] {
+            let e = parse_args(args(&format!("{flag}{value}"))).err().unwrap();
+            assert_eq!(
+                e,
+                format!("{flag} is gone: output is set per show on the Output screen")
+            );
+        }
+        for flag in [
+            "--artnet-target",
+            "--sacn-unicast",
+            "--sacn-priority",
+            "--serial",
+        ] {
+            assert!(!USAGE.contains(flag), "{flag} is still in the usage");
+        }
+    }
+
+    #[test]
+    fn out_32_no_flags_are_kill_switches_for_this_run() {
         let cli = parse_args(args("")).unwrap();
-        assert_eq!(cli.artnet, Some(artnet_out::default_target()));
+        assert_eq!(cli.kill, output::Kill::default(), "everything sends");
         assert_eq!(cli.ticks, None);
-    }
-
-    #[test]
-    fn out_15_artnet_target_and_no_artnet_flags() {
-        let cli = parse_args(args("--artnet-target 192.168.1.20 --ticks 5")).unwrap();
-        assert_eq!(cli.artnet, Some("192.168.1.20:6454".parse().unwrap()));
+        let cli = parse_args(args("--no-sacn --ticks 5")).unwrap();
+        assert_eq!(
+            cli.kill,
+            output::Kill {
+                artnet: false,
+                sacn: true,
+                serial: false
+            }
+        );
         assert_eq!(cli.ticks, Some(5));
-        assert_eq!(parse_args(args("--no-artnet")).unwrap().artnet, None);
-    }
-
-    #[test]
-    fn out_15_bad_target_is_an_error_not_a_fallback() {
-        assert!(parse_args(args("--artnet-target 300.1.1.1")).is_err());
-        assert!(parse_args(args("--artnet-target")).is_err());
-    }
-
-    #[test]
-    fn out_16_sacn_is_on_by_default_multicast_priority_100() {
-        let cli = parse_args(args("")).unwrap();
-        assert!(cli.sacn_enabled);
-        assert_eq!(cli.sacn_target, sacn_out::multicast_target(1));
-        assert_eq!(cli.sacn_priority, 100);
-    }
-
-    #[test]
-    fn out_16_sacn_flags() {
-        let cli = parse_args(args("--sacn-unicast 10.0.0.5 --sacn-priority 200")).unwrap();
-        assert_eq!(cli.sacn_target, "10.0.0.5:5568".parse().unwrap());
-        assert_eq!(cli.sacn_priority, 200);
-        let cli = parse_args(args("--no-sacn")).unwrap();
-        assert!(!cli.sacn_enabled);
-        assert!(cli.artnet.is_some(), "Art-Net unaffected");
-    }
-
-    #[test]
-    fn out_07_out_16_bad_sacn_values_are_errors() {
-        assert!(parse_args(args("--sacn-priority 201")).is_err());
-        assert!(parse_args(args("--sacn-priority -1")).is_err());
-        assert!(parse_args(args("--sacn-unicast nope")).is_err());
-    }
-
-    #[test]
-    fn out_22_serial_is_on_by_default_with_detection() {
-        let cli = parse_args(args("")).unwrap();
-        assert!(cli.serial_enabled);
-        assert_eq!(cli.serial_path, None);
-    }
-
-    #[test]
-    fn out_22_serial_flags() {
-        let cli = parse_args(args("--serial /dev/cu.usbserial-X")).unwrap();
-        assert_eq!(cli.serial_path.as_deref(), Some("/dev/cu.usbserial-X"));
-        assert!(!parse_args(args("--no-serial")).unwrap().serial_enabled);
-        assert!(parse_args(args("--serial")).is_err());
+        let cli = parse_args(args("--no-artnet --no-serial")).unwrap();
+        assert!(cli.kill.artnet && cli.kill.serial && !cli.kill.sacn);
+        for flag in ["--no-artnet", "--no-sacn", "--no-serial"] {
+            let line = USAGE
+                .lines()
+                .find(|l| l.trim_start().starts_with(flag))
+                .unwrap();
+            assert!(line.contains("this run"), "{line}");
+        }
     }
 
     #[test]
@@ -1135,16 +1125,12 @@ mod tests {
     }
 
     /// Every flag `parse_args` knows, `--help` included.
-    const FLAGS: [&str; 15] = [
+    const FLAGS: [&str; 11] = [
         "--help",
         "--ticks",
         "--no-artnet",
-        "--artnet-target",
         "--no-sacn",
-        "--sacn-unicast",
-        "--sacn-priority",
         "--no-serial",
-        "--serial",
         "--ipc-port",
         "--demo",
         "--qlcplus-dir",
@@ -2201,6 +2187,16 @@ mod tests {
         (r#"{"v":0,"cmd":"show.open","name":"Kerk"}"#, Class::Reset),
         (r#"{"v":0,"cmd":"show.list"}"#, Class::Neutral),
         (
+            r#"{"v":0,"cmd":"output.add","line":2,"kind":"sacn"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"output.edit","id":1,"enabled":false}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"output.remove","ids":[1]}"#, Class::Edit),
+        (r#"{"v":0,"cmd":"output.ports"}"#, Class::Neutral),
+        (
             r#"{"v":0,"cmd":"show.save_as","name":"Kerk 2"}"#,
             Class::Neutral,
         ),
@@ -2523,6 +2519,92 @@ mod tests {
             h.undo_label(),
             Some(format!("Delete playback {id}").as_str())
         );
+    }
+
+    // ---- VS6-02: OUT-34 ----------------------------------------------------------------
+
+    fn node(e: &Engine, id: u32) -> Option<cmdmx_core::output::Node> {
+        e.nodes().find(|n| n.id == id).cloned()
+    }
+
+    #[test]
+    fn out_34_output_commands_reach_the_engine_through_the_history() {
+        use cmdmx_core::output::NodeKind;
+        let mut e = Engine::new(Settings::default());
+        let mut h = History::default();
+        let before = e.edit_state();
+        let first: Vec<u32> = e.nodes().map(|n| n.id).collect();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"output.add","line":2,"kind":"sacn","priority":120}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Add output"));
+        let added = e
+            .nodes()
+            .map(|n| n.id)
+            .find(|id| !first.contains(id))
+            .unwrap();
+        assert_eq!(
+            node(&e, added).unwrap().kind,
+            NodeKind::Sacn {
+                universe: 2,
+                priority: 120,
+                unicast: None
+            }
+        );
+
+        // Partial: only the named fields change.
+        let edit = format!(r#"{{"v":0,"cmd":"output.edit","id":{added},"unicast":"10.0.0.5"}}"#);
+        undo_run(&mut e, &mut h, &edit).unwrap();
+        assert_eq!(h.undo_label(), Some("Edit output"));
+        let edited = node(&e, added).unwrap();
+        assert_eq!(
+            edited.kind,
+            NodeKind::Sacn {
+                universe: 2,
+                priority: 120,
+                unicast: Some("10.0.0.5".into())
+            }
+        );
+        assert_eq!((edited.line, edited.enabled), (2, true));
+
+        let remove = format!(r#"{{"v":0,"cmd":"output.remove","ids":[{added}]}}"#);
+        undo_run(&mut e, &mut h, &remove).unwrap();
+        assert_eq!(h.undo_label(), Some("Remove output"));
+        assert_eq!(node(&e, added), None);
+
+        for _ in 0..3 {
+            undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        }
+        assert_eq!(e.edit_state(), before, "all three undone");
+    }
+
+    #[test]
+    fn out_34_refused_output_edits_change_nothing() {
+        let mut e = Engine::new(Settings::default());
+        let mut h = History::default();
+        let artnet = e
+            .nodes()
+            .find(|n| matches!(n.kind, cmdmx_core::output::NodeKind::Artnet { .. }))
+            .unwrap()
+            .id;
+        let before = e.edit_state();
+        for bad in [
+            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"kind":"sacn"}}"#),
+            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"port_address":40000}}"#),
+            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"target":"nope"}}"#),
+            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"line":"two"}}"#),
+            r#"{"v":0,"cmd":"output.edit","id":999,"enabled":false}"#.to_string(),
+            r#"{"v":0,"cmd":"output.remove","ids":[999]}"#.to_string(),
+            // OUT-28: line 1 already goes out on Art-Net 0:0:0 at broadcast.
+            r#"{"v":0,"cmd":"output.add","line":1,"kind":"artnet"}"#.to_string(),
+        ] {
+            assert!(undo_run(&mut e, &mut h, &bad).is_err(), "{bad}");
+        }
+        assert_eq!(e.edit_state(), before);
+        assert!(h.is_empty());
     }
 
     // ---- VS2-05: IPC-32..34 ------------------------------------------------------------

@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn out_06_each_frame_becomes_one_packet_with_sequence_from_zero() {
         let (rx, target) = receiver();
-        let mut node = SacnNode::new(target, 1, 100);
+        let mut node = SacnNode::new("sacn #2".into(), target, 1, 100);
         let mut frame = [0u8; 512];
         for seq in 0..3u8 {
             frame[0] = seq + 7;
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn out_06_socket_loops_multicast_back_and_uses_ephemeral_port() {
         let (rx, target) = receiver();
-        let mut node = SacnNode::new(target, 1, 100);
+        let mut node = SacnNode::new("sacn #2".into(), target, 1, 100);
         assert_eq!(node.send(&[0; 512]), None);
         assert!(node.socket.as_ref().unwrap().multicast_loop_v4().unwrap());
         let mut buf = [0u8; 1024];
@@ -147,15 +147,21 @@ mod tests {
     #[test]
     fn out_07_priority_is_carried_per_node() {
         let (rx, target) = receiver();
-        let mut node = SacnNode::new(target, 1, 150);
+        let mut node = SacnNode::new("sacn #2".into(), target, 1, 150);
         node.send(&[0; 512]);
         assert_eq!(recv(&rx)[108], 150);
+        // OUT-29: an edited priority reaches the running node, sequence carries on.
+        node.set_priority(30);
+        node.send(&[0; 512]);
+        let p = recv(&rx);
+        assert_eq!(p[108], 30);
+        assert_eq!(p[111], 1, "same sequence counter");
     }
 
     #[test]
     fn out_17_source_name_and_fixed_cid() {
         let (rx, target) = receiver();
-        let mut node = SacnNode::new(target, 1, 100);
+        let mut node = SacnNode::new("sacn #2".into(), target, 1, 100);
         node.send(&[0; 512]);
         let p = recv(&rx);
         assert_eq!(
