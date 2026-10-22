@@ -241,6 +241,16 @@ pub enum PrgAction {
         resolution: Resolution,
     },
     Command(Vec<String>),
+    /// PRG-23: Locate the targets in these groups.
+    Locate(Vec<AttributeGroup>),
+    /// PRG-26 (live, not undoable).
+    Highlight(bool),
+    /// PRG-27.
+    Off(Vec<AttributeGroup>),
+    RemDim,
+    Clear,
+    /// ENG-10: seconds.
+    ClearTimed(f32),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -434,6 +444,25 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                     history.edit(&mut engine, &tokens.join(" "), None, |e| {
                         e.execute_command(&words)
                     })?;
+                }
+                ActionKind::Prg(PrgAction::Locate(mask)) => {
+                    history.edit(&mut engine, "Locate", None, |e| e.locate(mask))?;
+                }
+                ActionKind::Prg(PrgAction::Highlight(on)) => engine.set_highlight(*on)?,
+                ActionKind::Prg(PrgAction::Off(mask)) => {
+                    history.edit(&mut engine, "Off", None, |e| e.off(mask))?;
+                }
+                ActionKind::Prg(PrgAction::RemDim) => {
+                    history.edit(&mut engine, "Rem Dim", None, |e| e.rem_dim())?;
+                }
+                ActionKind::Prg(PrgAction::Clear) => {
+                    history.edit(&mut engine, "Clear", None, |e| {
+                        e.clear();
+                        Ok(())
+                    })?;
+                }
+                ActionKind::Prg(PrgAction::ClearTimed(time)) => {
+                    history.edit(&mut engine, "Clear", None, |e| e.clear_timed(*time, None))?;
                 }
                 ActionKind::Pal(PalAction::Record(record)) => {
                     history.edit(&mut engine, "Record palette", None, |e| {

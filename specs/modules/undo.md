@@ -31,7 +31,7 @@ start.
 - **Edit state:** everything a show edit or a programmer command changes: the stored show
   (`Engine::to_show`: patch, user profiles, groups, palettes, playbacks with their cues and
   options, page legends, settings) plus the programmer (values, palette references, selection
-  and its order).
+  and its order, the located set: PRG-44).
 - **Live state:** everything else in the engine: fader and Grand Master levels (including the
   saved level of a group master, GRM-13), DBO, Flash/Swop/Latch, cue-list and chase positions and
   fades, tap tempo, the current page, the connected list, held LTP values, the wheels' attribute
@@ -90,7 +90,8 @@ start.
   undone one.
 - **UNDO-12** Held LTP values and fixtures that undo removes or brings back follow the patch as
   a patch edit does: a removed fixture stops output, a returned one outputs its programmer,
-  playback or default values from the next tick.
+  playback or default values from the next tick. An LTP attribute the restored programmer no
+  longer holds is let go of as Clear does (`programmer.md` PRG-45).
 
 ### Lifetime, autosave, several clients
 - **UNDO-13** The history lives in the daemon's memory only: it is not in the show file and

@@ -564,5 +564,31 @@ private struct SettingsTab: View {
         } else {
             Text("Waiting for the engine.").font(Typo.ui(11)).foregroundStyle(t.fg2)
         }
+        programmerSection
+    }
+
+    /// UI-26 / PRG-43: the show-wide programmer settings; each change sends only its own field.
+    @ViewBuilder private var programmerSection: some View {
+        if let p = engine.programmerSettings {
+            Text("PROGRAMMER").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3).padding(.top, 8)
+            OptionRow(label: "Clear order", note: "What the first Clear presses release, in turn.") {
+                Picker("Clear order", selection: Binding(get: { p.clearPrecedence }, set: { engine.setProgrammerSettings(["clear_precedence": $0]) })) {
+                    Text("Selection, then programmer").tag("SelectionThenProgrammer")
+                    Text("Selection with programmer").tag("SelectionWithProgrammer")
+                    Text("Programmer, then selection").tag("ProgrammerThenSelection")
+                }
+                .labelsHidden().pickerStyle(.menu).frame(width: 240)
+            }
+            OptionRow(label: "LTP on Clear", note: "Release: LTP attributes fall back to the playbacks. Freeze: they hold their value.") {
+                Choice(options: [("Release", "Release"), ("Freeze", "Freeze")], selected: p.clearLtp) {
+                    engine.setProgrammerSettings(["clear_ltp": $0])
+                }
+            }
+            OptionRow(label: "Lowlight level", note: "The level Rem Dim gives the fixtures that are not selected.") {
+                NumberField(value: (p.lowlightLevel * 100).rounded(), unit: "%") {
+                    engine.setProgrammerSettings(["lowlight_level": min(max($0, 0), 100) / 100])
+                }
+            }
+        }
     }
 }

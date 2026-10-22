@@ -3,6 +3,8 @@
 _Last updated: 2026-10-22_
 
 ## Current step
+VS2-05 (2026-10-22, UI-26): keypad Locate (empty line → `programmer.locate`, else the line ends in `Locate`) and Highlight (lit while on), side-column Off (active group), softkey Rem Dim in the Main context (replaces the Timecode placeholder), double-click on a wheel's name → `programmer.off {attribute}`, `LOC` tag on located fixtures, Programmer section (Clear order, LTP on Clear, Lowlight) in the Playback Options settings tab. `EngineClient.programmerSettings`, `ProgrammerState.located/highlight`.
+
 VS5-03 (2026-10-22; UNDO-18..19, `ui.md` UI-18/20 amended): `EngineClient.undoLabel/redoLabel` from the snapshot's `undo` and the `undo` delta (IPC-31), `undo()`/`redo()` say "Undone:/Redone: <label>" and send IPC-30; Undo and Redo keys next to Clear (tooltip label, disabled while nil), softkey G Undo in Main and Selection (label as second line), ⌘Z/⇧⌘Z in `MacKeys.handle` before the Keys guard, skipped while an `NSText` has focus. Checklist `tests/manual/app-undo.md`.
 
 Before that: VS3-07 done (#56, 2026-10-22; GRM-16, 17; `ui.md` amended): Record softkey C **Group Master** (a group cell tap, then an empty handle → `master.record` kind Group), strips "Group n" with "GRP · SCALE 100 % / HTP / LIMIT / TAKE OVER" and "· LOCKED", amber level text and bar per GRM-16 (`LevelBar.warn`), "LOCKED 50%" in amber while disabled with the bar following the fader (`PlaybackInfo.isLocked`), Master tab with mode, scale (Scale only) and Disabled, `GroupMaster` in the Custom button table. Run `tests/manual/runs/2026-10-22-VS3-07.md` passed.

@@ -251,11 +251,15 @@ private struct WheelFace: View {
     /// The value comes from a palette: cyan (UI-03, PAL-30).
     var fromPalette = false
     let width: CGFloat
+    /// UI-26: double-click on the name only (never the wheel, so a drag cannot trigger it).
+    var onNameDoubleClick: (() -> Void)?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Text(name.uppercased()).font(Typo.legend(11)).tracking(0.6).foregroundStyle(t.fg2).lineLimit(1)
                 .padding(.leading, 6).padding(.top, 4)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { onNameDoubleClick?() }
             Text("enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 6).padding(.top, 4)
             Text(text).font(Typo.mono(15, .medium))
@@ -304,7 +308,8 @@ private struct WheelView: View {
                   text: wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
                   : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
                   ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value),
-                  value: wheel.value, touched: wheel.touched, fromPalette: wheel.palette != nil, width: width)
+                  value: wheel.value, touched: wheel.touched, fromPalette: wheel.palette != nil, width: width,
+                  onNameDoubleClick: { engine.programmerOff(attribute: wheel.attribute) })
         .background(ScrollCatcher { steps, flags in
             engine.wheel(attribute: wheel.attribute, steps: steps, resolution: resolution(flags))
         })

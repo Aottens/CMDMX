@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-22 — Undo lets go of LTP attributes as Clear does (PRG-45, owner)
+
+**Decision:** when undo or redo leaves an LTP attribute out of the programmer or the located set, it follows `clear_ltp` like Clear and Off (Release → playback value or profile default; Freeze → keep). Build task VS5-04.
+
+**Alternatives considered:** keep held LTP output as live state untouched by undo (UNDO-09 as built), so Pan/Tilt stay where Locate put them after Undo.
+
+**Reasoning:** one rule for whatever lets go of a value is easier to learn; the output matches programmer and playbacks after an undo; grandMA's Oops and Titan's Clear behaviour let go the same way. Freeze stays available for those who want values to stay.
+
+**Reversal trigger:** operators expect undo never to move a light that undo did not explicitly touch.
+
 ## 2026-10-22 — Undo: snapshots of the edit state, edits only, one shared history (ADR-008, P1-10, owner)
 
 **Decision (owner approved the seven recommendations):** one engine-wide undo (`specs/modules/undo.md`, UNDO-01..20, IPC-30/31). A step is one accepted command that changes show or programmer; wheel turns, colour-picker drags and selection taps in a row merge into one step, by command order, never by time. Live actions (Go, faders, Flash, GM, page) are not undoable and not in the history. Linear redo, 100 steps, memory only (emptied by Open/New and a restart), autosave writes undone state like any edit, one history shared by all clients. Steps save the edit state before the command (ADR-008), not inverse commands.

@@ -16,6 +16,8 @@ struct Cell: View {
     var legend = ""
     /// 1-based selection order, shown top-right in blue (replaces the tag).
     var order: Int?
+    /// UI-26: fixture is located; `LOC` shows under the order number, whatever the order/tag shows.
+    var located = false
     var empty = false
     var selected = false
     /// Current target during a sub-selection: a double blue border.
@@ -88,6 +90,11 @@ struct Cell: View {
         }
         .overlay(alignment: .top) {
             if inProgrammer { Rectangle().fill(t.red).frame(height: 3) }
+        }
+        .overlay(alignment: .topTrailing) {   // UI-26
+            if located {
+                Text("LOC").font(Typo.mono(9, .medium)).tracking(0.5).foregroundStyle(t.amber).padding(.horizontal, 4).padding(.top, 17)
+            }
         }
         .overlay {
             if current {
@@ -179,6 +186,7 @@ struct FixturesWindow: View {
                     Cell(number: fixture.number,
                          legend: Self.legend(fixture),
                          order: order[fixture.id],
+                         located: programmer.located[fixture.id] != nil,   // UI-26
                          selected: order[fixture.id] != nil,
                          current: subSelection && targets.contains(fixture.id),
                          dimmed: subSelection && order[fixture.id] != nil && !targets.contains(fixture.id),

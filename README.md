@@ -95,8 +95,13 @@ for the phase-2 effects generator (effects run around the cue's values, before t
 - Undo across the whole engine: every edit (programmer, palettes, playbacks, patch, show
   settings) can be undone and redone, 100 steps back, while live playing (Go, faders, Flash) is
   never touched. In the app: Undo and Redo keys labelled with the step, softkey G, ⌘Z and ⇧⌘Z.
+- Locate (open white, centred, full, outside the programmer; `201 Thro 204 Locate`), Highlight
+  with lowlight on the rest of the selection while you step with Fix ±1, Off for the active
+  attribute group or, by double-clicking a wheel's name, for one attribute, Rem Dim, and Clear
+  with a setting for its order and for what LTP attributes do (back to the playback or the
+  fixture's default, or freeze). A timed Clear fades the output (IPC only for now).
 
-Next, in this order: Locate, Highlight, Off and Clear; output on
+Next, in this order: output on
 more than one universe (today only the first leaves the engine); MIDI, Mackie Control and OSC
 surfaces. The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).

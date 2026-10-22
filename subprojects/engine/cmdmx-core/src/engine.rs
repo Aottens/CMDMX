@@ -15,8 +15,11 @@
 //! point, release, Release, playback groups, Flash/Swop/Latch and DBO. Actions change the
 //! inputs; `tick` starts the timers and moves the intensity master before the merge.
 //!
-//! Not yet here, by design (each lands with its spec): the programmer's Clear time (ENG-10),
-//! chases, masters other than GM.
+//! Locate, Highlight, Off, Rem Dim and Clear (VS2-05, PRG-23..29, 38..44, ENG-10): the located
+//! set joins the merge under the programmer value, Highlight replaces the merged value before the
+//! group masters, and a timed Clear leaves fades behind in the programmer.
+//!
+//! Not yet here, by design (each lands with its spec): chases, masters other than GM.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -38,8 +41,9 @@ use crate::playback::{
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
-    AttributeGroupState, ColourView, EditPart, Fade, FixtureValues, GroupId, PaletteUse,
-    Programmer, ProgrammerView, Resolution, WheelState,
+    default_lowlight, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView, EditPart, Fade,
+    FixtureValues, GroupId, PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView,
+    Resolution, WheelState,
 };
 use crate::show::{
     Meta, Show, ShowGroup, ShowPage, ShowPalette, ShowPalettes, ShowPatch, ShowPlaybacks,
@@ -162,6 +166,10 @@ pub struct Settings {
     pub cue_list_fader: ListFader,
     pub update_mode: UpdateMode,
     pub handle_buttons: HandleButtons,
+    /// PRG-29, PRG-43, PRG-26 (`settings.programmer`, PRG-42).
+    pub clear_precedence: ClearPrecedence,
+    pub clear_ltp: ClearLtp,
+    pub lowlight_level: f32,
 }
 
 /// PBK-12, PBK-20 (`settings.playback`): every field optional, all or nothing.
@@ -181,7 +189,7 @@ pub struct PlaybackSettingsChange {
 }
 
 /// PBK-09: the default record mask, every group.
-const ALL_GROUPS: [AttributeGroup; 8] = [
+pub const ALL_GROUPS: [AttributeGroup; 8] = [
     AttributeGroup::I,
     AttributeGroup::P,
     AttributeGroup::C,
@@ -215,6 +223,9 @@ impl Default for Settings {
             cue_list_fader: ListFader::KillWithOff,
             update_mode: UpdateMode::Forwards,
             handle_buttons: HandleButtons::BestPractice,
+            clear_precedence: ClearPrecedence::default(),
+            clear_ltp: ClearLtp::default(),
+            lowlight_level: default_lowlight(),
         }
     }
 }
@@ -260,6 +271,8 @@ pub struct Engine {
     held: BTreeMap<FixtureId, BTreeMap<String, Value>>,
     /// CUE-26: the list the Go block acts on. Live state, not in the show.
     connected: Option<PlaybackId>,
+    /// PRG-26: Highlight. Live state, not in the show or the edit state.
+    highlight: bool,
 }
 
 /// UNDO (ADR-008): everything an edit command changes, as one snapshot. Not in it, so live or
@@ -285,6 +298,15 @@ type PalettePlan = Vec<(FixtureId, String, Value)>;
 struct Candidate {
     priority: Priority,
     activated: u64,
+    value: Value,
+}
+
+/// A programmer or located value that was taken out (Off, Clear), for PRG-43 and ENG-10.
+struct Gone {
+    fixture: FixtureId,
+    name: String,
+    kind: AttributeKind,
+    default: Value,
     value: Value,
 }
 
@@ -316,6 +338,7 @@ impl Engine {
             colour_model: ColourModel::default(),
             held: BTreeMap::new(),
             connected: None,
+            highlight: false,
         }
     }
 
@@ -868,6 +891,9 @@ impl Engine {
                 cue_list_fader: s.cue_list_fader,
                 update_mode: s.update_mode,
                 handle_buttons: s.handle_buttons.clone(),
+                clear_precedence: s.clear_precedence,
+                clear_ltp: s.clear_ltp,
+                lowlight_level: s.lowlight_level,
             },
             profiles: self
                 .profiles
@@ -948,9 +974,21 @@ impl Engine {
             cue_list_fader: s.cue_list_fader,
             update_mode: s.update_mode,
             handle_buttons: s.handle_buttons.clone(),
+            clear_precedence: s.clear_precedence,
+            clear_ltp: s.clear_ltp,
+            lowlight_level: s.lowlight_level,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
+        // PRG-42: a lowlight level out of range is left at its default.
+        if !(0.0..=1.0).contains(&s.lowlight_level) {
+            engine.settings.lowlight_level = default_lowlight();
+            warnings.push(format!(
+                "lowlight_level {} is out of range, set to {}",
+                s.lowlight_level,
+                default_lowlight()
+            ));
+        }
         // CUE-39: a button a kind cannot have becomes the kind's BestPractice button.
         if let HandleButtons::Custom(pairs) = &mut engine.settings.handle_buttons {
             for (kind, pair) in pairs {
@@ -2794,14 +2832,267 @@ impl Engine {
         self.follow_active_group();
     }
 
-    /// PRG-29 (default `SelectionThenProgrammer`): the first Clear deselects, the next
-    /// empties the programmer.
+    /// PRG-29, PRG-42: Clear by `clear_precedence` (default: the first Clear deselects, the next
+    /// empties the programmer and the located set).
     pub fn clear(&mut self) {
-        if self.programmer.selection().is_empty() {
-            self.programmer.clear_values();
-        } else {
-            self.clear_selection();
+        let selected = !self.programmer.selection().is_empty();
+        let has_content = !self.programmer.is_empty() || !self.programmer.located().is_empty();
+        match self.settings.clear_precedence {
+            ClearPrecedence::SelectionThenProgrammer => {
+                if selected {
+                    self.clear_selection();
+                } else {
+                    self.clear_matching(None, 0.0);
+                }
+            }
+            ClearPrecedence::SelectionWithProgrammer => {
+                self.clear_selection();
+                self.clear_matching(None, 0.0);
+            }
+            ClearPrecedence::ProgrammerThenSelection => {
+                if has_content {
+                    self.clear_matching(None, 0.0);
+                } else {
+                    self.clear_selection();
+                }
+            }
         }
+    }
+
+    /// PRG-29: a masked Clear removes the values and located values in `mask` for all fixtures
+    /// and leaves the selection.
+    pub fn clear_mask(&mut self, mask: &[AttributeGroup]) -> Result<(), CoreError> {
+        self.clear_matching(Some(mask), 0.0);
+        Ok(())
+    }
+
+    /// ENG-10: Clear with a time (0 = at once); `mask` `None` = everything. The selection stays.
+    pub fn clear_timed(
+        &mut self,
+        time: f32,
+        mask: Option<&[AttributeGroup]>,
+    ) -> Result<(), CoreError> {
+        check_time(time)?;
+        self.clear_matching(mask, time);
+        Ok(())
+    }
+
+    /// Take the values and located values in `mask` (all when `None`) out of the programmer and
+    /// let go of them (PRG-43, ENG-10).
+    fn clear_matching(&mut self, mask: Option<&[AttributeGroup]>, time: f32) {
+        let fixtures = self.programmer.touched_fixtures();
+        let gone = self.take_out(&fixtures, |l| mask.is_none_or(|m| m.contains(&l.group)));
+        if mask.is_none() {
+            self.programmer.clear_values(); // also what no mode can name any more
+        }
+        self.give_up(gone, time);
+    }
+
+    /// Remove the programmer values and located values of `fixtures` whose attribute `keep`
+    /// accepts; what was removed, with its value, is returned for [`Engine::give_up`].
+    fn take_out(
+        &mut self,
+        fixtures: &[FixtureId],
+        keep: impl Fn(&LogicalAttribute) -> bool,
+    ) -> Vec<Gone> {
+        let mut gone = Vec::new();
+        for &fixture in fixtures {
+            let Some(mode) = self.mode_of(fixture) else {
+                continue;
+            };
+            let values = self.programmer.values().get(&fixture);
+            let located = self.programmer.located().get(&fixture);
+            let names: BTreeSet<&String> = (values.into_iter().flat_map(|a| a.keys()))
+                .chain(located.into_iter().flat_map(|a| a.keys()))
+                .collect();
+            for name in names {
+                let Some(l) = mode.logical(name).filter(|l| keep(l)) else {
+                    continue;
+                };
+                let value = match self.programmer.stored(fixture, name) {
+                    Some(stored) => self.resolve_stored(fixture, name, stored),
+                    None => match self.programmer.located_value(fixture, name) {
+                        Some(v) => v,
+                        None => continue,
+                    },
+                };
+                gone.push(Gone {
+                    fixture,
+                    name: name.clone(),
+                    kind: l.kind,
+                    default: l.default,
+                    value,
+                });
+            }
+        }
+        for g in &gone {
+            self.programmer.remove_value(g.fixture, &g.name);
+            self.programmer.remove_located(g.fixture, &g.name);
+        }
+        gone
+    }
+
+    /// PRG-43, ENG-10: what the removed values output next. An HTP value fades to 0 over `time`
+    /// (the playbacks still compete); an LTP one, with `Release`, goes to the default (the merge
+    /// lets a playback take it) over `time`; with `Freeze` it keeps its held value.
+    /// ponytail: an HTP value fades from its value, not from its output (a palette fade running
+    /// at the moment of Clear is not continued).
+    fn give_up(&mut self, gone: Vec<Gone>, time: f32) {
+        for g in gone {
+            let fade = |from| Fade {
+                from,
+                delay: 0.0,
+                duration: time,
+                start: None,
+            };
+            match g.kind {
+                AttributeKind::Htp if time > 0.0 => {
+                    let fade = fade(g.value);
+                    self.programmer.set_clearing(g.fixture, &g.name, fade);
+                }
+                AttributeKind::Htp => {}
+                AttributeKind::Ltp if self.settings.clear_ltp == ClearLtp::Freeze => {}
+                AttributeKind::Ltp => {
+                    let held = self.held.entry(g.fixture).or_default();
+                    let current = held.get(&g.name).copied().unwrap_or(g.value);
+                    if time > 0.0 {
+                        let fade = fade(current);
+                        self.programmer.set_clearing(g.fixture, &g.name, fade);
+                    } else {
+                        held.insert(g.name, g.default);
+                    }
+                }
+            }
+        }
+    }
+
+    /// PRG-42: all or nothing.
+    pub fn set_programmer_settings(
+        &mut self,
+        change: ProgrammerSettingsChange,
+    ) -> Result<(), CoreError> {
+        if let Some(level) = change.lowlight_level {
+            if !(0.0..=1.0).contains(&level) {
+                return Err(CoreError::InvalidLevel(level));
+            }
+        }
+        let s = &mut self.settings;
+        s.clear_precedence = change.clear_precedence.unwrap_or(s.clear_precedence);
+        s.clear_ltp = change.clear_ltp.unwrap_or(s.clear_ltp);
+        s.lowlight_level = change.lowlight_level.unwrap_or(s.lowlight_level);
+        Ok(())
+    }
+
+    /// PRG-23, 38: put the targets' attributes in `mask` at their locate values. They leave the
+    /// programmer (PRG-24); the located values are not contents.
+    pub fn locate(&mut self, mask: &[AttributeGroup]) -> Result<(), CoreError> {
+        let targets = self.programmer.targets();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let mut put = Vec::new();
+        for id in targets {
+            let Some(mode) = self.mode_of(id) else {
+                continue;
+            };
+            for l in mode
+                .logical_attributes()
+                .filter(|l| mask.contains(&l.group))
+            {
+                put.push((id, l.name.to_string(), locate_value(mode, &l)));
+            }
+        }
+        for (id, name, value) in put {
+            self.programmer.remove_value(id, &name);
+            self.programmer.set_located(id, &name, value);
+        }
+        self.programmer.mark_changed();
+        Ok(())
+    }
+
+    /// PRG-23: the located set, fixture → attribute → value.
+    pub fn located(&self) -> Values {
+        (self.programmer.located().iter())
+            .map(|(&id, attrs)| {
+                let attrs = attrs.iter().map(|(n, v)| (n.clone(), Stored::Value(*v)));
+                (id, attrs.collect())
+            })
+            .collect()
+    }
+
+    /// PRG-26, 39: Highlight; refused with nothing selected.
+    pub fn set_highlight(&mut self, on: bool) -> Result<(), CoreError> {
+        if on && self.programmer.selection().is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        self.highlight = on;
+        Ok(())
+    }
+
+    pub fn highlight(&self) -> bool {
+        self.highlight
+    }
+
+    /// PRG-27: Off removes the touched and located values of the targets in `mask`.
+    pub fn off(&mut self, mask: &[AttributeGroup]) -> Result<(), CoreError> {
+        self.off_where(|l| mask.contains(&l.group))
+    }
+
+    /// PRG-40: Off for one attribute; a colour-model wheel name means Colour.
+    pub fn off_attribute(&mut self, attribute: &str) -> Result<(), CoreError> {
+        const WHEELS: [&str; 8] = [
+            "Hue",
+            "Saturation",
+            "Red",
+            "Green",
+            "Blue",
+            "Cyan",
+            "Magenta",
+            "Yellow",
+        ];
+        let name = if WHEELS.contains(&attribute) {
+            COLOUR
+        } else {
+            attribute
+        };
+        self.off_where(|l| l.name == name)
+    }
+
+    fn off_where(&mut self, keep: impl Fn(&LogicalAttribute) -> bool) -> Result<(), CoreError> {
+        let targets = self.programmer.targets();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let gone = self.take_out(&targets, keep);
+        if gone.is_empty() {
+            return Err(CoreError::NothingToOff);
+        }
+        self.give_up(gone, 0.0);
+        Ok(())
+    }
+
+    /// PRG-28, 41: Dimmer 0 as a touched value on every patched fixture that is not selected and
+    /// has an intensity attribute.
+    pub fn rem_dim(&mut self) -> Result<(), CoreError> {
+        let selection = self.programmer.selection();
+        if selection.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let mut put = Vec::new();
+        for &id in self.fixtures.keys().filter(|id| !selection.contains(id)) {
+            let Some(mode) = self.mode_of(id) else {
+                continue;
+            };
+            let intensity = mode
+                .logical_attributes()
+                .filter(|l| l.group == AttributeGroup::I && l.kind == AttributeKind::Htp);
+            put.extend(intensity.map(|l| (id, l.name.to_string())));
+        }
+        for (id, name) in put {
+            self.set_programmer_value(id, &name, 0.0)?;
+        }
+        self.programmer.mark_changed();
+        Ok(())
     }
 
     /// PRG-04: step to the next fixture (or pattern stage).
@@ -2893,6 +3184,9 @@ impl Engine {
     /// PRG-18: after a selection change, leave a group no target has for the
     /// first one (I P C G B E S) some target has. Stored, not computed lazily.
     fn follow_active_group(&mut self) {
+        if self.programmer.selection().is_empty() {
+            self.highlight = false; // PRG-26: deselecting stops Highlight
+        }
         let targets = self.programmer.targets();
         let has = |g: AttributeGroup| {
             targets.iter().any(|id| {
@@ -3153,6 +3447,10 @@ impl Engine {
                 .collect(),
             colour,
             palettes,
+            located: (self.programmer.located().iter())
+                .map(|(&id, attrs)| (id, attrs.keys().cloned().collect()))
+                .collect(),
+            highlight: self.highlight,
         }
     }
 
@@ -3236,6 +3534,14 @@ impl Engine {
             }
             self.put_palette_timed(id, plan, time, overlap);
             return Ok(());
+        }
+        if cmd.locate {
+            // PRG-10: select, then Locate every group. `typed` is never empty here.
+            if let Some(list) = typed {
+                self.programmer.replace_selection(list);
+                self.follow_active_group();
+            }
+            return self.locate(&ALL_GROUPS);
         }
         let mut touched = Vec::new();
         let level = cmd.level.map(|v| (v / 100.0).clamp(0.0, 1.0));
@@ -3828,6 +4134,11 @@ impl Engine {
                 .values()
                 .any(|p| p.kind == PlaybackKind::GroupMaster),
         };
+        let highlight = Highlight::new(
+            self.highlight,
+            &self.programmer,
+            self.settings.lowlight_level,
+        );
         // GRM-10: (Take Over master, fixture, level) of the passes this tick.
         let mut pickups: Vec<(PlaybackId, FixtureId, f32)> = Vec::new();
         for (fixture_id, fixture) in &self.fixtures {
@@ -3850,6 +4161,8 @@ impl Engine {
             let mut scale = 1.0;
             for l in mode.logical_attributes() {
                 let merged = merge_attribute(&sources, fixture, mode, &l, now);
+                // PRG-26 (ENG-14): Highlight replaces the merged value, never the held one.
+                let lit = highlight.value(*fixture_id, mode, &l);
                 // ENG-07: an HTP attribute nobody proposes is 0; LTP holds its last value (LIB-03).
                 let value = match (merged, l.kind) {
                     (Some(v), AttributeKind::Ltp) => {
@@ -3859,17 +4172,20 @@ impl Engine {
                                 held.insert(l.name.to_string(), v);
                             }
                         }
-                        v
+                        lit.unwrap_or(v)
                     }
                     (merged, AttributeKind::Htp) => {
                         // ENG-07: nobody proposing is 0. GRM-06: the group masters, then the GM.
-                        let v = masters.apply(*fixture_id, merged.unwrap_or(Value::Level(0.0)));
+                        let base = lit.or(merged).unwrap_or(Value::Level(0.0));
+                        let v = masters.apply(*fixture_id, base);
                         if l.name == DIMMER {
                             masters.pickups(*fixture_id, v.level(), &mut pickups);
                         }
                         v.scaled(grand_master)
                     }
-                    (None, AttributeKind::Ltp) => held.get(l.name).copied().unwrap_or(l.default),
+                    (None, AttributeKind::Ltp) => lit
+                        .or_else(|| held.get(l.name).copied())
+                        .unwrap_or(l.default),
                 };
                 if virtual_dimmer && l.name == DIMMER {
                     scale = value.level();
@@ -4123,6 +4439,78 @@ pub(crate) fn resolve_mode<'a>(
     profiles
         .get(&fixture.profile)
         .and_then(|p| p.mode(fixture.mode.as_deref()))
+}
+
+/// PRG-38: the value Locate puts an attribute at.
+fn locate_value(mode: &Mode, l: &LogicalAttribute) -> Value {
+    let def = mode
+        .attribute(l.name)
+        .or_else(|| mode.cells.iter().find_map(|c| c.attribute(l.name)));
+    if let Some(v) = def.and_then(|a| a.locate) {
+        Value::Level(v)
+    } else if l.is_colour() {
+        Value::Colour(TargetColour::WHITE)
+    } else if l.emitter {
+        Value::Level(0.0) // white comes from the target colour (ADR-005)
+    } else if l.group == AttributeGroup::I && l.kind == AttributeKind::Htp {
+        Value::Level(1.0)
+    } else if l.name == "Pan" || l.name == "Tilt" {
+        Value::Level(0.5)
+    } else {
+        l.default
+    }
+}
+
+/// PRG-26, 39: who Highlight lifts and who it lowlights, as the tick sees it.
+struct Highlight {
+    on: bool,
+    targets: Vec<FixtureId>,
+    /// The rest of the selection while a sub-selection is active.
+    others: Vec<FixtureId>,
+    lowlight: f32,
+}
+
+impl Highlight {
+    fn new(on: bool, programmer: &Programmer, lowlight: f32) -> Self {
+        let targets = programmer.targets();
+        let others = (programmer.selection().iter())
+            .filter(|f| !targets.contains(f))
+            .copied()
+            .collect();
+        Highlight {
+            on,
+            targets,
+            others,
+            lowlight,
+        }
+    }
+
+    /// The value Highlight puts the attribute at, `None` when it leaves it alone.
+    fn value(&self, fixture: FixtureId, mode: &Mode, l: &LogicalAttribute) -> Option<Value> {
+        if !self.on {
+            return None;
+        }
+        if self.others.contains(&fixture) {
+            return (l.group == AttributeGroup::I && l.kind == AttributeKind::Htp)
+                .then_some(Value::Level(self.lowlight));
+        }
+        if !self.targets.contains(&fixture) {
+            return None;
+        }
+        let def = mode
+            .attribute(l.name)
+            .or_else(|| mode.cells.iter().find_map(|c| c.attribute(l.name)));
+        let own = def.and_then(|a| a.highlight).map(Value::Level);
+        if l.group == AttributeGroup::I && l.kind == AttributeKind::Htp {
+            own.or(Some(Value::Level(1.0)))
+        } else if l.is_colour() {
+            Some(Value::Colour(TargetColour::WHITE))
+        } else if l.emitter {
+            Some(Value::Level(0.0))
+        } else {
+            own
+        }
+    }
 }
 
 /// Write one logical attribute's value into the fixture's slots. A level goes to the mode's
@@ -4414,6 +4802,11 @@ fn merge_attribute(
             Some(fade) => fade.at(to, now), // PAL-13
             None => to,
         })
+        // PRG-25: a located value sits under the programmer value, at the same priority.
+        .or_else(|| {
+            let located = src.programmer.located_value(fixture.id, attr.name)?;
+            Some(located).filter(|v| v.same_kind(&attr.default))
+        })
     {
         let candidate = Candidate {
             priority: Priority::Programmer,
@@ -4424,6 +4817,39 @@ fn merge_attribute(
             None => candidate,
             Some(current) => pick(attr.kind, current, candidate),
         });
+    }
+
+    // ENG-10: a value a timed Clear removed fades out. HTP: from its value to 0, the highest of it
+    // and the other sources wins (ENG-01). LTP: from the output then to what the other sources
+    // give, else the default. A source of higher priority owns the attribute outright.
+    if let Some(fade) = src.programmer.clearing(fixture.id, attr.name) {
+        if !best
+            .as_ref()
+            .is_some_and(|c| c.priority > Priority::Programmer)
+        {
+            best = Some(match (attr.kind, best) {
+                (AttributeKind::Htp, Some(c)) => {
+                    let value = fade.at(Value::Level(0.0), now);
+                    if value.level() > c.value.level() {
+                        Candidate { value, ..c }
+                    } else {
+                        c
+                    }
+                }
+                (AttributeKind::Ltp, Some(c)) => Candidate {
+                    value: fade.at(c.value, now),
+                    ..c
+                },
+                (kind, None) => Candidate {
+                    priority: Priority::Programmer,
+                    activated: src.programmer.activated(),
+                    value: match kind {
+                        AttributeKind::Htp => fade.at(Value::Level(0.0), now),
+                        AttributeKind::Ltp => fade.at(attr.default, now),
+                    },
+                },
+            });
+        }
     }
 
     // PBK-20: a killed playback's LTP attribute fades from where it was to what is underneath:

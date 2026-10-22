@@ -1,5 +1,5 @@
 //! Command line parser (Titan keypad syntax): `specs/modules/programmer.md` PRG-08, 09, 11;
-//! `Palette n` is `specs/modules/palettes.md` PAL-10.
+//! `Palette n` is `specs/modules/palettes.md` PAL-10, a selection ending in `Locate` PRG-10.
 //!
 //! Pure: tokens in, a parsed [`Command`] out. Resolving fixtures and applying
 //! the result is the engine's job.
@@ -28,6 +28,8 @@ pub struct Command {
     pub level: Option<f32>,
     /// `Palette n`: apply palette number n (PAL-10).
     pub palette: Option<u32>,
+    /// A selection ended with `Locate` instead of `Enter` (PRG-10).
+    pub locate: bool,
 }
 
 fn number(token: Option<&&str>) -> Option<u32> {
@@ -74,6 +76,14 @@ fn selection(tokens: &[&str]) -> Option<Vec<(bool, Item)>> {
 
 fn parse_inner(tokens: &[&str]) -> Option<Command> {
     let (&last, body) = tokens.split_last()?;
+    if last == "Locate" {
+        return Some(Command {
+            selection: selection(body)?,
+            level: None,
+            palette: None,
+            locate: true,
+        });
+    }
     if last != "Enter" {
         return None;
     }
@@ -92,6 +102,7 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
             selection,
             level: None,
             palette: Some(number),
+            locate: false,
         });
     }
     let (sel, level) = match body.iter().position(|&t| t == "@") {
@@ -116,6 +127,7 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
         selection,
         level,
         palette: None,
+        locate: false,
     })
 }
 

@@ -100,7 +100,7 @@ private struct FunctionButtons: View {
         ("Include", ""), ("Release", ""),
         ("Patch", ""), ("Disk", ""),
         ("Help", "later"), ("System", "later"),
-        ("Blind", "later"), ("Off", "Highlight and Off · VS2-05"),
+        ("Blind", "later"), ("Off", ""),
         ("Fan", "later"), ("Options", ""),
         ("Latch", ""), ("Shape", "later"),
     ]
@@ -112,6 +112,7 @@ private struct FunctionButtons: View {
                 ForEach(Self.keys, id: \.0) { label, spec in
                     FunctionKey(label: label, spec: spec,
                                 ring: label == "Record" ? ui.recordArmed : ui.function?.rawValue == label,
+                                tip: label == "Off" ? "Off: takes the active attribute group out of the programmer for the targets (PRG-27)" : "",
                                 action: spec.isEmpty ? { press(label) } : nil)
                 }
             }
@@ -129,6 +130,7 @@ private struct FunctionButtons: View {
                 ui.recordArmed = true
             }
         case "Patch": ui.screen = .patch
+        case "Off": engine.programmerOff()   // UI-26: the active attribute group, as Titan's Off
         case "Disk": ui.screen = .show
         default:
             if let function = PaletteFunction(rawValue: label) {   // PAL-29
@@ -145,6 +147,8 @@ private struct FunctionKey: View {
     let spec: String
     /// Record armed: red ring.
     var ring = false
+    /// Tooltip of a live key.
+    var tip = ""
     var action: (() -> Void)?
 
     var body: some View {
@@ -161,7 +165,7 @@ private struct FunctionKey: View {
         .frame(height: 40)
         .disabled(action == nil)
         .opacity(action == nil ? t.disabled : 1)
-        .help(spec)
+        .help(spec.isEmpty ? tip : spec)
     }
 }
 
@@ -189,8 +193,8 @@ private struct Keypad: View {
         ("Exit", "", .command), ("0", "", .number),
         (".", "", .number), ("Enter", "", .enter),
         ("Fix -1", "", .command), ("Fix +1", "", .command),
-        ("Odd/Even", "", .command), ("Highlight", "Highlight and Locate · VS2-05", .normal),
-        ("View", "later", .command), ("Locate", "Highlight and Locate · VS2-05", .normal),
+        ("Odd/Even", "", .command), ("Highlight", "", .normal),
+        ("View", "later", .command), ("Locate", "", .normal),
     ]
 
     var body: some View {
@@ -199,7 +203,7 @@ private struct Keypad: View {
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(50), spacing: 2), count: 4), spacing: 2) {
                 ForEach(Self.keys, id: \.0) { label, spec, style in
                     KeyButton(label: label, spec: spec, style: style, height: 38,
-                              ring: label == "Clear" && dirty, action: spec.isEmpty ? { press(label) } : nil)
+                              ring: label == "Clear" && dirty, lit: label == "Highlight" && engine.programmer.highlight, action: spec.isEmpty ? { press(label) } : nil)
                 }
             }
             Spacer(minLength: 0)
@@ -216,6 +220,10 @@ private struct Keypad: View {
         case "Back": line.back()
         case "Exit": line.clear(); ui.cancelModes()   // also disarms Record and the function buttons (PBK-28)
         case "Enter": line.send(engine); ui.paletteMenu = false
+        case "Locate":   // UI-26: an empty line locates everything, else the line ends in Locate
+            if line.tokens.isEmpty { engine.locate() } else { line.send(engine, end: "Locate") }
+            ui.paletteMenu = false
+        case "Highlight": engine.setHighlight(!engine.programmer.highlight)
         case "Clear": engine.clearProgrammer(); ui.cancelModes(); ui.pendingOverlap = nil
         case "Set": ui.arm(.legend)   // Set Legend, as the softkey
         case "Fix -1": engine.step(-1)
@@ -279,7 +287,7 @@ private struct Softkeys: View {
                 Softkey(name: "Previous", sub: "Fix −1", action: { engine.step(-1) }),
                 Softkey(name: "All", sub: "whole selection", action: { engine.selectAll() }),
                 Softkey(name: "Odd/Even", action: { engine.pattern(2) }),
-                setLegendKey,
+                Softkey(name: "Rem Dim", sub: "the rest to 0", action: { engine.remDim() }),   // UI-26
                 optionsKey,
                 undoKey,
             ])

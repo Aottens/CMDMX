@@ -14,7 +14,7 @@ use crate::palette::{Palette, PaletteId, RecordBy};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{HandleButtons, ListFader, Playback, PlaybackId, UpdateMode};
 use crate::profile::Profile;
-use crate::programmer::GroupId;
+use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId};
 use crate::CoreError;
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
@@ -26,6 +26,14 @@ pub struct Meta {
     pub created: String,
     pub modified: String,
     pub app_version: String,
+}
+
+fn is_default<T: Default + PartialEq>(v: &T) -> bool {
+    *v == T::default()
+}
+
+fn is_default_lowlight(v: &f32) -> bool {
+    *v == default_lowlight()
 }
 
 /// The engine's settings plus the colour model (SHW-01).
@@ -57,6 +65,17 @@ pub struct ShowSettings {
     pub cue_list_fader: ListFader,
     pub update_mode: UpdateMode,
     pub handle_buttons: HandleButtons,
+    /// PRG-42; absent in older files, so they load at the defaults, and left out while at them,
+    /// so a show that never touched them saves as before (no schema bump).
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub clear_precedence: ClearPrecedence,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub clear_ltp: ClearLtp,
+    #[serde(
+        default = "default_lowlight",
+        skip_serializing_if = "is_default_lowlight"
+    )]
+    pub lowlight_level: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

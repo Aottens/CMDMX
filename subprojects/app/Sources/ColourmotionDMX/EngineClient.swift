@@ -824,6 +824,17 @@ struct PaletteSettings: Decodable, Equatable {
     }
 }
 
+/// PRG-43: how Clear unwinds, what it does to LTP attributes, and the Rem Dim level (IPC-33).
+struct ProgrammerSettings: Decodable, Equatable {
+    let clearPrecedence: String
+    let clearLtp: String
+    let lowlightLevel: Double
+
+    private enum CodingKeys: String, CodingKey {
+        case clearPrecedence = "clear_precedence", clearLtp = "clear_ltp", lowlightLevel = "lowlight_level"
+    }
+}
+
 /// Mirror of the engine's programmer state (IPC-11). Fields missing from a
 /// message fall back to empty so a malformed message cannot drop a snapshot.
 struct ProgrammerState: Decodable, Equatable {
@@ -840,11 +851,14 @@ struct ProgrammerState: Decodable, Equatable {
     var colour: TargetColour?
     /// PAL-26: palette ids referenced in the programmer, and those relevant to the selection.
     var palettes = PaletteUse()
+    /// IPC-32: fixture id → attributes that Locate drives; Highlight on or off.
+    var located: [Int: [String]] = [:]
+    var highlight = false
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case selection, targets, wheels, contents, colour, palettes
+        case selection, targets, wheels, contents, colour, palettes, located, highlight
         case activeGroup = "active_group"
         case attributeGroups = "attribute_groups"
         case inProgrammer = "in_programmer"
@@ -863,6 +877,9 @@ struct ProgrammerState: Decodable, Equatable {
         contents = ((try? c.decode([Tolerant<ProgrammerContent>].self, forKey: .contents)) ?? []).compactMap(\.value)
         colour = try? c.decode(TargetColour.self, forKey: .colour)
         palettes = (try? c.decode(PaletteUse.self, forKey: .palettes)) ?? PaletteUse()
+        let rawLocated = (try? c.decode([String: [String]].self, forKey: .located)) ?? [:]
+        located = Dictionary(rawLocated.compactMap { key, value in Int(key).map { ($0, value) } }, uniquingKeysWith: { a, _ in a })
+        highlight = (try? c.decode(Bool.self, forKey: .highlight)) ?? false
     }
 }
 
@@ -963,6 +980,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var palettes: [PaletteInfo] = []
     /// PAL-25: the engine's master time, overlap and default Record By; nil until the snapshot.
     @Published private(set) var paletteSettings: PaletteSettings?
+    /// PRG-43: Clear order, LTP on Clear and the Rem Dim level; nil until the snapshot.
+    @Published private(set) var programmerSettings: ProgrammerSettings?
     /// Reply to the last `library.search` (this client only).
     @Published private(set) var libraryResults: [LibraryItem] = []
     /// Last query sent; a reply that arrives after the field was emptied is ignored.
@@ -1106,6 +1125,16 @@ final class EngineClient: ObservableObject {
     func pattern(_ stages: Int) { sendJSON("programmer.pattern", ["stages": stages]) }
     func selectAll() { sendJSON("programmer.all") }
     func clearProgrammer() { sendJSON("programmer.clear") }
+    /// UI-26: Locate (no groups = all), Highlight, Off (no field = the active group; or one attribute)
+    /// and Rem Dim; the `programmer` delta shows the result.
+    func locate() { sendJSON("programmer.locate") }
+    func setHighlight(_ on: Bool) { sendJSON("programmer.highlight", ["on": on]) }
+    func programmerOff(attribute: String? = nil) {
+        sendJSON("programmer.off", attribute.map { ["attribute": $0] } ?? [:])
+    }
+    func remDim() { sendJSON("programmer.rem_dim") }
+    /// `settings.programmer`: only the given field changes.
+    func setProgrammerSettings(_ fields: [String: Any]) { patch("settings.programmer", fields) }
     func setAttributeGroup(_ group: String) { sendJSON("programmer.attribute_group", ["group": group]) }
     func setColourModel(_ model: String) { sendJSON("programmer.colour_model", ["model": model]) }
     /// IPC-23: hue and saturation 0...1 under the pointer; the engine maps them to every colour target.
@@ -1121,9 +1150,10 @@ final class EngineClient: ObservableObject {
     }
 
     /// Sends the words plus `Enter` and clears the previous message (IPC-17).
-    func command(words: [String]) {
+    /// `end` is `Enter`, or `Locate` for a selection line that locates (UI-26).
+    func command(words: [String], end: String = "Enter") {
         lastMessage = nil
-        sendJSON("programmer.command", ["tokens": words + ["Enter"]])
+        sendJSON("programmer.command", ["tokens": words + [end]])
     }
 
     // Patch commands (PAT-09, LIB-14). All take internal ids; the engine checks and may refuse
@@ -1374,6 +1404,7 @@ final class EngineClient: ObservableObject {
         fileprivate let id: Tolerant<Int>?
         fileprivate let palettes: Tolerant<[Tolerant<PaletteInfo>]>?
         fileprivate let paletteSettings: Tolerant<PaletteSettings>?
+        fileprivate let programmerSettings: Tolerant<ProgrammerSettings>?
         let programmer: ProgrammerState?
         let items: [LibraryItem]?
         fileprivate let outputs: Tolerant<[OutputStatus]>?
@@ -1385,6 +1416,7 @@ final class EngineClient: ObservableObject {
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
+            case programmerSettings = "programmer_settings"
             case playbackSettings = "playback_settings"
         }
     }
@@ -1414,6 +1446,7 @@ final class EngineClient: ObservableObject {
             groups = incoming.groups ?? []
             palettes = (incoming.palettes?.value ?? []).compactMap(\.value)
             paletteSettings = incoming.paletteSettings?.value
+            programmerSettings = incoming.programmerSettings?.value
             programmer = incoming.programmer ?? ProgrammerState()
             outputs = incoming.outputs?.value ?? []
             if let show = incoming.show?.value { self.show = show }
@@ -1447,6 +1480,8 @@ final class EngineClient: ObservableObject {
         case "palette_settings":
             // The delta carries the settings at top level.
             if let state = try? JSONDecoder().decode(PaletteSettings.self, from: data) { paletteSettings = state }
+        case "programmer_settings":
+            if let state = try? JSONDecoder().decode(ProgrammerSettings.self, from: data) { programmerSettings = state }
         case "palettes":
             if let list = incoming.palettes?.value { palettes = list.compactMap(\.value) }
         case "playback":

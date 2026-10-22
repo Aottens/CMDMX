@@ -35,7 +35,9 @@ use cmdmx_core::playback::{
     PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, PAGES,
 };
 use cmdmx_core::profile::Profile;
-use cmdmx_core::programmer::{GroupId, ProgrammerView, Resolution};
+use cmdmx_core::programmer::{
+    ClearLtp, ClearPrecedence, GroupId, ProgrammerSettingsChange, ProgrammerView, Resolution,
+};
 use cmdmx_core::value::{Stored, Value};
 use cmdmx_core::CoreError;
 use cmdmx_core::UniverseId;
@@ -79,6 +81,24 @@ pub enum Command {
     },
     All,
     Clear,
+    /// IPC-32: a masked and/or timed Clear.
+    ClearWith {
+        groups: Option<Vec<AttributeGroup>>,
+        time: Option<f32>,
+    },
+    Locate {
+        groups: Option<Vec<AttributeGroup>>,
+    },
+    Highlight {
+        on: bool,
+    },
+    /// `groups` and `attribute` are never both set; neither means the active group.
+    Off {
+        groups: Option<Vec<AttributeGroup>>,
+        attribute: Option<String>,
+    },
+    RemDim,
+    SettingsProgrammer(ProgrammerSettingsChange),
     AttributeGroup {
         group: AttributeGroup,
     },
@@ -641,7 +661,38 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("undo") => Ok(Command::Undo),
         Some("redo") => Ok(Command::Redo),
         Some("programmer.all") => Ok(Command::All),
-        Some("programmer.clear") => Ok(Command::Clear),
+        Some("programmer.clear") => {
+            let groups = opt_field(&v, "groups", "an array of attribute groups")?;
+            let time = opt_f32(&v, "time")?;
+            Ok(match (&groups, time) {
+                (None, None) => Command::Clear,
+                _ => Command::ClearWith { groups, time },
+            })
+        }
+        Some("programmer.locate") => Ok(Command::Locate {
+            groups: opt_field(&v, "groups", "an array of attribute groups")?,
+        }),
+        Some("programmer.highlight") => Ok(Command::Highlight {
+            on: boolean(&v, "on")?,
+        }),
+        Some("programmer.off") => {
+            let groups = opt_field(&v, "groups", "an array of attribute groups")?;
+            let attribute = opt_field(&v, "attribute", "an attribute name")?;
+            if groups.is_some() && attribute.is_some() {
+                return Err("give \"groups\" or \"attribute\", not both".into());
+            }
+            Ok(Command::Off { groups, attribute })
+        }
+        Some("programmer.rem_dim") => Ok(Command::RemDim),
+        Some("settings.programmer") => Ok(Command::SettingsProgrammer(ProgrammerSettingsChange {
+            clear_precedence: opt_field(
+                &v,
+                "clear_precedence",
+                "SelectionThenProgrammer, SelectionWithProgrammer or ProgrammerThenSelection",
+            )?,
+            clear_ltp: opt_field(&v, "clear_ltp", "Release or Freeze")?,
+            lowlight_level: opt_f32(&v, "lowlight_level")?,
+        })),
         Some("programmer.attribute_group") => Ok(Command::AttributeGroup {
             group: v
                 .get("group")
@@ -1403,6 +1454,32 @@ fn palette_settings(engine: &Engine) -> PaletteSettings {
     }
 }
 
+/// IPC-33: the programmer settings (PRG-42), as clients show them.
+#[derive(Serialize, Clone, PartialEq)]
+struct ProgrammerSettings {
+    clear_precedence: ClearPrecedence,
+    clear_ltp: ClearLtp,
+    lowlight_level: f32,
+}
+
+fn programmer_settings(engine: &Engine) -> ProgrammerSettings {
+    let s = engine.settings();
+    ProgrammerSettings {
+        clear_precedence: s.clear_precedence,
+        clear_ltp: s.clear_ltp,
+        lowlight_level: s.lowlight_level,
+    }
+}
+
+#[derive(Serialize)]
+struct ProgrammerSettingsDelta {
+    v: u8,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    #[serde(flatten)]
+    settings: ProgrammerSettings,
+}
+
 #[derive(Serialize)]
 struct PaletteSettingsDelta {
     v: u8,
@@ -1458,6 +1535,7 @@ struct Snapshot<'a> {
     groups: Vec<GroupInfo<'a>>,
     palettes: Vec<PaletteInfo>,
     palette_settings: PaletteSettings,
+    programmer_settings: ProgrammerSettings,
     programmer: &'a ProgrammerView,
     outputs: Vec<OutputJson>,
     show: &'a ShowState,
@@ -1693,6 +1771,7 @@ pub fn snapshot(
         groups: group_infos(engine.groups()),
         palettes: palette_infos(engine),
         palette_settings: palette_settings(engine),
+        programmer_settings: programmer_settings(engine),
         programmer: &engine.programmer_view(),
         outputs: output_jsons(outputs),
         show,
@@ -1788,6 +1867,7 @@ pub struct Published {
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
     palettes: Vec<PaletteInfo>,
     palette_settings: PaletteSettings,
+    programmer_settings: ProgrammerSettings,
     fixtures: Vec<Fixture>,
     outputs: Vec<OutputStatus>,
     show: ShowState,
@@ -1812,6 +1892,7 @@ impl Published {
             groups: engine.groups().clone(),
             palettes: palette_infos(engine),
             palette_settings: palette_settings(engine),
+            programmer_settings: programmer_settings(engine),
             fixtures: engine.fixtures().cloned().collect(),
             outputs: outputs.to_vec(),
             show: show.clone(),
@@ -1960,6 +2041,16 @@ impl Published {
                 settings: settings.clone(),
             }));
             self.palette_settings = settings;
+        }
+        // IPC-33: the programmer settings, once, after any change of them.
+        let settings = programmer_settings(engine);
+        if settings != self.programmer_settings {
+            out.push(to_json(&ProgrammerSettingsDelta {
+                v: 0,
+                kind: "programmer_settings",
+                settings: settings.clone(),
+            }));
+            self.programmer_settings = settings;
         }
         // PAT-09: the whole list, once, after any patch change.
         if !engine.fixtures().eq(self.fixtures.iter()) {
@@ -2447,7 +2538,8 @@ mod tests {
             v["programmer"],
             json!({"selection":[],"targets":[],"active_group":"I",
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
-                   "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]}})
+                   "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]},
+                   "located":{},"highlight":false})
         );
     }
 
@@ -2689,7 +2781,8 @@ mod tests {
                    "attribute_groups": no_values(true),
                    "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false,"palette":null}],
                    "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null,
-                   "palettes":{"in_use":[],"relevant":[]}})
+                   "palettes":{"in_use":[],"relevant":[]},
+                   "located":{},"highlight":false})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
@@ -4442,5 +4535,45 @@ mod tests {
             json!({"v":0,"type":"undo","undo":"Clear","redo":null})
         );
         assert_eq!(published.undo_delta(&info), None, "no change, no delta");
+    }
+
+    // ---- VS2-05: IPC-33 ----------------------------------------------------------------
+
+    #[test]
+    fn ipc_33_programmer_view_has_located_and_highlight_and_settings_are_published() {
+        let mut e = engine_with_palettes();
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        assert_eq!(
+            v["programmer_settings"],
+            json!({"clear_precedence":"SelectionThenProgrammer","clear_ltp":"Release","lowlight_level":0.25})
+        );
+        assert_eq!(v["programmer"]["located"], json!({}));
+        assert_eq!(v["programmer"]["highlight"], json!(false));
+
+        let mut published = Published::new(&e, &[], &show_state());
+        let first = e.fixtures().next().unwrap().id;
+        e.select_fixture(first).unwrap();
+        e.locate(&[cmdmx_core::attribute::AttributeGroup::I])
+            .unwrap();
+        e.set_highlight(true).unwrap();
+        e.set_programmer_settings(cmdmx_core::programmer::ProgrammerSettingsChange {
+            clear_ltp: Some(cmdmx_core::programmer::ClearLtp::Freeze),
+            ..Default::default()
+        })
+        .unwrap();
+        e.tick(0.025);
+        let d: Vec<serde_json::Value> = published
+            .diff(&e, &[], &show_state())
+            .iter()
+            .map(|m| parse(m))
+            .collect();
+        let prog = d.iter().find(|m| m["type"] == "programmer").unwrap();
+        assert_eq!(prog["highlight"], json!(true));
+        assert!(prog["located"][first.to_string()].is_array());
+        let settings = d
+            .iter()
+            .find(|m| m["type"] == "programmer_settings")
+            .unwrap();
+        assert_eq!(settings["clear_ltp"], "Freeze");
     }
 }
