@@ -18,10 +18,16 @@ owner's church run on it instead of Lightkey.
 The rig there has about 30 fixtures: moving-head washes, mixed RGBW / RGB+Lime / RGB pars and
 theatre spots.
 
-![The main screen: fixtures, groups, palettes, programmer, function buttons, keypad, softkeys, attribute bar and playback faders](docs/screenshots/main-screen.png)
+![The main screen: groups, colour palettes, function buttons, keypad, softkeys, attribute bar, the Undo and Redo keys and playback faders](docs/screenshots/main-screen.png)
 
-*The main screen, against a demo of the church rig. Controls that are not built yet are greyed
-out.*
+*The main screen, against a demo of the church rig: twelve colour palettes, ten pars in the
+programmer (red) on palette 5, three faders up, and softkey G ready to undo "Apply palette 5".
+Controls that are not built yet are greyed out.*
+
+![The Colour workspace: fixtures, colour picker, colour palettes and the Programmer window](docs/screenshots/colour-workspace.png)
+
+*The Colour workspace (F3): the selected pars in blue, the colour picker, and the Programmer
+window with each fixture's values; cyan means the value comes from a palette.*
 
 ## Status
 
