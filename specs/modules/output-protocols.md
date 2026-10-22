@@ -1,6 +1,6 @@
 # Module spec: output-protocols (OUT)
 
-Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; OUT-09/20..22 approved 2026-10-17; OUT-09/20 amended and OUT-23/24 added 2026-10-18 (owner, Eurolite MK2 on the Mac); OUT-24 amended 2026-10-21 (owner, VS4-05: own 30 ms timer); OUT-13 rewritten, OUT-23 amended and OUT-25..37 added 2026-10-22 (P1-18, multi-universe output) — **draft, waiting for the owner**; rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
+Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; OUT-09/20..22 approved 2026-10-17; OUT-09/20 amended and OUT-23/24 added 2026-10-18 (owner, Eurolite MK2 on the Mac); OUT-24 amended 2026-10-21 (owner, VS4-05: own 30 ms timer); OUT-13 rewritten, OUT-23 amended and OUT-25..37 added and **approved by owner 2026-10-22** (P1-18, multi-universe output; the six questions as proposed); rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
 
 ## Purpose
 Deliver each universe's frame to one or more *nodes* (Titan's model: lines → nodes). Framing is pure and byte-exact tested; I/O lives in the daemon and must never block the tick.
@@ -42,7 +42,7 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
 
   Nodes are saved sorted by `id`. SHW-08 is amended: `output` is the grouped key it foresaw; a serial port path is the one machine-specific value, and on a Mac without that port the node is `Degraded` "port not found" (OUT-31), never an error on load.
 
-### Lines and nodes (P1-18, draft)
+### Lines and nodes (P1-18)
 - **OUT-25** Default nodes of line *n*: Art-Net `port_address` *n*−1 (net 0, subnet 0, universe *n*−1), target `255.255.255.255`, **enabled**; sACN universe *n*, multicast, priority 100, **enabled**. *(Q1: Titan ships Art-Net disabled; enabled keeps today's behaviour and the owner's Art-Net monitor at home.)* `show.new` and the Demo show get line 1's default nodes plus one serial node `port: "auto"` on line 1, enabled — the same three nodes the daemon sends today.
 - **OUT-26** When a patch command (`patch.add`, `patch.move`, `patch.change_mode`) puts the first fixture on a universe that has no node, the same edit adds that line's default Art-Net and sACN nodes (one undo step with the patch change) and the engine warns once: `Universe 2 now goes out on Art-Net 0:0:1 and sACN 2`. A universe that already had fixtures never gets nodes added, so nodes the operator removed stay removed. *(Q2: Titan has 16 lines that always send; this sends only what is patched.)*
 - **OUT-27** Migration 5 → 6 adds `output` with the default nodes (OUT-25) for every universe the patch uses, line 1 always included, and one serial node `port: "auto"` on line 1, so *Kerk* sends exactly what it sends today on universe 1 and gains its other universes.
@@ -53,12 +53,12 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
 - **OUT-23** is amended: the hint reads `(choose it on the Output screen if it is a Eurolite USB-DMX512 PRO MK2)` instead of naming `--serial`.
 - **OUT-32** Flags *(Q4)*: `--artnet-target`, `--sacn-unicast`, `--sacn-priority` and `--serial` are removed; given anyway, they exit 2 before any show is opened with `--serial is gone: output is set per show on the Output screen` (SHW-18 style). `--no-artnet`, `--no-sacn` and `--no-serial` stay as kill switches for this run: the matching nodes do not send, are reported as `Disabled` with detail `--no-serial`, and nothing is written to the show. `--help` lists them so.
 
-### Output over IPC (P1-18, draft)
+### Output over IPC (P1-18)
 - **OUT-33** IPC-20 is amended: the snapshot `outputs` holds one entry per node, sorted by `line` then `id`: the node's fields of OUT-13 plus `state` (`Ok`, `Degraded`, `Stopped`, `Disabled`) and an optional `detail` (`no interface`, `port not found`, `--no-sacn`, the last error). An `outputs` delta (the whole list) is sent when a node or a state changes, at most once per tick.
 - **OUT-34** Commands (refusals are warnings, IPC-06): `output.add {line, kind, …fields}` (missing fields take the line's defaults, OUT-25; answers the new id in the delta), `output.edit {id, …fields}` (partial; `kind` cannot change), `output.remove {ids}`. All three are **edit** commands (UNDO-04, labelled "Add output", "Edit output", "Remove output"), so they are undoable and autosaved. *(Q6.)*
 - **OUT-35** `output.ports` (neutral, UNDO-04) answers the asking client only with the serial ports on `/dev/cu.*`: `{"type":"ports","ports":[{"path":"/dev/cu.usbserial-A10KXYZ","product":"FT232R USB UART","vid":"0403","pid":"6001","enttec":false}]}`, sorted by path; `enttec` is OUT-09's product-string test. Listing ports opens none.
 
-### In the app (P1-18, draft)
+### In the app (P1-18)
 - **OUT-36** UI-06 is amended: the status bar shows one dot per protocol (Art-Net, sACN, Serial) instead of one per node, with the protocol name and the number of enabled nodes (`sACN 4`); its colour is the worst state of those nodes (Stopped red > Degraded amber > Ok green); a protocol without an enabled node shows no dot. Hovering lists the nodes that are not Ok, with their detail.
 - **OUT-37** The workspace rail gains an **Output** screen next to Patch. A table, one row per node sorted by universe then id: Universe, Protocol, Destination (Art-Net `net:subnet:universe` with the port-address in brackets and the target; sACN universe, `multicast` or the IP, and priority; serial port), an Enabled toggle and the state dot with its detail. Rows are edited in place; Add asks universe and protocol and fills the defaults (OUT-25); Remove asks a second click to confirm (as PAT-10). The serial port is a dropdown of `output.ports` (Refresh button) plus `auto`, and keeps showing a stored port that is not plugged in, marked "not connected". A universe that has fixtures but no enabled node gets a warning row above the table: `Universe 3: 12 fixtures, no output`. Refusals show in the message zone.
 
@@ -76,7 +76,7 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
 ## Tests (P1-18)
 Core (pure, in `cmdmx-core::show` and the engine): OUT-13/27 round trip and migration golden files, OUT-25/26 defaults and auto lines (scenario steps with an `outputs` expectation), OUT-28 refusals, undo of `output.*` and of a patch add that added nodes. Daemon: OUT-29 reconcile with fake nodes (unchanged nodes keep their thread and sequence), OUT-32 flags in `tests/command_line.rs`, OUT-33..35 over IPC. App (OUT-36/37): a manual checklist, `swift build` is the gate.
 
-## Owner questions (P1-18, 2026-10-22)
+## Owner decisions (P1-18, 2026-10-22: all six as proposed)
 1. Art-Net per new universe on or off by default (Titan: off, sACN on)? Proposed: on (OUT-25).
 2. Nodes added automatically when a universe gets its first fixture, or Titan's fixed 16 lines that always send? Proposed: automatic (OUT-26).
 3. Serial port stored in the show (travels with the show, Titan) or per Mac in the daemon's state file? Proposed: in the show; a missing port is Degraded (OUT-13, OUT-31).

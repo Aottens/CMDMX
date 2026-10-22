@@ -195,7 +195,7 @@ within GRM-15; IPC-29 approved by the owner 2026-10-22):
 IPC-30 (`undo` / `redo` commands) and IPC-31 (`undo` snapshot field and delta) are specified in
 `undo.md`. Every command's class (edit / live / reset / neutral, UNDO-04) is one table in
 `cmdmx-daemon` (`class` in `main.rs`).
-### Output nodes (P1-18; behaviour in `output-protocols.md`, draft)
+### Output nodes (P1-18; behaviour in `output-protocols.md`, approved 2026-10-22)
 OUT-33 (IPC-20 amended: one `outputs` entry per node with its config and state), OUT-34
 (`output.add/edit/remove`, edits) and OUT-35 (`output.ports`, neutral) are specified in
 `output-protocols.md`.
