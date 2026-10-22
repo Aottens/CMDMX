@@ -172,3 +172,8 @@ within GRM-15; IPC-29 approved by the owner 2026-10-22):
   needs `group` and refuses a `number`; `playback.options` `master` refuses `mode`, `scale` and
   `enabled` on a speed master and the speed-master fields (`number`, `bpm`, …) on a group master,
   so a group master's `group` and `level` never change by `playback.options`.
+
+### Undo (VS5-02; behaviour in `undo.md`)
+IPC-30 (`undo` / `redo` commands) and IPC-31 (`undo` snapshot field and delta) are specified in
+`undo.md`. Every command's class (edit / live / reset / neutral, UNDO-04) is one table in
+`cmdmx-daemon` (`class` in `main.rs`).
