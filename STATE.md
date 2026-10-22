@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (VS2-05 Locate, Highlight, Off, Rem Dim and Clear; PR #66 open, owner run passed)_
+_Last updated: 2026-10-22 (VS5-04 undo lets go of LTP as Clear does; PR open)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -72,8 +72,10 @@ runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, i
 DECISIONS; focus is a general console, the church is the first proof):
 1. **Undo** (`specs/modules/undo.md`): done (VS5-01..03).
 2. **VS2-05** Locate, Highlight, Off, Rem Dim and Clear (PRG-38..44, ENG-10, IPC-32..34, UI-26
-   approved 2026-10-22): built, PR #66 open, owner run `tests/manual/runs/2026-10-22-VS2-05.md`
+   approved 2026-10-22): merged (#66), owner run `tests/manual/runs/2026-10-22-VS2-05.md`
    passed 2026-10-22 (two app fixes in the run; undo and held LTP output decided as PRG-45, task VS5-04).
+   VS5-04 (PRG-45): built, PR open: undo and redo let go of every LTP value or located value
+   the restored programmer no longer holds by `clear_ltp`, as Clear does.
 3. **P1-18** multi-universe output (OUT-13; the daemon sends line 1 only today).
 4. **P1-05** control surfaces spec, then VS1-07 (MCU) and VS4-04 (TouchOSC).
 After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15

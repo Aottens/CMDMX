@@ -798,7 +798,8 @@ impl Engine {
         }
     }
 
-    /// UNDO-10..12. Infallible: a whole-snapshot swap cannot fail to apply (UNDO-17).
+    /// UNDO-10..12. Infallible: a whole-snapshot swap cannot fail to apply (UNDO-17). PRG-45: an
+    /// LTP value the restored programmer no longer holds is let go of as Clear does.
     pub(crate) fn restore_edit_state(&mut self, s: EditState) {
         let same_place = |a: &Fixture, b: &Fixture| {
             (a.universe, a.address, &a.profile, &a.mode)
@@ -854,7 +855,33 @@ impl Engine {
             }
         }
         self.playbacks = new;
+        let p = &self.programmer;
+        let mut held_before: Vec<(FixtureId, String)> = Vec::new();
+        for (&f, attrs) in p.values() {
+            held_before.extend(attrs.keys().map(|n| (f, n.clone())));
+        }
+        for (&f, attrs) in p.located() {
+            held_before.extend(attrs.keys().map(|n| (f, n.clone())));
+        }
         self.programmer.restore_edit_part(s.programmer);
+        let gone: Vec<Gone> = held_before
+            .into_iter()
+            .filter(|(f, n)| {
+                self.programmer.stored(*f, n).is_none()
+                    && self.programmer.located_value(*f, n).is_none()
+            })
+            .filter_map(|(fixture, name)| {
+                let l = self.mode_of(fixture)?.logical(&name)?;
+                Some(Gone {
+                    fixture,
+                    name,
+                    kind: l.kind,
+                    default: l.default,
+                    value: l.default, // unused: give_up(.., 0.0) never fades
+                })
+            })
+            .collect();
+        self.give_up(gone, 0.0);
         self.follow_active_group();
     }
 
