@@ -94,7 +94,8 @@ for the phase-2 effects generator (effects run around the cue's values, before t
   tab. The church's use: the front spots on a Locked fader next to the service cue list.
 - Undo across the whole engine: every edit (programmer, palettes, playbacks, patch, show
   settings) can be undone and redone, 100 steps back, while live playing (Go, faders, Flash) is
-  never touched. In the app: Undo and Redo keys labelled with the step, softkey G, ⌘Z and ⇧⌘Z.
+  never touched; what an undo takes out of the programmer is let go as Clear does. In the
+  app: Undo and Redo keys labelled with the step, softkey G, ⌘Z and ⇧⌘Z.
 - Locate (open white, centred, full, outside the programmer; `201 Thro 204 Locate`), Highlight
   with lowlight on the rest of the selection while you step with Fix ±1, Off for the active
   attribute group or, by double-clicking a wheel's name, for one attribute, Rem Dim, and Clear
