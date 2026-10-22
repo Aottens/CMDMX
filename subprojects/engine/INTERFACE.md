@@ -5,6 +5,7 @@
 - **IPC state** to clients (contract v0, to be specified in `specs/modules/ipc.md`):
   - `snapshot` on connect: settings (incl. `faders_per_page`), patch summary, pages, playback states (level, active), warnings.
   - `palettes` (PAL-25) in the snapshot and as a whole-list delta; palette use in the programmer state (PAL-26).
+  - `undo` (IPC-31) in the snapshot and as a delta when a label changes: `{"undo": label|null, "redo": label|null}`; commands `undo`/`redo` (IPC-30), refused with "Nothing to undo"/"Nothing to redo". One history in the daemon for all clients (UNDO-15), emptied by `show.open`/`show.new` and a restart (UNDO-13).
   - `outputs` (IPC-20) in the snapshot and as a delta: per output node `Ok | Degraded | Stopped` (+ detail).
   - `delta` events: playback level/active changes, programmer, groups, `fixtures` after a patch change (PAT-09), warnings.
   - transport: WebSocket, JSON messages versioned with `"v": 0`; loopback-only for the app (DECISIONS 2026-10-17). Remote clients (iPad/browser) later need a LAN listener with authentication.

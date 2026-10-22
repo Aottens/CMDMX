@@ -297,6 +297,16 @@ pub enum Command {
         slot: u16,
         group: GroupId,
     },
+    /// IPC-30: handled by the tick's `run`, never by `apply`.
+    Undo,
+    Redo,
+}
+
+/// IPC-31: the labels of the next undo and redo step, `None` when there is none.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct UndoInfo {
+    pub undo: Option<String>,
+    pub redo: Option<String>,
 }
 
 /// IPC-27: the fields of `playback.options` `list`, each optional.
@@ -628,6 +638,8 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("programmer.pattern") => Ok(Command::Pattern {
             stages: uint(&v, "stages")?,
         }),
+        Some("undo") => Ok(Command::Undo),
+        Some("redo") => Ok(Command::Redo),
         Some("programmer.all") => Ok(Command::All),
         Some("programmer.clear") => Ok(Command::Clear),
         Some("programmer.attribute_group") => Ok(Command::AttributeGroup {
@@ -1449,6 +1461,7 @@ struct Snapshot<'a> {
     programmer: &'a ProgrammerView,
     outputs: Vec<OutputJson>,
     show: &'a ShowState,
+    undo: &'a UndoInfo,
 }
 
 /// IPC-20: one output node as the daemon's tick sees it.
@@ -1658,7 +1671,12 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
 }
 
 /// IPC-03/10/20: full state for a freshly connected client.
-pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> String {
+pub fn snapshot(
+    engine: &Engine,
+    outputs: &[OutputStatus],
+    show: &ShowState,
+    undo: &UndoInfo,
+) -> String {
     let stored = stored_infos(engine);
     to_json(&Snapshot {
         v: 0,
@@ -1678,6 +1696,7 @@ pub fn snapshot(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> 
         programmer: &engine.programmer_view(),
         outputs: output_jsons(outputs),
         show,
+        undo,
     })
 }
 
@@ -1772,6 +1791,7 @@ pub struct Published {
     fixtures: Vec<Fixture>,
     outputs: Vec<OutputStatus>,
     show: ShowState,
+    undo: UndoInfo,
 }
 
 impl Published {
@@ -1795,7 +1815,22 @@ impl Published {
             fixtures: engine.fixtures().cloned().collect(),
             outputs: outputs.to_vec(),
             show: show.clone(),
+            undo: UndoInfo::default(),
         }
+    }
+
+    /// IPC-31: a delta only when the labels differ from the last ones published.
+    pub fn undo_delta(&mut self, info: &UndoInfo) -> Option<String> {
+        if self.undo == *info {
+            return None;
+        }
+        self.undo = info.clone();
+        Some(to_json(&serde_json::json!({
+            "v": 0,
+            "type": "undo",
+            "undo": info.undo,
+            "redo": info.redo,
+        })))
     }
 
     pub fn diff(
@@ -2311,7 +2346,12 @@ mod tests {
 
     #[test]
     fn ipc_03_snapshot_has_settings_grand_master_and_playbacks() {
-        let v = parse(&snapshot(&engine(), &[], &show_state()));
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+        ));
         assert_eq!(v["v"], 0);
         assert_eq!(v["type"], "snapshot");
         assert_eq!(v["faders_per_page"], 8);
@@ -2340,7 +2380,12 @@ mod tests {
 
     #[test]
     fn ipc_20_snapshot_lists_the_output_nodes() {
-        let v = parse(&snapshot(&engine(), &outputs(), &show_state()));
+        let v = parse(&snapshot(
+            &engine(),
+            &outputs(),
+            &show_state(),
+            &UndoInfo::default(),
+        ));
         assert_eq!(
             v["outputs"],
             json!([{"name":"art-net","state":"Ok"},
@@ -2348,7 +2393,12 @@ mod tests {
                    {"name":"serial","state":"Degraded","detail":"no interface"}])
         );
         assert_eq!(
-            parse(&snapshot(&engine(), &[], &show_state()))["outputs"],
+            parse(&snapshot(
+                &engine(),
+                &[],
+                &show_state(),
+                &UndoInfo::default()
+            ))["outputs"],
             json!([])
         );
     }
@@ -2390,7 +2440,7 @@ mod tests {
         e.select_fixture(1).unwrap();
         e.record_group(1).unwrap();
         e.clear();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
         assert_eq!(
@@ -2426,7 +2476,7 @@ mod tests {
         })
         .unwrap();
         e.patch_name(2, "Front left").unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert_eq!(
             v["fixtures"],
             json!([dimmer_entry(),
@@ -2457,7 +2507,7 @@ mod tests {
             number: Some(901),
         })
         .unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         let wash = &v["fixtures"][1];
         assert_eq!(wash["mode"], "24 Channel");
         assert_eq!(wash["modes"], json!(["16 Channel", "24 Channel"]));
@@ -2632,7 +2682,7 @@ mod tests {
     fn ipc_11_programmer_state_object() {
         let mut e = engine();
         e.select_fixture(1).unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert_eq!(
             v["programmer"],
             json!({"selection":[1],"targets":[1],"active_group":"I",
@@ -2642,7 +2692,7 @@ mod tests {
                    "palettes":{"in_use":[],"relevant":[]}})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert_eq!(
             v["programmer"]["wheels"],
             json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false,"palette":null}])
@@ -3026,7 +3076,13 @@ mod tests {
         let Event::Connected(tx) = next_event(&rx) else {
             panic!("expected Connected")
         };
-        tx.send(snapshot(&engine(), &[], &show_state())).unwrap();
+        tx.send(snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+        ))
+        .unwrap();
         let msg = ws.read().unwrap();
         assert_eq!(parse(msg.to_text().unwrap())["type"], "snapshot");
 
@@ -3087,7 +3143,12 @@ mod tests {
 
     #[test]
     fn shw_15_snapshot_has_the_show_state() {
-        let v = parse(&snapshot(&engine(), &[], &show_state()));
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+        ));
         assert_eq!(
             v["show"],
             json!({"name":"Kerk","saved_at":"2026-10-18T09:00:05Z","autosave_ok":true})
@@ -3097,7 +3158,7 @@ mod tests {
             ..show_state()
         };
         assert_eq!(
-            parse(&snapshot(&engine(), &[], &fresh))["show"]["saved_at"],
+            parse(&snapshot(&engine(), &[], &fresh, &UndoInfo::default()))["show"]["saved_at"],
             Value::Null
         );
     }
@@ -3185,7 +3246,12 @@ mod tests {
 
     #[test]
     fn pbk_03_snapshot_has_the_page() {
-        let v = parse(&snapshot(&engine(), &[], &show_state()));
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+        ));
         let slots: Vec<Value> = (1..=8)
             .map(|s| json!({"slot": s, "playback": if s == 1 { json!(1) } else { Value::Null }}))
             .collect();
@@ -3272,7 +3338,7 @@ mod tests {
     fn pal_25_snapshot_lists_palettes_by_number() {
         let mut e = engine_with_palettes();
         e.set_palette_legend(2, "Full", Some("beam.zoom")).unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert_eq!(
             v["palettes"],
             json!([
@@ -3318,7 +3384,7 @@ mod tests {
     #[test]
     fn pal_25_palette_settings_in_the_snapshot_and_a_delta_on_change() {
         let mut e = engine_with_palettes();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert_eq!(
             v["palette_settings"],
             json!({"time":0.0,"overlap":100.0,"record_by":"Mixed"})
@@ -3338,7 +3404,7 @@ mod tests {
     #[test]
     fn pal_26_programmer_state_carries_palette_use() {
         let mut e = engine_with_palettes();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert_eq!(
             v["programmer"]["palettes"],
             json!({"in_use":[],"relevant":[7,8]}),
@@ -3347,7 +3413,7 @@ mod tests {
         e.select_fixture(1).unwrap();
         e.apply_palette(2, cmdmx_core::palette::Timing::default())
             .unwrap();
-        let p = &parse(&snapshot(&e, &[], &show_state()))["programmer"];
+        let p = &parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()))["programmer"];
         assert_eq!(p["palettes"], json!({"in_use":[7],"relevant":[7]}));
         assert_eq!(
             p["wheels"],
@@ -3516,7 +3582,7 @@ mod tests {
             }),
         )
         .unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         let mut want = playback_entry();
         want["legend"] = json!("Walk-in");
         want["icon"] = json!("service.walk-in");
@@ -3528,7 +3594,7 @@ mod tests {
     fn pbk_35_snapshot_pages_dbo_and_playback_settings() {
         let mut e = engine();
         e.set_page_legend(2, "Service").unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         let pages: Vec<Value> = (1..=10)
             .map(|n| json!({"number": n, "legend": if n == 2 { "Service" } else { "" }}))
             .collect();
@@ -3588,12 +3654,12 @@ mod tests {
         e.set_fader(2, 1.0, 0.0).unwrap();
         e.set_fader(1, 1.0, 0.0).unwrap();
         e.tick(0.0);
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         let fired = |i: usize| v["playbacks"][i]["fired"].as_u64().unwrap();
         assert!(fired(1) < fired(0), "playback 2 fired first");
         e.set_fader(1, 0.0, 0.025).unwrap();
         e.tick(0.025);
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert!(v["playbacks"][0]["fired"].is_null(), "off again");
     }
 
@@ -3992,7 +4058,7 @@ mod tests {
     #[test]
     fn cue_40_list_entry_has_cues_buttons_and_live_cue() {
         let e = list_engine();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         let p = entry(&v, 2);
         assert_eq!(p["kind"], json!("Cues"));
         assert_eq!(p["cues"].as_array().unwrap().len(), 2);
@@ -4018,7 +4084,12 @@ mod tests {
 
     #[test]
     fn cue_40_snapshot_without_a_list_has_no_connected_list() {
-        let v = parse(&snapshot(&engine(), &[], &show_state()));
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+        ));
         assert_eq!(v["connected"], json!(null));
     }
 
@@ -4080,7 +4151,7 @@ mod tests {
             ..Playback::new(3, 1, 3, BTreeMap::new())
         });
         let master = e.record_master(1, 4, MasterKind::Bpm, 1).unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         let chase = entry(&v, 3);
         assert_eq!(chase["kind"], json!("Chase"));
         assert_eq!(chase["bpm"], json!(120.0));
@@ -4250,7 +4321,7 @@ mod tests {
     #[test]
     fn grm_15_group_master_entry_has_kind_master_and_buttons() {
         let (e, id) = group_master_engine();
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         let m = entry(&v, u64::from(id));
         assert_eq!(m["kind"], json!("GroupMaster"));
         assert_eq!(
@@ -4299,7 +4370,7 @@ mod tests {
         let d = published.diff(&e, &[], &show_state());
         assert!(deltas(&d, "playbacks").is_empty(), "{d:?}");
         assert_eq!(deltas(&d, "playback")[0]["level"], json!(0.2));
-        let v = parse(&snapshot(&e, &[], &show_state()));
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
     }
 
@@ -4333,5 +4404,43 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    // ---- undo (VS5-02: IPC-30/31) ----------------------------------------------
+
+    #[test]
+    fn ipc_30_undo_and_redo_parse() {
+        assert_eq!(parse_command(r#"{"v":0,"cmd":"undo"}"#), Ok(Command::Undo));
+        assert_eq!(parse_command(r#"{"v":0,"cmd":"redo"}"#), Ok(Command::Redo));
+    }
+
+    #[test]
+    fn ipc_31_snapshot_has_the_undo_and_redo_labels() {
+        let none = UndoInfo::default();
+        let v = parse(&snapshot(&engine(), &[], &show_state(), &none));
+        assert_eq!(v["undo"], json!({"undo": null, "redo": null}));
+        let some = UndoInfo {
+            undo: Some("Clear".into()),
+            redo: Some("Wheel Pan".into()),
+        };
+        let v = parse(&snapshot(&engine(), &[], &show_state(), &some));
+        assert_eq!(v["undo"], json!({"undo": "Clear", "redo": "Wheel Pan"}));
+    }
+
+    #[test]
+    fn ipc_31_undo_delta_only_when_a_label_changes() {
+        let e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        assert_eq!(published.undo_delta(&UndoInfo::default()), None);
+        let info = UndoInfo {
+            undo: Some("Clear".into()),
+            redo: None,
+        };
+        let d = published.undo_delta(&info).unwrap();
+        assert_eq!(
+            parse(&d),
+            json!({"v":0,"type":"undo","undo":"Clear","redo":null})
+        );
+        assert_eq!(published.undo_delta(&info), None, "no change, no delta");
     }
 }

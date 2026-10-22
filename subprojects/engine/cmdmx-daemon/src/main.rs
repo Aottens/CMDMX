@@ -21,6 +21,7 @@
 //! The daemon always runs a show (SHW-09..15): it opens the last one from `--show-dir` (default
 //! `~/Documents/ColourmotionDMX/Shows`, `state.json` beside the app support files, or inside
 //! `--show-dir` when that is given), autosaves it on a saver thread and switches on `show.*`.
+//! Edit commands run through the undo history (UNDO-01..04, IPC-30/31); open and new empty it.
 
 mod artnet_out;
 mod ipc;
@@ -42,6 +43,7 @@ use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
+use cmdmx_core::undo::History;
 use cmdmx_core::{CoreError, UNIVERSE_SIZE};
 const TICK: Duration = Duration::from_millis(25);
 
@@ -173,6 +175,7 @@ fn main() {
         eprintln!("library: cannot start the loader thread: {e}");
     }
     let mut clients = ipc::Clients::default();
+    let mut history = History::default();
     let mut published = ipc::Published::new(&engine, &statuses, &autosave.state());
 
     eprintln!("cmdmx-daemon 0.1.0 — 40 Hz tick loop running.");
@@ -188,7 +191,10 @@ fn main() {
         while let Ok(event) = events.try_recv() {
             let result = match event {
                 ipc::Event::Connected(tx) => {
-                    clients.add(tx, &ipc::snapshot(&engine, &statuses, &autosave.state()));
+                    clients.add(
+                        tx,
+                        &ipc::snapshot(&engine, &statuses, &autosave.state(), &undo_info(&history)),
+                    );
                     for w in std::mem::take(&mut pending) {
                         clients.broadcast(&ipc::warning(&w));
                     }
@@ -233,6 +239,10 @@ fn main() {
                         show: None,
                         warnings: Vec::new(),
                     };
+                    let save_as = matches!(
+                        &event,
+                        ipc::Event::Command(ipc::Command::Show(SaveAs { .. }))
+                    );
                     let next = match event {
                         ipc::Event::ShowOpened(opened) => Some(*opened),
                         ipc::Event::Command(ipc::Command::Show(New { name })) => {
@@ -246,6 +256,10 @@ fn main() {
                         _ => None,
                     };
                     if let Some(next) = next {
+                        // UNDO-13: open and new empty the history, save as keeps it.
+                        if !save_as {
+                            history.clear();
+                        }
                         engine = next.engine;
                         autosave =
                             shows::Autosave::new(shows.path(&next.name), next.meta, next.show, now);
@@ -263,14 +277,21 @@ fn main() {
                         }
                         let state = autosave.state();
                         published = ipc::Published::new(&engine, &statuses, &state);
-                        clients.broadcast(&ipc::snapshot(&engine, &statuses, &state));
+                        // The snapshot below carries the labels; no `undo` delta for them.
+                        let _ = published.undo_delta(&undo_info(&history));
+                        clients.broadcast(&ipc::snapshot(
+                            &engine,
+                            &statuses,
+                            &state,
+                            &undo_info(&history),
+                        ));
                         for w in &next.warnings {
                             warn(&mut clients, w);
                         }
                     }
                     Ok(())
                 }
-                ipc::Event::Command(cmd) => apply(&mut engine, cmd, now),
+                ipc::Event::Command(cmd) => run(&mut engine, &mut history, cmd, now),
             };
             if let Err(e) = result {
                 eprintln!("warning: {e}");
@@ -308,6 +329,10 @@ fn main() {
         for w in engine.drain_warnings() {
             eprintln!("warning @{:.3}: {}", w.at, w.message);
             clients.broadcast(&ipc::warning(&w.message));
+        }
+        // IPC-31: the undo delta goes before the others.
+        if let Some(msg) = published.undo_delta(&undo_info(&history)) {
+            clients.broadcast(&msg);
         }
         for msg in published.diff(&engine, &statuses, &autosave.state()) {
             clients.broadcast(&msg);
@@ -529,6 +554,171 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         GroupMasterRecord { page, slot, group } => {
             engine.record_group_master(page, slot, group).map(drop)
         }
+        // Handled by `run`.
+        Undo | Redo => Ok(()),
+    }
+}
+
+/// UNDO-04: how a command relates to the undo history.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Class {
+    /// A step in the history.
+    Edit,
+    /// Performance: not undoable, ends a coalescing run.
+    Live,
+    /// Replaces the whole show (the history is emptied elsewhere).
+    Reset,
+    /// Neither.
+    Neutral,
+}
+
+/// UNDO-04: no wildcard, so a new command must be classed here to compile.
+fn class(cmd: &ipc::Command) -> Class {
+    use ipc::Command::*;
+    use shows::ShowRequest::{List, New, Open, SaveAs};
+    match cmd {
+        FaderSet { .. }
+        | GrandMasterSet { .. }
+        | DboSet { .. }
+        | PageSet { .. }
+        | PlaybackButton { .. }
+        | PlaybackFlash { .. }
+        | PlaybackSwop { .. }
+        | PlaybackLatch { .. }
+        | PlaybackRelease { .. }
+        | PlaybackTap { .. }
+        | PlaybackBpm { .. }
+        | CuelistAction { .. }
+        | CuelistConnect { .. }
+        | AttributeGroup { .. }
+        | ColourModel { .. } => Class::Live,
+        Show(New { .. } | Open { .. }) => Class::Reset,
+        Show(List | SaveAs { .. }) | CueView { .. } | Library(_) | Undo | Redo => Class::Neutral,
+        Select { .. }
+        | SelectGroup { .. }
+        | Step { .. }
+        | Pattern { .. }
+        | All
+        | Clear
+        | Wheel { .. }
+        | Colour { .. }
+        | Line { .. }
+        | RecordGroup { .. }
+        | PatchAdd { .. }
+        | PatchMove { .. }
+        | PatchRemove { .. }
+        | PatchRenumber { .. }
+        | PatchName { .. }
+        | PatchChangeMode { .. }
+        | PatchHandle { .. }
+        | PaletteRecord(_)
+        | PaletteApply { .. }
+        | PaletteInclude { .. }
+        | PaletteCopy { .. }
+        | PaletteMove { .. }
+        | PaletteRenumber { .. }
+        | PaletteDelete { .. }
+        | PaletteLegend { .. }
+        | SettingsPalette { .. }
+        | PlaybackRecord(_)
+        | PlaybackChange { .. }
+        | PlaybackLegend { .. }
+        | PlaybackCopy { .. }
+        | PlaybackMove { .. }
+        | PlaybackDelete { .. }
+        | PageLegend { .. }
+        | SettingsPlayback(_)
+        | PlaybackOptions { .. }
+        | CueEdit { .. }
+        | CueDelete { .. }
+        | CueRenumber { .. }
+        | CueRenumberAll { .. }
+        | CueCopy { .. }
+        | CueRemove { .. }
+        | MasterRecord { .. }
+        | GroupMasterRecord { .. } => Class::Edit,
+    }
+}
+
+/// UNDO-01, 05: the step's label and its coalescing key.
+fn label(cmd: &ipc::Command) -> (String, Option<String>) {
+    use ipc::Command::*;
+    let (label, key) = match cmd {
+        Line { tokens } => (tokens.join(" "), None),
+        Clear => ("Clear".into(), None),
+        Select { .. } | SelectGroup { .. } | Step { .. } | Pattern { .. } | All => {
+            ("Select".into(), Some("select".into()))
+        }
+        Wheel { attribute, .. } => (
+            format!("Wheel {attribute}"),
+            Some(format!("wheel:{attribute}")),
+        ),
+        Colour { .. } => ("Colour".into(), Some("colour".into())),
+        RecordGroup { group } => (format!("Record group {group}"), None),
+        PatchAdd { .. } => ("Patch add".into(), None),
+        PatchMove { id, .. } => (format!("Patch move {id}"), None),
+        PatchRemove { .. } => ("Patch remove".into(), None),
+        PatchRenumber { id, .. } => (format!("Patch renumber {id}"), None),
+        PatchName { id, .. } => (format!("Patch name {id}"), None),
+        PatchChangeMode { id, .. } => (format!("Patch mode {id}"), None),
+        PatchHandle { id, .. } => (format!("Patch handle {id}"), None),
+        PaletteRecord(_) => ("Record palette".into(), None),
+        PaletteApply { number, .. } => (format!("Apply palette {number}"), None),
+        PaletteInclude { number } => (format!("Include palette {number}"), None),
+        PaletteCopy { number, .. } => (format!("Copy palette {number}"), None),
+        PaletteMove { number, .. } => (format!("Move palette {number}"), None),
+        PaletteRenumber { number, .. } => (format!("Renumber palette {number}"), None),
+        PaletteDelete { number } => (format!("Delete palette {number}"), None),
+        PaletteLegend { number, .. } => (format!("Palette {number} legend"), None),
+        SettingsPalette { .. } => ("Palette settings".into(), None),
+        PlaybackRecord(_) => ("Record playback".into(), None),
+        PlaybackChange { id, .. } | PlaybackOptions { id, .. } => {
+            (format!("Playback {id} options"), None)
+        }
+        PlaybackLegend { id, .. } => (format!("Playback {id} legend"), None),
+        PlaybackCopy { id, .. } => (format!("Copy playback {id}"), None),
+        PlaybackMove { id, .. } => (format!("Move playback {id}"), None),
+        PlaybackDelete { id } => (format!("Delete playback {id}"), None),
+        PageLegend { page, .. } => (format!("Page {page} legend"), None),
+        SettingsPlayback(_) => ("Playback settings".into(), None),
+        CueEdit { .. } => ("Edit cue".into(), None),
+        CueDelete { .. } => ("Delete cue".into(), None),
+        CueRenumber { .. } | CueRenumberAll { .. } => ("Renumber cue".into(), None),
+        CueCopy { .. } => ("Copy cue".into(), None),
+        CueRemove { .. } => ("Remove cue value".into(), None),
+        MasterRecord { .. } | GroupMasterRecord { .. } => ("Record master".into(), None),
+        _ => ("Edit".into(), None),
+    };
+    (label, key)
+}
+
+/// UNDO-01, 04, 14, 15: run a command through the history by its class.
+fn run(
+    engine: &mut Engine,
+    history: &mut History,
+    cmd: ipc::Command,
+    now: f64,
+) -> Result<(), CoreError> {
+    match (class(&cmd), &cmd) {
+        (_, ipc::Command::Undo) => history.undo(engine).map(drop),
+        (_, ipc::Command::Redo) => history.redo(engine).map(drop),
+        (Class::Edit, _) => {
+            let (label, key) = label(&cmd);
+            history.edit(engine, &label, key.as_deref(), |e| apply(e, cmd, now))
+        }
+        (Class::Live, _) => {
+            history.live();
+            apply(engine, cmd, now)
+        }
+        (Class::Reset | Class::Neutral, _) => apply(engine, cmd, now),
+    }
+}
+
+/// IPC-31
+fn undo_info(history: &History) -> ipc::UndoInfo {
+    ipc::UndoInfo {
+        undo: history.undo_label().map(str::to_string),
+        redo: history.redo_label().map(str::to_string),
     }
 }
 
@@ -787,6 +977,7 @@ mod tests {
     use cmdmx_core::colour::ColourModel;
     use cmdmx_core::patch::{Handle, PatchAdd};
     use cmdmx_core::programmer::Resolution;
+    use cmdmx_core::undo::History;
 
     fn args(s: &str) -> impl Iterator<Item = String> + '_ {
         s.split_whitespace().map(String::from)
@@ -1900,5 +2091,361 @@ mod tests {
             assert!(r.is_err(), "{bad} on a BPM master");
         }
         assert_eq!(engine.to_show(meta), before);
+    }
+
+    // ---- undo (VS5-02: UNDO-04, 13..15, IPC-30/31) ----------------------------
+
+    /// UNDO-04: one sample per command name; `class` is the table under test.
+    const CLASSES: &[(&str, Class)] = &[
+        (
+            r#"{"v":0,"cmd":"fader.set","playback":2,"level":0.5}"#,
+            Class::Live,
+        ),
+        (
+            r#"{"v":0,"cmd":"grand_master.set","level":0.5}"#,
+            Class::Live,
+        ),
+        (r#"{"v":0,"cmd":"dbo.set","on":true}"#, Class::Live),
+        (r#"{"v":0,"cmd":"page.set","page":2}"#, Class::Live),
+        (
+            r#"{"v":0,"cmd":"playback.button","id":2,"button":"upper","on":true}"#,
+            Class::Live,
+        ),
+        (
+            r#"{"v":0,"cmd":"playback.flash","id":3,"on":true}"#,
+            Class::Live,
+        ),
+        (
+            r#"{"v":0,"cmd":"playback.swop","id":3,"on":false}"#,
+            Class::Live,
+        ),
+        (r#"{"v":0,"cmd":"playback.latch","id":3}"#, Class::Live),
+        (r#"{"v":0,"cmd":"playback.release","id":3}"#, Class::Live),
+        (r#"{"v":0,"cmd":"playback.tap","id":3}"#, Class::Live),
+        (
+            r#"{"v":0,"cmd":"playback.bpm","id":3,"bpm":128}"#,
+            Class::Live,
+        ),
+        (r#"{"v":0,"cmd":"cuelist.go"}"#, Class::Live),
+        (r#"{"v":0,"cmd":"cuelist.back"}"#, Class::Live),
+        (r#"{"v":0,"cmd":"cuelist.stop","id":2}"#, Class::Live),
+        (r#"{"v":0,"cmd":"cuelist.goto","cue":2.5}"#, Class::Live),
+        (
+            r#"{"v":0,"cmd":"cuelist.next","id":2,"cue":3}"#,
+            Class::Live,
+        ),
+        (r#"{"v":0,"cmd":"cuelist.connect","id":2}"#, Class::Live),
+        (
+            r#"{"v":0,"cmd":"programmer.attribute_group","group":"P"}"#,
+            Class::Live,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.colour_model","model":"Rgb"}"#,
+            Class::Live,
+        ),
+        (r#"{"v":0,"cmd":"show.new","name":"Kerst"}"#, Class::Reset),
+        (r#"{"v":0,"cmd":"show.open","name":"Kerk"}"#, Class::Reset),
+        (r#"{"v":0,"cmd":"show.list"}"#, Class::Neutral),
+        (
+            r#"{"v":0,"cmd":"show.save_as","name":"Kerk 2"}"#,
+            Class::Neutral,
+        ),
+        (r#"{"v":0,"cmd":"cue.view","id":2,"cue":2}"#, Class::Neutral),
+        (
+            r#"{"v":0,"cmd":"library.search","query":"par"}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.select","fixture":201}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.select_group","group":3}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.step","direction":-1}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.pattern","stages":2}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"programmer.all"}"#, Class::Edit),
+        (r#"{"v":0,"cmd":"programmer.clear"}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":-3}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.colour","hue":0.66,"saturation":1.0}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.command","tokens":["201","Enter"]}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"group.record","group":3}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"patch.move","id":3,"universe":2,"address":101}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"patch.remove","ids":[3,4]}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"patch.renumber","id":3,"number":1201}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"patch.name","id":3,"name":"Front left"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"patch.change_mode","id":3,"mode":"Big"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"patch.handle","id":3,"page":2,"slot":5}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":4}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"palette.apply","number":3}"#, Class::Edit),
+        (r#"{"v":0,"cmd":"palette.include","number":3}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"palette.copy","number":3,"to":{"window":"Colours","handle":5}}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"palette.move","number":3,"to":{"window":"Colours","handle":5}}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"palette.renumber","number":3,"to":30}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"palette.delete","number":3}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm","icon":"colour.drop"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"settings.palette","time":2.0}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"settings.playback","record_by":"Mixed"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"playback.options","id":3,"release_mask":null,"release_time":null,"group":null}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"playback.times","id":3,"delay":1.0,"fade_in":3.0,"fade_out":4.0,"overlap":50}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x","icon":null,"halo":null}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"playback.delete","id":3}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"page.legend","page":2,"legend":"Service"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"cue.times","id":2,"cue":2,"fade_in":3}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"cue.legend","id":2,"cue":2,"legend":"Welcome"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"cue.track","id":2,"cue":2,"track":"CueOnly"}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"cue.delete","id":2,"cue":2}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"cue.renumber","id":2,"cue":2,"to":2.5}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"cue.renumber_all","id":2}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"cue.copy","id":2,"cue":2,"to":7}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"cue.remove","id":2,"cue":2,"fixture":201}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
+            Class::Edit,
+        ),
+    ];
+
+    #[test]
+    fn undo_04_every_command_has_its_class() {
+        for (json, expected) in CLASSES {
+            let cmd = ipc::parse_command(json).unwrap_or_else(|e| panic!("{json}: {e}"));
+            assert_eq!(class(&cmd), *expected, "{json}");
+        }
+    }
+
+    /// UNDO-04: a command name `parse_command` knows but this table does not fails here.
+    #[test]
+    fn undo_04_a_command_without_a_class_fails() {
+        let src = include_str!("ipc.rs");
+        let body = src
+            .split("pub fn parse_command")
+            .nth(1)
+            .and_then(|s| s.split("\n}\n").next())
+            .unwrap();
+        let known: Vec<&str> = CLASSES
+            .iter()
+            .filter_map(|(j, _)| j.split("\"cmd\":\"").nth(1)?.split('"').next())
+            .chain(["undo", "redo"])
+            .collect();
+        for part in body.split("Some(\"").skip(1) {
+            let name = part.split('"').next().unwrap();
+            if name.contains('.') && !name.starts_with("library.")
+                || name == "undo"
+                || name == "redo"
+            {
+                assert!(known.contains(&name), "{name} has no class (UNDO-04)");
+            }
+        }
+        // `Some("playback.options" | "playback.times")`: the names after the first.
+        for arm in body.split("Some(\"").skip(1) {
+            let arm = arm.split(')').next().unwrap();
+            for name in arm.split(" | \"").skip(1) {
+                let name = name.trim_end_matches('"');
+                assert!(known.contains(&name), "{name} has no class (UNDO-04)");
+            }
+        }
+    }
+
+    fn undo_run(engine: &mut Engine, history: &mut History, json: &str) -> Result<(), CoreError> {
+        run(engine, history, ipc::parse_command(json).unwrap(), 0.0)
+    }
+
+    const SELECT_101: &str =
+        r#"{"v":0,"cmd":"programmer.command","tokens":["101","@","50","Enter"]}"#;
+
+    #[test]
+    fn undo_01_ipc_30_an_edit_is_undone_and_redone() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let before = e.edit_state();
+        undo_run(&mut e, &mut h, SELECT_101).unwrap();
+        let after = e.edit_state();
+        assert_eq!(h.undo_label(), Some("101 @ 50 Enter"));
+        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.edit_state(), before);
+        assert_eq!(
+            (h.undo_label(), h.redo_label()),
+            (None, Some("101 @ 50 Enter"))
+        );
+        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"redo"}"#).unwrap();
+        assert_eq!(e.edit_state(), after);
+    }
+
+    #[test]
+    fn ipc_30_refused_undo_and_redo_are_errors() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let undo = undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap_err();
+        assert_eq!(undo.to_string(), "Nothing to undo");
+        let redo = undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"redo"}"#).unwrap_err();
+        assert_eq!(redo.to_string(), "Nothing to redo");
+    }
+
+    #[test]
+    fn undo_01_refused_or_unchanged_commands_add_no_step() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.clear"}"#).unwrap();
+        assert!(undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"playback.delete","id":99}"#).is_err());
+        assert!(h.is_empty());
+    }
+
+    #[test]
+    fn undo_04_live_commands_are_not_in_the_history() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"fader.set","playback":1,"level":0.5}"#,
+        )
+        .unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.attribute_group","group":"P"}"#,
+        )
+        .unwrap();
+        assert!(h.is_empty());
+    }
+
+    #[test]
+    fn undo_05_wheel_turns_coalesce_until_another_command() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, SELECT_101).unwrap();
+        let wheel = r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":3}"#;
+        undo_run(&mut e, &mut h, wheel).unwrap();
+        undo_run(&mut e, &mut h, wheel).unwrap();
+        assert_eq!((h.len(), h.undo_label()), (2, Some("Wheel Pan")));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"fader.set","playback":1,"level":0.5}"#,
+        )
+        .unwrap();
+        undo_run(&mut e, &mut h, wheel).unwrap();
+        assert_eq!(h.len(), 3, "a live command ends the run");
+    }
+
+    #[test]
+    fn undo_01_labels_name_the_command() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, SELECT_101).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.clear"}"#).unwrap();
+        assert_eq!(h.undo_label(), Some("Clear"));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.select","fixture":101}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Select"));
+        let id = e.playbacks().next().unwrap().id;
+        let delete = format!(r#"{{"v":0,"cmd":"playback.delete","id":{id}}}"#);
+        undo_run(&mut e, &mut h, &delete).unwrap();
+        assert_eq!(
+            h.undo_label(),
+            Some(format!("Delete playback {id}").as_str())
+        );
     }
 }
