@@ -153,7 +153,7 @@ lines and control surfaces each add their key the same way.
 ## Out of scope (this spec)
 Live state after a restart (owner decision 3; a later criterion if wanted), deleting and renaming
 shows (Finder), importing other consoles' show files (the church patch comes in through the patch
-commands, PAT-11), merging part of one show into another, undo of show edits (P1-10), two daemons
+commands, PAT-11), merging part of one show into another, undo of show edits (P1-10, `undo.md`), two daemons
 on one shows folder.
 
 ## Owner decisions (2026-10-18)

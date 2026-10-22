@@ -348,7 +348,7 @@ Preload, Timed Flash, Go on a single-cue playback; Release all (double Release) 
 Priority setting; Release to Home; Off Playback with mask; Run On Startup; shapes and effect
 options (phase 2); Blind; chases with the BPM and Rate masters (P1-08) and group masters (P1-16, `group-masters.md`; owner decision 6); Size
 masters (with shapes, phase 2); virtual faders and executor buttons; physical fader pickup and motor behaviour on page change
-(VS1-07, CTL); undo (P1-10).
+(VS1-07, CTL); undo (P1-10, `undo.md`).
 
 ## Owner decisions (2026-10-18)
 All seven proposals accepted by the owner at gate 1.
