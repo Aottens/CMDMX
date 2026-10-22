@@ -4334,4 +4334,42 @@ mod tests {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
     }
+
+    // ---- undo (VS5-02: IPC-30/31) ----------------------------------------------
+
+    #[test]
+    fn ipc_30_undo_and_redo_parse() {
+        assert_eq!(parse_command(r#"{"v":0,"cmd":"undo"}"#), Ok(Command::Undo));
+        assert_eq!(parse_command(r#"{"v":0,"cmd":"redo"}"#), Ok(Command::Redo));
+    }
+
+    #[test]
+    fn ipc_31_snapshot_has_the_undo_and_redo_labels() {
+        let none = UndoInfo::default();
+        let v = parse(&snapshot(&engine(), &[], &show_state(), &none));
+        assert_eq!(v["undo"], json!({"undo": null, "redo": null}));
+        let some = UndoInfo {
+            undo: Some("Clear".into()),
+            redo: Some("Wheel Pan".into()),
+        };
+        let v = parse(&snapshot(&engine(), &[], &show_state(), &some));
+        assert_eq!(v["undo"], json!({"undo": "Clear", "redo": "Wheel Pan"}));
+    }
+
+    #[test]
+    fn ipc_31_undo_delta_only_when_a_label_changes() {
+        let e = engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        assert_eq!(published.undo_delta(&UndoInfo::default()), None);
+        let info = UndoInfo {
+            undo: Some("Clear".into()),
+            redo: None,
+        };
+        let d = published.undo_delta(&info).unwrap();
+        assert_eq!(
+            parse(&d),
+            json!({"v":0,"type":"undo","undo":"Clear","redo":null})
+        );
+        assert_eq!(published.undo_delta(&info), None, "no change, no delta");
+    }
 }
