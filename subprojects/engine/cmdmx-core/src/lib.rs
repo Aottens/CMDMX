@@ -147,6 +147,8 @@ pub enum CoreError {
     HandleUsed { page: u16, slot: u16 },
     #[error("Nothing in the programmer to record")]
     NothingToRecordPlayback,
+    #[error("Off: nothing of the selection is in the programmer")]
+    NothingToOff,
     #[error("invalid time {0} (expected 0 to 600 s)")]
     InvalidTime(f32),
     #[error("invalid overlap {0} (expected 0 to 100 %)")]

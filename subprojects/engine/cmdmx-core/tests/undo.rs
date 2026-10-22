@@ -498,6 +498,12 @@ fn undo_12_an_undone_patch_move_outputs_at_the_old_address() {
 #[test]
 fn undo_12_a_returned_fixture_starts_from_its_ltp_defaults() {
     let mut e = church();
+    // PRG-43: this test is about a held value, which only `Freeze` keeps over a Clear.
+    e.set_programmer_settings(cmdmx_core::programmer::ProgrammerSettingsChange {
+        clear_ltp: Some(cmdmx_core::programmer::ClearLtp::Freeze),
+        ..Default::default()
+    })
+    .unwrap();
     line(&mut e, "101 Enter").unwrap();
     e.set_programmer_value(101, "Zoom", 1.0).unwrap();
     e.tick(0.0);

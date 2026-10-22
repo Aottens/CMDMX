@@ -1,7 +1,7 @@
 //! The programmer: selection, sub-selection and manual values.
 //!
-//! Implements `specs/modules/programmer.md` PRG-01..07 and PRG-14; the merge
-//! reads its values at `Priority::Programmer` (PRG-12/13). A value is manual or a palette
+//! Implements `specs/modules/programmer.md` PRG-01..07, PRG-14 and the located set (PRG-23..25,
+//! 38); the merge reads its values at `Priority::Programmer` (PRG-12/13). A value is manual or a palette
 //! reference (PAL-08). The view also carries the values and the picker colour (IPC-21, IPC-22).
 
 use std::collections::BTreeMap;
@@ -35,6 +35,41 @@ enum Sub {
         stages: usize,
         stage: usize,
     },
+}
+
+/// PRG-29 / PRG-42: what Clear does first.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ClearPrecedence {
+    /// The first Clear deselects, the next empties the programmer.
+    #[default]
+    SelectionThenProgrammer,
+    SelectionWithProgrammer,
+    ProgrammerThenSelection,
+}
+
+/// PRG-43 / PRG-42: what an LTP attribute does when the programmer gives it up.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ClearLtp {
+    /// Back to what the playbacks give, else the profile default.
+    #[default]
+    Release,
+    /// Keep the current output while no playback proposes it.
+    Freeze,
+}
+
+/// PRG-42 (`settings.programmer`): every field optional, applied all or nothing.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ProgrammerSettingsChange {
+    pub clear_precedence: Option<ClearPrecedence>,
+    pub clear_ltp: Option<ClearLtp>,
+    pub lowlight_level: Option<f32>,
+}
+
+/// PRG-42: the default lowlight level.
+pub const DEFAULT_LOWLIGHT: f32 = 0.25;
+
+pub(crate) fn default_lowlight() -> f32 {
+    DEFAULT_LOWLIGHT
 }
 
 /// PRG-35 / IPC-11: one attribute group as the attribute bar shows it.
@@ -103,6 +138,10 @@ pub struct ProgrammerView {
     pub contents: Vec<FixtureValues>,
     pub colour: Option<ColourView>,
     pub palettes: PaletteUse,
+    /// PRG-23: fixture → sorted names of the located attributes (IPC-33).
+    pub located: BTreeMap<FixtureId, Vec<String>>,
+    /// PRG-26.
+    pub highlight: bool,
 }
 
 /// PAL-13/14: a palette fade of one attribute. Live state, never saved.
@@ -139,13 +178,15 @@ impl Fade {
     }
 }
 
-/// UNDO: the part of the programmer an undo step saves (ADR-008). Not the fades or `activated`.
+/// UNDO: the part of the programmer an undo step saves (ADR-008). Not the fades or `activated`;
+/// the located set is part of it (PRG-44).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct EditPart {
     selection: Vec<FixtureId>,
     sub: Sub,
     changed: bool,
     values: BTreeMap<FixtureId, BTreeMap<String, Stored>>,
+    located: BTreeMap<FixtureId, BTreeMap<String, Value>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -157,6 +198,11 @@ pub struct Programmer {
     values: BTreeMap<FixtureId, BTreeMap<String, Stored>>,
     /// Running palette fades (PAL-13..16); an entry always has a value here.
     fades: BTreeMap<FixtureId, BTreeMap<String, Fade>>,
+    /// Located values (PRG-23): not contents, under the programmer value in the merge (PRG-25).
+    located: BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    /// Fades of values a timed Clear removed (ENG-10): live state; HTP `from` → 0, LTP `from`
+    /// → what the other sources give. Never has a programmer value of its own.
+    clearing: BTreeMap<FixtureId, BTreeMap<String, Fade>>,
     /// Engine activation counter at the last value change: orders the
     /// programmer against other sources in LTP ties (ENG-04).
     activated: u64,
@@ -169,6 +215,7 @@ impl Programmer {
             sub: self.sub,
             changed: self.changed,
             values: self.values.clone(),
+            located: self.located.clone(),
         }
     }
 
@@ -179,6 +226,8 @@ impl Programmer {
         self.selection = part.selection;
         self.sub = part.sub;
         self.changed = part.changed;
+        self.located = part.located;
+        self.clearing.clear(); // ENG-10: undo during a timed Clear puts the programmer back at once
         let values = &self.values;
         for (fixture, attrs) in &mut self.fades {
             attrs.retain(|a, _| {
@@ -240,20 +289,81 @@ impl Programmer {
 
     /// Called at the start of a tick: fades that have not begun start now (PAL-13).
     pub(crate) fn start_fades(&mut self, now: Timestamp) {
-        for fade in self.fades.values_mut().flat_map(|a| a.values_mut()) {
+        let all = self.fades.values_mut().chain(self.clearing.values_mut());
+        for fade in all.flat_map(|a| a.values_mut()) {
             fade.start.get_or_insert(now);
         }
     }
 
     /// Called at the end of a tick: finished fades are dropped.
     pub(crate) fn drop_finished_fades(&mut self, now: Timestamp) {
-        for attrs in self.fades.values_mut() {
-            attrs.retain(|_, f| {
-                !f.start
-                    .is_some_and(|s| (now - s) as f32 >= f.delay + f.duration)
-            });
+        for fades in [&mut self.fades, &mut self.clearing] {
+            for attrs in fades.values_mut() {
+                attrs.retain(|_, f| {
+                    !f.start
+                        .is_some_and(|s| (now - s) as f32 >= f.delay + f.duration)
+                });
+            }
+            fades.retain(|_, a| !a.is_empty());
         }
-        self.fades.retain(|_, a| !a.is_empty());
+    }
+
+    /// ENG-10: the fade of a value a timed Clear removed.
+    pub(crate) fn clearing(&self, fixture: FixtureId, attribute: &str) -> Option<&Fade> {
+        self.clearing.get(&fixture)?.get(attribute)
+    }
+
+    pub(crate) fn set_clearing(&mut self, fixture: FixtureId, attribute: &str, fade: Fade) {
+        self.clearing
+            .entry(fixture)
+            .or_default()
+            .insert(attribute.to_string(), fade);
+    }
+
+    pub fn located(&self) -> &BTreeMap<FixtureId, BTreeMap<String, Value>> {
+        &self.located
+    }
+
+    pub(crate) fn located_value(&self, fixture: FixtureId, attribute: &str) -> Option<Value> {
+        self.located.get(&fixture)?.get(attribute).copied()
+    }
+
+    /// PRG-38: Locate again overwrites. The attribute is touched, so no clear fade runs on it.
+    pub(crate) fn set_located(&mut self, fixture: FixtureId, attribute: &str, value: Value) {
+        if let Some(attrs) = self.clearing.get_mut(&fixture) {
+            attrs.remove(attribute);
+        }
+        self.located
+            .entry(fixture)
+            .or_default()
+            .insert(attribute.to_string(), value);
+    }
+
+    pub(crate) fn remove_located(&mut self, fixture: FixtureId, attribute: &str) {
+        if let Some(attrs) = self.located.get_mut(&fixture) {
+            attrs.remove(attribute);
+            if attrs.is_empty() {
+                self.located.remove(&fixture);
+            }
+        }
+    }
+
+    /// PRG-03: Locate and Rem Dim count as a change, so the next select starts afresh.
+    pub(crate) fn mark_changed(&mut self) {
+        self.changed = true;
+    }
+
+    /// Every fixture with a value or a located value.
+    pub(crate) fn touched_fixtures(&self) -> Vec<FixtureId> {
+        let mut ids: Vec<FixtureId> = self
+            .values
+            .keys()
+            .chain(self.located.keys())
+            .copied()
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        ids
     }
 
     pub fn activated(&self) -> u64 {
@@ -313,6 +423,8 @@ impl Programmer {
     pub(crate) fn remove_fixture(&mut self, fixture: FixtureId) {
         self.values.remove(&fixture);
         self.fades.remove(&fixture);
+        self.located.remove(&fixture);
+        self.clearing.remove(&fixture);
         let before = self.selection.len();
         self.selection.retain(|&f| f != fixture);
         if self.selection.len() != before {
@@ -333,10 +445,11 @@ impl Programmer {
         }
     }
 
-    /// PRG-29: empty the programmer's values.
+    /// PRG-29: empty the programmer's values and the located set.
     pub(crate) fn clear_values(&mut self) {
         self.values.clear();
         self.fades.clear();
+        self.located.clear();
     }
 
     pub(crate) fn clear_selection(&mut self) {
@@ -397,10 +510,13 @@ impl Programmer {
         activated: u64,
     ) {
         self.activated = activated;
-        // PAL-16: a new value takes over from the faded one.
-        if let Some(attrs) = self.fades.get_mut(&fixture) {
-            attrs.remove(attribute);
+        // PAL-16: a new value takes over from the faded one; ENG-10 and PRG-24 likewise.
+        for fades in [&mut self.fades, &mut self.clearing] {
+            if let Some(attrs) = fades.get_mut(&fixture) {
+                attrs.remove(attribute);
+            }
         }
+        self.remove_located(fixture, attribute);
         self.values
             .entry(fixture)
             .or_default()
