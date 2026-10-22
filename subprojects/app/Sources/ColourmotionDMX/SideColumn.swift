@@ -281,7 +281,7 @@ private struct Softkeys: View {
                 Softkey(name: "Odd/Even", action: { engine.pattern(2) }),
                 setLegendKey,
                 optionsKey,
-                Softkey(name: "Undo", sub: "nothing", spec: "Undo · P1-10"),
+                undoKey,
             ])
         }
         return ("Main", [
@@ -291,8 +291,14 @@ private struct Softkeys: View {
             Softkey(name: "Shapes & Effects", sub: "phase 2", spec: "Shapes · phase 2"),
             Softkey(name: "Timecode", sub: "phase 3", spec: "Timecode · phase 3"),
             Softkey(name: "Lock", sub: "venue mode", spec: "later"),
-            Softkey(name: "Undo", sub: "nothing", spec: "Undo · P1-10"),
+            undoKey,
         ])
+    }
+
+    /// UNDO-18: the IPC-31 label as the second line; no action while there is nothing to undo.
+    private var undoKey: Softkey {
+        Softkey(name: "Undo", sub: engine.undoLabel ?? "nothing", spec: "Undo · ⌘Z",
+                action: engine.undoLabel == nil ? nil : { engine.undo() })
     }
 
     private var setLegendKey: Softkey {

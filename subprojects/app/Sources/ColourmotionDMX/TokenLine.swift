@@ -90,6 +90,13 @@ enum MacKeys {
 
     @MainActor
     static func handle(_ event: NSEvent, ui: UIState, line: TokenLine, engine: EngineClient) -> Bool {
+        // UNDO-18: ⌘Z / ⇧⌘Z, whatever the Keys toggle says; a text field keeps its own undo.
+        let chord = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        if (chord == .command || chord == [.command, .shift]), event.charactersIgnoringModifiers?.lowercased() == "z",
+           !(NSApp.keyWindow?.firstResponder is NSText) {
+            if chord == .command { engine.undo() } else { engine.redo() }
+            return true
+        }
         // Keys off, a shortcut chord, or a text field (Patch, Show) with focus: not ours.
         guard UserDefaults.standard.bool(forKey: "keysLive"),
               event.modifierFlags.isDisjoint(with: [.command, .control, .option]),

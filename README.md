@@ -18,16 +18,21 @@ owner's church run on it instead of Lightkey.
 The rig there has about 30 fixtures: moving-head washes, mixed RGBW / RGB+Lime / RGB pars and
 theatre spots.
 
-![The main screen: fixtures, groups, palettes, programmer, function buttons, keypad, softkeys, attribute bar and playback faders](docs/screenshots/main-screen.png)
+![The main screen: groups, colour palettes, function buttons, keypad, softkeys, attribute bar, the Undo and Redo keys and playback faders](docs/screenshots/main-screen.png)
 
-*The main screen, against a demo of the church rig. Controls that are not built yet are greyed
-out.*
+*The main screen, against a demo of the church rig: twelve colour palettes, ten pars in the
+programmer (red) on palette 5, three faders up, and softkey G ready to undo "Apply palette 5".
+Controls that are not built yet are greyed out.*
+
+![The Colour workspace: fixtures, colour picker, colour palettes and the Programmer window](docs/screenshots/colour-workspace.png)
+
+*The Colour workspace (F3): the selected pars in blue, the colour picker, and the Programmer
+window with each fixture's values; cyan means the value comes from a palette.*
 
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Engine-wide undo
-(edits only, not live playing) is built in the engine and reachable over IPC (`undo`/`redo`); the app's Undo and Redo keys come next. What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). What works today:
 
 - The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
   USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own timer, start with `--serial <path>`).
@@ -87,8 +92,11 @@ for the phase-2 effects generator (effects run around the cue's values, before t
   lock it, Flash on the lower button, several masters per group, the level saved in the show.
   In the app: the Group Master softkey under Record, strips with "GRP·SCALE 100%", and a Master
   tab. The church's use: the front spots on a Locked fader next to the service cue list.
+- Undo across the whole engine: every edit (programmer, palettes, playbacks, patch, show
+  settings) can be undone and redone, 100 steps back, while live playing (Go, faders, Flash) is
+  never touched. In the app: Undo and Redo keys labelled with the step, softkey G, ⌘Z and ⇧⌘Z.
 
-Next, in this order: undo across the whole engine; Locate, Highlight, Off and Clear; output on
+Next, in this order: Locate, Highlight, Off and Clear; output on
 more than one universe (today only the first leaves the engine); MIDI, Mackie Control and OSC
 surfaces. The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).

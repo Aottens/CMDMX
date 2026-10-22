@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (VS5-02 undo over IPC done; next VS5-03)_
+_Last updated: 2026-10-22 (VS5-03 undo in the app; undo complete; next VS2-05)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -33,6 +33,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - P1-10 done: `specs/modules/undo.md` UNDO-01..20, IPC-30/31 and ADR-008 approved (owner, 2026-10-22, the seven questions as recommended): snapshots of the edit state, edits only, linear redo, 100 steps, memory only, one shared history. Build tasks VS5-01..03 in BACKLOG
 - VS5-01 done: `cmdmx-core::undo::History` (100 steps, linear redo, coalescing by key, no clock) over `Engine::edit_state()` snapshots; undo kills removed playbacks, keeps group master levels and never lowers id counters; scenarios gain `undo`/`redo` steps and a `history` expectation
 - VS5-02 done: the daemon classifies every IPC command (edit/live/reset/neutral, UNDO-04, one exhaustive `match` plus a unit test over every command name), wraps `apply` in one shared history, empties it on `show.open`/`show.new`, and serves `undo`/`redo` with an `undo` snapshot field and delta (IPC-30/31)
+- VS5-03 (app, UNDO-18..20; `ui.md` UI-18/20 amended): Undo and Redo keys in the programmer summary (tooltip names the step, disabled while there is none), softkey G Undo with the label under it (Main and Selection), ⌘Z/⇧⌘Z whatever the Keys toggle, never while a text field has focus, "Undone:/Redone: <label>" or the refusal in the message zone. Checklist `tests/manual/app-undo.md`, run `tests/manual/runs/2026-10-22-VS5-03.md`. Undo is complete
 - P1-17 done (owner, 2026-10-22): ADR-007 reserves room for the phase-2 FX generator (IDEA-18): `engine-merge.md` ENG-14..19 (base → effect → clamp → group masters → GM/DBO; one effect per attribute, chosen apart from the base owner; held LTP value stays the base), optional effect references in cue and palette contents (`cuelists.md`, `palettes.md`). Spec only; the current engine satisfies the criteria (no effect sources), tests land with the first effect task
 - P1-08 done: `specs/modules/cuelists.md` CUE-01..55 approved (owner, 2026-10-21; DECISIONS 2026-10-21): cue lists and chases are playbacks with more than one cue (show schema 4), tracking in phase 1, Go per handle plus the Go block on the connected list, best-practice handle buttons per kind (switchable to Titan's Swop/Flash or custom), BPM masters by Tap/typing with Titan's fader modes as options, Rate masters 0–200 %. Build tasks VS3-02..05 in BACKLOG; IDEA-16 (Ableton sync) is phase 2
 - VS3-02 merged (#48): cue-list core storage (CUE-01..09, 15, 23, 29, 35..39), show schema 4

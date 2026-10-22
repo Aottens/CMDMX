@@ -157,7 +157,8 @@ struct AttributeBar: View {
                 Text(!programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
                     .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
                     .lineLimit(1).padding(.horizontal, 8).frame(minWidth: 90, alignment: .leading)
-                Button("Undo") {}.disabled(true).help("Undo · P1-10")
+                Button("Undo") { engine.undo() }.disabled(engine.undoLabel == nil).help(engine.undoLabel.map { "Undo: \($0) · ⌘Z" } ?? "Nothing to undo")
+                Button("Redo") { engine.redo() }.disabled(engine.redoLabel == nil).help(engine.redoLabel.map { "Redo: \($0) · ⇧⌘Z" } ?? "Nothing to redo")
                 Button("Clear") { engine.clearProgrammer(); ui.cancelModes(); ui.pendingOverlap = nil }.buttonStyle(ZoneKeyStyle(ring: dirty))
             }
             .buttonStyle(ZoneKeyStyle(ring: false))
