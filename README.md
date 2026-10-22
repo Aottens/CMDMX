@@ -78,9 +78,14 @@ Early, under active development, not yet for real shows. What works today:
   round, Go/Back/Stop on the chase, Tap tempo that also puts the steps on the beat, and BPM
   masters (tap, typed, or on the fader) and Rate masters that drive several chases at once, in
   the app as well (Tap and BPM in the Go block).
+- Group masters: a group saved onto a fader masters its fixtures' intensity, whatever puts it
+  there (programmer, cue lists, chases): Scale (100–1000 %), HTP (a submaster for the group),
+  Limit (a hard ceiling) or Take Over (picks the fixtures up into the programmer), Disabled to
+  lock it, Flash on the lower button, several masters per group, the level saved in the show.
+  In the app: the Group Master softkey under Record, strips with "GRP·SCALE 100%", and a Master
+  tab. The church's use: the front spots on a Locked fader next to the service cue list.
 
-Next: group masters in the app (a group on a fader that scales, limits or lifts its fixtures' intensity, Titan's
-Scale / HTP / Limit / Take Over; the engine side is merged, VS3-06; the IPC and app side is in review, VS3-07), the owner's fade check of the 33 Hz serial output on the LED par (VS4-05); checking
+Next: the owner's fade check of the 33 Hz serial output on the LED par (VS4-05); checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
