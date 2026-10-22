@@ -626,6 +626,14 @@ private struct Tolerant<T: Decodable>: Decodable {
     init(from decoder: Decoder) throws { value = try? T(from: decoder) }
 }
 
+/// IPC-31: the snapshot nests this under `undo`; the delta carries it at top level.
+private struct UndoLabels: Decodable {
+    let undo: String?
+    let redo: String?
+}
+
+private struct SnapshotUndo: Decodable { let undo: Tolerant<UndoLabels>? }
+
 /// One recorded group; `fixtures` are in group order (IPC-10).
 struct GroupInfo: Decodable, Identifiable, Equatable {
     let id: Int
@@ -945,6 +953,9 @@ final class EngineClient: ObservableObject {
     /// Latest `warning` / `error` message from the engine; cleared when a
     /// `programmer.command` is sent (IPC-17).
     @Published private(set) var lastMessage: String?
+    /// IPC-31: what Undo / Redo would do now; nil when there is nothing.
+    @Published private(set) var undoLabel: String?
+    @Published private(set) var redoLabel: String?
     /// IPC-10..12: all straight from the snapshot / deltas.
     @Published private(set) var fixtures: [FixtureInfo] = []
     @Published private(set) var groups: [GroupInfo] = []
@@ -1261,6 +1272,10 @@ final class EngineClient: ObservableObject {
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
     func say(_ text: String) { lastMessage = text }
 
+    /// UNDO-19: confirm with the label the key showed; a refusal arrives as a warning and overwrites.
+    func undo() { lastMessage = undoLabel.map { "Undone: \($0)" }; sendJSON("undo") }
+    func redo() { lastMessage = redoLabel.map { "Redone: \($0)" }; sendJSON("redo") }
+
     // Show commands (SHW-15). The engine checks names and refuses with a warning.
 
     func listShows() { sendJSON("show.list") }
@@ -1402,11 +1417,15 @@ final class EngineClient: ObservableObject {
             programmer = incoming.programmer ?? ProgrammerState()
             outputs = incoming.outputs?.value ?? []
             if let show = incoming.show?.value { self.show = show }
+            let labels = (try? JSONDecoder().decode(SnapshotUndo.self, from: data))?.undo?.value
+            undoLabel = labels?.undo; redoLabel = labels?.redo
             connection = .online
             listShows()
         case "page":
             // PBK-03: the delta carries the page fields at top level.
             if let state = try? JSONDecoder().decode(PageState.self, from: data) { page = state; rebuildSlots() }
+        case "undo":
+            if let labels = try? JSONDecoder().decode(UndoLabels.self, from: data) { undoLabel = labels.undo; redoLabel = labels.redo }
         case "programmer":
             // IPC-12: the delta carries the IPC-11 fields at top level.
             if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }

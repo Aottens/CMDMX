@@ -168,8 +168,9 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   header.
   - Main context: Set Legend works on palettes and handles (PAL-29, PBK-38); Playback Options
     and Edit Times open the Playback Options screen for the last tapped handle (PBK-39);
-    Shapes & Effects (phase 2), Timecode (phase 3) and Lock (later) are disabled; Undo is
-    disabled until VS5-03 (`undo.md` UNDO-18).
+    Shapes & Effects (phase 2), Timecode (phase 3) and Lock (later) are disabled; Undo
+    (G, also in the Selection context) undoes the newest step, its label under the name, disabled
+    while there is none (amended 2026-10-22, VS5-03; `undo.md` UNDO-18).
   - Selection context (when something is selected): Next and Previous (Fix ±1), All
     (`programmer.all`), Odd/Even, Set Legend (PAL-29) and Playback Options (PBK-39) work.
   - Record context (Record armed): Cancel, plus the palette softkeys of PAL-29 (Replace, Merge,
@@ -246,7 +247,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - **Command line:** the command line takes the free width, with the message zone (UI-19) on
     the same row to its right, truncated.
   - **Programmer summary:** "n fx · I P C" in red (from `in_programmer` and `attribute_groups`),
-    "empty" in grey, with Undo (disabled until VS5-03, `undo.md` UNDO-18) and Clear. The interim Fix ±1, Odd/Even and
+    "empty" in grey, with Undo, Redo (each labelled by a tooltip with the step it acts on, disabled while there is
+    none; amended 2026-10-22, VS5-03, `undo.md` UNDO-18) and Clear. The interim Fix ±1, Odd/Even and
     All buttons sit here until UX-02c moves them to the keypad and softkeys.
 
   Dragging and scrolling a wheel keep IPC-16's steps and modifiers. Values stay in % (Hue in

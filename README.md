@@ -26,8 +26,7 @@ out.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Engine-wide undo
-(edits only, not live playing) is built in the engine and reachable over IPC (`undo`/`redo`); the app's Undo and Redo keys come next. What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). What works today:
 
 - The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
   USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own timer, start with `--serial <path>`).
@@ -87,8 +86,11 @@ for the phase-2 effects generator (effects run around the cue's values, before t
   lock it, Flash on the lower button, several masters per group, the level saved in the show.
   In the app: the Group Master softkey under Record, strips with "GRP·SCALE 100%", and a Master
   tab. The church's use: the front spots on a Locked fader next to the service cue list.
+- Undo across the whole engine: every edit (programmer, palettes, playbacks, patch, show
+  settings) can be undone and redone, 100 steps back, while live playing (Go, faders, Flash) is
+  never touched. In the app: Undo and Redo keys labelled with the step, softkey G, ⌘Z and ⇧⌘Z.
 
-Next, in this order: undo across the whole engine; Locate, Highlight, Off and Clear; output on
+Next, in this order: Locate, Highlight, Off and Clear; output on
 more than one universe (today only the first leaves the engine); MIDI, Mackie Control and OSC
 surfaces. The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
