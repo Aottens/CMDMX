@@ -30,7 +30,7 @@ the backlog, not the whole idea.
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
 | IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | accepted 2026-10-17 | 1 (with VS2-05) | PRG, IPC, app |
 | IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | triaged | 2 (flagship) | new `effects.md`, ENG, PRG, CUE, PAL |
-| IDEA-19 | Rebrand to CMDMX (all caps) | triaged | 1 (now, small) | docs, app, README |
+| IDEA-19 | Rebrand to CMDMX by Colourmotion | accepted 2026-10-22 | 1 (after VS6) | docs, app, README |
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
 
@@ -307,6 +307,8 @@ and palette contents.
   (cmdmx.com / .app / .nl) before the website is built on it.
 **Owner's answer (2026-10-22):** the brand is **"CMDMX by Colourmotion"**. CMDMX is the product
 name; Colourmotion stays as the maker.
+**Timing (owner, 2026-10-22):** the rebrand runs as its own task right **after VS6** (multi-universe
+output, VS6-01..03) is done, not before.
 
 ### IDEA-20 — Website to download CMDMX (2026-10-22)
 **Owner's intent:** a website that becomes the place where you download the tool.
