@@ -5,6 +5,12 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-22 — Multi-universe output: nodes in the show (P1-18, owner)
+**Decision:** output nodes are show data (`output` key, schema 6; OUT-13). Each universe gets a default Art-Net node (port-address n−1, broadcast) and sACN node (universe n, multicast), both enabled, added automatically when the universe gets its first fixture; the serial port is stored in the show (missing port = Degraded); several serial nodes allowed, `auto` at most once; `--artnet-target`, `--sacn-unicast`, `--sacn-priority` and `--serial` are removed, `--no-*` stay as run-time kill switches; output edits are undoable edits (OUT-25..37).
+**Alternatives considered:** Titan's defaults (16 fixed lines, Art-Net off); the serial port per Mac in the daemon's state file; keeping the flags as overrides.
+**Reasoning:** send only what is patched; Art-Net on keeps today's behaviour and the owner's Art-Net check at home; one place (the show) for routing like Titan; flags that fight the show's config confuse.
+**Reversal trigger:** a show moved between Macs keeps failing on its stored serial port, or a venue's network suffers from broadcast Art-Net.
+
 ## 2026-10-22 — Undo lets go of LTP attributes as Clear does (PRG-45, owner)
 
 **Decision:** when undo or redo leaves an LTP attribute out of the programmer or the located set, it follows `clear_ltp` like Clear and Off (Release → playback value or profile default; Freeze → keep). Build task VS5-04.

@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (VS5-04 undo lets go of LTP as Clear does; PR open)_
+_Last updated: 2026-10-22 (P1-18 multi-universe output spec approved; build tasks VS6-01..03)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -30,6 +30,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
+- P1-18 done: `output-protocols.md` OUT-13 rewritten, OUT-25..37 approved (owner, 2026-10-22, the six questions as proposed): nodes in the show (`output` key, schema 6), default Art-Net + sACN per universe, both on, added automatically when a universe gets its first fixture, serial port stored in the show, several serial nodes, config flags removed (only `--no-*` stay), output edits undoable; IPC `output.*`/`output.ports`, status-bar dot per protocol and an Output screen. Build tasks VS6-01..03 in BACKLOG; until VS6-02 the daemon still sends line 1 only
 - P1-10 done: `specs/modules/undo.md` UNDO-01..20, IPC-30/31 and ADR-008 approved (owner, 2026-10-22, the seven questions as recommended): snapshots of the edit state, edits only, linear redo, 100 steps, memory only, one shared history. Build tasks VS5-01..03 in BACKLOG
 - VS5-01 done: `cmdmx-core::undo::History` (100 steps, linear redo, coalescing by key, no clock) over `Engine::edit_state()` snapshots; undo kills removed playbacks, keeps group master levels and never lowers id counters; scenarios gain `undo`/`redo` steps and a `history` expectation
 - VS5-02 done: the daemon classifies every IPC command (edit/live/reset/neutral, UNDO-04, one exhaustive `match` plus a unit test over every command name), wraps `apply` in one shared history, empties it on `show.open`/`show.new`, and serves `undo`/`redo` with an `undo` snapshot field and delta (IPC-30/31)
