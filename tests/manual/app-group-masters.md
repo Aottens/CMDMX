@@ -55,10 +55,10 @@ hand, one per message, with Claude reading Art-Net.
       programmer: Claude reads 201–204 at 30 %. Clear; 3.7 back to full.
 
 ## Take Over (GRM-10, 12)
-- [ ] [Jij] 3.8 mode Take Over ("GRP · TAKE OVER", no amber, the FLASH button refused with a message).
-      With the list at Q2 (spots 40 %), pull 3.8 to 0 and push it up slowly: nothing changes
-      until it passes 40 %, then the spots are in the programmer (Programmer window) and follow
-      the fader. Clear; mode back to Scale, 3.8 at full.
+- [ ] [Jij] 3.8 mode Take Over ("GRP·TAKE OVER", no amber, the FLASH button refused with a
+      message); the mode change puts it at 100 % (GRM-20). With the list at Q2 (spots 40 %),
+      pull 3.8 down slowly: nothing changes until it passes 40 %, then the spots are in the
+      programmer (Programmer window) and follow the fader down. Clear; mode back to Scale.
 
 ## Disabled (GRM-11, 16)
 - [ ] [Jij] 3.8 at 50 % (spots at 20 %). Master tab: Disabled on: the meta line adds "LOCKED", the
