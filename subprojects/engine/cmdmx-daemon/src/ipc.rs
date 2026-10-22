@@ -4159,4 +4159,107 @@ mod tests {
         let go = parse_command(r#"{"v":0,"cmd":"cuelist.go"}"#).unwrap();
         assert_eq!(stamp(go.clone(), 1.5), go);
     }
+
+    // ---- VS3-07: group masters over IPC (GRM-15, IPC-29) --------------------------------------
+
+    /// `engine()` with fixture 1 in group 6 and a group master for it on 1.8.
+    fn group_master_engine() -> (Engine, PlaybackId) {
+        let mut e = engine();
+        e.select_fixture(1).unwrap();
+        e.record_group(6).unwrap();
+        let id = e.record_group_master(1, 8, 6).unwrap();
+        (e, id)
+    }
+
+    fn deltas(d: &[String], kind: &str) -> Vec<Value> {
+        d.iter()
+            .map(|m| parse(m))
+            .filter(|m| m["type"] == json!(kind))
+            .collect()
+    }
+
+    #[test]
+    fn grm_15_group_master_entry_has_kind_master_and_buttons() {
+        let (e, id) = group_master_engine();
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        let m = entry(&v, u64::from(id));
+        assert_eq!(m["kind"], json!("GroupMaster"));
+        assert_eq!(
+            m["master"],
+            json!({"group":6,"mode":"Scale","scale":100,"enabled":true,"level":1.0})
+        );
+        assert_eq!(m["buttons"], json!(["None", "Flash"]));
+        assert_eq!(m["level"], json!(1.0), "the live level is the fader");
+    }
+
+    #[test]
+    fn ipc_29_a_group_master_fader_move_sends_only_the_small_delta() {
+        let (mut e, id) = group_master_engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_fader(id, 0.5, 0.0).unwrap();
+        let d = published.diff(&e, &[], &show_state());
+        assert!(deltas(&d, "playbacks").is_empty(), "{d:?}");
+        let small = deltas(&d, "playback");
+        assert_eq!(small.len(), 1, "{d:?}");
+        assert_eq!(small[0]["level"], json!(0.5));
+
+        // Disabling is a stored change: the whole list, with the locked level.
+        let Some(Master::Group(mut m)) = e.playback(id).unwrap().master.clone() else {
+            panic!()
+        };
+        m.enabled = false;
+        e.change_playback(
+            id,
+            &PlaybackChange {
+                master: Some(Master::Group(m)),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let d = published.diff(&e, &[], &show_state());
+        let whole = deltas(&d, "playbacks");
+        assert_eq!(whole.len(), 1, "{d:?}");
+        let master = &entry(&whole[0], u64::from(id))["master"];
+        assert_eq!((&master["enabled"], &master["level"]), (&json!(false), &json!(0.5)));
+
+        // A disabled master's fader moves the live level only.
+        e.set_fader(id, 0.2, 0.0).unwrap();
+        let d = published.diff(&e, &[], &show_state());
+        assert!(deltas(&d, "playbacks").is_empty(), "{d:?}");
+        assert_eq!(deltas(&d, "playback")[0]["level"], json!(0.2));
+        let v = parse(&snapshot(&e, &[], &show_state()));
+        assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
+    }
+
+    #[test]
+    fn grm_15_group_master_commands_parse() {
+        for good in [
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":6}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Htp"}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"scale":200}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"enabled":false}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"TakeOver","scale":1000,
+                "enabled":true}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Limit"}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Scale"}}"#,
+        ] {
+            assert!(
+                parse_command(good).is_ok(),
+                "{good}: {:?}",
+                parse_command(good)
+            );
+        }
+        for bad in [
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":8,"kind":"Group"}"#,
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":"six"}"#,
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":6,"number":1}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Dim"}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Unknown"}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"level":0.5}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"group":2}}"#,
+            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"enabled":"no"}}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
 }

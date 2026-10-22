@@ -1806,4 +1806,88 @@ mod tests {
         assert_eq!(s.update_mode, UpdateMode::Both);
         assert_eq!(s.handle_buttons, HandleButtons::Titan);
     }
+
+    #[test]
+    fn grm_15_group_master_commands_reach_the_engine() {
+        use cmdmx_core::playback::{GroupMode, Kind, Master, MasterKind};
+        let mut engine = demo_engine().unwrap();
+        let group = |e: &Engine, id| match e.playback(id).unwrap().master.clone() {
+            Some(Master::Group(m)) => m,
+            other => panic!("{other:?}"),
+        };
+
+        // GRM-01: the demo's group 4 holds the front spots; several masters per group.
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"master.record","page":3,"slot":8,"kind":"Group","group":4}"#,
+        )
+        .unwrap();
+        send(
+            &mut engine,
+            r#"{"v":0,"cmd":"master.record","page":3,"slot":7,"kind":"Group","group":4}"#,
+        )
+        .unwrap();
+        let id = at(&engine, 3, 8);
+        assert_eq!(engine.playback(id).unwrap().kind, Kind::GroupMaster);
+        let m = group(&engine, id);
+        assert_eq!((m.group, m.mode, m.scale, m.enabled), (4, GroupMode::Scale, 100, true));
+
+        // IPC-27: each field optional, the rest kept.
+        let options = |e: &mut Engine, master: &str| {
+            send(
+                e,
+                &format!(r#"{{"v":0,"cmd":"playback.options","id":{id},"master":{master}}}"#),
+            )
+        };
+        options(&mut engine, r#"{"mode":"Limit"}"#).unwrap();
+        options(&mut engine, r#"{"scale":200}"#).unwrap();
+        let m = group(&engine, id);
+        assert_eq!((m.mode, m.scale, m.enabled), (GroupMode::Limit, 200, true));
+
+        // GRM-05, 13: an enabled master's fader is its saved level.
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"fader.set","playback":{id},"level":0.4}}"#),
+        )
+        .unwrap();
+        assert_eq!(group(&engine, id).level, 0.4);
+
+        // GRM-11: disabled, the fader no longer moves the saved level.
+        options(&mut engine, r#"{"enabled":false}"#).unwrap();
+        send(
+            &mut engine,
+            &format!(r#"{{"v":0,"cmd":"fader.set","playback":{id},"level":0.9}}"#),
+        )
+        .unwrap();
+        let m = group(&engine, id);
+        assert_eq!((m.enabled, m.level, m.mode), (false, 0.4, GroupMode::Limit));
+
+        // GRM-19, IPC-29: refused, nothing changes.
+        let bpm = engine.record_master(3, 6, MasterKind::Bpm, 1).unwrap();
+        let meta = cmdmx_core::show::Meta {
+            name: "Demo".into(),
+            created: String::new(),
+            modified: String::new(),
+            app_version: String::new(),
+        };
+        let before = engine.to_show(meta.clone());
+        for bad in [
+            r#"{"v":0,"cmd":"master.record","page":3,"slot":5,"kind":"Group","group":99}"#,
+            r#"{"v":0,"cmd":"master.record","page":3,"slot":8,"kind":"Group","group":4}"#,
+            r#"{"v":0,"cmd":"master.record","page":1,"slot":1,"kind":"Group","group":4}"#,
+        ] {
+            assert!(send(&mut engine, bad).is_err(), "{bad}");
+        }
+        for bad in [r#"{"scale":300}"#, r#"{"multiplier":2}"#, r#"{"number":2}"#] {
+            assert!(options(&mut engine, bad).is_err(), "{bad}");
+        }
+        for bad in [r#"{"mode":"Htp"}"#, r#"{"scale":200}"#, r#"{"enabled":false}"#] {
+            let r = send(
+                &mut engine,
+                &format!(r#"{{"v":0,"cmd":"playback.options","id":{bpm},"master":{bad}}}"#),
+            );
+            assert!(r.is_err(), "{bad} on a BPM master");
+        }
+        assert_eq!(engine.to_show(meta), before);
+    }
 }
