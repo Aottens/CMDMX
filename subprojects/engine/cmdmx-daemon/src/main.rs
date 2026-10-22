@@ -525,6 +525,10 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             })?;
             engine.record_master(page, slot, kind, number).map(drop)
         }
+        // GRM-15
+        GroupMasterRecord { page, slot, group } => {
+            engine.record_group_master(page, slot, group).map(drop)
+        }
     }
 }
 
@@ -1830,7 +1834,10 @@ mod tests {
         let id = at(&engine, 3, 8);
         assert_eq!(engine.playback(id).unwrap().kind, Kind::GroupMaster);
         let m = group(&engine, id);
-        assert_eq!((m.group, m.mode, m.scale, m.enabled), (4, GroupMode::Scale, 100, true));
+        assert_eq!(
+            (m.group, m.mode, m.scale, m.enabled),
+            (4, GroupMode::Scale, 100, true)
+        );
 
         // IPC-27: each field optional, the rest kept.
         let options = |e: &mut Engine, master: &str| {
@@ -1881,7 +1888,11 @@ mod tests {
         for bad in [r#"{"scale":300}"#, r#"{"multiplier":2}"#, r#"{"number":2}"#] {
             assert!(options(&mut engine, bad).is_err(), "{bad}");
         }
-        for bad in [r#"{"mode":"Htp"}"#, r#"{"scale":200}"#, r#"{"enabled":false}"#] {
+        for bad in [
+            r#"{"mode":"Htp"}"#,
+            r#"{"scale":200}"#,
+            r#"{"enabled":false}"#,
+        ] {
             let r = send(
                 &mut engine,
                 &format!(r#"{{"v":0,"cmd":"playback.options","id":{bpm},"master":{bad}}}"#),

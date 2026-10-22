@@ -29,10 +29,10 @@ use cmdmx_core::palette::{
 };
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{
-    AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode, GroupTime,
-    HandleButton, HandleButtons, KillPoint, Kind, Link, ListAction, ListFader, ListOptions,
-    LoopAction, Master, MasterKind, Paging, PlaybackChange, PlaybackId, PlaybackRecord, Priority,
-    SpeedSource, Track, UpdateMode, PAGES,
+    AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode, GroupMode,
+    GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Link, ListAction, ListFader,
+    ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange, PlaybackId,
+    PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, PAGES,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{GroupId, ProgrammerView, Resolution};
@@ -291,6 +291,12 @@ pub enum Command {
         kind: MasterKind,
         number: Option<u8>,
     },
+    /// GRM-15: a group master for a group, on an empty handle.
+    GroupMasterRecord {
+        page: u16,
+        slot: u16,
+        group: GroupId,
+    },
 }
 
 /// IPC-27: the fields of `playback.options` `list`, each optional.
@@ -348,15 +354,20 @@ pub struct MasterPatch {
     fader: Option<BpmFader>,
     fader_max: Option<f32>,
     rate_scale: Option<u16>,
+    /// GRM-15: `Unknown` is refused when the command is parsed.
+    mode: Option<GroupMode>,
+    scale: Option<u16>,
+    enabled: Option<bool>,
 }
 
 impl MasterPatch {
     pub fn over(&self, master: Master) -> Result<Master, CoreError> {
         let wrong = |what: &str| CoreError::InvalidOption(format!("{what} (not on a {master})"));
+        let group_only = self.mode.is_some() || self.scale.is_some() || self.enabled.is_some();
         match master.clone() {
             Master::Bpm(mut m) => {
-                if self.rate_scale.is_some() {
-                    return Err(wrong("rate_scale"));
+                if self.rate_scale.is_some() || group_only {
+                    return Err(wrong("rate_scale, mode, scale or enabled"));
                 }
                 m.number = self.number.unwrap_or(m.number);
                 m.bpm = self.bpm.unwrap_or(m.bpm);
@@ -367,15 +378,27 @@ impl MasterPatch {
             }
             Master::Rate(mut m) => {
                 let bpm_only = [self.bpm, self.multiplier, self.fader_max];
-                if self.fader.is_some() || bpm_only.iter().any(Option::is_some) {
-                    return Err(wrong("a BPM field"));
+                if self.fader.is_some() || bpm_only.iter().any(Option::is_some) || group_only {
+                    return Err(wrong("a BPM, mode, scale or enabled field"));
                 }
                 m.number = self.number.unwrap_or(m.number);
                 m.rate_scale = self.rate_scale.unwrap_or(m.rate_scale);
                 Ok(Master::Rate(m))
             }
-            // VS3-07 (GRM-15) adds the group master fields.
-            Master::Group(_) => Err(wrong("a master option")),
+            Master::Group(mut m) => {
+                let other = [self.bpm, self.multiplier, self.fader_max];
+                if self.number.is_some()
+                    || self.fader.is_some()
+                    || self.rate_scale.is_some()
+                    || other.iter().any(Option::is_some)
+                {
+                    return Err(wrong("a speed master field"));
+                }
+                m.mode = self.mode.unwrap_or(m.mode);
+                m.scale = self.scale.unwrap_or(m.scale);
+                m.enabled = self.enabled.unwrap_or(m.enabled);
+                Ok(Master::Group(m))
+            }
         }
     }
 }
@@ -823,7 +846,14 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             let change = playback_change(&v)?;
             let list = opt_field(&v, "list", "an object of cue list options")?;
             let chase = opt_field(&v, "chase", "an object of chase options")?;
-            let master = opt_field(&v, "master", "an object of master options")?;
+            let master: Option<MasterPatch> =
+                opt_field(&v, "master", "an object of master options")?;
+            if master
+                .as_ref()
+                .is_some_and(|m| m.mode == Some(GroupMode::Unknown))
+            {
+                return Err("\"mode\" must be Scale, Htp, Limit or TakeOver".into());
+            }
             Ok(if (list.is_none() && chase.is_none()) && master.is_none() {
                 Command::PlaybackChange { id, change }
             } else {
@@ -982,16 +1012,31 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             fixture: uint(&v, "fixture")?,
             attribute: opt_field(&v, "attribute", "a string")?,
         }),
-        Some("master.record") => Ok(Command::MasterRecord {
-            page: uint(&v, "page")?,
-            slot: uint(&v, "slot")?,
-            kind: match v.get("kind").and_then(|k| k.as_str()) {
+        Some("master.record") => {
+            let (page, slot) = (uint(&v, "page")?, uint(&v, "slot")?);
+            let kind = match v.get("kind").and_then(|k| k.as_str()) {
                 Some("Bpm") => MasterKind::Bpm,
                 Some("Rate") => MasterKind::Rate,
-                _ => return Err("missing or invalid \"kind\" (expected Bpm or Rate)".into()),
-            },
-            number: opt_uint(&v, "number")?,
-        }),
+                Some("Group") => {
+                    // GRM-15: a group, never a number.
+                    if v.get("number").is_some() {
+                        return Err("a Group master takes \"group\", not \"number\"".into());
+                    }
+                    return Ok(Command::GroupMasterRecord {
+                        page,
+                        slot,
+                        group: uint(&v, "group")?,
+                    });
+                }
+                _ => return Err("missing or invalid \"kind\" (expected Bpm, Rate or Group)".into()),
+            };
+            Ok(Command::MasterRecord {
+                page,
+                slot,
+                kind,
+                number: opt_uint(&v, "number")?,
+            })
+        }
         Some(other) => Err(format!("unknown cmd '{other}'")),
         None => Err("missing \"cmd\"".into()),
     }
@@ -1204,6 +1249,29 @@ fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
             }
         })
         .collect()
+}
+
+/// IPC-29: whether anything stored changed, not counting the `level` of an enabled group master
+/// (it follows the fader, which has its own small delta). Both lists are left as they were.
+fn stored_changed(old: &mut [StoredInfo], new: &mut [StoredInfo]) -> bool {
+    fn level(s: &mut StoredInfo) -> Option<&mut f32> {
+        match &mut s.master {
+            Some(Master::Group(m)) if m.enabled => Some(&mut m.level),
+            _ => None,
+        }
+    }
+    old.len() != new.len()
+        || old.iter_mut().zip(new.iter_mut()).any(|(a, b)| {
+            let (la, lb) = (level(a).map(std::mem::take), level(b).map(std::mem::take));
+            let changed = a != b;
+            if let (Some(l), Some(x)) = (la, level(a)) {
+                *x = l;
+            }
+            if let (Some(l), Some(x)) = (lb, level(b)) {
+                *x = l;
+            }
+            changed
+        })
 }
 
 fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
@@ -1739,8 +1807,8 @@ impl Published {
         let mut out = Vec::new();
         // PBK-35: one whole-list delta after any stored change (it carries the live values
         // too), else a small delta per playback whose live part changed.
-        let stored = stored_infos(engine);
-        if stored != self.stored {
+        let mut stored = stored_infos(engine);
+        if stored_changed(&mut self.stored, &mut stored) {
             out.push(to_json(&PlaybacksDelta {
                 v: 0,
                 kind: "playbacks",
@@ -1763,6 +1831,7 @@ impl Published {
                     }));
                 }
             }
+            self.stored = stored;
         }
         // CUE-26, 40: the connected list, once, when it changes.
         let connected = engine.connected();
@@ -4220,7 +4289,10 @@ mod tests {
         let whole = deltas(&d, "playbacks");
         assert_eq!(whole.len(), 1, "{d:?}");
         let master = &entry(&whole[0], u64::from(id))["master"];
-        assert_eq!((&master["enabled"], &master["level"]), (&json!(false), &json!(0.5)));
+        assert_eq!(
+            (&master["enabled"], &master["level"]),
+            (&json!(false), &json!(0.5))
+        );
 
         // A disabled master's fader moves the live level only.
         e.set_fader(id, 0.2, 0.0).unwrap();
