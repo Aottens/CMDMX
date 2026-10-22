@@ -287,7 +287,7 @@ private struct Softkeys: View {
                 Softkey(name: "Previous", sub: "Fix −1", action: { engine.step(-1) }),
                 Softkey(name: "All", sub: "whole selection", action: { engine.selectAll() }),
                 Softkey(name: "Odd/Even", action: { engine.pattern(2) }),
-                setLegendKey,
+                Softkey(name: "Rem Dim", sub: "the rest to 0", action: { engine.remDim() }),   // UI-26
                 optionsKey,
                 undoKey,
             ])
@@ -297,7 +297,7 @@ private struct Softkeys: View {
             optionsKey,
             setLegendKey,
             Softkey(name: "Shapes & Effects", sub: "phase 2", spec: "Shapes · phase 2"),
-            Softkey(name: "Rem Dim", sub: "the rest to 0", action: { engine.remDim() }),   // UI-26
+            Softkey(name: "Timecode", sub: "phase 3", spec: "Timecode · phase 3"),
             Softkey(name: "Lock", sub: "venue mode", spec: "later"),
             undoKey,
         ])
