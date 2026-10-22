@@ -37,7 +37,7 @@ for the phase-2 effects generator (effects run around the cue's values, before t
 - The engine runs at 40 Hz and outputs every patched universe over Art-Net, sACN and USB (ENTTEC
   Pro protocol). Where each universe goes is part of the show: a universe that gets its first
   fixture goes out on Art-Net and sACN by itself, and outputs can be added, changed and removed
-  (over IPC for now, undoable) without the other outputs dropping a frame. The Eurolite
+  (over IPC for now, undoable; a value out of range is refused with the reason) without the other outputs dropping a frame. The Eurolite
   USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own
   timer); its port is stored in the show. `--no-artnet`, `--no-sacn` and `--no-serial` silence a
   protocol for one run.

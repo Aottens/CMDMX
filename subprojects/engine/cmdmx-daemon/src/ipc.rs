@@ -623,8 +623,20 @@ fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
 }
 
 /// OUT-34: start from the line's defaults for the kind, then take the fields that are given.
+/// An output number field (OUT-28): the range text of `output::check_number` when out of range.
+fn out_int<T: TryFrom<i64>>(v: &serde_json::Value, key: &str) -> Result<Option<T>, String> {
+    let Some(n) = v.get(key) else { return Ok(None) };
+    let n = n
+        .as_i64()
+        .ok_or_else(|| format!("missing or invalid \"{key}\""))?;
+    cmdmx_core::output::check_number(key, n).map_err(|e| e.to_string())?;
+    T::try_from(n)
+        .map(Some)
+        .map_err(|_| format!("missing or invalid \"{key}\""))
+}
+
 fn parse_output_add(v: &serde_json::Value) -> Result<Command, String> {
-    let line: UniverseId = uint(v, "line")?;
+    let line: UniverseId = out_int(v, "line")?.ok_or("missing or invalid \"line\"")?;
     let mut kind = match v.get("kind").and_then(|k| k.as_str()) {
         Some("artnet") => NodeKind::default_artnet(line),
         Some("sacn") => NodeKind::default_sacn(line),
@@ -638,7 +650,7 @@ fn parse_output_add(v: &serde_json::Value) -> Result<Command, String> {
             port_address,
             target,
         } => {
-            *port_address = opt_uint(v, "port_address")?.unwrap_or(*port_address);
+            *port_address = out_int(v, "port_address")?.unwrap_or(*port_address);
             if v.get("target").is_some() {
                 *target = string(v, "target")?;
             }
@@ -648,8 +660,8 @@ fn parse_output_add(v: &serde_json::Value) -> Result<Command, String> {
             priority,
             unicast,
         } => {
-            *universe = opt_uint(v, "universe")?.unwrap_or(*universe);
-            *priority = opt_uint(v, "priority")?.unwrap_or(*priority);
+            *universe = out_int(v, "universe")?.unwrap_or(*universe);
+            *priority = out_int(v, "priority")?.unwrap_or(*priority);
             match v.get("unicast") {
                 None => {}
                 Some(serde_json::Value::Null) => *unicast = None,
@@ -2780,6 +2792,35 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn out_28_output_add_numbers_too_wide_get_the_range_text() {
+        for (fields, text) in [
+            (
+                r#""kind":"sacn","priority":300"#,
+                "sACN priority 300 is out of range (0 to 200)",
+            ),
+            (
+                r#""kind":"sacn","universe":70000"#,
+                "sACN universe 70000 is out of range (1 to 63999)",
+            ),
+            (
+                r#""kind":"artnet","port_address":70000"#,
+                "Art-Net port-address 70000 is out of range (0 to 32767)",
+            ),
+            (
+                r#""kind":"artnet","port_address":-1"#,
+                "Art-Net port-address -1 is out of range (0 to 32767)",
+            ),
+        ] {
+            let add = format!(r#"{{"v":0,"cmd":"output.add","line":2,{fields}}}"#);
+            assert_eq!(parse_command(&add), Err(text.to_string()), "{add}");
+        }
+        assert_eq!(
+            parse_command(r#"{"v":0,"cmd":"output.add","line":70000,"kind":"serial"}"#),
+            Err("universe 70000 is out of range (1 to 65535)".to_string())
+        );
     }
 
     #[test]

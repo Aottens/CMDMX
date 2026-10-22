@@ -450,6 +450,11 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             {
                 return Err(CoreError::NodeKindChanged(id));
             }
+            for (key, n) in &change {
+                if let Some(n) = n.as_i64() {
+                    cmdmx_core::output::check_number(key, n)?;
+                }
+            }
             merged.extend(change);
             merged.insert("id".into(), id.into());
             let node =
@@ -2567,6 +2572,64 @@ mod tests {
             r#"{"v":0,"cmd":"output.add","line":1,"kind":"artnet"}"#.to_string(),
         ] {
             assert!(undo_run(&mut e, &mut h, &bad).is_err(), "{bad}");
+        }
+        assert_eq!(e.edit_state(), before);
+        assert!(h.is_empty());
+    }
+
+    #[test]
+    fn out_28_priority_300_refused_with_range_text() {
+        use cmdmx_core::output::NodeKind;
+        let mut e = Engine::new(Settings::default());
+        let mut h = History::default();
+        let id_of = |e: &Engine, artnet: bool| {
+            e.nodes()
+                .find(|n| matches!(n.kind, NodeKind::Artnet { .. }) == artnet)
+                .unwrap()
+                .id
+        };
+        let (artnet, sacn) = (id_of(&e, true), id_of(&e, false));
+        let before = e.edit_state();
+        for (id, field, text) in [
+            (
+                sacn,
+                r#""priority":300"#,
+                "sACN priority 300 is out of range (0 to 200)",
+            ),
+            (
+                sacn,
+                r#""priority":-1"#,
+                "sACN priority -1 is out of range (0 to 200)",
+            ),
+            (
+                sacn,
+                r#""universe":70000"#,
+                "sACN universe 70000 is out of range (1 to 63999)",
+            ),
+            (
+                artnet,
+                r#""port_address":70000"#,
+                "Art-Net port-address 70000 is out of range (0 to 32767)",
+            ),
+            (
+                artnet,
+                r#""port_address":-1"#,
+                "Art-Net port-address -1 is out of range (0 to 32767)",
+            ),
+            (
+                artnet,
+                r#""line":70000"#,
+                "universe 70000 is out of range (1 to 65535)",
+            ),
+            (
+                artnet,
+                r#""line":-1"#,
+                "universe -1 does not exist (universes start at 1)",
+            ),
+        ] {
+            let edit = format!(r#"{{"v":0,"cmd":"output.edit","id":{id},{field}}}"#);
+            let refusal = undo_run(&mut e, &mut h, &edit).unwrap_err();
+            assert_eq!(refusal.to_string(), text, "{edit}");
         }
         assert_eq!(e.edit_state(), before);
         assert!(h.is_empty());

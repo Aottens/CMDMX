@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (VS6-02 output nodes in the daemon, PR open)_
+_Last updated: 2026-10-22 (VS6-04 OUT-28 range text for numbers that do not fit, PR open)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
