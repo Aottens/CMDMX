@@ -1,18 +1,15 @@
 //! Art-Net output node (OUT-03/04); threading and health live in `output`.
 
 use std::io;
-use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
+use std::net::{SocketAddrV4, UdpSocket};
 
 use cmdmx_protocols::{artnet, ArtSequence};
 
 use crate::output::{open_udp, Health, OutputState};
 
-/// OUT-04: limited broadcast on 6454 unless `--artnet-target` says otherwise.
-pub fn default_target() -> SocketAddrV4 {
-    SocketAddrV4::new(Ipv4Addr::BROADCAST, artnet::PORT)
-}
-
 pub struct ArtNetNode {
+    /// `art-net #3`, the prefix of every log line (OUT-30).
+    name: String,
     target: SocketAddrV4,
     port_address: u16,
     sequence: ArtSequence,
@@ -21,8 +18,9 @@ pub struct ArtNetNode {
 }
 
 impl ArtNetNode {
-    pub fn new(target: SocketAddrV4, port_address: u16) -> Self {
+    pub fn new(name: String, target: SocketAddrV4, port_address: u16) -> Self {
         ArtNetNode {
+            name,
             target,
             port_address,
             sequence: ArtSequence::default(),
@@ -40,7 +38,12 @@ impl ArtNetNode {
         }
         self.health
             .record(&result)
-            .map(|m| format!("art-net {}: {m}", self.target))
+            .map(|m| format!("{}: {m}", self.name))
+    }
+
+    /// OUT-33: why the node is degraded.
+    pub fn detail(&self) -> Option<&str> {
+        self.health.detail()
     }
 
     /// IPC-20.
@@ -88,7 +91,7 @@ mod tests {
     #[test]
     fn out_03_each_frame_becomes_one_artdmx_with_rising_sequence() {
         let (rx, target) = receiver();
-        let mut node = ArtNetNode::new(target, 0);
+        let mut node = ArtNetNode::new("art-net #1".into(), target, 0);
         let mut frame = [0u8; 512];
         for seq in 1..=3u8 {
             frame[0] = seq * 10;
@@ -105,7 +108,7 @@ mod tests {
     #[test]
     fn out_03_thread_sends_every_published_frame() {
         let (rx, target) = receiver();
-        let mut node = ArtNetNode::new(target, 0);
+        let mut node = ArtNetNode::new("art-net #1".into(), target, 0);
         let (tx, _status) = crate::output::spawn("art-net", move |f| (node.send(f), node.state()));
         for v in [1u8, 2, 3] {
             assert!(crate::output::publish(&tx, &[v; 512]));
@@ -116,20 +119,12 @@ mod tests {
     #[test]
     fn out_04_socket_allows_broadcast_and_uses_ephemeral_source_port() {
         let (rx, target) = receiver();
-        let mut node = ArtNetNode::new(target, 0);
+        let mut node = ArtNetNode::new("art-net #1".into(), target, 0);
         assert_eq!(node.send(&[0; 512]), None);
         let sock = node.socket.as_ref().unwrap();
         assert!(sock.broadcast().unwrap());
         let mut buf = [0u8; 1024];
         let (_, from) = rx.recv_from(&mut buf).unwrap();
         assert_ne!(from.port(), cmdmx_protocols::artnet::PORT);
-    }
-
-    #[test]
-    fn out_04_default_target_is_limited_broadcast_on_6454() {
-        assert_eq!(
-            default_target(),
-            SocketAddrV4::new(Ipv4Addr::BROADCAST, 6454)
-        );
     }
 }

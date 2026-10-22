@@ -1,14 +1,14 @@
 //! cmdmx-daemon — the ColourmotionDMX engine process.
 //!
-//! Runs the deterministic core at 40 Hz with a demo patch and sends line 1 as
-//! Art-Net, sACN and ENTTEC Pro serial, each node on its own thread (OUT-11).
-//! Node states reach the app in the snapshot and the `outputs` delta (IPC-20).
+//! Runs the deterministic core at 40 Hz with a demo patch and sends each line to the output
+//! nodes of the show (Art-Net, sACN, ENTTEC Pro serial), each node on its own thread (OUT-11,
+//! OUT-29). Node states reach the app in the snapshot and the `outputs` delta (OUT-33).
 //! MIDI arrives with VS1-07 and must also stay off the tick thread.
 //!
-//! Usage: `cmdmx-daemon [--ticks N] [--artnet-target IPV4 | --no-artnet]
-//!        [--sacn-unicast IPV4] [--sacn-priority 0..200] [--no-sacn]
-//!        [--serial PATH | --no-serial] [--ipc-port N] [--demo]
-//!        [--qlcplus-dir PATH] [--profiles-dir PATH] [--show-dir PATH]`.
+//! Usage: `cmdmx-daemon [--ticks N] [--no-artnet] [--no-sacn] [--no-serial] [--ipc-port N]
+//!        [--demo] [--qlcplus-dir PATH] [--profiles-dir PATH] [--show-dir PATH]`.
+//! The output nodes live in the show (set over `output.*`); the `--no-*` flags only keep a
+//! kind from sending this run (OUT-32).
 //! `--ticks N` exits after N ticks (CI smoke test), otherwise runs until killed.
 //! The app talks to the daemon over WebSocket on `--ipc-port` (default 7319);
 //! `--demo` lets fader 1 breathe. The demo show (IPC-09, IPC-14) has eight dimmers on
@@ -32,7 +32,6 @@ mod serial_out;
 mod shows;
 
 use std::collections::BTreeMap;
-use std::net::{Ipv4Addr, SocketAddrV4};
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
@@ -44,7 +43,7 @@ use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
 use cmdmx_core::undo::History;
-use cmdmx_core::{CoreError, UNIVERSE_SIZE};
+use cmdmx_core::CoreError;
 const TICK: Duration = Duration::from_millis(25);
 
 fn main() {
@@ -61,47 +60,6 @@ fn main() {
         return;
     }
     let ticks_limit = cli.ticks;
-    // OUT-15/16/22: slice-only output config until node config lives in the show file.
-    // Each entry: (hand-off to its thread, its shared state). `statuses` is the IPC-20 view
-    // of the same nodes, built once and updated in place each tick.
-    let mut outputs = Vec::new();
-    let mut statuses: Vec<ipc::OutputStatus> = Vec::new();
-    if let Some(target) = cli.artnet {
-        eprintln!("art-net: line 1 → port-address 0 at {target}");
-        let mut node = artnet_out::ArtNetNode::new(target, 0);
-        let send = move |f: &output::FrameData| (node.send(f), node.state());
-        outputs.push(output::spawn("art-net", send));
-        statuses.push(ipc::OutputStatus {
-            name: "art-net",
-            state: output::OutputState::Ok,
-        });
-    }
-    if cli.sacn_enabled {
-        let (target, priority) = (cli.sacn_target, cli.sacn_priority);
-        eprintln!("sacn: line 1 → universe 1 at {target}, priority {priority}");
-        let mut node = sacn_out::SacnNode::new(target, 1, priority);
-        let send = move |f: &output::FrameData| (node.send(f), node.state());
-        outputs.push(output::spawn("sacn", send));
-        statuses.push(ipc::OutputStatus {
-            name: "sacn",
-            state: output::OutputState::Ok,
-        });
-    }
-    if cli.serial_enabled {
-        let mut node = serial_out::SerialNode::new(cli.serial_path);
-        let send = move |f: &output::FrameData, now: Instant| (node.send(f, now), node.state());
-        outputs.push(output::spawn_paced(
-            "serial",
-            serial_out::MIN_WRITE_INTERVAL,
-            send,
-        ));
-        // Not scanned yet, so no interface until the thread says otherwise (IPC-20).
-        statuses.push(ipc::OutputStatus {
-            name: "serial",
-            state: output::OutputState::NoInterface,
-        });
-    }
-
     // SHW-10: the last show, else Demo; a refused show is reported, never written.
     let shows = Arc::new(shows::Shows::new(
         cli.show_dir.clone(),
@@ -126,6 +84,9 @@ fn main() {
         eprintln!("warning: cannot remember the open show: {e}");
     }
     let mut engine = opened.engine;
+    // OUT-29: the show's nodes, kept running; reconciled again after every drain of events.
+    let mut outputs = output::Outputs::new(cli.kill, Box::new(output::spawn_node));
+    outputs.reconcile(engine.nodes());
     let mut autosave =
         shows::Autosave::new(shows.path(&opened.name), opened.meta, opened.show, 0.0);
     let (jobs, saved) = match shows::spawn_saver() {
@@ -176,7 +137,7 @@ fn main() {
     }
     let mut clients = ipc::Clients::default();
     let mut history = History::default();
-    let mut published = ipc::Published::new(&engine, &statuses, &autosave.state());
+    let mut published = ipc::Published::new(&engine, outputs.statuses(), &autosave.state());
 
     eprintln!("cmdmx-daemon 0.1.0 — 40 Hz tick loop running.");
     let mut next = started;
@@ -193,7 +154,12 @@ fn main() {
                 ipc::Event::Connected(tx) => {
                     clients.add(
                         tx,
-                        &ipc::snapshot(&engine, &statuses, &autosave.state(), &undo_info(&history)),
+                        &ipc::snapshot(
+                            &engine,
+                            outputs.statuses(),
+                            &autosave.state(),
+                            &undo_info(&history),
+                        ),
                     );
                     for w in std::mem::take(&mut pending) {
                         clients.broadcast(&ipc::warning(&w));
@@ -261,6 +227,7 @@ fn main() {
                             history.clear();
                         }
                         engine = next.engine;
+                        outputs.reconcile(engine.nodes());
                         autosave =
                             shows::Autosave::new(shows.path(&next.name), next.meta, next.show, now);
                         // SHW-15: Save As and New write under the new name at once, so the file
@@ -276,12 +243,12 @@ fn main() {
                             warn(&mut clients, &format!("cannot remember the open show: {e}"));
                         }
                         let state = autosave.state();
-                        published = ipc::Published::new(&engine, &statuses, &state);
+                        published = ipc::Published::new(&engine, outputs.statuses(), &state);
                         // The snapshot below carries the labels; no `undo` delta for them.
                         let _ = published.undo_delta(&undo_info(&history));
                         clients.broadcast(&ipc::snapshot(
                             &engine,
-                            &statuses,
+                            outputs.statuses(),
                             &state,
                             &undo_info(&history),
                         ));
@@ -298,6 +265,7 @@ fn main() {
                 clients.broadcast(&ipc::warning(&e.to_string()));
             }
         }
+        outputs.reconcile(engine.nodes());
         if cli.demo {
             // Demo motion: fader 1 breathes so the output visibly changes.
             let level = ((now * 0.5).sin() * 0.5 + 0.5) as f32;
@@ -318,14 +286,7 @@ fn main() {
             &mut autosave,
             &mut clients,
         );
-        let frame = engine.frame(1).map_or([0; UNIVERSE_SIZE], |f| *f.slots());
-        for ((tx, status), out) in outputs.iter().zip(&mut statuses) {
-            if !output::publish(tx, &frame) && status.get() != output::OutputState::Stopped {
-                eprintln!("{} output thread stopped; tick continues", out.name);
-                status.set(output::OutputState::Stopped);
-            }
-            out.state = status.get();
-        }
+        outputs.publish(|line| engine.frame(line).map(|f| f.slots()));
         for w in engine.drain_warnings() {
             eprintln!("warning @{:.3}: {}", w.at, w.message);
             clients.broadcast(&ipc::warning(&w.message));
@@ -334,7 +295,7 @@ fn main() {
         if let Some(msg) = published.undo_delta(&undo_info(&history)) {
             clients.broadcast(&msg);
         }
-        for msg in published.diff(&engine, &statuses, &autosave.state()) {
+        for msg in published.diff(&engine, outputs.statuses(), &autosave.state()) {
             clients.broadcast(&msg);
         }
 
@@ -467,6 +428,36 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             universe,
             address,
         } => engine.patch_move(id, universe, address),
+        OutputAdd {
+            line,
+            enabled,
+            kind,
+        } => engine.output_add(line, enabled, kind).map(drop),
+        OutputRemove { ids } => engine.output_remove(&ids),
+        // OUT-34: the changed fields go over the stored node; the engine checks the whole.
+        OutputEdit { id, change } => {
+            let stored = engine.nodes().find(|n| n.id == id);
+            let stored = stored.ok_or(CoreError::UnknownNode(id))?;
+            let invalid = |e: serde_json::Error| CoreError::InvalidOutput(e.to_string());
+            let serde_json::Value::Object(mut merged) =
+                serde_json::to_value(stored).map_err(invalid)?
+            else {
+                return Err(CoreError::UnknownNode(id));
+            };
+            if change
+                .get("kind")
+                .is_some_and(|k| merged.get("kind") != Some(k))
+            {
+                return Err(CoreError::NodeKindChanged(id));
+            }
+            merged.extend(change);
+            merged.insert("id".into(), id.into());
+            let node =
+                serde_json::from_value(serde_json::Value::Object(merged)).map_err(invalid)?;
+            engine.output_edit(node)
+        }
+        // Answered in the client thread (OUT-35).
+        OutputPorts => Ok(()),
         PatchRemove { ids } => engine.patch_remove(&ids),
         PatchRenumber { id, number } => engine.patch_renumber(id, number),
         PatchName { id, name } => engine.patch_name(id, &name),
@@ -610,7 +601,9 @@ fn class(cmd: &ipc::Command) -> Class {
         | Highlight { .. }
         | ColourModel { .. } => Class::Live,
         Show(New { .. } | Open { .. }) => Class::Reset,
-        Show(List | SaveAs { .. }) | CueView { .. } | Library(_) | Undo | Redo => Class::Neutral,
+        Show(List | SaveAs { .. }) | CueView { .. } | Library(_) | OutputPorts | Undo | Redo => {
+            Class::Neutral
+        }
         Select { .. }
         | SelectGroup { .. }
         | Step { .. }
@@ -626,6 +619,9 @@ fn class(cmd: &ipc::Command) -> Class {
         | Colour { .. }
         | Line { .. }
         | RecordGroup { .. }
+        | OutputAdd { .. }
+        | OutputEdit { .. }
+        | OutputRemove { .. }
         | PatchAdd { .. }
         | PatchMove { .. }
         | PatchRemove { .. }
@@ -700,6 +696,9 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         ),
         Colour { .. } => ("Colour".into(), Some("colour".into())),
         RecordGroup { group } => (format!("Record group {group}"), None),
+        OutputAdd { .. } => ("Add output".into(), None),
+        OutputEdit { .. } => ("Edit output".into(), None),
+        OutputRemove { .. } => ("Remove output".into(), None),
         PatchAdd { .. } => ("Patch add".into(), None),
         PatchMove { id, .. } => (format!("Patch move {id}"), None),
         PatchRemove { .. } => ("Patch remove".into(), None),
@@ -780,13 +779,9 @@ fn undo_info(history: &History) -> ipc::UndoInfo {
 const USAGE: &str = "\
 usage: cmdmx-daemon [options]
   --ticks <n>             stop after n ticks (default: run until stopped)
-  --no-artnet             turn Art-Net output off
-  --artnet-target <ip>    Art-Net destination (default 255.255.255.255)
-  --no-sacn               turn sACN output off
-  --sacn-unicast <ip>     sACN unicast destination (default: multicast universe 1)
-  --sacn-priority <n>     sACN priority 0..200 (default 100)
-  --no-serial             turn serial DMX output off
-  --serial <path>         serial DMX device (default: detect the interface)
+  --no-artnet             do not send Art-Net this run (the show keeps its nodes)
+  --no-sacn               do not send sACN this run (the show keeps its nodes)
+  --no-serial             do not send serial DMX this run (the show keeps its nodes)
   --ipc-port <n>          WebSocket port on 127.0.0.1 (default 7319)
   --demo                  fader 1 breathes
   --qlcplus-dir <path>    QLC+ fixture files (default: bundled vendor/qlcplus/fixtures)
@@ -799,14 +794,8 @@ struct Cli {
     /// `--help`/`-h`: print USAGE and exit 0 (SHW-18).
     help: bool,
     ticks: Option<u64>,
-    /// `None` = Art-Net disabled (`--no-artnet`).
-    artnet: Option<SocketAddrV4>,
-    sacn_enabled: bool,
-    sacn_target: SocketAddrV4,
-    sacn_priority: u8,
-    serial_enabled: bool,
-    /// `--serial <path>`; `None` = detect the interface (OUT-09).
-    serial_path: Option<String>,
+    /// `--no-artnet`, `--no-sacn`, `--no-serial`: kinds that do not send this run (OUT-32).
+    kill: output::Kill,
     /// `--ipc-port <n>`: WebSocket port on 127.0.0.1 (IPC-01).
     ipc_port: u16,
     /// `--demo`: fader 1 breathes (IPC-09).
@@ -828,12 +817,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
     let mut cli = Cli {
         help: false,
         ticks: None,
-        artnet: Some(artnet_out::default_target()),
-        sacn_enabled: true,
-        sacn_target: sacn_out::multicast_target(1),
-        sacn_priority: cmdmx_protocols::sacn::DEFAULT_PRIORITY,
-        serial_enabled: true,
-        serial_path: None,
+        kill: output::Kill::default(),
         ipc_port: 7319,
         demo: false,
         qlcplus_dir: PathBuf::from(concat!(
@@ -857,27 +841,14 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
                         .map_err(|_| format!("--ticks: '{v}' is not a whole number"))?,
                 );
             }
-            "--no-artnet" => cli.artnet = None,
-            "--artnet-target" => {
-                let ip = parse_ipv4("--artnet-target", args.next())?;
-                cli.artnet = Some(SocketAddrV4::new(ip, cmdmx_protocols::artnet::PORT));
-            }
-            "--no-sacn" => cli.sacn_enabled = false,
-            "--sacn-unicast" => {
-                let ip = parse_ipv4("--sacn-unicast", args.next())?;
-                cli.sacn_target = SocketAddrV4::new(ip, cmdmx_protocols::sacn::PORT);
-            }
-            "--sacn-priority" => {
-                let v = args.next().unwrap_or_default();
-                cli.sacn_priority = v
-                    .parse()
-                    .ok()
-                    .filter(|p| *p <= 200)
-                    .ok_or(format!("--sacn-priority: '{v}' is not 0..200"))?;
-            }
-            "--no-serial" => cli.serial_enabled = false,
-            "--serial" => {
-                cli.serial_path = Some(args.next().ok_or("--serial: missing device path")?);
+            "--no-artnet" => cli.kill.artnet = true,
+            "--no-sacn" => cli.kill.sacn = true,
+            "--no-serial" => cli.kill.serial = true,
+            // OUT-32: the nodes live in the show now.
+            "--artnet-target" | "--sacn-unicast" | "--sacn-priority" | "--serial" => {
+                return Err(format!(
+                    "{arg} is gone: output is set per show on the Output screen"
+                ));
             }
             "--ipc-port" => {
                 let v = args.next().unwrap_or_default();
@@ -1011,12 +982,6 @@ const RGBL_PAR: &str = r#"{"manufacturer":"Demo","model":"RGB+Lime Par","source"
 /// IPC-14: Showtec LED Par 56 "6 Channel": RGB, Mode, Speed and Strobe, with a virtual dimmer.
 const RGB_PAR: &str = r#"{"manufacturer":"Showtec","model":"LED Par 56 6 Channel","source":"demo","modes":[{"name":"default","footprint":6,"virtual_dimmer":true,"colour":{"system":"RGB","components":[{"channel":1},{"channel":2},{"channel":3}]},"attributes":[{"name":"Mode","group":"S","kind":"Ltp","channel":4},{"name":"Speed","group":"S","kind":"Ltp","channel":5},{"name":"Strobe","group":"I","kind":"Ltp","channel":6}]}]}"#;
 
-fn parse_ipv4(flag: &str, value: Option<String>) -> Result<Ipv4Addr, String> {
-    let v = value.unwrap_or_default();
-    v.parse()
-        .map_err(|_| format!("{flag}: '{v}' is not an IPv4 address"))
-}
-
 /// Once a second: channel 1 of each universe, so a human can see the tick runs.
 fn report(engine: &Engine) {
     for (universe, frame) in engine.universes() {
@@ -1038,64 +1003,54 @@ mod tests {
     }
 
     #[test]
-    fn out_15_artnet_is_on_by_default_to_limited_broadcast() {
+    fn out_32_config_flags_are_gone_with_a_pointer_to_the_output_screen() {
+        for (flag, value) in [
+            ("--artnet-target", " 192.168.1.20"),
+            ("--sacn-unicast", " 10.0.0.5"),
+            ("--sacn-priority", " 150"),
+            ("--serial", " /dev/cu.usbserial-X"),
+            ("--serial", ""),
+        ] {
+            let e = parse_args(args(&format!("{flag}{value}"))).err().unwrap();
+            assert_eq!(
+                e,
+                format!("{flag} is gone: output is set per show on the Output screen")
+            );
+        }
+        for flag in [
+            "--artnet-target",
+            "--sacn-unicast",
+            "--sacn-priority",
+            "--serial",
+        ] {
+            assert!(!USAGE.contains(flag), "{flag} is still in the usage");
+        }
+    }
+
+    #[test]
+    fn out_32_no_flags_are_kill_switches_for_this_run() {
         let cli = parse_args(args("")).unwrap();
-        assert_eq!(cli.artnet, Some(artnet_out::default_target()));
+        assert_eq!(cli.kill, output::Kill::default(), "everything sends");
         assert_eq!(cli.ticks, None);
-    }
-
-    #[test]
-    fn out_15_artnet_target_and_no_artnet_flags() {
-        let cli = parse_args(args("--artnet-target 192.168.1.20 --ticks 5")).unwrap();
-        assert_eq!(cli.artnet, Some("192.168.1.20:6454".parse().unwrap()));
+        let cli = parse_args(args("--no-sacn --ticks 5")).unwrap();
+        assert_eq!(
+            cli.kill,
+            output::Kill {
+                artnet: false,
+                sacn: true,
+                serial: false
+            }
+        );
         assert_eq!(cli.ticks, Some(5));
-        assert_eq!(parse_args(args("--no-artnet")).unwrap().artnet, None);
-    }
-
-    #[test]
-    fn out_15_bad_target_is_an_error_not_a_fallback() {
-        assert!(parse_args(args("--artnet-target 300.1.1.1")).is_err());
-        assert!(parse_args(args("--artnet-target")).is_err());
-    }
-
-    #[test]
-    fn out_16_sacn_is_on_by_default_multicast_priority_100() {
-        let cli = parse_args(args("")).unwrap();
-        assert!(cli.sacn_enabled);
-        assert_eq!(cli.sacn_target, sacn_out::multicast_target(1));
-        assert_eq!(cli.sacn_priority, 100);
-    }
-
-    #[test]
-    fn out_16_sacn_flags() {
-        let cli = parse_args(args("--sacn-unicast 10.0.0.5 --sacn-priority 200")).unwrap();
-        assert_eq!(cli.sacn_target, "10.0.0.5:5568".parse().unwrap());
-        assert_eq!(cli.sacn_priority, 200);
-        let cli = parse_args(args("--no-sacn")).unwrap();
-        assert!(!cli.sacn_enabled);
-        assert!(cli.artnet.is_some(), "Art-Net unaffected");
-    }
-
-    #[test]
-    fn out_07_out_16_bad_sacn_values_are_errors() {
-        assert!(parse_args(args("--sacn-priority 201")).is_err());
-        assert!(parse_args(args("--sacn-priority -1")).is_err());
-        assert!(parse_args(args("--sacn-unicast nope")).is_err());
-    }
-
-    #[test]
-    fn out_22_serial_is_on_by_default_with_detection() {
-        let cli = parse_args(args("")).unwrap();
-        assert!(cli.serial_enabled);
-        assert_eq!(cli.serial_path, None);
-    }
-
-    #[test]
-    fn out_22_serial_flags() {
-        let cli = parse_args(args("--serial /dev/cu.usbserial-X")).unwrap();
-        assert_eq!(cli.serial_path.as_deref(), Some("/dev/cu.usbserial-X"));
-        assert!(!parse_args(args("--no-serial")).unwrap().serial_enabled);
-        assert!(parse_args(args("--serial")).is_err());
+        let cli = parse_args(args("--no-artnet --no-serial")).unwrap();
+        assert!(cli.kill.artnet && cli.kill.serial && !cli.kill.sacn);
+        for flag in ["--no-artnet", "--no-sacn", "--no-serial"] {
+            let line = USAGE
+                .lines()
+                .find(|l| l.trim_start().starts_with(flag))
+                .unwrap();
+            assert!(line.contains("this run"), "{line}");
+        }
     }
 
     #[test]
@@ -1135,16 +1090,12 @@ mod tests {
     }
 
     /// Every flag `parse_args` knows, `--help` included.
-    const FLAGS: [&str; 15] = [
+    const FLAGS: [&str; 11] = [
         "--help",
         "--ticks",
         "--no-artnet",
-        "--artnet-target",
         "--no-sacn",
-        "--sacn-unicast",
-        "--sacn-priority",
         "--no-serial",
-        "--serial",
         "--ipc-port",
         "--demo",
         "--qlcplus-dir",
@@ -2201,6 +2152,16 @@ mod tests {
         (r#"{"v":0,"cmd":"show.open","name":"Kerk"}"#, Class::Reset),
         (r#"{"v":0,"cmd":"show.list"}"#, Class::Neutral),
         (
+            r#"{"v":0,"cmd":"output.add","line":2,"kind":"sacn"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"output.edit","id":1,"enabled":false}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"output.remove","ids":[1]}"#, Class::Edit),
+        (r#"{"v":0,"cmd":"output.ports"}"#, Class::Neutral),
+        (
             r#"{"v":0,"cmd":"show.save_as","name":"Kerk 2"}"#,
             Class::Neutral,
         ),
@@ -2523,6 +2484,92 @@ mod tests {
             h.undo_label(),
             Some(format!("Delete playback {id}").as_str())
         );
+    }
+
+    // ---- VS6-02: OUT-34 ----------------------------------------------------------------
+
+    fn node(e: &Engine, id: u32) -> Option<cmdmx_core::output::Node> {
+        e.nodes().find(|n| n.id == id).cloned()
+    }
+
+    #[test]
+    fn out_34_output_commands_reach_the_engine_through_the_history() {
+        use cmdmx_core::output::NodeKind;
+        let mut e = Engine::new(Settings::default());
+        let mut h = History::default();
+        let before = e.edit_state();
+        let first: Vec<u32> = e.nodes().map(|n| n.id).collect();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"output.add","line":2,"kind":"sacn","priority":120}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Add output"));
+        let added = e
+            .nodes()
+            .map(|n| n.id)
+            .find(|id| !first.contains(id))
+            .unwrap();
+        assert_eq!(
+            node(&e, added).unwrap().kind,
+            NodeKind::Sacn {
+                universe: 2,
+                priority: 120,
+                unicast: None
+            }
+        );
+
+        // Partial: only the named fields change.
+        let edit = format!(r#"{{"v":0,"cmd":"output.edit","id":{added},"unicast":"10.0.0.5"}}"#);
+        undo_run(&mut e, &mut h, &edit).unwrap();
+        assert_eq!(h.undo_label(), Some("Edit output"));
+        let edited = node(&e, added).unwrap();
+        assert_eq!(
+            edited.kind,
+            NodeKind::Sacn {
+                universe: 2,
+                priority: 120,
+                unicast: Some("10.0.0.5".into())
+            }
+        );
+        assert_eq!((edited.line, edited.enabled), (2, true));
+
+        let remove = format!(r#"{{"v":0,"cmd":"output.remove","ids":[{added}]}}"#);
+        undo_run(&mut e, &mut h, &remove).unwrap();
+        assert_eq!(h.undo_label(), Some("Remove output"));
+        assert_eq!(node(&e, added), None);
+
+        for _ in 0..3 {
+            undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        }
+        assert_eq!(e.edit_state(), before, "all three undone");
+    }
+
+    #[test]
+    fn out_34_refused_output_edits_change_nothing() {
+        let mut e = Engine::new(Settings::default());
+        let mut h = History::default();
+        let artnet = e
+            .nodes()
+            .find(|n| matches!(n.kind, cmdmx_core::output::NodeKind::Artnet { .. }))
+            .unwrap()
+            .id;
+        let before = e.edit_state();
+        for bad in [
+            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"kind":"sacn"}}"#),
+            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"port_address":40000}}"#),
+            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"target":"nope"}}"#),
+            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"line":"two"}}"#),
+            r#"{"v":0,"cmd":"output.edit","id":999,"enabled":false}"#.to_string(),
+            r#"{"v":0,"cmd":"output.remove","ids":[999]}"#.to_string(),
+            // OUT-28: line 1 already goes out on Art-Net 0:0:0 at broadcast.
+            r#"{"v":0,"cmd":"output.add","line":1,"kind":"artnet"}"#.to_string(),
+        ] {
+            assert!(undo_run(&mut e, &mut h, &bad).is_err(), "{bad}");
+        }
+        assert_eq!(e.edit_state(), before);
+        assert!(h.is_empty());
     }
 
     // ---- VS2-05: IPC-32..34 ------------------------------------------------------------

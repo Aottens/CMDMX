@@ -32,10 +32,15 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: output of every patched universe, set per show on an Output screen (the show file already stores the outputs; the daemon and the screen follow). What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: the Output screen in the app, to see and set where each universe goes (the show and the daemon already handle every patched universe). What works today:
 
-- The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
-  USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own timer, start with `--serial <path>`).
+- The engine runs at 40 Hz and outputs every patched universe over Art-Net, sACN and USB (ENTTEC
+  Pro protocol). Where each universe goes is part of the show: a universe that gets its first
+  fixture goes out on Art-Net and sACN by itself, and outputs can be added, changed and removed
+  (over IPC for now, undoable) without the other outputs dropping a frame. The Eurolite
+  USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own
+  timer); its port is stored in the show. `--no-artnet`, `--no-sacn` and `--no-serial` silence a
+  protocol for one run.
 - Patch: pick a fixture from the library, set its mode, count, address and user number. Clashes
   are refused, and you can move, renumber, rename, change mode (from a list of the fixture's modes)
   and remove.
@@ -102,8 +107,7 @@ for the phase-2 effects generator (effects run around the cue's values, before t
   with a setting for its order and for what LTP attributes do (back to the playback or the
   fixture's default, or freeze). A timed Clear fades the output (IPC only for now).
 
-Next, in this order: output on
-more than one universe (today only the first leaves the engine); MIDI, Mackie Control and OSC
+Next, in this order: the Output screen; MIDI, Mackie Control and OSC
 surfaces. The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

@@ -1,6 +1,7 @@
-//! ENTTEC Pro serial output node (OUT-09/20/21); threading and health live in `output`.
+//! ENTTEC Pro serial output node (OUT-09/20/21/31); threading and health live in `output`.
 
 use std::io::{self, Write};
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use cmdmx_protocols::enttec;
@@ -8,7 +9,7 @@ use serialport::{
     DataBits, FlowControl, Parity, SerialPort, SerialPortInfo, SerialPortType, StopBits,
 };
 
-use crate::output::{Health, OutputState};
+use crate::output::{Claimed, Health, OutputState};
 
 const RESCAN: Duration = Duration::from_secs(1);
 const WRITE_TIMEOUT: Duration = Duration::from_millis(100);
@@ -17,12 +18,22 @@ const WRITE_TIMEOUT: Duration = Duration::from_millis(100);
 /// flickered, <= 33 Hz was steady. `SerialNode::send` also enforces it as a safety net.
 pub const MIN_WRITE_INTERVAL: Duration = Duration::from_millis(30);
 
+/// OUT-31: which port the node uses.
+pub enum Choice {
+    /// Detect (OUT-09), never a path another serial node names.
+    Auto(Claimed),
+    /// Exactly this path, whatever it reports as.
+    Path(String),
+}
+
 /// OUT-09: the lowest `/dev/cu.*` path whose USB product string is a known
-/// ENTTEC Pro one, with that product string. Anything else is never used.
-pub fn pick_port(ports: &[SerialPortInfo]) -> Option<(String, String)> {
+/// ENTTEC Pro one, with that product string, leaving out the `claimed` paths (OUT-31).
+/// Anything else is never used.
+pub fn pick_port(ports: &[SerialPortInfo], claimed: &[String]) -> Option<(String, String)> {
     ports
         .iter()
         .filter(|p| p.port_name.starts_with("/dev/cu."))
+        .filter(|p| !claimed.contains(&p.port_name))
         .filter_map(|p| match &p.port_type {
             SerialPortType::UsbPort(usb) => usb
                 .product
@@ -34,12 +45,14 @@ pub fn pick_port(ports: &[SerialPortInfo]) -> Option<(String, String)> {
         .min()
 }
 
-/// OUT-23: the once-logged "no interface" line, naming FTDI ports (VID 0x0403)
-/// on `/dev/cu.*` that OUT-09 does not use, lowest path first.
-pub fn missing_message(ports: &[SerialPortInfo]) -> String {
+/// OUT-23: the once-logged "no interface" text (the node adds its name), naming FTDI
+/// ports (VID 0x0403) on `/dev/cu.*` that OUT-09 does not use, lowest path first.
+/// Claimed ports are in use on purpose and left out.
+pub fn missing_message(ports: &[SerialPortInfo], claimed: &[String]) -> String {
     let mut ftdi: Vec<(&str, &str)> = ports
         .iter()
         .filter(|p| p.port_name.starts_with("/dev/cu."))
+        .filter(|p| !claimed.contains(&p.port_name))
         .filter_map(|p| match &p.port_type {
             SerialPortType::UsbPort(usb) if usb.vid == 0x0403 => {
                 Some((p.port_name.as_str(), usb.product.as_deref().unwrap_or("")))
@@ -48,35 +61,40 @@ pub fn missing_message(ports: &[SerialPortInfo]) -> String {
         })
         .collect();
     ftdi.sort();
-    let mut msg = String::from("serial: no ENTTEC Pro interface found");
+    let mut msg = String::from("no ENTTEC Pro interface found");
     for (path, product) in &ftdi {
         msg.push_str("; ");
         msg.push_str(&format!(
             "FTDI \"{product}\" at {path} not used \
-             (start with --serial {path} if it is a Eurolite USB-DMX512 PRO MK2)"
+             (choose it on the Output screen if it is a Eurolite USB-DMX512 PRO MK2)"
         ));
     }
     msg
 }
 
 pub struct SerialNode {
-    /// `--serial <path>` (OUT-22); `None` = detect (OUT-09).
-    fixed_path: Option<String>,
+    /// `serial #5`, the prefix of every log line (OUT-30).
+    name: String,
+    choice: Choice,
     port: Option<Box<dyn SerialPort>>,
     last_scan: Option<Instant>,
     last_write: Option<Instant>,
     said_missing: bool,
+    /// OUT-31: the chosen path does not exist (yet).
+    not_found: bool,
     health: Health,
 }
 
 impl SerialNode {
-    pub fn new(fixed_path: Option<String>) -> Self {
+    pub fn new(name: String, choice: Choice) -> Self {
         SerialNode {
-            fixed_path,
+            name,
+            choice,
             port: None,
             last_scan: None,
             last_write: None,
             said_missing: false,
+            not_found: false,
             health: Health::default(),
         }
     }
@@ -95,18 +113,22 @@ impl SerialNode {
             match self.open() {
                 Ok(Ok((port, msg))) => {
                     self.port = Some(port);
+                    self.not_found = false;
                     self.last_write = Some(now);
                     let written = self.write(data);
-                    return Some(msg)
+                    return Some(format!("{}: {msg}", self.name))
                         .into_iter()
                         .chain(written)
                         .reduce(|a, b| a + "\n" + &b);
                 }
-                Ok(Err(missing)) if !self.said_missing && !self.health.is_degraded() => {
+                Ok(Err(missing)) => {
+                    self.not_found = matches!(self.choice, Choice::Path(_));
+                    if self.said_missing || self.health.is_degraded() {
+                        return None;
+                    }
                     self.said_missing = true;
-                    return Some(missing);
+                    return Some(format!("{}: {missing}", self.name));
                 }
-                Ok(Err(_)) => return None,
                 Err(e) => return self.log(&Err(e)),
             }
         }
@@ -123,8 +145,17 @@ impl SerialNode {
     /// IPC-20: no port and not degraded = no interface found (yet).
     pub fn state(&self) -> OutputState {
         match (self.health.state(), &self.port) {
+            (_, None) if self.not_found => OutputState::PortNotFound,
             (OutputState::Ok, None) => OutputState::NoInterface,
             (state, _) => state,
+        }
+    }
+
+    /// OUT-33: why the node is not Ok, when it says (the UI words `NoInterface` itself).
+    pub fn detail(&self) -> Option<String> {
+        match self.state() {
+            OutputState::PortNotFound => Some("port not found".into()),
+            _ => self.health.detail().map(String::from),
         }
     }
 
@@ -142,20 +173,25 @@ impl SerialNode {
     }
 
     fn log(&mut self, result: &io::Result<()>) -> Option<String> {
-        self.health.record(result).map(|m| format!("serial: {m}"))
+        let name = &self.name;
+        self.health.record(result).map(|m| format!("{name}: {m}"))
     }
 
-    /// `Ok(Err(line))` = no interface present, with the OUT-23 log line (not an
-    /// error at startup, OUT-21).
+    /// `Ok(Err(text))` = no interface present, with the OUT-23 text, or for a chosen path
+    /// `<path> not found` (not an error at startup, OUT-21).
     #[allow(clippy::type_complexity)]
     fn open(&self) -> io::Result<Result<(Box<dyn SerialPort>, String), String>> {
-        let (path, product) = match &self.fixed_path {
-            Some(path) => (path.clone(), "--serial".to_string()),
-            None => {
+        let (path, product) = match &self.choice {
+            Choice::Path(path) if !Path::new(path).exists() => {
+                return Ok(Err(format!("{path} not found")));
+            }
+            Choice::Path(path) => (path.clone(), "chosen".to_string()),
+            Choice::Auto(claimed) => {
+                let claimed = claimed.lock().map(|c| c.clone()).unwrap_or_default();
                 let ports = serialport::available_ports()?;
-                match pick_port(&ports) {
+                match pick_port(&ports, &claimed) {
                     Some(found) => found,
-                    None => return Ok(Err(missing_message(&ports))),
+                    None => return Ok(Err(missing_message(&ports, &claimed))),
                 }
             }
         };
@@ -166,10 +202,7 @@ impl SerialNode {
             .flow_control(FlowControl::None)
             .timeout(WRITE_TIMEOUT)
             .open()?;
-        Ok(Ok((
-            port,
-            format!("serial: ENTTEC Pro \"{product}\" at {path}"),
-        )))
+        Ok(Ok((port, format!("ENTTEC Pro \"{product}\" at {path}"))))
     }
 }
 
@@ -194,6 +227,10 @@ mod tests {
         }
     }
 
+    fn auto() -> Choice {
+        Choice::Auto(Default::default())
+    }
+
     #[test]
     fn out_09_picks_pro_interface_by_product_string_on_cu_path() {
         let ports = [
@@ -205,7 +242,7 @@ mod tests {
             usb("/dev/cu.usbserial-B2", Some("FT232R USB UART")),
             usb("/dev/cu.usbserial-A1", Some("Eurolite DMX512 Pro")),
         ];
-        let (path, product) = pick_port(&ports).unwrap();
+        let (path, product) = pick_port(&ports, &[]).unwrap();
         assert_eq!(path, "/dev/cu.usbserial-A1");
         assert_eq!(product, "Eurolite DMX512 Pro");
     }
@@ -216,7 +253,7 @@ mod tests {
             usb("/dev/cu.usbserial-B2", Some("FT232R USB UART")),
             usb("/dev/cu.usbserial-C3", None),
         ];
-        assert_eq!(pick_port(&ports), None);
+        assert_eq!(pick_port(&ports, &[]), None);
     }
 
     #[test]
@@ -225,7 +262,25 @@ mod tests {
             usb("/dev/cu.usbserial-Z9", Some("DMX USB PRO")),
             usb("/dev/cu.usbserial-A1", Some("Eurolite DMX512 Pro")),
         ];
-        assert_eq!(pick_port(&ports).unwrap().0, "/dev/cu.usbserial-A1");
+        assert_eq!(pick_port(&ports, &[]).unwrap().0, "/dev/cu.usbserial-A1");
+    }
+
+    #[test]
+    fn out_31_auto_never_picks_a_port_another_node_names() {
+        let ports = [
+            usb("/dev/cu.usbserial-Z9", Some("DMX USB PRO")),
+            usb("/dev/cu.usbserial-A1", Some("Eurolite DMX512 Pro")),
+        ];
+        let taken = ["/dev/cu.usbserial-A1".to_string()];
+        assert_eq!(pick_port(&ports, &taken).unwrap().0, "/dev/cu.usbserial-Z9");
+        let all = taken.iter().cloned().chain(["/dev/cu.usbserial-Z9".into()]);
+        assert_eq!(pick_port(&ports, &all.collect::<Vec<_>>()), None);
+        // A named FTDI port is not "not used": the hint leaves it out.
+        let ftdi = [usb("/dev/cu.usbserial-B2", Some("FT232R USB UART"))];
+        assert_eq!(
+            missing_message(&ftdi, &["/dev/cu.usbserial-B2".to_string()]),
+            "no ENTTEC Pro interface found"
+        );
     }
 
     #[test]
@@ -241,16 +296,16 @@ mod tests {
             usb("/dev/cu.usbserial-AQ01FA9F", Some("FT232R USB UART")),
         ];
         assert_eq!(
-            missing_message(&ports),
-            "serial: no ENTTEC Pro interface found; \
+            missing_message(&ports, &[]),
+            "no ENTTEC Pro interface found; \
              FTDI \"FT232R USB UART\" at /dev/cu.usbserial-AQ01FA9F not used \
-             (start with --serial /dev/cu.usbserial-AQ01FA9F if it is a Eurolite USB-DMX512 PRO MK2); \
+             (choose it on the Output screen if it is a Eurolite USB-DMX512 PRO MK2); \
              FTDI \"\" at /dev/cu.usbserial-B2 not used \
-             (start with --serial /dev/cu.usbserial-B2 if it is a Eurolite USB-DMX512 PRO MK2)"
+             (choose it on the Output screen if it is a Eurolite USB-DMX512 PRO MK2)"
         );
         assert_eq!(
-            missing_message(&ports[2..3]),
-            "serial: no ENTTEC Pro interface found"
+            missing_message(&ports[2..3], &[]),
+            "no ENTTEC Pro interface found"
         );
     }
 
@@ -261,7 +316,7 @@ mod tests {
         // Inject the pty: opening it by path fails on macOS (serialport sets
         // the baud rate with IOSSIOSPEED, which ptys reject). Opening a real
         // device by path is covered by tests/hardware/output.md.
-        let mut node = SerialNode::new(None);
+        let mut node = SerialNode::new("serial #5".into(), auto());
         node.port = Some(Box::new(slave));
         // 0x0A would become 0x0D 0x0A on a port that is not raw.
         let mut frame = [0u8; 512];
@@ -279,7 +334,7 @@ mod tests {
     fn out_24_at_most_one_write_per_30_ms() {
         let (mut master, slave) = TTYPort::pair().unwrap();
         master.set_timeout(Duration::from_millis(200)).unwrap();
-        let mut node = SerialNode::new(None);
+        let mut node = SerialNode::new("serial #5".into(), auto());
         node.port = Some(Box::new(slave));
         let t0 = Instant::now();
         let frame_len = cmdmx_protocols::enttec::send_dmx_frame(&[0; 512])
@@ -303,22 +358,34 @@ mod tests {
     #[test]
     fn ipc_20_serial_state_no_interface_ok_and_degraded() {
         use crate::output::OutputState;
-        assert_eq!(SerialNode::new(None).state(), OutputState::NoInterface);
+        assert_eq!(
+            SerialNode::new("serial #5".into(), auto()).state(),
+            OutputState::NoInterface
+        );
         let (_master, slave) = TTYPort::pair().unwrap();
-        let mut node = SerialNode::new(None);
+        let mut node = SerialNode::new("serial #5".into(), auto());
         node.port = Some(Box::new(slave));
         assert_eq!(node.send(&[0; 512], Instant::now()), None);
         assert_eq!(node.state(), OutputState::Ok);
-        let mut missing = SerialNode::new(Some("/dev/cu.does-not-exist".into()));
+        let mut missing = SerialNode::new(
+            "serial #5".into(),
+            Choice::Path("/dev/cu.does-not-exist".into()),
+        );
         missing.send(&[0; 512], Instant::now());
-        assert_eq!(missing.state(), OutputState::Degraded);
+        assert_eq!(missing.state(), OutputState::PortNotFound, "OUT-31");
     }
 
     #[test]
     fn out_21_missing_device_is_degraded_and_rescanned_at_most_once_per_second() {
-        let mut node = SerialNode::new(Some("/dev/cu.does-not-exist".into()));
+        let mut node = SerialNode::new(
+            "serial #5".into(),
+            Choice::Path("/dev/cu.does-not-exist".into()),
+        );
         let t0 = Instant::now();
-        assert!(node.send(&[0; 512], t0).unwrap().contains("Degraded"));
+        let said = node.send(&[0; 512], t0).unwrap();
+        assert!(said.starts_with("serial #5: "), "OUT-30: {said}");
+        assert!(said.contains("not found"), "OUT-31: {said}");
+        assert_eq!(node.state(), OutputState::PortNotFound);
         assert_eq!(node.send(&[0; 512], t0 + Duration::from_millis(500)), None);
         assert_eq!(node.last_scan, Some(t0), "no rescan within a second");
         assert_eq!(node.send(&[0; 512], t0 + Duration::from_millis(1100)), None);
