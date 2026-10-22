@@ -167,8 +167,8 @@ within GRM-15; IPC-29 approved by the owner 2026-10-22):
   follows the fader, and that alone is not a stored change: a fader move sends the small
   `playback` delta (live `level`) only, never the whole-list `playbacks` delta; `master.level` is
   current in the snapshot and in every whole-list delta sent for another reason. On a disabled
-  master it is the locked level and does not move with the fader. So the app draws `master.level`
-  while `enabled` is false and the live `level` otherwise. `master.record` with `kind: "Group"`
+  master it is the locked level and does not move with the fader. The app draws the live `level` (the fader) and shows
+  `master.level` as "LOCKED 50%" while `enabled` is false (amended by the owner 2026-10-22, VS3-07 run). `master.record` with `kind: "Group"`
   needs `group` and refuses a `number`; `playback.options` `master` refuses `mode`, `scale` and
   `enabled` on a speed master and the speed-master fields (`number`, `bpm`, …) on a group master,
   so a group master's `group` and `level` never change by `playback.options`.

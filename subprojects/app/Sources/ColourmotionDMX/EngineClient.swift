@@ -383,17 +383,14 @@ struct PlaybackInfo: Identifiable, Equatable {
         if stored.isGroupMaster, let group = stored.master?.group { return "Group \(group)" }
         return homeHandle
     }
-    /// GRM-16, IPC-29: the level a strip shows: a disabled group master's saved level, else the live one.
-    var shownLevel: Double {
-        guard stored.isGroupMaster, let m = stored.master, m.enabled == false else { return live.level }
-        return m.level ?? live.level
-    }
+    /// GRM-11: a disabled group master; the strip shows the fader and "LOCKED 50%" (VS3-07 run).
+    var isLocked: Bool { stored.isGroupMaster && stored.master?.enabled == false }
     /// GRM-16: a Scale or Limit group master below 100 %, an Htp one above 0, shows its level in amber.
     var levelWarns: Bool {
-        guard stored.isGroupMaster, let m = stored.master else { return false }
+        guard stored.isGroupMaster, !isLocked, let m = stored.master else { return false }
         switch m.mode {
-        case "Scale", "Limit": return shownLevel < 1
-        case "Htp": return shownLevel > 0
+        case "Scale", "Limit": return live.level < 1
+        case "Htp": return live.level > 0
         default: return false
         }
     }

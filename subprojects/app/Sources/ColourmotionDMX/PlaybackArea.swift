@@ -165,7 +165,7 @@ private struct FaderStrip: View {
                 .overlay { RightClickCatcher(action: onRightClick) }
                 .help(empty ? "Empty handle \(page).\(slot.id + 1)" : "Right-click: Playback Options")
             if let info = slot.info {
-                LevelBar(value: Binding(get: { info.shownLevel }, set: onChange), running: slot.isActive, warn: info.levelWarns,
+                LevelBar(value: Binding(get: { info.live.level }, set: onChange), running: slot.isActive, warn: info.levelWarns,
                          progress: slot.isActive ? info.live.cue.flatMap { $0.current != nil && $0.progress < 1 ? $0.progress : nil } : nil,
                          onTouch: onTouch, onScroll: onScroll)
             } else {
@@ -241,7 +241,7 @@ private struct StripLegend: View {
                 Image(systemName: paging == "Locked" ? "lock.fill" : "lock").font(.system(size: 8))
                 Text("page \(info.stored.page)")
             } else if let summary = cueSummary(info) {
-                Text(summary)
+                Text(summary).foregroundStyle(info.isLocked ? t.amber : t.fg2)
             } else if !info.stored.legend.isEmpty {
                 Text(info.homeHandle)
             }
@@ -255,9 +255,10 @@ private struct StripLegend: View {
 private func cueSummary(_ info: PlaybackInfo) -> String? {
     if let m = info.stored.master {
         if info.stored.isGroupMaster {
-            // Short enough for a 92 pt strip (VS3-07 run): LOCKED takes GRP's place while disabled.
+            // Short enough for a 92 pt strip; disabled shows the level it is locked at (VS3-07 run).
+            if info.isLocked { return "LOCKED \(Int(((m.level ?? 0) * 100).rounded()))%" }
             let mode = ["Scale": "SCALE \(m.scale ?? 100)%", "Htp": "HTP", "Limit": "LIMIT", "TakeOver": "TAKE OVER"][m.mode ?? ""] ?? "?"
-            return (m.enabled == false ? "LOCKED" : "GRP") + "·" + mode
+            return "GRP·" + mode
         }
         if let scale = m.rateScale { return "RATE \(m.number) · ×" + String(format: "%.1f", info.live.level * Double(scale) / 100) }
         return "BPM \(m.number) · \(Int((info.live.bpm ?? m.bpm ?? 0).rounded())) ×\(plain(m.multiplier ?? 1))"
