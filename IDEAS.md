@@ -30,6 +30,9 @@ the backlog, not the whole idea.
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
 | IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | accepted 2026-10-17 | 1 (with VS2-05) | PRG, IPC, app |
 | IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | triaged | 2 (flagship) | new `effects.md`, ENG, PRG, CUE, PAL |
+| IDEA-19 | Rebrand to CMDMX by Colourmotion | accepted 2026-10-22 | 1 (after VS6) | docs, app, README |
+| IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
+| IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -286,3 +289,81 @@ was already built by then, so the ADR also checks it against the relative layer.
 The phase and a possible small first version in phase 1 are still open.
 ADR-007 approved (owner, 2026-10-22): `engine-merge.md` ENG-14..19 and an optional effect reference in cue
 and palette contents.
+
+### IDEA-19 — Rebrand to CMDMX (2026-10-22)
+**Owner's intent:** rename the product to CMDMX, written in all caps.
+**Triage:**
+- The crates are already `cmdmx-*`, so the code barely changes. What changes: the app name and
+  bundle (`scripts/bundle-app.sh`, `Info.plist`, window titles), README, PROJECT.md, the docs,
+  the GitHub repo name (`Aottens/ColourmotionDMX` → e.g. `Aottens/CMDMX`; GitHub redirects the
+  old URL) and the local folder.
+- Cheap now, more expensive with every PR. One small task, no criteria needed beyond "no user-
+  visible ColourmotionDMX left".
+**Open questions:**
+- Does "Colourmotion" stay as the maker's name ("CMDMX by Colourmotion"), or go away completely?
+- Rename the GitHub repo and the bundle id (`…colourmotiondmx` → `…cmdmx`) too? An existing show
+  file / settings folder then moves: fine now, there are no users yet.
+- Check the name is free: a quick search for existing "CMDMX" products and domains
+  (cmdmx.com / .app / .nl) before the website is built on it.
+**Owner's answer (2026-10-22):** the brand is **"CMDMX by Colourmotion"**. CMDMX is the product
+name; Colourmotion stays as the maker.
+**Timing (owner, 2026-10-22):** the rebrand runs as its own task right **after VS6** (multi-universe
+output, VS6-01..03) is done, not before.
+
+### IDEA-20 — Website to download CMDMX (2026-10-22)
+**Owner's intent:** a website that becomes the place where you download the tool.
+**Triage:**
+- Needs a release to download: a signed and **notarized** `.app` (or `.dmg`). Without
+  notarization macOS Gatekeeper blocks the download for normal users. That takes an Apple
+  Developer account (€99/year) and a signing step in `scripts/bundle-app.sh` / CI.
+- Small static site (download button, screenshots, what it does, price, docs link). Hosting can
+  be GitHub Pages or similar; downloads from GitHub Releases. Updates in the app (Sparkle)
+  come later.
+- Fits at the end of phase 1, when there is a first release worth downloading. The site itself
+  can be a separate subproject (`subprojects/website/`).
+**Open questions:**
+- Domain name (follows IDEA-19).
+- Dutch, English or both? (The audience beyond the church is international.)
+- When: placeholder page now ("coming soon") or only with the first release?
+
+### IDEA-21 — Paid: 1 universe free, more costs a little (2026-10-22)
+**Owner's intent:** the tool is paid after all. One universe is free; more universes cost
+money. Not much, but something.
+**Triage:**
+- **Conflicts with what is written now:** `PROJECT.md` lists "any licensing dongle or paywall"
+  as out of scope, and README/PROJECT call the project open-source. Both change if this is
+  accepted.
+- **Forces a decision now (licence).** The open question "MIT or GPL-3.0" is no longer the right
+  question. With MIT or GPL anyone may remove the universe limit and redistribute it. Options:
+  1. *Source-available* (e.g. PolyForm Noncommercial / Business Source Licence / Fair Source):
+     code stays public on GitHub, but using more than one universe needs a paid licence.
+  2. *Open source + paid builds*: GPL code, the limit only in the official download; whoever
+     builds it themselves gets everything. Honest, but the limit is a courtesy.
+  3. *Closed source*: the repo goes private.
+- **Forces a decision now (engine shape).** Multi-universe output (VS6) is being built right now.
+  The limit should sit in **one** place: the daemon counts active output universes and refuses
+  more than the licence allows, as a warning in the UI. Core stays pure (licence state comes in
+  as a value).
+- **Show-proof:** a licence check may never stop output during a show. A missing, broken or
+  expired licence only blocks *patching/enabling* an extra universe; universes that are running
+  keep running. The check works offline (a signed licence key checked locally, Ed25519); no
+  internet needed at the venue.
+- Selling: a "merchant of record" (Paddle, Lemon Squeezy) handles payment, EU VAT and licence
+  keys; the site from IDEA-20 links to it. Pricing: a one-off price per universe count, or tiers
+  (e.g. 1 free / 4 / unlimited).
+**Open questions:**
+- Licence model: 1, 2 or 3 above?
+- Tiers and price (per extra universe, or fixed tiers; one-off or with paid major updates)?
+- Does the church get a free full licence?
+- Is "universe" the counter: what about Art-Net/sACN output the engine sends to several nodes
+  (does the same universe sent to two nodes count once)?
+**Owner's answers (2026-10-22):**
+- Licence model: still open, the owner is thinking about it.
+- The **only** limit is the universe count. No features are held back: the free version is the
+  full pro tool on one universe. Many churches and small venues are fully served by that; you pay
+  only when you really need more.
+- Avolites: CMDMX follows Titan's *behaviour* with its own code, which is not infringement.
+  Still to keep in mind for the website: "Avolites" and "Titan" are trademarks. A descriptive
+  mention ("works the way Titan users expect") is fine; no logos, no look-alike branding, and
+  no copied manual text or screenshots.
+
