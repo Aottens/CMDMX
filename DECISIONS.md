@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-22 — Undo: snapshots of the edit state, edits only, one shared history (ADR-008, P1-10, proposed)
+
+**Decision (pending owner approval):** one engine-wide undo (`specs/modules/undo.md`, UNDO-01..20, IPC-30/31). A step is one accepted command that changes show or programmer; wheel turns, colour-picker drags and selection taps in a row merge into one step, by command order, never by time. Live actions (Go, faders, Flash, GM, page) are not undoable and not in the history. Linear redo, 100 steps, memory only (emptied by Open/New and a restart), autosave writes undone state like any edit, one history shared by all clients. Steps save the edit state before the command (ADR-008), not inverse commands.
+
+**Alternatives considered:** inverse commands per module; undo of live actions; history in the show file; per-client histories; time-based grouping.
+
+**Reasoning:** snapshots make every module undoable without per-module code, so undo stays complete as modules are added; Titan undoes fixture and cue changes, not playback; time-based grouping would break the deterministic core.
+
+**Reversal trigger:** memory of 100 snapshots is too large on a real rig, or operators expect Go to be undoable.
+
 ## 2026-10-22 — Phase 1 is driven by what a general console needs; undo first (owner)
 
 **Decision:** the focus is a well-working general DMX lighting application; the church stays the reference venue and first proof, not what orders the work. Next, in this order: (1) undo — spec P1-10, then build it; (2) VS2-05 Locate, Highlight, Off, Rem Dim and Clear; (3) multi-universe output (OUT-13, P1-18); (4) control surfaces (P1-05, then VS1-07 and VS4-04). Church hardware runs (VS2-13 gate 3, VS4-05 gate 3) and the specs P1-14/P1-15 come after.

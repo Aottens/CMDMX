@@ -26,8 +26,8 @@ out.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). What
-works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). Engine-wide undo
+is drafted (edits only, not live playing) and is the next thing built. What works today:
 
 - The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
   USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own timer, start with `--serial <path>`).

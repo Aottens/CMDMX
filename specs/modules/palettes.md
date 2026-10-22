@@ -302,7 +302,7 @@ times, effect and shape palettes (phase 2, `PROJECT.md`); *Blind to Live* (with 
 a playback; the Palette View window with per-value Off (phase 2); halos (with P1-04, for every
 handle kind at once); the user icon folder (phase 2, IDEA-14); recording a palette from the command line (`Record Palette n`); **Edit** (Titan: set the
 programmer aside, edit, Update, get the programmer back; owner decision 4: Include + Record →
-Merge covers it, the Edit button stays disabled); undo (P1-10).
+Merge covers it, the Edit button stays disabled); undo (P1-10, `undo.md`).
 
 ## Owner decisions (2026-10-18)
 None open; all seven answered on 2026-10-18.

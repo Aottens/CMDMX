@@ -198,7 +198,7 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 - Gel book / filter numbers (phase 2, IDEA-02); colour calibration (phase 2, IDEA-03).
 - Channel mode of the colour picker (one slider per raw emitter) beyond W/Lime: ADR-005 decides.
 - Shapes and effects (phase 2). Multiple programmers (multi-user, remotes): one programmer.
-- Undo: one engine-wide undo for programmer and show edits, its own item (BACKLOG P1-10).
+- Undo: one engine-wide undo for programmer and show edits, its own item (BACKLOG P1-10, `undo.md`).
 - Handle actions on groups other than Record (Set Legend, Copy, Move, Delete): shared with
   palettes and playbacks, specified with them.
 - Wheel acceleration, encoder banks and their mapping: `control-surfaces.md`.
