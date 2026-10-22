@@ -28,7 +28,8 @@ them as cue lists, busking pages or (later) a timeline.
 
 ## Reference venue: the church
 The owner built and rigged the church; it is the playground where ideas are tested before they
-go to other setups. **Phase-1 finish line: replace Lightkey (paid) there with ColourmotionDMX.**
+go to other setups. **Phase 1 delivers a well-working general console; its first proof is replacing Lightkey (paid)
+there with ColourmotionDMX** (owner, 2026-10-22: the church is the playground, not what orders the work).
 - Shows: mostly Sunday morning services — static looks, little movement; the 6 front spots sit on
   their own fader so they can go out for a video. Sometimes bigger shows.
 - Rig (~30 fixtures): 4 moving-head washes with zoom (19×15 W), ~20 LED pars of mixed types

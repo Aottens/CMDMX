@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (status cleanup: VS2-22, VS3-07 and VS3-01 done)_
+_Last updated: 2026-10-22 (order: undo, VS2-05, multi-universe, control surfaces)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -64,10 +64,14 @@ Start a fresh session (read PROJECT/STATE/ARCHITECTURE/DECISIONS, CLAUDE.md). Th
 its real main screen (`specs/modules/ui.md`, UI-01..28; README screenshot); the side column, keypad, token command line, Mac keys and command history work (UX-02c). The show file is
 done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
-runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, owner's choice:
-- **VS2-13** gate 3: finish `tests/hardware/runs/2026-10-18-church.md` (desk lines with the Eurolite, the rest at the church).
-- Specs waiting: P1-14 (library browsing + rethink of the Add panel, sketch first), P1-15
-  (multi-select in the patch table), P1-05 control surfaces. Cue lists (P1-08, VS3-02..05) and group masters (VS3-06/07) are done.
+runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, in this order (owner, 2026-10-22,
+DECISIONS; focus is a general console, the church is the first proof):
+1. **P1-10** undo: spec, owner approves, then build.
+2. **VS2-05** Locate, Highlight, Off, Rem Dim and Clear (spec approved, ready for tests).
+3. **P1-18** multi-universe output (OUT-13; the daemon sends line 1 only today).
+4. **P1-05** control surfaces spec, then VS1-07 (MCU) and VS4-04 (TouchOSC).
+After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15
+(multi-select in the patch table). Cue lists (P1-08, VS3-02..05) and group masters (VS3-06/07) are done.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
 failing tests and reviews. The owner likes to be walked through manual runs step by step (one
 step per message, tick the run file in `tests/manual/runs/`). CI runs a newer Rust than the Mac:

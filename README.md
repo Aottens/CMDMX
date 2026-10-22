@@ -13,7 +13,8 @@ MIDI controller, or both.
 - **Fixtures:** the whole open QLC+ library (about 1800 fixtures), plus profiles typed from a
   plain channel list for fixtures nobody has a file for.
 
-The first goal is to run a real Sunday service in the owner's church on it instead of Lightkey.
+The goal is a well-working general DMX console. Its first proof is a real Sunday service in the
+owner's church run on it instead of Lightkey.
 The rig there has about 30 fixtures: moving-head washes, mixed RGBW / RGB+Lime / RGB pars and
 theatre spots.
 
@@ -87,8 +88,9 @@ works today:
   In the app: the Group Master softkey under Record, strips with "GRP·SCALE 100%", and a Master
   tab. The church's use: the front spots on a Locked fader next to the service cue list.
 
-Next: the owner's fade check of the 33 Hz serial output on the LED par (VS4-05); checking
-*Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
+Next, in this order: undo across the whole engine; Locate, Highlight, Off and Clear; output on
+more than one universe (today only the first leaves the engine); MIDI, Mackie Control and OSC
+surfaces. The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
 ## Build and run
