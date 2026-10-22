@@ -118,4 +118,4 @@ after the specs are added when each spec is approved (no sizing of code before i
 Ideas waiting for their phase live in `IDEAS.md` (IDEA-01..06). They get backlog rows when their phase is planned.
 
 ## Open questions (owner decides)
-- Licence: MIT or GPL-3.0?
+- Licence: MIT or GPL-3.0? Reopened by IDEA-21 (paid above 1 universe): source-available, open source + paid builds, or closed?
