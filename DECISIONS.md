@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-22 — A relative effect layer in the merge, effect references in contents (ADR-007, P1-17, owner)
+
+**Decision:** ADR-007 accepted, `engine-merge.md` ENG-14..19 approved: per fixture, attribute and tick the output is base value → effect → clamp → group masters → Grand Master/DBO → frame. A relative effect adds an offset evaluated from the tick time, an absolute one replaces the base. At most one effect per attribute (highest priority, then most recently activated, also on HTP), chosen independently of the base owner. The held LTP value stays the base. Cue and palette contents (and the programmer's) may hold an optional effect reference next to a value; absent until effects exist, so show schema 5 is unchanged. No effect code in phase 1. See `specs/ADRs/ADR-007-relative-effect-layer.md`.
+
+**Alternatives considered:** effects as ordinary absolute sources; effects after the group masters; several effects adding up on one attribute (left open for `effects.md`); inline effect definitions in cues.
+
+**Reasoning:** a circle must run around the position a cue gives (what made Titan shapes quick); a Limit master must stay a hard limit; references match palettes. Fixing the order now means the phase-2 FX generator (IDEA-18) does not redo the merge cue lists and group masters are built on.
+
+**Reversal trigger:** the phase-2 FX design study shows effects must act after the masters or live inline in cues.
+
+---
+
 ## 2026-10-21 — Group masters as on Titan, mastering everything after the merge (P1-16, owner)
 
 **Decision:** `specs/modules/group-masters.md` GRM-01..19 approved with its six recommendations: the master level is saved in the show (schema 5), so a restart never changes the stage; the programmer is mastered too, as by the Grand Master; Disabled locks the last effect and re-enabling jumps to the fader; masters of different modes on one fixture apply Scale → HTP → Limit, then the Grand Master/DBO; default buttons none/Flash with Swop as a `Custom` choice; several masters per group. Build tasks VS3-06 (core) and VS3-07 (IPC + app).

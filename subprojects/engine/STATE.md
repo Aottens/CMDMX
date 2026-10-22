@@ -38,6 +38,7 @@ VS3-06 done (#55, 2026-10-22): group masters in `cmdmx-core` (GRM-01..14, 19). V
 - nothing
 
 ## Known gaps (by design, each waits for its spec)
+- Effect layer ENG-14..19 (ADR-007): specified, no effect sources until phase 2; the tick already applies base → group masters → GM in the reserved order.
 - Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, output/control config in the show file, IPC (IPC-*), GDTF (LIB-*).
 
 ## Resume with

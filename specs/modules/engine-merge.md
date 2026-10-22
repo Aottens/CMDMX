@@ -10,6 +10,14 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
 - **Source:** something that proposes attribute values: the programmer, a playback, a master. Each source has a `priority` ∈ {Low, Normal, High, Programmer, VeryHigh} (ordered) and, for playbacks, a `level` 0.0–1.0 from its fader.
 - **Tick:** `engine.tick(now: Timestamp)`; `now` is supplied by the caller, never read from the system clock inside core.
 - **Frame:** 512 bytes per universe, DMX start code 0.
+- **Base value:** the value of an attribute that ENG-01..10 resolve from the active sources
+  (priority, HTP/LTP, fades, release, the held `Ltp` value, 0 for an `Htp` attribute nobody
+  proposes). Until effects exist, the base value is the merged value.
+- **Effect source:** a source (programmer, playback, cue, palette reference) that holds an
+  **effect reference** for a fixture and attribute next to, or instead of, a value (ADR-007). An
+  effect is **relative** (it adds an offset to the base value) or **absolute** (it replaces the
+  base value). What an effect is and how it moves is specified in `effects.md` (phase 2); built-in
+  fixture macros on an FX-group channel are ordinary values, not effects.
 
 ## Acceptance criteria
 
@@ -26,6 +34,28 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
 - **ENG-08** With the release mask including Intensity (Titan strobe-cue pattern), killing the playback returns shutter/strobe to the previous owner's value or the locate value.
 - **ENG-09** Release fades over the playback's `release_time` when set, otherwise over the global release time.
 - **ENG-10** `Clear` with a typed time fades `Htp` values in the programmer to 0 over that time; `Ltp` values follow the user setting `freeze_current_values` (keep) or `release_to_playback_values` (return to playback).
+
+### Effect layer (ADR-007; no effect sources exist in phase 1, tests land with the first effect task)
+- **ENG-14** Per fixture, attribute and tick the output is computed in this order: base value →
+  effect → clamp → group masters (GRM-06, `Htp` only) → Grand Master and DBO (ENG-06, PBK-30,
+  `Htp` only) → frame writer (virtual dimmer, coarse/fine). With no effect source the output is
+  exactly today's.
+- **ENG-15** At most one effect acts on an attribute per tick: among the active sources that hold
+  an effect for it, the one with the highest priority and, at equal priority, the most recently
+  activated (LTP, for `Htp` attributes too: effects do not add up). This choice is made independently of which
+  source owns the base value: a programmer circle on Pan/Tilt runs around the position the cue
+  list gives.
+- **ENG-16** A relative effect adds its offset to the base value; an absolute effect replaces it.
+  Either way the result is clamped to 0.0–1.0 (each component for a colour) before the group
+  masters, so a Limit master stays a hard limit and the Grand Master scales a dimmer effect like
+  any other intensity.
+- **ENG-17** An effect is evaluated from the tick's timestamp and its own start time only (ENG-11),
+  never from the system clock; two engines fed the same scenario produce the same effect output.
+- **ENG-18** The held `Ltp` value (ENG-07) is the base value, never base + offset: when the effect
+  stops (its source released or killed, the reference removed), the attribute returns to its base
+  value in the next tick, or fades to it as `effects.md` will define.
+- **ENG-19** The Take Over pass of GRM-10 compares the master level with the mastered output,
+  effect included (what is on stage).
 
 ### Determinism and safety
 - **ENG-11** Two engines fed the same scenario (same patch, same timestamped actions) produce byte-identical frames at every sampled timestamp.
@@ -55,4 +85,4 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
 Profiles use the model of `fixture-library.md` (full shape with `modes`, or the minimal `{ "attributes": [...] }` above = one mode "default"); a patch entry may name a `mode` (default: the first). Values are 0.0–1.0 in profiles/cues; expected channels are raw DMX 0–255 (`round(v * 255)`). The runner in `cmdmx-core/tests/scenarios.rs` loads every file, replays actions in time order with a virtual clock, ticks at 40 Hz, and asserts each expectation.
 
 ## Out of scope here
-Fade curves, fixture overlap, shapes (own specs). 16-bit attributes are covered in `patch.md` (coarse/fine channel pairs) and must be respected by the frame writer (ENG tests use 8-bit only).
+Fade curves, fixture overlap, effect shapes and parameters (own specs; `effects.md` in phase 2). 16-bit attributes are covered in `patch.md` (coarse/fine channel pairs) and must be respected by the frame writer (ENG tests use 8-bit only).

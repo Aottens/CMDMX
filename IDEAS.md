@@ -284,3 +284,5 @@ must be taken along in everything we build. The owner wants to invest heavily in
 **Outcome (2026-10-22):** owner: fix the two engine points now → `BACKLOG.md` P1-17 (ADR-007). Cue playback (VS3-03..05)
 was already built by then, so the ADR also checks it against the relative layer.
 The phase and a possible small first version in phase 1 are still open.
+ADR-007 approved (owner, 2026-10-22): `engine-merge.md` ENG-14..19 and an optional effect reference in cue
+and palette contents.

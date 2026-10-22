@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (VS3-06 merged; VS3-07 group masters over IPC and in the app in progress)_
+_Last updated: 2026-10-22 (P1-17: ADR-007 relative effect layer approved, ENG-14..19)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -30,6 +30,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `subprojects/app`: SwiftPM app builds and runs on the owner's Mac (CLT only); offline banner, Fixtures + Groups windows, attribute bar (IPCGBES tabs, wheels, Fix ±1/Odd-Even/All/Clear, command line), 8 faders + GM. No Swift test target (XCTest/Testing absent from CLT)
 
 ## In progress
+- P1-17 done (owner, 2026-10-22): ADR-007 reserves room for the phase-2 FX generator (IDEA-18): `engine-merge.md` ENG-14..19 (base → effect → clamp → group masters → GM/DBO; one effect per attribute, chosen apart from the base owner; held LTP value stays the base), optional effect references in cue and palette contents (`cuelists.md`, `palettes.md`). Spec only; the current engine satisfies the criteria (no effect sources), tests land with the first effect task
 - P1-08 done: `specs/modules/cuelists.md` CUE-01..55 approved (owner, 2026-10-21; DECISIONS 2026-10-21): cue lists and chases are playbacks with more than one cue (show schema 4), tracking in phase 1, Go per handle plus the Go block on the connected list, best-practice handle buttons per kind (switchable to Titan's Swop/Flash or custom), BPM masters by Tap/typing with Titan's fader modes as options, Rate masters 0–200 %. Build tasks VS3-02..05 in BACKLOG; IDEA-16 (Ableton sync) is phase 2
 - VS3-02 merged (#48): cue-list core storage (CUE-01..09, 15, 23, 29, 35..39), show schema 4
 - VS3-03 merged (#50): cue lists run on the frame (CUE-10..27, 49..53, 55): transitions on the tracked cue state (Track/Block/Cue Only/Solo), group times, Go/Back/Stop/Go to cue/Set next, links Wait/After/With, loop, the list fader (KillWithOff/KillAtZero), fire first cue, kill and reset, Flash/Swop, handle buttons, the connected list, Update modes, edits on stage at once. Owner answers 2026-10-21 in the spec: a transition lasts as long as what it fades, Update on a tracking list takes tracked values, KillAtZero kills on the fall to 0. Engine only; IPC and the Go block are VS3-05
