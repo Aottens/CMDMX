@@ -3,9 +3,10 @@
 _Last updated: 2026-10-21_
 
 ## Current step
-VS3-05 done (#53): cue lists over IPC (CUE-40, 41, 54; IPC-24..28). P1-16 group masters spec (`group-masters.md`) in review; no engine code until it is approved. VS4-05 merged (#52), its gate-3 run (`tests/hardware/runs/2026-10-21-VS4-05.md`) still open.
+VS3-06 in review: group masters in `cmdmx-core` (GRM-01..14, 19). VS3-07 (IPC + app) is next. VS4-05 merged (#52), its gate-3 run (`tests/hardware/runs/2026-10-21-VS4-05.md`) still open.
 
 ## Working
+- Group masters (VS3-06, GRM-01..14, 19): `playback.rs` `Kind::GroupMaster`, `GroupMode` (`Unknown` catches a bad mode on load), `GroupMaster {group, mode, scale, enabled, level}`, `Master::Group`, `ButtonKind::GroupMaster` (none/Flash; Custom Flash/Swop); `Master::kind()` is `Option<MasterKind>` (speed masters only). Engine: `record_group_master`, the fader starts at and (enabled) saves `level`, `change_playback` keeps the group and ignores the level, enabling takes the fader; `GroupMasters` in the tick masters every HTP attribute after the merge (Scale → HTP → Limit, HTP silent during another Swop), then the GM; Take Over passes collected per tick and applied after the frame (`follow_take_over`, `PlaybackState.takeover_prev/taken`); a held Swop on a group master owns the Swop. Show schema 5 (4 → 5 only bumps the version), lenient load per field. 29 tests in `tests/group_masters.rs`, GRM-13/14 in `tests/showfile.rs`, scenarios `GRM-06..12`. Daemon: `MasterPatch` refuses a group master until VS3-07.
 - `cmdmx-core`: attribute model (IPCGBES-FX, HTP/LTP, 8/16-bit), minimal profiles, patch with range checks, playbacks (priority, fader mode 0/1/2, activation + trigger counters), merge engine (ENG-01/02/03/05/06/12), scenario runner. 5 scenario files green.
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro label-6 frame + widget-params request + product-string detection. Golden-byte tests (OUT-01/02/05/06/07/08/09).
 - `cmdmx-control`: MCU decode/encode for faders (10-bit pitchbend), buttons, V-Pots, ring LEDs, fader touch (CTL-01..04 provisional ids).

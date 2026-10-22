@@ -1,0 +1,132 @@
+{
+  "spec": "GRM-10",
+  "profiles": {
+    "dimmer": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 2
+    },
+    {
+      "id": 3,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 3
+    }
+  ],
+  "groups": [
+    {
+      "id": 6,
+      "fixtures": [
+        1,
+        2
+      ]
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "values": {
+        "1": {
+          "Dimmer": 0.6
+        }
+      }
+    },
+    {
+      "id": 2,
+      "page": 1,
+      "slot": 8,
+      "kind": "GroupMaster",
+      "cues": [],
+      "master": {
+        "group": 6,
+        "mode": "TakeOver",
+        "scale": 100,
+        "enabled": true,
+        "level": 0.0
+      }
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 0.5,
+      "fader": {
+        "playback": 2,
+        "level": 0.4
+      }
+    },
+    {
+      "t": 1.0,
+      "fader": {
+        "playback": 2,
+        "level": 0.8
+      }
+    },
+    {
+      "t": 1.5,
+      "fader": {
+        "playback": 2,
+        "level": 0.2
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.1,
+      "universe": 1,
+      "channels": {
+        "1": 153,
+        "2": 0
+      }
+    },
+    {
+      "t": 0.6,
+      "universe": 1,
+      "channels": {
+        "1": 153,
+        "2": 102
+      }
+    },
+    {
+      "t": 1.1,
+      "universe": 1,
+      "channels": {
+        "1": 204,
+        "2": 204
+      }
+    },
+    {
+      "t": 1.6,
+      "universe": 1,
+      "channels": {
+        "1": 51,
+        "2": 51
+      }
+    }
+  ]
+}

@@ -18,7 +18,7 @@ use crate::programmer::GroupId;
 use crate::CoreError;
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -194,6 +194,12 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
     }
     if version < 4 {
         migrations.push(migrate_3_to_4(value));
+    }
+    if version < 5 {
+        if let Some(show) = value.as_object_mut() {
+            show.insert("schema_version".into(), 5.into());
+        }
+        migrations.push("4 -> 5: group masters may be saved, nothing else changes".into());
     }
     migrations
 }

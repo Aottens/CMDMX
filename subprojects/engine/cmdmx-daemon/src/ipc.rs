@@ -374,6 +374,8 @@ impl MasterPatch {
                 m.rate_scale = self.rate_scale.unwrap_or(m.rate_scale);
                 Ok(Master::Rate(m))
             }
+            // VS3-07 (GRM-15) adds the group master fields.
+            Master::Group(_) => Err(wrong("a master option")),
         }
     }
 }

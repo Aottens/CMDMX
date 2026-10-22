@@ -24,6 +24,7 @@ use crate::playback::{
 };
 use crate::profile::Profile;
 use crate::programmer::Resolution;
+use crate::show::ShowGroup;
 use crate::{CoreError, Timestamp, UniverseId};
 
 pub const TICK_SECONDS: f64 = 1.0 / 40.0;
@@ -39,6 +40,9 @@ pub struct Scenario {
     /// PAL-23: palettes as in the show file, placed after the patch.
     #[serde(default)]
     pub palettes: Vec<Palette>,
+    /// GRM: groups as in the show file, placed before the playbacks.
+    #[serde(default)]
+    pub groups: Vec<ShowGroup>,
     #[serde(default)]
     pub playbacks: Vec<ScenarioPlayback>,
     #[serde(default)]
@@ -285,6 +289,14 @@ pub fn build_engine(scenario: &Scenario) -> Result<Engine, CoreError> {
     for palette in &scenario.palettes {
         engine.add_palette(palette.clone())?;
     }
+    for group in &scenario.groups {
+        engine.clear_selection();
+        for fixture in &group.fixtures {
+            engine.select_fixture(*fixture)?;
+        }
+        engine.record_group(group.id)?;
+    }
+    engine.clear_selection();
     for playback in &scenario.playbacks {
         engine.add_playback(playback.build(engine.settings().faders_per_page));
     }
