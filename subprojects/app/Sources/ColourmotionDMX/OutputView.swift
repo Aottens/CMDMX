@@ -36,12 +36,7 @@ struct OutputView: View {
                         TableColumn("Destination") { DestinationCell(node: $0) }.width(min: 220, ideal: 360)
                         TableColumn("On") { EnabledCell(node: $0) }.width(min: 30, ideal: 36, max: 50)
                         TableColumn("State") { StateCell(node: $0) }.width(min: 80, ideal: 160)
-                        TableColumn("") { node in
-                            Button(armed == node.id ? "Confirm" : "Remove") {
-                                if armed == node.id { engine.removeOutputs(ids: [node.id]); armed = nil } else { armed = node.id }
-                            }
-                            .buttonStyle(FlatButton(fill: armed == node.id ? .red : nil, compact: true))
-                        }.width(min: 70, ideal: 80, max: 90)
+                        TableColumn("") { RemoveCell(node: $0, armed: $armed) }.width(min: 70, ideal: 80, max: 90)
                     }
                 }
             }
@@ -165,6 +160,19 @@ private struct DestinationCell: View {
         guard parts.count == 3, let n = parts[0], let sub = parts[1], let u = parts[2],
               (0...127).contains(n), (0...15).contains(sub), (0...15).contains(u) else { return nil }
         return n << 8 | sub << 4 | u
+    }
+}
+
+/// Its own view with a binding: a Table cell closure does not redraw when the parent's state changes.
+private struct RemoveCell: View {
+    @EnvironmentObject private var engine: EngineClient
+    let node: OutputNode
+    @Binding var armed: Int?
+    var body: some View {
+        Button(armed == node.id ? "Confirm" : "Remove") {
+            if armed == node.id { engine.removeOutputs(ids: [node.id]); armed = nil } else { armed = node.id }
+        }
+        .buttonStyle(FlatButton(fill: armed == node.id ? .red : nil, compact: true))
     }
 }
 
