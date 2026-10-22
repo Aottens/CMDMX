@@ -281,6 +281,7 @@ fn grm_04_a_change_applies_from_the_next_tick_without_a_fade() {
     e.tick(0.0);
     assert_eq!(dmx(&e, addr(301)), 102);
     change(&mut e, id, |m| m.mode = GroupMode::Limit).unwrap();
+    e.set_fader(id, 0.5, 0.0).unwrap(); // GRM-20: the mode change put it at 1.0
     e.tick(0.025);
     assert_eq!(dmx(&e, addr(301)), 128, "min(0.8, 0.5)");
     change(&mut e, id, |m| m.level = 0.0).unwrap();
@@ -289,6 +290,34 @@ fn grm_04_a_change_applies_from_the_next_tick_without_a_fade() {
         0.5,
         "the level is not an option"
     );
+}
+
+#[test]
+fn grm_20_a_mode_change_puts_the_master_where_it_changes_nothing() {
+    let mut e = church();
+    let id = e.record_group_master(1, 8, 6).unwrap();
+    e.set_fader(id, 0.5, 0.0).unwrap();
+    change(&mut e, id, |m| m.mode = GroupMode::Htp).unwrap();
+    assert_eq!((level(&e, id), group_master(&e, id).level), (0.0, 0.0));
+    e.tick(0.0);
+    assert_eq!(dmx(&e, addr(301)), 204, "the stage does not change");
+
+    e.set_fader(id, 0.6, 0.0).unwrap();
+    change(&mut e, id, |m| m.mode = GroupMode::Limit).unwrap();
+    assert_eq!((level(&e, id), group_master(&e, id).level), (1.0, 1.0));
+    e.tick(0.025);
+    assert_eq!(dmx(&e, addr(301)), 204);
+
+    // Scale or enabled alone keep the level.
+    e.set_fader(id, 0.5, 0.0).unwrap();
+    change(&mut e, id, |m| m.scale = 200).unwrap();
+    change(&mut e, id, |m| m.enabled = false).unwrap();
+    assert_eq!(group_master(&e, id).level, 0.5);
+
+    // Disabled too: the locked level goes to neutral and the master stays disabled.
+    change(&mut e, id, |m| m.mode = GroupMode::Htp).unwrap();
+    let m = group_master(&e, id);
+    assert_eq!((m.enabled, m.level, level(&e, id)), (false, 0.0, 0.0));
 }
 
 // ---- GRM-05: start level -------------------------------------------------------------------------

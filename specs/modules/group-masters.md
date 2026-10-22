@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (a group master is a playback of kind `GroupMaster`, like the
 speed masters), `cmdmx-core::engine` (the tick, after the merge), `cmdmx-daemon` (IPC), the
 strips and Playback Options in `subprojects/app`.
-Status: **approved (owner, 2026-10-21; the six questions at the end answered as recommended, DECISIONS 2026-10-21).** VS3-06 builds GRM-01..14, 19 in the core.
+Status: **approved (owner, 2026-10-21; the six questions at the end answered as recommended, DECISIONS 2026-10-21).** VS3-06 builds GRM-01..14, 19 in the core; GRM-20 added by the owner 2026-10-22 (VS3-07).
 Behavioural reference: Avolites Titan v19 manual, *Running the Show → Playback controls →
 Fixture Group Masters* (https://manual.avolites.com/docs/running-the-show/playback-controls):
 a group saved onto a fader handle masters the intensity of its fixtures, in one of the modes
@@ -99,6 +99,12 @@ does; a group master can also take them down.)
   fader moves and Flash are ignored and the master keeps acting with its mode and the level it
   had when it was disabled. Enabling it again makes the fader count from the next tick; in
   `Scale`, `Htp` and `Limit` the stage jumps to the fader's level (owner question 3).
+
+- **GRM-20** A change of `mode` puts the master at the level at which its new mode changes
+  nothing (GRM-05: 0.0 for `Htp`, else 1.0): the fader and the saved level both move there, so
+  switching a mode never changes the stage by itself (owner, 2026-10-22, VS3-07 run: Scale at
+  100 % switched to HTP lit the whole group at full). A change of `scale` or `enabled` alone
+  keeps the level (GRM-11).
 
 ### Buttons
 - **GRM-12** Handle buttons (CUE-25, 55): a group master's buttons by `handle_buttons`:
