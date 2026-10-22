@@ -3085,7 +3085,7 @@ impl Engine {
             };
             let intensity = mode
                 .logical_attributes()
-                .filter(|l| l.group == AttributeGroup::I && matches!(l.default, Value::Level(_)));
+                .filter(|l| l.group == AttributeGroup::I && l.kind == AttributeKind::Htp);
             put.extend(intensity.map(|l| (id, l.name.to_string())));
         }
         for (id, name) in put {
@@ -4452,7 +4452,7 @@ fn locate_value(mode: &Mode, l: &LogicalAttribute) -> Value {
         Value::Colour(TargetColour::WHITE)
     } else if l.emitter {
         Value::Level(0.0) // white comes from the target colour (ADR-005)
-    } else if l.group == AttributeGroup::I {
+    } else if l.group == AttributeGroup::I && l.kind == AttributeKind::Htp {
         Value::Level(1.0)
     } else if l.name == "Pan" || l.name == "Tilt" {
         Value::Level(0.5)
@@ -4491,7 +4491,8 @@ impl Highlight {
             return None;
         }
         if self.others.contains(&fixture) {
-            return (l.group == AttributeGroup::I).then_some(Value::Level(self.lowlight));
+            return (l.group == AttributeGroup::I && l.kind == AttributeKind::Htp)
+                .then_some(Value::Level(self.lowlight));
         }
         if !self.targets.contains(&fixture) {
             return None;
@@ -4500,7 +4501,7 @@ impl Highlight {
             .attribute(l.name)
             .or_else(|| mode.cells.iter().find_map(|c| c.attribute(l.name)));
         let own = def.and_then(|a| a.highlight).map(Value::Level);
-        if l.group == AttributeGroup::I {
+        if l.group == AttributeGroup::I && l.kind == AttributeKind::Htp {
             own.or(Some(Value::Level(1.0)))
         } else if l.is_colour() {
             Some(Value::Colour(TargetColour::WHITE))

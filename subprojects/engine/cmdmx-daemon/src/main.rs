@@ -748,7 +748,16 @@ fn run(
         (_, ipc::Command::Undo) => history.undo(engine).map(drop),
         (_, ipc::Command::Redo) => history.redo(engine).map(drop),
         (Class::Edit, _) => {
-            let (label, key) = label(&cmd);
+            let (mut label, key) = label(&cmd);
+            if matches!(
+                cmd,
+                ipc::Command::Off {
+                    groups: None,
+                    attribute: None
+                }
+            ) {
+                label = format!("Off {}", group_name(&engine.active_group())); // IPC-34
+            }
             history.edit(engine, &label, key.as_deref(), |e| apply(e, cmd, now))
         }
         (Class::Live, _) => {
