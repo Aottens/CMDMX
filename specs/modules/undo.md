@@ -31,7 +31,7 @@ start.
 - **Edit state:** everything a show edit or a programmer command changes: the stored show
   (`Engine::to_show`: patch, user profiles, groups, palettes, playbacks with their cues and
   options, page legends, settings) plus the programmer (values, palette references, selection
-  and its order).
+  and its order, the located set: PRG-44).
 - **Live state:** everything else in the engine: fader and Grand Master levels (including the
   saved level of a group master, GRM-13), DBO, Flash/Swop/Latch, cue-list and chase positions and
   fades, tap tempo, the current page, the connected list, held LTP values, the wheels' attribute

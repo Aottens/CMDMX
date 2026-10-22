@@ -147,7 +147,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Record, Update, Copy, Move, Delete, Release, Options, Latch and Set Legend work on playback
     handles as PBK-38/39 describe (VS2-22).
   - Every other button is disabled with its spec in the tooltip: Edit "phase 2" (palettes
-    decision 4); Off with VS2-05; Help
+    decision 4); Off from VS2-05 (UI-26); Help
     and System later; Select If, Unfold, Blind, Fan and Shape "later" as in the
     sketch.
 - **UI-17 [now]** The keypad has the sketch's 30 keys in its order. Keys that work now:
@@ -158,8 +158,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Fix −1 / Fix +1 (`programmer.step`) and Odd/Even (`programmer.pattern` 2).
 
   Palette adds the `Palette` token, and with an empty line opens the Palette softkeys (PAL-29).
-  Set arms Set Legend (PAL-29, as Titan's Set key). Disabled: Macro (later), Avo and View (later),
-  Highlight and Locate (VS2-05).
+  Set arms Set Legend (PAL-29, as Titan's Set key). Disabled: Macro (later), Avo and View (later).
+  Highlight and Locate: UI-26.
 
   The Keypad toggle in the status bar hides the keypad, and it is hidden automatically on a
   window narrower than 1440 pt. The sketch hides it below 1280 px, but with the 1280 pt
@@ -302,6 +302,15 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 - **IPC-23** `programmer.colour {"hue":0.66,"saturation":1.0}` sets the targets' Colour to that
   hue and saturation, as the HSI wheels would (PRG-30, PRG-31), and touches it. A missing or
   out-of-range field → `error` to the sender.
+
+### Locate, Highlight, Off, Rem Dim and Clear (VS2-05, draft for owner approval)
+- **UI-26 [now]** Keypad Locate (`programmer.locate`) and Highlight (`programmer.highlight`,
+  lit while on) work; a line ending in Locate sends it as the last token (PRG-10). The side
+  column's Off sends `programmer.off` for the active group. Rem Dim is a main-context softkey.
+  Double-clicking a wheel's **name** (never the wheel) sends `programmer.off {attribute}`
+  (IDEA-07). A located fixture's button shows the sketch's `LOC` tag. The show-wide part of the
+  Playback Options screen gets a Programmer section with the three PRG-42 settings. A timed
+  Clear has no app control yet (IPC only).
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each

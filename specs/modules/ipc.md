@@ -49,7 +49,7 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 - **IPC-13** Commands, each mapped 1:1 onto the engine (refusals are warnings, IPC-06):
   `programmer.select {"fixture":201}` (PRG-01) · `programmer.select_group {"group":3}` (PRG-02) ·
   `programmer.step {"direction":1}` / `-1` (Fix ±1, PRG-04/05) · `programmer.pattern {"stages":2}`
-  (PRG-05) · `programmer.all` (PRG-06) · `programmer.clear` (PRG-29, default behaviour only) ·
+  (PRG-05) · `programmer.all` (PRG-06) · `programmer.clear` (PRG-29; options IPC-32) ·
   `programmer.attribute_group {"group":"P"}` (PRG-18) ·
   `programmer.wheel {"attribute":"Pan","steps":-3,"resolution":"Fine"}` (PRG-19..21; integer
   steps, `resolution` Normal/Fine/Coarse, default Normal) ·
@@ -173,6 +173,24 @@ within GRM-15; IPC-29 approved by the owner 2026-10-22):
   `enabled` on a speed master and the speed-master fields (`number`, `bpm`, …) on a group master,
   so a group master's `group` and `level` never change by `playback.options`.
 
+
+### Locate, Highlight, Off, Rem Dim and Clear (VS2-05, draft for owner approval)
+- **IPC-32** Commands (refusals are warnings, IPC-06; a field of the wrong type → `error`):
+  `programmer.locate {"groups"?:["P"]}` (PRG-23, 38; no `groups` = all) ·
+  `programmer.highlight {"on":true}` (PRG-26, 39) ·
+  `programmer.off {"groups":["C"]}` or `{"attribute":"Hue"}` (PRG-27, 40; neither = the active
+  group, both → `error`) · `programmer.rem_dim` (PRG-28, 41) ·
+  `programmer.clear {"groups"?:["C"],"time"?:3.0}` (no field = PRG-29 by `clear_precedence`;
+  `groups` = the masked Clear; `time` = ENG-10, emptying the programmer and leaving the
+  selection; both together = a masked timed Clear) ·
+  `settings.programmer {"clear_precedence"?, "clear_ltp"?, "lowlight_level"?}` (PRG-42, all or
+  nothing). The command line ends a selection with `Locate` (PRG-10).
+- **IPC-33** The programmer view (IPC-11) gains `located` (fixture id → sorted attribute names)
+  and `highlight` (bool); the snapshot gains `programmer_settings {clear_precedence, clear_ltp,
+  lowlight_level}` with a `programmer_settings` delta when one changes (as `palette_settings`).
+- **IPC-34** Command classes (UNDO-04, PRG-44): `programmer.highlight` is live; the other IPC-32
+  commands are edits, labelled "Locate", "Off <group>" / "Off <attribute>", "Rem Dim", "Clear",
+  "Settings".
 ### Undo (VS5-02; behaviour in `undo.md`)
 IPC-30 (`undo` / `redo` commands) and IPC-31 (`undo` snapshot field and delta) are specified in
 `undo.md`. Every command's class (edit / live / reset / neutral, UNDO-04) is one table in

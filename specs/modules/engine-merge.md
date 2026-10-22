@@ -33,7 +33,13 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
 - **ENG-07** An `Htp` attribute that no active source proposes outputs 0 (programmer cleared, last playback killed): only `Ltp` attributes hold their last value. When a playback is killed, `Htp` attributes it owned fall to the next source's value or to 0; `Ltp` attributes it owned keep their last value unless the playback's release mask includes that attribute's group.
 - **ENG-08** With the release mask including Intensity (Titan strobe-cue pattern), killing the playback returns shutter/strobe to the previous owner's value or the locate value.
 - **ENG-09** Release fades over the playback's `release_time` when set, otherwise over the global release time.
-- **ENG-10** `Clear` with a typed time fades `Htp` values in the programmer to 0 over that time; `Ltp` values follow the user setting `freeze_current_values` (keep) or `release_to_playback_values` (return to playback).
+- **ENG-10** `Clear` with a time t > 0 empties the programmer and the located set at once
+  (`contents()` is empty) but fades their output: `Htp` values fade linearly from their value to
+  0 over t, so the output is the highest of the fading value and the playbacks (ENG-01); `Ltp`
+  values follow `clear_ltp` (PRG-43): `Release` fades linearly from the current output to the
+  playback value or the profile default over t, `Freeze` behaves as an untimed Clear. A touch
+  on a fading attribute ends its fade and starts from the faded value (PRG-20). The fades are
+  live state. Amended 2026-10-22 (VS2-05, draft for owner approval): the settings are PRG-42.
 
 ### Effect layer (ADR-007; no effect sources exist in phase 1, tests land with the first effect task)
 - **ENG-14** Per fixture, attribute and tick the output is computed in this order: base value →

@@ -147,6 +147,46 @@ editing the line (Back, Exit) stays in the client.
   `SelectionThenProgrammer` (UI v0.1; Titan's default is a setting). A masked Clear (Set Mask) removes only the touched values in the mask, for all
   fixtures, and leaves the selection. A timed Clear behaves as ENG-10.
 
+### Locate, Highlight, Off, Rem Dim and Clear in detail (VS2-05, draft for owner approval)
+- **PRG-38** Locate values. Per attribute in the locate mask: the profile's `locate` value;
+  without one, an I-group attribute (the virtual Dimmer included) 1.0, Pan and Tilt 0.5,
+  Colour open white (1, 1, 1), an extra emitter 0 (white comes from the target colour,
+  ADR-005), any other attribute its `default` (LIB-03). Located values stay until a Clear that
+  empties the programmer, an Off (PRG-27, 40), a touch (PRG-24) or the fixture's removal; Locate
+  again overwrites them. Locate with no targets is refused; Locate counts as a programmer
+  change for PRG-03.
+- **PRG-39** Highlight values. Per target: an I-group attribute its `highlight` value, else 1.0;
+  Colour open white; an extra emitter 0; any other attribute with a `highlight` value that
+  value; every other attribute is left alone. Lowlight sets only the I-group attributes of the
+  other selected fixtures. Highlight replaces the base value after the merge (ENG-14), so group
+  masters, the Grand Master and DBO still act on it. It follows the targets as Fix ±1 steps.
+  Highlight is live state: not undone, not saved. Switching it on with no selection is refused.
+- **PRG-40** Off for one attribute (IDEA-07): removes that attribute from every target, both its
+  touched value and its located value. A colour-model wheel name (Hue, Saturation, Red, Green,
+  Blue, Cyan, Magenta, Yellow) means the Colour attribute as a whole; an emitter name only that
+  emitter. Targets 201 + 202 with Colour and White in the programmer, Off "Hue" → only White
+  stays. PRG-27 (Off by mask) also removes located values in the mask. An Off that removes
+  nothing, or has no targets, is refused ("Off: nothing of the selection is in the programmer").
+- **PRG-41** Rem Dim with no selection is refused (it would black out the whole rig). "Intensity
+  attribute" is every I-group attribute, the virtual Dimmer included. Rem Dim counts as a
+  programmer change for PRG-03.
+- **PRG-42** Programmer settings in the show (`settings`, lenient load per field):
+  `clear_precedence` (PRG-29), `clear_ltp` = `Release` (default) or `Freeze` (ENG-10) and
+  `lowlight_level` 0.0–1.0 (PRG-26, default 0.25); a value out of range is refused.
+  `ProgrammerThenSelection`: the first Clear empties the programmer and the located set, the
+  next deselects; with an empty programmer the first Clear deselects.
+- **PRG-43** When the programmer gives up an LTP attribute (Clear in any form, Off), `clear_ltp`
+  decides what it outputs next: `Release` → the value the playbacks give, or the profile
+  `default` (LIB-03, Colour open white) when no playback proposes it; `Freeze` → it keeps its
+  current output while no playback proposes it (ENG-07's held value); a playback that proposes
+  it takes it at once in both settings. Playback 1 holds 201 Pan 0.2: programmer Pan 0.8, Clear →
+  0.2 in both settings. No playback, profile default Pan 0.5: Clear → `Release` 0.5, `Freeze` 0.8.
+- **PRG-44** Undo classes (UNDO-04): Locate, Off (mask and attribute), Rem Dim, every Clear and
+  `settings.programmer` are **edit** commands; Highlight is **live**. The located set is part of
+  the programmer's edit state (undo.md *Definitions*): undoing a Locate takes the located values
+  away again, undoing a Clear brings them back. A timed Clear's fade is live state: undo during
+  the fade puts the programmer back at once.
+
 ### Colour
 - **PRG-30** HSI, RGB and CMY are views of the same colour value: switching the model never
   changes a value or the output. 201 at red: RGB reads (1, 0, 0), CMY (0, 1, 1), HSI (0°, 100 %).
