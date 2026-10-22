@@ -1078,7 +1078,7 @@ fn styled() -> Engine {
 
 #[test]
 fn cue_38_schema_4_shape() {
-    assert_eq!(SCHEMA_VERSION, 5); // GRM-13 adds only the GroupMaster kind
+    assert_eq!(SCHEMA_VERSION, 6); // GRM-13 adds only the GroupMaster kind, OUT-13 the output key
     let e = styled();
     let text = e.to_show(meta()).to_json();
     let v: Json = serde_json::from_str(&text).unwrap();
@@ -1196,9 +1196,10 @@ fn cue_38_a_schema_3_show_is_migrated() {
         .unwrap()
         .push(second);
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 2, "{migrations:?}");
+    assert_eq!(migrations.len(), 3, "{migrations:?}");
     assert!(migrations[0].starts_with("3 -> 4"), "{migrations:?}");
     assert!(migrations[1].starts_with("4 -> 5"), "{migrations:?}"); // GRM-13
+    assert!(migrations[2].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(numbers(&e, 1), [1.0, 2.0]);
