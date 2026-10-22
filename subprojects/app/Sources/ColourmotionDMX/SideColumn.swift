@@ -384,17 +384,20 @@ private struct Softkeys: View {
                 ui.recordArmed = false
             }
         }
-        // CUE-45: with nothing tapped yet, A and B arm a speed master for the next empty handle.
+        // CUE-45, GRM-15: with nothing tapped yet, A and B arm a speed master for the next empty handle,
+        // C a group master (a group, then a handle).
         let master = { (name: String, kind: String) -> Softkey in
-            Softkey(name: name, sub: "next empty handle", on: ui.recordMaster == kind) {
+            let group = kind == "Group"
+            return Softkey(name: name, sub: group ? "group, then handle" : "next empty handle", on: ui.recordMaster == kind) {
                 ui.recordMaster = ui.recordMaster == kind ? nil : kind
-                if ui.recordMaster != nil { engine.say("\(name): tap an empty handle.") }
+                ui.recordMasterGroup = nil
+                if ui.recordMaster != nil { engine.say("\(name): tap \(group ? "a group" : "an empty handle").") }
             }
         }
         return (used.map { "Record · \($0.number)" } ?? "Record", [
             used == nil ? master("BPM Master", "Bpm") : mode("Replace", "new contents", "Replace"),
             used == nil ? master("Rate Master", "Rate") : mode("Merge", "add and overwrite", "Merge"),
-            mode("Quick Merge", "held attributes", "QuickMerge"),
+            used == nil ? master("Group Master", "Group") : mode("Quick Merge", "held attributes", "QuickMerge"),
             maskKey,
             recordByKey,
             Softkey(name: "Record as", sub: ui.recordAs) {

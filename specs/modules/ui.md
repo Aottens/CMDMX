@@ -183,6 +183,12 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
       empties the line.
     - Record context, also: **BPM Master** and **Rate Master** arm a master; the next tap on an
       empty handle sends `master.record` without a number (IPC-26).
+    - Record context, also (amended 2026-10-22, VS3-07; `group-masters.md` GRM-01, 16, 17):
+      **Group Master** arms a group master; the next tap on a group cell picks the group, the
+      tap after that on an empty handle sends `master.record {kind: "Group", group}`. Its strip
+      shows "Group n" and the meta line of GRM-16 (amber level per GRM-16; while disabled the bar
+      follows the fader and the meta line reads "LOCKED 50%", IPC-29), and Playback Options shows Handle and Master
+      tabs: mode, a scale picker only in Scale, and a Disabled toggle (GRM-17).
     - Cue context (a right-click on a Cue list row): Go to Cue, View Cue, Edit Times, Set Legend,
       Renumber, Copy, Delete (two-step on softkey A), Cancel. Renumber and Copy take the number
       typed on the command line.

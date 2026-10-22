@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (a group master is a playback of kind `GroupMaster`, like the
 speed masters), `cmdmx-core::engine` (the tick, after the merge), `cmdmx-daemon` (IPC), the
 strips and Playback Options in `subprojects/app`.
-Status: **approved (owner, 2026-10-21; the six questions at the end answered as recommended, DECISIONS 2026-10-21).** VS3-06 builds GRM-01..14, 19 in the core.
+Status: **approved (owner, 2026-10-21; the six questions at the end answered as recommended, DECISIONS 2026-10-21).** VS3-06 builds GRM-01..14, 19 in the core; GRM-20 added by the owner 2026-10-22 (VS3-07).
 Behavioural reference: Avolites Titan v19 manual, *Running the Show → Playback controls →
 Fixture Group Masters* (https://manual.avolites.com/docs/running-the-show/playback-controls):
 a group saved onto a fader handle masters the intensity of its fixtures, in one of the modes
@@ -100,6 +100,12 @@ does; a group master can also take them down.)
   had when it was disabled. Enabling it again makes the fader count from the next tick; in
   `Scale`, `Htp` and `Limit` the stage jumps to the fader's level (owner question 3).
 
+- **GRM-20** A change of `mode` puts the master at the level at which its new mode changes
+  nothing (GRM-05: 0.0 for `Htp`, else 1.0): the fader and the saved level both move there, so
+  switching a mode never changes the stage by itself (owner, 2026-10-22, VS3-07 run: Scale at
+  100 % switched to HTP lit the whole group at full). A change of `scale` or `enabled` alone
+  keeps the level (GRM-11).
+
 ### Buttons
 - **GRM-12** Handle buttons (CUE-25, 55): a group master's buttons by `handle_buttons`:
   `BestPractice` and `Titan` — upper none, lower **Flash** (Titan *Flash Master*: the master
@@ -129,7 +135,9 @@ does; a group master can also take them down.)
 ### App (amends `ui.md` UI-22, PBK-37, CUE-44, 46)
 - **GRM-16** The strip of a group master shows "Group 6" (the group's legend once groups have names, UI-12) and the meta
   line "GRP · SCALE 100 %", "GRP · HTP", "GRP · LIMIT", "GRP · TAKE OVER", with "LOCKED" added
-  while disabled; the level bar is the master level. A `Scale` or `Limit` master below 100 %, and
+  while disabled (amended by the owner 2026-10-22, VS3-07 run: written "GRP·SCALE 100%" so it
+  fits a 92 pt strip; while disabled the line reads "LOCKED 50%" in amber with the locked level,
+  and the level bar keeps following the fader so it can be set before enabling again); the level bar is the master level. A `Scale` or `Limit` master below 100 %, and
   an `Htp` master above 0, show the level in amber, so a dark or lit group is explained (Titan:
   the handle's LED flashes at zero).
 - **GRM-17** Playback Options on a group master shows Handle and **Master** tabs (CUE-46): mode

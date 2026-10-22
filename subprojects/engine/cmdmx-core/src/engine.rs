@@ -2571,12 +2571,20 @@ impl Engine {
             let new = match (v, playback.master.as_ref()) {
                 (Master::Group(new), Some(Master::Group(old))) => {
                     let fader = self.states.get(&id).map_or(old.level, |s| s.level);
+                    // GRM-20: a new mode puts the master where it changes nothing.
+                    let level = if new.mode != old.mode {
+                        let neutral = GroupMaster::neutral_level(new.mode);
+                        if let Some(state) = self.states.get_mut(&id) {
+                            state.level = neutral;
+                        }
+                        neutral
+                    } else if new.enabled && !old.enabled {
+                        fader
+                    } else {
+                        old.level
+                    };
                     Master::Group(GroupMaster {
-                        level: if new.enabled && !old.enabled {
-                            fader
-                        } else {
-                            old.level
-                        },
+                        level,
                         ..new.clone()
                     })
                 }

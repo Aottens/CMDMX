@@ -165,7 +165,7 @@ private struct FaderStrip: View {
                 .overlay { RightClickCatcher(action: onRightClick) }
                 .help(empty ? "Empty handle \(page).\(slot.id + 1)" : "Right-click: Playback Options")
             if let info = slot.info {
-                LevelBar(value: Binding(get: { info.live.level }, set: onChange), running: slot.isActive,
+                LevelBar(value: Binding(get: { info.live.level }, set: onChange), running: slot.isActive, warn: info.levelWarns,
                          progress: slot.isActive ? info.live.cue.flatMap { $0.current != nil && $0.progress < 1 ? $0.progress : nil } : nil,
                          onTouch: onTouch, onScroll: onScroll)
             } else {
@@ -241,19 +241,25 @@ private struct StripLegend: View {
                 Image(systemName: paging == "Locked" ? "lock.fill" : "lock").font(.system(size: 8))
                 Text("page \(info.stored.page)")
             } else if let summary = cueSummary(info) {
-                Text(summary)
+                Text(summary).foregroundStyle(info.isLocked ? t.amber : t.fg2)
             } else if !info.stored.legend.isEmpty {
                 Text(info.homeHandle)
             }
         }
-        .font(Typo.mono(9)).foregroundStyle(t.fg2).lineLimit(1)
+        .font(Typo.mono(9)).foregroundStyle(t.fg2).lineLimit(1).minimumScaleFactor(0.75)
     }
 }
 
 /// CUE-44: the legend's second line on a list ("Q3 › 4"), a chase ("2/8 · 120") or a master
-/// ("BPM 1 · 120 ×1", "RATE 2 · ×1.0"); nil for a memory.
+/// ("BPM 1 · 120 ×1", "RATE 2 · ×1.0", "GRP·SCALE 100%"); nil for a memory.
 private func cueSummary(_ info: PlaybackInfo) -> String? {
     if let m = info.stored.master {
+        if info.stored.isGroupMaster {
+            // Short enough for a 92 pt strip; disabled shows the level it is locked at (VS3-07 run).
+            if info.isLocked { return "LOCKED \(Int(((m.level ?? 0) * 100).rounded()))%" }
+            let mode = ["Scale": "SCALE \(m.scale ?? 100)%", "Htp": "HTP", "Limit": "LIMIT", "TakeOver": "TAKE OVER"][m.mode ?? ""] ?? "?"
+            return "GRP·" + mode
+        }
         if let scale = m.rateScale { return "RATE \(m.number) · ×" + String(format: "%.1f", info.live.level * Double(scale) / 100) }
         return "BPM \(m.number) · \(Int((info.live.bpm ?? m.bpm ?? 0).rounded())) ×\(plain(m.multiplier ?? 1))"
     }
@@ -330,6 +336,8 @@ private struct LevelBar: View {
     var running = false
     /// Grand Master turns amber below 100 % (UI-24).
     var warnBelowFull = false
+    /// GRM-16: amber for any reason the caller knows (a group master that darkens or lights its group).
+    var warn = false
     /// CUE-44: the running transition of a cue list, 0...1 (a green line along the bottom).
     var progress: Double?
     /// UI-22 / IPC-05: true on the first drag event, false on release (motor-fader touch).
@@ -341,13 +349,13 @@ private struct LevelBar: View {
     var body: some View {
         GeometryReader { geo in
             let height = geo.size.height
-            let fill: Color = warnBelowFull && value < 1 ? t.amber.opacity(0.45) : running ? t.green.opacity(0.4) : t.line2
+            let fill: Color = (warnBelowFull && value < 1) || warn ? t.amber.opacity(0.45) : running ? t.green.opacity(0.4) : t.line2
             ZStack(alignment: .bottom) {
                 Rectangle().fill(t.bg)
                 Rectangle().fill(fill).frame(height: height * value)
                 Rectangle().fill(t.fg).frame(height: 2).offset(y: -(height * value) + 1)
                 if let progress { Rectangle().fill(t.green).frame(width: geo.size.width * progress, height: 3).frame(maxWidth: .infinity, alignment: .leading) }
-                Text(percent(value)).font(Typo.mono(11)).foregroundStyle(t.fg)
+                Text(percent(value)).font(Typo.mono(11)).foregroundStyle(warn ? t.amber : t.fg)  // GRM-16: also readable at 0 %
                     .padding(.top, 3).padding(.trailing, 4)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }

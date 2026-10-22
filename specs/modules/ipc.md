@@ -159,3 +159,16 @@ The cue-list messages are specified in `cuelists.md` as CUE-40 (snapshot `playba
   part gains `buttons` (the two functions `handle_buttons` gives this handle now, e.g.
   `["Go","Flash"]`, CUE-25), so the app labels strips without knowing the setting's rules. The
   `connected` delta is `{"v":0,"type":"connected","id":1}` (`id` `null` when none).
+
+### Group masters (VS3-07; behaviour in `group-masters.md`)
+The group-master messages are specified in `group-masters.md` as GRM-15. Wire details (VS3-07,
+within GRM-15; IPC-29 approved by the owner 2026-10-22):
+- **IPC-29** A group master's `master.level` is its saved level (GRM-13). On an enabled master it
+  follows the fader, and that alone is not a stored change: a fader move sends the small
+  `playback` delta (live `level`) only, never the whole-list `playbacks` delta; `master.level` is
+  current in the snapshot and in every whole-list delta sent for another reason. On a disabled
+  master it is the locked level and does not move with the fader. The app draws the live `level` (the fader) and shows
+  `master.level` as "LOCKED 50%" while `enabled` is false (amended by the owner 2026-10-22, VS3-07 run). `master.record` with `kind: "Group"`
+  needs `group` and refuses a `number`; `playback.options` `master` refuses `mode`, `scale` and
+  `enabled` on a speed master and the speed-master fields (`number`, `bpm`, …) on a group master,
+  so a group master's `group` and `level` never change by `playback.options`.

@@ -28,7 +28,9 @@ enum HandleTaps {
             // CUE-45: BPM Master / Rate Master armed: an empty handle gets the master (IPC-26).
             if let kind = ui.recordMaster {
                 guard !(info != nil && used) else { return engine.say("Pick an empty handle for the master.") }
-                engine.recordMaster(page: page, slot: slot, kind: kind)
+                // GRM-15: a Group master needs its group first (picked in the Groups window).
+                if kind == "Group", ui.recordMasterGroup == nil { return engine.say("Tap a group first.") }
+                engine.recordMaster(page: page, slot: slot, kind: kind, group: ui.recordMasterGroup)
                 ui.recordArmed = false
                 return
             }

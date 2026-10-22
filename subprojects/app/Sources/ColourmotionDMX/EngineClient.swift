@@ -206,9 +206,16 @@ struct MasterInfo: Decodable, Equatable {
     var fader: String?
     var faderMax: Double?
     var rateScale: Int?
+    /// GRM-15: a group master has `group`, `mode` (`Scale`, `Htp`, `Limit`, `TakeOver`), `scale` (%),
+    /// `enabled` and `level` (the saved level, what the strip shows while disabled).
+    var group: Int?
+    var mode: String?
+    var scale: Int?
+    var enabled: Bool?
+    var level: Double?
 
     private enum CodingKeys: String, CodingKey {
-        case number, bpm, multiplier, fader
+        case number, bpm, multiplier, fader, group, mode, scale, enabled, level
         case faderMax = "fader_max", rateScale = "rate_scale"
     }
 
@@ -220,6 +227,11 @@ struct MasterInfo: Decodable, Equatable {
         fader = try? c.decode(String.self, forKey: .fader)
         faderMax = try? c.decode(Double.self, forKey: .faderMax)
         rateScale = try? c.decode(Int.self, forKey: .rateScale)
+        group = try? c.decode(Int.self, forKey: .group)
+        mode = try? c.decode(String.self, forKey: .mode)
+        scale = try? c.decode(Int.self, forKey: .scale)
+        enabled = try? c.decode(Bool.self, forKey: .enabled)
+        level = try? c.decode(Double.self, forKey: .level)
     }
 }
 
@@ -293,7 +305,7 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
     let times: Times
     /// Attribute groups all cues hold, in I P C G B E S FX order.
     let groups: [String]
-    /// CUE-40: `Cues` (a memory or a cue list), `Chase`, `BpmMaster` or `RateMaster`.
+    /// CUE-40: `Cues` (a memory or a cue list), `Chase`, `BpmMaster`, `RateMaster` or `GroupMaster`.
     let kind: String
     let cues: [StoredCue]
     let list: ListOptions
@@ -328,7 +340,8 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
         buttons = pair.count == 2 ? pair : ["None", "None"]
     }
 
-    var isMaster: Bool { kind == "BpmMaster" || kind == "RateMaster" }
+    var isMaster: Bool { kind == "BpmMaster" || kind == "RateMaster" || isGroupMaster }
+    var isGroupMaster: Bool { kind == "GroupMaster" }
 }
 
 /// One `playbacks` entry (PBK-35): the stored part and the live part in one JSON object.
@@ -364,7 +377,23 @@ struct PlaybackInfo: Identifiable, Equatable {
     var id: Int { stored.id }
     var homeHandle: String { "\(stored.page).\(stored.slot)" }
     /// PBK-37: the legend, else the home handle ("2.3").
-    var shownLegend: String { stored.legend.isEmpty ? homeHandle : stored.legend }
+    /// GRM-16: a group master without a legend is "Group 6".
+    var shownLegend: String {
+        if !stored.legend.isEmpty { return stored.legend }
+        if stored.isGroupMaster, let group = stored.master?.group { return "Group \(group)" }
+        return homeHandle
+    }
+    /// GRM-11: a disabled group master; the strip shows the fader and "LOCKED 50%" (VS3-07 run).
+    var isLocked: Bool { stored.isGroupMaster && stored.master?.enabled == false }
+    /// GRM-16: a Scale or Limit group master below 100 %, an Htp one above 0, shows its level in amber.
+    var levelWarns: Bool {
+        guard stored.isGroupMaster, !isLocked, let m = stored.master else { return false }
+        switch m.mode {
+        case "Scale", "Limit": return live.level < 1
+        case "Htp": return live.level > 0
+        default: return false
+        }
+    }
     var isRunning: Bool { live.state != "off" }
     /// A cue list or a chase: the engine sends live cue state for these only (CUE-40).
     var hasCues: Bool { live.cue != nil }
@@ -1162,7 +1191,11 @@ final class EngineClient: ObservableObject {
         patch("playback.record", fields)
     }
     /// IPC-26: `kind` is Bpm or Rate; the engine picks the master's number.
-    func recordMaster(page: Int, slot: Int, kind: String) { patch("master.record", ["page": page, "slot": slot, "kind": kind]) }
+    func recordMaster(page: Int, slot: Int, kind: String, group: Int? = nil) {
+        var fields: [String: Any] = ["page": page, "slot": slot, "kind": kind]
+        if let group { fields["group"] = group }
+        patch("master.record", fields)
+    }
     /// Press and hold: `on: true` on press, `false` on release (PBK-37).
     func flashPlayback(_ id: Int, on: Bool) { sendJSON("playback.flash", ["id": id, "on": on]) }
     func swopPlayback(_ id: Int, on: Bool) { sendJSON("playback.swop", ["id": id, "on": on]) }
