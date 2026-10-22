@@ -3,6 +3,8 @@
 //! Storage and options (`specs/modules/playbacks.md` PBK-06..14, 24, 31..34); the engine owns
 //! the state and the actions.
 //!
+//! Cue lists run in `cuelist`: the live state of a list sits in [`PlaybackState::run`].
+//!
 //! Behaviour on the frame (VS2-21, PBK-15..23, 25..30): the live [`PlaybackState`] holds the
 //! fader, Flash/Swop/Latch, the intensity master *m* and its timers. An action (fader, Flash,
 //! Swop, Latch, Release) changes the inputs and fires or blocks the playback at once; the next
@@ -11,14 +13,16 @@
 //! point. A kill turns the masked LTP attributes into a [`Release`] that fades back to what is
 //! underneath. Nothing here reads a clock.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::TargetColour;
+use crate::cuelist::ListRun;
 use crate::palette::{RecordBy, RecordMode};
 use crate::patch::FixtureId;
+use crate::programmer::GroupId;
 use crate::value::{Stored, Value};
 use crate::{CoreError, Timestamp};
 
@@ -247,11 +251,13 @@ pub enum Kind {
     Chase,
     BpmMaster,
     RateMaster,
+    /// GRM-03: masters the intensity of a group.
+    GroupMaster,
 }
 
 impl Kind {
     pub fn is_master(self) -> bool {
-        matches!(self, Kind::BpmMaster | Kind::RateMaster)
+        matches!(self, Kind::BpmMaster | Kind::RateMaster | Kind::GroupMaster)
     }
 }
 
@@ -352,7 +358,7 @@ impl ChaseOptions {
     }
 }
 
-fn check_bpm(bpm: f32) -> Result<(), CoreError> {
+pub(crate) fn check_bpm(bpm: f32) -> Result<(), CoreError> {
     if (1.0..=600.0).contains(&bpm) {
         Ok(())
     } else {
@@ -420,12 +426,64 @@ pub struct RateMaster {
     pub rate_scale: u16,
 }
 
-/// CUE-35, CUE-36: the master of a `BpmMaster` or `RateMaster` playback.
+/// GRM-04: what a group master does to the intensity of its group.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GroupMode {
+    Scale,
+    Htp,
+    Limit,
+    TakeOver,
+    /// GRM-14: a mode this version does not know. `from_show` loads it as `Scale` with a
+    /// warning; `Master::check` refuses it.
+    #[serde(other)]
+    Unknown,
+}
+
+/// The scales of a `Scale` group master, in percent (GRM-04).
+pub const GROUP_SCALES: [u16; 5] = [100, 200, 400, 600, 1000];
+
+/// GRM-04, 13: the master of a `GroupMaster` playback. Field order is the key order in the show.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GroupMaster {
+    pub group: GroupId,
+    pub mode: GroupMode,
+    /// 100, 200, 400, 600 or 1000 %; used by `Scale` only.
+    pub scale: u16,
+    /// False = Titan's *Disabled*: locked at `level` (GRM-11).
+    pub enabled: bool,
+    /// The level the fader last had while enabled, the one live level that is saved (GRM-05).
+    pub level: f32,
+}
+
+impl GroupMaster {
+    /// GRM-04, 05: Scale, 100 %, enabled, at the level where it changes nothing.
+    pub fn new(group: GroupId) -> Self {
+        GroupMaster {
+            group,
+            mode: GroupMode::Scale,
+            scale: 100,
+            enabled: true,
+            level: 1.0,
+        }
+    }
+
+    /// GRM-05: the level at which a master of this mode changes nothing.
+    pub fn neutral_level(mode: GroupMode) -> f32 {
+        if mode == GroupMode::Htp {
+            0.0
+        } else {
+            1.0
+        }
+    }
+}
+
+/// CUE-35, CUE-36, GRM-04: the master of a master playback.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Master {
     Bpm(BpmMaster),
     Rate(RateMaster),
+    Group(GroupMaster),
 }
 
 impl Master {
@@ -446,17 +504,21 @@ impl Master {
         }
     }
 
-    pub fn kind(&self) -> MasterKind {
+    /// The kind of speed master; `None` for a group master.
+    pub fn kind(&self) -> Option<MasterKind> {
         match self {
-            Master::Bpm(_) => MasterKind::Bpm,
-            Master::Rate(_) => MasterKind::Rate,
+            Master::Bpm(_) => Some(MasterKind::Bpm),
+            Master::Rate(_) => Some(MasterKind::Rate),
+            Master::Group(_) => None,
         }
     }
 
+    /// The number of a speed master; 0 for a group master, which has none.
     pub fn number(&self) -> u8 {
         match self {
             Master::Bpm(m) => m.number,
             Master::Rate(m) => m.number,
+            Master::Group(_) => 0,
         }
     }
 
@@ -464,6 +526,7 @@ impl Master {
         match self {
             Master::Bpm(m) => m.number = number,
             Master::Rate(m) => m.number = number,
+            Master::Group(_) => {}
         }
     }
 
@@ -486,6 +549,15 @@ impl Master {
                 m.rate_scale
             )),
             Master::Rate(_) => Ok(()),
+            Master::Group(m) if m.mode == GroupMode::Unknown => bad("mode".into()),
+            Master::Group(m) if !GROUP_SCALES.contains(&m.scale) => bad(format!(
+                "scale {} (expected 100, 200, 400, 600 or 1000 %)",
+                m.scale
+            )),
+            Master::Group(m) if !(0.0..=1.0).contains(&m.level) => {
+                bad(format!("level {} (expected 0 to 1)", m.level))
+            }
+            Master::Group(_) => Ok(()),
         }
     }
 }
@@ -495,6 +567,7 @@ impl std::fmt::Display for Master {
         match self {
             Master::Bpm(m) => write!(f, "BPM {}", m.number),
             Master::Rate(m) => write!(f, "RATE {}", m.number),
+            Master::Group(m) => write!(f, "the master of group {}", m.group),
         }
     }
 }
@@ -517,6 +590,7 @@ pub enum ButtonKind {
     Chase,
     BpmMaster,
     RateMaster,
+    GroupMaster,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -540,6 +614,7 @@ impl ButtonKind {
             ButtonKind::Chase => [Button::Tap, Button::Flash],
             ButtonKind::BpmMaster => [Button::None, Button::Tap],
             ButtonKind::RateMaster => [Button::None, Button::None],
+            ButtonKind::GroupMaster => [Button::None, Button::Flash],
         }
     }
 
@@ -557,6 +632,7 @@ impl ButtonKind {
                 )
                 | (ButtonKind::Chase, Flash | Swop | Release | Tap)
                 | (ButtonKind::BpmMaster, Tap)
+                | (ButtonKind::GroupMaster, Flash | Swop)
         )
     }
 }
@@ -656,7 +732,116 @@ impl Playback {
     pub fn values(&self) -> Option<&Values> {
         self.cues.first().map(|c| &c.values)
     }
+
+    /// CUE-50, 51: the state of the cue at index `at`: per fixture and attribute its value and the
+    /// index of the cue it is hard in. With tracking it looks back to the nearest Block cue before
+    /// `at` (none when `at` is Block or Solo), skipping Cue Only and Solo cues; without, only `at`.
+    pub(crate) fn cue_state(&self, at: usize) -> State {
+        let mut state = State::new();
+        let Some(cue) = self.cues.get(at) else {
+            return state;
+        };
+        // A chase never tracks: a step is its own values (CUE-29).
+        let tracks = self.list.tracking && self.kind != Kind::Chase;
+        let first = if tracks && !matches!(cue.track, Track::Block | Track::Solo) {
+            let before = self.cues.get(..at).unwrap_or_default();
+            before
+                .iter()
+                .rposition(|c| c.track == Track::Block)
+                .unwrap_or(0)
+        } else {
+            at
+        };
+        for (i, c) in self.cues.iter().enumerate().take(at + 1).skip(first) {
+            if i < at && matches!(c.track, Track::CueOnly | Track::Solo) {
+                continue;
+            }
+            for (fixture, attributes) in &c.values {
+                for (name, stored) in attributes {
+                    (state.entry(*fixture).or_default()).insert(name.clone(), (*stored, i));
+                }
+            }
+        }
+        state
+    }
+
+    /// CUE-21: the cue after `number` in number order, the first one after the last with `Loop`.
+    pub(crate) fn cue_after(&self, number: CueNumber) -> Option<CueNumber> {
+        let after = self.cues.iter().map(|c| c.number).find(|&n| n > number);
+        let first = (self.list.looping == LoopAction::Loop).then(|| self.cues.first());
+        after.or(first.flatten().map(|c| c.number))
+    }
+
+    /// CUE-11: the cue before `number` in number order; never wraps.
+    pub(crate) fn cue_before(&self, number: CueNumber) -> Option<CueNumber> {
+        (self.cues.iter().rev().map(|c| c.number)).find(|&n| n < number)
+    }
+
+    /// CUE-52: store recorded values in the cue at `at` of a tracking list by update mode.
+    /// `is_htp` says whether a fixture's attribute is HTP (`None` when it is unknown).
+    pub(crate) fn store_tracked(
+        &mut self,
+        at: usize,
+        values: Values,
+        mode: UpdateMode,
+        is_htp: impl Fn(FixtureId, &str) -> Option<bool>,
+    ) {
+        let old = self.cue_state(at);
+        for (fixture, attributes) in values {
+            for (name, stored) in attributes {
+                let before = old.get(&fixture).and_then(|a| a.get(&name));
+                let source = match mode {
+                    UpdateMode::Forwards | UpdateMode::CueOnly => at,
+                    UpdateMode::Backwards | UpdateMode::Both => before.map_or(at, |&(_, i)| i),
+                };
+                if let Some(cue) = self.cues.get_mut(source) {
+                    (cue.values.entry(fixture).or_default()).insert(name.clone(), stored);
+                }
+                if !matches!(mode, UpdateMode::CueOnly | UpdateMode::Backwards) {
+                    continue;
+                }
+                // The cue after keeps what it had: the old state value, HTP 0 when there was none
+                // (an LTP value just tracks on).
+                let zero = || Stored::Value(Value::Level(0.0));
+                let keep = match before {
+                    Some(&(old, _)) => Some(old),
+                    None => is_htp(fixture, &name).unwrap_or(false).then(zero),
+                };
+                let after = self.cues.get_mut(at + 1);
+                if let (Some(keep), Some(after)) = (keep, after) {
+                    let holds = after
+                        .values
+                        .get(&fixture)
+                        .is_some_and(|a| a.contains_key(&name));
+                    if !holds && !matches!(after.track, Track::Block | Track::Solo) {
+                        after.values.entry(fixture).or_default().insert(name, keep);
+                    }
+                }
+            }
+        }
+    }
+
+    /// CUE-14: the delay and fade of an LTP attribute of `group` on trigger, from the first cue.
+    pub(crate) fn ltp_times(&self, group: AttributeGroup) -> (f32, f32) {
+        let times = self.times();
+        (self.cues.first())
+            .and_then(|c| c.group_times.get(&group))
+            .map_or((times.delay, times.fade_in), |g| (g.delay, g.fade))
+    }
 }
+
+/// CUE-54: a value of a cue's state and the cue it is hard in.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CueValue {
+    pub value: Stored,
+    pub from: CueNumber,
+}
+
+/// CUE-54: the state of one cue per fixture and attribute.
+pub type CueView = BTreeMap<FixtureId, BTreeMap<String, CueValue>>;
+
+/// CUE-50: fixture → attribute → (value, index of the cue it is hard in).
+pub(crate) type State = BTreeMap<FixtureId, BTreeMap<String, (Stored, usize)>>;
 
 /// `playback.options` and `playback.times` (PBK-36): every field optional; `Option<Option<_>>`
 /// for the nullable ones (`Some(None)` clears). The times are the first cue's.
@@ -702,6 +887,35 @@ pub enum AddCue {
     Insert,
 }
 
+/// CUE-10..12, 18, 19, 27: what `cuelist.go/back/stop/goto/next` and `playback.release` ask.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ListAction {
+    Go,
+    Back,
+    Stop,
+    Goto(CueNumber),
+    Next(CueNumber),
+    Release,
+}
+
+/// CUE-55: the two buttons of a handle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HandleButton {
+    Upper,
+    Lower,
+}
+
+/// CUE-40: the live state of a cue list (not saved, CUE-24).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ListLive {
+    pub current: Option<CueNumber>,
+    pub next: Option<CueNumber>,
+    pub paused: bool,
+    /// Progress of the current transition, 0.0–1.0 (0 while off).
+    pub progress: f32,
+}
+
 /// `playback.record` (PBK-36): the handle, the rest optional.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaybackRecord {
@@ -717,7 +931,7 @@ pub struct PlaybackRecord {
     pub cue: Option<CueNumber>,
     /// CUE-03, CUE-05; not together with `mode` or `cue`.
     pub add: Option<AddCue>,
-    /// CUE-52: for Update; its effect is VS3-03.
+    /// CUE-52: for Merge and Update on a tracking list.
     pub update_mode: Option<UpdateMode>,
 }
 
@@ -849,6 +1063,18 @@ pub struct PlaybackState {
     pub(crate) was_holding: bool,
     pub(crate) from: Origins,
     pub(crate) release: Option<Release>,
+    /// CUE-10..24: a cue list's current and next cue, pause, fades and link timer.
+    pub(crate) run: ListRun,
+    /// CUE-33: the receive times of the last taps of this playback, the current series.
+    pub(crate) taps: Vec<Timestamp>,
+    /// CUE-35: a BPM master's fader moved after the last tap or typed tempo.
+    pub(crate) fader_moved: bool,
+    /// The effective level at the last input: a kill at 0 needs a fall (CUE-15, 31).
+    pub(crate) settled: f32,
+    /// GRM-10: a Take Over master's level at the previous tick (`None` before its first).
+    pub(crate) takeover_prev: Option<f32>,
+    /// GRM-10: the fixtures a Take Over master has put in the programmer.
+    pub(crate) taken: BTreeSet<FixtureId>,
 }
 
 impl PlaybackState {

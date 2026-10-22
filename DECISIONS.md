@@ -5,6 +5,46 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-21 — Group masters as on Titan, mastering everything after the merge (P1-16, owner)
+
+**Decision:** `specs/modules/group-masters.md` GRM-01..19 approved with its six recommendations: the master level is saved in the show (schema 5), so a restart never changes the stage; the programmer is mastered too, as by the Grand Master; Disabled locks the last effect and re-enabling jumps to the fader; masters of different modes on one fixture apply Scale → HTP → Limit, then the Grand Master/DBO; default buttons none/Flash with Swop as a `Custom` choice; several masters per group. Build tasks VS3-06 (core) and VS3-07 (IPC + app).
+
+**Alternatives considered:** every master at its no-effect level after a restart; mastering only playbacks; Disabled = no effect, or a pickup on re-enable; one master per group.
+
+**Reasoning:** the church's front spots on 1.8 must stay where they were after a daemon crash; a Limit has to be a hard limit; Titan allows a group button on any number of handles.
+
+**Reversal trigger:** operators find a dark programmed fixture under a master at 0 confusing despite the amber level (then master only playbacks).
+
+## 2026-10-21 — Cue lists over IPC and in the app (VS3-05, owner)
+
+**Decision:** `ipc.md` IPC-24..28 and the `ui.md` amendments of UI-03, 13, 18, 19, 22, 23: `cue.view` is answered by the tick to the asking client only (never waiting); taps and handle buttons carry their receive time; `master.record` without a number takes the lowest free one; `playback.options` list/chase/master fields are each optional; entries carry the handle's button functions, so the app never applies `handle_buttons` itself. Magenta (#E54BB4 / #B8288A) means a tracked value. Show-wide playback settings sit in a Settings tab of Playback Options; BPM/Rate masters are recorded from Record-context softkeys.
+
+**Alternatives considered:** the app choosing master numbers and button labels itself; a separate settings screen; broadcasting the Cue view to every client.
+
+**Reasoning:** the app stays a thin client (CLAUDE.md); a tap must not be rounded to the 25 ms tick (CUE-33).
+
+**Reversal trigger:** the Cue view needs live refresh on edits from other clients (then a revision counter on entries).
+
+## 2026-10-21 — Serial output on its own 30 ms timer (VS4-05, OUT-24, owner)
+
+**Decision:** The serial node's thread keeps the latest frame handed over and writes it every 30 ms, counted from the start of the previous write (~33 Hz), instead of skipping every second tick (20 Hz). Art-Net and sACN stay on the 40 Hz tick.
+
+**Alternatives considered:** keep 20 Hz; a slower 25 ms tick for everything; frames cut to the highest patched channel (shorter writes, kept as the next step if fades still step).
+
+**Reasoning:** the upgrade path named on 2026-10-18: a dragged fade on the RGBL par showed visible steps at 20 Hz, and 33 Hz was steady on the MK2 in the C-sender test. The tick stays 40 Hz and never waits on the serial port (OUT-11).
+
+**Reversal trigger:** the par flickers at 33 Hz on the real rig, or steps remain (then frames cut to the highest patched channel).
+
+## 2026-10-21 — Chase details for VS3-04 (CUE-30..34, owner)
+
+**Decision:** Go on a chase whose fader is at 0 runs it with its HTP out; the kill point only acts when the level falls to 0 (as cue lists with `KillAtZero`). On a paused chase Back and Go to cue step with the crossfade and the chase stays paused; Stop again goes back; only Go resumes. Tap and a typed tempo on a chase following a BPM master go to the master, and a tap on a master starts the next step of every running chase on it at the tap (beat sync). Back goes one step against the direction (Random: the step shown before) and wraps with `Loop`; `StopOnFinal` runs one round per direction (Bounce 1 2 3 2 1, Random as many steps as the chase has).
+
+**Alternatives considered:** killing a chase at once at fader 0; Back resuming a paused chase as on a cue list; a master tap that only sets the tempo; Back in number order without wrapping, Bounce and Random always looping.
+
+**Reasoning:** common practice on Titan and grandMA (the fader is the intensity master, Prev/Next Step while stopped); a BPM master exists so several chases tap in time.
+
+**Reversal trigger:** operators at the church find a paused chase that does not resume on Back confusing.
+
 ## 2026-10-21 — Cue lists track in phase 1; one Go block on the connected list plus Go per handle (P1-08, owner)
 
 **Decision:** Answers to the first `specs/modules/cuelists.md` gate-1 questions. (1) A cue list lives on any handle with its own Go on a handle button; the Go block, Space and the Cue list window act on the connected list (last fired or tapped, else the first list in the show), as on Titan. (2) Handle buttons follow what is on the handle (memory Swop/Flash, cue list Go/Flash, chase Tap/Flash, BPM master Tap), configurable per kind for the show. (3) The cue-list fader at 0 keeps the list on its cue by default (`KillWithOff`), configurable. (4) **Tracking moves from phase 2 into phase 1** (Track/Block/Cue Only/Solo, Update modes, Cue view); this reverses that part of the 2026-10-17 phase-1 decision. (5) BPM masters by Tap/typing by default, Titan's fader modes as options; Rate masters 0–200 %. Ableton sync becomes IDEA-16 (phase 2). Follow-up the same day: a list or chase on a handle takes these best-practice buttons by default; the setting `handle_buttons` switches to Titan's factory Swop/Flash or a custom pair per kind. The spec (CUE-01..55) is approved.

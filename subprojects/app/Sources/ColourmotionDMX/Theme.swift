@@ -10,8 +10,8 @@ struct Theme {
     /// Command line field: near-black, white in the day theme (the sketch's .cmd).
     let field: Color
     // State colours: red = programmer / unstored / armed, blue = selection, green = running / OK,
-    // amber = fading / warning, cyan = from palette, violet = Blind.
-    let red, blue, green, amber, cyan, violet: Color
+    // amber = fading / warning, cyan = from palette, violet = Blind, magenta = tracked value (CUE-54).
+    let red, blue, green, amber, cyan, violet, magenta: Color
     /// The one dim level of every disabled control (UI-28).
     let disabled = 0.3
 
@@ -20,14 +20,14 @@ struct Theme {
         surf: Color(hex: 0x1A1C1E), surf2: Color(hex: 0x222427), line: Color(hex: 0x2A2C2F), line2: Color(hex: 0x3A3D41),
         fg: Color(hex: 0xD8DADC), fg2: Color(hex: 0x8A8E93), fg3: Color(hex: 0x55595E), field: Color(hex: 0x0B0C0D),
         red: Color(hex: 0xE5484D), blue: Color(hex: 0x3E8EF7), green: Color(hex: 0x46A758),
-        amber: Color(hex: 0xF5A524), cyan: Color(hex: 0x3FB7D9), violet: Color(hex: 0x8E4EC6))
+        amber: Color(hex: 0xF5A524), cyan: Color(hex: 0x3FB7D9), violet: Color(hex: 0x8E4EC6), magenta: Color(hex: 0xE54BB4))
 
     static let day = Theme(
         chassis: Color(hex: 0xC4C7CB), panel: Color(hex: 0xDFE1E3), bg: Color(hex: 0xE9EAEB),
         surf: Color(hex: 0xF7F7F8), surf2: Color(hex: 0xFFFFFF), line: Color(hex: 0xC9CBCE), line2: Color(hex: 0xA9ACB0),
         fg: Color(hex: 0x111213), fg2: Color(hex: 0x4D5156), fg3: Color(hex: 0x9A9EA3), field: Color(hex: 0xFFFFFF),
         red: Color(hex: 0xD1242F), blue: Color(hex: 0x0B63D6), green: Color(hex: 0x1F7A35),
-        amber: Color(hex: 0xB36B00), cyan: Color(hex: 0x0A7EA4), violet: Color(hex: 0x8E4EC6))
+        amber: Color(hex: 0xB36B00), cyan: Color(hex: 0x0A7EA4), violet: Color(hex: 0x8E4EC6), magenta: Color(hex: 0xB8288A))
 
     /// Attribute-group hue (I P C G B E S FX); used only for tags and tab underlines (UI-03).
     static func groupHue(_ group: String) -> Color {

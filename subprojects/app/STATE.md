@@ -1,8 +1,11 @@
 # app — State
 
-_Last updated: 2026-10-18_
+_Last updated: 2026-10-21_
 
 ## Current step
+VS3-05 done (#53, 2026-10-21; CUE-42..47, 54; `ui.md` UI-03/13/18/19/22/23 amended): `CueLists.swift` (Go block on the connected list with Tap/BPM on a chase, Cue list window with tap = Set next and right-click Cue softkeys, Cue view with hard / tracked (magenta) / palette (cyan) values and Remove, cue legend editor); strips labelled by the entry's `buttons` and sending `playback.button`, cue/step/tempo legend lines, blue frame on the connected list, progress line; Record softkeys Append/Insert/Update Mode, record to a typed cue number, BPM/Rate Master; Playback Options tabs by kind (Cue list, Chase, Master, Times per cue with link/track/group times, show-wide Settings); Space = Go, Shift+Space = Back while Keys is live. Known points: the Cue softkeys use eight keys (A–H); the Rate master's "×1.0" is fader × rate_scale in the app (display only); the Custom button editor seeds from a copy of the CUE-25 table. Run `tests/manual/runs/2026-10-21-VS3-05.md` complete; fixed during it: Cancel clears the prompt, time and BPM fields show what was sent, Exit by the tabs, strip meta line full width, live deltas redraw at most every 1/30 s (ponytail: one ObservableObject for every zone, ~50 % CPU with a list and a chase running). Open points from the run: the BPM master strip shows the stored ×1 with fader Multiplier; the Cue list tab shows tracking options on a chase and the Fader tab on cue lists; the group-times row has an empty fade row.
+
+Before that:
 VS2-22 in review (PBK-37..41): playback strips with halo bar, icon, legend or page.slot and lock mark; live Swop/Flash (press and hold) and Latch; Record/Update/Copy/Move/Delete/Release/Options/Latch/Set Legend on handles (`PlaybackViews.swift` `HandleTaps`, legend editor with halo row, page legends); Playback Options screen (`PlaybackOptions.swift`, tabs Fader/Times/Release/Playback/Handle); Active playbacks window in fire order with groups; DBO live and in the status bar; Esc = Exit and disarms. Owner run `tests/manual/runs/2026-10-18-VS2-22.md` passed (2026-10-20): the strip state is always the engine's (no local guess), the strip icon sits 26 pt right of the legend. VS2-19 (palettes) merged.
 
 Before that:

@@ -9,7 +9,8 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::TargetColour;
@@ -17,10 +18,13 @@ use crate::engine::{Engine, Settings};
 use crate::palette::{Palette, Record, Timing};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{
-    Cue, FaderMode, KillPoint, Paging, Playback, PlaybackId, Priority, Values, PAGES,
+    ChaseOptions, Cue, CueNumber, FaderMode, HandleButton, HandleButtons, KillPoint, Kind,
+    ListAction, ListOptions, Master, Paging, Playback, PlaybackId, Priority, UpdateMode, Values,
+    PAGES,
 };
 use crate::profile::Profile;
 use crate::programmer::Resolution;
+use crate::show::ShowGroup;
 use crate::{CoreError, Timestamp, UniverseId};
 
 pub const TICK_SECONDS: f64 = 1.0 / 40.0;
@@ -36,6 +40,9 @@ pub struct Scenario {
     /// PAL-23: palettes as in the show file, placed after the patch.
     #[serde(default)]
     pub palettes: Vec<Palette>,
+    /// GRM: groups as in the show file, placed before the playbacks.
+    #[serde(default)]
+    pub groups: Vec<ShowGroup>,
     #[serde(default)]
     pub playbacks: Vec<ScenarioPlayback>,
     #[serde(default)]
@@ -62,7 +69,30 @@ pub struct ScenarioPlayback {
     pub paging: Option<Paging>,
     pub group: Option<u8>,
     pub values: Option<Values>,
+    #[serde(default, deserialize_with = "numbered_cues")]
     pub cues: Option<Vec<Cue>>,
+    /// CUE-38.
+    pub kind: Option<Kind>,
+    pub list: Option<ListOptions>,
+    pub chase: Option<ChaseOptions>,
+    pub master: Option<Master>,
+}
+
+/// CUE-38: a cue without a `number` counts 1, 2, 3 … in file order.
+fn numbered_cues<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Vec<Cue>>, D::Error> {
+    let Some(raw) = Option::<Vec<serde_json::Value>>::deserialize(deserializer)? else {
+        return Ok(None);
+    };
+    let numbered = raw.into_iter().zip(1u32..);
+    let cues = numbered.map(|(value, position)| {
+        let has_number = value.get("number").is_some();
+        let mut cue: Cue = serde_json::from_value(value).map_err(D::Error::custom)?;
+        if !has_number {
+            cue.number = CueNumber::from(f64::from(position));
+        }
+        Ok(cue)
+    });
+    cues.collect::<Result<Vec<_>, _>>().map(Some)
 }
 
 impl ScenarioPlayback {
@@ -81,6 +111,10 @@ impl ScenarioPlayback {
         if let Some(cues) = &self.cues {
             pb.cues = cues.clone();
         }
+        pb.kind = self.kind.unwrap_or(pb.kind);
+        pb.list = self.list.clone().unwrap_or(pb.list);
+        pb.chase = self.chase.clone().unwrap_or(pb.chase);
+        pb.master = self.master.clone();
         pb.legend = self.legend.clone().unwrap_or_default();
         pb.icon = self.icon.clone();
         pb.halo = self.halo;
@@ -98,6 +132,9 @@ impl ScenarioPlayback {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ScenarioSettings {
     pub ltp_trigger_level: Option<f32>,
+    /// CUE-25, CUE-52.
+    pub handle_buttons: Option<HandleButtons>,
+    pub update_mode: Option<UpdateMode>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,6 +165,43 @@ pub enum ActionKind {
     },
     Release {
         playback: PlaybackId,
+    },
+    /// CUE-10..12, 18, 19, 26, 27: no `playback` is the connected list.
+    Go {
+        playback: Option<PlaybackId>,
+    },
+    Back {
+        playback: Option<PlaybackId>,
+    },
+    Stop {
+        playback: Option<PlaybackId>,
+    },
+    Goto {
+        playback: Option<PlaybackId>,
+        cue: f64,
+    },
+    Next {
+        playback: Option<PlaybackId>,
+        cue: f64,
+    },
+    Connect {
+        playback: PlaybackId,
+    },
+    /// CUE-33: `at` is the time the tap was received.
+    Tap {
+        playback: PlaybackId,
+        at: Timestamp,
+    },
+    /// CUE-34.
+    Bpm {
+        playback: PlaybackId,
+        bpm: f32,
+    },
+    /// CUE-55.
+    Button {
+        playback: PlaybackId,
+        button: HandleButton,
+        on: bool,
     },
     Dbo {
         on: bool,
@@ -199,6 +273,12 @@ pub fn build_engine(scenario: &Scenario) -> Result<Engine, CoreError> {
     if let Some(t) = scenario.settings.ltp_trigger_level {
         settings.ltp_trigger_level = t;
     }
+    if let Some(buttons) = &scenario.settings.handle_buttons {
+        settings.handle_buttons = buttons.clone();
+    }
+    if let Some(mode) = scenario.settings.update_mode {
+        settings.update_mode = mode;
+    }
     let mut engine = Engine::new(settings);
     for (key, profile) in &scenario.profiles {
         engine.add_profile(key.clone(), profile.clone())?;
@@ -209,6 +289,14 @@ pub fn build_engine(scenario: &Scenario) -> Result<Engine, CoreError> {
     for palette in &scenario.palettes {
         engine.add_palette(palette.clone())?;
     }
+    for group in &scenario.groups {
+        engine.clear_selection();
+        for fixture in &group.fixtures {
+            engine.select_fixture(*fixture)?;
+        }
+        engine.record_group(group.id)?;
+    }
+    engine.clear_selection();
     for playback in &scenario.playbacks {
         engine.add_playback(playback.build(engine.settings().faders_per_page));
     }
@@ -258,6 +346,29 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                 ActionKind::Swop { playback, on } => engine.set_swop(*playback, *on, now)?,
                 ActionKind::Latch { playback } => engine.latch_flash(*playback, now)?,
                 ActionKind::Release { playback } => engine.release_playback(*playback, now)?,
+                ActionKind::Go { playback } => engine.cuelist(*playback, ListAction::Go, now)?,
+                ActionKind::Back { playback } => {
+                    engine.cuelist(*playback, ListAction::Back, now)?
+                }
+                ActionKind::Stop { playback } => {
+                    engine.cuelist(*playback, ListAction::Stop, now)?
+                }
+                ActionKind::Goto { playback, cue } => {
+                    let cue = CueNumber::new(*cue).ok_or(CoreError::InvalidCueNumber)?;
+                    engine.cuelist(*playback, ListAction::Goto(cue), now)?;
+                }
+                ActionKind::Next { playback, cue } => {
+                    let cue = CueNumber::new(*cue).ok_or(CoreError::InvalidCueNumber)?;
+                    engine.cuelist(*playback, ListAction::Next(cue), now)?;
+                }
+                ActionKind::Connect { playback } => engine.connect_list(*playback)?,
+                ActionKind::Tap { playback, at } => engine.tap(*playback, *at)?,
+                ActionKind::Bpm { playback, bpm } => engine.set_bpm(*playback, *bpm)?,
+                ActionKind::Button {
+                    playback,
+                    button,
+                    on,
+                } => engine.press_button(*playback, *button, *on, now)?,
                 ActionKind::Dbo { on } => engine.set_dbo(*on),
                 ActionKind::GrandMaster(level) => engine.set_grand_master(*level)?,
                 ActionKind::Prg(PrgAction::Select(ids)) => {

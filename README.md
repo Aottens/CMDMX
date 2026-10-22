@@ -27,7 +27,7 @@ out.*
 Early, under active development, not yet for real shows. What works today:
 
 - The engine runs at 40 Hz and outputs Art-Net, sACN and USB (ENTTEC Pro protocol). The Eurolite
-  USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, 20 Hz, start with `--serial <path>`).
+  USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own timer, start with `--serial <path>`).
 - Patch: pick a fixture from the library, set its mode, count, address and user number. Clashes
   are refused, and you can move, renumber, rename, change mode (from a list of the fixture's modes)
   and remove.
@@ -51,7 +51,7 @@ Early, under active development, not yet for real shows. What works today:
   with Keys on the Mac keyboard drives it. Up and Down recall earlier commands.
 
 - Playback area: pages of playbacks with a pages bar, one strip per fader (legend, level,
-  active edge) and the Grand Master; the Go block waits for cue lists.
+  active edge), the Go block and the Grand Master.
 - Playbacks: record the programmer onto a handle (palette
   references stay references), Replace/Merge/Update, Copy/Move/Delete, Titan paging locks
   (a front-spots fader on every page), options and times per playback, legends with automatic
@@ -68,11 +68,19 @@ Early, under active development, not yet for real shows. What works today:
   windows with automatic icons (colour swatch, pan/tilt plot) or one from a built-in library,
   Record/Update/Include/Copy/Move/Delete and legends, as on Titan.
 
-- Cue lists (started): the engine stores cue lists, chases and BPM/Rate masters on handles,
-  with numbered cues (Append, Insert, Q2.5), legends, links, tracking options and times per
-  attribute group. Running them (Go/Back, tracking, chase tempo) comes next.
+- Cue lists (engine): numbered cues (Append, Insert, Q2.5) run with Go, Back, Stop, Go to cue
+  and Set next, follow on by themselves (after or with the cue before), loop, and track as on
+  Titan (Block, Cue Only, Solo, Update modes). Times per attribute group, the fader as intensity
+  master, Release resets to the top, and a handle's buttons become Go / Flash on a list. In the
+  app: the Go block, a Cue list window, a Cue view with tracked values in magenta, Record
+  Append/Insert, cue softkeys, list and chase options, and Space = Go with Keys on.
+- Chases (engine): steps at a BPM with crossfade, Forward/Backward/Bounce/Random, loop or one
+  round, Go/Back/Stop on the chase, Tap tempo that also puts the steps on the beat, and BPM
+  masters (tap, typed, or on the fader) and Rate masters that drive several chases at once, in
+  the app as well (Tap and BPM in the Go block).
 
-Next: running cue lists and chases, then the Go block in the app; checking
+Next: group masters in the app (a group on a fader that scales, limits or lifts its fixtures' intensity, Titan's
+Scale / HTP / Limit / Take Over; the engine side is in review, VS3-06), the owner's fade check of the 33 Hz serial output on the LED par (VS4-05); checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 

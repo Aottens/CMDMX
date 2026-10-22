@@ -44,8 +44,9 @@ values.
   with tracking, its own (**hard**) values plus the values **tracked** from the cues before it;
   without tracking, its own values only.
 - **Transition:** what starting a cue does to the output (CUE-13). Its **duration** is the
-  longest delay + fade (overlap and group times included) over the cue's attributes; its
-  **progress** runs from 0 to 1 over that duration (1 at once when it is 0).
+  longest delay + fade (overlap and group times included) over the attributes the transition
+  fades, HTP fading out included (owner, 2026-10-21: a cue that changes nothing is complete at
+  once); its **progress** runs from 0 to 1 over that duration (1 at once when it is 0).
 - **Connected list:** the one list the Go block, Space and the Cue list window act on (CUE-26).
 - **Effective BPM / step time:** a chase's tempo after its speed source (CUE-29); one step lasts
   *T* = 60 / effective BPM seconds.
@@ -155,7 +156,9 @@ values.
   the setting `cue_list_fader` is the value a playback gets when it becomes a cue list):
   - `KillWithOff` (default, Titan *Intensity Kill With Off*): at 0 the list stays active
     on its current cue (HTP out, LTP held, Go still works); only Release kills it (CUE-17).
-  - `KillAtZero` (Titan *Intensity Kill At 0*): at 0 the list is killed (CUE-17).
+  - `KillAtZero` (Titan *Intensity Kill At 0*): when the effective level falls to 0 the list is
+    killed (CUE-17). Go with the fader already at 0 runs the list with its HTP out (owner,
+    2026-10-21), as `KillWithOff`.
 - **CUE-16** **Fire first cue** (list option `fire_first_cue`, default on): the effective level
   rising above 0 on a list that is off fires it at its next cue, as Go. Off: the list becomes
   active with nothing on stage until Go.
@@ -199,8 +202,9 @@ values.
 - **CUE-50** **Tracking** (list option `tracking`, default on, Titan; chases never track). With
   tracking on, the state of cue *n* holds, for every fixture and attribute, the value of the last
   cue at or before *n* in number order that holds it (hard in that cue, tracked in the cues after
-  it), looking back no further than the nearest Block or Solo cue at or before *n*, and skipping
-  Cue Only and Solo cues before *n* (CUE-51). With tracking off, the state of cue *n* is its own
+  it), looking back no further than the nearest Block cue at or before *n* (or *n* itself when it
+  is a Solo cue), and skipping Cue Only and Solo cues before *n* (CUE-51: a Solo cue before *n*
+  is not there for *n*, as a Cue Only cue). With tracking off, the state of cue *n* is its own
   values. Switching tracking changes no cue and applies from the next cue started. Church: Q3
   Worship holds only the washes' colour and position; the pars' Q2 look tracks into Q3, so no
   cue has to repeat the pars.
@@ -211,10 +215,12 @@ values.
   the pars to 15 % and the spots to 0; Go to Q7 Walk-out brings back the Q5 state for everything
   Q7 does not hold.
 - **CUE-52** **Update modes** (Titan): with tracking on, Update and Merge on a cue (CUE-04, 06) store
-  each changed attribute by the setting `update_mode` (default `Forwards`, overridable per record):
+  each changed attribute by the setting `update_mode` (default `Forwards`, overridable per record).
+  On a tracking list Update takes the attributes of the cue's state, tracked ones included (owner,
+  2026-10-21); with tracking off, those the cue holds (PBK-13).
   - `Forwards`: in the cue; later cues that do not hold it track the new value.
-  - `CueOnly`: in the cue, and the next cue that neither holds it nor is a Block or Solo cue gets
-    the attribute's old state value as a hard value, so later cues keep what they had (an
+  - `CueOnly`: in the cue, and the cue right after it, when it neither holds it nor is a Block or
+    Solo cue, gets the attribute's old state value as a hard value, so later cues keep what they had (an
     attribute the state did not hold before gets 0 there when it is HTP; an LTP one tracks on).
   - `Backwards`: in the cue its value tracks from (the cue itself when the value is hard there or
     new), so every cue in between changes too, and protected after the cue as `CueOnly`.
@@ -289,9 +295,12 @@ values.
 - **CUE-28** A chase runs its steps by itself, in the order of CUE-30, each lasting *T* = 60 /
   effective BPM. Its clock advances each tick by Δt / *T* steps from the tick's timestamp, so a
   tempo change takes effect at once without a jump in the running step; it moves at most one step
-  per tick. It starts with its first step (the last one when the direction is `Backward`) when it
-  fires (fader, Flash or Go), and a kill (PBK-19 kill point, PBK-22, PBK-25) resets it to that
-  step.
+  per tick: a tick that finds more than one step due (a stalled tick) starts one and keeps less
+  than a step of the rest. It starts with its first step (the last one when the direction is
+  `Backward`), or the step Set next chose, when it fires (fader, Flash or Go), and a kill (PBK-19
+  kill point, PBK-22, PBK-25) resets it to that step. A step is due when the clock reaches it
+  (allow 1e-6 of a step for float error). The first step fades in over the crossfade as every
+  step does (Titan: LTP follows the chase's fade times as soon as the fader is above zero).
 - **CUE-29** Chase options (`chase`): `bpm` 1–600 (default 120), `crossfade` 0–100 % (default 0),
   `direction`, `loop` (default `Loop`), `speed_source` (default `Free`). On each step the step's
   values fade from their current value over `crossfade` · *T* with CUE-13's rules (HTP not in the
@@ -302,24 +311,43 @@ values.
   kept, so a master recorded later with that number takes over.
 - **CUE-30** `direction`: `Forward` (default), `Backward`, `Bounce` (1 2 3 2 1 2 …) or `Random`
   (never the same step twice in a row, chosen by a fixed pseudo-random sequence seeded from the
-  playback id and the step count, so it is deterministic, ENG-11). With `loop` `StopOnFinal` the
-  chase stays on its last step, active.
+  playback id and the step count and restarted by a kill, so it is deterministic, ENG-11). With
+  `loop` `StopOnFinal` the chase runs one round and stays on its last step, active (owner,
+  2026-10-21): `Forward` on the last step, `Backward` on the first, `Bounce` after going there and
+  back (1 2 3 2 1, stays on 1), `Random` after as many steps as the chase has.
 - **CUE-31** The fader on a chase is its intensity master as on a memory in mode 0 without times:
-  *m* = the effective level at once, HTP scaled, LTP not; the kill point applies (PBK-19), so at
-  fader 0 a chase is killed and reset. Flash fires it and lifts it to full while held (PBK-26).
-- **CUE-32** Go, Back and Stop on a chase (Go block, connected chase): Stop pauses its clock and
-  the running crossfade; Go on a paused chase resumes it; Go on a running chase starts the next
-  step now and restarts the step clock; Back starts the previous step (against the direction)
-  now; Go to cue *n* starts step *n*. Set next sets the step Go starts.
+  *m* = the effective level at once, HTP scaled, LTP not (and not gated by the LTP trigger level,
+  as on a cue list); the kill point applies (PBK-19) when the effective level falls to 0, so a
+  chase pulled to 0 is killed and reset. Go with the fader already at 0 runs the chase with its
+  HTP out (owner, 2026-10-21: the common practice, as CUE-15 `KillAtZero`). Flash fires it and
+  lifts it to full while held (PBK-26).
+- **CUE-32** Go, Back and Stop on a chase (Go block, connected chase): Go on a chase that is off
+  fires it (CUE-28); Stop pauses its clock and the running crossfade; Go on a paused chase resumes
+  it; Go on a running chase starts the next step now and restarts the step clock; Back starts the
+  previous step now and restarts the step clock; Go to cue *n* starts step *n* and restarts the
+  step clock. Set next sets the step Go or the clock starts next. The previous step is one step
+  against the direction (owner, 2026-10-21): `Forward` *n* − 1, `Backward` *n* + 1, `Bounce`
+  against its current way, `Random` the step shown before the current one; with `Loop` it wraps
+  (Back on step 1 of a `Forward` chase starts the last), with `StopOnFinal` Back at the start is
+  refused. On a paused chase Back and Go to cue step with the crossfade and the chase stays
+  paused (Titan: Prev/Next Step while stopped); Stop on a paused chase does Back (as CUE-12);
+  only Go resumes the clock, counting the step from the resume. Back, Stop, Go to cue and Set
+  next on a chase that is off are as on a cue list (CUE-11, 12, 18, 19). Release kills it
+  (CUE-17).
 - **CUE-33** **Tap** (`playback.tap {id}`, the chase's upper button, the Go block's Tap): taps are
   timed at the moment the daemon receives the command, passed to the core with the action (not
   the tick, which would round to 25 ms). The first tap, or a tap more than 2 s after the previous
   one, starts a new series and changes nothing; each further tap sets the BPM to 60 / the mean of
   the series' last three intervals at most, clamped to 1–600 and rounded to 0.1 BPM, and starts
-  the next step at that moment (beat sync). On a chase following `Bpm n` the tap goes to that
-  master; otherwise it sets the chase's own `bpm` (saved).
+  the next step at that moment (beat sync): the step clock counts from the tap's time, so the
+  step after it falls *T* after the tap. On a chase following `Bpm n` the tap goes to that
+  master; otherwise it sets the chase's own `bpm` (saved). A tap on a BPM master beat-syncs every
+  running chase that follows it (owner, 2026-10-21: everything on the master taps in time). A
+  tap on a paused or an inactive chase only sets the tempo. Tap on a memory, a cue list or a Rate
+  master is refused.
 - **CUE-34** `playback.bpm {id, bpm}` types a tempo for a chase or a BPM master (1–600, else
-  refused); the Go block's BPM field sends it.
+  refused); the Go block's BPM field sends it. On a chase following `Bpm n` it goes to that
+  master, as a tap does (owner, 2026-10-21). It changes no running step (CUE-28).
 
 ### Speed masters (owner decision 6 of `playbacks.md`; owner decision 5)
 - **CUE-35** **BPM masters 1–8** (Titan *BPM 1–8*). `master.record {page, slot, kind: "Bpm",
@@ -388,7 +416,8 @@ values.
   `playback.options` gains `kind`, `list {…}`, `chase {…}`, `master {…}` (each field optional) ·
   `cue.times`, `cue.legend`, `cue.delete`, `cue.renumber`, `cue.renumber_all`, `cue.copy`
   (CUE-07..09) · `cue.track {id, cue, track}` (CUE-51) · `cue.view`, `cue.remove` (CUE-54) ·
-  `master.record {page, slot, kind, number}` · `settings.playback` gains the CUE-38 settings.
+  `master.record {page, slot, kind, number?}` (no number: the lowest free one, `ipc.md` IPC-26) ·
+  `settings.playback` gains the CUE-38 settings. Wire details: `ipc.md` IPC-24..27 (VS3-05).
 
 ### App (UI v0.1; amends `ui.md` UI-13, 18, 19, 22, 23 and PBK-37..39 when approved)
 - **CUE-42** **Go block** (UI-23) shows the connected list:
@@ -521,6 +550,13 @@ lists; Quick Build and Record Stage; autoloads, macros and timecode / MIDI trigg
 6. **Approval (same day):** tracking (CUE-50..54, `update_mode` default `Forwards`), the
    handle buttons (CUE-25 with `BestPractice` / `Titan` / `Custom`, CUE-55) and the BPM-master
    fader modes (CUE-35) approved; IDEA-16 (Ableton sync) is phase 2.
+
+7. **Chase details (VS3-04 gate 1, same day):** Go on a chase at fader 0 runs it with its HTP
+   out, killed when the level falls to 0 (CUE-31, the common practice on Titan and grandMA);
+   Back and Go to cue on a paused chase step and keep it paused (CUE-32, Titan's Prev/Next Step);
+   Tap and typing on a chase following a BPM master go to the master, and a tap on a master
+   beat-syncs every chase that follows it (CUE-33, 34); Back goes one step against the
+   direction and wraps with `Loop`, `StopOnFinal` runs one round per direction (CUE-30, 32).
 
 Smaller proposals, accepted with the approval: cue numbers with up to three decimals; Back uses
 the previous cue's fades without delay; a tap on a Cue list row sets the next cue instead of

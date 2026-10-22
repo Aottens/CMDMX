@@ -1,0 +1,140 @@
+{
+  "spec": "CUE-31",
+  "profiles": {
+    "mover": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        },
+        {
+          "name": "Pan",
+          "group": "P",
+          "kind": "Ltp",
+          "channel": 2
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "mover",
+      "universe": 1,
+      "address": 1
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "kind": "Chase",
+      "cues": [
+        {
+          "values": {
+            "1": {
+              "Dimmer": 1.0,
+              "Pan": 0.2
+            }
+          }
+        },
+        {
+          "values": {
+            "1": {
+              "Dimmer": 1.0,
+              "Pan": 0.8
+            }
+          }
+        }
+      ],
+      "chase": {
+        "bpm": 60,
+        "crossfade": 0.0,
+        "direction": "Forward",
+        "loop": "Loop",
+        "speed_source": "Free"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 0.5
+      }
+    },
+    {
+      "t": 1.5,
+      "fader": {
+        "playback": 1,
+        "level": 0.0
+      }
+    },
+    {
+      "t": 3.0,
+      "flash": {
+        "playback": 1,
+        "on": true
+      }
+    },
+    {
+      "t": 3.5,
+      "flash": {
+        "playback": 1,
+        "on": false
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.5,
+      "universe": 1,
+      "channels": {
+        "1": 128,
+        "2": 51
+      }
+    },
+    {
+      "t": 1.1,
+      "universe": 1,
+      "channels": {
+        "1": 128,
+        "2": 204
+      }
+    },
+    {
+      "t": 1.6,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 204
+      }
+    },
+    {
+      "t": 2.5,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 204
+      }
+    },
+    {
+      "t": 3.1,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 51
+      }
+    },
+    {
+      "t": 3.6,
+      "universe": 1,
+      "channels": {
+        "1": 0,
+        "2": 51
+      }
+    }
+  ]
+}

@@ -12,6 +12,7 @@
 //! - [`palette`]    palettes: storage, kind detection, resolving, icons (`specs/modules/palettes.md`)
 //! - [`patch`]      fixtures on universes/addresses
 //! - [`playback`]   playbacks: handles, cues, options, runtime level
+//! - `cuelist`      cue lists running: transitions, links, tracking (`specs/modules/cuelists.md`)
 //! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
 //! - [`command`]    command line parser (`specs/modules/programmer.md` PRG-08..11)
 //! - [`show`]       the show file: schema, (de)serialisation, migrations (`specs/modules/showfile.md`)
@@ -21,6 +22,7 @@
 pub mod attribute;
 pub mod colour;
 pub mod command;
+mod cuelist;
 pub mod engine;
 pub mod library;
 pub mod palette;
@@ -170,6 +172,13 @@ pub enum CoreError {
     NoCueRoom(String),
     #[error("Q{0} is the last cue: Delete the playback instead")]
     LastCue(crate::playback::CueNumber),
+    #[error("No cue list connected")]
+    NoCueListConnected,
+    #[error("playback {0} is not a cue list")]
+    NotACueList(u32),
+    /// A list action that does not apply now, e.g. "Q3 is the last cue" (CUE-10, CUE-11).
+    #[error("{0}")]
+    ListRefused(String),
     #[error("invalid {0}")]
     InvalidOption(String),
     #[error("invalid command: {0}")]

@@ -19,6 +19,25 @@ struct PlaybackSlot: Identifiable, Equatable {
     var isReleasing: Bool { info?.live.state == "releasing" }
 }
 
+/// CUE-40: a cue list's or chase's current and next cue (a chase: the step numbers) and the running
+/// transition. `nil` for a memory or a master.
+struct CueLive: Decodable, Equatable {
+    var current: Double?
+    var next: Double?
+    var progress = 0.0
+    var paused = false
+
+    private enum CodingKeys: String, CodingKey { case current, next, progress, paused }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        current = try? c.decode(Double.self, forKey: .current)
+        next = try? c.decode(Double.self, forKey: .next)
+        progress = ((try? c.decode(Double.self, forKey: .progress)) ?? 0).clamped01
+        paused = (try? c.decode(Bool.self, forKey: .paused)) ?? false
+    }
+}
+
 /// PBK-35: the live part of a playback entry, sent alone in the small `playback` delta.
 struct PlaybackLive: Decodable, Equatable {
     var level = 0.0
@@ -29,10 +48,14 @@ struct PlaybackLive: Decodable, Equatable {
     var latched = false
     /// Orders the active playbacks by when they fired; nil while off or releasing.
     var fired: Int?
+    /// CUE-40, IPC-28: lists and chases only.
+    var cue: CueLive?
+    /// The effective BPM of a chase or BPM master.
+    var bpm: Double?
 
     init() {}
 
-    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired }
+    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired, cue, bpm }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -41,6 +64,162 @@ struct PlaybackLive: Decodable, Equatable {
         flash = (try? c.decode(Bool.self, forKey: .flash)) ?? false
         latched = (try? c.decode(Bool.self, forKey: .latched)) ?? false
         fired = try? c.decode(Int.self, forKey: .fired)
+        cue = try? c.decode(CueLive.self, forKey: .cue)
+        bpm = try? c.decode(Double.self, forKey: .bpm)
+    }
+}
+
+/// CUE-20: how a cue follows the one before it; `Wait`, `After` or `With`, offset in seconds.
+struct CueLink: Decodable, Equatable {
+    var type = "Wait"
+    var offset = 0.0
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey { case type, offset }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        type = (try? c.decode(String.self, forKey: .type)) ?? "Wait"
+        offset = (try? c.decode(Double.self, forKey: .offset)) ?? 0
+    }
+}
+
+/// CUE-14: delay and fade of one attribute group in a cue.
+struct GroupTime: Decodable, Equatable {
+    var delay = 0.0
+    var fade = 0.0
+}
+
+/// CUE-40: a stored cue without its values.
+struct StoredCue: Decodable, Identifiable, Equatable {
+    var number = 1.0
+    var legend = ""
+    var delay = 0.0
+    var fadeIn = 0.0
+    var fadeOut = 0.0
+    var overlap = 100.0
+    var link = CueLink()
+    /// `Track`, `Block`, `CueOnly` or `Solo` (CUE-51).
+    var track = "Track"
+    var groupTimes: [String: GroupTime] = [:]
+    var groups: [String] = []
+    var id: Double { number }
+
+    private enum CodingKeys: String, CodingKey {
+        case number, legend, delay, overlap, link, track, groups
+        case fadeIn = "fade_in", fadeOut = "fade_out", groupTimes = "group_times"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        number = try c.decode(Double.self, forKey: .number)
+        legend = (try? c.decode(String.self, forKey: .legend)) ?? ""
+        delay = (try? c.decode(Double.self, forKey: .delay)) ?? 0
+        fadeIn = (try? c.decode(Double.self, forKey: .fadeIn)) ?? 0
+        fadeOut = (try? c.decode(Double.self, forKey: .fadeOut)) ?? 0
+        overlap = (try? c.decode(Double.self, forKey: .overlap)) ?? 100
+        link = (try? c.decode(CueLink.self, forKey: .link)) ?? CueLink()
+        track = (try? c.decode(String.self, forKey: .track)) ?? "Track"
+        groupTimes = (try? c.decode([String: GroupTime].self, forKey: .groupTimes)) ?? [:]
+        groups = (try? c.decode([String].self, forKey: .groups)) ?? []
+    }
+}
+
+/// CUE-38: the options of a cue list.
+struct ListOptions: Decodable, Equatable {
+    var tracking = true
+    /// `KillWithOff` or `KillAtZero` (CUE-15).
+    var fader = "KillWithOff"
+    var fireFirstCue = true
+    /// `StopOnFinal` or `Loop`.
+    var loop = "StopOnFinal"
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case tracking, fader, loop
+        case fireFirstCue = "fire_first_cue"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        tracking = (try? c.decode(Bool.self, forKey: .tracking)) ?? true
+        fader = (try? c.decode(String.self, forKey: .fader)) ?? "KillWithOff"
+        fireFirstCue = (try? c.decode(Bool.self, forKey: .fireFirstCue)) ?? true
+        loop = (try? c.decode(String.self, forKey: .loop)) ?? "StopOnFinal"
+    }
+}
+
+/// CUE-29: where a chase gets its tempo: `Free`, `Bpm` n or `Rate` n (wire: "Free", {"Bpm":n}).
+struct SpeedSource: Decodable, Equatable {
+    var kind = "Free"
+    var number = 1
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        if let text = try? decoder.singleValueContainer().decode(String.self) {
+            kind = text
+        } else if let pair = try? decoder.singleValueContainer().decode([String: Int].self), let first = pair.first {
+            kind = first.key
+            number = first.value
+        }
+    }
+
+    /// The wire form of `playback.options`.
+    var wire: Any { kind == "Free" ? "Free" : [kind: number] }
+}
+
+/// CUE-29, CUE-38: the options of a chase.
+struct ChaseOptions: Decodable, Equatable {
+    var bpm = 120.0
+    var crossfade = 0.0
+    var direction = "Forward"
+    var loop = "Loop"
+    var speedSource = SpeedSource()
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case bpm, crossfade, direction, loop
+        case speedSource = "speed_source"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        bpm = (try? c.decode(Double.self, forKey: .bpm)) ?? 120
+        crossfade = (try? c.decode(Double.self, forKey: .crossfade)) ?? 0
+        direction = (try? c.decode(String.self, forKey: .direction)) ?? "Forward"
+        loop = (try? c.decode(String.self, forKey: .loop)) ?? "Loop"
+        speedSource = (try? c.decode(SpeedSource.self, forKey: .speedSource)) ?? SpeedSource()
+    }
+}
+
+/// CUE-35, CUE-36: a speed master's settings; a BPM master has `bpm` and friends, a Rate master
+/// `rateScale`.
+struct MasterInfo: Decodable, Equatable {
+    var number = 1
+    var bpm: Double?
+    var multiplier: Double?
+    /// `None`, `Bpm` or `Multiplier`.
+    var fader: String?
+    var faderMax: Double?
+    var rateScale: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case number, bpm, multiplier, fader
+        case faderMax = "fader_max", rateScale = "rate_scale"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        number = (try? c.decode(Int.self, forKey: .number)) ?? 1
+        bpm = try? c.decode(Double.self, forKey: .bpm)
+        multiplier = try? c.decode(Double.self, forKey: .multiplier)
+        fader = try? c.decode(String.self, forKey: .fader)
+        faderMax = try? c.decode(Double.self, forKey: .faderMax)
+        rateScale = try? c.decode(Int.self, forKey: .rateScale)
     }
 }
 
@@ -112,11 +291,19 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
     let halo: AutoIcon.RGB?
     let options: Options
     let times: Times
-    /// Attribute groups the first cue holds, in I P C G B E S FX order.
+    /// Attribute groups all cues hold, in I P C G B E S FX order.
     let groups: [String]
+    /// CUE-40: `Cues` (a memory or a cue list), `Chase`, `BpmMaster` or `RateMaster`.
+    let kind: String
+    let cues: [StoredCue]
+    let list: ListOptions
+    let chase: ChaseOptions
+    let master: MasterInfo?
+    /// CUE-25, IPC-28: what the two handle buttons do now (upper, lower); `None` = no function.
+    let buttons: [String]
 
     private enum CodingKeys: String, CodingKey {
-        case id, page, slot, legend, icon, halo, options, times, groups
+        case id, page, slot, legend, icon, halo, options, times, groups, kind, cues, list, chase, master, buttons
         case autoIcon = "auto_icon"
     }
 
@@ -132,7 +319,16 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
         options = (try? c.decode(Options.self, forKey: .options)) ?? Options()
         times = (try? c.decode(Times.self, forKey: .times)) ?? Times()
         groups = (try? c.decode([String].self, forKey: .groups)) ?? []
+        kind = (try? c.decode(String.self, forKey: .kind)) ?? "Cues"
+        cues = ((try? c.decode([Tolerant<StoredCue>].self, forKey: .cues)) ?? []).compactMap(\.value)
+        list = (try? c.decode(ListOptions.self, forKey: .list)) ?? ListOptions()
+        chase = (try? c.decode(ChaseOptions.self, forKey: .chase)) ?? ChaseOptions()
+        master = try? c.decode(MasterInfo.self, forKey: .master)
+        let pair = (try? c.decode([String].self, forKey: .buttons)) ?? []
+        buttons = pair.count == 2 ? pair : ["None", "None"]
     }
+
+    var isMaster: Bool { kind == "BpmMaster" || kind == "RateMaster" }
 }
 
 /// One `playbacks` entry (PBK-35): the stored part and the live part in one JSON object.
@@ -170,6 +366,11 @@ struct PlaybackInfo: Identifiable, Equatable {
     /// PBK-37: the legend, else the home handle ("2.3").
     var shownLegend: String { stored.legend.isEmpty ? homeHandle : stored.legend }
     var isRunning: Bool { live.state != "off" }
+    /// A cue list or a chase: the engine sends live cue state for these only (CUE-40).
+    var hasCues: Bool { live.cue != nil }
+    var isChase: Bool { stored.kind == "Chase" }
+    /// The stored cue with this number.
+    func cue(_ number: Double?) -> StoredCue? { number.flatMap { n in stored.cues.first { $0.number == n } } }
 }
 
 /// PBK-35: a page's number and legend.
@@ -189,11 +390,91 @@ struct PlaybackSettings: Decodable, Equatable {
     let overlap: Double
     let releaseMask: [String]
     let releaseTime: Double
+    /// CUE-38: Auto connect, the fader of new lists (`KillWithOff` / `KillAtZero`), the default
+    /// update mode (`Forwards` / `CueOnly` / `Backwards` / `Both`) and the handle buttons (CUE-25).
+    let autoConnect: Bool
+    let cueListFader: String
+    let updateMode: String
+    let handleButtons: HandleButtons
 
     private enum CodingKeys: String, CodingKey {
         case delay, overlap
         case recordBy = "record_by", fadeIn = "fade_in", fadeOut = "fade_out"
         case releaseMask = "release_mask", releaseTime = "release_time"
+        case autoConnect = "auto_connect", cueListFader = "cue_list_fader"
+        case updateMode = "update_mode", handleButtons = "handle_buttons"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        recordBy = (try? c.decode(String.self, forKey: .recordBy)) ?? "Channel"
+        delay = (try? c.decode(Double.self, forKey: .delay)) ?? 0
+        fadeIn = (try? c.decode(Double.self, forKey: .fadeIn)) ?? 0
+        fadeOut = (try? c.decode(Double.self, forKey: .fadeOut)) ?? 0
+        overlap = (try? c.decode(Double.self, forKey: .overlap)) ?? 100
+        releaseMask = (try? c.decode([String].self, forKey: .releaseMask)) ?? []
+        releaseTime = (try? c.decode(Double.self, forKey: .releaseTime)) ?? 0
+        autoConnect = (try? c.decode(Bool.self, forKey: .autoConnect)) ?? true
+        cueListFader = (try? c.decode(String.self, forKey: .cueListFader)) ?? "KillWithOff"
+        updateMode = (try? c.decode(String.self, forKey: .updateMode)) ?? "Forwards"
+        handleButtons = (try? c.decode(HandleButtons.self, forKey: .handleButtons)) ?? HandleButtons()
+    }
+}
+
+/// CUE-25: the setting `handle_buttons`: `BestPractice`, `Titan` or `Custom` with a pair
+/// [upper, lower] per kind (wire: "Titan", {"Custom":{"CueList":["Go","Back"]}}).
+struct HandleButtons: Decodable, Equatable {
+    var mode = "BestPractice"
+    var custom: [String: [String]] = [:]
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        if let text = try? decoder.singleValueContainer().decode(String.self) {
+            mode = text
+        } else if let wrapped = try? decoder.singleValueContainer().decode([String: [String: [String]]].self),
+                  let pairs = wrapped["Custom"] {
+            mode = "Custom"
+            custom = pairs
+        }
+    }
+}
+
+/// CUE-54, IPC-24: one value of a cue's state; `from` is the cue it is hard in.
+struct CueViewValue: Decodable, Equatable {
+    let value: ProgrammerValue
+    let from: Double
+    /// The palette id when the value is a palette reference.
+    let palette: Int?
+}
+
+struct CueViewFixture: Decodable, Identifiable, Equatable {
+    let fixture: Int
+    let values: [String: CueViewValue]
+    var id: Int { fixture }
+
+    private enum CodingKeys: String, CodingKey { case fixture, values }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fixture = try c.decode(Int.self, forKey: .fixture)
+        values = ((try? c.decode([String: Tolerant<CueViewValue>].self, forKey: .values)) ?? [:]).compactMapValues(\.value)
+    }
+}
+
+/// CUE-54: the answer to `cue.view` (this client only).
+struct CueViewReply: Decodable, Equatable {
+    let playback: Int
+    let cue: Double
+    let fixtures: [CueViewFixture]
+
+    private enum CodingKeys: String, CodingKey { case playback, cue, fixtures }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        playback = try c.decode(Int.self, forKey: .playback)
+        cue = try c.decode(Double.self, forKey: .cue)
+        fixtures = ((try? c.decode([Tolerant<CueViewFixture>].self, forKey: .fixtures)) ?? []).compactMap(\.value)
     }
 }
 
@@ -622,6 +903,12 @@ final class EngineClient: ObservableObject {
     @Published private(set) var pages: [PageLegend] = []
     @Published private(set) var dbo = false
     @Published private(set) var playbackSettings: PlaybackSettings?
+    /// CUE-26: the connected list (the Go block, Space and the Cue list window act on it), or nil.
+    @Published private(set) var connected: Int?
+    /// CUE-54: the last `cue.view` reply (this client only), and a counter that goes up with every
+    /// stored change (snapshot, `playbacks` delta) so an open Cue view asks again.
+    @Published private(set) var cueView: CueViewReply?
+    @Published private(set) var storedRevision = 0
     /// Stored part and shown live part per playback id, so a page switch shows the right values at once.
     private var playbackStored: [Int: PlaybackStored] = [:]
     private var playbackLive: [Int: PlaybackLive] = [:]
@@ -862,13 +1149,20 @@ final class EngineClient: ObservableObject {
 
     // Playback commands (PBK-36). Ids, and pages and slots for handles; a refusal comes back as a warning.
 
-    func recordPlayback(page: Int, slot: Int, mask: [String]? = nil, recordBy: String? = nil, mode: String? = nil) {
+    /// `mode` is Replace, Merge, Update, Append or Insert; `cue` records onto that cue number
+    /// (CUE-04, not with Append / Insert); `updateMode` is Forwards, CueOnly, Backwards or Both (CUE-52).
+    func recordPlayback(page: Int, slot: Int, mask: [String]? = nil, recordBy: String? = nil, mode: String? = nil,
+                        cue: Double? = nil, updateMode: String? = nil) {
         var fields: [String: Any] = ["page": page, "slot": slot]
         if let mask { fields["mask"] = mask }
         if let recordBy { fields["record_by"] = recordBy }
         if let mode { fields["mode"] = mode }
+        if let cue { fields["cue"] = cue }
+        if let updateMode { fields["update_mode"] = updateMode }
         patch("playback.record", fields)
     }
+    /// IPC-26: `kind` is Bpm or Rate; the engine picks the master's number.
+    func recordMaster(page: Int, slot: Int, kind: String) { patch("master.record", ["page": page, "slot": slot, "kind": kind]) }
     /// Press and hold: `on: true` on press, `false` on release (PBK-37).
     func flashPlayback(_ id: Int, on: Bool) { sendJSON("playback.flash", ["id": id, "on": on]) }
     func swopPlayback(_ id: Int, on: Bool) { sendJSON("playback.swop", ["id": id, "on": on]) }
@@ -890,6 +1184,43 @@ final class EngineClient: ObservableObject {
         patch("playback.legend", ["id": id, "legend": legend, "icon": icon.map { $0 as Any } ?? NSNull(),
                                   "halo": halo.map { ["r": $0.r, "g": $0.g, "b": $0.b] as [String: Any] } ?? NSNull()])
     }
+    // Cue list commands (CUE-41). Without an `id` the connected list acts (CUE-27); a refusal comes
+    // back as a warning.
+
+    /// `action` is go, back, stop, goto, next or connect (connect needs an id; goto and next a cue).
+    func cuelist(_ action: String, id: Int? = nil, cue: Double? = nil) {
+        var fields: [String: Any] = [:]
+        if let id { fields["id"] = id }
+        if let cue { fields["cue"] = cue }
+        patch("cuelist.\(action)", fields)
+    }
+    /// `playback.release` without an id releases the connected list.
+    func releaseConnected() { sendJSON("playback.release") }
+    /// CUE-55: `which` is upper or lower; the engine does what `handle_buttons` assigns. Held
+    /// functions follow `on`, the others act on the press.
+    func pressButton(_ id: Int, _ which: String, on: Bool) { sendJSON("playback.button", ["id": id, "button": which, "on": on]) }
+    func tapPlayback(_ id: Int) { sendJSON("playback.tap", ["id": id]) }
+    func setBPM(_ id: Int, _ bpm: Double) { patch("playback.bpm", ["id": id, "bpm": bpm]) }
+    /// `fields` as `cue.times`: delay, fade_in, fade_out, overlap, link, group_times (CUE-07, 14, 20).
+    func setCueTimes(_ id: Int, cue: Double, _ fields: [String: Any]) {
+        patch("cue.times", fields.merging(["id": id, "cue": cue]) { a, _ in a })
+    }
+    func setCueLegend(_ id: Int, cue: Double, legend: String) { patch("cue.legend", ["id": id, "cue": cue, "legend": legend]) }
+    func setCueTrack(_ id: Int, cue: Double, track: String) { patch("cue.track", ["id": id, "cue": cue, "track": track]) }
+    func deleteCue(_ id: Int, cue: Double) { patch("cue.delete", ["id": id, "cue": cue]) }
+    func renumberCue(_ id: Int, cue: Double, to: Double) { patch("cue.renumber", ["id": id, "cue": cue, "to": to]) }
+    func renumberAllCues(_ id: Int) { patch("cue.renumber_all", ["id": id]) }
+    func copyCue(_ id: Int, cue: Double, to: Double) { patch("cue.copy", ["id": id, "cue": cue, "to": to]) }
+    /// CUE-54: the reply lands in `cueView`.
+    func viewCue(_ id: Int, cue: Double) { sendJSON("cue.view", ["id": id, "cue": cue]) }
+    func removeCueValue(_ id: Int, cue: Double, fixture: Int, attribute: String?) {
+        var fields: [String: Any] = ["id": id, "cue": cue, "fixture": fixture]
+        if let attribute { fields["attribute"] = attribute }
+        patch("cue.remove", fields)
+    }
+    /// `settings.playback` (show-wide): only the given fields change.
+    func setPlaybackSettings(_ fields: [String: Any]) { patch("settings.playback", fields) }
+
     func setPageLegend(_ page: Int, legend: String) { patch("page.legend", ["page": page, "legend": legend]) }
     /// `dbo.set` (PBK-41); the engine's `dbo` delta shows the result.
     func setDBO(_ on: Bool) { sendJSON("dbo.set", ["on": on]) }
@@ -988,8 +1319,11 @@ final class EngineClient: ObservableObject {
         fileprivate let playbackSettings: Tolerant<PlaybackSettings>?
         let level: Double?
         let message: String?
-        let fixtures: [FixtureInfo]?
+        fileprivate let fixtures: Tolerant<[FixtureInfo]>?   // a `cue.view` reply has other fixtures
         let groups: [GroupInfo]?
+        /// The snapshot's `connected` (an id or null) and the `connected` delta's `id`.
+        fileprivate let connected: Tolerant<Int>?
+        fileprivate let id: Tolerant<Int>?
         fileprivate let palettes: Tolerant<[Tolerant<PaletteInfo>]>?
         fileprivate let paletteSettings: Tolerant<PaletteSettings>?
         let programmer: ProgrammerState?
@@ -999,7 +1333,7 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, palettes, programmer, items, outputs, show, shows
+            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, items, outputs, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -1025,8 +1359,10 @@ final class EngineClient: ObservableObject {
             pages = incoming.pages?.value ?? []
             dbo = incoming.dbo ?? false
             playbackSettings = incoming.playbackSettings?.value
+            connected = incoming.connected?.value
+            cueView = nil
             grandMaster = (incoming.grandMaster ?? grandMaster).clamped01
-            fixtures = incoming.fixtures ?? []
+            fixtures = incoming.fixtures?.value ?? []
             groups = incoming.groups ?? []
             palettes = (incoming.palettes?.value ?? []).compactMap(\.value)
             paletteSettings = incoming.paletteSettings?.value
@@ -1042,7 +1378,7 @@ final class EngineClient: ObservableObject {
             // IPC-12: the delta carries the IPC-11 fields at top level.
             if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }
         case "fixtures":
-            if let fixtures = incoming.fixtures { self.fixtures = fixtures }
+            if let fixtures = incoming.fixtures?.value { self.fixtures = fixtures }
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
         case "show":
@@ -1065,13 +1401,17 @@ final class EngineClient: ObservableObject {
             // PBK-35: the small live delta; the stored part stays.
             if let delta = try? JSONDecoder().decode(PlaybackLiveDelta.self, from: data), playbackStored[delta.id] != nil {
                 storeLive(id: delta.id, delta.live)
-                rebuildSlots()
+                scheduleRebuild()
             }
         case "playbacks":
             // PBK-35: the whole list after a stored change; a playback that is gone disappears.
             storePlaybackList(incoming.playbacks?.value)
         case "pages":
             if let list = incoming.pages?.value { pages = list }
+        case "connected":
+            connected = incoming.id?.value
+        case "cue.view":
+            if let reply = try? JSONDecoder().decode(CueViewReply.self, from: data) { cueView = reply }
         case "dbo":
             if let on = incoming.on { dbo = on }
         case "playback_settings":
@@ -1094,6 +1434,7 @@ final class EngineClient: ObservableObject {
         var state = playbackLive[id] ?? PlaybackLive()
         state.flash = new.flash; state.latched = new.latched; state.fired = new.fired
         state.state = new.state
+        state.cue = new.cue; state.bpm = new.bpm
         if heldFaders[id] != nil {
             heldFaders[id] = .some(new.level.clamped01)
         } else {
@@ -1109,7 +1450,24 @@ final class EngineClient: ObservableObject {
         playbackStored = Dictionary(entries.map { ($0.stored.id, $0.stored) }, uniquingKeysWith: { _, last in last })
         playbackLive = playbackLive.filter { playbackStored[$0.key] != nil }
         for entry in entries { storeLive(id: entry.stored.id, entry.live) }
+        storedRevision += 1
         rebuildSlots()
+    }
+
+    private var rebuildPending = false
+
+    /// Live deltas come up to 40 Hz per running list or chase; the views redraw from them at most
+    /// every 1/30 s (VS3-05 run: a running list and a chase kept the main thread at 100 % and the
+    /// screen seconds behind the engine). ponytail: one ObservableObject still redraws every zone
+    /// (~50 % CPU with a list and a chase running); split the live state per zone if that matters.
+    private func scheduleRebuild() {
+        guard !rebuildPending else { return }
+        rebuildPending = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 33_000_000)
+            self?.rebuildPending = false
+            self?.rebuildSlots()
+        }
     }
 
     /// PBK-01/05: the strips show the current page's slots; the engine decides which playback each holds.

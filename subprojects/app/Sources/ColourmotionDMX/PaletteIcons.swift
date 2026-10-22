@@ -171,8 +171,12 @@ struct AutoIconView: View {
             }
             .frame(width: 48, height: 16)
         case .value(let attribute, let value):
-            Text("\(attribute.uppercased()) \(Int((value * 100).rounded()))%")
-                .font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1).minimumScaleFactor(0.7)
+            // Two short lines so it fits a strip's 26 pt icon (VS3-05 run: "DIMME…").
+            VStack(spacing: 0) {
+                Text(String(attribute.uppercased().prefix(3)))
+                Text("\(Int((value * 100).rounded()))%")
+            }
+            .font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1).minimumScaleFactor(0.7)
         case nil:
             Color.clear.frame(height: 12)
         }

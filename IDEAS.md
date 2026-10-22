@@ -29,7 +29,7 @@ the backlog, not the whole idea.
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
 | IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | accepted 2026-10-17 | 1 (with VS2-05) | PRG, IPC, app |
-| IDEA-17 | FX/shape generator as the best on the market: intuitive, fast, professional results | triaged | 2 (flagship) | new `effects.md`, ENG, PRG, CUE, PAL |
+| IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | triaged | 2 (flagship) | new `effects.md`, ENG, PRG, CUE, PAL |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -226,7 +226,28 @@ subdivisions or multiples of Ableton's tempo ("isn't that a sick new feature?").
   MIDI clock has no such tie. Should a chase step on the beat (phase), or only follow the tempo?
 **Outcome (2026-10-21):** owner: phase 2.
 
-### IDEA-17 — The best FX generator on the market (2026-10-22)
+### IDEA-17 — MCP server: build shows with an AI assistant (2026-10-21, VS3-05 run)
+**Owner's intent:** an MCP (Model Context Protocol) server in ColourmotionDMX, so an assistant
+such as Claude can build shows smartly: patch, groups, palettes, cues and cue lists by asking,
+on the same engine the operator uses ("that is new, we must have it").
+**Triage:**
+- Proposed phase 2 (once the phase-1 programming model is stable); owner to confirm or pull it
+  forward.
+- Touches now: only the IPC contract. Every `ipc.md` command is already a natural MCP tool and
+  the snapshot a natural resource, so the MCP server can be a small separate client of the same
+  WebSocket JSON (ADR-002, like the remotes of IDEA-06), with no change to the engine. Until its
+  phase the one requirement is to keep every command in `ipc.md` complete and documented, as
+  now. No criteria until its phase is planned.
+- Show-proof: it goes through the same refusals and warnings as the app; it must never stop the
+  tick, and must not change live output during a show without the operator (a blind / prepare
+  mode, or a confirm in the app); loopback only as IPC-01/02, authentication with IDEA-06.
+- Open questions: what should it do first (build a service list from a running order, palettes
+  for a patched rig, import a Lightkey or other show, explain what is on stage)? Blind only or
+  also live? Its own binary (stdio MCP, Rust or Swift) or inside the daemon? Which clients
+  (Claude Desktop, Claude Code, others)?
+**Outcome (2026-10-21):** owner: phase 2; details later.
+
+### IDEA-18 — The best FX generator on the market (2026-10-22)
 **Owner's intent:** the effects (shape) generator must become the best in the market. Moving
 from Titan to ONYX was a disappointment: getting a good result there was hard work. Here it has
 to be intuitive and fast, and easily give a professional result. How is not clear yet, but it
@@ -260,5 +281,6 @@ must be taken along in everything we build. The owner wants to invest heavily in
   size/speed/spread), or keep it all in phase 2 and only guard the engine shape now?
 - Fix the two engine points above (relative layer in the merge, room for effects in cues) now
   as a decision in `BACKLOG.md`, before cue playback is built on the merge?
-**Outcome (2026-10-22):** owner: fix the two engine points now → `BACKLOG.md` P1-17 (ADR-007), before VS3-03.
+**Outcome (2026-10-22):** owner: fix the two engine points now → `BACKLOG.md` P1-17 (ADR-007). Cue playback (VS3-03..05)
+was already built by then, so the ADR also checks it against the relative layer.
 The phase and a possible small first version in phase 1 are still open.

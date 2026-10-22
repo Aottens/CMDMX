@@ -1,0 +1,119 @@
+{
+  "spec": "GRM-06",
+  "profiles": {
+    "rgbl": {
+      "manufacturer": "U'King",
+      "model": "RGBL Par",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "4 Channel",
+          "footprint": 4,
+          "virtual_dimmer": true,
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          },
+          "attributes": [
+            {
+              "name": "Lime",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 4,
+              "emitter": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 211,
+      "profile": "rgbl",
+      "universe": 1,
+      "address": 1
+    }
+  ],
+  "groups": [
+    {
+      "id": 6,
+      "fixtures": [
+        211
+      ]
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "values": {
+        "211": {
+          "Lime": 1.0,
+          "Dimmer": 1.0
+        }
+      }
+    },
+    {
+      "id": 2,
+      "page": 1,
+      "slot": 8,
+      "kind": "GroupMaster",
+      "cues": [],
+      "master": {
+        "group": 6,
+        "mode": "Scale",
+        "scale": 100,
+        "enabled": true,
+        "level": 1.0
+      }
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 0.5,
+      "fader": {
+        "playback": 2,
+        "level": 0.5
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.1,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 255,
+        "3": 255,
+        "4": 255
+      }
+    },
+    {
+      "t": 0.6,
+      "universe": 1,
+      "channels": {
+        "1": 128,
+        "2": 128,
+        "3": 128,
+        "4": 128
+      }
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "spec": "GRM-09",
+  "profiles": {
+    "dimmer": {
+      "attributes": [
+        {
+          "name": "Dimmer",
+          "group": "I",
+          "kind": "Htp",
+          "channel": 1
+        }
+      ]
+    }
+  },
+  "patch": [
+    {
+      "id": 1,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 1
+    },
+    {
+      "id": 2,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 2
+    },
+    {
+      "id": 3,
+      "profile": "dimmer",
+      "universe": 1,
+      "address": 3
+    }
+  ],
+  "groups": [
+    {
+      "id": 6,
+      "fixtures": [
+        1,
+        2
+      ]
+    }
+  ],
+  "playbacks": [
+    {
+      "id": 1,
+      "values": {
+        "2": {
+          "Dimmer": 0.8
+        }
+      }
+    },
+    {
+      "id": 2,
+      "page": 1,
+      "slot": 7,
+      "kind": "GroupMaster",
+      "cues": [],
+      "master": {
+        "group": 6,
+        "mode": "Limit",
+        "scale": 100,
+        "enabled": true,
+        "level": 1.0
+      }
+    },
+    {
+      "id": 3,
+      "page": 1,
+      "slot": 8,
+      "kind": "GroupMaster",
+      "cues": [],
+      "master": {
+        "group": 6,
+        "mode": "Htp",
+        "scale": 100,
+        "enabled": true,
+        "level": 0.0
+      }
+    }
+  ],
+  "actions": [
+    {
+      "t": 0.0,
+      "fader": {
+        "playback": 1,
+        "level": 1.0
+      }
+    },
+    {
+      "t": 0.0,
+      "prg": {
+        "command": [
+          "1",
+          "@",
+          "100",
+          "Enter"
+        ]
+      }
+    },
+    {
+      "t": 0.5,
+      "fader": {
+        "playback": 2,
+        "level": 0.4
+      }
+    },
+    {
+      "t": 1.0,
+      "fader": {
+        "playback": 3,
+        "level": 0.9
+      }
+    }
+  ],
+  "expect": [
+    {
+      "t": 0.1,
+      "universe": 1,
+      "channels": {
+        "1": 255,
+        "2": 204
+      }
+    },
+    {
+      "t": 0.6,
+      "universe": 1,
+      "channels": {
+        "1": 102,
+        "2": 102
+      }
+    },
+    {
+      "t": 1.1,
+      "universe": 1,
+      "channels": {
+        "1": 102,
+        "2": 102
+      }
+    }
+  ]
+}

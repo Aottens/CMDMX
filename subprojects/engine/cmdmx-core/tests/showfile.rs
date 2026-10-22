@@ -15,7 +15,7 @@ use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::patch::{Fixture, PatchAdd};
-use cmdmx_core::playback::{FaderMode, Playback, Priority};
+use cmdmx_core::playback::{FaderMode, GroupMaster, GroupMode, Master, Playback, Priority};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
 use serde_json::{json, Value as Json};
@@ -134,7 +134,7 @@ fn shw_01_top_level_keys_in_order() {
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
-    assert_eq!(SCHEMA_VERSION, 4); // CUE-38
+    assert_eq!(SCHEMA_VERSION, 5); // GRM-13
     assert_eq!(
         v["meta"],
         json!({"name": "Church demo", "created": "2026-10-18T09:00:00Z",
@@ -291,12 +291,12 @@ fn shw_03_fixture_show_is_the_church_rig() {
 #[test]
 fn shw_04_newer_schema_is_refused_with_a_clear_message() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["schema_version"] = json!(5);
+    v["schema_version"] = json!(6);
     let err = Show::from_json(&v.to_string()).unwrap_err().to_string();
     assert!(err.contains("Church demo"), "{err}");
     assert!(err.contains("newer"), "{err}");
-    assert!(err.contains("schema 5"), "{err}");
-    assert!(err.contains("up to 4"), "{err}");
+    assert!(err.contains("schema 6"), "{err}");
+    assert!(err.contains("up to 5"), "{err}");
 }
 
 #[test]
@@ -485,4 +485,130 @@ fn shw_03_a_group_emptied_by_removes_survives_the_round_trip() {
     let (loaded, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(loaded.to_show(meta()), show);
+}
+
+// ---- GRM-13, 14: group masters (`specs/modules/group-masters.md`) -------------
+
+const V4_SHOW: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../tests/fixtures/shows/church-demo-v4.cmdmx.json"
+);
+
+/// The rig with a Scale master of group 4 (the spots) on 1.8 at 25 % (playback 3).
+fn rig_with_group_master() -> Engine {
+    let mut e = rig();
+    let id = e.record_group_master(1, 8, 4).unwrap();
+    assert_eq!(id, 3);
+    e.set_fader(2, 1.0, 0.0).unwrap();
+    e.set_fader(id, 0.25, 0.0).unwrap();
+    e
+}
+
+fn group_master_of(e: &Engine, id: u32) -> GroupMaster {
+    match &e.playback(id).unwrap().master {
+        Some(Master::Group(m)) => m.clone(),
+        other => panic!("not a group master: {other:?}"),
+    }
+}
+
+#[test]
+fn grm_13_a_group_master_is_saved_with_its_level() {
+    let e = rig_with_group_master();
+    let v = as_json(&e.to_show(meta()));
+    assert_eq!(v["schema_version"], json!(5));
+    let pb = &v["playbacks"]["playbacks"][2];
+    assert_eq!(pb["kind"], json!("GroupMaster"));
+    assert_eq!(
+        pb["master"],
+        json!({"group": 4, "mode": "Scale", "scale": 100, "enabled": true, "level": 0.25})
+    );
+    assert_eq!(pb["cues"], json!([]));
+}
+
+#[test]
+fn grm_13_a_restart_keeps_the_masters_level_and_the_stage() {
+    let mut e = rig_with_group_master();
+    e.tick(0.0);
+    let show = e.to_show(meta());
+    let (parsed, migrations) = Show::from_json(&show.to_json()).unwrap();
+    assert!(migrations.is_empty(), "{migrations:?}");
+    let (mut loaded, warnings) = Engine::from_show(&parsed);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(loaded.to_show(meta()), show);
+    assert_eq!(loaded.playback_state(3).map(|s| s.level), Some(0.25));
+    loaded.set_fader(2, 1.0, 0.0).unwrap(); // playback levels are live state (SHW decision 3)
+    loaded.tick(0.0);
+    assert_eq!(loaded.frame(1), e.frame(1));
+    assert_eq!(common::dmx(&loaded, 35), 51, "301: 80 % × 25 %");
+}
+
+#[test]
+fn grm_13_a_schema_4_show_is_migrated() {
+    let file = std::fs::read_to_string(V4_SHOW).unwrap();
+    let (show, migrations) = Show::from_json(&file).unwrap();
+    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert!(migrations[0].starts_with("4 -> 5"), "{migrations:?}");
+    let (engine, warnings) = Engine::from_show(&show);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(
+        engine.to_show(meta()).to_json(),
+        std::fs::read_to_string(FIXTURE_SHOW).unwrap(),
+        "4 -> 5 changes nothing but the version"
+    );
+}
+
+/// Load the group-master rig with playback 3 (the master) edited by `f`.
+fn load_edited(f: impl FnOnce(&mut Json)) -> (Engine, Vec<String>) {
+    let mut v = as_json(&rig_with_group_master().to_show(meta()));
+    f(&mut v["playbacks"]["playbacks"][2]);
+    load(&v)
+}
+
+#[test]
+fn grm_14_a_master_of_a_missing_group_is_kept_and_masters_nothing() {
+    let (mut e, warnings) = load_edited(|pb| pb["master"]["group"] = json!(9));
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(warnings[0].contains("group 9"), "{warnings:?}");
+    assert_eq!(group_master_of(&e, 3).group, 9);
+    e.set_fader(2, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    assert_eq!(common::dmx(&e, 35), 204);
+}
+
+#[test]
+fn grm_14_options_out_of_range_get_their_default() {
+    for (edit, expect) in [
+        (json!({"scale": 300}), (GroupMode::Scale, 100, 0.25)),
+        (json!({"level": 1.5}), (GroupMode::Scale, 100, 1.0)),
+        (
+            json!({"mode": "Htp", "level": -0.5}),
+            (GroupMode::Htp, 100, 0.0),
+        ),
+        (json!({"mode": "Bogus"}), (GroupMode::Scale, 100, 0.25)),
+    ] {
+        let (e, warnings) = load_edited(|pb| {
+            for (k, v) in edit.as_object().unwrap() {
+                pb["master"][k] = v.clone();
+            }
+        });
+        assert_eq!(warnings.len(), 1, "{edit}: {warnings:?}");
+        let m = group_master_of(&e, 3);
+        assert_eq!((m.mode, m.scale, m.level), expect, "{edit}");
+        assert_eq!(
+            e.playback_state(3).map(|s| s.level),
+            Some(expect.2),
+            "{edit}"
+        );
+    }
+}
+
+#[test]
+fn grm_14_a_group_master_with_cues_loads_without_them() {
+    let (e, warnings) = load_edited(|pb| {
+        pb["cues"] = json!([{"delay": 0.0, "fade_in": 0.0, "fade_out": 0.0, "overlap": 100.0,
+            "number": 1, "legend": "", "link": {"type": "Wait"}, "track": "Track",
+            "group_times": {}, "values": {"301": {"Dimmer": 1.0}}}]);
+    });
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(e.playback(3).unwrap().cues.is_empty());
 }
