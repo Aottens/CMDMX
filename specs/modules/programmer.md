@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04)**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -190,6 +190,12 @@ editing the line (Back, Exit) stays in the client.
   the programmer's edit state (undo.md *Definitions*): undoing a Locate takes the located values
   away again, undoing a Clear brings them back. A timed Clear's fade is live state: undo during
   the fade puts the programmer back at once.
+- **PRG-45** Undo and redo let go of an LTP attribute as Clear does (PRG-43): an LTP value or
+  located value that the restored programmer no longer holds follows `clear_ltp` (`Release` → the
+  playback value, else the profile default; `Freeze` → it keeps its output). Locate 101, Undo
+  → Pan and Tilt return to their defaults (`Release`) instead of staying centred. A value the
+  restored programmer still holds, or brings back, outputs as before. Approved by owner 2026-10-22
+  (VS2-05 run, finding 3), as grandMA's Oops and Titan's Clear behaviour do.
 
 ### Colour
 - **PRG-30** HSI, RGB and CMY are views of the same colour value: switching the model never

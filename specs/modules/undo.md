@@ -90,7 +90,8 @@ start.
   undone one.
 - **UNDO-12** Held LTP values and fixtures that undo removes or brings back follow the patch as
   a patch edit does: a removed fixture stops output, a returned one outputs its programmer,
-  playback or default values from the next tick.
+  playback or default values from the next tick. An LTP attribute the restored programmer no
+  longer holds is let go of as Clear does (`programmer.md` PRG-45).
 
 ### Lifetime, autosave, several clients
 - **UNDO-13** The history lives in the daemon's memory only: it is not in the show file and

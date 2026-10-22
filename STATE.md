@@ -73,7 +73,7 @@ DECISIONS; focus is a general console, the church is the first proof):
 1. **Undo** (`specs/modules/undo.md`): done (VS5-01..03).
 2. **VS2-05** Locate, Highlight, Off, Rem Dim and Clear (PRG-38..44, ENG-10, IPC-32..34, UI-26
    approved 2026-10-22): built, PR #66 open, owner run `tests/manual/runs/2026-10-22-VS2-05.md`
-   passed 2026-10-22 (two app fixes in the run; open question: undo and held LTP output).
+   passed 2026-10-22 (two app fixes in the run; undo and held LTP output decided as PRG-45, task VS5-04).
 3. **P1-18** multi-universe output (OUT-13; the daemon sends line 1 only today).
 4. **P1-05** control surfaces spec, then VS1-07 (MCU) and VS4-04 (TouchOSC).
 After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15
