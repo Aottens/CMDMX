@@ -162,7 +162,7 @@ The cue-list messages are specified in `cuelists.md` as CUE-40 (snapshot `playba
 
 ### Group masters (VS3-07; behaviour in `group-masters.md`)
 The group-master messages are specified in `group-masters.md` as GRM-15. Wire details (VS3-07,
-within GRM-15; IPC-29 proposed 2026-10-22, waiting for owner approval):
+within GRM-15; IPC-29 approved by the owner 2026-10-22):
 - **IPC-29** A group master's `master.level` is its saved level (GRM-13). On an enabled master it
   follows the fader, and that alone is not a stored change: a fader move sends the small
   `playback` delta (live `level`) only, never the whole-list `playbacks` delta; `master.level` is
