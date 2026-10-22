@@ -1,0 +1,22 @@
+{
+  "spec": "PRG-26",
+  "profiles": { "wash": { "attributes": [
+    { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+    { "name": "Pan", "group": "P", "kind": "Ltp", "channel": 2, "locate": 0.2 } ] } },
+  "patch": [
+    { "id": 1, "profile": "wash", "universe": 1, "address": 1 },
+    { "id": 2, "profile": "wash", "universe": 1, "address": 3 },
+    { "id": 3, "profile": "wash", "universe": 1, "address": 5 }
+  ],
+  "actions": [
+    { "t": 0.0, "prg": { "command": ["1", "Thro", "2", "Locate"] } },
+    { "t": 0.0, "prg": { "command": ["1", "Thro", "2", "@", "20", "Enter"] } },
+    { "t": 1.0, "prg": { "highlight": true } },
+    { "t": 2.0, "prg": { "highlight": false } }
+  ],
+  "expect": [
+    { "t": 0.5, "universe": 1, "channels": { "1": 51, "2": 51, "3": 51, "4": 51, "5": 0, "6": 0 } },
+    { "t": 1.5, "universe": 1, "channels": { "1": 255, "2": 51, "3": 255, "4": 51, "5": 0 } },
+    { "t": 2.5, "universe": 1, "channels": { "1": 51, "2": 51, "3": 51, "4": 51, "5": 0 } }
+  ]
+}

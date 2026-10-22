@@ -174,7 +174,7 @@ within GRM-15; IPC-29 approved by the owner 2026-10-22):
   so a group master's `group` and `level` never change by `playback.options`.
 
 
-### Locate, Highlight, Off, Rem Dim and Clear (VS2-05, draft for owner approval)
+### Locate, Highlight, Off, Rem Dim and Clear (VS2-05, approved by owner 2026-10-22)
 - **IPC-32** Commands (refusals are warnings, IPC-06; a field of the wrong type → `error`):
   `programmer.locate {"groups"?:["P"]}` (PRG-23, 38; no `groups` = all) ·
   `programmer.highlight {"on":true}` (PRG-26, 39) ·

@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05)**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -147,7 +147,7 @@ editing the line (Back, Exit) stays in the client.
   `SelectionThenProgrammer` (UI v0.1; Titan's default is a setting). A masked Clear (Set Mask) removes only the touched values in the mask, for all
   fixtures, and leaves the selection. A timed Clear behaves as ENG-10.
 
-### Locate, Highlight, Off, Rem Dim and Clear in detail (VS2-05, draft for owner approval)
+### Locate, Highlight, Off, Rem Dim and Clear in detail (VS2-05, approved by owner 2026-10-22)
 - **PRG-38** Locate values. Per attribute in the locate mask: the profile's `locate` value;
   without one, an I-group attribute (the virtual Dimmer included) 1.0, Pan and Tilt 0.5,
   Colour open white (1, 1, 1), an extra emitter 0 (white comes from the target colour,

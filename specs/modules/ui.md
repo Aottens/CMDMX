@@ -303,7 +303,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   hue and saturation, as the HSI wheels would (PRG-30, PRG-31), and touches it. A missing or
   out-of-range field → `error` to the sender.
 
-### Locate, Highlight, Off, Rem Dim and Clear (VS2-05, draft for owner approval)
+### Locate, Highlight, Off, Rem Dim and Clear (VS2-05, approved by owner 2026-10-22)
 - **UI-26 [now]** Keypad Locate (`programmer.locate`) and Highlight (`programmer.highlight`,
   lit while on) work; a line ending in Locate sends it as the last token (PRG-10). The side
   column's Off sends `programmer.off` for the active group. Rem Dim is a main-context softkey.

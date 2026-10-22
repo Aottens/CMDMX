@@ -2174,6 +2174,28 @@ mod tests {
         (r#"{"v":0,"cmd":"programmer.all"}"#, Class::Edit),
         (r#"{"v":0,"cmd":"programmer.clear"}"#, Class::Edit),
         (
+            r#"{"v":0,"cmd":"programmer.clear","groups":["C"],"time":3.0}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"programmer.locate"}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"programmer.highlight","on":true}"#,
+            Class::Live,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.off","groups":["C"]}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.off","attribute":"Hue"}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":0,"cmd":"programmer.rem_dim"}"#, Class::Edit),
+        (
+            r#"{"v":0,"cmd":"settings.programmer","clear_ltp":"Freeze"}"#,
+            Class::Edit,
+        ),
+        (
             r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":-3}"#,
             Class::Edit,
         ),
@@ -2447,5 +2469,165 @@ mod tests {
             h.undo_label(),
             Some(format!("Delete playback {id}").as_str())
         );
+    }
+
+    // ---- VS2-05: IPC-32..34 ------------------------------------------------------------
+
+    fn json_run(engine: &mut Engine, history: &mut History, json: &str) -> Result<(), CoreError> {
+        undo_run(engine, history, json)
+    }
+
+    #[test]
+    fn ipc_32_locate_off_rem_dim_and_clear_reach_the_engine() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let sel = r#"{"v":0,"cmd":"programmer.select","fixture":101}"#;
+        json_run(&mut e, &mut h, sel).unwrap();
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.locate","groups":["P"]}"#,
+        )
+        .unwrap();
+        assert!(e.located().get(&101).is_some_and(|a| a.contains_key("Pan")));
+        assert!(!e
+            .located()
+            .get(&101)
+            .is_some_and(|a| a.contains_key("Dimmer")));
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.off","attribute":"Pan"}"#,
+        )
+        .unwrap();
+        assert!(!e.located().get(&101).is_some_and(|a| a.contains_key("Pan")));
+        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.locate"}"#).unwrap();
+        assert!(e
+            .located()
+            .get(&101)
+            .is_some_and(|a| a.contains_key("Dimmer")));
+        // No field: Off of the active group.
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.attribute_group","group":"I"}"#,
+        )
+        .unwrap();
+        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.off"}"#).unwrap();
+        assert!(!e
+            .located()
+            .get(&101)
+            .is_some_and(|a| a.contains_key("Dimmer")));
+        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.rem_dim"}"#).unwrap();
+        assert!(e.programmer().in_programmer(102));
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.clear","time":2.0}"#,
+        )
+        .unwrap();
+        assert!(e.programmer().is_empty() && e.located().is_empty());
+        assert_eq!(e.programmer().selection(), &[101]);
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.highlight","on":true}"#,
+        )
+        .unwrap();
+        assert!(e.highlight());
+    }
+
+    #[test]
+    fn ipc_32_bad_fields_are_errors() {
+        for json in [
+            r#"{"v":0,"cmd":"programmer.off","groups":["C"],"attribute":"Hue"}"#,
+            r#"{"v":0,"cmd":"programmer.off","groups":"C"}"#,
+            r#"{"v":0,"cmd":"programmer.highlight"}"#,
+            r#"{"v":0,"cmd":"programmer.clear","time":"3"}"#,
+            r#"{"v":0,"cmd":"programmer.locate","groups":["Q"]}"#,
+            r#"{"v":0,"cmd":"settings.programmer","clear_ltp":"Melt"}"#,
+            r#"{"v":0,"cmd":"settings.programmer","clear_precedence":"Never"}"#,
+        ] {
+            assert!(ipc::parse_command(json).is_err(), "{json}");
+        }
+    }
+
+    #[test]
+    fn ipc_32_settings_programmer_is_all_or_nothing() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let before = e.settings().clone();
+        assert!(json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"settings.programmer","clear_ltp":"Freeze","lowlight_level":2.0}"#,
+        )
+        .is_err());
+        assert_eq!(e.settings(), &before);
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"settings.programmer","clear_precedence":"SelectionWithProgrammer","clear_ltp":"Freeze","lowlight_level":0.5}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            e.settings().clear_ltp,
+            cmdmx_core::programmer::ClearLtp::Freeze
+        );
+        assert_eq!(e.settings().lowlight_level, 0.5);
+    }
+
+    #[test]
+    fn ipc_34_labels_and_highlight_stays_out_of_the_history() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.select","fixture":201}"#,
+        )
+        .unwrap();
+        let n = h.len();
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.highlight","on":true}"#,
+        )
+        .unwrap();
+        assert_eq!(h.len(), n);
+        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.locate"}"#).unwrap();
+        assert_eq!(h.undo_label(), Some("Locate"));
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.off","groups":["C"]}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Off C"));
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.off","attribute":"Dimmer"}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Off Dimmer"));
+        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.rem_dim"}"#).unwrap();
+        assert_eq!(h.undo_label(), Some("Rem Dim"));
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.clear","time":1.0}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Clear"));
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"settings.programmer","lowlight_level":0.3}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Settings"));
+        h.undo(&mut e).unwrap();
+        assert_eq!(e.settings().lowlight_level, 0.25);
     }
 }

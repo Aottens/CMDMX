@@ -39,7 +39,7 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
   values follow `clear_ltp` (PRG-43): `Release` fades linearly from the current output to the
   playback value or the profile default over t, `Freeze` behaves as an untimed Clear. A touch
   on a fading attribute ends its fade and starts from the faded value (PRG-20). The fades are
-  live state. Amended 2026-10-22 (VS2-05, draft for owner approval): the settings are PRG-42.
+  live state. Amended 2026-10-22 (VS2-05, approved by owner 2026-10-22): the settings are PRG-42.
 
 ### Effect layer (ADR-007; no effect sources exist in phase 1, tests land with the first effect task)
 - **ENG-14** Per fixture, attribute and tick the output is computed in this order: base value →

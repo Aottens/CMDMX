@@ -4443,4 +4443,44 @@ mod tests {
         );
         assert_eq!(published.undo_delta(&info), None, "no change, no delta");
     }
+
+    // ---- VS2-05: IPC-33 ----------------------------------------------------------------
+
+    #[test]
+    fn ipc_33_programmer_view_has_located_and_highlight_and_settings_are_published() {
+        let mut e = engine_with_palettes();
+        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        assert_eq!(
+            v["programmer_settings"],
+            json!({"clear_precedence":"SelectionThenProgrammer","clear_ltp":"Release","lowlight_level":0.25})
+        );
+        assert_eq!(v["programmer"]["located"], json!({}));
+        assert_eq!(v["programmer"]["highlight"], json!(false));
+
+        let mut published = Published::new(&e, &[], &show_state());
+        let first = e.fixtures().next().unwrap().id;
+        e.select_fixture(first).unwrap();
+        e.locate(&[cmdmx_core::attribute::AttributeGroup::I])
+            .unwrap();
+        e.set_highlight(true).unwrap();
+        e.set_programmer_settings(cmdmx_core::programmer::ProgrammerSettingsChange {
+            clear_ltp: Some(cmdmx_core::programmer::ClearLtp::Freeze),
+            ..Default::default()
+        })
+        .unwrap();
+        e.tick(0.025);
+        let d: Vec<serde_json::Value> = published
+            .diff(&e, &[], &show_state())
+            .iter()
+            .map(|m| parse(m))
+            .collect();
+        let prog = d.iter().find(|m| m["type"] == "programmer").unwrap();
+        assert_eq!(prog["highlight"], json!(true));
+        assert!(prog["located"][first.to_string()].is_array());
+        let settings = d
+            .iter()
+            .find(|m| m["type"] == "programmer_settings")
+            .unwrap();
+        assert_eq!(settings["clear_ltp"], "Freeze");
+    }
 }

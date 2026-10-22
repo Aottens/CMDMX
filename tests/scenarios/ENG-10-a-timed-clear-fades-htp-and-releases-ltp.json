@@ -1,0 +1,25 @@
+{
+  "spec": "ENG-10",
+  "profiles": { "wash": { "attributes": [
+    { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+    { "name": "Pan", "group": "P", "kind": "Ltp", "channel": 2 } ] } },
+  "patch": [
+    { "id": 1, "profile": "wash", "universe": 1, "address": 1 },
+    { "id": 2, "profile": "wash", "universe": 1, "address": 3 }
+  ],
+  "playbacks": [
+    { "id": 1, "priority": "Normal", "fader_mode": 0, "values": { "2": { "Dimmer": 0.4 } } }
+  ],
+  "actions": [
+    { "t": 0.0, "fader": { "playback": 1, "level": 1.0 } },
+    { "t": 0.0, "prg": { "command": ["1", "Thro", "2", "@", "100", "Enter"] } },
+    { "t": 0.0, "prg": { "wheel": { "attribute": "Pan", "steps": 25, "resolution": "Coarse" } } },
+    { "t": 1.0, "prg": { "clear_timed": 2.0 } }
+  ],
+  "expect": [
+    { "t": 0.5, "universe": 1, "channels": { "1": 255, "2": 255, "3": 255, "4": 255 } },
+    { "t": 1.5, "universe": 1, "channels": { "1": 191, "2": 191, "3": 191, "4": 191 } },
+    { "t": 2.6, "universe": 1, "channels": { "1": 51, "2": 51, "3": 102, "4": 51 } },
+    { "t": 3.2, "universe": 1, "channels": { "1": 0, "2": 0, "3": 102, "4": 0 } }
+  ]
+}
