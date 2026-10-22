@@ -77,24 +77,36 @@ fn ipv4(what: &str, text: &str) -> Result<(), CoreError> {
         .map_err(|_| invalid(format!("{what} '{text}' is not an IPv4 address")))
 }
 
+/// OUT-28: the range of one numeric output field by its JSON key (`line`, `port_address`,
+/// `universe`, `priority`); other keys pass. Wider than the field's type is still a range error.
+pub fn check_number(key: &str, n: i64) -> Result<(), CoreError> {
+    let text = match key {
+        "line" if n < 1 => format!("universe {n} does not exist (universes start at 1)"),
+        "line" if n > 65535 => format!("universe {n} is out of range (1 to 65535)"),
+        "port_address" if !(0..=32767).contains(&n) => {
+            format!("Art-Net port-address {n} is out of range (0 to 32767)")
+        }
+        "universe" if !(1..=63999).contains(&n) => {
+            format!("sACN universe {n} is out of range (1 to 63999)")
+        }
+        "priority" if !(0..=200).contains(&n) => {
+            format!("sACN priority {n} is out of range (0 to 200)")
+        }
+        _ => return Ok(()),
+    };
+    Err(invalid(text))
+}
+
 /// OUT-28: the fields in range, addresses parse, and (when enabled) no other enabled node
 /// (another id) sends to the same destination. Used by every edit and by load.
 pub fn check<'a>(node: &Node, others: impl IntoIterator<Item = &'a Node>) -> Result<(), CoreError> {
-    if node.line == 0 {
-        return Err(invalid(
-            "universe 0 does not exist (universes start at 1)".into(),
-        ));
-    }
+    check_number("line", i64::from(node.line))?;
     match &node.kind {
         NodeKind::Artnet {
             port_address,
             target,
         } => {
-            if *port_address > 32767 {
-                return Err(invalid(format!(
-                    "Art-Net port-address {port_address} is out of range (0 to 32767)"
-                )));
-            }
+            check_number("port_address", i64::from(*port_address))?;
             ipv4("Art-Net target", target)?;
         }
         NodeKind::Sacn {
@@ -102,16 +114,8 @@ pub fn check<'a>(node: &Node, others: impl IntoIterator<Item = &'a Node>) -> Res
             priority,
             unicast,
         } => {
-            if !(1..=63999).contains(universe) {
-                return Err(invalid(format!(
-                    "sACN universe {universe} is out of range (1 to 63999)"
-                )));
-            }
-            if *priority > 200 {
-                return Err(invalid(format!(
-                    "sACN priority {priority} is out of range (0 to 200)"
-                )));
-            }
+            check_number("universe", i64::from(*universe))?;
+            check_number("priority", i64::from(*priority))?;
             if let Some(unicast) = unicast {
                 ipv4("sACN unicast address", unicast)?;
             }
