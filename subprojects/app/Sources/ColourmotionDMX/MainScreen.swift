@@ -105,6 +105,8 @@ final class UIState: ObservableObject {
     @Published var usedCue: CueRef?
     @Published var updateMode: String?
     @Published var recordMaster: String?
+    /// The group picked for a Group master record (GRM-15), waiting for an empty handle.
+    @Published var recordMasterGroup: Int?
     /// The Cue view shown in place of the Cue list window, the hard value last right-clicked in it
     /// and Remove waiting for its confirmation.
     @Published var cueView: CueRef?
@@ -121,7 +123,7 @@ final class UIState: ObservableObject {
 
     func resetRecord() {
         usedCell = nil; usedHandle = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
-        usedCue = nil; updateMode = nil; recordMaster = nil
+        usedCue = nil; updateMode = nil; recordMaster = nil; recordMasterGroup = nil
     }
 
     /// Disarms Record and every palette function.

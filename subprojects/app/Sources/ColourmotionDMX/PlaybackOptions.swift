@@ -450,14 +450,35 @@ private struct ChaseTab: View {
     }
 }
 
-/// A speed master's settings (CUE-35, 36): multiplier and fader for a BPM master, scale for a Rate master.
+/// A master's settings: multiplier and fader for a BPM master, scale for a Rate master (CUE-35, 36),
+/// mode, scale and Disabled for a group master (GRM-17).
 private struct MasterTab: View {
     @EnvironmentObject private var engine: EngineClient
     let playback: PlaybackInfo
 
     var body: some View {
         let id = playback.id
-        if let m = playback.stored.master {
+        if let m = playback.stored.master, playback.stored.isGroupMaster {
+            let mode = m.mode ?? "Scale"
+            OptionRow(label: "Master") {
+                Text("Group \(m.group ?? 0)").font(Typo.mono())
+            }
+            OptionRow(label: "Mode", note: "Scale: the fader scales the group's intensity. HTP: it is a floor. Limit: it is a ceiling. Take Over: it puts a fixture in the programmer once the level reaches its intensity.") {
+                Choice(options: [("Scale", "Scale"), ("HTP", "Htp"), ("Limit", "Limit"), ("Take Over", "TakeOver")], selected: mode) {
+                    engine.setPlaybackOptions(id, ["master": ["mode": $0]])
+                }
+            }
+            if mode == "Scale" {
+                OptionRow(label: "Scale", note: "The fader runs the group from 0 to this many % of its level.") {
+                    Choice(options: [100, 200, 400, 600, 1000].map { ("\($0) %", $0) }, selected: m.scale ?? 100) {
+                        engine.setPlaybackOptions(id, ["master": ["scale": $0]])
+                    }
+                }
+            }
+            OptionRow(label: "Disabled", note: "Disabled locks the group at the master's last level; the fader is ignored until it is enabled again.") {
+                Choice(options: yesNo(true), selected: m.enabled == false) { engine.setPlaybackOptions(id, ["master": ["enabled": !$0]]) }
+            }
+        } else if let m = playback.stored.master {
             OptionRow(label: "Master") {
                 Text("\(m.rateScale == nil ? "BPM" : "Rate") \(m.number)").font(Typo.mono())
             }
@@ -491,12 +512,12 @@ private struct SettingsTab: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
 
-    private static let kinds = [("Memory", "Memory"), ("CueList", "Cue list"), ("Chase", "Chase"), ("BpmMaster", "BPM master")]
+    private static let kinds = [("Memory", "Memory"), ("CueList", "Cue list"), ("Chase", "Chase"), ("BpmMaster", "BPM master"), ("GroupMaster", "Group master")]
     // ponytail: display copy of CUE-25's BestPractice pairs and of what each kind may have; it only
     // seeds the Custom editor, the engine decides what a handle's buttons do.
-    private static let best = ["Memory": ["Swop", "Flash"], "CueList": ["Go", "Flash"], "Chase": ["Tap", "Flash"], "BpmMaster": ["None", "Tap"]]
+    private static let best = ["Memory": ["Swop", "Flash"], "CueList": ["Go", "Flash"], "Chase": ["Tap", "Flash"], "BpmMaster": ["None", "Tap"], "GroupMaster": ["None", "Flash"]]
     private static let allowed = ["Memory": ["Flash", "Swop", "Release"], "CueList": ["Go", "Back", "Stop", "Flash", "Swop", "Release"],
-                                  "Chase": ["Tap", "Flash", "Swop", "Release"], "BpmMaster": ["Tap"]]
+                                  "Chase": ["Tap", "Flash", "Swop", "Release"], "BpmMaster": ["Tap"], "GroupMaster": ["Flash", "Swop"]]
 
     var body: some View {
         if let s = engine.playbackSettings {

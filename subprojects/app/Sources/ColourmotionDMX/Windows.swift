@@ -225,7 +225,12 @@ struct GroupsWindow: View {
 
     /// While armed, the next group tap records instead of selecting.
     private func tap(_ id: Int, exists: Bool) {
-        if ui.recordArmed {
+        if ui.recordArmed, ui.recordMaster == "Group" {
+            // GRM-15: this tap picks the group of a group master; the handle tap records it.
+            guard exists else { return engine.say("Group Master: tap an existing group.") }
+            ui.recordMasterGroup = id
+            engine.say("Group Master: tap an empty handle.")
+        } else if ui.recordArmed {
             engine.recordGroup(id)
             ui.recordArmed = false
         } else if exists {
