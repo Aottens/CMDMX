@@ -306,7 +306,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 ### Locate, Highlight, Off, Rem Dim and Clear (VS2-05, approved by owner 2026-10-22)
 - **UI-26 [now]** Keypad Locate (`programmer.locate`) and Highlight (`programmer.highlight`,
   lit while on) work; a line ending in Locate sends it as the last token (PRG-10). The side
-  column's Off sends `programmer.off` for the active group. Rem Dim is a main-context softkey.
+  column's Off sends `programmer.off` for the active group. Rem Dim is softkey E of the Selection context (it needs a selection; Set Legend stays on the Set key and in Main; owner run 2026-10-22).
   Double-clicking a wheel's **name** (never the wheel) sends `programmer.off {attribute}`
   (IDEA-07). A located fixture's button shows the sketch's `LOC` tag. The show-wide part of the
   Playback Options screen gets a Programmer section with the three PRG-42 settings. A timed
