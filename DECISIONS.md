@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-22 — Phase 1 is driven by what a general console needs; undo first (owner)
+
+**Decision:** the focus is a well-working general DMX lighting application; the church stays the reference venue and first proof, not what orders the work. Next, in this order: (1) undo — spec P1-10, then build it; (2) VS2-05 Locate, Highlight, Off, Rem Dim and Clear; (3) multi-universe output (OUT-13, P1-18); (4) control surfaces (P1-05, then VS1-07 and VS4-04). Church hardware runs (VS2-13 gate 3, VS4-05 gate 3) and the specs P1-14/P1-15 come after.
+
+**Alternatives considered:** multi-universe output first (biggest gap: only line 1 leaves the daemon); undo last, or only its spec early.
+
+**Reasoning:** undo touches every module, like the effect room of ADR-007: the more is built without it, the more has to be rebuilt; building it first makes VS2-05, output config and control surfaces undoable from the start. Locate/Highlight/Clear are what an operator uses every minute. More than one universe is a must, but the owner has not needed it yet.
+
+**Reversal trigger:** a rig larger than one universe needs to run before undo is done.
+
 ## 2026-10-22 — A relative effect layer in the merge, effect references in contents (ADR-007, P1-17, owner)
 
 **Decision:** ADR-007 accepted, `engine-merge.md` ENG-14..19 approved: per fixture, attribute and tick the output is base value → effect → clamp → group masters → Grand Master/DBO → frame. A relative effect adds an offset evaluated from the tick time, an absolute one replaces the base. At most one effect per attribute (highest priority, then most recently activated, also on HTP), chosen independently of the base owner. The held LTP value stays the base. Cue and palette contents (and the programmer's) may hold an optional effect reference next to a value; absent until effects exist, so show schema 5 is unchanged. No effect code in phase 1. See `specs/ADRs/ADR-007-relative-effect-layer.md`.

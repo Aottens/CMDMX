@@ -18,9 +18,14 @@ Software first (owner, 2026-10-17): VS1-05/06 next; VS1-07 and the VS1-04 hardwa
 | VS1-07 | MCU driver: BCF2000 fader 1 pitchbend moves playback 1; engine echoes level back and the motor follows after a page change. | CTL-01..04 | M | parked (hardware track: BCF2000 not at hand) |
 | VS1-08 | Supervisor-less resilience check: kill the app while output runs; DMX keeps streaming; app reconnects and shows the live state. | ADR-002 | S | todo |
 
-## Phase 1 milestones — finish line: replace Lightkey in the church
-Phase 1 ends when a real Sunday morning service in the church (reference rig, `PROJECT.md`) is
-programmed and run on ColourmotionDMX instead of Lightkey. Three demonstrable milestones; tasks
+## Phase 1 milestones — a general console; first proof: replace Lightkey in the church
+Phase 1 delivers a well-working general DMX console (owner, 2026-10-22). Its first proof is a real
+Sunday morning service in the church (reference rig, `PROJECT.md`) programmed and run on
+ColourmotionDMX instead of Lightkey.
+
+**Order now (owner, 2026-10-22, DECISIONS):** 1. P1-10 undo spec, then its build tasks; 2. VS2-05;
+3. P1-18 multi-universe output; 4. P1-05 control surfaces, then VS1-07 and VS4-04. Church hardware
+runs and P1-14/P1-15 after that. Three demonstrable milestones; tasks
 after the specs are added when each spec is approved (no sizing of code before its spec).
 
 ### VS2 — Programming: select, set, record, play back (screen only, output visible via Art-Net)
@@ -98,7 +103,8 @@ after the specs are added when each spec is approved (no sizing of code before i
 | --- | --- | --- | --- | --- |
 | P1-05 | Write `control-surfaces.md` (MCU map, generic MIDI map, OSC schema). | CTL | M | todo |
 | P1-16 | Write group masters (Scale / HTP / Limit / TakeOver) as PBK or own criteria; owner approves (owner, 2026-10-18: own small spec, later in phase 1). | GRM | S | done (2026-10-21; GRM-01..19 approved, the six owner decisions as recommended; build tasks VS3-06/07) |
-| P1-10 | Decide and spec one engine-wide undo (programmer, palettes, playbacks, show edits) as UI v0.1 shows it; owner approves. | — | M | todo |
+| P1-10 | **First (owner, 2026-10-22).** Decide and spec one engine-wide undo (programmer, palettes, playbacks, patch, show edits) as UI v0.1 shows it, with build tasks for it; owner approves. | — | M | todo |
+| P1-18 | Multi-universe output: complete OUT-13 (lines → nodes in the show file, schema bump, IPC to view and edit nodes, what the app shows, the `--serial`/`--artnet-target` flags), replacing the slice-1 OUT-15/16; build tasks after approval. Done when a fixture patched on universe 2 leaves on Art-Net/sACN universe 2. Today the core renders every universe but the daemon sends line 1 only. | OUT | M | todo |
 | P1-06 | Write `ipc.md` (message schema, versioning, snapshot/delta, reconnect) — VS1-05 writes the first subset. | IPC | M | todo |
 
 ## Later phases
