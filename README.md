@@ -80,7 +80,7 @@ Early, under active development, not yet for real shows. What works today:
   the app as well (Tap and BPM in the Go block).
 
 Next: group masters in the app (a group on a fader that scales, limits or lifts its fixtures' intensity, Titan's
-Scale / HTP / Limit / Take Over; the engine side is merged, VS3-06; the IPC and app side is being built, VS3-07), the owner's fade check of the 33 Hz serial output on the LED par (VS4-05); checking
+Scale / HTP / Limit / Take Over; the engine side is merged, VS3-06; the IPC and app side is in review, VS3-07), the owner's fade check of the 33 Hz serial output on the LED par (VS4-05); checking
 *Kerk* on the real rig, and library browsing with a profile editor (slot names, defaults). The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
