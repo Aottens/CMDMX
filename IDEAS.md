@@ -29,6 +29,7 @@ the backlog, not the whole idea.
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
 | IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | accepted 2026-10-17 | 1 (with VS2-05) | PRG, IPC, app |
+| IDEA-17 | FX/shape generator as the best on the market: intuitive, fast, professional results | triaged | 2 (flagship) | new `effects.md`, ENG, PRG, CUE, PAL |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -224,3 +225,40 @@ subdivisions or multiples of Ableton's tempo ("isn't that a sick new feature?").
   choosing), so with Link the open licence question (MIT or GPL-3.0, `BACKLOG.md`) leans to GPL;
   MIDI clock has no such tie. Should a chase step on the beat (phase), or only follow the tempo?
 **Outcome (2026-10-21):** owner: phase 2.
+
+### IDEA-17 — The best FX generator on the market (2026-10-22)
+**Owner's intent:** the effects (shape) generator must become the best in the market. Moving
+from Titan to ONYX was a disappointment: getting a good result there was hard work. Here it has
+to be intuitive and fast, and easily give a professional result. How is not clear yet, but it
+must be taken along in everything we build. The owner wants to invest heavily in it.
+**Triage:**
+- Phase 2 already holds the "shape generator" (`PROJECT.md`); this idea makes it a **flagship**
+  of phase 2, not a checkbox, and asks phase 1 not to block it.
+- Before any spec: a design study. Compare Titan (shapes: pick a shape, size/speed/spread on
+  the encoders, per attribute group), ONYX (FX engine, where the pain was), grandMA3 (phasers:
+  steps as keyframes, powerful but abstract) and ChamSys/Hog (FX palettes). Write down what
+  made Titan quick and ONYX slow, then sketch the UI before criteria (as with P1-14).
+- Directions to weigh: start from a result, not a waveform (a gallery of ready looks with a
+  live preview on the fixture buttons, IDEA-10); a few big controls (size, speed, spread,
+  direction) on the encoders and BCF2000; spread follows the selection order (IDEA-15: odd/even,
+  1 in 3, random, inside-out); speed locks to a BPM master (CUE-35, IDEA-16); effects as
+  palettes and in cues; effects relative to the base value (circle around a position palette)
+  or absolute.
+- **What it touches now** (phase 1 must leave room, no FX code yet):
+  - *Engine merge:* an effect is mostly a *relative offset* on top of the value from the
+    programmer/cues, evaluated from the tick time (deterministic, ENG-11). The merge needs a
+    place for that layer; adding it later should not mean redoing `engine-merge.md`.
+  - *Cues and palettes:* they will have to store effect references next to attribute values.
+    Show schema 4 just landed; an optional field later needs no migration, but the shape of a
+    cue's contents should allow it.
+  - *Fixture library:* the FX attribute group already exists (IPCGBES-FX); built-in fixture
+    macros on a channel are a different thing from generated effects.
+**Open questions:**
+- What exactly made ONYX hard: too many parameters, unclear spread/phase, no preview, effects
+  that would not combine with cues, something else? And what did Titan do right?
+- Pull a small first version into phase 1 (a few shapes: dimmer chase, colour, pan/tilt circle;
+  size/speed/spread), or keep it all in phase 2 and only guard the engine shape now?
+- Fix the two engine points above (relative layer in the merge, room for effects in cues) now
+  as a decision in `BACKLOG.md`, before cue playback is built on the merge?
+**Outcome (2026-10-22):** owner: fix the two engine points now → `BACKLOG.md` P1-17 (ADR-007), before VS3-03.
+The phase and a possible small first version in phase 1 are still open.
