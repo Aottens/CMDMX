@@ -24,6 +24,8 @@ pub fn multicast_target(universe: u16) -> SocketAddrV4 {
 }
 
 pub struct SacnNode {
+    /// `sacn #2`, the prefix of every log line (OUT-30).
+    name: String,
     target: SocketAddrV4,
     universe: u16,
     priority: u8,
@@ -33,8 +35,9 @@ pub struct SacnNode {
 }
 
 impl SacnNode {
-    pub fn new(target: SocketAddrV4, universe: u16, priority: u8) -> Self {
+    pub fn new(name: String, target: SocketAddrV4, universe: u16, priority: u8) -> Self {
         SacnNode {
+            name,
             target,
             universe,
             priority,
@@ -52,7 +55,17 @@ impl SacnNode {
         }
         self.health
             .record(&result)
-            .map(|m| format!("sacn {}: {m}", self.target))
+            .map(|m| format!("{}: {m}", self.name))
+    }
+
+    /// OUT-29: an edited priority applies from the next frame.
+    pub fn set_priority(&mut self, priority: u8) {
+        self.priority = priority;
+    }
+
+    /// OUT-33: why the node is degraded.
+    pub fn detail(&self) -> Option<&str> {
+        self.health.detail()
     }
 
     /// IPC-20.

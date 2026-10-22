@@ -3,12 +3,14 @@
 //! requests (LIB-14, VS2-11), the patch commands and `fixtures` delta (PAT-09, VS2-12), and
 //! the output node states in the snapshot and the `outputs` delta (IPC-20), and the programmer
 //! contents, picker colour and `programmer.colour` command (IPC-21..23), and the show state and
-//! `show.*` commands (SHW-15).
+//! `show.*` commands (SHW-15), and the output nodes: their fields and states in the same
+//! snapshot and delta, the `output.*` commands (OUT-33, OUT-34) and `output.ports` (OUT-35).
 //!
 //! One thread per client. The tick only talks to clients through channels and
 //! never blocks: commands arrive on an unbounded channel, outgoing messages
 //! leave through a bounded queue per client (IPC-07). Library requests never reach the tick:
 //! the client thread answers them itself, straight to the asking client. So does `show.list`,
+//! and `output.ports` (the serial ports are listed there, never on the tick),
 //! and `show.open` is read from disk there too, so the tick never waits on a show file.
 
 use std::collections::BTreeMap;
@@ -24,6 +26,7 @@ use cmdmx_core::colour::ColourModel;
 use cmdmx_core::colour::TargetColour;
 use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
 use cmdmx_core::library::channel_list::ChannelList;
+use cmdmx_core::output::{Node, NodeId, NodeKind};
 use cmdmx_core::palette::{
     AutoIcon, Cell, PaletteId, PaletteKind, Record, RecordBy, RecordMode, Timing,
 };
@@ -47,7 +50,7 @@ use tungstenite::http::StatusCode;
 use tungstenite::{Error as WsError, Message};
 
 use crate::library::Library;
-use crate::output::OutputState;
+use crate::output::{OutputState, OutputStatus};
 use crate::shows::{valid_name, Opened, ShowRequest, ShowState, Shows};
 
 /// Messages a client may have queued before it is disconnected (IPC-07).
@@ -55,6 +58,22 @@ const QUEUE: usize = 64;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
+    /// OUT-34: a new output node; the fields not given are the line's defaults (OUT-25).
+    OutputAdd {
+        line: UniverseId,
+        enabled: bool,
+        kind: NodeKind,
+    },
+    /// OUT-34: only the fields to change (`id`, `v` and `cmd` are not among them).
+    OutputEdit {
+        id: NodeId,
+        change: serde_json::Map<String, serde_json::Value>,
+    },
+    OutputRemove {
+        ids: Vec<NodeId>,
+    },
+    /// OUT-35: answered in the client thread.
+    OutputPorts,
     FaderSet {
         playback: PlaybackId,
         level: f32,
@@ -603,6 +622,91 @@ fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
     })
 }
 
+/// OUT-34: start from the line's defaults for the kind, then take the fields that are given.
+fn parse_output_add(v: &serde_json::Value) -> Result<Command, String> {
+    let line: UniverseId = uint(v, "line")?;
+    let mut kind = match v.get("kind").and_then(|k| k.as_str()) {
+        Some("artnet") => NodeKind::default_artnet(line),
+        Some("sacn") => NodeKind::default_sacn(line),
+        Some("serial") => NodeKind::Serial {
+            port: "auto".into(),
+        },
+        _ => return Err("missing or invalid \"kind\" (artnet, sacn or serial)".into()),
+    };
+    match &mut kind {
+        NodeKind::Artnet {
+            port_address,
+            target,
+        } => {
+            *port_address = opt_uint(v, "port_address")?.unwrap_or(*port_address);
+            if v.get("target").is_some() {
+                *target = string(v, "target")?;
+            }
+        }
+        NodeKind::Sacn {
+            universe,
+            priority,
+            unicast,
+        } => {
+            *universe = opt_uint(v, "universe")?.unwrap_or(*universe);
+            *priority = opt_uint(v, "priority")?.unwrap_or(*priority);
+            match v.get("unicast") {
+                None => {}
+                Some(serde_json::Value::Null) => *unicast = None,
+                Some(_) => *unicast = Some(string(v, "unicast")?),
+            }
+        }
+        NodeKind::Serial { port } => {
+            if v.get("port").is_some() {
+                *port = string(v, "port")?;
+            }
+        }
+    }
+    let enabled = match v.get("enabled") {
+        None => true,
+        Some(b) => b.as_bool().ok_or("missing or invalid \"enabled\"")?,
+    };
+    Ok(Command::OutputAdd {
+        line,
+        enabled,
+        kind,
+    })
+}
+
+/// OUT-35: the reply to `output.ports`: the `/dev/cu.*` serial ports by path, with what the
+/// USB descriptor says and whether OUT-09 would take it as an ENTTEC Pro.
+pub fn ports_reply(ports: &[serialport::SerialPortInfo]) -> String {
+    use serialport::SerialPortType::UsbPort;
+    let mut cu: Vec<_> = ports
+        .iter()
+        .filter(|p| p.port_name.starts_with("/dev/cu."))
+        .collect();
+    cu.sort_by(|a, b| a.port_name.cmp(&b.port_name));
+    let ports: Vec<_> = cu
+        .into_iter()
+        .map(|p| match &p.port_type {
+            UsbPort(usb) => serde_json::json!({
+                "path": p.port_name,
+                "product": usb.product,
+                "vid": format!("{:04x}", usb.vid),
+                "pid": format!("{:04x}", usb.pid),
+                "enttec": usb
+                    .product
+                    .as_deref()
+                    .is_some_and(cmdmx_protocols::enttec::is_pro_product_string),
+            }),
+            _ => serde_json::json!({
+                "path": p.port_name,
+                "product": null,
+                "vid": null,
+                "pid": null,
+                "enttec": false,
+            }),
+        })
+        .collect();
+    serde_json::json!({"v": 0, "type": "ports", "ports": ports}).to_string()
+}
+
 /// IPC-25: set the time the client thread received a tap or button press; other commands pass.
 pub fn stamp(cmd: Command, at: f64) -> Command {
     match cmd {
@@ -754,6 +858,25 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("library.save_channel_list") => Ok(Command::Library(LibraryRequest::SaveChannelList(
             serde_json::from_value(v.clone()).map_err(|e| format!("invalid channel list: {e}"))?,
         ))),
+        Some("output.add") => parse_output_add(&v),
+        Some("output.edit") => {
+            let mut change = v.as_object().cloned().unwrap_or_default();
+            for key in ["v", "cmd", "id"] {
+                change.remove(key);
+            }
+            Ok(Command::OutputEdit {
+                id: uint(&v, "id")?,
+                change,
+            })
+        }
+        Some("output.remove") => Ok(Command::OutputRemove {
+            ids: v
+                .get("ids")
+                .and_then(|t| t.as_array())
+                .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
+                .ok_or("missing or invalid \"ids\" (expected an array of output ids)")?,
+        }),
+        Some("output.ports") => Ok(Command::OutputPorts),
         Some("show.list") => Ok(Command::Show(ShowRequest::List)),
         Some("show.new") => Ok(Command::Show(ShowRequest::New {
             name: string(&v, "name")?,
@@ -1542,31 +1665,28 @@ struct Snapshot<'a> {
     undo: &'a UndoInfo,
 }
 
-/// IPC-20: one output node as the daemon's tick sees it.
-#[derive(Debug, Clone, PartialEq)]
-pub struct OutputStatus {
-    pub name: &'static str,
-    pub state: OutputState,
-}
-
+/// OUT-33: one output node with its fields, state and detail.
 #[derive(Serialize)]
 struct OutputJson {
-    name: &'static str,
+    #[serde(flatten)]
+    node: Node,
     state: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    detail: Option<&'static str>,
+    detail: Option<String>,
 }
 
 impl From<&OutputStatus> for OutputJson {
     fn from(o: &OutputStatus) -> Self {
         let (state, detail) = match o.state {
-            OutputState::Ok => ("Ok", None),
-            OutputState::Degraded => ("Degraded", None),
-            OutputState::NoInterface => ("Degraded", Some("no interface")),
-            OutputState::Stopped => ("Stopped", None),
+            OutputState::Ok => ("Ok", o.detail.clone()),
+            OutputState::Degraded => ("Degraded", o.detail.clone()),
+            OutputState::NoInterface => ("Degraded", Some("no interface".into())),
+            OutputState::PortNotFound => ("Degraded", Some("port not found".into())),
+            OutputState::Stopped => ("Stopped", o.detail.clone()),
+            OutputState::Disabled => ("Disabled", o.detail.clone()),
         };
         OutputJson {
-            name: o.name,
+            node: o.node.clone(),
             state,
             detail,
         }
@@ -2315,6 +2435,13 @@ fn serve_client(
                         .send(Message::text(answer_library(library, req)))
                         .is_err()
                     {
+                        return;
+                    }
+                }
+                Ok(Command::OutputPorts) => {
+                    // An unreadable port list is an empty one; the tick is not involved.
+                    let ports = serialport::available_ports().unwrap_or_default();
+                    if ws.send(Message::text(ports_reply(&ports))).is_err() {
                         return;
                     }
                 }

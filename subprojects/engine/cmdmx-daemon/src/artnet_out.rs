@@ -1,18 +1,15 @@
 //! Art-Net output node (OUT-03/04); threading and health live in `output`.
 
 use std::io;
-use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
+use std::net::{SocketAddrV4, UdpSocket};
 
 use cmdmx_protocols::{artnet, ArtSequence};
 
 use crate::output::{open_udp, Health, OutputState};
 
-/// OUT-04: limited broadcast on 6454 unless `--artnet-target` says otherwise.
-pub fn default_target() -> SocketAddrV4 {
-    SocketAddrV4::new(Ipv4Addr::BROADCAST, artnet::PORT)
-}
-
 pub struct ArtNetNode {
+    /// `art-net #3`, the prefix of every log line (OUT-30).
+    name: String,
     target: SocketAddrV4,
     port_address: u16,
     sequence: ArtSequence,
@@ -21,8 +18,9 @@ pub struct ArtNetNode {
 }
 
 impl ArtNetNode {
-    pub fn new(target: SocketAddrV4, port_address: u16) -> Self {
+    pub fn new(name: String, target: SocketAddrV4, port_address: u16) -> Self {
         ArtNetNode {
+            name,
             target,
             port_address,
             sequence: ArtSequence::default(),
@@ -40,7 +38,12 @@ impl ArtNetNode {
         }
         self.health
             .record(&result)
-            .map(|m| format!("art-net {}: {m}", self.target))
+            .map(|m| format!("{}: {m}", self.name))
+    }
+
+    /// OUT-33: why the node is degraded.
+    pub fn detail(&self) -> Option<&str> {
+        self.health.detail()
     }
 
     /// IPC-20.
@@ -123,13 +126,5 @@ mod tests {
         let mut buf = [0u8; 1024];
         let (_, from) = rx.recv_from(&mut buf).unwrap();
         assert_ne!(from.port(), cmdmx_protocols::artnet::PORT);
-    }
-
-    #[test]
-    fn out_04_default_target_is_limited_broadcast_on_6454() {
-        assert_eq!(
-            default_target(),
-            SocketAddrV4::new(Ipv4Addr::BROADCAST, 6454)
-        );
     }
 }
