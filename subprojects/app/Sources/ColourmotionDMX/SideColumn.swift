@@ -297,7 +297,7 @@ private struct Softkeys: View {
             optionsKey,
             setLegendKey,
             Softkey(name: "Shapes & Effects", sub: "phase 2", spec: "Shapes · phase 2"),
-            Softkey(name: "Rem Dim", sub: "lowlight the rest", action: { engine.remDim() }),   // UI-26
+            Softkey(name: "Rem Dim", sub: "the rest to 0", action: { engine.remDim() }),   // UI-26
             Softkey(name: "Lock", sub: "venue mode", spec: "later"),
             undoKey,
         ])

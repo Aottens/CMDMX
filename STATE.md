@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (VS5-03 undo in the app; undo complete; next VS2-05)_
+_Last updated: 2026-10-22 (VS2-05 Locate, Highlight, Off, Rem Dim and Clear; PR open, owner run pending)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -70,8 +70,10 @@ done (SHW-01..17, SHW-a/b/c): the daemon opens the last show from
 `~/Documents/ColourmotionDMX/Shows/` and autosaves it in place; the app has a Show screen. Manual
 runs use `--show-dir /tmp/…` so the owner's real shows stay untouched. Next, in this order (owner, 2026-10-22,
 DECISIONS; focus is a general console, the church is the first proof):
-1. **Undo** (`specs/modules/undo.md`, approved): VS5-01 core (done), VS5-02 daemon + IPC (done), VS5-03 app (next).
-2. **VS2-05** Locate, Highlight, Off, Rem Dim and Clear (spec approved, ready for tests).
+1. **Undo** (`specs/modules/undo.md`): done (VS5-01..03).
+2. **VS2-05** Locate, Highlight, Off, Rem Dim and Clear (PRG-38..44, ENG-10, IPC-32..34, UI-26
+   approved 2026-10-22): engine, daemon and app built, PR open, owner run
+   `tests/manual/runs/2026-10-22-VS2-05.md` pending.
 3. **P1-18** multi-universe output (OUT-13; the daemon sends line 1 only today).
 4. **P1-05** control surfaces spec, then VS1-07 (MCU) and VS4-04 (TouchOSC).
 After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15
