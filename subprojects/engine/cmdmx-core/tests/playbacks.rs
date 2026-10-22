@@ -1003,7 +1003,7 @@ fn keys_in_order(text: &str, from: &str, keys: &[&str]) {
 
 #[test]
 fn pbk_34_schema_3_shape() {
-    assert_eq!(SCHEMA_VERSION, 5); // CUE-38 and GRM-13 add keys; this order still holds
+    assert_eq!(SCHEMA_VERSION, 6); // CUE-38, GRM-13 and OUT-13 add keys; this order still holds
     let mut e = styled();
     e.set_page_legend(2, "Service").unwrap();
     let text = e.to_show(meta()).to_json();
@@ -1210,10 +1210,11 @@ fn pbk_44_values_for_unknown_fixtures_and_palettes() {
 fn pbk_45_a_schema_2_show_keeps_its_playbacks_where_pbk_01_put_them() {
     let file = std::fs::read_to_string(V2_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 3, "{migrations:?}");
+    assert_eq!(migrations.len(), 4, "{migrations:?}");
     assert!(migrations[0].starts_with("2 -> 3"), "{migrations:?}");
     assert!(migrations[1].starts_with("3 -> 4"), "{migrations:?}"); // CUE-38
     assert!(migrations[2].starts_with("4 -> 5"), "{migrations:?}"); // GRM-13
+    assert!(migrations[3].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     let one = e.playback(1).unwrap();

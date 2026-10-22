@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
+use cmdmx_core::output::NodeKind;
 use cmdmx_core::patch::{Fixture, PatchAdd};
 use cmdmx_core::playback::{FaderMode, GroupMaster, GroupMode, Master, Playback, Priority};
 use cmdmx_core::profile::Profile;
@@ -41,7 +42,8 @@ fn meta() -> Meta {
 /// The church rig of `common::church()`, plus a Showtec LED Par 56 (QLC+ profile) at 2.1,
 /// groups 1 (all, patch order) and 4 (spots, reversed), playback 1 (washes at full, wash 101
 /// Pan at half) and playback 2 at High priority in fader mode 2, colour model RGB and 10 faders
-/// per page. `tests/fixtures/shows/church-demo.cmdmx.json` is exactly this rig written out.
+/// per page, plus the default output nodes of universe 2 (OUT-25) next to those of a new engine.
+/// `tests/fixtures/shows/church-demo.cmdmx.json` is exactly this rig written out.
 fn rig() -> Engine {
     let mut e = common::church();
     let showtec = Profile::from_json(&std::fs::read_to_string(SHOWTEC).unwrap()).unwrap();
@@ -83,6 +85,9 @@ fn rig() -> Engine {
         )
     });
     e.set_colour_model(ColourModel::Rgb);
+    // OUT-27: what migrating the schema 5 file gives, so every older file migrates to this one.
+    e.output_add(2, true, NodeKind::default_artnet(2)).unwrap();
+    e.output_add(2, true, NodeKind::default_sacn(2)).unwrap();
     e
 }
 
@@ -129,12 +134,13 @@ fn shw_01_top_level_keys_in_order() {
             "groups",
             "palettes",
             "pages",
-            "playbacks"
+            "playbacks",
+            "output"
         ]
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
-    assert_eq!(SCHEMA_VERSION, 5); // GRM-13
+    assert_eq!(SCHEMA_VERSION, 6); // OUT-13
     assert_eq!(
         v["meta"],
         json!({"name": "Church demo", "created": "2026-10-18T09:00:00Z",
@@ -291,12 +297,12 @@ fn shw_03_fixture_show_is_the_church_rig() {
 #[test]
 fn shw_04_newer_schema_is_refused_with_a_clear_message() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["schema_version"] = json!(6);
+    v["schema_version"] = json!(7);
     let err = Show::from_json(&v.to_string()).unwrap_err().to_string();
     assert!(err.contains("Church demo"), "{err}");
     assert!(err.contains("newer"), "{err}");
-    assert!(err.contains("schema 6"), "{err}");
-    assert!(err.contains("up to 5"), "{err}");
+    assert!(err.contains("schema 7"), "{err}");
+    assert!(err.contains("up to 6"), "{err}");
 }
 
 #[test]
@@ -474,7 +480,8 @@ fn shw_08_no_machine_specific_data() {
     let json = rig().to_show(meta()).to_json();
     assert!(!json.contains("/Users/"));
     let keys = top_level_keys(&json);
-    assert!(!keys.iter().any(|k| k == "output" || k == "control"));
+    // OUT-13 amends SHW-08: `output` is the grouped key it foresaw; `control` stays out.
+    assert!(!keys.iter().any(|k| k == "control"));
 }
 
 #[test]
@@ -515,7 +522,7 @@ fn group_master_of(e: &Engine, id: u32) -> GroupMaster {
 fn grm_13_a_group_master_is_saved_with_its_level() {
     let e = rig_with_group_master();
     let v = as_json(&e.to_show(meta()));
-    assert_eq!(v["schema_version"], json!(5));
+    assert_eq!(v["schema_version"], json!(6));
     let pb = &v["playbacks"]["playbacks"][2];
     assert_eq!(pb["kind"], json!("GroupMaster"));
     assert_eq!(
@@ -546,14 +553,15 @@ fn grm_13_a_restart_keeps_the_masters_level_and_the_stage() {
 fn grm_13_a_schema_4_show_is_migrated() {
     let file = std::fs::read_to_string(V4_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert_eq!(migrations.len(), 2, "{migrations:?}");
     assert!(migrations[0].starts_with("4 -> 5"), "{migrations:?}");
+    assert!(migrations[1].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
     let (engine, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(
         engine.to_show(meta()).to_json(),
         std::fs::read_to_string(FIXTURE_SHOW).unwrap(),
-        "4 -> 5 changes nothing but the version"
+        "4 -> 5 changes nothing but the version; 5 -> 6 adds the nodes of universes 1 and 2"
     );
 }
 

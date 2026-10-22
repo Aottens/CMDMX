@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (P1-18 multi-universe output spec approved; build tasks VS6-01..03)_
+_Last updated: 2026-10-22 (VS6-01 output nodes in the core, PR open)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -31,6 +31,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 
 ## In progress
 - P1-18 done: `output-protocols.md` OUT-13 rewritten, OUT-25..37 approved (owner, 2026-10-22, the six questions as proposed): nodes in the show (`output` key, schema 6), default Art-Net + sACN per universe, both on, added automatically when a universe gets its first fixture, serial port stored in the show, several serial nodes, config flags removed (only `--no-*` stay), output edits undoable; IPC `output.*`/`output.ports`, status-bar dot per protocol and an Output screen. Build tasks VS6-01..03 in BACKLOG; until VS6-02 the daemon still sends line 1 only
+- VS6-01 built, PR open: output nodes in `cmdmx-core` (OUT-13, 25..28): show schema 6 with an `output` key, migration 5 → 6 adds Art-Net + sACN for every patched universe and serial `auto` on line 1, a new engine holds line 1's three nodes, the first fixture on an empty universe adds its two nodes (one undo step, one warning), node add/edit/remove checked and undoable, bad nodes left out on load. Next VS6-02 (daemon)
 - P1-10 done: `specs/modules/undo.md` UNDO-01..20, IPC-30/31 and ADR-008 approved (owner, 2026-10-22, the seven questions as recommended): snapshots of the edit state, edits only, linear redo, 100 steps, memory only, one shared history. Build tasks VS5-01..03 in BACKLOG
 - VS5-01 done: `cmdmx-core::undo::History` (100 steps, linear redo, coalescing by key, no clock) over `Engine::edit_state()` snapshots; undo kills removed playbacks, keeps group master levels and never lowers id counters; scenarios gain `undo`/`redo` steps and a `history` expectation
 - VS5-02 done: the daemon classifies every IPC command (edit/live/reset/neutral, UNDO-04, one exhaustive `match` plus a unit test over every command name), wraps `apply` in one shared history, empties it on `show.open`/`show.new`, and serves `undo`/`redo` with an `undo` snapshot field and delta (IPC-30/31)
@@ -77,7 +78,7 @@ DECISIONS; focus is a general console, the church is the first proof):
    passed 2026-10-22 (two app fixes in the run; undo and held LTP output decided as PRG-45, task VS5-04).
    VS5-04 (PRG-45): built, PR open: undo and redo let go of every LTP value or located value
    the restored programmer no longer holds by `clear_ltp`, as Clear does.
-3. **P1-18** multi-universe output (OUT-13; the daemon sends line 1 only today).
+3. **P1-18** multi-universe output: VS6-01 (core) PR open, then VS6-02 (daemon) and VS6-03 (app); the daemon sends line 1 only until VS6-02.
 4. **P1-05** control surfaces spec, then VS1-07 (MCU) and VS4-04 (TouchOSC).
 After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15
 (multi-select in the patch table). Cue lists (P1-08, VS3-02..05) and group masters (VS3-06/07) are done.
