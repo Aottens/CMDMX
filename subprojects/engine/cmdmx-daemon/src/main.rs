@@ -39,7 +39,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
-use cmdmx_core::engine::{Engine, Settings};
+use cmdmx_core::engine::{Engine, Settings, ALL_GROUPS};
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
@@ -416,6 +416,22 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             engine.clear();
             Ok(())
         }
+        ClearWith { groups, time } => match time {
+            Some(time) => engine.clear_timed(time, groups.as_deref()),
+            None => engine.clear_mask(groups.as_deref().unwrap_or_default()),
+        },
+        Locate { groups } => engine.locate(groups.as_deref().unwrap_or(&ALL_GROUPS)),
+        Highlight { on } => engine.set_highlight(on),
+        Off {
+            groups: None,
+            attribute: Some(attribute),
+        } => engine.off_attribute(&attribute),
+        Off { groups, .. } => {
+            let active = engine.active_group();
+            engine.off(groups.as_deref().unwrap_or(&[active]))
+        }
+        RemDim => engine.rem_dim(),
+        SettingsProgrammer(change) => engine.set_programmer_settings(change),
         AttributeGroup { group } => {
             engine.set_active_group(group);
             Ok(())
@@ -591,6 +607,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CuelistAction { .. }
         | CuelistConnect { .. }
         | AttributeGroup { .. }
+        | Highlight { .. }
         | ColourModel { .. } => Class::Live,
         Show(New { .. } | Open { .. }) => Class::Reset,
         Show(List | SaveAs { .. }) | CueView { .. } | Library(_) | Undo | Redo => Class::Neutral,
@@ -600,6 +617,11 @@ fn class(cmd: &ipc::Command) -> Class {
         | Pattern { .. }
         | All
         | Clear
+        | ClearWith { .. }
+        | Locate { .. }
+        | Off { .. }
+        | RemDim
+        | SettingsProgrammer(_)
         | Wheel { .. }
         | Colour { .. }
         | Line { .. }
@@ -640,12 +662,35 @@ fn class(cmd: &ipc::Command) -> Class {
     }
 }
 
+/// The wire name of an attribute group (IPC-11), for labels.
+fn group_name(group: &cmdmx_core::attribute::AttributeGroup) -> String {
+    serde_json::to_value(group)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_string))
+        .unwrap_or_default()
+}
+
 /// UNDO-01, 05: the step's label and its coalescing key.
 fn label(cmd: &ipc::Command) -> (String, Option<String>) {
     use ipc::Command::*;
     let (label, key) = match cmd {
         Line { tokens } => (tokens.join(" "), None),
-        Clear => ("Clear".into(), None),
+        Clear | ClearWith { .. } => ("Clear".into(), None),
+        Locate { .. } => ("Locate".into(), None),
+        Off {
+            groups: Some(groups),
+            ..
+        } => {
+            let names: Vec<String> = groups.iter().map(group_name).collect();
+            (format!("Off {}", names.join(" ")), None)
+        }
+        Off {
+            attribute: Some(attribute),
+            ..
+        } => (format!("Off {attribute}"), None),
+        Off { .. } => ("Off".into(), None),
+        RemDim => ("Rem Dim".into(), None),
+        SettingsProgrammer(_) => ("Settings".into(), None),
         Select { .. } | SelectGroup { .. } | Step { .. } | Pattern { .. } | All => {
             ("Select".into(), Some("select".into()))
         }

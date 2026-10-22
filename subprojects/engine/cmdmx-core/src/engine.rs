@@ -189,7 +189,7 @@ pub struct PlaybackSettingsChange {
 }
 
 /// PBK-09: the default record mask, every group.
-const ALL_GROUPS: [AttributeGroup; 8] = [
+pub const ALL_GROUPS: [AttributeGroup; 8] = [
     AttributeGroup::I,
     AttributeGroup::P,
     AttributeGroup::C,
