@@ -55,9 +55,10 @@ final class TokenLine: ObservableObject {
     }
 
     /// Enter: sends the tokens, records the line unless it equals the newest entry, empties the line.
-    func send(_ engine: EngineClient) {
+    /// `end` is "Locate" for a selection line that locates instead (UI-26).
+    func send(_ engine: EngineClient, end: String = "Enter") {
         guard !tokens.isEmpty else { return }
-        engine.command(words: tokens)
+        engine.command(words: tokens, end: end)
         let line = tokens.joined(separator: " ")
         if history.last != line {
             history = Array((history + [line]).suffix(100))

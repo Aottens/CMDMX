@@ -177,6 +177,7 @@ struct FixturesWindow: View {
             CellScroll {
                 ForEach(visible) { fixture in
                     Cell(number: fixture.number,
+                         tag: programmer.located[fixture.id] == nil ? nil : "LOC",   // UI-26
                          legend: Self.legend(fixture),
                          order: order[fixture.id],
                          selected: order[fixture.id] != nil,
