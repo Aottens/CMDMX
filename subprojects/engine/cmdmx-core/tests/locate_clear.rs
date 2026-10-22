@@ -1,5 +1,5 @@
 //! Locate, Highlight, Off, Rem Dim and Clear (VS2-05): `specs/modules/programmer.md` PRG-10
-//! (Locate ending), PRG-23..29, 38..44 and ENG-10 (`engine-merge.md`). Frame-level PRG-23/25/26
+//! (Locate ending), PRG-23..29, 38..45 and ENG-10 (`engine-merge.md`). Frame-level PRG-23/25/26
 //! and ENG-10 are also scenarios in `tests/scenarios/`.
 //!
 //! API these tests fix (`Engine`):
@@ -790,6 +790,109 @@ fn prg_44_undo_during_a_timed_clear_puts_the_programmer_back_at_once() {
         e.programmer().stored(301, "Dimmer"),
         Some(Stored::Value(Value::Level(1.0)))
     );
+}
+
+// ---- PRG-45: undo and redo let go of LTP as Clear does ------------------------------------
+
+fn rig_with(clear_ltp: ClearLtp) -> Engine {
+    let mut e = rig();
+    e.set_programmer_settings(ProgrammerSettingsChange {
+        clear_ltp: Some(clear_ltp),
+        ..Default::default()
+    })
+    .unwrap();
+    e
+}
+
+/// Locate 101, Undo: Pan/Tilt (ch 2, 3) after the undo, then after a Redo.
+fn pan_tilt_after_undo_and_redo_of_locate(clear_ltp: ClearLtp) -> (Vec<u8>, Vec<u8>) {
+    let mut e = rig_with(clear_ltp);
+    let mut h = History::default();
+    e.tick(0.05);
+    assert_eq!(dmx_range(&e, 2, 3), vec![0, 0]);
+    select(&mut e, &[101]);
+    h.edit(&mut e, "Locate", None, |e| e.locate(&ALL)).unwrap();
+    e.tick(0.1);
+    assert_eq!(dmx_range(&e, 2, 3), vec![128, 128]);
+    h.undo(&mut e).unwrap();
+    e.tick(0.2);
+    let undone = dmx_range(&e, 2, 3);
+    h.redo(&mut e).unwrap();
+    e.tick(0.3);
+    assert_eq!(
+        dmx_range(&e, 2, 3),
+        vec![128, 128],
+        "redo brings the located values back"
+    );
+    (undone, dmx_range(&e, 2, 3))
+}
+
+#[test]
+fn prg_45_undo_of_locate_with_release_returns_pan_tilt_to_their_default() {
+    let (undone, _) = pan_tilt_after_undo_and_redo_of_locate(ClearLtp::Release);
+    assert_eq!(undone, vec![0, 0]);
+}
+
+#[test]
+fn prg_45_undo_of_locate_with_freeze_keeps_pan_tilt() {
+    let (undone, _) = pan_tilt_after_undo_and_redo_of_locate(ClearLtp::Freeze);
+    assert_eq!(undone, vec![128, 128]);
+}
+
+/// Zoom 102 (ch 9, default 0.4) at 0.8 by an edit, then a Clear by an edit; Undo brings the
+/// value back, Redo of the Clear lets go of it again.
+fn zoom_after_undo_and_redo_of_clear(clear_ltp: ClearLtp) -> u8 {
+    let mut e = rig_with(clear_ltp);
+    let mut h = History::default();
+    h.edit(&mut e, "Zoom", None, |e| {
+        e.set_programmer_value(102, "Zoom", 0.8)
+    })
+    .unwrap();
+    e.tick(0.1);
+    h.edit(&mut e, "Clear", None, |e| {
+        e.clear();
+        Ok(())
+    })
+    .unwrap();
+    e.tick(0.2);
+    h.undo(&mut e).unwrap();
+    e.tick(0.3);
+    assert_eq!(dmx(&e, 9), 204, "the restored value outputs again");
+    h.redo(&mut e).unwrap();
+    e.tick(0.4);
+    dmx(&e, 9)
+}
+
+#[test]
+fn prg_45_redo_of_clear_with_release_returns_to_the_default() {
+    assert_eq!(zoom_after_undo_and_redo_of_clear(ClearLtp::Release), 102);
+}
+
+#[test]
+fn prg_45_redo_of_clear_with_freeze_keeps_the_output() {
+    assert_eq!(zoom_after_undo_and_redo_of_clear(ClearLtp::Freeze), 204);
+}
+
+#[test]
+fn prg_45_undo_lets_go_only_of_what_the_restored_programmer_no_longer_holds() {
+    let mut e = rig_with(ClearLtp::Release);
+    let mut h = History::default();
+    h.edit(&mut e, "Zoom", None, |e| {
+        e.set_programmer_value(102, "Zoom", 0.8)
+    })
+    .unwrap();
+    h.edit(&mut e, "Pan", None, |e| {
+        e.set_programmer_value(101, "Pan", 0.9)
+    })
+    .unwrap();
+    e.tick(0.1);
+    assert_eq!((dmx(&e, 2), dmx(&e, 9)), (230, 204));
+    h.undo(&mut e).unwrap();
+    e.tick(0.2);
+    assert_eq!((dmx(&e, 2), dmx(&e, 9)), (0, 204));
+    h.redo(&mut e).unwrap();
+    e.tick(0.3);
+    assert_eq!((dmx(&e, 2), dmx(&e, 9)), (230, 204));
 }
 
 // ---- PRG-10: a selection ending in Locate --------------------------------------------------
