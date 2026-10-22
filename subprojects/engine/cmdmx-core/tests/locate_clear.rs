@@ -820,3 +820,60 @@ fn prg_35_the_view_shows_the_located_set_and_highlight() {
     );
     assert!(view.highlight);
 }
+
+// ---- PRG-41 note: an LTP attribute of the I group is not intensity ----------------------
+
+const STROBE: &str = r#"{ "attributes": [
+  { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+  { "name": "Strobe", "group": "I", "kind": "Ltp", "channel": 2, "default": 0.1 },
+  { "name": "Shutter", "group": "I", "kind": "Ltp", "channel": 3, "locate": 0.9, "highlight": 0.8 } ] }"#;
+
+/// 401 @31, 402 @34 (Dimmer, Strobe, Shutter).
+fn strobe_rig() -> Engine {
+    let mut e = rig();
+    e.add_profile("strobe", Profile::from_json(STROBE).unwrap())
+        .unwrap();
+    for (id, address) in [(401, 31), (402, 34)] {
+        e.patch(Fixture {
+            id,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "strobe".into(),
+            mode: None,
+            universe: 1,
+            address,
+        })
+        .unwrap();
+    }
+    e
+}
+
+#[test]
+fn prg_41_locate_highlight_and_rem_dim_never_start_a_strobe() {
+    let mut e = strobe_rig();
+    select(&mut e, &[401]);
+    e.locate(&ALL).unwrap();
+    e.tick(0.1);
+    // Strobe at its default, Shutter at its locate value.
+    assert_eq!(dmx_range(&e, 31, 33), vec![255, 26, 230]);
+
+    e.clear();
+    e.clear();
+    select(&mut e, &[401, 402]);
+    e.next_fixture();
+    e.set_highlight(true).unwrap();
+    e.tick(0.2);
+    // Target 401: Dimmer full, Strobe left alone, Shutter its highlight value.
+    assert_eq!(dmx_range(&e, 31, 33), vec![255, 26, 204]);
+    // Lowlit 402: only the Dimmer.
+    assert_eq!(dmx_range(&e, 34, 36), vec![64, 26, 0]);
+
+    e.set_highlight(false).unwrap();
+    e.clear_selection();
+    select(&mut e, &[301]);
+    e.rem_dim().unwrap();
+    assert_eq!(level(&e, 401, "Dimmer"), Some(0.0));
+    assert_eq!(level(&e, 401, "Strobe"), None);
+    assert_eq!(level(&e, 401, "Shutter"), None);
+}

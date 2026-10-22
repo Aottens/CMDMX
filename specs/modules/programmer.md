@@ -149,15 +149,15 @@ editing the line (Back, Exit) stays in the client.
 
 ### Locate, Highlight, Off, Rem Dim and Clear in detail (VS2-05, approved by owner 2026-10-22)
 - **PRG-38** Locate values. Per attribute in the locate mask: the profile's `locate` value;
-  without one, an I-group attribute (the virtual Dimmer included) 1.0, Pan and Tilt 0.5,
+  without one, an intensity attribute (I group and HTP, the virtual Dimmer included) 1.0, Pan and Tilt 0.5,
   Colour open white (1, 1, 1), an extra emitter 0 (white comes from the target colour,
   ADR-005), any other attribute its `default` (LIB-03). Located values stay until a Clear that
   empties the programmer, an Off (PRG-27, 40), a touch (PRG-24) or the fixture's removal; Locate
   again overwrites them. Locate with no targets is refused; Locate counts as a programmer
   change for PRG-03.
-- **PRG-39** Highlight values. Per target: an I-group attribute its `highlight` value, else 1.0;
+- **PRG-39** Highlight values. Per target: an intensity attribute its `highlight` value, else 1.0;
   Colour open white; an extra emitter 0; any other attribute with a `highlight` value that
-  value; every other attribute is left alone. Lowlight sets only the I-group attributes of the
+  value; every other attribute is left alone. Lowlight sets only the intensity attributes of the
   other selected fixtures. Highlight replaces the base value after the merge (ENG-14), so group
   masters, the Grand Master and DBO still act on it. It follows the targets as Fix ±1 steps.
   Highlight is live state: not undone, not saved. Switching it on with no selection is refused.
@@ -168,8 +168,12 @@ editing the line (Back, Exit) stays in the client.
   stays. PRG-27 (Off by mask) also removes located values in the mask. An Off that removes
   nothing, or has no targets, is refused ("Off: nothing of the selection is in the programmer").
 - **PRG-41** Rem Dim with no selection is refused (it would black out the whole rig). "Intensity
-  attribute" is every I-group attribute, the virtual Dimmer included. Rem Dim counts as a
+  attribute" is every I-group HTP attribute, the virtual Dimmer included. Rem Dim counts as a
   programmer change for PRG-03.
+  An LTP attribute of the I group (Strobe, Shutter) is not an intensity attribute for PRG-38,
+  39 and 41: Locate puts it at its `locate` value, else its `default`; Highlight changes it only
+  through its own `highlight` value; Rem Dim leaves it alone (so neither ever starts a strobe).
+  Added 2026-10-22 in review (the Showtec RGB par's Strobe channel is I-group LTP).
 - **PRG-42** Programmer settings in the show (`settings`, lenient load per field):
   `clear_precedence` (PRG-29), `clear_ltp` = `Release` (default) or `Freeze` (ENG-10) and
   `lowlight_level` 0.0–1.0 (PRG-26, default 0.25); a value out of range is refused.
