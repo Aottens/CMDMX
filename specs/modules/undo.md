@@ -3,8 +3,8 @@
 Owner: `cmdmx-core::undo` (the history, pure), `cmdmx-core::engine` (what a step captures and
 restores), `cmdmx-daemon` (classifying commands, IPC), the Undo/Redo controls in
 `subprojects/app`.
-Status: **draft, waiting for owner approval (gate 1, P1-10).** The seven questions at the end
-carry a recommendation each; the criteria below follow the recommendations.
+Status: **approved (owner, 2026-10-22; the seven questions at the end answered as recommended,
+DECISIONS 2026-10-22).** Build tasks VS5-01..03.
 Behavioural reference: Avolites Titan v19 manual, *Titan Basics → Other Parts of the Touch
 Screen → Undo/Redo* (https://manual.avolites.com/docs/titan-basics/other-parts-of-the-touch-screen):
 recent actions are listed in the prompt area; actions "including fixture and cue changes" can
@@ -147,7 +147,7 @@ The Undo History window with undo-to-a-step (Titan; later), per-user histories
 (multi-user, later), undo of library edits (user profile files outside the show, LIB-12), undo
 across a daemon restart, undo of live actions.
 
-## Questions for the owner (recommendation first)
+## Owner decisions (2026-10-22: each as recommended)
 1. **What is one step?** Recommended: one accepted command that changes show or programmer;
    wheel turns on one attribute, colour-picker drags and selection taps in a row are one step;
    a command-line line is one step (UNDO-01..05). Alternative: every message one step (a wheel

@@ -5,9 +5,9 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
-## 2026-10-22 — Undo: snapshots of the edit state, edits only, one shared history (ADR-008, P1-10, proposed)
+## 2026-10-22 — Undo: snapshots of the edit state, edits only, one shared history (ADR-008, P1-10, owner)
 
-**Decision (pending owner approval):** one engine-wide undo (`specs/modules/undo.md`, UNDO-01..20, IPC-30/31). A step is one accepted command that changes show or programmer; wheel turns, colour-picker drags and selection taps in a row merge into one step, by command order, never by time. Live actions (Go, faders, Flash, GM, page) are not undoable and not in the history. Linear redo, 100 steps, memory only (emptied by Open/New and a restart), autosave writes undone state like any edit, one history shared by all clients. Steps save the edit state before the command (ADR-008), not inverse commands.
+**Decision (owner approved the seven recommendations):** one engine-wide undo (`specs/modules/undo.md`, UNDO-01..20, IPC-30/31). A step is one accepted command that changes show or programmer; wheel turns, colour-picker drags and selection taps in a row merge into one step, by command order, never by time. Live actions (Go, faders, Flash, GM, page) are not undoable and not in the history. Linear redo, 100 steps, memory only (emptied by Open/New and a restart), autosave writes undone state like any edit, one history shared by all clients. Steps save the edit state before the command (ADR-008), not inverse commands.
 
 **Alternatives considered:** inverse commands per module; undo of live actions; history in the show file; per-client histories; time-based grouping.
 

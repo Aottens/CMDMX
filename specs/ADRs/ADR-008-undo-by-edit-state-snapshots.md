@@ -1,6 +1,6 @@
 # ADR-008: Undo by snapshots of the edit state, one history in the daemon
 
-**Status:** proposed (owner approval pending)
+**Status:** accepted (owner, 2026-10-22)
 **Date:** 2026-10-22
 **Origin:** BACKLOG P1-10, `specs/modules/undo.md`
 
