@@ -30,13 +30,15 @@ struct OutputView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 PanelWindow(title: "Output", info: "\(rows.count) nodes", framed: true, accessory: { EmptyView() }) {
+                    // Each cell gets `engine` again: after a reconnect rebuilds the rows, macOS Table cells
+                    // can lose the inherited environment object, and reading it then traps.
                     Table(rows) {
-                        TableColumn("Universe") { LineCell(node: $0) }.width(min: 50, ideal: 60, max: 80)
+                        TableColumn("Universe") { LineCell(node: $0).environmentObject(engine) }.width(min: 50, ideal: 60, max: 80)
                         TableColumn("Protocol") { Text(protocolName($0.kind)) }.width(min: 60, ideal: 70, max: 90)
-                        TableColumn("Destination") { DestinationCell(node: $0) }.width(min: 220, ideal: 360)
-                        TableColumn("On") { EnabledCell(node: $0) }.width(min: 30, ideal: 36, max: 50)
+                        TableColumn("Destination") { DestinationCell(node: $0).environmentObject(engine) }.width(min: 220, ideal: 360)
+                        TableColumn("On") { EnabledCell(node: $0).environmentObject(engine) }.width(min: 30, ideal: 36, max: 50)
                         TableColumn("State") { StateCell(node: $0) }.width(min: 80, ideal: 160)
-                        TableColumn("") { RemoveCell(node: $0, armed: $armed) }.width(min: 70, ideal: 80, max: 90)
+                        TableColumn("") { RemoveCell(node: $0, armed: $armed).environmentObject(engine) }.width(min: 70, ideal: 80, max: 90)
                     }
                 }
             }
@@ -135,18 +137,20 @@ private struct DestinationCell: View {
                 }
             }
         case "serial":
-            let stored = node.port ?? "auto"
+            // Read the environment object here: a Picker in a Table cell builds its menu outside the
+            // view's environment, where `engine` would trap.
+            let stored = node.port ?? "auto", ports = engine.serialPorts, client = engine, id = node.id
             HStack(spacing: 6) {
-                Picker("", selection: Binding(get: { stored }, set: { engine.editOutput(node.id, ["port": $0]) })) {
+                Picker("", selection: Binding(get: { stored }, set: { client.editOutput(id, ["port": $0]) })) {
                     Text("auto").tag("auto")
-                    ForEach(engine.serialPorts) { port in
+                    ForEach(ports) { port in
                         Text(port.product.map { "\(port.path) · \($0)" } ?? port.path).tag(port.path)
                     }
-                    if stored != "auto" && !engine.serialPorts.contains(where: { $0.path == stored }) {
+                    if stored != "auto" && !ports.contains(where: { $0.path == stored }) {
                         Text("\(stored) (not connected)").tag(stored)
                     }
                 }.labelsHidden()
-                Button("Refresh") { engine.listPorts() }.buttonStyle(FlatButton(compact: true))
+                Button("Refresh") { client.listPorts() }.buttonStyle(FlatButton(compact: true))
             }
         default:
             Text("?").foregroundStyle(.secondary)
@@ -180,7 +184,8 @@ private struct EnabledCell: View {
     @EnvironmentObject private var engine: EngineClient
     let node: OutputNode
     var body: some View {
-        Toggle("", isOn: Binding(get: { node.enabled }, set: { engine.editOutput(node.id, ["enabled": $0]) }))
+        let client = engine, id = node.id
+        Toggle("", isOn: Binding(get: { node.enabled }, set: { client.editOutput(id, ["enabled": $0]) }))
             .toggleStyle(.checkbox).labelsHidden()
     }
 }
