@@ -3,7 +3,7 @@
 _Last updated: 2026-10-21_
 
 ## Current step
-VS3-06 in review: group masters in `cmdmx-core` (GRM-01..14, 19). VS3-07 (IPC + app) is next. VS4-05 merged (#52), its gate-3 run (`tests/hardware/runs/2026-10-21-VS4-05.md`) still open.
+VS3-06 done (#55, 2026-10-22): group masters in `cmdmx-core` (GRM-01..14, 19). VS3-07 (IPC + app, GRM-15..18) in progress. VS4-05 merged (#52), its gate-3 run (`tests/hardware/runs/2026-10-21-VS4-05.md`) still open.
 
 ## Working
 - Group masters (VS3-06, GRM-01..14, 19): `playback.rs` `Kind::GroupMaster`, `GroupMode` (`Unknown` catches a bad mode on load), `GroupMaster {group, mode, scale, enabled, level}`, `Master::Group`, `ButtonKind::GroupMaster` (none/Flash; Custom Flash/Swop); `Master::kind()` is `Option<MasterKind>` (speed masters only). Engine: `record_group_master`, the fader starts at and (enabled) saves `level`, `change_playback` keeps the group and ignores the level, enabling takes the fader; `GroupMasters` in the tick masters every HTP attribute after the merge (Scale → HTP → Limit, HTP silent during another Swop), then the GM; Take Over passes collected per tick and applied after the frame (`follow_take_over`, `PlaybackState.takeover_prev/taken`); a held Swop on a group master owns the Swop. Show schema 5 (4 → 5 only bumps the version), lenient load per field. 29 tests in `tests/group_masters.rs`, GRM-13/14 in `tests/showfile.rs`, scenarios `GRM-06..12`. Daemon: `MasterPatch` refuses a group master until VS3-07.
