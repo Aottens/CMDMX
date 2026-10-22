@@ -32,12 +32,12 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: the Output screen in the app, to see and set where each universe goes (the show and the daemon already handle every patched universe). What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: MIDI, Mackie Control and OSC surfaces. What works today:
 
 - The engine runs at 40 Hz and outputs every patched universe over Art-Net, sACN and USB (ENTTEC
   Pro protocol). Where each universe goes is part of the show: a universe that gets its first
   fixture goes out on Art-Net and sACN by itself, and outputs can be added, changed and removed
-  (over IPC for now, undoable) without the other outputs dropping a frame. The Eurolite
+  (on the app's Output screen, undoable) without the other outputs dropping a frame. The Eurolite
   USB-DMX512 PRO MK2 drives real dimmers and an LED par (250000 baud, about 33 Hz on its own
   timer); its port is stored in the show. `--no-artnet`, `--no-sacn` and `--no-serial` silence a
   protocol for one run.
@@ -49,7 +49,8 @@ for the phase-2 effects generator (effects run around the cue's values, before t
 - Colour as one value per fixture. You set it with HSI, RGB or CMY wheels or a colour picker,
   and extra emitters (White, Lime, …) are driven directly.
 - The app has its real main screen. It runs full screen, with a status bar that shows the
-  engine and every output. There are four workspaces of fixtures, groups and other windows, and
+  engine and one dot per output protocol, and an Output screen to see and set where each
+  universe goes. There are four workspaces of fixtures, groups and other windows, and
   a dark and a day theme.
 
 - Show file: the engine keeps the show in one readable JSON file in
@@ -107,8 +108,7 @@ for the phase-2 effects generator (effects run around the cue's values, before t
   with a setting for its order and for what LTP attributes do (back to the playback or the
   fixture's default, or freeze). A timed Clear fades the output (IPC only for now).
 
-Next, in this order: the Output screen; MIDI, Mackie Control and OSC
-surfaces. The
+Next: MIDI, Mackie Control and OSC surfaces. The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
 ## Build and run

@@ -48,7 +48,7 @@ private func optionalInt(_ text: String) -> Int?? {
     return Int(t).map { .some($0) }
 }
 
-private func labelled<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
+func labelled<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
     HStack(spacing: 6) {
         Text(label).font(.caption).foregroundStyle(.secondary).frame(width: 64, alignment: .leading)
         content()

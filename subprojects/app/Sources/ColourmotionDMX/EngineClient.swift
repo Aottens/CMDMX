@@ -596,27 +596,69 @@ struct LibraryItem: Decodable, Identifiable, Equatable {
     }
 }
 
-/// One output node as reported by the daemon (IPC-20). Every field falls back to a default,
+/// One output node as reported by the daemon (OUT-33, IPC-20). Every field falls back to a default,
 /// so an odd entry cannot drop the snapshot it came in.
-struct OutputStatus: Decodable, Identifiable, Equatable {
-    enum State { case ok, degraded, stopped }
+struct OutputNode: Decodable, Identifiable, Equatable {
+    enum State { case ok, degraded, stopped, disabled }
 
-    let name: String
+    let id: Int
+    let line: Int
+    let enabled: Bool
+    let kind: String
+    let portAddress: Int?
+    let target: String?
+    let universe: Int?
+    let priority: Int?
+    let unicast: String?
+    let port: String?
     let state: State
     let detail: String?
-    var id: String { name }
 
-    private enum CodingKeys: String, CodingKey { case name, state, detail }
+    private enum CodingKeys: String, CodingKey {
+        case id, line, enabled, kind, target, universe, priority, unicast, port, state, detail
+        case portAddress = "port_address"
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        name = (try? c.decode(String.self, forKey: .name)) ?? "?"
+        id = (try? c.decode(Int.self, forKey: .id)) ?? 0
+        line = (try? c.decode(Int.self, forKey: .line)) ?? 1
+        enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? true
+        kind = (try? c.decode(String.self, forKey: .kind)) ?? "?"
+        portAddress = try? c.decode(Int.self, forKey: .portAddress)
+        target = try? c.decode(String.self, forKey: .target)
+        universe = try? c.decode(Int.self, forKey: .universe)
+        priority = try? c.decode(Int.self, forKey: .priority)
+        unicast = try? c.decode(String.self, forKey: .unicast)
+        port = try? c.decode(String.self, forKey: .port)
         switch try? c.decode(String.self, forKey: .state) {
         case "Ok": state = .ok
         case "Stopped": state = .stopped
+        case "Disabled": state = .disabled
         default: state = .degraded   // "Degraded" or something newer: show it as a warning
         }
         detail = try? c.decode(String.self, forKey: .detail)
+    }
+}
+
+/// A serial port the daemon found (OUT-35). `enttec` is OUT-09's product-string test.
+struct SerialPort: Decodable, Identifiable, Equatable {
+    let path: String
+    let product: String?
+    let vid: String?
+    let pid: String?
+    let enttec: Bool
+    var id: String { path }
+
+    private enum CodingKeys: String, CodingKey { case path, product, vid, pid, enttec }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        path = (try? c.decode(String.self, forKey: .path)) ?? ""
+        product = try? c.decode(String.self, forKey: .product)
+        vid = try? c.decode(String.self, forKey: .vid)
+        pid = try? c.decode(String.self, forKey: .pid)
+        enttec = (try? c.decode(Bool.self, forKey: .enttec)) ?? false
     }
 }
 
@@ -988,7 +1030,8 @@ final class EngineClient: ObservableObject {
     private var lastLibraryQuery = ""
     @Published private(set) var programmer = ProgrammerState()
     /// IPC-20: one entry per output node; empty while offline (the state is unknown then).
-    @Published private(set) var outputs: [OutputStatus] = []
+    @Published private(set) var outputs: [OutputNode] = []
+    @Published private(set) var serialPorts: [SerialPort] = []
     /// SHW-15: the open show; keeps the last known value while offline. `shows` is the reply to the
     /// last `show.list` (this client only).
     @Published private(set) var show = ShowState()
@@ -1299,6 +1342,13 @@ final class EngineClient: ObservableObject {
     /// `dbo.set` (PBK-41); the engine's `dbo` delta shows the result.
     func setDBO(_ on: Bool) { sendJSON("dbo.set", ["on": on]) }
 
+    // MARK: Outputs (OUT-33..35): the engine fills defaults and refuses bad edits with a warning.
+    func addOutput(line: Int, kind: String) { patch("output.add", ["line": line, "kind": kind]) }
+    /// `NSNull()` as a value clears it (e.g. `unicast` back to multicast).
+    func editOutput(_ id: Int, _ fields: [String: Any]) { patch("output.edit", fields.merging(["id": id]) { a, _ in a }) }
+    func removeOutputs(ids: [Int]) { patch("output.remove", ["ids": ids]) }
+    func listPorts() { sendJSON("output.ports") }
+
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
     func say(_ text: String) { lastMessage = text }
 
@@ -1407,12 +1457,13 @@ final class EngineClient: ObservableObject {
         fileprivate let programmerSettings: Tolerant<ProgrammerSettings>?
         let programmer: ProgrammerState?
         let items: [LibraryItem]?
-        fileprivate let outputs: Tolerant<[OutputStatus]>?
+        fileprivate let outputs: Tolerant<[OutputNode]>?
+        fileprivate let ports: Tolerant<[Tolerant<SerialPort>]>?
         fileprivate let show: Tolerant<ShowState>?
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, items, outputs, show, shows
+            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, items, outputs, ports, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -1466,6 +1517,8 @@ final class EngineClient: ObservableObject {
             if let fixtures = incoming.fixtures?.value { self.fixtures = fixtures }
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
+        case "ports":
+            if let ports = incoming.ports?.value { serialPorts = ports.compactMap(\.value) }
         case "show":
             // SHW-15: the delta carries the show fields at top level. A switch or save changes the
             // list too, so ask again.

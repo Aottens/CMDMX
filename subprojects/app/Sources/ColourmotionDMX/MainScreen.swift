@@ -60,7 +60,7 @@ struct CueValueRef: Equatable {
 /// UI-only state shared by the zones. None of this reaches the engine.
 @MainActor
 final class UIState: ObservableObject {
-    enum Screen { case patch, show, options }
+    enum Screen { case patch, output, show, options }
 
     @Published var workspace = 0
     /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
@@ -200,6 +200,7 @@ private struct Frame: View {
                         VLine()
                         switch screen {
                         case .patch: PatchView()
+                        case .output: OutputView()
                         case .show: ShowView()
                         case .options: PlaybackOptionsView()
                         }
@@ -289,8 +290,22 @@ private struct StatusBar: View {
         return f
     }()
 
-    /// Display names for the node names of IPC-20.
-    private static let outputNames = ["art-net": "Art-Net", "sacn": "sACN", "serial": "Serial"]
+    /// OUT-36: one dot per protocol, counting enabled nodes only, coloured by the worst node state.
+    private static let protocols = [("artnet", "Art-Net"), ("sacn", "sACN"), ("serial", "Serial")]
+
+    @ViewBuilder private func protocolDot(_ kind: String, _ name: String) -> some View {
+        let nodes = engine.outputs.filter { $0.kind == kind && $0.enabled }
+        if !nodes.isEmpty {
+            let rank: (OutputNode.State) -> Int = { [.ok: 0, .disabled: 1, .degraded: 2, .stopped: 3][$0] ?? 0 }
+            let worst = nodes.map(\.state).max { rank($0) < rank($1) } ?? .ok
+            let color = [OutputNode.State.ok: t.green, .disabled: t.fg3, .degraded: t.amber, .stopped: t.red][worst] ?? t.green
+            let issues = nodes.filter { $0.state != .ok }.map { n in
+                "#\(n.id) universe \(n.line)" + (n.detail.map { ": \($0)" } ?? "")
+            }
+            Dot(color: color, label: "\(name) \(nodes.count)", warn: worst == .degraded || worst == .stopped)
+                .help(issues.joined(separator: "\n"))
+        }
+    }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -302,14 +317,7 @@ private struct StatusBar: View {
                     .foregroundStyle(t.amber)
             }
 
-            ForEach(engine.outputs) { output in
-                let name = Self.outputNames[output.name] ?? output.name
-                switch output.state {
-                case .ok: Dot(color: t.green, label: name)
-                case .degraded: Dot(color: t.amber, label: output.detail.map { "\(name): \($0)" } ?? name, warn: true)
-                case .stopped: Dot(color: t.fg3, label: name)
-                }
-            }
+            ForEach(Self.protocols, id: \.0) { protocolDot($0.0, $0.1) }
 
             // UI-06, PBK-41: the engine's DBO.
             if engine.dbo {
@@ -412,6 +420,7 @@ private struct Rail: View {
             }
             divider
             RailItem(title: "Patch", small: "screen", on: ui.screen == .patch) { ui.screen = ui.screen == .patch ? nil : .patch }
+            RailItem(title: "Output", small: "screen", on: ui.screen == .output) { ui.screen = ui.screen == .output ? nil : .output }
             RailItem(title: "Macros", small: "later")
             RailItem(title: "Show", small: "screen", on: ui.screen == .show) { ui.screen = ui.screen == .show ? nil : .show }
             divider

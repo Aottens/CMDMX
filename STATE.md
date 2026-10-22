@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-22 (VS6-02 output nodes in the daemon, PR open)_
+_Last updated: 2026-10-22 (VS6-03 Output screen in the app, PR open)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -32,7 +32,8 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 ## In progress
 - P1-18 done: `output-protocols.md` OUT-13 rewritten, OUT-25..37 approved (owner, 2026-10-22, the six questions as proposed): nodes in the show (`output` key, schema 6), default Art-Net + sACN per universe, both on, added automatically when a universe gets its first fixture, serial port stored in the show, several serial nodes, config flags removed (only `--no-*` stay), output edits undoable; IPC `output.*`/`output.ports`, status-bar dot per protocol and an Output screen. Build tasks VS6-01..03 in BACKLOG; until VS6-02 the daemon still sends line 1 only
 - VS6-01 merged (#69): output nodes in `cmdmx-core` (OUT-13, 25..28): show schema 6 with an `output` key, migration 5 → 6 adds Art-Net + sACN for every patched universe and serial `auto` on line 1, a new engine holds line 1's three nodes, the first fixture on an empty universe adds its two nodes (one undo step, one warning), node add/edit/remove checked and undoable, bad nodes left out on load. Next VS6-02 (daemon)
-- VS6-02 built, PR open: the daemon sends every node of the show (OUT-23, 29..35): each enabled node gets its universe's frame (zeros when nothing is patched), node changes from `output.*`, patch edits, show open/new and undo/redo restart only the nodes whose destination changed, `--no-*` silence a protocol for one run, the config flags exit 2, `outputs` per node with state and detail, `output.add/edit/remove` undoable, `output.ports`. Hardware lines in `tests/hardware/output.md` (gate 3). Until VS6-03 the Eurolite's port is set with `output.edit` over IPC, so do not take this build to the church before VS6-03
+- VS6-02 merged (#71): the daemon sends every node of the show (OUT-23, 29..35): each enabled node gets its universe's frame (zeros when nothing is patched), node changes from `output.*`, patch edits, show open/new and undo/redo restart only the nodes whose destination changed, `--no-*` silence a protocol for one run, the config flags exit 2, `outputs` per node with state and detail, `output.add/edit/remove` undoable, `output.ports`. Hardware lines in `tests/hardware/output.md` (gate 3). Until VS6-03 the Eurolite's port is set with `output.edit` over IPC, so do not take this build to the church before VS6-03
+- VS6-03 built, PR open (OUT-36/37): the status bar shows one dot per protocol (`sACN 4`, worst state, hover lists the nodes that are not Ok); an **Output** screen next to Patch with a table per node (edit in place, Enabled, state and detail, Add with defaults, Remove with confirm, serial port dropdown from `output.ports` + `auto` with Refresh and "not connected"), and a warning row for a universe with fixtures but no output. Owner run `tests/manual/app-output.md` pending; it also ticks the OUT-31 restart line of `tests/hardware/output.md`. With it the Eurolite is chosen in the app, so the church build no longer needs IPC
 - P1-10 done: `specs/modules/undo.md` UNDO-01..20, IPC-30/31 and ADR-008 approved (owner, 2026-10-22, the seven questions as recommended): snapshots of the edit state, edits only, linear redo, 100 steps, memory only, one shared history. Build tasks VS5-01..03 in BACKLOG
 - VS5-01 done: `cmdmx-core::undo::History` (100 steps, linear redo, coalescing by key, no clock) over `Engine::edit_state()` snapshots; undo kills removed playbacks, keeps group master levels and never lowers id counters; scenarios gain `undo`/`redo` steps and a `history` expectation
 - VS5-02 done: the daemon classifies every IPC command (edit/live/reset/neutral, UNDO-04, one exhaustive `match` plus a unit test over every command name), wraps `apply` in one shared history, empties it on `show.open`/`show.new`, and serves `undo`/`redo` with an `undo` snapshot field and delta (IPC-30/31)
@@ -79,7 +80,7 @@ DECISIONS; focus is a general console, the church is the first proof):
    passed 2026-10-22 (two app fixes in the run; undo and held LTP output decided as PRG-45, task VS5-04).
    VS5-04 (PRG-45): built, PR open: undo and redo let go of every LTP value or located value
    the restored programmer no longer holds by `clear_ltp`, as Clear does.
-3. **P1-18** multi-universe output: VS6-01 (core) merged, VS6-02 (daemon) PR open, then VS6-03 (app Output screen).
+3. **P1-18** multi-universe output: VS6-01 (core) merged, VS6-02 (daemon) merged, VS6-03 (app Output screen) PR open.
 4. **P1-05** control surfaces spec, then VS1-07 (MCU) and VS4-04 (TouchOSC).
 After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15
 (multi-select in the patch table). Cue lists (P1-08, VS3-02..05) and group masters (VS3-06/07) are done.
