@@ -200,16 +200,17 @@ USB-MIDI device towards the compute. 10 faders = 5 boards of 2 faders; 15 faders
 (one with a single fader populated). The fader count stays configuration (`faders_per_page`); the
 main controller simply reports how many strips it found.
 
-**Cost data point (owner, 2026-10-23):** 5 fully SMD-assembled JLCPCB boards of about
-200 × 50 mm cost about **€65 in total**, including parts, assembly, shipping and import duties.
-So the strip PCBs themselves are a small line in the BOM; the faders, switches and caps on them
-are the real cost.
+**Cost indication (owner, 2026-10-23):** for an unrelated board of the owner's (about
+200 × 50 mm), 5 fully SMD-assembled JLCPCB boards cost about **€65 in total**, including parts,
+assembly, shipping and import duties. That board says nothing about the size or design of a
+fader strip; it only shows that small runs of assembled boards are cheap. The faders, switches
+and caps on the strips are the real cost.
 
 **Design points for the strip:**
-- **Size and pitch.** A 100 mm fader has a body of about 128 mm, so 200 mm along the travel
-  leaves room for 2–3 keys above it. Two faders side by side need about 60–70 mm of board width
-  at a console-like pitch of 30–35 mm; a 50 mm wide board fits one fader at a roomy pitch. Pick
-  the fader pitch first, then the board width.
+- **Size and pitch.** The strip size follows from the layout, not the other way round: a 100 mm
+  fader body is about 128 mm long, plus 2–3 keys above it; two faders side by side at a
+  console-like pitch of 30–35 mm need roughly 60–70 mm of width. Pick the fader pitch and keys
+  per fader first, then size the board.
 - **Smart or dumb strip.**
   - *Dumb:* only faders, switches, LEDs and an I/O expander/ADC, read by the main MCU over a
     ribbon cable. Cheapest, but motor PID loops and many analog lines travel over the cable, and
