@@ -60,7 +60,7 @@ Steps marked **(owner)** are the ones to do yourself; Claude does the rest.
 
 ## Status bar (CTL-43)
 - [ ] With `Test Pad` enabled the bar shows a green `Control` dot
-- [ ] Quit the virtual `Test Pad`: the dot turns amber; hover says `Test Pad: Missing`;
+- [ ] Quit the virtual `Test Pad`: the dot turns amber; hover says `Test Pad: not connected`;
       start it again: green within 2 s
 - [ ] An OSC port error turns the dot amber/red with the error in the tooltip
 
