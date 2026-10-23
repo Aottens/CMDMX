@@ -111,6 +111,7 @@ awkward; browsing manufacturer → model must be possible too.
 **Note (UX-02a run, 2026-10-17):** the owner is not yet sure about the search field plus result list
 itself; P1-14 should rethink the whole Add panel (browse columns, search, picking a mode), ideally
 with a quick sketch first.
+**Specified (2026-10-23, P1-14):** LIB-19..22, IPC-35..36; build tasks VS2-23 and VS2-25.
 
 ### IDEA-09 — Multi-select in the patch table (2026-10-17, VS2-12 run)
 **Owner's intent:** select several rows in the patch table and edit them at once.
@@ -174,6 +175,8 @@ well (owner does not remember how Avolites does it).
 **Outcome (2026-10-18):** owner: phase 1, with P1-14. Same editor: attribute defaults must be
 settable there too (owner, VS2-13 review: the church movers start at Pan/Tilt 0, the owner wants
 to set e.g. 0.5 per fixture type; LIB-12 already allows editing defaults, the editor is missing).
+**Specified (2026-10-23, P1-14):** LIB-23..27, IPC-37..39 (slots per channel, not ONYX's linked
+wheels; slots typed by hand, a Lightkey importer stays open); build tasks VS2-24 and VS2-26.
 
 ### IDEA-14 — Icon library for legends, plus a user folder with own drawings (2026-10-18, VS2-13 run)
 **Owner's intent:** playbacks, cues, palettes, groups and the like carry pictures, as on Titan

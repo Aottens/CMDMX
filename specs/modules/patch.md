@@ -83,7 +83,7 @@ to end up with two fixtures on the same channel by accident.
   Amended (VS2-16, owner 2026-10-18): Change Mode is a dropdown of the row's `modes` (PAT-09) with
   the current mode preselected, not a text field; Change stays disabled while the current mode is
   picked, so a one-mode fixture cannot be changed.
-  Amended (P1-14, proposed 2026-10-23): the Add panel is LIB-22's (search over manufacturer,
+  Amended (P1-14, approved by owner 2026-10-23): the Add panel is LIB-22's (search over manufacturer,
   model and mode columns, a full-width strip above the table); the Selected panel gains Edit
   profile… (LIB-23).
 

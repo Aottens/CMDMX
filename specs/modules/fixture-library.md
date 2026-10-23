@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 proposed 2026-10-23 (P1-14), awaiting owner approval**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14)**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -257,12 +257,12 @@ channel, owner 2026-10-23).
    (10–60°); the church user profile renames it (PAT-16).
 2. ~~Which QLC+ mode per church fixture?~~ Closed 2026-10-18: the Lightkey export gives them
    (`patch.md` PAT-16 table; Shehds 24 Channel).
-3. *(P1-14)* An edit that removes or renames an attribute that palettes, cues or the programmer
+3. ~~*(P1-14)* An edit that removes or renames an attribute that palettes, cues or the programmer
    hold for fixtures of this type: refuse the Save and name where it is used (LIB-25), or carry
    the values across a rename? **Recommendation:** refuse for now; a rename that carries values
-   is a later task once someone needs it (the church renames were done at import, PAT-16).
-4. *(P1-14)* Test needs an absolute programmer value, which IPC does not have yet (only wheel
+   is a later task once someone needs it (the church renames were done at import, PAT-16).~~ Closed 2026-10-23 (owner): refuse.
+4. ~~*(P1-14)* Test needs an absolute programmer value, which IPC does not have yet (only wheel
    steps and the command line). **Recommendation:** add `programmer.set` (IPC-39), the same as a
-   wheel move to an absolute level, so Test is ordinary programmer content.
-5. *(P1-14)* One mode at a time in the editor, without adding or copying modes. **Recommendation:**
-   yes; a profile with a missing mode is made from a channel list (LIB-26) for now.
+   wheel move to an absolute level, so Test is ordinary programmer content.~~ Closed 2026-10-23 (owner): `programmer.set`.
+5. ~~*(P1-14)* One mode at a time in the editor, without adding or copying modes. **Recommendation:**
+   yes; a profile with a missing mode is made from a channel list (LIB-26) for now.~~ Closed 2026-10-23 (owner): one mode at a time.

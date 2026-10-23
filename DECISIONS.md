@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-23 — Library browsing and the profile editor (P1-14, owner)
+
+**Decision:** The Patch screen's Add panel becomes a full-width strip with one search field over Manufacturer, Model and Mode columns (search narrows the columns; no separate result list), with an "In this show" entry and channel counts per mode from the index. A full-screen profile editor edits one mode at a time: per channel name, group, HTP/LTP, Default/Locate/Highlight and slots (From/To/Name, colour on C channels, Split/Merge/Remove). Slots stay per channel, not ONYX's separate wheels linked to channels. Save writes both the show's copy (one undo step, all or nothing: used modes keep their footprint, an attribute used by stored content may not disappear) and the user profile. Test uses a new absolute `programmer.set`, so it is ordinary programmer content. Gobo pictures wait for the icon library (IDEA-14); Lightkey slots are typed by hand. Criteria LIB-19..27, IPC-35..39; sketch `specs/ux/library-and-profile-editor.html`.
+
+**Alternatives considered:** keeping the 320 px side panel with a result list; ONYX's wheel editor plus channel linking; saving to the library only (the show keeps its own copy, SHW-05, so fixtures would not change); carrying values across an attribute rename.
+
+**Reasoning:** one interaction for search and browse; slots are already per channel in the model (LIB-15), so linking wheels would add a step and a concept; a profile edit is mostly made to change the fixtures in front of you.
+
+**Reversal trigger:** profiles that need modes added in the editor, or renames that must keep recorded values.
+
 ## 2026-10-23 — Mackie Control profile built into the daemon; Channel ◀▶ as actions (VS1-07)
 
 **Decision:** The shipped profile is a mapping file in `subprojects/engine/profiles/`, compiled into the daemon (`include_str!`), so it ships with the app and cannot be edited on disk; an edit writes a user copy of the same name that hides it, deleting the copy brings it back. A mapping's `device` may list several patterns separated by `|`. Channel ◀▶ are catalogue actions `channel next/prev` that move the surface's fader window and send no engine command. Any page change resets the window. Extender units are ordered by device name until the Control screen (VS7-04) lets the user set the order.

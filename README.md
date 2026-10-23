@@ -32,7 +32,9 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. Next: browsing the fixture library by
-manufacturer, then the church's TouchOSC remote on the OSC layer. Progress is in
+manufacturer and a profile editor for slot names and defaults (specified, sketch in
+[`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)), then the
+church's TouchOSC remote on the OSC layer. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
 sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 
