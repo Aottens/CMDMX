@@ -3,7 +3,7 @@
 _Last updated: 2026-10-23 (VS2-23)_
 
 ## Current step
-VS2-23 (2026-10-23, PR open): library browsing (LIB-19..21, IPC-35..36). Core `library::EntryMode {name, channels}` in `Entry.modes` (QLC+ `header` counts each mode's `<Channel>`s, a user profile uses the mode's footprint), `Manufacturer {name, models}`, `Index::manufacturers(query)` and `Index::models(manufacturer?, query, limit)` (LIB-14 word rule, case-insensitive sort, the limit and `truncated` only without a manufacturer). Daemon `Library::manufacturers/models` (500 cap), `library.manufacturers` / `library.models` answered in the client thread (neutral, UNDO-04 table); `library.search` still sends mode names only.
+VS2-23 (2026-10-23, PR #86): library browsing (LIB-19..21, IPC-35..36). Core `library::EntryMode {name, channels}` in `Entry.modes` (QLC+ `header` counts each mode's `<Channel>`s, a user profile uses the mode's footprint), `Manufacturer {name, models}`, `Index::manufacturers(query)` and `Index::models(manufacturer?, query, limit)` (LIB-14 word rule, case-insensitive sort, the limit and `truncated` only without a manufacturer). Daemon `Library::manufacturers/models` (500 cap), `library.manufacturers` / `library.models` answered in the client thread (neutral, UNDO-04 table); `library.search` still sends mode names only.
 
 VS7-04 (2026-10-23, merged #82): `control.order {devices}` (CTL-31/40): `Control.order`, kept in `state.json` under `control.order`, in the snapshot as `control.order`; `mackie_units` sorts listed units first, the rest by name. `midi_io` runs the MIDI thread's CFRunLoop (CTL-16 hotplug across processes; `core-foundation-sys`, already in the tree via `midir`). Test `ctl_31_the_user_sets_the_unit_order`.
 
