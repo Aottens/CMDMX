@@ -24,8 +24,10 @@
 //! Edit commands run through the undo history (UNDO-01..04, IPC-30/31); open and new empty it.
 
 mod artnet_out;
+mod control;
 mod ipc;
 mod library;
+mod midi_io;
 mod output;
 mod sacn_out;
 mod serial_out;
