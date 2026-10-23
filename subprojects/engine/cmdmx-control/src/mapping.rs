@@ -140,7 +140,11 @@ impl Binding {
             Kind::Cc14 | Kind::PitchBend => 16383.0,
             _ => 127.0,
         };
-        let n = (f32::from(msg.value) / full).min(1.0);
+        self.scale((f32::from(msg.value) / full).min(1.0))
+    }
+
+    /// A normalised input value `n` (0..=1) through the input range min..max and invert.
+    pub fn scale(&self, n: f32) -> f32 {
         let x = if self.max > self.min {
             ((n - self.min) / (self.max - self.min)).clamp(0.0, 1.0)
         } else if n >= self.max {

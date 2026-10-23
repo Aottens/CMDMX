@@ -23,6 +23,8 @@
 //! `--show-dir` when that is given), autosaves it on a saver thread and switches on `show.*`.
 //! Generic MIDI control (CTL-*): mapping files in `--show-dir`/control (default beside
 //! `state.json`), devices enabled over `control.*`; their commands run like the app's (CTL-06).
+//! OSC (VS7-03) is the same layer over a UDP socket on its own thread (`osc_io`): off until
+//! `control.osc` enables it (CTL-35), feedback goes to the senders heard and the listed clients.
 //! Edit commands run through the undo history (UNDO-01..04, IPC-30/31); open and new empty it.
 
 mod artnet_out;
@@ -30,6 +32,7 @@ mod control;
 mod ipc;
 mod library;
 mod midi_io;
+mod osc_io;
 mod output;
 mod sacn_out;
 mod serial_out;
@@ -104,6 +107,17 @@ fn main() {
             None
         }
     };
+    let (osc_events, osc_in) = std::sync::mpsc::channel();
+    let osc_out = match osc_io::spawn(osc_events) {
+        Ok(tx) => Some(tx),
+        Err(e) => {
+            eprintln!("warning: OSC is off: {e}");
+            pending.push(format!("OSC is off: {e}"));
+            None
+        }
+    };
+    // The port the OSC thread was last told to listen on (`None` = not told yet).
+    let mut osc_told: Option<Option<u16>> = None;
     // OUT-29: the show's nodes, kept running; reconciled again after every drain of events.
     let mut outputs = output::Outputs::new(cli.kill, Box::new(output::spawn_node));
     outputs.reconcile(engine.nodes());
@@ -302,6 +316,16 @@ fn main() {
         while let Ok(event) = midi_in.try_recv() {
             control.event(event, now);
         }
+        let want = control.osc_listen();
+        if osc_told != Some(want) {
+            osc_told = Some(want);
+            if let Some(tx) = &osc_out {
+                let _ = tx.send(osc_io::OscCmd::Listen(want));
+            }
+        }
+        while let Ok(event) = osc_in.try_recv() {
+            control.osc_event(event, now);
+        }
         for (device, cmd) in control.commands(&engine, now) {
             if let Err(e) = run_control(&mut engine, &mut history, &device, cmd, now) {
                 warn(&mut clients, &e);
@@ -322,6 +346,13 @@ fn main() {
                 let _ = tx.send(out);
             }
         }
+        control.note_warning(&clients.last_warning);
+        for (to, m) in control.osc_feedback(&engine, now) {
+            if let Some(tx) = &osc_out {
+                let bytes = cmdmx_control::osc::encode(&m);
+                let _ = tx.send(osc_io::OscCmd::Send { to, bytes });
+            }
+        }
         // SHW-11/13: the saver does the disk work; the tick only hands over a copy.
         while let Ok(done) = saved.try_recv() {
             if let Some(w) = autosave.finished(done) {
@@ -337,6 +368,7 @@ fn main() {
         outputs.publish(|line| engine.frame(line).map(|f| f.slots()));
         for w in engine.drain_warnings() {
             eprintln!("warning @{:.3}: {}", w.at, w.message);
+            clients.last_warning.clone_from(&w.message);
             clients.broadcast(&ipc::warning(&w.message));
         }
         // IPC-31: the undo delta goes before the others.
@@ -381,6 +413,7 @@ fn main() {
 
 fn warn(clients: &mut ipc::Clients, msg: &str) {
     eprintln!("warning: {msg}");
+    clients.last_warning = msg.to_string();
     clients.broadcast(&ipc::warning(msg));
 }
 
