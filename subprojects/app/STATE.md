@@ -3,6 +3,8 @@
 _Last updated: 2026-10-22_
 
 ## Current step
+VS6-03 (2026-10-22, OUT-36/37): `EngineClient.outputs` is one `OutputNode` per node (id, line, enabled, kind + port_address/target | universe/priority/unicast | port, state Ok/Degraded/Stopped/Disabled, detail), `serialPorts` from the `ports` reply; `addOutput`, `editOutput` (partial), `removeOutputs`, `listPorts`. Status bar: one dot per protocol with the count of enabled nodes and the worst state, tooltip lists the nodes that are not Ok. `OutputView.swift`: Output screen in the rail under Patch (node table edited in place, Add, Remove with confirm, serial dropdown with "not connected", no-output warning rows). Checklist `tests/manual/app-output.md`.
+
 VS2-05 (2026-10-22, UI-26): keypad Locate (empty line → `programmer.locate`, else the line ends in `Locate`) and Highlight (lit while on), side-column Off (active group), softkey Rem Dim in the Main context (replaces the Timecode placeholder), double-click on a wheel's name → `programmer.off {attribute}`, `LOC` tag on located fixtures, Programmer section (Clear order, LTP on Clear, Lowlight) in the Playback Options settings tab. `EngineClient.programmerSettings`, `ProgrammerState.located/highlight`.
 
 VS5-03 (2026-10-22; UNDO-18..19, `ui.md` UI-18/20 amended): `EngineClient.undoLabel/redoLabel` from the snapshot's `undo` and the `undo` delta (IPC-31), `undo()`/`redo()` say "Undone:/Redone: <label>" and send IPC-30; Undo and Redo keys next to Clear (tooltip label, disabled while nil), softkey G Undo in Main and Selection (label as second line), ⌘Z/⇧⌘Z in `MacKeys.handle` before the Keys guard, skipped while an `NSText` has focus. Checklist `tests/manual/app-undo.md`.

@@ -6,8 +6,8 @@ par on its XLR.
 
 Since VS6-02 the output nodes are show data (OUT-13): there are no `--serial`,
 `--artnet-target`, `--sacn-unicast` or `--sacn-priority` flags any more (OUT-32).
-Until the Output screen exists (VS6-03), a node is edited over IPC with
-`output.add` / `output.edit` / `output.remove` (Claude sends these during the run),
+Since VS6-03 nodes are edited on the app's Output screen (`tests/manual/app-output.md`);
+the `output.edit` steps below can be done there or over IPC (Claude sends them during the run),
 e.g. `{"v":0,"cmd":"output.edit","id":3,"port":"/dev/cu.usbserial-AQ01FA9F"}`.
 The ids are in the snapshot's `outputs`; a new show has Art-Net #1, sACN #2 and
 serial `auto` #3 on universe 1.
@@ -18,7 +18,7 @@ serial `auto` #3 on universe 1.
 - [ ] `output.edit` the serial node to the path from `ls`, with `--demo`: log `serial #3: universe 1 → /dev/cu.usbserial-…` and an ENTTEC Pro line, no `Degraded` lines; the par follows the breathing fader smoothly, no flicker, no stepping (OUT-20/31)
 - [ ] An LED fixture held at a static level (e.g. 30 %) does not flicker; nothing else lights up (OUT-24)
 - [ ] A fader dragged 0→100→0 % over ~8 s fades the LED fixture without flicker and without steps you would not see on Lightkey (OUT-24, ~33 Hz own timer)
-- [ ] Quit and restart the daemon: the show still names the Eurolite's path and the par lights again without any edit (OUT-13/31)
+- [ ] With the Eurolite chosen on the Output screen, quit and restart the daemon: the show still names the Eurolite's path and the par lights again without any edit (OUT-13/31)
 - [ ] Start the daemon with the Eurolite unplugged: the node is `Degraded` "port not found" (one log line), the daemon keeps ticking; plug it in: within ~1 s it is Ok and the par follows (OUT-21/31)
 - [ ] Restart with `--no-serial`: the par stays dark, the node shows `Disabled` "--no-serial", the show file still names the port (OUT-32)
 - [ ] Unplug the Eurolite mid-run: one `Degraded` line, the daemon keeps ticking, Art-Net/sACN unaffected; replug: output resumes without restart (OUT-12)
