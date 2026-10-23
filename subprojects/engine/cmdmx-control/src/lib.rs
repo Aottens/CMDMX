@@ -4,8 +4,24 @@
 //! Phase 1: Mackie Control Universal ([`mcu`]) for the BCF2000 (MC mode) and
 //! the X-Touch family (ADR-003). A generic note/CC mapping follows with
 //! `specs/modules/control-surfaces.md`.
+//!
+//! Generic control layer (all pure, no ports): [`action`] catalogue (CTL-05),
+//! [`midi`] decode/encode (CTL-09, 17), [`mapping`] files (CTL-10..12, 22, 27),
+//! [`convert`] value conversion and pickup (CTL-07, 12, 13), [`feedback`]
+//! diffing (CTL-17..21), [`learn`] guess (CTL-26) and [`osc`] codec and
+//! `/cmdmx` schema (CTL-34, 36).
 
+pub mod action;
+pub mod convert;
+pub mod error;
+pub mod feedback;
+pub mod learn;
+pub mod mapping;
 pub mod mcu;
+pub mod midi;
+pub mod osc;
+
+pub use error::ControlError;
 
 /// Something a control surface did, normalised for the engine.
 #[derive(Debug, Clone, Copy, PartialEq)]
