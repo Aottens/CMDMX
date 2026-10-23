@@ -34,7 +34,7 @@ the backlog, not the whole idea.
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
 | IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | triaged | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
-| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 2+ (USB surface first) | new `hardware.md`, CTL, licence |
+| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 3 (hardware; owner 2026-10-23) | new `hardware.md`, CTL, licence |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -430,3 +430,4 @@ many times more.
   interface?
 - Plans only, or also sell kits/PCBs later?
 - Hardware licence (CERN-OHL-S, CERN-OHL-W, CC BY-SA)?
+**Owner's answer (2026-10-23):** phase 3 becomes the hardware phase; IDEA-23 goes there.
