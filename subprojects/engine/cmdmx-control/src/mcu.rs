@@ -50,7 +50,7 @@ pub fn decode(message: &[u8]) -> Option<SurfaceEvent> {
             let lsb = *rest.first()?;
             let msb = *rest.get(1)?;
             let value14 = (u16::from(msb & 0x7F) << 7) | u16::from(lsb & 0x7F);
-            let level = f32::from(value14 >> 4) / f32::from(FADER_MAX_10BIT);
+            let level = level(value14);
             if channel < CHANNELS {
                 Some(SurfaceEvent::Fader {
                     index: channel,
@@ -113,13 +113,68 @@ fn button_for_note(note: u8) -> Button {
     }
 }
 
+/// A fader's 14-bit value as a level: only the top 10 bits count, so full travel is exactly 1.0 (CTL-01).
+pub fn level(value14: u16) -> f32 {
+    f32::from(value14.min(0x3FFF) >> 4) / f32::from(FADER_MAX_10BIT)
+}
+
+/// The 14-bit pitch-bend value that puts a motor fader at `level` (CTL-02).
+pub fn position(level: f32) -> u16 {
+    ((level.clamp(0.0, 1.0) * f32::from(FADER_MAX_10BIT)).round() as u16) << 4
+}
+
+/// The fader channel (1..=9) a touch note (104..=112) belongs to (CTL-20).
+pub fn touch(note: u8) -> Option<u8> {
+    note.checked_sub(NOTE_FADER_TOUCH)
+        .filter(|n| *n <= CHANNELS)
+        .map(|n| n + 1)
+}
+
+/// Ring CC value in single-dot mode: off without a wheel, else dot 1..=11 (CTL-33).
+pub fn ring(level: Option<f32>) -> u16 {
+    level.map_or(0, |l| 1 + (l.clamp(0.0, 1.0) * 10.0).round() as u16)
+}
+
+/// Which playback slots the Mackie units show: `offset` slots into the page (CTL-31, 32).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Window {
+    pub offset: u16,
+}
+
+impl Window {
+    /// The page slot behind unit position `pos` (1-based, base included); `None` when unbound.
+    pub fn slot(&self, pos: u16, faders_per_page: u16) -> Option<u16> {
+        let s = self.offset.saturating_add(pos);
+        (pos >= 1 && s <= faders_per_page).then_some(s)
+    }
+
+    /// Channel ◀ / ▶: move by `width`, stopping at 0 and at the last window (CTL-32).
+    pub fn channel(&mut self, forward: bool, width: u16, faders_per_page: u16) {
+        if forward {
+            self.offset = self.offset.saturating_add(width);
+        } else {
+            self.offset = self.offset.saturating_sub(width);
+        }
+        self.clamp(width, faders_per_page);
+    }
+
+    /// Keep the offset on a window start that exists (the page or the width shrank).
+    pub fn clamp(&mut self, width: u16, faders_per_page: u16) {
+        let last = faders_per_page.saturating_sub(1).checked_div(width);
+        self.offset = last.map_or(0, |n| self.offset.min(n * width));
+    }
+
+    pub fn reset(&mut self) {
+        self.offset = 0;
+    }
+}
+
 /// Move motor fader `index` (0..=7, or 8 for master) to `level` 0.0..=1.0.
 pub fn encode_fader_position(index: u8, level: f32) -> Option<[u8; 3]> {
     if index > CHANNELS {
         return None;
     }
-    let value10 = (level.clamp(0.0, 1.0) * f32::from(FADER_MAX_10BIT)).round() as u16;
-    let value14 = value10 << 4;
+    let value14 = position(level);
     Some([
         PITCH_BEND | index,
         (value14 & 0x7F) as u8,

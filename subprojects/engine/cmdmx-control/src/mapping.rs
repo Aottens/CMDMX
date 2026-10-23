@@ -245,8 +245,13 @@ impl Mapping {
     }
 }
 
-/// Device name pattern: `*` matches any run of characters, otherwise exact.
+/// Device name pattern: `*` matches any run of characters, otherwise exact. `|` separates
+/// alternatives (CTL-22).
 pub fn device_matches(pattern: &str, name: &str) -> bool {
+    pattern.split('|').any(|p| matches_one(p, name))
+}
+
+fn matches_one(pattern: &str, name: &str) -> bool {
     let mut parts = pattern.split('*');
     let Some(first) = parts.next() else {
         return false;

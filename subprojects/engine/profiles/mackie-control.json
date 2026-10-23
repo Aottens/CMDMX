@@ -1,0 +1,383 @@
+{
+  "name": "Mackie Control",
+  "device": "*BCF2000*|*X-Touch*|*X-TOUCH*|*iCON*",
+  "driver": "mackie_control",
+  "bindings": [
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 1
+      },
+      "action": "fader 1",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 2
+      },
+      "action": "fader 2",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 3
+      },
+      "action": "fader 3",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 4
+      },
+      "action": "fader 4",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 5
+      },
+      "action": "fader 5",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 6
+      },
+      "action": "fader 6",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 7
+      },
+      "action": "fader 7",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 8
+      },
+      "action": "fader 8",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "pitchbend",
+        "channel": 9
+      },
+      "action": "gm",
+      "pickup": false
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 0
+      },
+      "action": "upper 1"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 1
+      },
+      "action": "upper 2"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 2
+      },
+      "action": "upper 3"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 3
+      },
+      "action": "upper 4"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 4
+      },
+      "action": "upper 5"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 5
+      },
+      "action": "upper 6"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 6
+      },
+      "action": "upper 7"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 7
+      },
+      "action": "upper 8"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 24
+      },
+      "action": "lower 1"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 25
+      },
+      "action": "lower 2"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 26
+      },
+      "action": "lower 3"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 27
+      },
+      "action": "lower 4"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 28
+      },
+      "action": "lower 5"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 29
+      },
+      "action": "lower 6"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 30
+      },
+      "action": "lower 7"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 31
+      },
+      "action": "lower 8"
+    },
+    {
+      "input": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 16
+      },
+      "action": "wheel 1",
+      "encoding": "sign_magnitude",
+      "feedback_to": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 48
+      }
+    },
+    {
+      "input": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 17
+      },
+      "action": "wheel 2",
+      "encoding": "sign_magnitude",
+      "feedback_to": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 49
+      }
+    },
+    {
+      "input": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 18
+      },
+      "action": "wheel 3",
+      "encoding": "sign_magnitude",
+      "feedback_to": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 50
+      }
+    },
+    {
+      "input": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 19
+      },
+      "action": "wheel 4",
+      "encoding": "sign_magnitude",
+      "feedback_to": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 51
+      }
+    },
+    {
+      "input": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 20
+      },
+      "action": "wheel 5",
+      "encoding": "sign_magnitude",
+      "feedback_to": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 52
+      }
+    },
+    {
+      "input": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 21
+      },
+      "action": "wheel 6",
+      "encoding": "sign_magnitude",
+      "feedback_to": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 53
+      }
+    },
+    {
+      "input": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 22
+      },
+      "action": "wheel 7",
+      "encoding": "sign_magnitude",
+      "feedback_to": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 54
+      }
+    },
+    {
+      "input": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 23
+      },
+      "action": "wheel 8",
+      "encoding": "sign_magnitude",
+      "feedback_to": {
+        "kind": "cc",
+        "channel": 1,
+        "number": 55
+      }
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 32
+      },
+      "action": "key step_next"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 46
+      },
+      "action": "page prev"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 47
+      },
+      "action": "page next"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 48
+      },
+      "action": "channel prev"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 49
+      },
+      "action": "channel next"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 94
+      },
+      "action": "go"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 93
+      },
+      "action": "stop"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 91
+      },
+      "action": "back"
+    }
+  ]
+}

@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-23 — Mackie Control profile built into the daemon; Channel ◀▶ as actions (VS1-07)
+
+**Decision:** The shipped profile is a mapping file in `subprojects/engine/profiles/`, compiled into the daemon (`include_str!`), so it ships with the app and cannot be edited on disk; an edit writes a user copy of the same name that hides it, deleting the copy brings it back. A mapping's `device` may list several patterns separated by `|`. Channel ◀▶ are catalogue actions `channel next/prev` that move the surface's fader window and send no engine command. Any page change resets the window. Extender units are ordered by device name until the Control screen (VS7-04) lets the user set the order.
+
+**Alternatives considered:** a profile file in the app bundle read at start (one more path to find and keep read-only); a fixed Mackie driver outside the mapping (then its buttons could not be relearned, CTL-33).
+
+**Reasoning:** smallest change on the VS7-02 layer; every Mackie binding stays a normal, relearnable binding, and the driver only adds the window, 10-bit faders, touch and rings.
+
+**Reversal trigger:** profiles that users should update without a new build, or a surface whose units must be ordered before VS7-04.
+
 ## 2026-10-23 — Control is a general MIDI and OSC layer; named hardware are profiles on it (P1-05, owner)
 **Decision:** `cmdmx-control` is a general control layer: any MIDI device in and out (CoreMIDI in the daemon), notes/CC/14-bit CC/pitch bend/program change mapped to one action catalogue (faders, handle buttons, Go/Back, page, GM, programmer keys, keypad, wheels) that sends the engine's existing commands; Learn, feedback (motor faders, LEDs, value echo), mappings as portable JSON files, several devices at once; OSC in and out with a `/cmdmx` schema and custom addresses. The Behringer BCF2000 in Mackie Control mode is one surface profile on it (ADR-003 amended), the church TouchOSC remote one OSC client. Spec `specs/modules/control-surfaces.md` (CTL-05..43 draft; CTL-01..04 kept as the Mackie Control wire format). VS1-07 and VS4-04 re-scoped under it; new tasks VS7-01..04.
 **Alternatives considered:** a BCF2000/MCU driver first with generic MIDI later (ADR-003 as written); a driver per device; OSC only for the TouchOSC layout.
