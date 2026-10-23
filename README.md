@@ -33,7 +33,7 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: a general MIDI and OSC control layer (spec `specs/modules/control-surfaces.md`, approved), with Mackie Control as its first profile; its pure core (MIDI decode, mappings, OSC codec) is built, and the engine now takes any MIDI device: enable it, learn a fader or button onto an action, and motor faders and LEDs follow (no Control screen in the app yet). OSC and the Mackie Control profile are next. What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: a general MIDI and OSC control layer (spec `specs/modules/control-surfaces.md`, approved), with Mackie Control as its first profile; its pure core (MIDI decode, mappings, OSC codec) is built, and the engine now takes any MIDI device: enable it, learn a fader or button onto an action, and motor faders and LEDs follow (no Control screen in the app yet). A Mackie Control surface (BCF2000, X-Touch, iCON) works out of the box: its motor faders follow the page, Bank changes the page and Channel scrolls when a page has more faders than the surface. OSC is next. What works today:
 
 - The engine runs at 40 Hz and outputs every patched universe over Art-Net, sACN and USB (ENTTEC
   Pro protocol). Where each universe goes is part of the show: a universe that gets its first

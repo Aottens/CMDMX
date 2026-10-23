@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-23 (VS7-02 daemon MIDI, PR open; next VS1-07)_
+_Last updated: 2026-10-23 (VS1-07 Mackie Control profile, PR open; next VS7-03)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -13,6 +13,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
 - `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested); the generic MIDI/OSC core (VS7-01)
 - Generic MIDI in the daemon (VS7-02, PR open): any CoreMIDI device through `midir`, listed Disabled until enabled, mapping files per Mac in `Application Support/ColourmotionDMX/control/`, Learn, feedback after the tick, hotplug reattach within 2 s, `control.*` over IPC; tested with virtual CoreMIDI ports. No app screen yet (VS7-04)
+- Mackie Control profile (VS1-07, PR open): shipped read-only in the daemon (`subprojects/engine/profiles/mackie-control.json`, listed `profile: true`, an edit saves a user copy that hides it), matched to BCF2000 / X-Touch / X-Touch Extender / iCON by name; fader window from `faders_per_page` (extenders add 8, ordered by name until VS7-04), Bank = page, Channel ◀▶ moves the window, motor faders 10-bit without pickup, touch holds the motor, V-Pot rings show the wheel. Gate 3: `tests/hardware/bcf2000.md`
 - `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial at 250000 baud on its own 30 ms timer (~33 Hz, VS4-05), product-string detection (the owner's Eurolite MK2 needs `--serial <path>`) and hotplug (VS1-04, verified on the MK2 except mid-run unplug, VS4-02), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
 - ADR-006 accepted, `fixture-library.md` LIB-01..17 and `patch.md` PAT-01..14 approved; build tasks VS2-08..13 in BACKLOG. LIB-17 (owner, 2026-10-17): emitters are generic — recognised by an `emitter` flag, never by name, any number (Amber, Warm/Cold White, UV, Royal Blue, …)
 - Patch over IPC + Patch screen (VS2-12, merged): snapshot `fixtures` entries carry number, name, profile, mode, universe.address, footprint, virtual dimmer and handle, a `fixtures` delta after any patch change, `patch.add/move/remove/renumber/name/change_mode/handle` (PAT-09); library fixtures are patched under `Manufacturer/Model`, fetched from the library in the client thread; the app has a workspace rail (Program / Patch) and a Patch screen with the table, an Add panel with library search and row edits with two-step confirm for Remove and Change Mode (PAT-10). Owner run passed: `tests/manual/runs/2026-10-17-VS2-12.md` (findings → IDEA-08 browse by manufacturer, IDEA-09 multi-select)
@@ -86,8 +87,9 @@ DECISIONS; focus is a general console, the church is the first proof):
 4. **P1-05** control surfaces: spec approved (`specs/modules/control-surfaces.md`, #74; CTL-05..43
    approved 2026-10-23 with the ten owner decisions, CTL-01..04 kept as the Mackie Control wire format). Scope (owner, 2026-10-23): a general MIDI + OSC layer; the BCF2000
    is the Mackie Control profile on it (VS1-07), the church TouchOSC remote one OSC client (VS4-04).
-   VS7-01 (control core in `cmdmx-control`): PR open. Next: VS7-02 (daemon MIDI + IPC), VS1-07,
-   VS7-03 (OSC), VS7-04 (app Control screen), VS4-04.
+   VS7-01 and VS7-02 merged; VS1-07 (Mackie Control profile): PR open, BCF2000 checklist
+   `tests/hardware/bcf2000.md` for the owner (gate 3). Next: VS7-03 (OSC), VS7-04 (app Control
+   screen, also the extender order), VS4-04.
 After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15
 (multi-select in the patch table). Cue lists (P1-08, VS3-02..05) and group masters (VS3-06/07) are done.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and

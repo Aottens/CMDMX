@@ -6,7 +6,7 @@
 //! tick (CTL-06, 14), feedback after the tick (CTL-21), Learn (CTL-25), `last_input` (CTL-28) and
 //! the `control` section of the snapshot and its delta (CTL-39).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::PathBuf;
 
@@ -15,6 +15,7 @@ use cmdmx_control::convert::{ActionValue, BindingState, Reading, Resolution};
 use cmdmx_control::feedback::Feedback;
 use cmdmx_control::learn;
 use cmdmx_control::mapping::{device_matches, Binding, Input, Mapping};
+use cmdmx_control::mcu::{self, Window};
 use cmdmx_control::midi::{self, Decoder, Kind, MidiInput, MidiMessage};
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::engine::Engine;
@@ -50,6 +51,53 @@ pub struct MidiOut {
     pub bytes: Vec<u8>,
 }
 
+/// CTL-30: the mapping files that ship with the app.
+const PROFILES: [&str; 1] = [include_str!("../../profiles/mackie-control.json")];
+
+fn shipped() -> Vec<Mapping> {
+    (PROFILES.iter())
+        .filter_map(|t| Mapping::from_json(t).ok().map(|(m, _)| m))
+        .collect()
+}
+
+/// CTL-31: a mapping with this `driver` belongs to a Mackie Control unit.
+fn is_mackie(mappings: &BTreeMap<String, Mapping>, dev: &Dev) -> bool {
+    let driver = dev.mapping.as_ref().and_then(|n| mappings.get(n));
+    driver.is_some_and(|m| m.extra.get("driver").and_then(Value::as_str) == Some("mackie_control"))
+}
+
+/// CTL-31: a Mackie unit's slot numbers moved by its base and the shared window; `None` when
+/// the fader is unbound. Other mappings (`win` is `None`) pass through.
+fn route(a: Action, win: Option<(Window, u16)>, fpp: u16) -> Option<Action> {
+    let Some((w, base)) = win else { return Some(a) };
+    let t = |t: Target| match t {
+        Target::Slot(n) => w.slot(base.saturating_add(n), fpp).map(Target::Slot),
+        t => Some(t),
+    };
+    Some(match a {
+        Action::Fader(x) => Action::Fader(t(x)?),
+        Action::Upper(x) => Action::Upper(t(x)?),
+        Action::Lower(x) => Action::Lower(t(x)?),
+        Action::Go(x) => Action::Go(t(x)?),
+        Action::Back(x) => Action::Back(t(x)?),
+        Action::Stop(x) => Action::Stop(t(x)?),
+        Action::Release(x) => Action::Release(t(x)?),
+        Action::Tap(x) => Action::Tap(t(x)?),
+        a => a,
+    })
+}
+
+/// CTL-31: a unit shows 8 faders; the window is as wide as all units together.
+fn mackie_width(units: &[String]) -> u16 {
+    u16::try_from(units.len() * 8).unwrap_or(u16::MAX)
+}
+
+/// CTL-31: where the unit `name` starts in the window (8 per unit before it).
+fn mackie_base(units: &[String], name: &str) -> Option<u16> {
+    let i = units.iter().position(|u| u == name)?;
+    u16::try_from(i * 8).ok()
+}
+
 /// CTL-28: how many seconds apart `last_input` updates reach the clients.
 const LAST_INPUT_EVERY: f64 = 0.1;
 /// CTL-15: the first malformed message per device per minute is logged.
@@ -76,6 +124,8 @@ struct Dev {
     pending: Vec<MidiMessage>,
     /// Elements an input set this tick, with the raw value it sent (CTL-20).
     echo: Vec<(MidiInput, u16)>,
+    /// Motor faders a hand is on (CTL-20).
+    touched: Vec<MidiInput>,
 }
 
 impl Dev {
@@ -94,6 +144,7 @@ impl Dev {
             feedback: Feedback::default(),
             pending: Vec::new(),
             echo: Vec::new(),
+            touched: Vec::new(),
         }
     }
 
@@ -149,6 +200,11 @@ pub struct Control {
     state_file: PathBuf,
     devices: BTreeMap<String, Dev>,
     mappings: BTreeMap<String, Mapping>,
+    /// Names in `mappings` that are still the shipped profile, not a user copy (CTL-30).
+    profiles: BTreeSet<String>,
+    /// What the Mackie units show (CTL-32), and the page it belongs to.
+    window: Window,
+    window_page: u16,
     learn: Option<Learn>,
     last_input: Option<LastInput>,
     messages: Vec<String>,
@@ -355,14 +411,33 @@ impl Tick<'_> {
 }
 
 /// CTL-17..21: the raw value an element shows now for a binding; `None` for no feedback.
-fn shown(engine: &Engine, b: &Binding, kind: Kind) -> Option<u16> {
+/// `win` is set for a Mackie unit (CTL-31, 33); `wheels` caches the wheel values for the call.
+fn shown(
+    engine: &Engine,
+    b: &Binding,
+    kind: Kind,
+    win: Option<(Window, u16)>,
+    wheels: &mut Option<Vec<f32>>,
+) -> Option<u16> {
+    let Some(action) = route(b.action, win, engine.settings().faders_per_page) else {
+        return Some(if matches!(b.action, Action::Fader(_)) {
+            0
+        } else {
+            b.off_value
+        });
+    };
     let on = |on: bool| Some(if on { b.on_value } else { b.off_value });
     let slot = |t: Target| resolve(engine, t).map(|id| level_of(engine, id));
     let continuous = |level: f32| {
         let x = if b.invert { 1.0 - level } else { level };
-        Some(midi::to_raw(kind, b.min + x * (b.max - b.min)))
+        let v = b.min + x * (b.max - b.min);
+        Some(if win.is_some() && kind == Kind::PitchBend {
+            mcu::position(v)
+        } else {
+            midi::to_raw(kind, v)
+        })
     };
-    match b.action {
+    match action {
         Action::Fader(t) => match slot(t) {
             Some(level) => continuous(level),
             None => Some(0),
@@ -378,6 +453,19 @@ fn shown(engine: &Engine, b: &Binding, kind: Kind) -> Option<u16> {
         Action::Dbo => on(engine.dbo()),
         Action::Key(Key::Highlight) => on(engine.highlight()),
         Action::AttributeGroup(g) => on(engine.active_group() == core_group(g)),
+        Action::Wheel(n) => {
+            let all = wheels.get_or_insert_with(|| {
+                (engine.programmer_view().wheels.iter())
+                    .map(|w| w.value)
+                    .collect()
+            });
+            let v = usize::from(n).checked_sub(1).and_then(|i| all.get(i));
+            if win.is_some() {
+                Some(mcu::ring(v.copied()))
+            } else {
+                Some(v.map_or(b.off_value, |v| midi::to_raw(kind, *v)))
+            }
+        }
         _ => on(false),
     }
 }
@@ -399,6 +487,10 @@ impl Control {
             .collect();
         files.sort();
         let mut mappings = BTreeMap::new();
+        for m in shipped() {
+            mappings.insert(m.name.clone(), m);
+        }
+        let mut profiles: BTreeSet<String> = mappings.keys().cloned().collect();
         for file in files {
             let shown = file.display();
             let loaded = fs::read_to_string(&file)
@@ -408,6 +500,7 @@ impl Control {
             match loaded {
                 Ok((m, w)) => {
                     warnings.extend(w.into_iter().map(|w| format!("{}: {w}", m.name)));
+                    profiles.remove(&m.name);
                     mappings.insert(m.name.clone(), m);
                 }
                 Err(e) => warnings.push(format!("mapping file {shown} left out: {e}")),
@@ -432,6 +525,9 @@ impl Control {
             state_file,
             devices,
             mappings,
+            profiles,
+            window: Window::default(),
+            window_page: 0,
             learn: None,
             last_input: None,
             messages: Vec::new(),
@@ -480,6 +576,7 @@ impl Control {
                 dev.decoder = Decoder::new(dev.cc14.clone());
                 dev.states.clear();
                 dev.feedback.clear();
+                dev.touched.clear();
             }
             (dev.connected, dev.input, dev.output) = (true, p.input, p.output);
         }
@@ -502,6 +599,7 @@ impl Control {
         let Some(dev) = self.devices.get_mut(device) else {
             return;
         };
+        let mackie = is_mackie(&self.mappings, dev);
         let before = dev.decoder.malformed();
         let msgs = dev.decoder.decode(bytes);
         let bad = dev.decoder.malformed().saturating_sub(before);
@@ -515,6 +613,22 @@ impl Control {
         }
         let mut learned = None;
         for m in msgs {
+            // CTL-20: a touch note is not an input; it holds the motor still.
+            let touch = (m.input.kind == Kind::Note && m.input.channel == 1)
+                .then(|| m.input.number.and_then(mcu::touch))
+                .flatten();
+            if let (true, Some(ch)) = (mackie, touch) {
+                let fader = MidiInput {
+                    kind: Kind::PitchBend,
+                    channel: ch,
+                    number: None,
+                };
+                dev.touched.retain(|t| *t != fader);
+                if m.value > 0 {
+                    dev.touched.push(fader);
+                }
+                continue;
+            }
             self.last_input = Some(LastInput {
                 device: device.to_string(),
                 input: m.input.to_string(),
@@ -576,6 +690,9 @@ impl Control {
     /// Engine commands for the inputs since the last call, each with its device name (for the
     /// refusal text, CTL-06). Values per input coalesced to the last; buttons never (CTL-14).
     pub fn commands(&mut self, engine: &Engine, now: f64) -> Vec<(String, Command)> {
+        let units = self.mackie_units(engine);
+        let fpp = engine.settings().faders_per_page;
+        let width = mackie_width(&units);
         let mut out = Vec::new();
         let mut tick = Tick {
             engine,
@@ -584,6 +701,7 @@ impl Control {
             layout: None,
         };
         for (name, dev) in &mut self.devices {
+            let base = mackie_base(&units, name);
             let msgs = std::mem::take(&mut dev.pending);
             let mapping = dev.mapping.as_ref().and_then(|n| self.mappings.get(n));
             let Some(mapping) = mapping.filter(|_| dev.enabled && !msgs.is_empty()) else {
@@ -597,7 +715,12 @@ impl Control {
                 let Some(b) = mapping.bindings.iter().find(|b| b.input == want) else {
                     continue;
                 };
-                let reading = b.read(&m);
+                let mut reading = b.read(&m);
+                // CTL-01: Mackie faders are 10 bits, so full travel is exactly 1.0.
+                let motor = base.is_some() && m.input.kind == Kind::PitchBend;
+                if let (true, Reading::Level(_)) = (motor, reading) {
+                    reading = Reading::Level(mcu::level(m.value));
+                }
                 // A level that acts as a button (a fader as a Flash) is never coalesced.
                 let button = b.action.value_kind() == ValueKind::Button;
                 let slot = at.get(&m.input).and_then(|i| items.get_mut(*i));
@@ -617,7 +740,15 @@ impl Control {
                 }
             }
             for (b, input, reading, raw) in items {
-                let current = match b.action {
+                let win = base.map(|base| (self.window, base));
+                // An unbound Mackie fader does nothing (CTL-31).
+                let Some(action) = route(b.action, win, fpp) else {
+                    continue;
+                };
+                let motor = win.is_some() && input.kind == Kind::PitchBend;
+                // Motor faders never pick up (CTL-13).
+                let current = match action {
+                    _ if motor => None,
                     Action::Fader(t) => {
                         Some(resolve(engine, t).map_or(0.0, |id| level_of(engine, id)))
                     }
@@ -626,11 +757,25 @@ impl Control {
                 };
                 let state = dev.states.entry(input).or_default();
                 let values = state.apply(b, reading, current, Resolution::Normal);
-                let cmds = tick.commands(b.action, &values, &mut self.keypad);
+                // CTL-32: Channel ◀ ▶ move the window of the Mackie units, not the engine.
+                if let (Action::ChannelNext | Action::ChannelPrev, true) = (action, win.is_some()) {
+                    if values.contains(&ActionValue::Press) {
+                        let forward = action == Action::ChannelNext;
+                        self.window.channel(forward, width, fpp);
+                    }
+                    continue;
+                }
+                let cmds = tick.commands(action, &values, &mut self.keypad);
                 if cmds.is_empty() {
                     continue;
                 }
+                // CTL-20: no echo; a motor's echo is the position feedback would send.
                 if b.feedback_to.is_none() && matches!(reading, Reading::Level(_)) {
+                    let raw = if motor {
+                        mcu::position(mcu::level(raw))
+                    } else {
+                        raw
+                    };
                     dev.echo.push((input, raw));
                 }
                 out.extend(cmds.into_iter().map(|c| (name.clone(), c)));
@@ -641,8 +786,11 @@ impl Control {
 
     /// Feedback after the tick's frame (CTL-19..21).
     pub fn feedback(&mut self, engine: &Engine) -> Vec<MidiOut> {
+        let units = self.mackie_units(engine);
+        let mut wheels = None;
         let mut out = Vec::new();
         for (name, dev) in &mut self.devices {
+            let win = mackie_base(&units, name).map(|base| (self.window, base));
             let echo = std::mem::take(&mut dev.echo);
             let mapping = dev.mapping.as_ref().and_then(|n| self.mappings.get(n));
             let Some(mapping) = mapping.filter(|_| dev.enabled && dev.connected && dev.output)
@@ -657,9 +805,9 @@ impl Control {
                     let Input::Midi(element) = b.feedback_to.as_ref().unwrap_or(&b.input) else {
                         return None;
                     };
-                    Some((*element, shown(engine, b, element.kind)?))
+                    Some((*element, shown(engine, b, element.kind, win, &mut wheels)?))
                 });
-            for (element, value) in dev.feedback.tick(wanted, &echo, &[]) {
+            for (element, value) in dev.feedback.tick(wanted, &echo, &dev.touched) {
                 let bytes = midi::encode(&element, value);
                 if !bytes.is_empty() {
                     out.push(MidiOut {
@@ -672,14 +820,33 @@ impl Control {
         out
     }
 
-    /// Write one mapping's file. ponytail: a small write on the tick thread, once per edit.
-    fn save(&self, name: &str) -> Result<(), String> {
+    /// The connected, enabled Mackie units by device name; also keeps the shared window valid:
+    /// any page change resets it (CTL-32), and it stays inside the page.
+    fn mackie_units(&mut self, engine: &Engine) -> Vec<String> {
+        let units: Vec<String> = (self.devices.iter())
+            .filter(|(_, d)| d.connected && d.enabled && is_mackie(&self.mappings, d))
+            .map(|(n, _)| n.clone())
+            .collect();
+        if engine.page() != self.window_page {
+            self.window_page = engine.page();
+            self.window.reset();
+        }
+        let width = mackie_width(&units);
+        self.window.clamp(width, engine.settings().faders_per_page);
+        units
+    }
+
+    /// Write one mapping's file; from then on it is a user copy, not the shipped profile
+    /// (CTL-30). ponytail: a small write on the tick thread, once per edit.
+    fn save(&mut self, name: &str) -> Result<(), String> {
         let m = self
             .mappings
             .get(name)
             .ok_or_else(|| format!("unknown mapping '{name}'"))?;
         write_atomic(&self.dir.join(format!("{name}.json")), &m.to_json())
-            .map_err(|e| format!("cannot save mapping '{name}': {e}"))
+            .map_err(|e| format!("cannot save mapping '{name}': {e}"))?;
+        self.profiles.remove(name);
+        Ok(())
     }
 
     /// CTL-23: the devices the user enabled or assigned, into `state.json` beside `last_show`.
@@ -797,6 +964,9 @@ impl Control {
                 self.add_mapping(name, device)
             }
             ControlRequest::MappingRename { name, to } => {
+                if self.profiles.contains(&name) {
+                    return Err(format!("'{name}' is a profile"));
+                }
                 valid_name(&to)?;
                 if self.mappings.contains_key(&to) {
                     return Err(format!("mapping '{to}' exists"));
@@ -817,12 +987,21 @@ impl Control {
                 self.persist()
             }
             ControlRequest::MappingDelete { name } => {
+                if self.profiles.contains(&name) {
+                    return Err(format!("'{name}' is a profile"));
+                }
                 self.mappings
                     .remove(&name)
                     .ok_or(format!("unknown mapping '{name}'"))?;
-                for d in self.devices.values_mut() {
-                    if d.mapping.as_deref() == Some(&name) {
-                        d.mapping = None;
+                // Deleting a user copy of a profile brings the profile back (CTL-30).
+                if let Some(p) = shipped().into_iter().find(|m| m.name == name) {
+                    self.profiles.insert(name.clone());
+                    self.mappings.insert(name.clone(), p);
+                } else {
+                    for d in self.devices.values_mut() {
+                        if d.mapping.as_deref() == Some(&name) {
+                            d.mapping = None;
+                        }
                     }
                 }
                 self.refresh();
@@ -911,7 +1090,7 @@ impl Control {
             })
             .collect();
         let mappings: Vec<Value> = (self.mappings.keys())
-            .map(|name| json!({"name": name, "profile": false}))
+            .map(|name| json!({"name": name, "profile": self.profiles.contains(name)}))
             .collect();
         let last_input = self
             .last_input

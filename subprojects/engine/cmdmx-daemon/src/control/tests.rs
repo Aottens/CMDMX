@@ -1173,10 +1173,6 @@ fn ctl_31_six_per_page_leaves_faders_7_and_8_unbound() {
     let mut e = engine_fpp(6);
     e.set_fader(slot(&e, 1, 6), 1.0, 0.0).unwrap();
     e.tick(0.0);
-    assert_eq!(fader_target(&mut c, &e, "BCF2000", 6), Some(slot(&e, 1, 6)));
-    assert_eq!(fader_target(&mut c, &e, "BCF2000", 7), None);
-    press(&mut c, "BCF2000", 6); // REC 7: unbound, does nothing
-    assert!(c.commands(&e, 0.0).is_empty());
     let fb = c.feedback(&e);
     assert!(fb.contains(&motor("BCF2000", 6, 1.0)), "{fb:?}");
     assert!(fb.contains(&motor("BCF2000", 7, 0.0)), "{fb:?}");
@@ -1185,6 +1181,12 @@ fn ctl_31_six_per_page_leaves_faders_7_and_8_unbound() {
         fb.contains(&out("BCF2000", note(6, 0))),
         "REC 7 LED off: {fb:?}"
     );
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 6), Some(slot(&e, 1, 6)));
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 7), None);
+    press(&mut c, "BCF2000", 6); // REC 7: unbound, does nothing
+    assert!(c.commands(&e, 0.0).is_empty());
+    // Fader 6's own move is not echoed; unbound fader 7 stays at 0 (CTL-20, 31).
+    assert!(c.feedback(&e).is_empty());
 }
 
 #[test]
@@ -1201,15 +1203,15 @@ fn ctl_31_ten_per_page_channel_shows_slots_9_and_10_on_faders_1_and_2() {
         c.commands(&e, 0.0).is_empty(),
         "the window is not an engine command"
     );
+    let fb = c.feedback(&e);
+    assert!(fb.contains(&motor("BCF2000", 1, 1.0)), "{fb:?}");
+    assert!(fb.contains(&motor("BCF2000", 3, 0.0)), "{fb:?}");
     assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 9)));
     assert_eq!(
         fader_target(&mut c, &e, "BCF2000", 2),
         Some(slot(&e, 1, 10))
     );
     assert_eq!(fader_target(&mut c, &e, "BCF2000", 3), None);
-    let fb = c.feedback(&e);
-    assert!(fb.contains(&motor("BCF2000", 1, 1.0)), "{fb:?}");
-    assert!(fb.contains(&motor("BCF2000", 3, 0.0)), "{fb:?}");
     // At the last window Channel ▶ stops; Channel ◀ goes back.
     press(&mut c, "BCF2000", 49);
     assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 9)));
@@ -1320,8 +1322,8 @@ fn ctl_33_default_bindings() {
     let fb = c.feedback(&e);
     assert!(fb.contains(&out("BCF2000", [0xB0, 48, 0])), "{fb:?}");
     assert!(
-        fb.contains(&motor("BCF2000", 9, e.grand_master())),
-        "{fb:?}"
+        !fb.iter().any(|o| o.bytes[0] == 0xE8),
+        "no echo of the master's own move (CTL-20): {fb:?}"
     );
 }
 
