@@ -20,7 +20,7 @@ them as cue lists, busking pages or (later) a timeline.
   - Pages of N faders (8 default, configurable), Grand Master, BPM master, group masters, playback groups
   - HTP/LTP engine with 5 priority levels
   - Output: Art-Net, sACN, ENTTEC-Pro-compatible USB (Eurolite USB-DMX512 PRO MK2 as reference)
-  - Input: Mackie Control driver (BCF2000 in MC mode, X-Touch), free MIDI note/CC mapping, OSC schema
+  - Input: a general MIDI and OSC control layer (any device, Learn, feedback, portable mappings); Mackie Control (BCF2000 in MC mode, X-Touch) and the church TouchOSC remote are a profile and a client on it
   - Show file: one readable JSON file, autosave, git-friendly
 - Phase 2: show-running depth (tracking views, Move In Dark, …), shape generator, fader mode 3, nested/time palettes, fan/align, virtual faders, scene master, gel picker + colour calibration (IDEA-02/03), more USB interfaces (IDEA-01)
 - Phase 3+: timeline synced to Ableton/timecode (IDEA-05), pixel mapper, key frame shapes, set list, sACN input, visualiser
@@ -48,7 +48,7 @@ there with ColourmotionDMX** (owner, 2026-10-22: the church is the playground, n
 - Engine (`subprojects/engine/`): Rust, headless daemon, Cargo workspace
   - `cmdmx-core` – data model, programmer, palettes, playback engine, HTP/LTP merge
   - `cmdmx-protocols` – Art-Net, sACN (E1.31), ENTTEC Pro serial framing (byte-exact)
-  - `cmdmx-control` – Mackie Control Universal mapping, generic MIDI mapping
+  - `cmdmx-control` – general MIDI + OSC mapping layer, Mackie Control profile
   - `cmdmx-daemon` – process entry point, 40 Hz tick loop, local IPC server
 - App (`subprojects/app/`): Swift/SwiftUI via SwiftPM, builds with Xcode Command Line Tools only (no Xcode.app). Thin client: renders engine state, sends commands over local IPC. No lighting logic in the UI.
 - Tests: Rust unit tests, JSON scenario tests (`tests/scenarios/`), byte-exact protocol tests, manual hardware checklists (`tests/hardware/`)

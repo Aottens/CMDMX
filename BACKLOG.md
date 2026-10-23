@@ -15,7 +15,7 @@ Software first (owner, 2026-10-17): VS1-05/06 next; VS1-07 and the VS1-04 hardwa
 | VS1-04 | Daemon detects the Eurolite MK2 by USB product string, opens its serial port and sends ENTTEC-Pro frames; owner's dimmer follows a fader. | OUT-08, 09, 12, 20..24, hardware checklist | M | gate 3 mostly passed on the owner's desk 2026-10-18 (`tests/hardware/runs/2026-10-18-VS4-02.md`); mid-run unplug and fade steps open, see VS4-02 |
 | VS1-05 | IPC contract v0: app connects, receives state snapshot, sends `fader.set`, receives delta; reconnect after daemon restart. | IPC-01..09 | M | done (2026-10-17; manual run `tests/manual/runs/2026-10-17-VS1-05.md`) |
 | VS1-06 | App shows `faders_per_page` on-screen faders bound to playbacks of page 1; moving one changes DMX. | PBK (subset) | M | done (2026-10-18, #40 with UX-02d; PBK-01..05) |
-| VS1-07 | MCU driver: BCF2000 fader 1 pitchbend moves playback 1; engine echoes level back and the motor follows after a page change. | CTL-01..04 | M | parked (hardware track: BCF2000 not at hand) |
+| VS1-07 | (re-scoped 2026-10-23) Mackie Control profile on the generic control layer: window and banks from `faders_per_page` (never 8), default bindings, motor and touch rules; BCF2000 fader 1 moves playback 1 and the motors follow a page change; `tests/hardware/bcf2000.md` (gate 3). Needs VS7-02. | CTL-01..04, 30..33 | M | todo (after P1-05 approval) |
 | VS1-08 | Supervisor-less resilience check: kill the app while output runs; DMX keeps streaming; app reconnects and shows the live state. | ADR-002 | S | todo |
 
 ## Phase 1 milestones — a general console; first proof: replace Lightkey in the church
@@ -24,7 +24,7 @@ Sunday morning service in the church (reference rig, `PROJECT.md`) programmed an
 ColourmotionDMX instead of Lightkey.
 
 **Order now (owner, 2026-10-22, DECISIONS):** 1. P1-10 undo spec, then its build tasks; 2. VS2-05;
-3. P1-18 multi-universe output; 4. P1-05 control surfaces, then VS1-07 and VS4-04. Church hardware
+3. P1-18 multi-universe output; 4. P1-05 control surfaces (general MIDI + OSC, owner 2026-10-23), then VS7-01, VS7-02, VS1-07, VS7-03, VS7-04, VS4-04. Church hardware
 runs and P1-14/P1-15 after that. Three demonstrable milestones; tasks
 after the specs are added when each spec is approved (no sizing of code before its spec).
 
@@ -95,13 +95,17 @@ after the specs are added when each spec is approved (no sizing of code before i
 | VS4-01 | Write `tests/hardware/church.md`: checklist for running a service (rig patched, all fixture types match, front-out works, fallback to Lightkey ready). | — | S | todo |
 | VS4-02 | VS1-04 serial lines of `tests/hardware/output.md` pass with the Eurolite (now on the owner's desk). | OUT-09, 20..24 | S | in progress: 250000 baud (OUT-20), no auto-detect + hint (OUT-23), 20 Hz (OUT-24) in PR; left: mid-run unplug (OUT-12), visible steps in a dragged fade (20 Hz vs 33 Hz own timer, compare with Lightkey) → VS4-05 (own timer merged #52, gate 3 open) |
 | VS4-05 | Serial node writes on its own 30 ms timer instead of every second tick (33 Hz instead of 20 Hz, OUT-24 amended); owner drags a fade on the RGBL par at 361 with no flicker and compares the steps with Lightkey on the same par. If steps remain at 33 Hz, record a criterion for frames cut to the highest patched channel. **Next after VS3-03** (owner, 2026-10-21). | OUT-24 | S | merged (#52, 2026-10-21); gate 3 `tests/hardware/runs/2026-10-21-VS4-05.md` still open, waiting for the Eurolite + RGBL par |
-| VS4-04 | The church TouchOSC layout drives ColourmotionDMX through OSC (CTL/P1-05), so the remote in the other room keeps working. | CTL | M | todo |
+| VS4-04 | (re-scoped 2026-10-23) The church TouchOSC layout as one OSC client of the generic layer: its addresses bound by custom-address Learn (CTL-38) so the layout stays unchanged, `tests/hardware/touchosc.md` run in the church (gate 3). Needs VS7-03, VS7-04. | CTL-35..38 | M | todo (after P1-05 approval) |
 | VS4-03 | One real Sunday morning service run entirely on ColourmotionDMX, Lightkey on standby as fallback; checklist ticked. | all phase 1 | — | todo |
 
 ### Supporting specs (needed by the milestones above)
 | Id | Task | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
-| P1-05 | Write `control-surfaces.md` (MCU map, generic MIDI map, OSC schema). | CTL | M | todo |
+| P1-05 | Write `control-surfaces.md` as a **general MIDI and OSC control layer** (owner, 2026-10-23): any MIDI device in/out, actions, learn, feedback, portable mappings, several devices; surface profiles on top (Mackie Control / BCF2000); OSC schema and feedback, TouchOSC as one client; owner approves. | CTL | M | review (2026-10-23; CTL-05..43 draft, ten owner questions in the spec) |
+| VS7-01 | `cmdmx-control`: generic MIDI decode (note/CC/14-bit CC/pitch bend/program, relative encodings), mapping model + JSON, action catalogue, conversions, pickup, feedback diffing, learn guess, own OSC 1.0 codec; unit tests carry the CTL ids. Needs P1-05 approval. | CTL-05, 07, 09..13, 17..20, 22, 26, 27, 34, 36 | L | todo |
+| VS7-02 | Daemon: CoreMIDI devices via `midir`, hotplug, mapping files + `state.json`, actions on the command channel, feedback after the tick, Learn, `control.*` over IPC; test with a virtual port. Needs VS7-01. | CTL-06, 08, 14..16, 21, 23..25, 28, 29, 39, 40 | L | todo |
+| VS7-03 | Daemon: OSC socket, built-in `/cmdmx` schema, feedback clients, custom addresses and their Learn; loopback test. Needs VS7-02. | CTL-35..38 | M | todo |
+| VS7-04 | App: Control screen (devices, OSC panel, bindings table, Export/Import), learn mode on the main screen, status-bar Control dot; owner run. Needs VS7-02. | CTL-41..43 | M | todo |
 | P1-16 | Write group masters (Scale / HTP / Limit / TakeOver) as PBK or own criteria; owner approves (owner, 2026-10-18: own small spec, later in phase 1). | GRM | S | done (2026-10-21; GRM-01..19 approved, the six owner decisions as recommended; build tasks VS3-06/07) |
 | P1-10 | **First (owner, 2026-10-22).** Decide and spec one engine-wide undo (programmer, palettes, playbacks, patch, show edits) as UI v0.1 shows it, with build tasks for it; owner approves. | — | M | done (2026-10-22; `specs/modules/undo.md` UNDO-01..20, IPC-30/31 and ADR-008 approved, the seven owner questions as recommended; build tasks VS5-01..03) |
 | VS5-01 | Core: `cmdmx-core::undo` history and edit-state capture/restore on `Engine`; scenario tests `tests/scenarios/UNDO-*.json` green. | UNDO-01..03, 05..12, 16, 17 | M | done (2026-10-22; `cmdmx-core::undo`, `Engine::edit_state`, scenarios UNDO-05/09) |
