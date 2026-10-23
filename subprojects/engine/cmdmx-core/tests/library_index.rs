@@ -7,13 +7,16 @@
     clippy::indexing_slicing
 )]
 
-use cmdmx_core::library::{Entry, Index};
+use cmdmx_core::library::{Entry, EntryMode, Index, Manufacturer};
 
 fn entry(manufacturer: &str, model: &str, source: &str) -> Entry {
     Entry {
         manufacturer: manufacturer.into(),
         model: model.into(),
-        modes: vec!["M".into()],
+        modes: vec![EntryMode {
+            name: "M".into(),
+            channels: 1,
+        }],
         source: source.into(),
         path: format!("{manufacturer}/{model}"),
     }
@@ -99,10 +102,130 @@ fn lib_12_user_profile_hides_the_qlcplus_one() {
 }
 
 #[test]
-fn lib_14_entries_serialise_without_their_path() {
+fn lib_19_entries_serialise_modes_with_channels_without_their_path() {
     let json = serde_json::to_value(entry("Showtec", "LED Par 56", "qlcplus")).unwrap();
     assert_eq!(
         json,
-        serde_json::json!({"manufacturer":"Showtec","model":"LED Par 56","modes":["M"],"source":"qlcplus"})
+        serde_json::json!({"manufacturer":"Showtec","model":"LED Par 56","modes":[{"name":"M","channels":1}],"source":"qlcplus"})
     );
+}
+
+fn manufacturers(index: &Index, query: &str) -> Vec<(String, usize)> {
+    index
+        .manufacturers(query)
+        .into_iter()
+        .map(|Manufacturer { name, models }| (name, models))
+        .collect()
+}
+
+fn models(index: &Index, manufacturer: Option<&str>, query: &str) -> (Vec<String>, bool) {
+    let (found, truncated) = index.models(manufacturer, query, 500);
+    let names = found
+        .into_iter()
+        .map(|e| format!("{}/{}", e.manufacturer, e.model))
+        .collect();
+    (names, truncated)
+}
+
+#[test]
+fn lib_20_manufacturers_once_sorted_case_insensitively_with_counts() {
+    let mut i = index();
+    i.insert(entry("beamZ", "Wash 7", "qlcplus"));
+    i.insert(entry("ADJ", "Mega Par", "qlcplus"));
+    assert_eq!(
+        manufacturers(&i, ""),
+        [
+            ("ADJ".into(), 1),
+            ("beamZ".into(), 1),
+            ("Pro-Lights".into(), 1),
+            ("Shehds".into(), 2),
+            ("Showtec".into(), 2),
+        ]
+    );
+    // A user profile that hides a QLC+ one counts once (LIB-12).
+    i.insert(entry("Showtec", "LED Par 56", "user"));
+    assert!(manufacturers(&i, "").contains(&("Showtec".into(), 2)));
+    assert_eq!(
+        serde_json::to_value(&i.manufacturers("")[0]).unwrap(),
+        serde_json::json!({"name":"ADJ","models":1})
+    );
+}
+
+#[test]
+fn lib_20_a_query_keeps_matching_manufacturers_and_counts_matches() {
+    let i = index();
+    // Word rule of LIB-14 over "manufacturer model".
+    assert_eq!(
+        manufacturers(&i, "par"),
+        [
+            ("Pro-Lights".into(), 1),
+            ("Shehds".into(), 1),
+            ("Showtec".into(), 1),
+        ]
+    );
+    assert_eq!(manufacturers(&i, "SHOWTEC"), [("Showtec".into(), 2)]);
+    assert!(manufacturers(&i, "martin").is_empty());
+}
+
+#[test]
+fn lib_21_models_of_one_manufacturer_sorted_case_insensitively() {
+    let mut i = index();
+    i.insert(entry("Showtec", "compact Par 7", "qlcplus"));
+    assert_eq!(
+        models(&i, Some("Showtec"), ""),
+        (
+            vec![
+                "Showtec/compact Par 7".into(),
+                "Showtec/LED Par 56".into(),
+                "Showtec/Spectral M800".into(),
+            ],
+            false
+        )
+    );
+    assert_eq!(
+        models(&i, Some("Showtec"), "par"),
+        (
+            vec!["Showtec/compact Par 7".into(), "Showtec/LED Par 56".into()],
+            false
+        )
+    );
+    assert_eq!(models(&i, Some("Nope"), ""), (vec![], false));
+    // Entries keep their modes and source.
+    let (found, _) = i.models(Some("Showtec"), "56", 500);
+    assert_eq!(found[0].modes[0].channels, 1);
+    assert_eq!(found[0].source, "qlcplus");
+}
+
+#[test]
+fn lib_21_a_query_without_manufacturer_spans_all_sorted_by_manufacturer_then_model() {
+    let mut i = index();
+    i.insert(entry("beamZ", "LED Par 64", "qlcplus"));
+    assert_eq!(
+        models(&i, None, "par"),
+        (
+            vec![
+                "beamZ/LED Par 64".into(),
+                "Pro-Lights/LumiPar 7QPro".into(),
+                "Shehds/LED Flat Par 18x18W".into(),
+                "Showtec/LED Par 56".into(),
+            ],
+            false
+        )
+    );
+}
+
+#[test]
+fn lib_21_without_manufacturer_at_most_the_limit_with_truncated() {
+    let mut i = Index::default();
+    for n in 0..600 {
+        i.insert(entry("Gen", &format!("Par {n:03}"), "qlcplus"));
+    }
+    let (found, truncated) = i.models(None, "par", 500);
+    assert_eq!((found.len(), truncated), (500, true));
+    assert_eq!(found[0].model, "Par 000");
+    let (found, truncated) = i.models(None, "par 599", 500);
+    assert_eq!((found.len(), truncated), (1, false));
+    // One manufacturer's models are never capped.
+    let (found, truncated) = i.models(Some("Gen"), "", 500);
+    assert_eq!((found.len(), truncated), (600, false));
 }

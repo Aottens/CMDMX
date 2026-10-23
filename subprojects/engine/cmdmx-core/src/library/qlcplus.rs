@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::TargetColour;
+use crate::library::EntryMode;
 use crate::profile::{Cell, ColourMixing, ColourSystem, Component, Mode, Profile, Slot, DIMMER};
 use crate::CoreError;
 
@@ -177,7 +178,7 @@ pub fn import(xml: &str, source: &str) -> Result<Import, CoreError> {
 pub struct Header {
     pub manufacturer: String,
     pub model: String,
-    pub modes: Vec<String>,
+    pub modes: Vec<EntryMode>,
 }
 
 pub fn header(xml: &str) -> Result<Header, CoreError> {
@@ -194,6 +195,8 @@ pub fn header(xml: &str) -> Result<Header, CoreError> {
     struct ModeName {
         #[serde(rename = "@Name")]
         name: String,
+        #[serde(rename = "Channel", default)]
+        channels: Vec<serde::de::IgnoredAny>,
     }
     let n: Names = quick_xml::de::from_str(xml).map_err(|e| CoreError::ImportFailed {
         source: String::new(),
@@ -202,7 +205,12 @@ pub fn header(xml: &str) -> Result<Header, CoreError> {
     Ok(Header {
         manufacturer: n.manufacturer,
         model: n.model,
-        modes: n.modes.into_iter().map(|m| m.name).collect(),
+        modes: (n.modes.into_iter())
+            .map(|m| EntryMode {
+                channels: u16::try_from(m.channels.len()).unwrap_or(u16::MAX),
+                name: m.name,
+            })
+            .collect(),
     })
 }
 

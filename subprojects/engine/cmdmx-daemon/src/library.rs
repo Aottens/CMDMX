@@ -10,11 +10,13 @@ use std::path::{Path, PathBuf};
 
 use cmdmx_core::library::channel_list::{self, ChannelList};
 use cmdmx_core::library::qlcplus::{self, ImportReport};
-use cmdmx_core::library::{Entry, Index};
+use cmdmx_core::library::{Entry, EntryMode, Index, Manufacturer};
 use cmdmx_core::profile::Profile;
 
 /// Most results a search returns (LIB-14).
 const SEARCH_LIMIT: usize = 50;
+/// LIB-21: models listed without a manufacturer.
+const MODELS_LIMIT: usize = 500;
 
 pub struct Library {
     index: Index,
@@ -78,7 +80,7 @@ impl Library {
             .and_then(|json| Profile::from_json(&json).map_err(|e| e.to_string()));
         match profile {
             Ok(p) => {
-                let modes = p.modes.iter().map(|m| m.name.clone()).collect();
+                let modes = p.modes.iter().map(entry_mode).collect();
                 self.add(p.manufacturer, p.model, modes, "user", path, warnings);
             }
             Err(e) => warnings.push(format!("{}: {e}", path.display())),
@@ -89,7 +91,7 @@ impl Library {
         &mut self,
         manufacturer: String,
         model: String,
-        modes: Vec<String>,
+        modes: Vec<EntryMode>,
         source: &str,
         path: &Path,
         warnings: &mut Vec<String>,
@@ -114,6 +116,14 @@ impl Library {
     /// LIB-14: at most 50, sorted.
     pub fn search(&self, query: &str) -> Vec<&Entry> {
         self.index.search(query, SEARCH_LIMIT)
+    }
+
+    pub fn manufacturers(&self, query: &str) -> Vec<Manufacturer> {
+        self.index.manufacturers(query)
+    }
+
+    pub fn models(&self, manufacturer: Option<&str>, query: &str) -> (Vec<&Entry>, bool) {
+        self.index.models(manufacturer, query, MODELS_LIMIT)
     }
 
     fn entry(&self, manufacturer: &str, model: &str) -> Result<&Entry, String> {
@@ -177,7 +187,7 @@ impl Library {
         self.index.insert(Entry {
             manufacturer: profile.manufacturer.clone(),
             model: profile.model.clone(),
-            modes: profile.modes.iter().map(|m| m.name.clone()).collect(),
+            modes: profile.modes.iter().map(entry_mode).collect(),
             source: "user".into(),
             path: path.to_string_lossy().into_owned(),
         });
@@ -189,6 +199,14 @@ impl Library {
         let profile = channel_list::build(list).map_err(|e| e.to_string())?;
         self.save_profile(&profile)?;
         Ok(profile)
+    }
+}
+
+/// LIB-19: a user profile's mode takes its footprint.
+fn entry_mode(m: &cmdmx_core::profile::Mode) -> EntryMode {
+    EntryMode {
+        name: m.name.clone(),
+        channels: m.footprint,
     }
 }
 
@@ -257,9 +275,71 @@ mod tests {
         assert_eq!(all.len(), 3, "only *.qxf files count");
         let shehds = lib.search("shehds 19x15");
         assert_eq!(shehds.len(), 1);
-        assert_eq!(shehds[0].modes, ["16 Channel", "24 Channel"]);
+        let modes: Vec<(&str, u16)> = shehds[0]
+            .modes
+            .iter()
+            .map(|m| (m.name.as_str(), m.channels))
+            .collect();
+        assert_eq!(modes, [("16 Channel", 16), ("24 Channel", 24)]);
         assert_eq!(shehds[0].source, "qlcplus");
         assert!(!user.exists(), "loading never creates the folder");
+    }
+
+    #[test]
+    fn lib_19_a_user_profile_takes_each_modes_footprint() {
+        let user = user_dir("footprint");
+        let mut lib = load(&user);
+        let list = ChannelList {
+            manufacturer: "Showtec".into(),
+            model: "LED Par 56 (church)".into(),
+            mode: "3 Channel".into(),
+            channels: vec![ChannelType::Red, ChannelType::Green, ChannelType::Blue],
+        };
+        lib.save_channel_list(&list).unwrap();
+        let mode = |lib: &Library| {
+            let (found, _) = lib.models(Some("Showtec"), "church");
+            found
+                .iter()
+                .flat_map(|e| e.modes.iter().map(|m| (m.name.clone(), m.channels)))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(mode(&lib), [("3 Channel".to_string(), 3)]);
+        // Read back from the folder at the next start.
+        assert_eq!(mode(&load(&user)), [("3 Channel".to_string(), 3)]);
+        let (found, _) = lib.models(Some("Showtec"), "56");
+        let qlc: Vec<(&str, u16)> = found
+            .iter()
+            .find(|e| e.model == "LED Par 56")
+            .unwrap()
+            .modes
+            .iter()
+            .map(|m| (m.name.as_str(), m.channels))
+            .collect();
+        assert_eq!(qlc, [("6 Channel", 6)]);
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn lib_20_21_browse_the_bundled_set() {
+        let user = user_dir("browse");
+        let lib = load(&user);
+        let names: Vec<(String, usize)> = lib
+            .manufacturers("")
+            .into_iter()
+            .map(|m| (m.name, m.models))
+            .collect();
+        assert_eq!(
+            names,
+            [
+                ("Pro-Lights".into(), 1),
+                ("Shehds".into(), 1),
+                ("Showtec".into(), 1)
+            ]
+        );
+        let (found, truncated) = lib.models(None, "par");
+        assert!(!truncated);
+        let models: Vec<&str> = found.iter().map(|e| e.model.as_str()).collect();
+        assert_eq!(models, ["LumiPar 7QPro", "LED Par 56"]);
     }
 
     #[test]

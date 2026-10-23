@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-23 (P1-14 spec approved: LIB-19..27, IPC-35..39; next VS2-23..26, VS4-04 waits for the iPad)_
+_Last updated: 2026-10-23 (VS2-23 library browsing in the engine, PR #86; next VS2-24..26, VS4-04 waits for the iPad)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -35,6 +35,7 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 
 ## In progress
 - P1-14 done (owner, 2026-10-23): library browsing and the profile editor, sketch `specs/ux/library-and-profile-editor.html`, `fixture-library.md` LIB-19..27 and `ipc.md` IPC-35..39 approved (nine sketch recommendations and three spec questions as proposed; DECISIONS 2026-10-23): Add panel as a full-width strip with search over Manufacturer/Model/Mode columns, profile editor per mode with slots per channel, Save into the show and the user profile, Test via a new `programmer.set`. Build tasks VS2-23..26 in BACKLOG
+- VS2-23 (PR #86, 2026-10-23): library browsing in core and daemon (LIB-19..21, IPC-35..36): index modes carry `{name, channels}`, `library.manufacturers` and `library.models` answered in the client thread, `library.search` unchanged. The LIB-19 example is corrected: the QLC+ Showtec LED Par 56 has only a 6 Channel mode, so the 3-channel case is a user profile. Next VS2-24 (profile save), then VS2-25 (app Add panel)
 - P1-18 done: `output-protocols.md` OUT-13 rewritten, OUT-25..37 approved (owner, 2026-10-22, the six questions as proposed): nodes in the show (`output` key, schema 6), default Art-Net + sACN per universe, both on, added automatically when a universe gets its first fixture, serial port stored in the show, several serial nodes, config flags removed (only `--no-*` stay), output edits undoable; IPC `output.*`/`output.ports`, status-bar dot per protocol and an Output screen. Build tasks VS6-01..03 in BACKLOG; until VS6-02 the daemon still sends line 1 only
 - VS6-01 merged (#69): output nodes in `cmdmx-core` (OUT-13, 25..28): show schema 6 with an `output` key, migration 5 → 6 adds Art-Net + sACN for every patched universe and serial `auto` on line 1, a new engine holds line 1's three nodes, the first fixture on an empty universe adds its two nodes (one undo step, one warning), node add/edit/remove checked and undoable, bad nodes left out on load. Next VS6-02 (daemon)
 - VS6-02 merged (#71): the daemon sends every node of the show (OUT-23, 29..35): each enabled node gets its universe's frame (zeros when nothing is patched), node changes from `output.*`, patch edits, show open/new and undo/redo restart only the nodes whose destination changed, `--no-*` silence a protocol for one run, the config flags exit 2, `outputs` per node with state and detail, `output.add/edit/remove` undoable, `output.ports`. Hardware lines in `tests/hardware/output.md` (gate 3). Until VS6-03 the Eurolite's port is set with `output.edit` over IPC, so do not take this build to the church before VS6-03

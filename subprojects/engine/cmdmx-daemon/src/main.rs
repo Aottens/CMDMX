@@ -2285,6 +2285,14 @@ mod tests {
             Class::Neutral,
         ),
         (
+            r#"{"v":0,"cmd":"library.manufacturers","query":"par"}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec"}"#,
+            Class::Neutral,
+        ),
+        (
             r#"{"v":0,"cmd":"programmer.select","fixture":201}"#,
             Class::Edit,
         ),

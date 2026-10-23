@@ -9,12 +9,26 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+/// A mode of a library entry: its name and how many DMX channels it takes (LIB-19).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EntryMode {
+    pub name: String,
+    pub channels: u16,
+}
+
+/// A manufacturer and how many models it has (LIB-20).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Manufacturer {
+    pub name: String,
+    pub models: usize,
+}
+
 /// One fixture type in the library: what a search lists (LIB-14).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Entry {
     pub manufacturer: String,
     pub model: String,
-    pub modes: Vec<String>,
+    pub modes: Vec<EntryMode>,
     /// `"qlcplus"` (bundled, converted on pick) or `"user"` (a saved profile, LIB-12).
     pub source: String,
     /// Where the daemon finds the file; never sent to clients.
@@ -43,16 +57,69 @@ impl Index {
     /// Entries in which every word of `query` occurs, case-insensitively, in
     /// "manufacturer model"; at most `limit`. An empty query lists everything (LIB-14).
     pub fn search(&self, query: &str, limit: usize) -> Vec<&Entry> {
+        self.matching(query).into_iter().take(limit).collect()
+    }
+
+    /// Manufacturers with at least one model matching `query` (LIB-14 words), with that count,
+    /// sorted case-insensitively (LIB-20).
+    pub fn manufacturers(&self, query: &str) -> Vec<Manufacturer> {
+        let mut out: Vec<Manufacturer> = Vec::new();
+        for e in self.matching(query) {
+            match out.last_mut() {
+                Some(m) if m.name == e.manufacturer => m.models += 1,
+                _ => out.push(Manufacturer {
+                    name: e.manufacturer.clone(),
+                    models: 1,
+                }),
+            }
+        }
+        out
+    }
+
+    /// Matching entries sorted by manufacturer, then model, case-insensitively (LIB-21). With a
+    /// `manufacturer` (exact name) all its models are returned; without, at most `limit`, and
+    /// the flag says whether more matched.
+    pub fn models(
+        &self,
+        manufacturer: Option<&str>,
+        query: &str,
+        limit: usize,
+    ) -> (Vec<&Entry>, bool) {
+        let mut found = self.matching(query);
+        match manufacturer {
+            Some(m) => {
+                found.retain(|e| e.manufacturer == m);
+                (found, false)
+            }
+            None => {
+                let truncated = found.len() > limit;
+                found.truncate(limit);
+                (found, truncated)
+            }
+        }
+    }
+
+    /// LIB-14's word rule, sorted case-insensitively.
+    fn matching(&self, query: &str) -> Vec<&Entry> {
         let query = query.to_lowercase();
         let words: Vec<&str> = query.split_whitespace().collect();
-        self.0
+        let mut found: Vec<&Entry> = self
+            .0
             .values()
             .filter(|e| {
                 let name = format!("{} {}", e.manufacturer, e.model).to_lowercase();
                 words.iter().all(|w| name.contains(w))
             })
-            .take(limit)
-            .collect()
+            .collect();
+        // The exact name breaks ties so a manufacturer's models stay together (LIB-20).
+        found.sort_by_cached_key(|e| {
+            (
+                e.manufacturer.to_lowercase(),
+                e.manufacturer.clone(),
+                e.model.to_lowercase(),
+            )
+        });
+        found
     }
 
     pub fn len(&self) -> usize {
