@@ -232,6 +232,50 @@ impl Profile {
         }
         Ok(())
     }
+
+    /// LIB-25: [`Profile::validate`] plus slot order and overlap, for profiles that are
+    /// edited. Loading existing profiles stays on `validate`.
+    pub fn validate_for_save(&self) -> Result<(), CoreError> {
+        self.validate()?;
+        for mode in &self.modes {
+            let slots = check_slots(&mode.attributes).and_then(|()| {
+                mode.cells
+                    .iter()
+                    .try_for_each(|c| check_slots(&c.attributes))
+            });
+            slots.map_err(|problem| CoreError::InvalidProfile {
+                mode: mode.name.clone(),
+                problem,
+            })?;
+        }
+        Ok(())
+    }
+}
+
+/// LIB-25: slots of one attribute run low to high and do not overlap (touching is fine).
+fn check_slots(attributes: &[AttributeDef]) -> Result<(), String> {
+    for a in attributes {
+        let name = &a.name;
+        if let Some(s) = a.slots.iter().find(|s| s.from > s.to) {
+            return Err(format!(
+                "{name}: slot '{}' runs from {} to {}",
+                s.name, s.from, s.to
+            ));
+        }
+        let mut sorted: Vec<&Slot> = a.slots.iter().collect();
+        sorted.sort_by_key(|s| s.from);
+        let overlap = sorted.windows(2).find_map(|w| match w {
+            [a, b] if b.from <= a.to => Some((a, b)),
+            _ => None,
+        });
+        if let Some((a, b)) = overlap {
+            return Err(format!(
+                "{name}: slots '{}' and '{}' overlap",
+                a.name, b.name
+            ));
+        }
+    }
+    Ok(())
 }
 
 impl Cell {

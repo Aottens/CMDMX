@@ -32,7 +32,8 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. In progress: browsing the fixture library
-by manufacturer (the engine side is in review) and a profile editor for slot names and defaults (specified, sketch in
+by manufacturer and a profile editor for slot names and defaults (the engine can browse the library
+and save an edited profile into the show; the app screens are next; sketch in
 [`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)), then the
 church's TouchOSC remote on the OSC layer. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
