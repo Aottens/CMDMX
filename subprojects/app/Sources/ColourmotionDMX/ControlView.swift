@@ -97,6 +97,7 @@ private struct DevicesPanel: View {
 }
 
 /// CTL-31: the table is the Mackie unit order; the arrows move an enabled row past the next enabled one.
+@MainActor
 private struct OrderCell: View {
     let device: ControlDevice
     let names: [String]
@@ -401,6 +402,7 @@ private struct BindingsPanel: View {
 }
 
 /// One binding with its options editable in place; each control sends only the field it changed.
+@MainActor
 private struct BindingRow: View {
     @Environment(\.theme) private var t
     let mapping: String
