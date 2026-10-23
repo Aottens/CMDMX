@@ -290,7 +290,7 @@ private struct BindingsPanel: View {
     @State private var newDevice = "*"
 
     private static let columns: [(String, CGFloat)] = [
-        ("Input", 110), ("Action", 120), ("", 120), ("Pickup", 74), ("Inv", 30), ("Mode", 96), ("Encoding", 112),
+        ("Input", 140), ("Action", 120), ("", 120), ("Pickup", 74), ("Inv", 30), ("Mode", 96), ("Encoding", 112),
         ("Min", 46), ("Max", 46), ("FB", 30), ("On", 46), ("Off", 46),
     ]
 
