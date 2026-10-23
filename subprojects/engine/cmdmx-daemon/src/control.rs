@@ -1124,3 +1124,6 @@ impl Control {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod osc_tests;

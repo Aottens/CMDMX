@@ -204,7 +204,10 @@ Learn, stored as readable files and travel between Macs.
   numeric type). Malformed packets are ignored and counted (CTL-15).
 - **CTL-35** OSC is off by default. Settings: `enabled`, `port` (default 8000) on all interfaces,
   `feedback_port` (default 9000), `allow` (empty = any sender; else a list of IPv4 addresses or
-  subnets, other senders ignored and counted).
+  subnets, other senders ignored and counted), `clients` (`IP:port` feedback clients, CTL-37) and
+  `mapping` (the OSC mapping for custom addresses, CTL-38; default `OSC`, created by the first
+  Learn). Kept in `state.json` under `control.osc` (CTL-23). A port that cannot be opened is one
+  warning and the snapshot's `osc.error`; the console keeps running (VS7-03).
 - **CTL-36** The built-in address schema, under `/cmdmx`, each address an action of CTL-05:
 
   | Address | Args | Action |
@@ -230,17 +233,28 @@ Learn, stored as readable files and travel between Macs.
   addresses with the current value (CTL-17), plus `/cmdmx/fader/<slot>/legend` s,
   `/cmdmx/page` i, `/cmdmx/page/legend` s, `/cmdmx/cue/current` s and `/cmdmx/cue/next` s
   (number and legend of the connected list) and `/cmdmx/message` s (the last engine warning).
-  CTL-19..21 apply; a new client gets the full state.
+  CTL-19..21 apply; a new client gets the full state. Echo (CTL-20) is per sender IP: the client
+  at that IP does not get the value back, the other clients do. The built-in feedback covers the
+  slots of the current page (`fader/<slot>` f, its `upper`/`lower` 1.0/0.0 and `legend`), `page`,
+  `page/legend`, `gm`, `dbo`, `go`, `key/highlight`, `attribute_group/<g>`, the cue texts
+  (`"<number> <legend>"`, the number alone without a legend, `""` without a list) and `message`
+  (VS7-03). Moves on the `/cmdmx` schema never pick up (OSC controls follow their feedback like
+  motor faders, CTL-13).
 - **CTL-38** Custom addresses: an OSC mapping binds any address (for example an existing TouchOSC
   layout's `/1/fader1` or `/2/push3`) to an action, learned like MIDI (CTL-25: the next address
   received binds), with feedback to the same address. The built-in schema always works next to it.
-  So a layout made for another program works without editing the layout.
+  So a layout made for another program works without editing the layout. Learn takes the next
+  address outside `/cmdmx` (those keep acting while Learn is armed); the message is
+  `Learned: OSC /1/fader1 → fader 1` and a learned OSC fader is `jump` (no pickup). Button
+  feedback is 1.0/0.0 (VS7-03).
 
 ### IPC and the app
 - **CTL-39** Snapshot gains `control`: `devices` (`[{"name":"BCF2000","input":true,"output":true,
   "state":"Ok","enabled":true,"mapping":"Mackie Control","errors":0}]`), `mappings` (names, with
   `profile: true` for shipped ones), `osc` (the CTL-35 settings, `clients` with address and last
-  heard, `errors`), `learn` (the armed action or `null`) and `last_input` (CTL-28). A `control`
+  heard, `errors`; VS7-03: `clients` lists every feedback client as
+  `{"address":"192.168.1.20:9000","last_heard":12.5,"configured":false}`, `last_heard` in daemon
+  seconds or `null` for a configured client not heard, beside `mapping` and `error`), `learn` (the armed action or `null`) and `last_input` (CTL-28). A `control`
   delta follows every change, `last_input` at most 10 per second.
 - **CTL-40** Commands (refusals are warnings, IPC-06; all class neutral, CTL-29):
   `control.enable {device, on}` · `control.assign {device, mapping}` ·
@@ -248,7 +262,7 @@ Learn, stored as readable files and travel between Macs.
   its bindings to the asking client) · `control.binding {mapping, input, action?, …options}`
   (edit or add) · `control.unbind {mapping, input}` · `control.mapping_new {name, device}` ·
   `control.mapping_rename` · `control.mapping_delete` (not a profile) · `control.mapping_import
-  {json, replace?}` · `control.osc {enabled?, port?, feedback_port?, allow?, clients?}`. An action
+  {json, replace?}` · `control.osc {enabled?, port?, feedback_port?, allow?, clients?, mapping?}`. An action
   string outside the catalogue is refused (`unknown action "fader x"`).
 - **CTL-41** App: a **Control** screen on the workspace rail next to Output: a device table
   (name, state dot, Enabled, mapping dropdown), an OSC panel (CTL-35 settings, clients heard, error
