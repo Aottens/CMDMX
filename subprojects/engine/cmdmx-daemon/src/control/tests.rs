@@ -1,7 +1,12 @@
 //! VS7-02: the daemon side of the generic MIDI control layer (CTL-06, 08, 14..16, 21, 23..25, 28,
 //! 29, 39, 40). Ports are simulated with `MidiEvent`s; the macOS tests at the end use a virtual
 //! CoreMIDI port through the real MIDI thread.
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 
 use std::fs;
 use std::path::PathBuf;
@@ -73,7 +78,11 @@ fn req(c: &mut Control, json: &str) -> Result<(), String> {
 fn enabled(test: &str) -> (Control, PathBuf) {
     let (mut c, dir) = setup(test);
     ports(&mut c, &[port("nano", true)]);
-    req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
     (c, dir)
 }
 
@@ -103,7 +112,11 @@ fn level(engine: &Engine, id: u32) -> f32 {
 }
 
 /// Run the commands as the tick does: through the history, refusals named by device (CTL-06).
-fn run_all(engine: &mut Engine, history: &mut History, cmds: Vec<(String, Command)>) -> Vec<String> {
+fn run_all(
+    engine: &mut Engine,
+    history: &mut History,
+    cmds: Vec<(String, Command)>,
+) -> Vec<String> {
     cmds.into_iter()
         .filter_map(|(dev, cmd)| crate::run_control(engine, history, &dev, cmd, 0.0).err())
         .collect()
@@ -138,11 +151,19 @@ fn ctl_08_states_ok_missing_disabled() {
     assert_eq!(d["input"], true);
     assert_eq!(d["output"], true);
     assert_eq!(d["errors"], 0);
-    req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
     assert_eq!(device(&c.snapshot(), "nano")["state"], "Ok");
     ports(&mut c, &[]);
     assert_eq!(device(&c.snapshot(), "nano")["state"], "Missing");
-    req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"nano","on":false}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"nano","on":false}"#,
+    )
+    .unwrap();
     assert_eq!(device(&c.snapshot(), "nano")["state"], "Disabled");
 }
 
@@ -151,7 +172,7 @@ fn ctl_08_two_devices_run_at_once_each_with_its_own_mapping() {
     let (mut c, dir) = setup("two");
     fs::write(
         dir.join("control/other.json"),
-        r#"{"name":"other","device":"other","bindings":[{"input":{"kind":"cc","channel":1,"number":7},"action":"gm"}]}"#,
+        r#"{"name":"other","device":"other","bindings":[{"input":{"kind":"cc","channel":1,"number":7},"action":"gm","pickup":false}]}"#,
     )
     .unwrap();
     let (mut c2, _) = Control::load(dir.join("control"), dir.join("state.json"));
@@ -205,14 +226,23 @@ fn ctl_24_enabled_it_gets_the_matching_mapping_and_it_is_remembered() {
 fn ctl_24_without_a_matching_mapping_it_gets_an_empty_one() {
     let (mut c, dir) = setup("empty-mapping");
     ports(&mut c, &[port("APC mini", true)]);
-    req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"APC mini","on":true}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"APC mini","on":true}"#,
+    )
+    .unwrap();
     let s = c.snapshot();
-    let name = device(&s, "APC mini")["mapping"].as_str().unwrap().to_string();
+    let name = device(&s, "APC mini")["mapping"]
+        .as_str()
+        .unwrap()
+        .to_string();
     assert_ne!(name, "nano");
     let file = fs::read_to_string(dir.join(format!("control/{name}.json"))).unwrap();
     let (m, _) = cmdmx_control::mapping::Mapping::from_json(&file).unwrap();
     assert!(m.bindings.is_empty());
-    assert!(cmdmx_control::mapping::device_matches(&m.device, "APC mini"));
+    assert!(cmdmx_control::mapping::device_matches(
+        &m.device, "APC mini"
+    ));
 }
 
 #[test]
@@ -225,7 +255,11 @@ fn ctl_24_a_star_mapping_matches_any_device() {
     .unwrap();
     let (mut c, _) = Control::load(dir.join("control"), dir.join("state.json"));
     ports(&mut c, &[port("whatever", false)]);
-    req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"whatever","on":true}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"whatever","on":true}"#,
+    )
+    .unwrap();
     assert_eq!(device(&c.snapshot(), "whatever")["mapping"], "any");
 }
 
@@ -254,7 +288,11 @@ fn ctl_23_state_json_keeps_the_last_show_and_the_devices() {
     let shows = crate::shows::Shows::new(dir.join("Shows"), state.clone());
     shows.remember("Church").unwrap();
     ports(&mut c, &[port("nano", true)]);
-    req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
     let v: Value = serde_json::from_str(&fs::read_to_string(&state).unwrap()).unwrap();
     assert_eq!(v["last_show"], "Church");
     assert_eq!(v["control"]["devices"]["nano"]["enabled"], true);
@@ -278,7 +316,11 @@ fn ctl_23_every_change_is_written_atomically_to_the_mapping_file() {
     let file = fs::read_to_string(dir.join("control/nano.json")).unwrap();
     let (m, w) = cmdmx_control::mapping::Mapping::from_json(&file).unwrap();
     assert!(w.is_empty());
-    let b = m.bindings.iter().find(|b| b.action.to_string() == "gm").unwrap();
+    let b = m
+        .bindings
+        .iter()
+        .find(|b| b.action.to_string() == "gm")
+        .unwrap();
     assert!(b.invert);
     let leftovers: Vec<_> = fs::read_dir(dir.join("control"))
         .unwrap()
@@ -326,7 +368,12 @@ fn ctl_14_values_coalesce_per_tick_buttons_never() {
     for v in 0..=127u8 {
         packet(&mut c, "nano", &cc7(v));
     }
-    for b in [[0x90, 60, 127], [0x80, 60, 0], [0x90, 60, 127], [0x80, 60, 0]] {
+    for b in [
+        [0x90, 60, 127],
+        [0x80, 60, 0],
+        [0x90, 60, 127],
+        [0x80, 60, 0],
+    ] {
         packet(&mut c, "nano", &b);
     }
     let e = engine();
@@ -478,7 +525,11 @@ fn ctl_21_no_echo_of_the_input_that_moved() {
 fn ctl_21_a_device_without_output_gets_no_feedback() {
     let (mut c, _) = setup("no-output");
     ports(&mut c, &[port("nano", false)]);
-    req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
     assert!(c.feedback(&engine()).is_empty());
 }
 
@@ -520,7 +571,11 @@ fn ctl_06_page_next_at_the_last_page_does_nothing() {
     .unwrap();
     let (mut c, _) = Control::load(dir.join("control"), dir.join("state.json"));
     ports(&mut c, &[port("pad", false)]);
-    req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"pad","on":true}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"pad","on":true}"#,
+    )
+    .unwrap();
     let mut e = engine();
     packet(&mut c, "pad", &[0x90, 2, 127]);
     assert!(c.commands(&e, 0.0).is_empty(), "page prev on page 1");
@@ -545,7 +600,11 @@ fn ctl_06_page_next_at_the_last_page_does_nothing() {
 fn ctl_25_learn_needs_three_steps_then_binds_and_ends() {
     let (mut c, dir) = enabled("learn");
     let _ = c.take_messages();
-    req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"fader 3"}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.learn","action":"fader 3"}"#,
+    )
+    .unwrap();
     assert_eq!(c.snapshot()["learn"], "fader 3");
     packet(&mut c, "nano", &[0xB0, 20, 30]);
     packet(&mut c, "nano", &[0xB0, 20, 32]); // jitter: 2 steps
@@ -557,10 +616,7 @@ fn ctl_25_learn_needs_three_steps_then_binds_and_ends() {
     assert_eq!(c.take_messages(), ["Learned: nano CC 20 ch 1 → fader 3"]);
     let file = fs::read_to_string(dir.join("control/nano.json")).unwrap();
     let (m, _) = cmdmx_control::mapping::Mapping::from_json(&file).unwrap();
-    assert!(m
-        .bindings
-        .iter()
-        .any(|b| b.action.to_string() == "fader 3"));
+    assert!(m.bindings.iter().any(|b| b.action.to_string() == "fader 3"));
 }
 
 #[test]
@@ -572,7 +628,10 @@ fn ctl_25_a_note_press_learns_at_once_and_replaces_with_a_message() {
     req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"back"}"#).unwrap();
     packet(&mut c, "nano", &[0x90, 61, 127]); // was page 2
     let cmds = c.commands(&engine(), 0.0);
-    assert!(cmds.is_empty(), "a learning input does not also act: {cmds:?}");
+    assert!(
+        cmds.is_empty(),
+        "a learning input does not also act: {cmds:?}"
+    );
     let msgs = c.take_messages();
     assert!(
         msgs.contains(&"Learned: nano Note 61 ch 1 → back".to_string()),
@@ -592,7 +651,11 @@ fn ctl_25_cancel_and_disabled_devices_never_learn() {
     req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"go"}"#).unwrap();
     packet(&mut c, "other", &[0x90, 1, 127]);
     let _ = c.commands(&engine(), 0.0);
-    assert_eq!(c.snapshot()["learn"], "go", "a disabled device does not learn");
+    assert_eq!(
+        c.snapshot()["learn"],
+        "go",
+        "a disabled device does not learn"
+    );
     req(&mut c, r#"{"v":0,"cmd":"control.learn_cancel"}"#).unwrap();
     assert_eq!(c.snapshot()["learn"], Value::Null);
 }
@@ -742,18 +805,46 @@ fn ctl_40_mapping_edits_and_their_refusals() {
     .unwrap();
     assert!(!c.mapping_reply("nano").contains("fader 1"));
     // New, rename (the device follows), delete.
-    req(&mut c, r#"{"v":0,"cmd":"control.mapping_new","name":"spare","device":"x"}"#).unwrap();
-    assert!(req(&mut c, r#"{"v":0,"cmd":"control.mapping_new","name":"spare","device":"x"}"#).is_err());
-    req(&mut c, r#"{"v":0,"cmd":"control.mapping_rename","name":"nano","to":"mine"}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.mapping_new","name":"spare","device":"x"}"#,
+    )
+    .unwrap();
+    assert!(req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.mapping_new","name":"spare","device":"x"}"#
+    )
+    .is_err());
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.mapping_rename","name":"nano","to":"mine"}"#,
+    )
+    .unwrap();
     assert!(dir.join("control/mine.json").exists());
     assert!(!dir.join("control/nano.json").exists());
     assert_eq!(device(&c.snapshot(), "nano")["mapping"], "mine");
-    req(&mut c, r#"{"v":0,"cmd":"control.assign","device":"nano","mapping":"spare"}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.assign","device":"nano","mapping":"spare"}"#,
+    )
+    .unwrap();
     assert_eq!(device(&c.snapshot(), "nano")["mapping"], "spare");
-    assert!(req(&mut c, r#"{"v":0,"cmd":"control.assign","device":"nano","mapping":"nope"}"#).is_err());
-    req(&mut c, r#"{"v":0,"cmd":"control.mapping_delete","name":"mine"}"#).unwrap();
+    assert!(req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.assign","device":"nano","mapping":"nope"}"#
+    )
+    .is_err());
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.mapping_delete","name":"mine"}"#,
+    )
+    .unwrap();
     assert!(!dir.join("control/mine.json").exists());
-    assert!(req(&mut c, r#"{"v":0,"cmd":"control.enable","device":"ghost","on":true}"#).is_err());
+    assert!(req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"ghost","on":true}"#
+    )
+    .is_err());
 }
 
 // --- macOS: a virtual CoreMIDI port through the real MIDI thread -------------
@@ -768,7 +859,12 @@ mod virtual_port {
     use super::*;
 
     /// Drain the MIDI thread's events into `c` until `done` holds, at most `secs` seconds.
-    fn wait(c: &mut Control, rx: &Receiver<MidiEvent>, secs: f64, done: impl Fn(&Control) -> bool) -> bool {
+    fn wait(
+        c: &mut Control,
+        rx: &Receiver<MidiEvent>,
+        secs: f64,
+        done: impl Fn(&Control) -> bool,
+    ) -> bool {
         let start = Instant::now();
         while start.elapsed().as_secs_f64() < secs {
             while let Ok(ev) = rx.try_recv() {
@@ -797,18 +893,29 @@ mod virtual_port {
         let (mut c, _) = setup("virtual-hotplug");
         let (tx, rx) = channel();
         let _out = crate::midi_io::spawn(tx).unwrap();
-        let src = MidiOutput::new("cmdmx-test").unwrap().create_virtual(&name).unwrap();
-        assert!(wait(&mut c, &rx, 3.0, |c| state(c, &name).is_some()), "seen");
+        let src = MidiOutput::new("cmdmx-test")
+            .unwrap()
+            .create_virtual(&name)
+            .unwrap();
+        assert!(
+            wait(&mut c, &rx, 3.0, |c| state(c, &name).is_some()),
+            "seen"
+        );
         let j = json!({"v":0,"cmd":"control.enable","device":name,"on":true});
         req(&mut c, &j.to_string()).unwrap();
         assert_eq!(state(&c, &name).as_deref(), Some("Ok"));
         let _ = c.take_messages();
         drop(src);
-        assert!(wait(&mut c, &rx, 3.0, |c| state(c, &name).as_deref() == Some("Missing")));
+        assert!(wait(&mut c, &rx, 3.0, |c| state(c, &name).as_deref()
+            == Some("Missing")));
         assert_eq!(c.take_messages(), [format!("{name} disconnected")]);
-        let _src = MidiOutput::new("cmdmx-test").unwrap().create_virtual(&name).unwrap();
+        let _src = MidiOutput::new("cmdmx-test")
+            .unwrap()
+            .create_virtual(&name)
+            .unwrap();
         assert!(
-            wait(&mut c, &rx, 2.0, |c| state(c, &name).as_deref() == Some("Ok")),
+            wait(&mut c, &rx, 2.0, |c| state(c, &name).as_deref()
+                == Some("Ok")),
             "attached again within 2 s"
         );
     }
@@ -824,7 +931,10 @@ mod virtual_port {
         std::mem::swap(&mut c, &mut c2);
         let (tx, rx) = channel();
         let _out = crate::midi_io::spawn(tx).unwrap();
-        let mut src = MidiOutput::new("cmdmx-test").unwrap().create_virtual(&name).unwrap();
+        let mut src = MidiOutput::new("cmdmx-test")
+            .unwrap()
+            .create_virtual(&name)
+            .unwrap();
         assert!(wait(&mut c, &rx, 3.0, |c| state(c, &name).is_some()));
         let j = json!({"v":0,"cmd":"control.enable","device":name,"on":true});
         req(&mut c, &j.to_string()).unwrap();

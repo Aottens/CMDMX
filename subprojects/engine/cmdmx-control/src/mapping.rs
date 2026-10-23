@@ -179,7 +179,7 @@ pub struct Mapping {
 }
 
 /// A binding that parses but is not valid: MIDI channels are 1..=16.
-fn check(b: &Binding) -> Result<(), String> {
+pub fn check(b: &Binding) -> Result<(), String> {
     for i in std::iter::once(&b.input).chain(b.feedback_to.as_ref()) {
         if let Input::Midi(m) = i {
             if !(1..=16).contains(&m.channel) {

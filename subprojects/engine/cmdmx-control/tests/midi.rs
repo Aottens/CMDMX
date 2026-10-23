@@ -468,7 +468,11 @@ fn ctl_13_pickup_without_known_target_follows() {
 fn ctl_15_decoder_counts_data_without_status_and_truncated_messages() {
     let mut d = Decoder::default();
     assert!(d.decode(&[0x40, 0x41]).is_empty());
-    assert_eq!(d.malformed(), 1, "data bytes without a status: one per packet");
+    assert_eq!(
+        d.malformed(),
+        1,
+        "data bytes without a status: one per packet"
+    );
     assert!(d.decode(&[0xB0, 7]).is_empty());
     assert_eq!(d.malformed(), 2, "a message cut off at the packet's end");
     // Realtime, sysex and aftertouch are not malformed.
