@@ -1257,11 +1257,15 @@ fn ctl_31_the_user_sets_the_unit_order() {
     assert_eq!(again.snapshot()["order"], json!(["X-Touch-Ext", "BCF2000"]));
     ports(
         &mut again,
-        &[port("BCF2000", true), port("X-Touch-Ext", true), port("A-Ext", true)],
+        &[
+            port("BCF2000", true),
+            port("X-Touch-Ext", true),
+            port("A-X-Touch", true),
+        ],
     );
     req(
         &mut again,
-        r#"{"v":0,"cmd":"control.enable","device":"A-Ext","on":true}"#,
+        r#"{"v":0,"cmd":"control.enable","device":"A-X-Touch","on":true}"#,
     )
     .unwrap();
     let e = engine_fpp(24);
@@ -1274,7 +1278,7 @@ fn ctl_31_the_user_sets_the_unit_order() {
         Some(slot(&e, 1, 9))
     );
     assert_eq!(
-        fader_target(&mut again, &e, "A-Ext", 1),
+        fader_target(&mut again, &e, "A-X-Touch", 1),
         Some(slot(&e, 1, 17))
     );
 }

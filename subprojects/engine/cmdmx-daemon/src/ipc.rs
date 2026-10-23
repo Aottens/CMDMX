@@ -474,6 +474,10 @@ pub enum ControlRequest {
         mapping: Option<String>,
     },
     LearnCancel,
+    /// CTL-31: the order of the Mackie units.
+    Order {
+        devices: Vec<String>,
+    },
     /// `change` holds `input` and the fields to change; they go over the stored binding.
     Binding {
         mapping: String,
@@ -793,6 +797,9 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
             mapping: opt_field(v, "mapping", "a mapping name")?,
         },
         "learn_cancel" => ControlRequest::LearnCancel,
+        "order" => ControlRequest::Order {
+            devices: field(v, "devices", "a list of device names")?,
+        },
         "binding" => {
             input(v)?;
             if let Some(a) = v.get("action") {

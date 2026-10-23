@@ -663,7 +663,7 @@ struct SerialPort: Decodable, Identifiable, Equatable {
 }
 
 /// Decodes to nil instead of throwing, for fields that must never drop a whole message.
-private struct Tolerant<T: Decodable>: Decodable {
+struct Tolerant<T: Decodable>: Decodable {
     let value: T?
     init(from decoder: Decoder) throws { value = try? T(from: decoder) }
 }
@@ -1032,6 +1032,11 @@ final class EngineClient: ObservableObject {
     /// IPC-20: one entry per output node; empty while offline (the state is unknown then).
     @Published private(set) var outputs: [OutputNode] = []
     @Published private(set) var serialPorts: [SerialPort] = []
+    /// CTL-39: devices, mappings, Learn, the last input, OSC and the unit order; empty while offline.
+    @Published private(set) var control = ControlState()
+    /// The mapping the Control screen shows (reply to `control.mapping`, CTL-40); nil until asked.
+    @Published private(set) var controlMapping: ControlMappingDoc?
+    private var shownMapping: String?
     /// SHW-15: the open show; keeps the last known value while offline. `shows` is the reply to the
     /// last `show.list` (this client only).
     @Published private(set) var show = ShowState()
@@ -1349,6 +1354,37 @@ final class EngineClient: ObservableObject {
     func removeOutputs(ids: [Int]) { patch("output.remove", ["ids": ids]) }
     func listPorts() { sendJSON("output.ports") }
 
+    // MARK: Control (CTL-40): the engine owns every rule; a refusal arrives as a warning.
+    func controlEnable(_ device: String, on: Bool) { patch("control.enable", ["device": device, "on": on]) }
+    func controlAssign(_ device: String, mapping: String) { patch("control.assign", ["device": device, "mapping": mapping]) }
+    func controlOrder(_ devices: [String]) { patch("control.order", ["devices": devices]) }
+    /// Arms Learn for `action`; the next input of an enabled device (or OSC message) is bound to it.
+    func controlLearn(_ action: String, mapping: String? = nil) {
+        var fields: [String: Any] = ["action": action]
+        if let mapping { fields["mapping"] = mapping }
+        sendJSON("control.learn", fields)
+    }
+    func controlLearnCancel() { sendJSON("control.learn_cancel") }
+    /// `fields` are the changed ones (`action`, `invert`, `pickup`, …); `input` is the binding's own JSON.
+    func controlBinding(_ mapping: String, input: Any, _ fields: [String: Any]) {
+        patch("control.binding", fields.merging(["mapping": mapping, "input": input]) { a, _ in a })
+    }
+    func controlUnbind(_ mapping: String, input: Any) { patch("control.unbind", ["mapping": mapping, "input": input]) }
+    func controlMappingNew(_ name: String, device: String) { patch("control.mapping_new", ["name": name, "device": device]) }
+    func controlMappingRename(_ name: String, to: String) { patch("control.mapping_rename", ["name": name, "to": to]) }
+    func controlMappingDelete(_ name: String) { patch("control.mapping_delete", ["name": name]) }
+    func controlMappingImport(json: String, replace: Bool = false) {
+        patch("control.mapping_import", replace ? ["json": json, "replace": true] : ["json": json])
+    }
+    /// Only the given settings change; a bad value refuses the whole command.
+    func controlOsc(_ fields: [String: Any]) { patch("control.osc", fields) }
+    /// Shows this mapping's bindings; the reply replaces `controlMapping`.
+    func showMapping(_ name: String?) {
+        shownMapping = name
+        if name == nil { controlMapping = nil } else if controlMapping?.name != name { controlMapping = nil }
+        if let name { sendJSON("control.mapping", ["name": name]) }
+    }
+
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
     func say(_ text: String) { lastMessage = text }
 
@@ -1412,6 +1448,7 @@ final class EngineClient: ObservableObject {
             socket = nil
             connection = .offline
             outputs = []
+            control = ControlState(); controlMapping = nil
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
     }
@@ -1458,12 +1495,13 @@ final class EngineClient: ObservableObject {
         let programmer: ProgrammerState?
         let items: [LibraryItem]?
         fileprivate let outputs: Tolerant<[OutputNode]>?
+        fileprivate let control: Tolerant<ControlState>?
         fileprivate let ports: Tolerant<[Tolerant<SerialPort>]>?
         fileprivate let show: Tolerant<ShowState>?
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, items, outputs, ports, show, shows
+            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, items, outputs, control, ports, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -1500,6 +1538,8 @@ final class EngineClient: ObservableObject {
             programmerSettings = incoming.programmerSettings?.value
             programmer = incoming.programmer ?? ProgrammerState()
             outputs = incoming.outputs?.value ?? []
+            control = incoming.control?.value ?? ControlState()
+            if let name = shownMapping { sendJSON("control.mapping", ["name": name]) }
             if let show = incoming.show?.value { self.show = show }
             let labels = (try? JSONDecoder().decode(SnapshotUndo.self, from: data))?.undo?.value
             undoLabel = labels?.undo; redoLabel = labels?.redo
@@ -1517,6 +1557,17 @@ final class EngineClient: ObservableObject {
             if let fixtures = incoming.fixtures?.value { self.fixtures = fixtures }
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
+        case "control":
+            // CTL-39: the delta carries the section at top level. The shown mapping is asked for again
+            // (Learn and edits change it), except after a delta that is only a new last input.
+            if let state = try? JSONDecoder().decode(ControlState.self, from: data) {
+                var rest = state; rest.lastInput = control.lastInput
+                let onlyInput = rest == control && state.lastInput != control.lastInput
+                control = state
+                if !onlyInput, let name = shownMapping { sendJSON("control.mapping", ["name": name]) }
+            }
+        case "control.mapping":
+            if let doc = ControlMappingDoc(data), doc.name == shownMapping { controlMapping = doc }
         case "ports":
             if let ports = incoming.ports?.value { serialPorts = ports.compactMap(\.value) }
         case "show":

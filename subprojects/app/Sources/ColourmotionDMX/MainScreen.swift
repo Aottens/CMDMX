@@ -60,7 +60,7 @@ struct CueValueRef: Equatable {
 /// UI-only state shared by the zones. None of this reaches the engine.
 @MainActor
 final class UIState: ObservableObject {
-    enum Screen { case patch, output, show, options }
+    enum Screen { case patch, output, control, show, options }
 
     @Published var workspace = 0
     /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
@@ -117,9 +117,25 @@ final class UIState: ObservableObject {
     @Published var optionsCue: Double?
     /// Set Overlap (PAL-29): the overlap in % for the next palette tap only.
     @Published var pendingOverlap: Double?
+    /// CTL-42: Learn mode. A click on a fader, handle button, Go block key, page button, GM or
+    /// programmer key arms `control.learn` for that control's action instead of using it.
+    @Published var learnMode = false
     /// The Palette softkeys (PAL-29): opened by the Palette key on an empty line, they stay open
     /// until Cancel, Exit or another context is chosen.
     @Published var paletteMenu = false
+
+    /// Wraps a control's click: in Learn mode it arms Learn for `action` (nil: this control has none, so
+    /// it runs), else it runs. The mode stays on after `Learned: …`.
+    func learnOrRun(_ action: String?, _ engine: EngineClient, run: () -> Void) {
+        guard learnMode, let action else { return run() }
+        engine.controlLearn(action)
+        engine.say("Move a control for \(action) … (Esc cancels)")
+    }
+
+    func setLearnMode(_ on: Bool, _ engine: EngineClient) {
+        learnMode = on
+        if !on { engine.controlLearnCancel(); engine.clearMessage() }
+    }
 
     func resetRecord() {
         usedCell = nil; usedHandle = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
@@ -201,6 +217,7 @@ private struct Frame: View {
                         switch screen {
                         case .patch: PatchView()
                         case .output: OutputView()
+                        case .control: ControlView()
                         case .show: ShowView()
                         case .options: PlaybackOptionsView()
                         }
@@ -222,6 +239,7 @@ private struct Frame: View {
         }
         .background(t.bg)
         .foregroundStyle(t.fg)
+        .overlay { if ui.learnMode { Rectangle().strokeBorder(t.amber, lineWidth: 2).allowsHitTesting(false) } }   // CTL-42
         .sheet(item: $ui.legendEditing, onDismiss: { ui.cancelModes() }) { ref in
             LegendEditor(number: ref.number)
                 .environmentObject(engine).environmentObject(ui)
@@ -283,6 +301,7 @@ private struct StatusBar: View {
     @AppStorage("consoleMode") private var console = true
     @AppStorage("keypadVisible") private var keypad = true
     @AppStorage("keysLive") private var keys = false
+    @EnvironmentObject private var ui: UIState
 
     private static let clock: DateFormatter = {
         let f = DateFormatter()
@@ -307,6 +326,21 @@ private struct StatusBar: View {
         }
     }
 
+    /// CTL-43: one dot for the enabled control devices and OSC, coloured by the worst state.
+    @ViewBuilder private var controlDot: some View {
+        let c = engine.control
+        let devices = c.devices.filter(\.enabled)
+        if !devices.isEmpty || c.osc.enabled {
+            let oscError = c.osc.enabled ? c.osc.error : nil
+            let issues = devices.filter { $0.state != .ok }.map { "\($0.name): " + ($0.state == .missing ? "not connected" : "disabled") }
+                + (oscError.map { ["OSC: \($0)"] } ?? [])
+            let missing = devices.contains { $0.state == .missing }
+            Dot(color: oscError != nil ? t.red : missing ? t.amber : t.green, label: "Control \(devices.count + (c.osc.enabled ? 1 : 0))",
+                warn: oscError != nil || missing)
+                .help(issues.joined(separator: "\n"))
+        }
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             ShowLabel()
@@ -318,6 +352,12 @@ private struct StatusBar: View {
             }
 
             ForEach(Self.protocols, id: \.0) { protocolDot($0.0, $0.1) }
+            controlDot
+
+            if ui.learnMode {
+                BarToggle(title: "LEARN", on: true) { ui.setLearnMode(false, engine) }
+                    .help("Learn mode: click a control on the main screen to bind a hardware control to it · Esc ends")
+            }
 
             // UI-06, PBK-41: the engine's DBO.
             if engine.dbo {
@@ -421,6 +461,7 @@ private struct Rail: View {
             divider
             RailItem(title: "Patch", small: "screen", on: ui.screen == .patch) { ui.screen = ui.screen == .patch ? nil : .patch }
             RailItem(title: "Output", small: "screen", on: ui.screen == .output) { ui.screen = ui.screen == .output ? nil : .output }
+            RailItem(title: "Control", small: "screen", on: ui.screen == .control) { ui.screen = ui.screen == .control ? nil : .control }
             RailItem(title: "Macros", small: "later")
             RailItem(title: "Show", small: "screen", on: ui.screen == .show) { ui.screen = ui.screen == .show ? nil : .show }
             divider
