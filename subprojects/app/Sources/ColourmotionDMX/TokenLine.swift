@@ -99,8 +99,8 @@ enum MacKeys {
             return true
         }
         // CTL-42: Esc ends Learn mode (and cancels an armed Learn), whatever the Keys toggle says.
-        if event.keyCode == 53, chord.isEmpty, ui.learnMode || engine.control.learn != nil,
-           !(NSApp.keyWindow?.firstResponder is NSText) {
+        // Also from a text field: Esc there only drops the edit.
+        if event.keyCode == 53, chord.isEmpty, ui.learnMode || engine.control.learn != nil {
             ui.setLearnMode(false, engine)
             return true
         }

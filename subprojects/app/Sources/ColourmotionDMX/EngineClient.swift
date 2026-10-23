@@ -1359,11 +1359,8 @@ final class EngineClient: ObservableObject {
     func controlAssign(_ device: String, mapping: String) { patch("control.assign", ["device": device, "mapping": mapping]) }
     func controlOrder(_ devices: [String]) { patch("control.order", ["devices": devices]) }
     /// Arms Learn for `action`; the next input of an enabled device (or OSC message) is bound to it.
-    func controlLearn(_ action: String, mapping: String? = nil) {
-        var fields: [String: Any] = ["action": action]
-        if let mapping { fields["mapping"] = mapping }
-        sendJSON("control.learn", fields)
-    }
+    /// No `mapping`: the input lands in its own device's mapping, or the OSC mapping (CTL-25, 35).
+    func controlLearn(_ action: String) { sendJSON("control.learn", ["action": action]) }
     func controlLearnCancel() { sendJSON("control.learn_cancel") }
     /// `fields` are the changed ones (`action`, `invert`, `pickup`, …); `input` is the binding's own JSON.
     func controlBinding(_ mapping: String, input: Any, _ fields: [String: Any]) {

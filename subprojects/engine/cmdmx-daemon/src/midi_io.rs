@@ -190,6 +190,13 @@ mod mac {
                     Err(TryRecvError::Disconnected) => return,
                 }
             }
+            // CTL-16: CoreMIDI updates this process's device list through the run loop of the
+            // thread that made the clients; without it a device plugged in later never shows up.
+            // SAFETY: plain C calls on this thread's own run loop; returns at once (timeout 0).
+            unsafe {
+                use core_foundation_sys::runloop::{kCFRunLoopDefaultMode, CFRunLoopRunInMode};
+                CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.0, 1);
+            }
             std::thread::sleep(POLL);
         }
     }

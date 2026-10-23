@@ -135,6 +135,7 @@ dependencies = [
  "cmdmx-control",
  "cmdmx-core",
  "cmdmx-protocols",
+ "core-foundation-sys",
  "midir",
  "serde",
  "serde_json",

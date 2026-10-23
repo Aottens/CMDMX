@@ -33,7 +33,7 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: a general MIDI and OSC control layer (spec `specs/modules/control-surfaces.md`, approved), with Mackie Control as its first profile; its pure core (MIDI decode, mappings, OSC codec) is built, and the engine now takes any MIDI device: enable it, learn a fader or button onto an action, and motor faders and LEDs follow (no Control screen in the app yet). A Mackie Control surface (BCF2000, X-Touch, iCON) works out of the box: its motor faders follow the page, Bank changes the page and Channel scrolls when a page has more faders than the surface. OSC works too, once switched on: a tablet (TouchOSC or any OSC app) sends to the console on port 8000 and gets faders, page, cue and messages back on port 9000; an existing layout's own addresses can be learned onto actions, so it needs no editing (no OSC panel in the app yet). What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: a general MIDI and OSC control layer (spec `specs/modules/control-surfaces.md`, approved), with Mackie Control as its first profile; its pure core (MIDI decode, mappings, OSC codec) is built, and the engine now takes any MIDI device: enable it, learn a fader or button onto an action, and motor faders and LEDs follow . A Mackie Control surface (BCF2000, X-Touch, iCON) works out of the box: its motor faders follow the page, Bank changes the page and Channel scrolls when a page has more faders than the surface. OSC works too, once switched on: a tablet (TouchOSC or any OSC app) sends to the console on port 8000 and gets faders, page, cue and messages back on port 9000; an existing layout's own addresses can be learned onto actions, so it needs no editing . What works today:
 
 - The engine runs at 40 Hz and outputs every patched universe over Art-Net, sACN and USB (ENTTEC
   Pro protocol). Where each universe goes is part of the show: a universe that gets its first
@@ -51,7 +51,9 @@ for the phase-2 effects generator (effects run around the cue's values, before t
   and extra emitters (White, Lime, …) are driven directly.
 - The app has its real main screen. It runs full screen, with a status bar that shows the
   engine and one dot per output protocol, and an Output screen to see and set where each
-  universe goes. There are four workspaces of fixtures, groups and other windows, and
+  universe goes, and a Control screen for MIDI devices, OSC and their bindings: enable a device,
+  press Learn and click a fader or key on screen, then move the hardware control. A Control dot
+  in the status bar shows when a device is missing. There are four workspaces of fixtures, groups and other windows, and
   a dark and a day theme.
 
 - Show file: the engine keeps the show in one readable JSON file in
@@ -109,7 +111,7 @@ for the phase-2 effects generator (effects run around the cue's values, before t
   with a setting for its order and for what LTP attributes do (back to the playback or the
   fixture's default, or freeze). A timed Clear fades the output (IPC only for now).
 
-Next: MIDI, Mackie Control and OSC surfaces. The
+Next: the church TouchOSC remote on the OSC layer. The
 design is a clickable sketch in [`specs/ux/main-screen.html`](specs/ux/main-screen.html). Progress: [`STATE.md`](STATE.md), plan: [`BACKLOG.md`](BACKLOG.md).
 
 ## Build and run

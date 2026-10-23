@@ -22,7 +22,7 @@ struct ControlView: View {
                     DevicesPanel(selected: $selected)
                     OSCPanel()
                 }
-                .frame(width: 560)
+                .frame(width: 470)
                 BindingsPanel(mappingName: $mappingName)
             }
         }
@@ -30,7 +30,10 @@ struct ControlView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
         .onAppear {
-            mappingName = mappingName ?? engine.control.osc.mapping ?? engine.control.devices.first?.mapping ?? engine.control.mappings.first?.name
+            // Only a mapping that exists: the OSC mapping is made by the first OSC Learn (CTL-35).
+            let known = Set(engine.control.mappings.map(\.name))
+            mappingName = mappingName ?? [engine.control.osc.mapping, engine.control.devices.first?.mapping]
+                .compactMap { $0 }.first(where: known.contains) ?? engine.control.mappings.first?.name
             engine.showMapping(mappingName)
         }
         .onDisappear { engine.showMapping(nil) }
@@ -39,9 +42,9 @@ struct ControlView: View {
         .onChange(of: selected) { _, name in
             if let mapping = engine.control.devices.first(where: { $0.name == name })?.mapping { mappingName = mapping }
         }
-        // The shown mapping was deleted: fall back to the first one.
+        // The shown mapping was deleted, or none was shown while offline: fall back to the first one.
         .onChange(of: engine.control.mappings) { _, list in
-            if let name = mappingName, !list.contains(where: { $0.name == name }) { mappingName = list.first?.name }
+            if !list.contains(where: { $0.name == mappingName }) { mappingName = list.first?.name }
         }
     }
 
@@ -286,8 +289,8 @@ private struct BindingsPanel: View {
     @State private var newDevice = "*"
 
     private static let columns: [(String, CGFloat)] = [
-        ("Input", 130), ("Action", 140), ("Pickup", 74), ("Inv", 30), ("Mode", 96), ("Encoding", 112),
-        ("Min", 46), ("Max", 46), ("FB", 30), ("On", 46), ("Off", 46), ("", 130),
+        ("Input", 110), ("Action", 120), ("", 120), ("Pickup", 74), ("Inv", 30), ("Mode", 96), ("Encoding", 112),
+        ("Min", 46), ("Max", 46), ("FB", 30), ("On", 46), ("Off", 46),
     ]
 
     var body: some View {
@@ -310,6 +313,7 @@ private struct BindingsPanel: View {
                         }
                     }
                 }
+                .defaultScrollAnchor(.topLeading)
                 HLine()
                 footer
             }
@@ -342,11 +346,11 @@ private struct BindingsPanel: View {
             HStack(spacing: 6) {
                 TextField("action, e.g. fader 1", text: $action).textFieldStyle(.roundedBorder).frame(width: 180)
                 Button("Learn") {
-                    if let mappingName { engine.controlLearn(action.trimmingCharacters(in: .whitespaces), mapping: mappingName) }
+                    engine.controlLearn(action.trimmingCharacters(in: .whitespaces))
                 }
                 .buttonStyle(FlatButton(fill: .blue, compact: true))
-                .disabled(action.trimmingCharacters(in: .whitespaces).isEmpty || mappingName == nil)
-                .help("Arms Learn: the next input is bound to this action in the shown mapping")
+                .disabled(action.trimmingCharacters(in: .whitespaces).isEmpty)
+                .help("Arms Learn: the next input is bound to this action in its device's mapping (OSC: the OSC mapping)")
                 Spacer(minLength: 0)
                 TextField("new mapping", text: $newName).textFieldStyle(.roundedBorder).frame(width: 140)
                 TextField("device", text: $newDevice).textFieldStyle(.roundedBorder).frame(width: 110)
@@ -411,23 +415,8 @@ private struct BindingRow: View {
         HStack(spacing: 6) {
             Text(binding.inputText).font(Typo.mono(Typo.body)).lineLimit(1).frame(width: columns[0], alignment: .leading)
             CommitField(placeholder: "action", load: binding.action) { send(["action": $0]) }.frame(width: columns[1])
-            Picker("", selection: Binding(get: { binding.pickup }, set: { send(["pickup": $0]) })) {
-                Text("Pickup").tag(true); Text("Jump").tag(false)
-            }.labelsHidden().frame(width: columns[2])
-            check(binding.invert, "invert").frame(width: columns[3], alignment: .leading)
-            Picker("", selection: Binding(get: { binding.buttonMode }, set: { send(["button_mode": $0]) })) {
-                Text("Momentary").tag("momentary"); Text("Toggle").tag("toggle")
-            }.labelsHidden().frame(width: columns[4])
-            Picker("", selection: Binding(get: { binding.encoding ?? "" }, set: { send(["encoding": $0.isEmpty ? NSNull() : $0 as Any]) })) {
-                ForEach(Self.encodings, id: \.0) { Text($0.1).tag($0.0) }
-            }.labelsHidden().frame(width: columns[5])
-            number(binding.min, "min").frame(width: columns[6])
-            number(binding.max, "max").frame(width: columns[7])
-            check(binding.feedback, "feedback").frame(width: columns[8], alignment: .leading)
-            whole(binding.onValue, "on_value").frame(width: columns[9])
-            whole(binding.offValue, "off_value").frame(width: columns[10])
             HStack(spacing: 4) {
-                Button("Learn") { client.controlLearn(binding.action, mapping: mapping) }
+                Button("Learn") { client.controlLearn(binding.action) }
                     .help("Arms Learn: the next input replaces this binding's input")
                 Button(confirmRemove ? "Confirm" : "Remove") {
                     if confirmRemove { client.controlUnbind(mapping, input: binding.input); confirmRemove = false } else { confirmRemove = true }
@@ -435,7 +424,22 @@ private struct BindingRow: View {
                 .buttonStyle(FlatButton(fill: confirmRemove ? .red : nil, compact: true))
             }
             .buttonStyle(FlatButton(compact: true))
-            .frame(width: columns[11], alignment: .leading)
+            .frame(width: columns[2], alignment: .leading)
+            Picker("", selection: Binding(get: { binding.pickup }, set: { send(["pickup": $0]) })) {
+                Text("Pickup").tag(true); Text("Jump").tag(false)
+            }.labelsHidden().frame(width: columns[3])
+            check(binding.invert, "invert").frame(width: columns[4], alignment: .leading)
+            Picker("", selection: Binding(get: { binding.buttonMode }, set: { send(["button_mode": $0]) })) {
+                Text("Momentary").tag("momentary"); Text("Toggle").tag("toggle")
+            }.labelsHidden().frame(width: columns[5])
+            Picker("", selection: Binding(get: { binding.encoding ?? "" }, set: { send(["encoding": $0.isEmpty ? NSNull() : $0 as Any]) })) {
+                ForEach(Self.encodings, id: \.0) { Text($0.1).tag($0.0) }
+            }.labelsHidden().frame(width: columns[6])
+            number(binding.min, "min").frame(width: columns[7])
+            number(binding.max, "max").frame(width: columns[8])
+            check(binding.feedback, "feedback").frame(width: columns[9], alignment: .leading)
+            whole(binding.onValue, "on_value").frame(width: columns[10])
+            whole(binding.offValue, "off_value").frame(width: columns[11])
         }
         .padding(.horizontal, 8).padding(.vertical, 2)
         .onChange(of: mapping) { _, _ in confirmRemove = false }

@@ -33,17 +33,20 @@ Steps marked **(owner)** are the ones to do yourself; Claude does the rest.
       mapping is back; Import again: asked to replace, Replace keeps one copy
 
 ## Mackie unit order (CTL-31)
-- [ ] With virtual `BCF2000` and `X-Touch-Ext` enabled on the Mackie Control profile and 16 faders
-      per page: BCF2000 fader 1 moves slot 1, X-Touch-Ext fader 1 moves slot 9
-- [ ] **(owner)** Move `X-Touch-Ext` above `BCF2000` in the device table: now X-Touch-Ext fader 1
-      moves slot 1 and BCF2000 fader 1 slot 9; after a daemon restart the order is kept
+- [ ] With virtual `BCF2000` and `X-Touch-Ext` enabled (both get the Mackie Control profile) and
+      8 faders per page: BCF2000 fader 1 moves slot 1; X-Touch-Ext fader 1 moves nothing (its
+      faders 9–16 are past the page)
+- [ ] **(owner)** Move `X-Touch-Ext` above `BCF2000` with the ▲▼ arrows in the device table: now
+      X-Touch-Ext fader 1 moves slot 1 and BCF2000 nothing; after a daemon restart the order is kept
+- [ ] A device plugged in after the daemon started appears within 2 s (CTL-16)
 
 ## OSC panel (CTL-35, 41)
 - [ ] OSC is off; tick Enabled: port 8000, feedback port 9000 shown, no error
 - [ ] Send `/cmdmx/fader/1 0.5` from the shell: fader 1 goes to 50 %, the client appears under
       clients heard with its address and seconds since heard
-- [ ] Set port to 1 (cannot open): the OSC error shows in amber; set it back to 8000: cleared
-- [ ] Learn `go` from the Add row with the OSC mapping, send `/1/push1 1`: `Learned: OSC /1/push1 → go`
+- [ ] Set port to one that is in use (Claude holds UDP 8123): the OSC error shows in amber; set it back to 8000: cleared
+- [ ] Learn `go` from the Add row, send `/1/push1 1`: `Learned: OSC /1/push1 → go`, and the binding
+      is in the OSC mapping (not in the mapping shown)
 
 ## Learn mode on the main screen (CTL-42)
 - [ ] **(owner)** Press **Learn** on the Control screen, go to the main screen and click fader 3:
