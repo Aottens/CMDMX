@@ -38,7 +38,8 @@ pub struct PortInfo {
 pub enum MidiEvent {
     /// Every device connected now; sent whenever the list changes (CTL-08, 16).
     Ports(Vec<PortInfo>),
-    /// One CoreMIDI packet from a device's input.
+    /// One CoreMIDI packet from a device's input. Only the macOS MIDI thread sends it.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     Packet { device: String, bytes: Vec<u8> },
 }
 
