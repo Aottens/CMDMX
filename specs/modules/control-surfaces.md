@@ -53,6 +53,7 @@ Learn, stored as readable files and travel between Macs.
   | `go`, `back`, `stop`, `release` (optional `<slot>` or `playback <id>`; none = connected list, CUE-27) | button (on press) | `cuelist.go/back/stop`, `playback.release` |
   | `tap` (same targets) | button | `playback.tap` |
   | `page next`, `page prev`, `page <n>` | button | `page.set` (refused at 1 and at the last page: nothing happens) |
+  | `channel next`, `channel prev` (CTL-32) | button | none: moves the Mackie Control fader window |
   | `gm` | continuous | `grand_master.set` |
   | `dbo` | button (held) | `dbo.set` on press, off on release |
   | `key <name>`: `clear`, `locate`, `highlight`, `rem_dim`, `undo`, `redo`, `all`, `step_next`, `step_prev` (Fix ±1) | button | the command the screen key sends (`programmer.*`, `undo`, `redo`) |
@@ -136,7 +137,7 @@ Learn, stored as readable files and travel between Macs.
 ### Mappings and Learn
 - **CTL-22** A mapping file is readable JSON:
   `{"name":"nanoKONTROL2","device":"nanoKONTROL2*","bindings":[{"input":{"kind":"cc","channel":1,"number":0},"action":"fader 1","pickup":true},{"input":{"kind":"note","channel":1,"number":41},"action":"go","on_value":127}]}`.
-  `device` is a name or a pattern with `*`. A binding that does not parse is left out with one
+  `device` is a name or a pattern with `*`; several patterns are separated by `|` (`*BCF2000*|*X-Touch*`). A binding that does not parse is left out with one
   warning naming it; the rest loads. Unknown fields are kept on save.
 - **CTL-23** Mappings live per Mac in `~/Library/Application Support/ColourmotionDMX/control/`
   (with `--show-dir`, `<show-dir>/control/`), one file per mapping, written atomically on every
@@ -182,10 +183,17 @@ Learn, stored as readable files and travel between Macs.
   An unbound fader is driven to 0, its LEDs are off and its input does nothing.
 - **CTL-32** Mackie Control navigation: Bank ◀/▶ = `page prev`/`page next` and reset the offset to
   0; Channel ◀/▶ move the offset by W within the page (stopping at 0 and at the last window).
+  Channel ◀/▶ are the actions `channel prev`/`channel next` (added to the CTL-05 catalogue; they
+  move the window of the Mackie Control surfaces, send no engine command and do nothing on a mapping
+  without the driver). Any page change, from the surface or elsewhere, resets the offset to 0.
 - **CTL-33** Mackie Control default bindings: fader n → `fader` of window slot n (motor, CTL-20/21);
   master fader → `gm`; REC row → `upper`, SELECT row → `lower` of window slot n; V-Pot n →
   `wheel n` with the ring showing the wheel's value (single-dot mode, CTL-04); V-Pot push n →
-  `key step_next` on n = 1, unbound otherwise; transport Play → `go`, Stop → `stop`, Rewind → `back`.
+  `key step_next` on n = 1, unbound otherwise; transport Play (note 94) → `go`, Stop (93) → `stop`, Rewind (91) → `back`. Faders read and move
+  as 10-bit values (CTL-01/02): full travel is exactly 1.0. Fader touch (notes 104..112) only holds
+  the motor (CTL-20) and is never an input or learned. The profile is the file
+  `subprojects/engine/profiles/mackie-control.json` (`"driver": "mackie_control"`), built into the
+  daemon. Extenders: until the app sets the order (VS7-04), the units are ordered by device name.
   Every binding can be relearned in a user copy. What the BCF2000's four right-hand buttons and
   encoder-group buttons send in MC mode is filled in by `tests/hardware/bcf2000.md` before VS1-07
   closes.

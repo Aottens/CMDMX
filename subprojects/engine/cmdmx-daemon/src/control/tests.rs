@@ -973,3 +973,389 @@ mod virtual_port {
         assert_eq!(level(&e, slot(&e, 1, 1)), 1.0, "the last value arrived");
     }
 }
+
+// --- VS1-07 the Mackie Control profile (CTL-20, 21, 30..33) ------------------
+
+const MC: &str = "Mackie Control";
+
+/// A control layer in an empty folder: only the shipped profile.
+fn bare(test: &str) -> (Control, PathBuf) {
+    let dir = tmp(test);
+    let (c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    (c, dir)
+}
+
+/// `names` connected with outputs and enabled; each gets the profile (CTL-24).
+fn surface(test: &str, names: &[&str]) -> (Control, PathBuf) {
+    let (mut c, dir) = bare(test);
+    let list: Vec<PortInfo> = names.iter().map(|n| port(n, true)).collect();
+    ports(&mut c, &list);
+    for n in names {
+        req(
+            &mut c,
+            &format!(r#"{{"v":0,"cmd":"control.enable","device":"{n}","on":true}}"#),
+        )
+        .unwrap();
+    }
+    (c, dir)
+}
+
+/// The demo engine with `fpp` faders per page, a playback 900 + s on page 1 slot s for every
+/// slot above 8, and playback 950 on page 2 slot 1.
+fn engine_fpp(fpp: u16) -> Engine {
+    use cmdmx_core::playback::Playback;
+    use std::collections::BTreeMap;
+    let demo = engine();
+    let mut show = demo.to_show(cmdmx_core::show::Meta {
+        name: "t".into(),
+        created: String::new(),
+        modified: String::new(),
+        app_version: String::new(),
+    });
+    show.settings.faders_per_page = fpp;
+    let (mut e, _) = Engine::from_show(&show);
+    let values = || BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]);
+    for s in 9..=fpp {
+        e.add_playback(Playback::new(900 + u32::from(s), 1, s, values()));
+    }
+    if e.playbacks().all(|p| (p.page, p.slot) != (2, 1)) {
+        e.add_playback(Playback::new(950, 2, 1, values()));
+    }
+    assert_eq!(e.settings().faders_per_page, fpp);
+    e
+}
+
+/// Fader `ch` (1..=9) moved to the 14-bit `v`.
+fn pb(ch: u8, v: u16) -> [u8; 3] {
+    [0xE0 | (ch - 1), (v & 0x7F) as u8, (v >> 7) as u8]
+}
+
+fn note(n: u8, v: u8) -> [u8; 3] {
+    [0x90, n, v]
+}
+
+/// The motor of fader `ch` driven to `level` (CTL-02).
+fn motor(device: &str, ch: u8, level: f32) -> MidiOut {
+    MidiOut {
+        device: device.into(),
+        bytes: pb(ch, cmdmx_control::mcu::position(level)).to_vec(),
+    }
+}
+
+fn out(device: &str, bytes: [u8; 3]) -> MidiOut {
+    MidiOut {
+        device: device.into(),
+        bytes: bytes.to_vec(),
+    }
+}
+
+fn press(c: &mut Control, device: &str, n: u8) {
+    packet(c, device, &note(n, 127));
+    packet(c, device, &note(n, 0));
+}
+
+/// Move fader `ch` of `device` to full, return the playback it set.
+fn fader_target(c: &mut Control, e: &Engine, device: &str, ch: u8) -> Option<u32> {
+    packet(c, device, &pb(ch, 0x3FFF));
+    let cmds = c.commands(e, 0.0);
+    assert!(cmds.len() <= 1, "{cmds:?}");
+    cmds.into_iter().find_map(|(_, cmd)| match cmd {
+        Command::FaderSet { playback, .. } => Some(playback),
+        _ => None,
+    })
+}
+
+#[test]
+fn ctl_30_the_profile_ships_read_only_and_is_listed() {
+    let (mut c, dir) = bare("mc-listed");
+    let mappings = c.snapshot()["mappings"].clone();
+    assert!(
+        mappings
+            .as_array()
+            .unwrap()
+            .contains(&json!({"name": MC, "profile": true})),
+        "{mappings}"
+    );
+    assert!(c.mapping_reply(MC).contains("fader 1"));
+    ports(&mut c, &[port("BCF2000", true)]);
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"BCF2000","on":true}"#,
+    )
+    .unwrap();
+    assert_eq!(device(&c.snapshot(), "BCF2000")["mapping"], MC);
+    assert!(
+        !dir.join("control/Mackie Control.json").exists(),
+        "a profile is copied only when it is edited"
+    );
+    // The shipped file loads clean and carries the driver.
+    let (m, warnings) = cmdmx_control::mapping::Mapping::from_json(include_str!(
+        "../../../profiles/mackie-control.json"
+    ))
+    .unwrap();
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(m.name, MC);
+    assert_eq!(m.extra.get("driver"), Some(&json!("mackie_control")));
+    assert_eq!(m.bindings.len(), 41);
+}
+
+#[test]
+fn ctl_30_editing_the_profile_saves_a_user_copy_that_hides_it() {
+    let (mut c, dir) = bare("mc-copy");
+    let listed = |c: &Control| -> Vec<Value> {
+        c.snapshot()["mappings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|m| m["name"] == MC)
+            .cloned()
+            .collect()
+    };
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.binding","mapping":"Mackie Control","input":{"kind":"note","channel":1,"number":33},"action":"key step_prev"}"#,
+    )
+    .unwrap();
+    assert!(dir.join("control/Mackie Control.json").exists());
+    assert_eq!(listed(&c), [json!({"name": MC, "profile": false})]);
+    // After a restart the copy still hides the profile.
+    let (mut again, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(listed(&again), [json!({"name": MC, "profile": false})]);
+    assert!(again.mapping_reply(MC).contains("step_prev"));
+    // Deleting the copy brings the shipped profile back.
+    req(
+        &mut again,
+        r#"{"v":0,"cmd":"control.mapping_delete","name":"Mackie Control"}"#,
+    )
+    .unwrap();
+    assert_eq!(listed(&again), [json!({"name": MC, "profile": true})]);
+    assert!(!again.mapping_reply(MC).contains("step_prev"));
+    // The profile itself cannot be deleted or renamed.
+    assert!(req(
+        &mut again,
+        r#"{"v":0,"cmd":"control.mapping_delete","name":"Mackie Control"}"#,
+    )
+    .is_err());
+    assert!(req(
+        &mut again,
+        r#"{"v":0,"cmd":"control.mapping_rename","name":"Mackie Control","to":"mine"}"#,
+    )
+    .is_err());
+    assert_eq!(listed(&again), [json!({"name": MC, "profile": true})]);
+}
+
+#[test]
+fn ctl_31_fader_1_moves_playback_1_and_motor_faders_never_pick_up() {
+    let (mut c, _) = surface("mc-fader", &["BCF2000"]);
+    let mut e = engine();
+    let mut h = History::default();
+    let p1 = slot(&e, 1, 1);
+    packet(&mut c, "BCF2000", &pb(1, 0x3FFF));
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    e.tick(0.025);
+    assert_eq!(level(&e, p1), 1.0, "full travel is exactly full (CTL-01)");
+    // Far from the engine level a motor fader still sets it: no pickup (CTL-13).
+    e.set_fader(p1, 0.0, 0.05).unwrap();
+    e.tick(0.05);
+    packet(&mut c, "BCF2000", &pb(1, 512 << 4));
+    let cmds = c.commands(&e, 0.075);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    e.tick(0.075);
+    assert!((level(&e, p1) - 512.0 / 1023.0).abs() < 1e-6);
+}
+
+#[test]
+fn ctl_31_six_per_page_leaves_faders_7_and_8_unbound() {
+    let (mut c, _) = surface("mc-six", &["BCF2000"]);
+    let mut e = engine_fpp(6);
+    e.set_fader(slot(&e, 1, 6), 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 6), Some(slot(&e, 1, 6)));
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 7), None);
+    press(&mut c, "BCF2000", 6); // REC 7: unbound, does nothing
+    assert!(c.commands(&e, 0.0).is_empty());
+    let fb = c.feedback(&e);
+    assert!(fb.contains(&motor("BCF2000", 6, 1.0)), "{fb:?}");
+    assert!(fb.contains(&motor("BCF2000", 7, 0.0)), "{fb:?}");
+    assert!(fb.contains(&motor("BCF2000", 8, 0.0)), "{fb:?}");
+    assert!(
+        fb.contains(&out("BCF2000", note(6, 0))),
+        "REC 7 LED off: {fb:?}"
+    );
+}
+
+#[test]
+fn ctl_31_ten_per_page_channel_shows_slots_9_and_10_on_faders_1_and_2() {
+    let (mut c, _) = surface("mc-ten", &["BCF2000"]);
+    let mut e = engine_fpp(10);
+    e.set_fader(slot(&e, 1, 9), 1.0, 0.0).unwrap();
+    e.set_fader(slot(&e, 1, 3), 0.5, 0.0).unwrap();
+    e.tick(0.0);
+    let _ = c.feedback(&e);
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 8), Some(slot(&e, 1, 8)));
+    press(&mut c, "BCF2000", 49); // Channel ▶
+    assert!(
+        c.commands(&e, 0.0).is_empty(),
+        "the window is not an engine command"
+    );
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 9)));
+    assert_eq!(
+        fader_target(&mut c, &e, "BCF2000", 2),
+        Some(slot(&e, 1, 10))
+    );
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 3), None);
+    let fb = c.feedback(&e);
+    assert!(fb.contains(&motor("BCF2000", 1, 1.0)), "{fb:?}");
+    assert!(fb.contains(&motor("BCF2000", 3, 0.0)), "{fb:?}");
+    // At the last window Channel ▶ stops; Channel ◀ goes back.
+    press(&mut c, "BCF2000", 49);
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 9)));
+    press(&mut c, "BCF2000", 48);
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 1)));
+}
+
+#[test]
+fn ctl_31_an_extender_adds_eight_faders() {
+    let (mut c, _) = surface("mc-ext", &["BCF2000", "X-Touch-Ext"]);
+    let e = engine_fpp(16);
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 1)));
+    assert_eq!(
+        fader_target(&mut c, &e, "X-Touch-Ext", 1),
+        Some(slot(&e, 1, 9))
+    );
+    assert_eq!(
+        fader_target(&mut c, &e, "X-Touch-Ext", 8),
+        Some(slot(&e, 1, 16))
+    );
+    // 16 faders show the whole page: Channel ▶ moves nothing.
+    press(&mut c, "BCF2000", 49);
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 1)));
+}
+
+#[test]
+fn ctl_32_bank_pages_and_any_page_change_resets_the_window() {
+    let (mut c, _) = surface("mc-bank", &["BCF2000"]);
+    let mut e = engine_fpp(10);
+    let mut h = History::default();
+    press(&mut c, "BCF2000", 49); // Channel ▶: faders 1–2 show slots 9–10
+    let _ = c.commands(&e, 0.0);
+    press(&mut c, "BCF2000", 47); // Bank ▶
+    let cmds = c.commands(&e, 0.0);
+    assert!(
+        cmds.iter()
+            .any(|(_, cmd)| matches!(cmd, Command::PageSet { page: 2 })),
+        "{cmds:?}"
+    );
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    e.tick(0.025);
+    assert_eq!(e.page(), 2);
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 2, 1)));
+    // A page change from the screen resets it too.
+    press(&mut c, "BCF2000", 49);
+    let _ = c.commands(&e, 0.05);
+    e.set_page(1).unwrap();
+    e.tick(0.05);
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 1)));
+    // Bank ◀ on page 1 does nothing.
+    press(&mut c, "BCF2000", 46);
+    assert!(c.commands(&e, 0.075).is_empty());
+}
+
+#[test]
+fn ctl_33_default_bindings() {
+    use cmdmx_core::playback::{HandleButton, ListAction};
+    let (mut c, _) = surface("mc-defaults", &["BCF2000"]);
+    let e = engine();
+    let p1 = slot(&e, 1, 1);
+    for bytes in [
+        pb(9, 0x3FFF),    // master fader
+        note(0, 127),     // REC 1
+        note(24, 127),    // SELECT 1
+        note(94, 127),    // Play
+        note(93, 127),    // Stop
+        note(91, 127),    // Rewind
+        note(32, 127),    // V-Pot push 1
+        note(33, 127),    // V-Pot push 2: unbound
+        [0xB0, 17, 0x41], // V-Pot 2 down 1: no wheel 2 without a selection
+    ] {
+        packet(&mut c, "BCF2000", &bytes);
+    }
+    let cmds: Vec<Command> = c.commands(&e, 0.0).into_iter().map(|(_, c)| c).collect();
+    assert_eq!(cmds.len(), 7, "{cmds:?}");
+    assert!(matches!(cmds[0], Command::GrandMasterSet { level } if level == 1.0));
+    assert!(matches!(
+        cmds[1],
+        Command::PlaybackButton { id, button: HandleButton::Upper, on: true, .. } if id == p1
+    ));
+    assert!(matches!(
+        cmds[2],
+        Command::PlaybackButton { id, button: HandleButton::Lower, on: true, .. } if id == p1
+    ));
+    assert!(matches!(
+        cmds[3],
+        Command::CuelistAction {
+            id: None,
+            action: ListAction::Go
+        }
+    ));
+    assert!(matches!(
+        cmds[4],
+        Command::CuelistAction {
+            id: None,
+            action: ListAction::Stop
+        }
+    ));
+    assert!(matches!(
+        cmds[5],
+        Command::CuelistAction {
+            id: None,
+            action: ListAction::Back
+        }
+    ));
+    assert!(matches!(cmds[6], Command::Step { forward: true }));
+    // Rings show the wheel's value; with no wheel they are off.
+    let fb = c.feedback(&e);
+    assert!(fb.contains(&out("BCF2000", [0xB0, 48, 0])), "{fb:?}");
+    assert!(
+        fb.contains(&motor("BCF2000", 9, e.grand_master())),
+        "{fb:?}"
+    );
+}
+
+#[test]
+fn ctl_20_a_touched_motor_gets_no_position_until_release_and_touch_never_learns() {
+    let (mut c, _) = surface("mc-touch", &["BCF2000"]);
+    let mut e = engine();
+    let p1 = slot(&e, 1, 1);
+    let _ = c.feedback(&e);
+    packet(&mut c, "BCF2000", &note(104, 127));
+    assert!(c.commands(&e, 0.0).is_empty(), "touch is not an input");
+    e.set_fader(p1, 0.7, 0.0).unwrap();
+    e.tick(0.025);
+    let fb = c.feedback(&e);
+    assert!(!fb.iter().any(|o| o.bytes[0] == 0xE0), "{fb:?}");
+    packet(&mut c, "BCF2000", &note(104, 0));
+    assert!(c.commands(&e, 0.05).is_empty());
+    assert!(c.feedback(&e).contains(&motor("BCF2000", 1, 0.7)));
+    assert!(!c.feedback(&e).iter().any(|o| o.bytes[0] == 0xE0), "once");
+    // Learn ignores touch (CTL-25).
+    req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"go"}"#).unwrap();
+    packet(&mut c, "BCF2000", &note(105, 127));
+    assert_eq!(c.snapshot()["learn"], "go");
+}
+
+#[test]
+fn ctl_21_motors_follow_a_page_change() {
+    let (mut c, _) = surface("mc-page", &["BCF2000"]);
+    let mut e = engine();
+    e.set_fader(slot(&e, 1, 1), 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    assert!(c.feedback(&e).contains(&motor("BCF2000", 1, 1.0)));
+    e.set_page(2).unwrap();
+    e.tick(0.025);
+    let fb = c.feedback(&e);
+    assert!(fb.contains(&motor("BCF2000", 1, 0.0)), "{fb:?}");
+}
