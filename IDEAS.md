@@ -34,6 +34,7 @@ the backlog, not the whole idea.
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
 | IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | triaged | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
+| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 2+ (USB surface first) | new `hardware.md`, CTL, licence |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -389,3 +390,43 @@ CTL-17 and one dependency (`hidapi`) in the daemon when its phase comes.
 - Route 1 (native, no Elgato app), route 2 (plugin), or both?
 - Which models: Stream Deck (15), Mini, XL, Stream Deck+ (dials for wheels/levels), Neo?
 - What a playback key does by default: Go, Flash or Swop (as the handle's buttons, CUE-25)?
+
+### IDEA-23 — Open-hardware desk for the maker community (2026-10-23)
+**Owner's intent:** CMDMX becomes a lighting desk for the maker community. The software stays
+1 universe free, more for a small fee (IDEA-21). Next to it, open build plans so anyone can
+build a real, full-size desk: two 15" touch screens, playback faders under them, the needed
+keys, a flight case design, and show-proof. A ~€1000–2500 build would beat desks that cost
+many times more.
+**Triage:**
+- **The engine does not change.** Under "control is general MIDI + OSC" (CTL, VS7) the desk
+  surface is one more controller profile, like the BCF2000: a microcontroller (Teensy 4.1 /
+  RP2040) reads faders, keys and encoders and shows up as a USB-MIDI device. Fader count stays
+  configuration (`faders_per_page`).
+- **Build path in steps:** (1) the surface as a USB-MIDI box on today's Mac app; (2) Mac mini
+  plus two screens in an enclosure = a full desk on the current software; (3) a Linux/ARM build
+  (Pi 5, RK3588, N100) for a cheaper, Apple-free desk.
+- **Step 3 needs a cross-platform UI.** The engine already builds on Linux; the UI is SwiftUI.
+  The UI talks to the daemon over WebSocket and holds no lighting logic, so it is a rewrite of
+  the screens, not of the console. `PROJECT.md` lists "Windows/Linux UI" out of scope; that
+  changes if step 3 is accepted. For makers a Linux build is the natural target.
+- **Licence gets a hardware axis.** Plans (PCB, firmware, CAD, BOM, build guide) need their
+  own licence, e.g. CERN-OHL-S/W or CC BY-SA, separate from the software choice in IDEA-21.
+  Not forced now.
+- **Show-proof hardware:** no SD card (NVMe), read-only root filesystem, locking power
+  (PowerCON/IEC lock) and a small UPS or supercap, locking USB/Ethernet (etherCON), a firmware
+  watchdog, and the surface failing safe: if the UI crashes, the daemon keeps output alive
+  (already the rule), and a lost surface never changes levels.
+- **Flight case:** parametric design around the desk (standard case hardware, birch ply with
+  aluminium extrusion), published as drawings a case maker or a maker can build from.
+- **Repo shape:** a `subprojects/hardware/` (KiCad PCB, firmware, enclosure and case CAD, BOM,
+  build guide), hosted on the IDEA-20 website. Hardware tasks ship with owner-only checklists
+  (gate 3).
+**Open questions:**
+- Step 3 at all: Mac mini only, or a Linux/ARM build with a cross-platform UI?
+- Layout: how many playback faders and keys per fader, encoders, keypad (closer to Titan
+  Mobile or Tiger Touch)?
+- Motorised faders (clean page changes, ~€15–25 each) or pickup/catch on plain faders?
+- DMX XLR outputs built in (RS485 on the surface MCU) or Ethernet/Art-Net only plus a USB
+  interface?
+- Plans only, or also sell kits/PCBs later?
+- Hardware licence (CERN-OHL-S, CERN-OHL-W, CC BY-SA)?
