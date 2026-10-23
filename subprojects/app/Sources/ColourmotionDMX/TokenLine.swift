@@ -98,6 +98,12 @@ enum MacKeys {
             if chord == .command { engine.undo() } else { engine.redo() }
             return true
         }
+        // CTL-42: Esc ends Learn mode (and cancels an armed Learn), whatever the Keys toggle says.
+        // Also from a text field: Esc there only drops the edit.
+        if event.keyCode == 53, chord.isEmpty, ui.learnMode || engine.control.learn != nil {
+            ui.setLearnMode(false, engine)
+            return true
+        }
         // Keys off, a shortcut chord, or a text field (Patch, Show) with focus: not ours.
         guard UserDefaults.standard.bool(forKey: "keysLive"),
               event.modifierFlags.isDisjoint(with: [.command, .control, .option]),

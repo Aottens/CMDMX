@@ -215,7 +215,18 @@ private struct Keypad: View {
     /// Something is selected or in the programmer: Clear glows (as in the attribute bar).
     private var dirty: Bool { !engine.programmer.selection.isEmpty || !engine.programmer.inProgrammer.isEmpty }
 
+    /// CTL-42: the action a key arms in Learn mode (CTL-05); nil = the key has none and just runs.
+    private static let learnActions = [
+        "Clear": "key clear", "Locate": "key locate", "Highlight": "key highlight", "Fix -1": "key step_prev", "Fix +1": "key step_next",
+        "Back": "keypad Backspace", "Enter": "keypad Enter", "Thro": "keypad Thro", "And": "keypad And", "@": "keypad @",
+        "Fixture": "keypad Fixture", "Group": "keypad Group", "Palette": "keypad Palette", ".": "keypad .",
+    ]
+
     private func press(_ label: String) {
+        ui.learnOrRun(Self.learnActions[label] ?? (label.count == 1 && label.first?.isNumber == true ? "keypad \(label)" : nil), engine) { run(label) }
+    }
+
+    private func run(_ label: String) {
         switch label {
         case "Back": line.back()
         case "Exit": line.clear(); ui.cancelModes()   // also disarms Record and the function buttons (PBK-28)
@@ -283,11 +294,11 @@ private struct Softkeys: View {
         if ui.paletteMenu { return paletteContext }
         if !engine.programmer.selection.isEmpty {
             return ("Selection", [
-                Softkey(name: "Next", sub: "Fix +1", action: { engine.step(1) }),
-                Softkey(name: "Previous", sub: "Fix −1", action: { engine.step(-1) }),
-                Softkey(name: "All", sub: "whole selection", action: { engine.selectAll() }),
+                Softkey(name: "Next", sub: "Fix +1", action: { ui.learnOrRun("key step_next", engine) { engine.step(1) } }),
+                Softkey(name: "Previous", sub: "Fix −1", action: { ui.learnOrRun("key step_prev", engine) { engine.step(-1) } }),
+                Softkey(name: "All", sub: "whole selection", action: { ui.learnOrRun("key all", engine) { engine.selectAll() } }),
                 Softkey(name: "Odd/Even", action: { engine.pattern(2) }),
-                Softkey(name: "Rem Dim", sub: "the rest to 0", action: { engine.remDim() }),   // UI-26
+                Softkey(name: "Rem Dim", sub: "the rest to 0", action: { ui.learnOrRun("key rem_dim", engine) { engine.remDim() } }),   // UI-26
                 optionsKey,
                 undoKey,
             ])
@@ -306,7 +317,7 @@ private struct Softkeys: View {
     /// UNDO-18: the IPC-31 label as the second line; no action while there is nothing to undo.
     private var undoKey: Softkey {
         Softkey(name: "Undo", sub: engine.undoLabel ?? "nothing", spec: "Undo · ⌘Z",
-                action: engine.undoLabel == nil ? nil : { engine.undo() })
+                action: engine.undoLabel == nil && !ui.learnMode ? nil : { ui.learnOrRun("key undo", engine) { engine.undo() } })
     }
 
     private var setLegendKey: Softkey {

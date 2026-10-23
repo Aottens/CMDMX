@@ -40,7 +40,9 @@ private struct PagesColumn: View {
                 let current = number == engine.page.number
                 let legend = engine.pages.first { $0.number == number }?.legend ?? ""
                 Button {
-                    if ui.function == .legend { ui.pageLegendEditing = PageRef(number: number) } else { engine.setPage(number) }
+                    ui.learnOrRun("page \(number)", engine) {
+                        if ui.function == .legend { ui.pageLegendEditing = PageRef(number: number) } else { engine.setPage(number) }
+                    }
                 } label: {
                     HStack(spacing: 3) {
                         Text("\(number)").font(Typo.mono(Typo.small))
@@ -94,7 +96,15 @@ private struct StripCell: View {
     private func hold(_ index: Int) -> HoldActions {
         let function = slot.info?.stored.buttons[safe: index] ?? "None"
         let which = index == 0 ? "upper" : "lower"
-        return HoldActions(press: { HandleTaps.buttonPress($0, which: which, function: function, info: slot.info, engine: engine, ui: ui) },
+        // CTL-42: in Learn mode the press arms Learn (a one-shot, nothing to release); the button is live
+        // even on an empty handle.
+        return HoldActions(press: { id in
+                               var oneShot = true
+                               ui.learnOrRun("\(which) \(slot.id + 1)", engine) {
+                                   oneShot = HandleTaps.buttonPress(id, which: which, function: function, info: slot.info, engine: engine, ui: ui)
+                               }
+                               return oneShot
+                           },
                            release: { engine.pressButton($0, which, on: false) })
     }
 
@@ -104,17 +114,19 @@ private struct StripCell: View {
                    connected: slot.playback != nil && slot.playback == engine.connected,
                    armed: ui.recordArmed || (ui.function != nil && ui.function != .include && ui.function != .latch),
                    onChange: { level in
-                       if let id = slot.playback { engine.setFader(playback: id, level: level) }
+                       if let id = slot.playback, !ui.learnMode { engine.setFader(playback: id, level: level) }
                    },
                    onTouch: { held in
-                       if let id = slot.playback { engine.touchFader(playback: id, held: held) }
+                       // CTL-42: touching the fader arms Learn for it; the level does not move.
+                       if held { ui.learnOrRun("fader \(slot.id + 1)", engine) { if let id = slot.playback { engine.touchFader(playback: id, held: true) } } }
+                       else if !ui.learnMode, let id = slot.playback { engine.touchFader(playback: id, held: false) }
                    },
                    onScroll: { steps, flags in
-                       if let id = slot.playback { engine.nudgeFader(playback: id, by: Double(steps) * faderScrollStep(flags)) }
+                       if let id = slot.playback, !ui.learnMode { engine.nudgeFader(playback: id, by: Double(steps) * faderScrollStep(flags)) }
                    },
                    onLegendTap: { HandleTaps.tap(slot: slot.id + 1, info: slot.info, engine: engine, ui: ui, line: line) },
                    onRightClick: { HandleTaps.rightClick(info: slot.info, engine: engine, ui: ui) },
-                   upper: hold(0), lower: hold(1))
+                   upper: hold(0), lower: hold(1), learn: ui.learnMode)
     }
 }
 
@@ -153,6 +165,8 @@ private struct FaderStrip: View {
     let onRightClick: () -> Void
     let upper: HoldActions
     let lower: HoldActions
+    /// CTL-42: Learn mode lights the handle buttons even on an empty handle.
+    var learn = false
 
     var body: some View {
         let empty = slot.playback == nil
@@ -173,7 +187,7 @@ private struct FaderStrip: View {
             }
             ForEach(0..<2, id: \.self) { index in
                 let function = functions[safe: index] ?? "None"
-                HoldKey(label: function == "None" ? "" : function, target: function == "None" ? nil : slot.playback,
+                HoldKey(label: function == "None" ? "" : function, target: learn ? (slot.playback ?? -1) : function == "None" ? nil : slot.playback,
                         inverted: function == "Flash" && slot.info?.live.latched == true, actions: index == 0 ? upper : lower)
             }
         }
@@ -379,14 +393,19 @@ private struct LevelBar: View {
 private struct GrandMaster: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
 
     var body: some View {
         VStack(spacing: 3) {
             Text("GM").font(Typo.legend(11)).foregroundStyle(t.fg2).frame(height: 18)
-            LevelBar(value: Binding(get: { engine.grandMaster }, set: { engine.setGrandMaster($0) }), warnBelowFull: true,
-                     onTouch: { engine.touchGrandMaster(held: $0) })
+            // CTL-42: in Learn mode touching the GM arms Learn for `gm`; the level does not move.
+            LevelBar(value: Binding(get: { engine.grandMaster }, set: { if !ui.learnMode { engine.setGrandMaster($0) } }), warnBelowFull: true,
+                     onTouch: { held in
+                         if held { ui.learnOrRun("gm", engine) { engine.touchGrandMaster(held: true) } }
+                         else if !ui.learnMode { engine.touchGrandMaster(held: false) }
+                     })
             KeyButton(label: "DBO", spec: "Dead Black Out: all intensity to 0 (toggle)", height: 30,
-                      lit: engine.dbo, action: { engine.setDBO(!engine.dbo) })
+                      lit: engine.dbo, action: { ui.learnOrRun("dbo", engine) { engine.setDBO(!engine.dbo) } })
         }
         .padding(4)
     }

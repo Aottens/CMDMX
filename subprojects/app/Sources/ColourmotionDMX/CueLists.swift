@@ -41,6 +41,7 @@ private func trackText(_ track: String) -> String {
 struct GoBlock: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
 
     var body: some View {
         let list = engine.connectedList
@@ -51,16 +52,18 @@ struct GoBlock: View {
             goButton(list)
             if let list, list.isChase {
                 HStack(spacing: 2) {
-                    KeyButton(label: "Tap", spec: "Tap the tempo", height: 30, action: { engine.tapPlayback(list.id) })
+                    KeyButton(label: "Tap", spec: "Tap the tempo", height: 30, action: { ui.learnOrRun("tap", engine) { engine.tapPlayback(list.id) } })
                     BPMField(id: list.id, bpm: list.live.bpm ?? list.stored.chase.bpm)
                 }
             }
             HStack(spacing: 2) {
-                KeyButton(label: "Back", spec: "Back one cue", height: 30, action: list == nil ? nil : { engine.cuelist("back") })
+                // CTL-42: in Learn mode the keys are live without a list and arm Learn for their plain action.
+                let usable = list != nil || ui.learnMode
+                KeyButton(label: "Back", spec: "Back one cue", height: 30, action: usable ? { ui.learnOrRun("back", engine) { engine.cuelist("back") } } : nil)
                 KeyButton(label: "Stop", spec: "Pause the running transition; again = Back", height: 30, lit: live?.paused == true,
-                          action: list == nil ? nil : { engine.cuelist("stop") })
+                          action: usable ? { ui.learnOrRun("stop", engine) { engine.cuelist("stop") } } : nil)
                 KeyButton(label: "Release", spec: "Release the list; it starts from its first cue next time", height: 30,
-                          action: list == nil ? nil : { engine.releaseConnected() })
+                          action: usable ? { ui.learnOrRun("release", engine) { engine.releaseConnected() } } : nil)
             }
         }
         .padding(6)
@@ -119,9 +122,9 @@ struct GoBlock: View {
     private func goButton(_ list: PlaybackInfo?) -> some View {
         let live = list?.live.cue
         let next = live?.next
-        let enabled = list != nil && next != nil
+        let enabled = (list != nil && next != nil) || ui.learnMode
         let running = live.map { $0.current != nil && $0.progress > 0 && $0.progress < 1 } == true
-        return Button { engine.cuelist("go") } label: {
+        return Button { ui.learnOrRun("go", engine) { engine.cuelist("go") } } label: {
             VStack(alignment: .leading, spacing: 6) {
                 Text("GO").font(Typo.legend(24, .semibold)).tracking(2.9).foregroundStyle(t.green)
                 if let list {

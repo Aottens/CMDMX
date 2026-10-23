@@ -207,6 +207,8 @@ pub struct Control {
     /// What the Mackie units show (CTL-32), and the page it belongs to.
     window: Window,
     window_page: u16,
+    /// The user's unit order (CTL-31); units not listed follow, by name.
+    order: Vec<String>,
     learn: Option<Learn>,
     last_input: Option<LastInput>,
     messages: Vec<String>,
@@ -544,7 +546,16 @@ impl Control {
             dev.mapping = d.get("mapping").and_then(Value::as_str).map(str::to_string);
             devices.insert(name.clone(), dev);
         }
+        let order = (saved.as_ref())
+            .and_then(|s| s.get("control")?.get("order")?.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|n| n.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
         let mut control = Control {
+            order,
             dir,
             state_file,
             devices,
@@ -850,10 +861,12 @@ impl Control {
     /// The connected, enabled Mackie units by device name; also keeps the shared window valid:
     /// any page change resets it (CTL-32), and it stays inside the page.
     fn mackie_units(&mut self, engine: &Engine) -> Vec<String> {
-        let units: Vec<String> = (self.devices.iter())
+        let mut units: Vec<String> = (self.devices.iter())
             .filter(|(_, d)| d.connected && d.enabled && is_mackie(&self.mappings, d))
             .map(|(n, _)| n.clone())
             .collect();
+        // Stable: listed units in list order, the rest keep their by-name order (CTL-31).
+        units.sort_by_key(|n| self.order.iter().position(|o| o == n).unwrap_or(usize::MAX));
         if engine.page() != self.window_page {
             self.window_page = engine.page();
             self.window.reset();
@@ -887,7 +900,7 @@ impl Control {
                 )
             })
             .collect();
-        let control = json!({ "devices": devices, "osc": self.osc.settings });
+        let control = json!({ "devices": devices, "osc": self.osc.settings, "order": self.order });
         update_state(&self.state_file, "control", control)
             .map_err(|e| format!("cannot save the control settings: {e}"))
     }
@@ -921,6 +934,10 @@ impl Control {
                     d.enabled = on;
                 }
                 self.refresh();
+                self.persist()
+            }
+            ControlRequest::Order { devices } => {
+                self.order = devices;
                 self.persist()
             }
             ControlRequest::Assign { device, mapping } => {
@@ -1131,6 +1148,7 @@ impl Control {
         json!({
             "devices": devices,
             "mappings": mappings,
+            "order": self.order,
             "learn": self.learn.as_ref().map(|l| l.action.to_string()),
             "last_input": last_input,
             "osc": self.osc_snapshot(),
