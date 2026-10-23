@@ -1,7 +1,9 @@
 # ADR-003: Mackie Control Universal is the first control-surface protocol
 
-**Status:** accepted
+**Status:** accepted, amended 2026-10-23
 **Date:** 2026-10-16
+
+> **Amendment 2026-10-23 (owner, P1-05):** the generic MIDI and OSC layer comes first and Mackie Control is a *surface profile* on it, not the first driver with generic MIDI after it. The wire format below stays (CTL-01..04); the bank model is `control-surfaces.md` CTL-31/32 (a window of the page, never a hard-coded 8). See DECISIONS 2026-10-23.
 
 ## Context
 The owner's controller is a Behringer BCF2000: 8 motorised faders, 8 push-encoders with LED rings in 4 encoder groups, 16 buttons under the encoders, 4 free buttons, no display. It supports a plain MIDI mode (7-bit CC faders, user-assignable) and a Mackie Control emulation (10-bit pitchbend faders, motor feedback, standard button/LED map). The same MCU protocol is native to Behringer X-Touch, X-Touch Compact, iCON and others.

@@ -5,6 +5,12 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-23 — Control is a general MIDI and OSC layer; named hardware are profiles on it (P1-05, owner)
+**Decision:** `cmdmx-control` is a general control layer: any MIDI device in and out (CoreMIDI in the daemon), notes/CC/14-bit CC/pitch bend/program change mapped to one action catalogue (faders, handle buttons, Go/Back, page, GM, programmer keys, keypad, wheels) that sends the engine's existing commands; Learn, feedback (motor faders, LEDs, value echo), mappings as portable JSON files, several devices at once; OSC in and out with a `/cmdmx` schema and custom addresses. The Behringer BCF2000 in Mackie Control mode is one surface profile on it (ADR-003 amended), the church TouchOSC remote one OSC client. Spec `specs/modules/control-surfaces.md` (CTL-05..43 draft; CTL-01..04 kept as the Mackie Control wire format). VS1-07 and VS4-04 re-scoped under it; new tasks VS7-01..04.
+**Alternatives considered:** a BCF2000/MCU driver first with generic MIDI later (ADR-003 as written); a driver per device; OSC only for the TouchOSC layout.
+**Reasoning:** the owner corrected that the work talked only about the BCF2000; the church is a playground, not the limit. One action vocabulary keeps lighting logic out of the control layer and makes every input obey undo and refusals like a screen button.
+**Reversal trigger:** a surface needs behaviour the action catalogue cannot express without lighting logic in `cmdmx-control`.
+
 ## 2026-10-22 — Multi-universe output: nodes in the show (P1-18, owner)
 **Decision:** output nodes are show data (`output` key, schema 6; OUT-13). Each universe gets a default Art-Net node (port-address n−1, broadcast) and sACN node (universe n, multicast), both enabled, added automatically when the universe gets its first fixture; the serial port is stored in the show (missing port = Degraded); several serial nodes allowed, `auto` at most once; `--artnet-target`, `--sacn-unicast`, `--sacn-priority` and `--serial` are removed, `--no-*` stay as run-time kill switches; output edits are undoable edits (OUT-25..37).
 **Alternatives considered:** Titan's defaults (16 fixed lines, Art-Net off); the serial port per Mac in the daemon's state file; keeping the flags as overrides.

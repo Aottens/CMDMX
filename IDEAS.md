@@ -72,7 +72,7 @@ the backlog, not the whole idea.
 ### IDEA-06 — Own web remote with a password (2026-10-17)
 **Owner's intent:** in the church a TouchOSC layout on an old iPad mini in another room is the remote today. Rather: our own web app, usable by anyone on the network who has the password, from an iPad or the browser on the Mac there. Hardware control (BCF2000 or similar) in the church is wanted too.
 **Triage:** phase 2. It reuses the WebSocket contract (`ipc.md`); it needs a LAN listener, a password/session and a touch-friendly page. For the phase-1 finish line (replace Lightkey) the existing TouchOSC layout can keep working through the OSC schema that phase 1 already has (CTL, P1-05) — so the remote is not lost when Lightkey goes. The BCF2000 is phase 1 already (VS1-07, MCU driver).
-**Open questions:** which controls does the TouchOSC layout have today (faders, cue Go, presets)? That defines the OSC schema in P1-05.
+**Open questions:** which controls does the TouchOSC layout have today (faders, cue Go, presets)? That defines the OSC schema in P1-05. (Asked again as question 8 of `control-surfaces.md`; custom-address Learn, CTL-38, keeps the layout unchanged.)
 
 ### Decision these ideas force now
 IDEA-02 and IDEA-03 only work if palettes and cues store a colour as a **target colour** (device-independent) and not as raw DMX channel values. The palettes spec (P1-03) and the show file fix that format, so this decision must come **before** P1-03, otherwise phase 2 means rewriting palettes and show files. → `BACKLOG.md` P1-07.

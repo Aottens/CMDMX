@@ -8,8 +8,9 @@ MIDI controller, or both.
 - **Show-proof by design.** The engine is a separate Rust process; if the app hangs or crashes,
   DMX keeps flowing and the app reconnects.
 - **Native Mac app** in SwiftUI, built with the Command Line Tools only.
-- **Out:** Art-Net, sACN and ENTTEC-Pro-compatible USB interfaces. **In:** Mackie Control
-  surfaces such as the Behringer BCF2000.
+- **Out:** Art-Net, sACN and ENTTEC-Pro-compatible USB interfaces. **In (planned):** any MIDI
+  controller and any OSC app, mapped by Learn, with motor-fader and LED feedback; Mackie Control
+  surfaces such as the Behringer BCF2000 come with a ready profile.
 - **Fixtures:** the whole open QLC+ library (about 1800 fixtures), plus profiles typed from a
   plain channel list for fixtures nobody has a file for.
 
@@ -32,7 +33,7 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: MIDI, Mackie Control and OSC surfaces. What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: a general MIDI and OSC control layer (spec `specs/modules/control-surfaces.md`, waiting for approval), with Mackie Control as its first profile. What works today:
 
 - The engine runs at 40 Hz and outputs every patched universe over Art-Net, sACN and USB (ENTTEC
   Pro protocol). Where each universe goes is part of the show: a universe that gets its first

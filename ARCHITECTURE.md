@@ -30,7 +30,7 @@ Why two processes: a UI hang or crash must never stop DMX output. The daemon kee
 - `subprojects/engine/` — Rust Cargo workspace, four crates:
   - `cmdmx-core` — pure domain model and engine. No I/O, no threads, no clock of its own (the tick receives a timestamp). Everything here is deterministic and covered by scenario tests.
   - `cmdmx-protocols` — byte-exact packet/frame builders and parsers. No sockets; the daemon owns sockets and serial ports.
-  - `cmdmx-control` — control-surface protocols (Mackie Control Universal, generic MIDI mapping) as pure encode/decode. No CoreMIDI; the daemon owns MIDI ports.
+  - `cmdmx-control` — the general MIDI and OSC control layer as pure code: MIDI and OSC decode/encode, mappings, pickup, feedback, learn, and surface profiles on top (Mackie Control first). No CoreMIDI or sockets; the daemon owns MIDI ports and the OSC socket (`control-surfaces.md`).
   - `cmdmx-daemon` — the only crate with I/O: sockets, serial, MIDI, timers, IPC server, autosave.
 - `subprojects/app/` — SwiftPM package. Renders state, sends commands. Zero lighting logic.
 

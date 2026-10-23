@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-23 (VS6-03 Output screen in the app, PR open; VS6-04 merged #73)_
+_Last updated: 2026-10-23 (P1-05 control-surfaces spec, PR open for owner approval)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -82,7 +82,12 @@ DECISIONS; focus is a general console, the church is the first proof):
    VS5-04 (PRG-45): built, PR open: undo and redo let go of every LTP value or located value
    the restored programmer no longer holds by `clear_ltp`, as Clear does.
 3. **P1-18** multi-universe output: VS6-01 (core) merged, VS6-02 (daemon) merged, VS6-03 (app Output screen) PR open.
-4. **P1-05** control surfaces spec, then VS1-07 (MCU) and VS4-04 (TouchOSC).
+4. **P1-05** control surfaces: spec written (`specs/modules/control-surfaces.md`, CTL-05..43 draft,
+   CTL-01..04 kept as the Mackie Control wire format), PR open, waiting for the owner's answers to
+   its ten questions (gate 1). Scope (owner, 2026-10-23): a general MIDI + OSC layer; the BCF2000
+   is the Mackie Control profile on it (VS1-07), the church TouchOSC remote one OSC client (VS4-04).
+   Build tasks after approval: VS7-01 (control core), VS7-02 (daemon MIDI + IPC), VS1-07, VS7-03
+   (OSC), VS7-04 (app Control screen), VS4-04.
 After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15
 (multi-select in the patch table). Cue lists (P1-08, VS3-02..05) and group masters (VS3-06/07) are done.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
