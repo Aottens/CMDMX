@@ -54,8 +54,8 @@ Steps marked **(owner)** are the ones to do yourself; Claude does the rest.
 - [ ] Move CC 8 on `Test Pad`: `Learned: … → fader 3`; learn mode stays on
 - [ ] **(owner)** Click Go in the Go block, then press note 60: learned to `go`; the cue list did
       not go when you clicked
-- [ ] Click page ▶, the GM and Clear in turn, each followed by an input: learned `page next`, `gm`,
-      `key clear`
+- [ ] Click page 2, the GM and Clear in turn, each followed by an input: learned `page 2`, `gm`,
+      `key clear` (the pages bar has numbered buttons, no ▶)
 - [ ] **(owner)** Esc: learn mode ends, the message clears, the screen's buttons work again
 
 ## Status bar (CTL-43)
