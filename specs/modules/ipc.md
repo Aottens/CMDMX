@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 proposed 2026-10-23 (P1-14), awaiting owner approval**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -93,6 +93,33 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 The patch messages (snapshot `fixtures` entries, `fixtures` delta, `patch.*` commands) and the
 Patch screen are specified in `patch.md` PAT-09 and PAT-10; IPC-10's `fixtures` entries grow to
 the PAT-09 shape.
+
+### Library browsing and the profile editor (P1-14; behaviour in `fixture-library.md` LIB-19..27, proposed 2026-10-23)
+- **IPC-35** `library.manufacturers {"query":"phantom"}` (`query` optional) → to the asking client
+  only `{"v":0,"type":"library.manufacturers","query":"phantom","items":[{"name":"Showtec","models":3}]}`
+  (LIB-20). Answered in the client thread like `library.search` (class neutral, UNDO-04); while
+  the library is loading, the LIB-14 error.
+- **IPC-36** `library.models {"manufacturer":"Showtec","query":"phantom"}` (both optional, at
+  least one) → to the asking client only `{"v":0,"type":"library.models","manufacturer":"Showtec",
+  "query":"phantom","items":[{"manufacturer":"Showtec","model":"Phantom 25 LED Spot","modes":[{"name":"11 Channel","channels":11}],"source":"user"}],"truncated":false}`
+  (LIB-19, LIB-21). Neither field → error (IPC-06). The reply echoes `manufacturer` and `query`
+  so the app drops answers to an older query (LIB-22). Neutral, client thread.
+- **IPC-37** `patch.profile {"profile":"Showtec/Phantom 25 LED Spot"}` → the show's own copy of
+  that profile, to the asking client only: `{"v":0,"type":"patch.profile","profile_key":"Showtec/Phantom 25 LED Spot","profile":{…}}`.
+  Answered by the tick like `cue.view` (IPC-24: put on that client's queue without waiting);
+  a key the show does not carry → error to the asking client. Neutral.
+- **IPC-38** `profile.save {"profile":{…}}` (LIB-25): class edit, one undo step labelled "Edit
+  profile <model>". The tick checks and installs it in the show (a refusal is a `warning`,
+  IPC-06, and nothing is written); the user profile file is then written off the tick, like the
+  autosave, and the asking client gets `{"v":0,"type":"library.saved","manufacturer","model","fixtures":4}`
+  (`fixtures`: patched fixtures now using it; 0 when the show does not carry it). The library
+  index takes the new entry, so a later `library.*` shows it as `"source":"user"`.
+  `library.save_profile` (LIB-14) stays: it writes the file only.
+- **IPC-39** `programmer.set {"attribute":"Pan","value":0.5}` sets that attribute to an absolute
+  level (0.0–1.0) on every selected fixture that has it, as a touched programmer value (like a
+  wheel move, PRG-19); class edit, coalesced with other `programmer.set` of the same attribute
+  like a wheel (UNDO-05). A value outside 0.0–1.0, or an attribute none of the selected fixtures
+  has, is a `warning`. `Colour` is refused here (`programmer.colour` sets it).
 
 ### Show file (SHW-b)
 The show messages (snapshot `show`, `show` delta, `show.list/new/open/save_as`) are specified in
