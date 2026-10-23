@@ -166,8 +166,9 @@ model, and a show carries the profiles it uses.
 ### Browsing the library (P1-14, IDEA-08; sketch `specs/ux/library-and-profile-editor.html`)
 - **LIB-19** The index knows each mode's channel count without converting a profile: while
   indexing, a QLC+ mode counts its `<Channel>` entries and a user profile takes the mode's
-  footprint. An index entry's modes are `{name, channels}`. Showtec LED Par 56 → "3 Channel" 3,
-  "6 Channel" 6; Shehds 19x15 → "16 Channel" 16, "24 Channel" 24. `library.search` (LIB-14) is
+  footprint. An index entry's modes are `{name, channels}`. Showtec LED Par 56 (QLC+) → "6 Channel"
+  6, a user profile with a 3-channel mode → "3 Channel" 3; Shehds 19x15 → "16 Channel" 16,
+  "24 Channel" 24. `library.search` (LIB-14) is
   unchanged.
 - **LIB-20** Manufacturers: the index lists every manufacturer once, sorted case-insensitively,
   with its number of models (a user profile that hides a QLC+ one counts once, LIB-12). With a

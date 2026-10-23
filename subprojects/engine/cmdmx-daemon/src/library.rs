@@ -257,9 +257,71 @@ mod tests {
         assert_eq!(all.len(), 3, "only *.qxf files count");
         let shehds = lib.search("shehds 19x15");
         assert_eq!(shehds.len(), 1);
-        assert_eq!(shehds[0].modes, ["16 Channel", "24 Channel"]);
+        let modes: Vec<(&str, u16)> = shehds[0]
+            .modes
+            .iter()
+            .map(|m| (m.name.as_str(), m.channels))
+            .collect();
+        assert_eq!(modes, [("16 Channel", 16), ("24 Channel", 24)]);
         assert_eq!(shehds[0].source, "qlcplus");
         assert!(!user.exists(), "loading never creates the folder");
+    }
+
+    #[test]
+    fn lib_19_a_user_profile_takes_each_modes_footprint() {
+        let user = user_dir("footprint");
+        let mut lib = load(&user);
+        let list = ChannelList {
+            manufacturer: "Showtec".into(),
+            model: "LED Par 56 (church)".into(),
+            mode: "3 Channel".into(),
+            channels: vec![ChannelType::Red, ChannelType::Green, ChannelType::Blue],
+        };
+        lib.save_channel_list(&list).unwrap();
+        let mode = |lib: &Library| {
+            let (found, _) = lib.models(Some("Showtec"), "church");
+            found
+                .iter()
+                .flat_map(|e| e.modes.iter().map(|m| (m.name.clone(), m.channels)))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(mode(&lib), [("3 Channel".to_string(), 3)]);
+        // Read back from the folder at the next start.
+        assert_eq!(mode(&load(&user)), [("3 Channel".to_string(), 3)]);
+        let (found, _) = lib.models(Some("Showtec"), "56");
+        let qlc: Vec<(&str, u16)> = found
+            .iter()
+            .find(|e| e.model == "LED Par 56")
+            .unwrap()
+            .modes
+            .iter()
+            .map(|m| (m.name.as_str(), m.channels))
+            .collect();
+        assert_eq!(qlc, [("6 Channel", 6)]);
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn lib_20_21_browse_the_bundled_set() {
+        let user = user_dir("browse");
+        let lib = load(&user);
+        let names: Vec<(String, usize)> = lib
+            .manufacturers("")
+            .into_iter()
+            .map(|m| (m.name, m.models))
+            .collect();
+        assert_eq!(
+            names,
+            [
+                ("Pro-Lights".into(), 1),
+                ("Shehds".into(), 1),
+                ("Showtec".into(), 1)
+            ]
+        );
+        let (found, truncated) = lib.models(None, "par");
+        assert!(!truncated);
+        let models: Vec<&str> = found.iter().map(|e| e.model.as_str()).collect();
+        assert_eq!(models, ["LumiPar 7QPro", "LED Par 56"]);
     }
 
     #[test]

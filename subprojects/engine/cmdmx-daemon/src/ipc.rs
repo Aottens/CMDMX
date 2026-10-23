@@ -3522,6 +3522,66 @@ mod tests {
     }
 
     #[test]
+    fn ipc_35_manufacturers_answer_the_asking_client() {
+        let lib = library("manufacturers");
+        let v = ask(&lib, r#"{"v":0,"cmd":"library.manufacturers","query":"par"}"#);
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"library.manufacturers","query":"par","items":[
+                {"name":"Pro-Lights","models":1},{"name":"Showtec","models":1}]})
+        );
+        let v = ask(&lib, r#"{"v":0,"cmd":"library.manufacturers"}"#);
+        assert_eq!(v["type"], "library.manufacturers");
+        assert_eq!(v["query"], Value::Null);
+        assert_eq!(v["items"].as_array().unwrap().len(), 3);
+        let loading = std::sync::RwLock::new(None);
+        let v = ask(&loading, r#"{"v":0,"cmd":"library.manufacturers"}"#);
+        assert_eq!(v["type"], "error");
+        assert!(v["message"].as_str().unwrap().contains("loading"), "{v}");
+    }
+
+    #[test]
+    fn ipc_36_models_answer_the_asking_client_and_echo_the_request() {
+        let lib = library("models");
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.models","manufacturer":"Shehds","query":"19x15"}"#,
+        );
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"library.models","manufacturer":"Shehds","query":"19x15",
+                   "items":[{"manufacturer":"Shehds","model":"LED Beam+Wash 19x15W RGBW Zoom Lighting",
+                             "modes":[{"name":"16 Channel","channels":16},{"name":"24 Channel","channels":24}],
+                             "source":"qlcplus"}],
+                   "truncated":false})
+        );
+        let v = ask(&lib, r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec"}"#);
+        assert_eq!(v["query"], Value::Null);
+        assert_eq!(
+            v["items"][0]["modes"],
+            json!([{"name":"6 Channel","channels":6}])
+        );
+        let v = ask(&lib, r#"{"v":0,"cmd":"library.models","query":"par"}"#);
+        assert_eq!(v["manufacturer"], Value::Null);
+        assert_eq!(v["items"].as_array().unwrap().len(), 2);
+        assert_eq!(v["truncated"], false);
+        let loading = std::sync::RwLock::new(None);
+        let v = ask(&loading, r#"{"v":0,"cmd":"library.models","query":"x"}"#);
+        assert!(v["message"].as_str().unwrap().contains("loading"), "{v}");
+    }
+
+    #[test]
+    fn ipc_36_models_without_manufacturer_or_query_is_an_error() {
+        for bad in [
+            r#"{"v":0,"cmd":"library.models"}"#,
+            r#"{"v":0,"cmd":"library.models","manufacturer":3}"#,
+            r#"{"v":0,"cmd":"library.manufacturers","query":3}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
     fn lib_14_report_profile_and_saves() {
         let lib = library("saves");
         let v = ask(

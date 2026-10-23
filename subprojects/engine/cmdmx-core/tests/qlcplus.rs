@@ -548,8 +548,37 @@ fn lib_13_header_reads_names_without_converting() {
     let h = cmdmx_core::library::qlcplus::header(&read("Pro-Lights-LumiPar-7QPro.qxf")).unwrap();
     assert_eq!(h.manufacturer, "Pro-Lights");
     assert_eq!(h.model, "LumiPar 7QPro");
-    assert_eq!(h.modes, ["10 Ch Mode", "6 Ch Mode", "4 Ch Mode"]);
+    let names: Vec<&str> = h.modes.iter().map(|m| m.name.as_str()).collect();
+    assert_eq!(names, ["10 Ch Mode", "6 Ch Mode", "4 Ch Mode"]);
     assert!(cmdmx_core::library::qlcplus::header("<nope").is_err());
+}
+
+#[test]
+fn lib_19_header_counts_the_channels_of_each_mode() {
+    let modes = |file: &str| -> Vec<(String, u16)> {
+        cmdmx_core::library::qlcplus::header(&read(file))
+            .unwrap()
+            .modes
+            .into_iter()
+            .map(|m| (m.name, m.channels))
+            .collect()
+    };
+    assert_eq!(
+        modes("Shehds-LED-Beam+Wash-19x15W-RGBW-Zoom.qxf"),
+        [("16 Channel".into(), 16), ("24 Channel".into(), 24)]
+    );
+    assert_eq!(
+        modes("Showtec-LED-Par-56.qxf"),
+        [("6 Channel".into(), 6)]
+    );
+    assert_eq!(
+        modes("Pro-Lights-LumiPar-7QPro.qxf"),
+        [
+            ("10 Ch Mode".into(), 10),
+            ("6 Ch Mode".into(), 6),
+            ("4 Ch Mode".into(), 4)
+        ]
+    );
 }
 
 #[test]
