@@ -118,7 +118,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | VS6-04 | Fix: on `output.add/edit` a number that does not fit its field (`priority` 300, `port_address`/`universe`/`line` 70000, negatives) gets OUT-28's range text instead of serde's (`invalid value: integer 300, expected u8`); found in the VS6-03 owner run. | OUT-28 | S | done (2026-10-22, merged #73) |
 | VS6-03 | App: protocol dots in the status bar and the Output screen (table, add/edit/remove, serial port dropdown, "no output" warning row); owner run passes, the Eurolite chosen there survives a daemon restart. Needs VS6-02. | OUT-36/37 | M | done (2026-10-23, #72; owner run home part passed `tests/manual/runs/2026-10-22-VS6-03.md`, the Eurolite steps wait for the church) |
 | P1-19 | Spec native Stream Deck support (IDEA-22, owner 2026-10-23: late phase 1, after VS7-04) as CTL criteria on the control layer: route (native HID / Elgato plugin), models, key images (legend, colour, level, state) as a feedback kind, linking playbacks to keys in the app (drag or Learn); owner approves. | CTL | M | todo |
-| P1-06 | Write `ipc.md` (message schema, versioning, snapshot/delta, reconnect) — VS1-05 writes the first subset. | IPC | M | todo |
+| P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | todo |
 
 ## Later phases
 Ideas waiting for their phase live in `IDEAS.md` (IDEA-01..06). They get backlog rows when their phase is planned.
