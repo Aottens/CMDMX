@@ -5341,4 +5341,89 @@ mod tests {
             .unwrap();
         assert_eq!(settings["clear_ltp"], "Freeze");
     }
+
+    // ---- VS2-24: IPC-37..39 -----------------------------------------------------------------
+
+    const PHANTOM: &str = r#"{"manufacturer":"Showtec","model":"Phantom 25 LED Spot","source":"user",
+        "modes":[{"name":"11 Channel","footprint":11,"attributes":[
+          {"name":"Pan","group":"P","kind":"Ltp","channel":1,"fine_channel":2},
+          {"name":"Gobo","group":"G","kind":"Ltp","channel":9,"slots":[{"name":"Open","from":0,"to":7}]}]}]}"#;
+
+    #[test]
+    fn ipc_37_patch_profile_answers_the_shows_copy() {
+        assert!(matches!(
+            parse_command(r#"{"v":0,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#),
+            Ok(Command::PatchProfile { profile }) if profile == "Showtec/Phantom 25 LED Spot"
+        ));
+        assert!(parse_command(r#"{"v":0,"cmd":"patch.profile"}"#).is_err());
+        let mut e = engine();
+        let p = Profile::from_json(PHANTOM).unwrap();
+        e.add_profile("Showtec/Phantom 25 LED Spot", p.clone())
+            .unwrap();
+        let v = parse(&patch_profile(&e, "Showtec/Phantom 25 LED Spot").unwrap());
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"patch.profile","profile_key":"Showtec/Phantom 25 LED Spot",
+                   "profile":serde_json::to_value(&p).unwrap()})
+        );
+        assert!(patch_profile(&e, "Showtec/Nope").is_err());
+    }
+
+    #[test]
+    fn ipc_38_profile_save_parses_a_profile_with_a_name() {
+        let ok = format!(r#"{{"v":0,"cmd":"profile.save","profile":{PHANTOM}}}"#);
+        assert!(matches!(
+            parse_command(&ok),
+            Ok(Command::ProfileSave(p)) if p.model == "Phantom 25 LED Spot"
+        ));
+        for bad in [
+            r#"{"v":0,"cmd":"profile.save"}"#.to_string(),
+            r#"{"v":0,"cmd":"profile.save","profile":{"modes":"x"}}"#.to_string(),
+            ok.replace(r#""manufacturer":"Showtec""#, r#""manufacturer":" ""#),
+            ok.replace(r#""model":"Phantom 25 LED Spot""#, r#""model":"""#),
+        ] {
+            assert!(parse_command(&bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_38_the_user_profile_is_written_indexed_and_answered() {
+        let lib = library("profile-save");
+        let p = Profile::from_json(PHANTOM).unwrap();
+        let v = parse(&write_user_profile(&lib, &p, 4));
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"library.saved","manufacturer":"Showtec",
+                   "model":"Phantom 25 LED Spot","fixtures":4})
+        );
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec","query":"phantom"}"#,
+        );
+        assert_eq!(v["items"][0]["source"], "user");
+        // The show was updated, the file was not: a warning that says so (LIB-25).
+        let loading = std::sync::RwLock::new(None);
+        let v = parse(&write_user_profile(&loading, &p, 4));
+        assert_eq!(v["type"], "warning");
+        let text = v["message"].as_str().unwrap();
+        assert!(
+            text.starts_with("Saved in the show, not in the library: "),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn ipc_39_programmer_set_parses() {
+        assert!(matches!(
+            parse_command(r#"{"v":0,"cmd":"programmer.set","attribute":"Pan","value":0.5}"#),
+            Ok(Command::ProgrammerSet { attribute, value }) if attribute == "Pan" && value == 0.5
+        ));
+        for bad in [
+            r#"{"v":0,"cmd":"programmer.set","value":0.5}"#,
+            r#"{"v":0,"cmd":"programmer.set","attribute":"Pan"}"#,
+            r#"{"v":0,"cmd":"programmer.set","attribute":"Pan","value":"x"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
 }
