@@ -58,6 +58,8 @@ const QUEUE: usize = 64;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
+    /// CTL-40: handled by the control layer on the tick, never by the engine.
+    Control(ControlRequest),
     /// OUT-34: a new output node; the fields not given are the line's defaults (OUT-25).
     OutputAdd {
         line: UniverseId,
@@ -312,6 +314,10 @@ pub enum Command {
         cue: CueNumber,
         to: CueNumber,
     },
+    /// CTL-40: handed to the tick as `Event::ControlMapping`, never applied.
+    ControlMapping {
+        name: String,
+    },
     /// IPC-24: handed to the tick as `Event::CueView`, never applied.
     CueView {
         id: PlaybackId,
@@ -452,6 +458,48 @@ impl MasterPatch {
     }
 }
 
+/// CTL-40: the `control.*` commands. `control.mapping` is answered through `Event::ControlMapping`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ControlRequest {
+    Enable {
+        device: String,
+        on: bool,
+    },
+    Assign {
+        device: String,
+        mapping: String,
+    },
+    Learn {
+        action: cmdmx_control::action::Action,
+        mapping: Option<String>,
+    },
+    LearnCancel,
+    /// `change` holds `input` and the fields to change; they go over the stored binding.
+    Binding {
+        mapping: String,
+        change: serde_json::Map<String, serde_json::Value>,
+    },
+    Unbind {
+        mapping: String,
+        input: cmdmx_control::mapping::Input,
+    },
+    MappingNew {
+        name: String,
+        device: String,
+    },
+    MappingRename {
+        name: String,
+        to: String,
+    },
+    MappingDelete {
+        name: String,
+    },
+    MappingImport {
+        json: String,
+        replace: bool,
+    },
+}
+
 /// LIB-14: the fixture library requests.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LibraryRequest {
@@ -473,6 +521,11 @@ pub enum Event {
     CueView {
         id: PlaybackId,
         cue: CueNumber,
+        reply: SyncSender<String>,
+    },
+    /// CTL-40: the answer to `control.mapping`, to the asking client only.
+    ControlMapping {
+        name: String,
         reply: SyncSender<String>,
     },
 }
@@ -717,6 +770,62 @@ pub fn ports_reply(ports: &[serialport::SerialPortInfo]) -> String {
         })
         .collect();
     serde_json::json!({"v": 0, "type": "ports", "ports": ports}).to_string()
+}
+
+/// CTL-40: `control.*` to a command; an unknown action or input is refused here.
+fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
+    use cmdmx_control::{action::Action, mapping::Input};
+    let input = |v: &serde_json::Value| field::<Input>(v, "input", "a MIDI input or OSC address");
+    let action = |text: &str| text.parse::<Action>().map_err(|e| e.to_string());
+    Ok(Command::Control(match cmd {
+        "enable" => ControlRequest::Enable {
+            device: string(v, "device")?,
+            on: boolean(v, "on")?,
+        },
+        "assign" => ControlRequest::Assign {
+            device: string(v, "device")?,
+            mapping: string(v, "mapping")?,
+        },
+        "learn" => ControlRequest::Learn {
+            action: action(&string(v, "action")?)?,
+            mapping: opt_field(v, "mapping", "a mapping name")?,
+        },
+        "learn_cancel" => ControlRequest::LearnCancel,
+        "binding" => {
+            input(v)?;
+            if let Some(a) = v.get("action") {
+                action(a.as_str().ok_or("invalid \"action\" (expected text)")?)?;
+            }
+            let mut change = v.as_object().cloned().unwrap_or_default();
+            for key in ["v", "cmd", "mapping"] {
+                change.remove(key);
+            }
+            ControlRequest::Binding {
+                mapping: string(v, "mapping")?,
+                change,
+            }
+        }
+        "unbind" => ControlRequest::Unbind {
+            mapping: string(v, "mapping")?,
+            input: input(v)?,
+        },
+        "mapping_new" => ControlRequest::MappingNew {
+            name: string(v, "name")?,
+            device: string(v, "device")?,
+        },
+        "mapping_rename" => ControlRequest::MappingRename {
+            name: string(v, "name")?,
+            to: string(v, "to")?,
+        },
+        "mapping_delete" => ControlRequest::MappingDelete {
+            name: string(v, "name")?,
+        },
+        "mapping_import" => ControlRequest::MappingImport {
+            json: string(v, "json")?,
+            replace: opt_field(v, "replace", "true or false")?.unwrap_or(false),
+        },
+        other => return Err(format!("unknown cmd 'control.{other}'")),
+    }))
 }
 
 /// IPC-25: set the time the client thread received a tap or button press; other commands pass.
@@ -1235,7 +1344,13 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 number: opt_uint(&v, "number")?,
             })
         }
-        Some(other) => Err(format!("unknown cmd '{other}'")),
+        Some("control.mapping") => Ok(Command::ControlMapping {
+            name: string(&v, "name")?,
+        }),
+        Some(other) => match other.strip_prefix("control.") {
+            Some(cmd) => parse_control(cmd, &v),
+            None => Err(format!("unknown cmd '{other}'")),
+        },
         None => Err("missing \"cmd\"".into()),
     }
 }
@@ -1675,6 +1790,8 @@ struct Snapshot<'a> {
     outputs: Vec<OutputJson>,
     show: &'a ShowState,
     undo: &'a UndoInfo,
+    /// CTL-39
+    control: &'a serde_json::Value,
 }
 
 /// OUT-33: one output node with its fields, state and detail.
@@ -1886,6 +2003,7 @@ pub fn snapshot(
     outputs: &[OutputStatus],
     show: &ShowState,
     undo: &UndoInfo,
+    control: &serde_json::Value,
 ) -> String {
     let stored = stored_infos(engine);
     to_json(&Snapshot {
@@ -1908,6 +2026,7 @@ pub fn snapshot(
         outputs: output_jsons(outputs),
         show,
         undo,
+        control,
     })
 }
 
@@ -2467,6 +2586,12 @@ fn serve_client(
                         return;
                     }
                 }
+                Ok(Command::ControlMapping { name }) => {
+                    let reply = reply.clone();
+                    if events.send(Event::ControlMapping { name, reply }).is_err() {
+                        return;
+                    }
+                }
                 Ok(Command::CueView { id, cue }) => {
                     let reply = reply.clone();
                     if events.send(Event::CueView { id, cue, reply }).is_err() {
@@ -2581,6 +2706,7 @@ mod tests {
             &[],
             &show_state(),
             &UndoInfo::default(),
+            &serde_json::Value::Null,
         ));
         assert_eq!(v["v"], 0);
         assert_eq!(v["type"], "snapshot");
@@ -2659,6 +2785,7 @@ mod tests {
             &outputs(),
             &show_state(),
             &UndoInfo::default(),
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["outputs"],
@@ -2684,7 +2811,8 @@ mod tests {
                 &engine(),
                 &[],
                 &show_state(),
-                &UndoInfo::default()
+                &UndoInfo::default(),
+                &serde_json::Value::Null,
             ))["outputs"],
             json!([])
         );
@@ -2884,7 +3012,13 @@ mod tests {
         e.select_fixture(1).unwrap();
         e.record_group(1).unwrap();
         e.clear();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
         assert_eq!(
@@ -2921,7 +3055,13 @@ mod tests {
         })
         .unwrap();
         e.patch_name(2, "Front left").unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(
             v["fixtures"],
             json!([dimmer_entry(),
@@ -2952,7 +3092,13 @@ mod tests {
             number: Some(901),
         })
         .unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         let wash = &v["fixtures"][1];
         assert_eq!(wash["mode"], "24 Channel");
         assert_eq!(wash["modes"], json!(["16 Channel", "24 Channel"]));
@@ -3127,7 +3273,13 @@ mod tests {
     fn ipc_11_programmer_state_object() {
         let mut e = engine();
         e.select_fixture(1).unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(
             v["programmer"],
             json!({"selection":[1],"targets":[1],"active_group":"I",
@@ -3138,7 +3290,13 @@ mod tests {
                    "located":{},"highlight":false})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(
             v["programmer"]["wheels"],
             json!([{"attribute":"Dimmer","value":1.0,"touched":true,"sixteen_bit":false,"palette":null}])
@@ -3527,6 +3685,7 @@ mod tests {
             &[],
             &show_state(),
             &UndoInfo::default(),
+            &serde_json::Value::Null,
         ))
         .unwrap();
         let msg = ws.read().unwrap();
@@ -3594,6 +3753,7 @@ mod tests {
             &[],
             &show_state(),
             &UndoInfo::default(),
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["show"],
@@ -3604,7 +3764,13 @@ mod tests {
             ..show_state()
         };
         assert_eq!(
-            parse(&snapshot(&engine(), &[], &fresh, &UndoInfo::default()))["show"]["saved_at"],
+            parse(&snapshot(
+                &engine(),
+                &[],
+                &fresh,
+                &UndoInfo::default(),
+                &serde_json::Value::Null
+            ))["show"]["saved_at"],
             Value::Null
         );
     }
@@ -3697,6 +3863,7 @@ mod tests {
             &[],
             &show_state(),
             &UndoInfo::default(),
+            &serde_json::Value::Null,
         ));
         let slots: Vec<Value> = (1..=8)
             .map(|s| json!({"slot": s, "playback": if s == 1 { json!(1) } else { Value::Null }}))
@@ -3784,7 +3951,13 @@ mod tests {
     fn pal_25_snapshot_lists_palettes_by_number() {
         let mut e = engine_with_palettes();
         e.set_palette_legend(2, "Full", Some("beam.zoom")).unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(
             v["palettes"],
             json!([
@@ -3830,7 +4003,13 @@ mod tests {
     #[test]
     fn pal_25_palette_settings_in_the_snapshot_and_a_delta_on_change() {
         let mut e = engine_with_palettes();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(
             v["palette_settings"],
             json!({"time":0.0,"overlap":100.0,"record_by":"Mixed"})
@@ -3850,7 +4029,13 @@ mod tests {
     #[test]
     fn pal_26_programmer_state_carries_palette_use() {
         let mut e = engine_with_palettes();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(
             v["programmer"]["palettes"],
             json!({"in_use":[],"relevant":[7,8]}),
@@ -3859,7 +4044,13 @@ mod tests {
         e.select_fixture(1).unwrap();
         e.apply_palette(2, cmdmx_core::palette::Timing::default())
             .unwrap();
-        let p = &parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()))["programmer"];
+        let p = &parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ))["programmer"];
         assert_eq!(p["palettes"], json!({"in_use":[7],"relevant":[7]}));
         assert_eq!(
             p["wheels"],
@@ -4028,7 +4219,13 @@ mod tests {
             }),
         )
         .unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         let mut want = playback_entry();
         want["legend"] = json!("Walk-in");
         want["icon"] = json!("service.walk-in");
@@ -4040,7 +4237,13 @@ mod tests {
     fn pbk_35_snapshot_pages_dbo_and_playback_settings() {
         let mut e = engine();
         e.set_page_legend(2, "Service").unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         let pages: Vec<Value> = (1..=10)
             .map(|n| json!({"number": n, "legend": if n == 2 { "Service" } else { "" }}))
             .collect();
@@ -4100,12 +4303,24 @@ mod tests {
         e.set_fader(2, 1.0, 0.0).unwrap();
         e.set_fader(1, 1.0, 0.0).unwrap();
         e.tick(0.0);
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         let fired = |i: usize| v["playbacks"][i]["fired"].as_u64().unwrap();
         assert!(fired(1) < fired(0), "playback 2 fired first");
         e.set_fader(1, 0.0, 0.025).unwrap();
         e.tick(0.025);
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert!(v["playbacks"][0]["fired"].is_null(), "off again");
     }
 
@@ -4504,7 +4719,13 @@ mod tests {
     #[test]
     fn cue_40_list_entry_has_cues_buttons_and_live_cue() {
         let e = list_engine();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         let p = entry(&v, 2);
         assert_eq!(p["kind"], json!("Cues"));
         assert_eq!(p["cues"].as_array().unwrap().len(), 2);
@@ -4535,6 +4756,7 @@ mod tests {
             &[],
             &show_state(),
             &UndoInfo::default(),
+            &serde_json::Value::Null,
         ));
         assert_eq!(v["connected"], json!(null));
     }
@@ -4597,7 +4819,13 @@ mod tests {
             ..Playback::new(3, 1, 3, BTreeMap::new())
         });
         let master = e.record_master(1, 4, MasterKind::Bpm, 1).unwrap();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         let chase = entry(&v, 3);
         assert_eq!(chase["kind"], json!("Chase"));
         assert_eq!(chase["bpm"], json!(120.0));
@@ -4767,7 +4995,13 @@ mod tests {
     #[test]
     fn grm_15_group_master_entry_has_kind_master_and_buttons() {
         let (e, id) = group_master_engine();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         let m = entry(&v, u64::from(id));
         assert_eq!(m["kind"], json!("GroupMaster"));
         assert_eq!(
@@ -4816,7 +5050,13 @@ mod tests {
         let d = published.diff(&e, &[], &show_state());
         assert!(deltas(&d, "playbacks").is_empty(), "{d:?}");
         assert_eq!(deltas(&d, "playback")[0]["level"], json!(0.2));
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
     }
 
@@ -4863,13 +5103,25 @@ mod tests {
     #[test]
     fn ipc_31_snapshot_has_the_undo_and_redo_labels() {
         let none = UndoInfo::default();
-        let v = parse(&snapshot(&engine(), &[], &show_state(), &none));
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &none,
+            &serde_json::Value::Null,
+        ));
         assert_eq!(v["undo"], json!({"undo": null, "redo": null}));
         let some = UndoInfo {
             undo: Some("Clear".into()),
             redo: Some("Wheel Pan".into()),
         };
-        let v = parse(&snapshot(&engine(), &[], &show_state(), &some));
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &some,
+            &serde_json::Value::Null,
+        ));
         assert_eq!(v["undo"], json!({"undo": "Clear", "redo": "Wheel Pan"}));
     }
 
@@ -4895,7 +5147,13 @@ mod tests {
     #[test]
     fn ipc_33_programmer_view_has_located_and_highlight_and_settings_are_published() {
         let mut e = engine_with_palettes();
-        let v = parse(&snapshot(&e, &[], &show_state(), &UndoInfo::default()));
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
         assert_eq!(
             v["programmer_settings"],
             json!({"clear_precedence":"SelectionThenProgrammer","clear_ltp":"Release","lowlight_level":0.25})

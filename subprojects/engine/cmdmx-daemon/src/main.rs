@@ -3,7 +3,7 @@
 //! Runs the deterministic core at 40 Hz with a demo patch and sends each line to the output
 //! nodes of the show (Art-Net, sACN, ENTTEC Pro serial), each node on its own thread (OUT-11,
 //! OUT-29). Node states reach the app in the snapshot and the `outputs` delta (OUT-33).
-//! MIDI arrives with VS1-07 and must also stay off the tick thread.
+//! MIDI runs on its own thread too (VS7-02): the tick only drains its events and sends feedback.
 //!
 //! Usage: `cmdmx-daemon [--ticks N] [--no-artnet] [--no-sacn] [--no-serial] [--ipc-port N]
 //!        [--demo] [--qlcplus-dir PATH] [--profiles-dir PATH] [--show-dir PATH]`.
@@ -21,11 +21,15 @@
 //! The daemon always runs a show (SHW-09..15): it opens the last one from `--show-dir` (default
 //! `~/Documents/ColourmotionDMX/Shows`, `state.json` beside the app support files, or inside
 //! `--show-dir` when that is given), autosaves it on a saver thread and switches on `show.*`.
+//! Generic MIDI control (CTL-*): mapping files in `--show-dir`/control (default beside
+//! `state.json`), devices enabled over `control.*`; their commands run like the app's (CTL-06).
 //! Edit commands run through the undo history (UNDO-01..04, IPC-30/31); open and new empty it.
 
 mod artnet_out;
+mod control;
 mod ipc;
 mod library;
+mod midi_io;
 mod output;
 mod sacn_out;
 mod serial_out;
@@ -84,6 +88,22 @@ fn main() {
         eprintln!("warning: cannot remember the open show: {e}");
     }
     let mut engine = opened.engine;
+    // CTL-23, 08: the mapping files and the devices; the MIDI thread runs without any of them.
+    let (mut control, warnings) =
+        control::Control::load(cli.control_dir.clone(), cli.state_file.clone());
+    for w in &warnings {
+        eprintln!("warning: {w}");
+    }
+    pending.extend(warnings);
+    let (midi_events, midi_in) = std::sync::mpsc::channel();
+    let midi_out = match midi_io::spawn(midi_events) {
+        Ok(tx) => Some(tx),
+        Err(e) => {
+            eprintln!("warning: MIDI is off: {e}");
+            pending.push(format!("MIDI is off: {e}"));
+            None
+        }
+    };
     // OUT-29: the show's nodes, kept running; reconciled again after every drain of events.
     let mut outputs = output::Outputs::new(cli.kill, Box::new(output::spawn_node));
     outputs.reconcile(engine.nodes());
@@ -159,6 +179,7 @@ fn main() {
                             outputs.statuses(),
                             &autosave.state(),
                             &undo_info(&history),
+                            &control.snapshot(),
                         ),
                     );
                     for w in std::mem::take(&mut pending) {
@@ -169,6 +190,17 @@ fn main() {
                 ipc::Event::Warning(e) => {
                     warn(&mut clients, &e);
                     continue;
+                }
+                // CTL-40: a refusal is a warning for every client, like a failed command.
+                ipc::Event::Command(ipc::Command::Control(req)) => {
+                    if let Err(e) = control.request(req) {
+                        warn(&mut clients, &e);
+                    }
+                    continue;
+                }
+                ipc::Event::ControlMapping { name, reply } => {
+                    drop(reply.try_send(control.mapping_reply(&name)));
+                    Ok(())
                 }
                 // IPC-24: to the asking client only; a full queue drops the answer (IPC-07).
                 ipc::Event::CueView { id, cue, reply } => {
@@ -251,6 +283,7 @@ fn main() {
                             outputs.statuses(),
                             &state,
                             &undo_info(&history),
+                            &control.snapshot(),
                         ));
                         for w in &next.warnings {
                             warn(&mut clients, w);
@@ -265,6 +298,15 @@ fn main() {
                 clients.broadcast(&ipc::warning(&e.to_string()));
             }
         }
+        // CTL-14: every MIDI message waiting is decoded now; commands go out coalesced (CTL-06).
+        while let Ok(event) = midi_in.try_recv() {
+            control.event(event, now);
+        }
+        for (device, cmd) in control.commands(&engine, now) {
+            if let Err(e) = run_control(&mut engine, &mut history, &device, cmd, now) {
+                warn(&mut clients, &e);
+            }
+        }
         outputs.reconcile(engine.nodes());
         if cli.demo {
             // Demo motion: fader 1 breathes so the output visibly changes.
@@ -274,6 +316,12 @@ fn main() {
             }
         }
         engine.tick(now);
+        // CTL-21: feedback for what this frame shows; a gone MIDI thread drops it.
+        for out in control.feedback(&engine) {
+            if let Some(tx) = &midi_out {
+                let _ = tx.send(out);
+            }
+        }
         // SHW-11/13: the saver does the disk work; the tick only hands over a copy.
         while let Ok(done) = saved.try_recv() {
             if let Some(w) = autosave.finished(done) {
@@ -296,6 +344,12 @@ fn main() {
             clients.broadcast(&msg);
         }
         for msg in published.diff(&engine, outputs.statuses(), &autosave.state()) {
+            clients.broadcast(&msg);
+        }
+        for text in control.take_messages() {
+            warn(&mut clients, &text);
+        }
+        if let Some(msg) = control.delta(now) {
             clients.broadcast(&msg);
         }
 
@@ -416,6 +470,8 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         Library(_) => Ok(()),
         // Handled before `apply` (SHW-15).
         Show(_) => Ok(()),
+        // Handled by the control layer on the tick (CTL-40).
+        Control(_) | ControlMapping { .. } => Ok(()),
         PatchAdd { add, profile } => {
             if let Some(p) = profile.filter(|_| !engine.has_profile(&add.profile)) {
                 // ponytail: a refused add leaves the installed profile unused in the show.
@@ -606,9 +662,14 @@ fn class(cmd: &ipc::Command) -> Class {
         | Highlight { .. }
         | ColourModel { .. } => Class::Live,
         Show(New { .. } | Open { .. }) => Class::Reset,
-        Show(List | SaveAs { .. }) | CueView { .. } | Library(_) | OutputPorts | Undo | Redo => {
-            Class::Neutral
-        }
+        Show(List | SaveAs { .. })
+        | CueView { .. }
+        | Control(_)
+        | ControlMapping { .. }
+        | Library(_)
+        | OutputPorts
+        | Undo
+        | Redo => Class::Neutral,
         Select { .. }
         | SelectGroup { .. }
         | Step { .. }
@@ -772,6 +833,17 @@ fn run(
     }
 }
 
+/// CTL-06: a command from a control surface runs like one from the app; a refusal names the device.
+fn run_control(
+    engine: &mut Engine,
+    history: &mut History,
+    device: &str,
+    cmd: ipc::Command,
+    now: f64,
+) -> Result<(), String> {
+    run(engine, history, cmd, now).map_err(|e| format!("{device}: {e}"))
+}
+
 /// IPC-31
 fn undo_info(history: &History) -> ipc::UndoInfo {
     ipc::UndoInfo {
@@ -813,6 +885,8 @@ struct Cli {
     show_dir: PathBuf,
     /// Where the last open show is remembered; `<show-dir>/state.json` with `--show-dir`.
     state_file: PathBuf,
+    /// Mapping files of the control layer (CTL-23); `<show-dir>/control` with `--show-dir`.
+    control_dir: PathBuf,
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
@@ -832,6 +906,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
         profiles_dir: home.join("Library/Application Support/ColourmotionDMX/profiles"),
         show_dir: home.join("Documents/ColourmotionDMX/Shows"),
         state_file: home.join("Library/Application Support/ColourmotionDMX/state.json"),
+        control_dir: home.join("Library/Application Support/ColourmotionDMX/control"),
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -871,6 +946,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
             "--show-dir" => {
                 cli.show_dir = args.next().ok_or("--show-dir: missing path")?.into();
                 cli.state_file = cli.show_dir.join("state.json");
+                cli.control_dir = cli.show_dir.join("control");
             }
             other => return Err(format!("unknown argument '{other}'")),
         }
@@ -2342,6 +2418,10 @@ mod tests {
         (
             r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
             Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"control.mapping","name":"nano"}"#,
+            Class::Neutral,
         ),
     ];
 

@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-23 (VS7-01 control core, PR open; next VS7-02)_
+_Last updated: 2026-10-23 (VS7-02 daemon MIDI, PR open; next VS1-07)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -11,7 +11,8 @@ Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader
 - Repo scaffold: meta-layer, ADR-001..004, PRD, module specs (3 written, 3 skeleton)
 - `cmdmx-core`: universe buffer, patch of a dimmer/generic fixture, HTP/LTP merge, playback level → DMX frame; scenario test runner over `tests/scenarios/*.json`
 - `cmdmx-protocols`: Art-Net ArtDmx, sACN E1.31 data packet, ENTTEC Pro "send DMX" frame — all byte-exact tested
-- `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested)
+- `cmdmx-control`: Mackie Control decode/encode for fader pitchbend and button notes (unit tested); the generic MIDI/OSC core (VS7-01)
+- Generic MIDI in the daemon (VS7-02, PR open): any CoreMIDI device through `midir`, listed Disabled until enabled, mapping files per Mac in `Application Support/ColourmotionDMX/control/`, Learn, feedback after the tick, hotplug reattach within 2 s, `control.*` over IPC; tested with virtual CoreMIDI ports. No app screen yet (VS7-04)
 - `cmdmx-daemon`: 40 Hz tick loop; sends line 1 as Art-Net (VS1-02 done) and sACN universe 1 multicast, priority 100 (VS1-03 done), and ENTTEC Pro serial at 250000 baud on its own 30 ms timer (~33 Hz, VS4-05), product-string detection (the owner's Eurolite MK2 needs `--serial <path>`) and hotplug (VS1-04, verified on the MK2 except mid-run unplug, VS4-02), each node on its own thread. IPC v0 over WebSocket on 127.0.0.1:7319 (VS1-05 done); the app's faders drive DMX
 - ADR-006 accepted, `fixture-library.md` LIB-01..17 and `patch.md` PAT-01..14 approved; build tasks VS2-08..13 in BACKLOG. LIB-17 (owner, 2026-10-17): emitters are generic — recognised by an `emitter` flag, never by name, any number (Amber, Warm/Cold White, UV, Royal Blue, …)
 - Patch over IPC + Patch screen (VS2-12, merged): snapshot `fixtures` entries carry number, name, profile, mode, universe.address, footprint, virtual dimmer and handle, a `fixtures` delta after any patch change, `patch.add/move/remove/renumber/name/change_mode/handle` (PAT-09); library fixtures are patched under `Manufacturer/Model`, fetched from the library in the client thread; the app has a workspace rail (Program / Patch) and a Patch screen with the table, an Add panel with library search and row edits with two-step confirm for Remove and Change Mode (PAT-10). Owner run passed: `tests/manual/runs/2026-10-17-VS2-12.md` (findings → IDEA-08 browse by manufacturer, IDEA-09 multi-select)

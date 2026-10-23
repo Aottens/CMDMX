@@ -51,6 +51,10 @@ pub struct Decoder {
     /// (channel 1-based, MSB cc 0..31) pairs that are 14-bit.
     cc14: Vec<(u8, u8)>,
     status: Option<u8>,
+    /// Inside a system message (sysex and friends): its data bytes are not ours.
+    system: bool,
+    /// Packets with stray data bytes, and messages cut off at a packet's end (CTL-15).
+    malformed: u64,
     msb: HashMap<(u8, u8), u8>,
 }
 
@@ -62,8 +66,14 @@ impl Decoder {
         }
     }
 
+    /// How many malformed packets and messages were seen (CTL-15).
+    pub fn malformed(&self) -> u64 {
+        self.malformed
+    }
+
     pub fn decode(&mut self, packet: &[u8]) -> Vec<MidiMessage> {
         let mut out = Vec::new();
+        let mut stray = false;
         let mut data: Vec<u8> = Vec::new();
         // MSBs seen in this packet that still wait for their LSB.
         let mut open: Vec<(u8, u8)> = Vec::new();
@@ -72,14 +82,19 @@ impl Decoder {
                 0xF8..=0xFF => {}
                 0xF0..=0xF7 => {
                     self.status = None;
+                    self.system = b != 0xF7;
                     data.clear();
                 }
                 0x80..=0xEF => {
                     self.status = Some(b);
+                    self.system = false;
                     data.clear();
                 }
                 _ => {
-                    let Some(status) = self.status else { continue };
+                    let Some(status) = self.status else {
+                        stray |= !self.system;
+                        continue;
+                    };
                     data.push(b);
                     let need = if matches!(status >> 4, 0xC | 0xD) {
                         1
@@ -93,6 +108,7 @@ impl Decoder {
                 }
             }
         }
+        self.malformed += u64::from(stray) + u64::from(!data.is_empty());
         for (ch, n) in open {
             let msb = self.msb.get(&(ch, n)).copied().unwrap_or(0);
             out.push(cc14_message(ch, n, u16::from(msb) << 7));

@@ -18,6 +18,10 @@ tungstenite = "0.30"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 
+# CTL-08: CoreMIDI. Only on macOS, so CI on Linux needs no ALSA headers.
+[target.'cfg(target_os = "macos")'.dependencies]
+midir = "0.11"
+
 # PAT-11, PAT-15..18: the church patch from the Lightkey export, run once (VS2-13).
 [[example]]
 name = "church"

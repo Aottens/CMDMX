@@ -35,7 +35,7 @@ Why two processes: a UI hang or crash must never stop DMX output. The daemon kee
 - `subprojects/app/` — SwiftPM package. Renders state, sends commands. Zero lighting logic.
 
 ## Key external dependencies
-- Rust crates (kept minimal, each one a decision): `serde`/`serde_json` (show file, IPC, scenarios), `thiserror` (error types); daemon: `serialport` (ENTTEC Pro: USB product string + raw port, default features off), `tungstenite` (IPC WebSocket, sync, one thread per client — no async runtime). Planned for the daemon: `midir` (MIDI).
+- Rust crates (kept minimal, each one a decision): `serde`/`serde_json` (show file, IPC, scenarios), `thiserror` (error types); daemon: `serialport` (ENTTEC Pro: USB product string + raw port, default features off), `tungstenite` (IPC WebSocket, sync, one thread per client — no async runtime). `midir` (MIDI, macOS only, VS7-02).
 - macOS: Command Line Tools (Swift toolchain + SDK). No Xcode.app.
 - GDTF: zip + XML; parser lives in `cmdmx-core::library` (planned).
 

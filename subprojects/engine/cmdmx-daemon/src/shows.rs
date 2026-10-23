@@ -51,6 +51,20 @@ pub fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
     fs::rename(&tmp, path)
 }
 
+/// CTL-23: set one key of the state file and keep the others. An unreadable file starts afresh.
+pub fn update_state(path: &Path, key: &str, value: serde_json::Value) -> io::Result<()> {
+    let mut state = fs::read_to_string(path)
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .and_then(|v| match v {
+            serde_json::Value::Object(m) => Some(m),
+            _ => None,
+        })
+        .unwrap_or_default();
+    state.insert(key.into(), value);
+    write_atomic(path, &serde_json::Value::Object(state).to_string())
+}
+
 /// `YYYY-MM-DDTHH:MM:SSZ` (the core never reads the clock, SHW-01).
 pub fn iso_utc(t: SystemTime) -> String {
     let secs = t.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
@@ -230,8 +244,7 @@ impl Shows {
     }
 
     pub fn remember(&self, name: &str) -> io::Result<()> {
-        let json = serde_json::json!({ "last_show": name }).to_string();
-        write_atomic(self.state_file(), &json)
+        update_state(self.state_file(), "last_show", name.into())
     }
 
     /// SHW-10: the last show; else (also when it is refused) Demo from its file, else the
