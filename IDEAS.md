@@ -33,6 +33,7 @@ the backlog, not the whole idea.
 | IDEA-19 | Rebrand to CMDMX by Colourmotion | accepted 2026-10-22 | 1 (after VS6) | docs, app, README |
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
+| IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | triaged | 2 (proposed; owner to confirm) | CTL, app |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -367,3 +368,25 @@ money. Not much, but something.
   mention ("works the way Titan users expect") is fine; no logos, no look-alike branding, and
   no copied manual text or screenshots.
 
+### IDEA-22 — Stream Deck natively compatible (2026-10-23)
+**Owner's intent:** make Elgato Stream Decks work natively with CMDMX: link a Stream Deck to
+playbacks in an intuitive way, straight from the software.
+**Triage:** proposed phase 2 (owner to confirm), as a surface profile on the general control layer
+(`control-surfaces.md`, CTL). A Stream Deck is not MIDI: it is a USB HID device with an LCD per
+key (Stream Deck+ also has dials and a touch strip). Two routes:
+1. **Native HID in the daemon** (`hidapi`): CMDMX drives the keys itself, draws each key image
+   (playback legend, icon, halo colour, level bar, active/flash state), follows pages; no Elgato
+   app needed, but the Elgato app must not hold the device at the same time.
+2. **An Elgato Stream Deck plugin** (Elgato SDK) that talks to CMDMX over OSC (CTL-36) or IPC:
+   lives next to other Stream Deck actions, needs the Elgato app running.
+"Intuitive": in the app, drag a playback (or Go, page, a palette) onto a key of an on-screen
+Stream Deck, or Learn by pressing the key (CTL-25); a key follows its handle like a fader does
+(CTL-21).
+**What it touches now:** nothing forced. The CTL action catalogue already fits (`upper`/`lower`,
+`go`, `page`, `palette` …); route 1 adds a feedback kind "key image" (legend, colour, state) to
+CTL-17 and one dependency (`hidapi`) in the daemon when its phase comes.
+**Open questions:**
+- Phase: 2 as proposed, or late phase 1 after VS7-04?
+- Route 1 (native, no Elgato app), route 2 (plugin), or both?
+- Which models: Stream Deck (15), Mini, XL, Stream Deck+ (dials for wheels/levels), Neo?
+- What a playback key does by default: Go, Flash or Swop (as the handle's buttons, CUE-25)?
