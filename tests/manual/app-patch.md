@@ -1,4 +1,4 @@
-# App patch checklist (PAT-09, PAT-10) — template
+# App patch checklist (PAT-09, PAT-10, LIB-22) — template
 
 No Swift test target exists (CLAUDE.md), so the Patch screen of `specs/modules/patch.md` PAT-10
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
@@ -15,6 +15,26 @@ The demo show (IPC-14) uses universe 1 channels 1–150.
 - [ ] The table lists the demo show sorted by number: 1–8, 101–104, 201–208, 211–216, 221–226,
       301–306, with name, profile, mode, universe.address (e.g. `1.45` for 201) and footprint;
       the RGB+Lime and Showtec pars say "virtual dimmer"
+
+## Add panel (LIB-22, PAT-10 amended)
+- [ ] The Add panel is a full-width strip above the patch table, the Selected panel at the right;
+      it has one search field and the columns Manufacturer, Model and Mode
+- [ ] With an empty search the Manufacturer column lists every manufacturer with its number of
+      models, and "In this show" on top with the number of profiles patched in the demo
+- [ ] Type `phantom`: the manufacturers narrow to those with a matching model, counts are the
+      matches; Model lists every match prefixed with its manufacturer, each with its number of modes
+- [ ] Click Showtec: Model shows only Showtec's matches without the prefix; type `phantom 25`,
+      then change it to `par 56`: Showtec stays selected while it matches; type `xyzzy`: no
+      manufacturer matches, Showtec is deselected and Model says "No match"
+- [ ] Pick a model: its modes appear with their channel counts, the first is picked, and the pick
+      line reads "<manufacturer> <model>" with "<mode> · <n> channels · QLC+" (or "user profile");
+      a user profile in the Model column carries a `USER` tag
+- [ ] Click "In this show": Model lists the demo's profiles; pick one, its modes come from the show
+- [ ] Edit profile… and New from channel list… are there and disabled (VS2-26)
+- [ ] Keyboard: from the search field ↓ goes into the columns, ↑↓ move within a column, ←→ move
+      between columns, Return adds (same as clicking Add)
+- [ ] Type fast (`showtecparxx` then back to `showtec`): the lists end on the last query, no
+      flicker back to an older result
 
 ## Add (PAT-01..03, PAT-09)
 - [ ] Type `showtec par 56` in the Add panel's search: Showtec LED Par 56 is listed; pick it, its
