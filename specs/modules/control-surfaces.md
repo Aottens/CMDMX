@@ -181,6 +181,9 @@ Learn, stored as readable files and travel between Macs.
   - 16 per page, BCF2000 + one extender: slots 1–16 at once;
   - 6 per page, 8 faders: faders 7–8 unbound.
   An unbound fader is driven to 0, its LEDs are off and its input does nothing.
+  The order is set by `control.order {devices: [name, …]}` (VS7-04): units in the list come
+  first in that order, the others after them by name; kept in `state.json` under `control.order`
+  and shown as the snapshot's `control.order`.
 - **CTL-32** Mackie Control navigation: Bank ◀/▶ = `page prev`/`page next` and reset the offset to
   0; Channel ◀/▶ move the offset by W within the page (stopping at 0 and at the last window).
   Channel ◀/▶ are the actions `channel prev`/`channel next` (added to the CTL-05 catalogue; they
@@ -262,7 +265,8 @@ Learn, stored as readable files and travel between Macs.
   its bindings to the asking client) · `control.binding {mapping, input, action?, …options}`
   (edit or add) · `control.unbind {mapping, input}` · `control.mapping_new {name, device}` ·
   `control.mapping_rename` · `control.mapping_delete` (not a profile) · `control.mapping_import
-  {json, replace?}` · `control.osc {enabled?, port?, feedback_port?, allow?, clients?, mapping?}`. An action
+  {json, replace?}` · `control.osc {enabled?, port?, feedback_port?, allow?, clients?, mapping?}` ·
+  `control.order {devices}` (CTL-31). An action
   string outside the catalogue is refused (`unknown action "fader x"`).
 - **CTL-41** App: a **Control** screen on the workspace rail next to Output: a device table
   (name, state dot, Enabled, mapping dropdown), an OSC panel (CTL-35 settings, clients heard, error

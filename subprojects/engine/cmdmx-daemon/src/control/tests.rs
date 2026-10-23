@@ -1238,6 +1238,48 @@ fn ctl_31_an_extender_adds_eight_faders() {
 }
 
 #[test]
+fn ctl_31_the_user_sets_the_unit_order() {
+    let (mut c, dir) = surface("mc-order", &["BCF2000", "X-Touch-Ext"]);
+    let e = engine_fpp(16);
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.order","devices":["X-Touch-Ext","BCF2000"]}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        fader_target(&mut c, &e, "X-Touch-Ext", 1),
+        Some(slot(&e, 1, 1))
+    );
+    assert_eq!(fader_target(&mut c, &e, "BCF2000", 1), Some(slot(&e, 1, 9)));
+    assert_eq!(c.snapshot()["order"], json!(["X-Touch-Ext", "BCF2000"]));
+    // Kept in state.json; a unit not in the list follows the listed ones, by name.
+    let (mut again, _) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert_eq!(again.snapshot()["order"], json!(["X-Touch-Ext", "BCF2000"]));
+    ports(
+        &mut again,
+        &[port("BCF2000", true), port("X-Touch-Ext", true), port("A-Ext", true)],
+    );
+    req(
+        &mut again,
+        r#"{"v":0,"cmd":"control.enable","device":"A-Ext","on":true}"#,
+    )
+    .unwrap();
+    let e = engine_fpp(24);
+    assert_eq!(
+        fader_target(&mut again, &e, "X-Touch-Ext", 1),
+        Some(slot(&e, 1, 1))
+    );
+    assert_eq!(
+        fader_target(&mut again, &e, "BCF2000", 1),
+        Some(slot(&e, 1, 9))
+    );
+    assert_eq!(
+        fader_target(&mut again, &e, "A-Ext", 1),
+        Some(slot(&e, 1, 17))
+    );
+}
+
+#[test]
 fn ctl_32_bank_pages_and_any_page_change_resets_the_window() {
     let (mut c, _) = surface("mc-bank", &["BCF2000"]);
     let mut e = engine_fpp(10);
