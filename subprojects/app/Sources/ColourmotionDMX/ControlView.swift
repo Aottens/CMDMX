@@ -22,7 +22,7 @@ struct ControlView: View {
                     DevicesPanel(selected: $selected)
                     OSCPanel()
                 }
-                .frame(width: 470)
+                .frame(width: 540)
                 BindingsPanel(mappingName: $mappingName)
             }
         }
@@ -84,13 +84,13 @@ private struct DevicesPanel: View {
             // outside the view's environment, where `engine` would trap.
             Table(rows, selection: $selected) {
                 TableColumn("Order") { OrderCell(device: $0, names: names, enabled: rows.filter(\.enabled).map(\.name), client: engine) }
-                    .width(min: 50, ideal: 54, max: 60)
-                TableColumn("Device") { Text($0.name).lineLimit(1) }.width(min: 90, ideal: 130)
-                TableColumn("State") { DeviceStateCell(device: $0) }.width(min: 70, ideal: 80, max: 90)
-                TableColumn("On") { DeviceEnabledCell(device: $0, client: engine) }.width(min: 30, ideal: 34, max: 44)
+                    .width(min: 44, ideal: 46, max: 50)
+                TableColumn("Device") { Text($0.name).lineLimit(1) }.width(min: 80, ideal: 110)
+                TableColumn("State") { DeviceStateCell(device: $0) }.width(min: 62, ideal: 70, max: 80)
+                TableColumn("On") { DeviceEnabledCell(device: $0, client: engine) }.width(min: 26, ideal: 28, max: 34)
                 TableColumn("Mapping") { DeviceMappingCell(device: $0, mappings: engine.control.mappings.map(\.name), client: engine) }
-                    .width(min: 120, ideal: 160)
-                TableColumn("Errors") { Text($0.errors == 0 ? "" : "\($0.errors)").font(Typo.mono(Typo.small)) }.width(min: 36, ideal: 44, max: 50)
+                    .width(min: 110, ideal: 130)
+                TableColumn("Errors") { Text($0.errors == 0 ? "" : "\($0.errors)").font(Typo.mono(Typo.small)) }.width(min: 30, ideal: 36, max: 44)
             }
         }
     }
