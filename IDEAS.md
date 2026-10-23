@@ -431,3 +431,4 @@ many times more.
 - Plans only, or also sell kits/PCBs later?
 - Hardware licence (CERN-OHL-S, CERN-OHL-W, CC BY-SA)?
 **Owner's answer (2026-10-23):** phase 3 becomes the hardware phase; IDEA-23 goes there.
+**Research (2026-10-23):** candidate parts, sample BOMs and open questions in `docs/research/hardware-desk.md`.
