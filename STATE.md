@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-23 (planning synced with main: VS7-04 merged #82; next VS4-04)_
+_Last updated: 2026-10-23 (planning synced with main: VS7-04 merged #82; next P1-14, VS4-04 waits for the iPad)_
 
 ## Current focus
 Vertical slice 1: one hand-written fixture → patch on universe 1 → one fader in the app → Art-Net + sACN out → Eurolite MK2 over serial → BCF2000 fader moves it with motor feedback.
@@ -90,7 +90,7 @@ DECISIONS; focus is a general console, the church is the first proof):
    approved 2026-10-23 with the ten owner decisions, CTL-01..04 kept as the Mackie Control wire format). Scope (owner, 2026-10-23): a general MIDI + OSC layer; the BCF2000
    is the Mackie Control profile on it (VS1-07), the church TouchOSC remote one OSC client (VS4-04).
    VS7-01, VS7-02 and VS1-07 merged (BCF2000 checklist `tests/hardware/bcf2000.md` waits for the
-   hardware, gate 3); VS7-03 merged; VS7-04 (app Control screen, extender order) merged (#82). Next: VS4-04 (church TouchOSC layout).
+   hardware, gate 3); VS7-03 merged; VS7-04 (app Control screen, extender order) merged (#82). Next: P1-14; VS4-04 (church TouchOSC layout) waits for the iPad mini (owner, 2026-10-23).
 After that: VS2-13 gate 3 (church run), P1-14 (library browsing, sketch first), P1-15
 (multi-select in the patch table). Cue lists (P1-08, VS3-02..05) and group masters (VS3-06/07) are done.
 Working notes: one task per PR; Sonnet subagents write the code, the main session writes spec and
