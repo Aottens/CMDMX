@@ -146,6 +146,7 @@ fn main() {
     eprintln!("ipc: listening on ws://{ipc_addr}");
     // LIB-13: index the library in the background; until it is stored, requests get "loading".
     let (qlcplus_dir, profiles_dir) = (cli.qlcplus_dir.clone(), cli.profiles_dir.clone());
+    let loading = Arc::clone(&library);
     let loader = std::thread::Builder::new()
         .name("library-load".into())
         .spawn(move || {
@@ -162,7 +163,7 @@ fn main() {
                 eprintln!("library: warning: {w}");
             }
             eprintln!("library: {} profiles", lib.len());
-            if let Ok(mut slot) = library.write() {
+            if let Ok(mut slot) = loading.write() {
                 *slot = Some(lib);
             }
         });
@@ -219,6 +220,27 @@ fn main() {
                 // IPC-24: to the asking client only; a full queue drops the answer (IPC-07).
                 ipc::Event::CueView { id, cue, reply } => {
                     ipc::cue_view(&engine, id, cue).map(|msg| drop(reply.try_send(msg)))
+                }
+                // IPC-37: an unknown key is an error to the asking client only.
+                ipc::Event::PatchProfile { key, reply } => {
+                    let msg = ipc::patch_profile(&engine, &key)
+                        .unwrap_or_else(|e| ipc::error(&e.to_string()));
+                    drop(reply.try_send(msg));
+                    Ok(())
+                }
+                // IPC-38: the show first (one undo step), then the library file off the tick.
+                ipc::Event::ProfileSave { profile, reply } => {
+                    let saved = run(
+                        &mut engine,
+                        &mut history,
+                        ipc::Command::ProfileSave(profile.clone()),
+                        now,
+                    );
+                    saved.map(|()| {
+                        let key = format!("{}/{}", profile.manufacturer, profile.model);
+                        let fixtures = engine.fixtures().filter(|f| f.profile == key).count();
+                        write_library_file(&library, profile, fixtures, reply);
+                    })
                 }
                 // SHW-11/14/15: write the current show at once, then continue in the next one.
                 event
@@ -408,6 +430,28 @@ fn main() {
         next += TICK;
         let wait = next.saturating_duration_since(Instant::now());
         std::thread::sleep(wait);
+    }
+}
+
+/// IPC-38: write the saved profile into the user library on a thread of its own, so a slow
+/// disk never holds the tick; the outcome goes to the asking client.
+fn write_library_file(
+    library: &ipc::SharedLibrary,
+    profile: cmdmx_core::profile::Profile,
+    fixtures: usize,
+    reply: std::sync::mpsc::SyncSender<String>,
+) {
+    let lib = Arc::clone(library);
+    let answer = reply.clone();
+    let spawned = std::thread::Builder::new()
+        .name("profile-save".into())
+        .spawn(move || {
+            drop(answer.try_send(ipc::write_user_profile(&lib, &profile, fixtures)));
+        });
+    if let Err(e) = spawned {
+        let msg = format!("Saved in the show, not in the library: cannot start the writer: {e}");
+        eprintln!("warning: {msg}");
+        drop(reply.try_send(ipc::warning(&msg)));
     }
 }
 
@@ -632,6 +676,12 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         CueCopy { id, cue, to } => engine.copy_cue(id, cue, to),
         // Answered through `Event::CueView` (IPC-24).
         CueView { .. } => Ok(()),
+        // Answered through `Event::PatchProfile` (IPC-37).
+        PatchProfile { .. } => Ok(()),
+        ProfileSave(p) => engine
+            .save_profile(&format!("{}/{}", p.manufacturer, p.model), p)
+            .map(drop),
+        ProgrammerSet { attribute, value } => engine.set_programmer_level(&attribute, value),
         CueRemove {
             id,
             cue,
@@ -697,6 +747,7 @@ fn class(cmd: &ipc::Command) -> Class {
         Show(New { .. } | Open { .. }) => Class::Reset,
         Show(List | SaveAs { .. })
         | CueView { .. }
+        | PatchProfile { .. }
         | Control(_)
         | ControlMapping { .. }
         | Library(_)
@@ -715,6 +766,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | RemDim
         | SettingsProgrammer(_)
         | Wheel { .. }
+        | ProgrammerSet { .. }
+        | ProfileSave(_)
         | Colour { .. }
         | Line { .. }
         | RecordGroup { .. }
@@ -793,6 +846,10 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
             format!("Wheel {attribute}"),
             Some(format!("wheel:{attribute}")),
         ),
+        ProgrammerSet { attribute, .. } => {
+            (format!("Set {attribute}"), Some(format!("set:{attribute}")))
+        }
+        ProfileSave(p) => (format!("Edit profile {}", p.model), None),
         Colour { .. } => ("Colour".into(), Some("colour".into())),
         RecordGroup { group } => (format!("Record group {group}"), None),
         OutputAdd { .. } => ("Add output".into(), None),
@@ -2281,6 +2338,18 @@ mod tests {
         ),
         (r#"{"v":0,"cmd":"cue.view","id":2,"cue":2}"#, Class::Neutral),
         (
+            r#"{"v":0,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":0,"cmd":"profile.save","profile":{"manufacturer":"A","model":"B","modes":[{"name":"m","footprint":1}]}}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":0,"cmd":"programmer.set","attribute":"Pan","value":0.5}"#,
+            Class::Edit,
+        ),
+        (
             r#"{"v":0,"cmd":"library.search","query":"par"}"#,
             Class::Neutral,
         ),
@@ -2610,6 +2679,64 @@ mod tests {
             h.undo_label(),
             Some(format!("Delete playback {id}").as_str())
         );
+    }
+
+    // ---- VS2-24: IPC-38, IPC-39 ------------------------------------------------------------
+
+    const SAVE_SPOT: &str = r#"{"v":0,"cmd":"profile.save","profile":{"manufacturer":"Showtec",
+        "model":"Phantom 25 LED Spot","source":"user","modes":[{"name":"11 Channel","footprint":11,
+        "attributes":[{"name":"Pan","group":"P","kind":"Ltp","channel":1,"default":0.5}]}]}}"#;
+
+    #[test]
+    fn ipc_38_profile_save_is_one_undo_step_named_after_the_model() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, SAVE_SPOT).unwrap();
+        assert_eq!(
+            (h.len(), h.undo_label()),
+            (1, Some("Edit profile Phantom 25 LED Spot"))
+        );
+        assert!(e.has_profile("Showtec/Phantom 25 LED Spot"));
+        undo_run(&mut e, &mut h, SAVE_SPOT).unwrap();
+        assert_eq!(h.len(), 1, "an unchanged save is no step (UNDO-01)");
+        let other = SAVE_SPOT.replace(r#""default":0.5"#, r#""default":0.25"#);
+        undo_run(&mut e, &mut h, &other).unwrap();
+        assert_eq!(h.len(), 2, "two different saves are two steps");
+        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        assert!(!e.has_profile("Showtec/Phantom 25 LED Spot"));
+    }
+
+    #[test]
+    fn ipc_38_a_refused_save_adds_no_step() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let bad = SAVE_SPOT.replace(r#""default":0.5"#, r#""default":2.0"#);
+        assert!(undo_run(&mut e, &mut h, &bad).is_err());
+        assert!(h.is_empty());
+    }
+
+    #[test]
+    fn ipc_39_programmer_set_coalesces_per_attribute_like_a_wheel() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, SELECT_101).unwrap();
+        let set =
+            |v: f32| format!(r#"{{"v":0,"cmd":"programmer.set","attribute":"Pan","value":{v}}}"#);
+        undo_run(&mut e, &mut h, &set(0.2)).unwrap();
+        undo_run(&mut e, &mut h, &set(0.4)).unwrap();
+        assert_eq!((h.len(), h.undo_label()), (2, Some("Set Pan")));
+        assert_eq!(
+            e.programmer().value(101, "Pan"),
+            Some(cmdmx_core::value::Value::Level(0.4))
+        );
+        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        assert_eq!(
+            e.programmer().value(101, "Pan"),
+            None,
+            "one undo takes the run back"
+        );
+        assert!(undo_run(&mut e, &mut h, &set(1.5)).is_err());
     }
 
     // ---- VS6-02: OUT-34 ----------------------------------------------------------------

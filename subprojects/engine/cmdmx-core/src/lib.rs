@@ -58,6 +58,9 @@ pub enum CoreError {
     UnknownProfile(String),
     #[error("profile '{profile}' has no mode '{mode}'")]
     UnknownMode { profile: String, mode: String },
+    /// LIB-25: a profile edit the show's content does not allow, with the reason as plain text.
+    #[error("{0}")]
+    ProfileInUse(String),
     #[error("invalid profile (mode '{mode}'): {problem}")]
     InvalidProfile { mode: String, problem: String },
     #[error("fixture {fixture} at universe {universe} address {address} exceeds the universe")]

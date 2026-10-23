@@ -128,6 +128,11 @@ pub enum Command {
         steps: i32,
         resolution: Resolution,
     },
+    /// IPC-39: an absolute level on every target that has the attribute.
+    ProgrammerSet {
+        attribute: String,
+        value: f32,
+    },
     /// IPC-23
     Colour {
         hue: f32,
@@ -323,6 +328,12 @@ pub enum Command {
         id: PlaybackId,
         cue: CueNumber,
     },
+    /// IPC-37: handed to the tick as `Event::PatchProfile`, never applied.
+    PatchProfile {
+        profile: String,
+    },
+    /// IPC-38: the show's copy of a profile; the tick also writes the library file.
+    ProfileSave(Profile),
     CueRemove {
         id: PlaybackId,
         cue: CueNumber,
@@ -544,6 +555,17 @@ pub enum Event {
     CueView {
         id: PlaybackId,
         cue: CueNumber,
+        reply: SyncSender<String>,
+    },
+    /// IPC-37: the answer goes to the asking client only.
+    PatchProfile {
+        key: String,
+        reply: SyncSender<String>,
+    },
+    /// IPC-38: the tick saves the profile into the show; the outcome of the library write
+    /// goes to `reply`.
+    ProfileSave {
+        profile: Profile,
         reply: SyncSender<String>,
     },
     /// CTL-40: the answer to `control.mapping`, to the asking client only.
@@ -968,6 +990,14 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 .and_then(|m| serde_json::from_value(m.clone()).ok())
                 .ok_or("missing or invalid \"model\" (expected Hsi, Rgb or Cmy)")?,
         }),
+        Some("programmer.set") => Ok(Command::ProgrammerSet {
+            attribute: string(&v, "attribute")?,
+            value: v
+                .get("value")
+                .and_then(|n| n.as_f64())
+                .map(|n| n as f32)
+                .ok_or("missing or invalid \"value\"")?,
+        }),
         Some("programmer.colour") => Ok(Command::Colour {
             hue: unit(&v, "hue")?,
             saturation: unit(&v, "saturation")?,
@@ -1028,6 +1058,18 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             serde_json::from_value(v.get("profile").cloned().unwrap_or_default())
                 .map_err(|e| format!("missing or invalid \"profile\": {e}"))?,
         ))),
+        Some("patch.profile") => Ok(Command::PatchProfile {
+            profile: string(&v, "profile")?,
+        }),
+        Some("profile.save") => {
+            let profile: Profile =
+                serde_json::from_value(v.get("profile").cloned().unwrap_or_default())
+                    .map_err(|e| format!("missing or invalid \"profile\": {e}"))?;
+            if profile.manufacturer.trim().is_empty() || profile.model.trim().is_empty() {
+                return Err("a profile needs a manufacturer and a model".into());
+            }
+            Ok(Command::ProfileSave(profile))
+        }
         Some("library.save_channel_list") => Ok(Command::Library(LibraryRequest::SaveChannelList(
             serde_json::from_value(v.clone()).map_err(|e| format!("invalid channel list: {e}"))?,
         ))),
@@ -2519,6 +2561,42 @@ pub fn answer_library(lib: &RwLock<Option<Library>>, req: LibraryRequest) -> Str
     }
 }
 
+/// IPC-37: the show's copy of a profile, for the profile editor.
+pub fn patch_profile(engine: &Engine, key: &str) -> Result<String, CoreError> {
+    let profile = engine
+        .profile(key)
+        .ok_or_else(|| CoreError::UnknownProfile(key.to_string()))?;
+    Ok(serde_json::json!({"v": 0, "type": "patch.profile", "profile_key": key, "profile": profile})
+        .to_string())
+}
+
+/// IPC-38: write a saved profile into the user library, and say so (`fixtures` is how many
+/// patched fixtures use it). The show already holds the profile, so a failure here is a
+/// warning, not an error (LIB-25).
+pub fn write_user_profile(
+    lib: &RwLock<Option<Library>>,
+    profile: &Profile,
+    fixtures: usize,
+) -> String {
+    let written = lib
+        .write()
+        .map_err(|_| LIBRARY_POISONED.to_string())
+        .and_then(|mut guard| {
+            guard
+                .as_mut()
+                .ok_or_else(|| LIBRARY_LOADING.to_string())?
+                .save_profile(profile)
+        });
+    match written {
+        Ok(()) => {
+            serde_json::json!({"v": 0, "type": "library.saved", "manufacturer": profile.manufacturer,
+                "model": profile.model, "fixtures": fixtures})
+            .to_string()
+        }
+        Err(e) => warning(&format!("Saved in the show, not in the library: {e}")),
+    }
+}
+
 /// SHW-15: the reply to `show.list`, to the asking client only.
 pub fn answer_show_list(shows: &Shows) -> String {
     serde_json::json!({"v": 0, "type": "show.list", "shows": shows.list()}).to_string()
@@ -2677,6 +2755,18 @@ fn serve_client(
                 Ok(Command::ControlMapping { name }) => {
                     let reply = reply.clone();
                     if events.send(Event::ControlMapping { name, reply }).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::PatchProfile { profile: key }) => {
+                    let reply = reply.clone();
+                    if events.send(Event::PatchProfile { key, reply }).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::ProfileSave(profile)) => {
+                    let reply = reply.clone();
+                    if events.send(Event::ProfileSave { profile, reply }).is_err() {
                         return;
                     }
                 }
@@ -5340,5 +5430,90 @@ mod tests {
             .find(|m| m["type"] == "programmer_settings")
             .unwrap();
         assert_eq!(settings["clear_ltp"], "Freeze");
+    }
+
+    // ---- VS2-24: IPC-37..39 -----------------------------------------------------------------
+
+    const PHANTOM: &str = r#"{"manufacturer":"Showtec","model":"Phantom 25 LED Spot","source":"user",
+        "modes":[{"name":"11 Channel","footprint":11,"attributes":[
+          {"name":"Pan","group":"P","kind":"Ltp","channel":1,"fine_channel":2},
+          {"name":"Gobo","group":"G","kind":"Ltp","channel":9,"slots":[{"name":"Open","from":0,"to":7}]}]}]}"#;
+
+    #[test]
+    fn ipc_37_patch_profile_answers_the_shows_copy() {
+        assert!(matches!(
+            parse_command(r#"{"v":0,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#),
+            Ok(Command::PatchProfile { profile }) if profile == "Showtec/Phantom 25 LED Spot"
+        ));
+        assert!(parse_command(r#"{"v":0,"cmd":"patch.profile"}"#).is_err());
+        let mut e = engine();
+        let p = Profile::from_json(PHANTOM).unwrap();
+        e.add_profile("Showtec/Phantom 25 LED Spot", p.clone())
+            .unwrap();
+        let v = parse(&patch_profile(&e, "Showtec/Phantom 25 LED Spot").unwrap());
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"patch.profile","profile_key":"Showtec/Phantom 25 LED Spot",
+                   "profile":serde_json::to_value(&p).unwrap()})
+        );
+        assert!(patch_profile(&e, "Showtec/Nope").is_err());
+    }
+
+    #[test]
+    fn ipc_38_profile_save_parses_a_profile_with_a_name() {
+        let ok = format!(r#"{{"v":0,"cmd":"profile.save","profile":{PHANTOM}}}"#);
+        assert!(matches!(
+            parse_command(&ok),
+            Ok(Command::ProfileSave(p)) if p.model == "Phantom 25 LED Spot"
+        ));
+        for bad in [
+            r#"{"v":0,"cmd":"profile.save"}"#.to_string(),
+            r#"{"v":0,"cmd":"profile.save","profile":{"modes":"x"}}"#.to_string(),
+            ok.replace(r#""manufacturer":"Showtec""#, r#""manufacturer":" ""#),
+            ok.replace(r#""model":"Phantom 25 LED Spot""#, r#""model":"""#),
+        ] {
+            assert!(parse_command(&bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_38_the_user_profile_is_written_indexed_and_answered() {
+        let lib = library("profile-save");
+        let p = Profile::from_json(PHANTOM).unwrap();
+        let v = parse(&write_user_profile(&lib, &p, 4));
+        assert_eq!(
+            v,
+            json!({"v":0,"type":"library.saved","manufacturer":"Showtec",
+                   "model":"Phantom 25 LED Spot","fixtures":4})
+        );
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec","query":"phantom"}"#,
+        );
+        assert_eq!(v["items"][0]["source"], "user");
+        // The show was updated, the file was not: a warning that says so (LIB-25).
+        let loading = std::sync::RwLock::new(None);
+        let v = parse(&write_user_profile(&loading, &p, 4));
+        assert_eq!(v["type"], "warning");
+        let text = v["message"].as_str().unwrap();
+        assert!(
+            text.starts_with("Saved in the show, not in the library: "),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn ipc_39_programmer_set_parses() {
+        assert!(matches!(
+            parse_command(r#"{"v":0,"cmd":"programmer.set","attribute":"Pan","value":0.5}"#),
+            Ok(Command::ProgrammerSet { attribute, value }) if attribute == "Pan" && value == 0.5
+        ));
+        for bad in [
+            r#"{"v":0,"cmd":"programmer.set","value":0.5}"#,
+            r#"{"v":0,"cmd":"programmer.set","attribute":"Pan"}"#,
+            r#"{"v":0,"cmd":"programmer.set","attribute":"Pan","value":"x"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 }

@@ -392,6 +392,109 @@ impl Engine {
         Ok(())
     }
 
+    /// LIB-25: replace the show's copy of a profile, all or nothing. A mode a fixture uses keeps
+    /// its name and footprint, and an attribute the programmer, a cue or a palette stores for a
+    /// fixture of this type stays. Returns how many patched fixtures use the profile.
+    pub fn save_profile(&mut self, key: &str, profile: Profile) -> Result<usize, CoreError> {
+        profile.validate_for_save()?;
+        let users: Vec<&Fixture> = self
+            .fixtures
+            .values()
+            .filter(|f| f.profile == key)
+            .collect();
+        let mut modes: BTreeMap<FixtureId, &Mode> = BTreeMap::new();
+        for f in &users {
+            let old = lookup_mode(&self.profiles, key, f.mode.as_deref())?;
+            let same = profile
+                .mode(Some(&old.name))
+                .filter(|m| m.footprint == old.footprint)
+                .filter(|m| {
+                    profile
+                        .mode(f.mode.as_deref())
+                        .is_some_and(|n| n.name == m.name)
+                });
+            let Some(new) = same else {
+                return Err(CoreError::ProfileInUse(format!(
+                    "mode '{}' is used by fixture {} and must keep {} channels",
+                    old.name, f.number, old.footprint
+                )));
+            };
+            modes.insert(f.id, new);
+        }
+        let gone = |id: &FixtureId, name: &String| {
+            modes.get(id).is_some_and(|m| m.logical(name).is_none())
+        };
+        let used = |name: &str, by: String| {
+            Err(CoreError::ProfileInUse(format!("{name} is used by {by}")))
+        };
+        let programmer = (self.programmer.values().iter())
+            .flat_map(|(id, v)| v.keys().map(move |n| (id, n)))
+            .chain(
+                (self.programmer.located().iter())
+                    .flat_map(|(id, v)| v.keys().map(move |n| (id, n))),
+            );
+        for (id, name) in programmer {
+            if gone(id, name) {
+                return used(name, "the programmer".into());
+            }
+        }
+        for playback in self.playbacks.values() {
+            for cue in &playback.cues {
+                for (id, values) in &cue.values {
+                    if let Some(name) = values.keys().find(|n| gone(id, n)) {
+                        return used(name, format!("cue {} of list {}", cue.number, playback.id));
+                    }
+                }
+            }
+        }
+        for palette in self.palettes.values() {
+            let by_fixture = palette
+                .fixtures
+                .iter()
+                .find_map(|(id, v)| v.keys().find(|n| gone(id, n)));
+            let shared = palette
+                .shared
+                .get(key)
+                .and_then(|v| v.keys().find(|n| modes.iter().any(|(id, _)| gone(id, n))));
+            if let Some(name) = by_fixture.or(shared) {
+                return used(name, format!("palette {}", palette.number));
+            }
+        }
+        let ids: Vec<FixtureId> = modes.keys().copied().collect();
+        let old = self.profiles.insert(key.to_string(), profile);
+        let old: BTreeMap<String, Profile> =
+            old.map(|p| (key.to_string(), p)).into_iter().collect();
+        for id in &ids {
+            let old_mode = self.fixtures.get(id).and_then(|f| resolve_mode(&old, f));
+            self.refresh_held(*id, old_mode);
+        }
+        Ok(ids.len())
+    }
+
+    /// LIB-25: after a profile copy changed, a fixture's held values follow it: names the mode
+    /// lost go, new LTP attributes start at their default, and a value still at the old default
+    /// takes the new one (a value a source proposed stays).
+    fn refresh_held(&mut self, id: FixtureId, old: Option<&Mode>) {
+        let (Some(fixture), Some(held)) = (self.fixtures.get(&id), self.held.get(&id)) else {
+            return;
+        };
+        let Some(new) = resolve_mode(&self.profiles, fixture) else {
+            return;
+        };
+        let next: BTreeMap<String, Value> = new
+            .logical_attributes()
+            .filter(|l| l.kind == AttributeKind::Ltp)
+            .map(|l| {
+                let old_default = old.and_then(|m| m.logical(l.name)).map(|o| o.default);
+                let value = (held.get(l.name).copied())
+                    .filter(|v| l.default.same_kind(v) && Some(*v) != old_default)
+                    .unwrap_or(l.default);
+                (l.name.to_string(), value)
+            })
+            .collect();
+        self.held.insert(id, next);
+    }
+
     /// Patch a fixture under its own id (scenario files, test rigs, the show file later).
     /// Rejected (not panicking) when the id or number is taken, the profile or mode is
     /// unknown, or the footprint runs past slot 512 or onto another fixture (PAT-02).
@@ -930,7 +1033,7 @@ impl Engine {
             self.clear_channels(universe, address, footprint);
         }
         self.settings = s.settings;
-        self.profiles = s.profiles;
+        let old_profiles = std::mem::replace(&mut self.profiles, s.profiles);
         self.numbers = s.numbers;
         self.page_legends = s.page_legends;
         self.groups = s.groups;
@@ -946,6 +1049,12 @@ impl Engine {
                 .is_some_and(|o| (&o.profile, &o.mode) == (&f.profile, &f.mode));
             if !kept && self.init_held(&f).is_err() {
                 self.held.remove(&f.id);
+            } else if kept {
+                // LIB-25: undoing a profile edit moves the defaults back on the output too.
+                let old = old_fixtures
+                    .get(&f.id)
+                    .and_then(|o| resolve_mode(&old_profiles, o));
+                self.refresh_held(f.id, old);
             }
         }
         // Playbacks: removed ones are killed, returned ones start fresh, changed ones keep
@@ -3450,6 +3559,36 @@ impl Engine {
         }
         for (id, value) in new {
             self.set_programmer_value(id, name, value)?;
+        }
+        Ok(())
+    }
+
+    /// IPC-39: put an absolute level on `attribute` of every target that has it. Refused
+    /// requests change nothing; Colour is set through [`Engine::set_colour`].
+    pub fn set_programmer_level(&mut self, attribute: &str, value: f32) -> Result<(), CoreError> {
+        if !(0.0..=1.0).contains(&value) {
+            return Err(CoreError::InvalidLevel(value));
+        }
+        if attribute == COLOUR {
+            return Err(CoreError::InvalidOption(
+                "level: Colour takes a hue and a saturation".into(),
+            ));
+        }
+        let targets = self.programmer.targets();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let with: Vec<FixtureId> = (targets.into_iter())
+            .filter(|id| {
+                self.mode_of(*id)
+                    .is_some_and(|m| m.logical(attribute).is_some())
+            })
+            .collect();
+        if with.is_empty() {
+            return Err(CoreError::AttributeNotInTargets(attribute.to_string()));
+        }
+        for id in with {
+            self.set_programmer_value(id, attribute, Value::Level(value))?;
         }
         Ok(())
     }
