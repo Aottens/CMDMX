@@ -1,8 +1,8 @@
 # Module spec: control-surfaces (CTL)
 
 Owner: `cmdmx-control` (pure: MIDI and OSC decode/encode, mappings, pickup, feedback, learn) and
-`cmdmx-daemon` (CoreMIDI ports, the OSC socket, mapping files, IPC). Status: **draft for owner
-approval (P1-05, 2026-10-23)**. CTL-01..04 (the Mackie Control wire format) are kept from slice 1
+`cmdmx-daemon` (CoreMIDI ports, the OSC socket, mapping files, IPC). Status: **CTL-05..43
+approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
 and already tested in `cmdmx-control/src/mcu.rs`; they now belong to the Mackie Control profile.
 Scope set by the owner on 2026-10-23 (DECISIONS): a **general MIDI and OSC control layer**; named
 hardware (the BCF2000) and named clients (the church TouchOSC remote) are profiles and clients on
@@ -271,33 +271,23 @@ for the church remote (VS4-04).
 
 ## Out of scope (phase 1)
 MIDI Show Control, MIDI clock and MTC (cue triggers and sync: IDEA-16 and timecode, later phases,
-unless the owner pulls MSC in, question 7); MIDI or OSC sent by cues (macros); NRPN; Mackie
+owner decision 7); MIDI or OSC sent by cues (macros); NRPN; Mackie
 Control scribble strips and the 7-segment display (X-Touch legends, later task); HUI; the own web
 remote (IDEA-06, phase 2); DMX-in and audio triggers (Titan has them; later phase); OSC over TCP.
 
-## Open questions for the owner
-1. **Where mappings live.** Proposed: per Mac in `Application Support/…/control/`, exportable as a
-   file (CTL-23), because a controller belongs to the desk, not to the show (SHW-08 keeps
-   machine-specific data out of the show). Alternative: in the show, as Titan stores its triggers.
-2. **A new device.** Proposed: listed but disabled until enabled once (CTL-24), so a keyboard
-   plugged in during a service cannot fire cues. Alternative: enabled at once when a profile
-   matches.
-3. **Faders without motors.** Proposed: Pickup by default (CTL-13). Alternative: Jump.
-4. **OSC on the network.** Proposed: off by default; when on, any sender unless `allow` is set
-   (CTL-35). Alternative: on by default, or an allow list required.
-5. **OSC prefix and ports.** Proposed: `/cmdmx`, listen 8000, feedback 9000 (TouchOSC defaults).
-6. **Shipped profiles.** Proposed: only Mackie Control in phase 1 (CTL-30), others learned and
-   added when verified. Do you want templates for common devices (nanoKONTROL2, APC mini, X-Touch
-   Mini, Launch Control XL) even unverified?
-7. **MIDI Show Control** (Titan supports GO/STOP/RESUME by playback number). Proposed: phase 2;
-   say so if you want it in phase 1 (a small extra task).
-8. **The church TouchOSC layout.** Which pages and controls does it have, and which program does
-   it talk to today? If you can copy the `.tosc` file (or screenshots of each page) into the repo
-   notes, VS4-04 binds its addresses with CTL-38 so the layout stays unchanged.
-9. **Mackie Control defaults** (CTL-33): REC row = upper button, SELECT row = lower, V-Pots =
-   wheels of the active attribute group, Play/Stop/Rewind = Go/Stop/Back. Good as a start?
-10. **Libraries.** Proposed: `midir` for CoreMIDI (one new dependency in the daemon) and an own OSC
-    codec instead of the `rosc` crate (fewer dependencies, framing tested byte-exact).
+## Owner decisions (P1-05, 2026-10-23: 1–7, 9, 10 as proposed; 8 answered)
+1. Mappings live per Mac in `Application Support/…/control/`, exportable as a file; not in the show (CTL-23).
+2. A new device is listed disabled until it is enabled once (CTL-24).
+3. Faders without motors use Pickup by default, Jump per binding (CTL-13).
+4. OSC is off by default; when on, any sender unless `allow` is set (CTL-35).
+5. Prefix `/cmdmx`, listen port 8000, feedback port 9000 (CTL-35/36).
+6. Phase 1 ships only the Mackie Control profile; other devices are learned (CTL-30).
+7. MIDI Show Control is phase 2 (with IDEA-16 and timecode).
+8. The church TouchOSC layout runs on a very old iPad mini; the owner does not know yet how to
+   get the `.tosc` out. VS4-04 tries to export it and bind its addresses (CTL-38); if that fails,
+   a new TouchOSC layout is built on the `/cmdmx` schema (CTL-36).
+9. Mackie Control defaults as in CTL-33.
+10. `midir` for CoreMIDI and an own OSC 1.0 codec in `cmdmx-control` (no `rosc`).
 
 ## Build tasks (`BACKLOG.md`, sized after approval)
 - **VS7-01** `cmdmx-control`: generic MIDI decode, mapping model and JSON, action catalogue,

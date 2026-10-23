@@ -33,7 +33,7 @@ window with each fixture's values; cyan means the value comes from a palette.*
 ## Status
 
 Early, under active development, not yet for real shows. The engine's merge already has a place
-for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: a general MIDI and OSC control layer (spec `specs/modules/control-surfaces.md`, waiting for approval), with Mackie Control as its first profile. What works today:
+for the phase-2 effects generator (effects run around the cue's values, before the masters). Next: a general MIDI and OSC control layer (spec `specs/modules/control-surfaces.md`, approved), with Mackie Control as its first profile. What works today:
 
 - The engine runs at 40 Hz and outputs every patched universe over Art-Net, sACN and USB (ENTTEC
   Pro protocol). Where each universe goes is part of the show: a universe that gets its first
