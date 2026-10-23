@@ -498,6 +498,8 @@ pub enum ControlRequest {
         json: String,
         replace: bool,
     },
+    /// The settings to change (CTL-35); checked as a whole when applied, a refusal changes nothing.
+    Osc(serde_json::Map<String, serde_json::Value>),
 }
 
 /// LIB-14: the fixture library requests.
@@ -824,6 +826,13 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
             json: string(v, "json")?,
             replace: opt_field(v, "replace", "true or false")?.unwrap_or(false),
         },
+        "osc" => {
+            let mut change = v.as_object().cloned().unwrap_or_default();
+            for key in ["v", "cmd"] {
+                change.remove(key);
+            }
+            ControlRequest::Osc(change)
+        }
         other => return Err(format!("unknown cmd 'control.{other}'")),
     }))
 }
@@ -2336,24 +2345,29 @@ impl Published {
 
 /// Outgoing queues of all connected clients, owned by the tick thread.
 #[derive(Default)]
-pub struct Clients(Vec<SyncSender<String>>);
+pub struct Clients {
+    queues: Vec<SyncSender<String>>,
+    /// The last warning sent, for OSC `/cmdmx/message` (CTL-37).
+    pub last_warning: String,
+}
 
 impl Clients {
     /// Queue the snapshot first; a client that cannot even take that is not kept.
     pub fn add(&mut self, tx: SyncSender<String>, snapshot: &str) {
         if tx.try_send(snapshot.to_string()).is_ok() {
-            self.0.push(tx);
+            self.queues.push(tx);
         }
     }
 
     /// Never blocks: a client whose queue is full or closed is dropped (IPC-07).
     pub fn broadcast(&mut self, msg: &str) {
-        self.0.retain(|tx| tx.try_send(msg.to_string()).is_ok());
+        self.queues
+            .retain(|tx| tx.try_send(msg.to_string()).is_ok());
     }
 
     #[cfg(test)]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.queues.len()
     }
 }
 

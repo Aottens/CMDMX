@@ -238,14 +238,14 @@ Learn, stored as readable files and travel between Macs.
   slots of the current page (`fader/<slot>` f, its `upper`/`lower` 1.0/0.0 and `legend`), `page`,
   `page/legend`, `gm`, `dbo`, `go`, `key/highlight`, `attribute_group/<g>`, the cue texts
   (`"<number> <legend>"`, the number alone without a legend, `""` without a list) and `message`
-  (VS7-03). Moves on the `/cmdmx` schema never pick up (OSC controls follow their feedback like
+  (VS7-03). OSC moves (built-in and custom addresses) never pick up (OSC controls follow their feedback like
   motor faders, CTL-13).
 - **CTL-38** Custom addresses: an OSC mapping binds any address (for example an existing TouchOSC
   layout's `/1/fader1` or `/2/push3`) to an action, learned like MIDI (CTL-25: the next address
   received binds), with feedback to the same address. The built-in schema always works next to it.
   So a layout made for another program works without editing the layout. Learn takes the next
   address outside `/cmdmx` (those keep acting while Learn is armed); the message is
-  `Learned: OSC /1/fader1 → fader 1` and a learned OSC fader is `jump` (no pickup). Button
+  `Learned: OSC /1/fader1 → fader 1` and a learned OSC fader is saved as `jump`. Button
   feedback is 1.0/0.0 (VS7-03).
 
 ### IPC and the app

@@ -4,7 +4,8 @@
 //! owns [`Control`]: devices and their states (CTL-08, 15, 16, 24), mapping files and the
 //! `control` key of `state.json` (CTL-23), conversion of inputs to engine commands coalesced per
 //! tick (CTL-06, 14), feedback after the tick (CTL-21), Learn (CTL-25), `last_input` (CTL-28) and
-//! the `control` section of the snapshot and its delta (CTL-39).
+//! the `control` section of the snapshot and its delta (CTL-39). OSC (VS7-03) is the same layer
+//! over a socket, see [`osc`].
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
@@ -192,7 +193,8 @@ impl Learn {
 struct LastInput {
     device: String,
     input: String,
-    value: u16,
+    /// A MIDI value, or the first argument of an OSC message.
+    value: Value,
 }
 
 pub struct Control {
@@ -215,6 +217,7 @@ pub struct Control {
     input_dirty: bool,
     /// When the last delta that carried a new `last_input` went out.
     input_sent: f64,
+    osc: osc::Osc,
 }
 
 /// The text of an input, as the user sees it.
@@ -410,6 +413,48 @@ impl Tick<'_> {
     }
 }
 
+/// What an action shows now, before any device turns it into its own numbers (CTL-17).
+enum Shown {
+    /// A level 0..=1; `None` for a slot without a playback.
+    Level(Option<f32>),
+    On(bool),
+    /// A wheel's value; `None` for a wheel the programmer does not have.
+    Wheel(Option<f32>),
+}
+
+/// CTL-17: the state of `action`; `wheels` caches the wheel values for the call.
+fn state_of(engine: &Engine, action: Action, wheels: &mut Option<Vec<f32>>) -> Shown {
+    let slot = |t: Target| resolve(engine, t).map(|id| level_of(engine, id));
+    match action {
+        Action::Fader(t) => Shown::Level(slot(t)),
+        Action::Gm => Shown::Level(Some(engine.grand_master())),
+        Action::Upper(t) | Action::Lower(t) => Shown::On(
+            resolve(engine, t)
+                .and_then(|id| engine.playback_state(id))
+                .is_some_and(|s| s.flash || s.latched),
+        ),
+        Action::Go(t) => Shown::On(
+            resolve(engine, t)
+                .and_then(|id| engine.list_live(id))
+                .is_some_and(|l| l.current.is_some()),
+        ),
+        Action::Page(n) => Shown::On(engine.page() == n),
+        Action::Dbo => Shown::On(engine.dbo()),
+        Action::Key(Key::Highlight) => Shown::On(engine.highlight()),
+        Action::AttributeGroup(g) => Shown::On(engine.active_group() == core_group(g)),
+        Action::Wheel(n) => {
+            let all = wheels.get_or_insert_with(|| {
+                (engine.programmer_view().wheels.iter())
+                    .map(|w| w.value)
+                    .collect()
+            });
+            let v = usize::from(n).checked_sub(1).and_then(|i| all.get(i));
+            Shown::Wheel(v.copied())
+        }
+        _ => Shown::On(false),
+    }
+}
+
 /// CTL-17..21: the raw value an element shows now for a binding; `None` for no feedback.
 /// `win` is set for a Mackie unit (CTL-31, 33); `wheels` caches the wheel values for the call.
 fn shown(
@@ -426,48 +471,27 @@ fn shown(
             b.off_value
         });
     };
-    let on = |on: bool| Some(if on { b.on_value } else { b.off_value });
-    let slot = |t: Target| resolve(engine, t).map(|id| level_of(engine, id));
-    let continuous = |level: f32| {
-        let x = if b.invert { 1.0 - level } else { level };
-        let v = b.min + x * (b.max - b.min);
-        Some(if win.is_some() && kind == Kind::PitchBend {
-            mcu::position(v)
-        } else {
-            midi::to_raw(kind, v)
-        })
-    };
-    match action {
-        Action::Fader(t) => match slot(t) {
-            Some(level) => continuous(level),
-            None => Some(0),
-        },
-        Action::Gm => continuous(engine.grand_master()),
-        Action::Upper(t) | Action::Lower(t) => on(resolve(engine, t)
-            .and_then(|id| engine.playback_state(id))
-            .is_some_and(|s| s.flash || s.latched)),
-        Action::Go(t) => on(resolve(engine, t)
-            .and_then(|id| engine.list_live(id))
-            .is_some_and(|l| l.current.is_some())),
-        Action::Page(n) => on(engine.page() == n),
-        Action::Dbo => on(engine.dbo()),
-        Action::Key(Key::Highlight) => on(engine.highlight()),
-        Action::AttributeGroup(g) => on(engine.active_group() == core_group(g)),
-        Action::Wheel(n) => {
-            let all = wheels.get_or_insert_with(|| {
-                (engine.programmer_view().wheels.iter())
-                    .map(|w| w.value)
-                    .collect()
-            });
-            let v = usize::from(n).checked_sub(1).and_then(|i| all.get(i));
-            if win.is_some() {
-                Some(mcu::ring(v.copied()))
+    Some(match state_of(engine, action, wheels) {
+        Shown::Level(None) => 0,
+        Shown::Level(Some(level)) => {
+            let x = if b.invert { 1.0 - level } else { level };
+            let v = b.min + x * (b.max - b.min);
+            if win.is_some() && kind == Kind::PitchBend {
+                mcu::position(v)
             } else {
-                Some(v.map_or(b.off_value, |v| midi::to_raw(kind, *v)))
+                midi::to_raw(kind, v)
             }
         }
-        _ => on(false),
-    }
+        Shown::On(on) => {
+            if on {
+                b.on_value
+            } else {
+                b.off_value
+            }
+        }
+        Shown::Wheel(v) if win.is_some() => mcu::ring(v),
+        Shown::Wheel(v) => v.map_or(b.off_value, |v| midi::to_raw(kind, v)),
+    })
 }
 
 impl Control {
@@ -535,6 +559,7 @@ impl Control {
             dirty: true,
             input_dirty: false,
             input_sent: f64::NEG_INFINITY,
+            osc: osc::Osc::load(saved.as_ref()),
         };
         control.refresh();
         (control, warnings)
@@ -556,6 +581,7 @@ impl Control {
             }
             dev.feedback.clear();
         }
+        self.osc.feedback.clear();
         self.dirty = true;
     }
 
@@ -632,7 +658,7 @@ impl Control {
             self.last_input = Some(LastInput {
                 device: device.to_string(),
                 input: m.input.to_string(),
-                value: m.value,
+                value: m.value.into(),
             });
             self.input_dirty = true;
             if !dev.enabled {
@@ -781,6 +807,7 @@ impl Control {
                 out.extend(cmds.into_iter().map(|c| (name.clone(), c)));
             }
         }
+        out.extend(self.osc_commands(&mut tick));
         out
     }
 
@@ -860,7 +887,8 @@ impl Control {
                 )
             })
             .collect();
-        update_state(&self.state_file, "control", json!({ "devices": devices }))
+        let control = json!({ "devices": devices, "osc": self.osc.settings });
+        update_state(&self.state_file, "control", control)
             .map_err(|e| format!("cannot save the control settings: {e}"))
     }
 
@@ -1009,6 +1037,10 @@ impl Control {
                     .map_err(|e| format!("cannot remove the file of '{name}': {e}"))?;
                 self.persist()
             }
+            ControlRequest::Osc(change) => {
+                self.osc_request(&change)?;
+                self.persist()
+            }
             ControlRequest::MappingImport { json, replace } => {
                 let (m, warnings) = Mapping::from_json(&json).map_err(|e| e.to_string())?;
                 valid_name(&m.name)?;
@@ -1101,6 +1133,7 @@ impl Control {
             "mappings": mappings,
             "learn": self.learn.as_ref().map(|l| l.action.to_string()),
             "last_input": last_input,
+            "osc": self.osc_snapshot(),
         })
     }
 
@@ -1121,6 +1154,8 @@ impl Control {
         Some(delta.to_string())
     }
 }
+
+mod osc;
 
 #[cfg(test)]
 mod tests;

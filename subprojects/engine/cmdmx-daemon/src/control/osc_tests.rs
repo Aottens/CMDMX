@@ -571,7 +571,8 @@ fn ctl_38_a_custom_address_acts_and_gets_feedback_at_that_address() {
             ..
         }
     )));
-    assert!(run_all(&mut e, cmds).is_empty());
+    // The demo show has no cue list, so `go` is refused, by name (CTL-06); the faders act.
+    assert_eq!(run_all(&mut e, cmds), ["OSC: No cue list connected"]);
     e.tick(0.025);
     assert!((level(&e, slot(&e, 1, 1)) - 0.4).abs() < 0.001);
     assert!((level(&e, slot(&e, 1, 2)) - 0.2).abs() < 0.001);
@@ -733,4 +734,26 @@ fn ctl_35_loopback_a_taken_port_is_an_error_not_a_crash() {
     // It still listens on another port afterwards.
     cmds.send(OscCmd::Listen(Some(0))).unwrap();
     assert!(matches!(next(&rx, 2.0), Some(OscIn::Listening(Ok(_)))));
+}
+
+#[test]
+fn ctl_21_a_mapping_change_sends_every_osc_client_the_full_state() {
+    let (mut c, _) = on("refresh");
+    let e = engine();
+    send(&mut c, A, "/cmdmx/page", vec![OscArg::Int(1)], 0.0);
+    let _ = c.commands(&e, 0.0);
+    let _ = c.osc_feedback(&e, 0.0);
+    req(
+        &mut c,
+        json!({"v":0,"cmd":"control.mapping_new","name":"OSC","device":"OSC"}),
+    )
+    .unwrap();
+    let _ = c.osc_feedback(&e, 0.0125);
+    req(
+        &mut c,
+        json!({"v":0,"cmd":"control.binding","mapping":"OSC","input":"/1/push1","action":"go"}),
+    )
+    .unwrap();
+    let out = c.osc_feedback(&e, 0.025);
+    assert!(has(&out, A_FB, "/cmdmx/page", OscArg::Int(1)), "{out:?}");
 }
