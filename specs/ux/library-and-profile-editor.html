@@ -1,0 +1,321 @@
+<title>Add Panel and Profile Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
+<style>
+/* P1-14 sketch (IDEA-08, IDEA-13), in the style of specs/ux/main-screen.html.
+   View 1: the Patch screen with the Add panel rethought: one search field over three columns
+   (manufacturer, model, mode), patch fields beside them. View 2: the profile editor, ONYX-like:
+   channel list left, the selected channel's properties and its slots right.
+   Colour means state only: blue selection, red programmer, amber warning. Group hues are tags. */
+:root {
+  --bg: #121314; --surf: #1a1c1e; --surf2: #222427; --line: #2a2c2f; --line2: #3a3d41;
+  --fg: #d8dadc; --fg2: #8a8e93; --fg3: #55595e;
+  --red: #e5484d; --blue: #3e8ef7; --green: #46a758; --amber: #f5a524; --cyan: #3fb7d9; --violet: #8e4ec6;
+  --gI: #bdb38c; --gP: #8fa3b5; --gC: #b58fa8; --gG: #8fb59c; --gB: #b59e8f; --gE: #9c8fb5; --gS: #8f9396; --gFX: #b5a98f;
+  --chassis: #08090a;
+  --f-leg: "IBM Plex Sans Condensed", "SF Pro Display", "Arial Narrow", sans-serif;
+  --f-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --f-num: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--chassis); color: var(--fg); font: 12px/1.3 var(--f-ui); }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+input, select { font: 11px var(--f-num); color: var(--fg); background: var(--surf); border: 1px solid var(--line2); border-radius: 2px; padding: 3px 5px; min-width: 0; }
+
+.app { height: 100%; min-height: 640px; display: grid; gap: 5px; background: var(--chassis);
+  grid-template-columns: 78px minmax(0, 1fr); grid-template-rows: 26px minmax(0, 1fr); grid-template-areas: "status status" "rail main"; }
+.app > * { background: var(--bg); min-width: 0; min-height: 0; }
+.status { grid-area: status; display: flex; align-items: center; gap: 14px; padding: 0 10px; font-size: 11px; color: var(--fg2); white-space: nowrap; overflow: hidden; }
+.status b { font: 600 12px var(--f-leg); color: var(--fg); letter-spacing: .02em; }
+.status .sp { flex: 1; }
+.status .views button { padding: 2px 8px; border: 1px solid var(--line); border-radius: 2px; color: var(--fg2); margin-left: 4px; }
+.status .views button.on { color: var(--fg); border-color: var(--fg2); }
+.rail { grid-area: rail; display: flex; flex-direction: column; gap: 1px; padding: 4px; }
+.rail button { min-height: 44px; padding: 5px 6px; border-radius: 2px; text-align: left; font: 500 12px/1.1 var(--f-leg); color: var(--fg2); display: flex; flex-direction: column; gap: 2px; }
+.rail button small { font: 9px var(--f-num); color: var(--fg3); }
+.rail button.on { background: var(--surf2); color: var(--fg); box-shadow: inset 2px 0 0 var(--fg); }
+.main { grid-area: main; display: flex; flex-direction: column; gap: 5px; background: var(--chassis); }
+.main > .view { display: none; flex: 1; min-height: 0; gap: 5px; background: var(--chassis); }
+.main > .view.on { display: flex; flex-direction: column; }
+
+.win { background: var(--bg); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.win > header { flex: none; display: flex; align-items: baseline; gap: 8px; height: 24px; padding: 5px 8px 0; border-bottom: 1px solid var(--line); }
+.win > header h2 { margin: 0; font: 600 12px var(--f-leg); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.win > header span { font: 10px var(--f-num); color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win > header .r { margin-left: auto; display: flex; gap: 4px; }
+.wb { flex: 1; overflow: auto; padding: 6px; min-height: 0; }
+.row { display: flex; gap: 5px; min-height: 0; background: var(--chassis); }
+
+.k { height: 26px; padding: 0 9px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); font: 500 12px var(--f-leg); white-space: nowrap; }
+.k:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--line2); }
+.k:disabled { opacity: .3; cursor: default; }
+.k.pri { background: var(--blue); color: #fff; box-shadow: none; }
+.k.on { box-shadow: inset 0 0 0 2px var(--fg); }
+.k.test.on { box-shadow: inset 0 0 0 2px var(--red); color: var(--red); }
+
+/* Add panel: search over three browse columns, patch fields at the right */
+.add { flex: none; height: 300px; }
+.add .wb { display: grid; grid-template-columns: minmax(0, 1fr) 210px; grid-template-rows: auto minmax(0, 1fr); gap: 6px; }
+.search { grid-column: 1; display: flex; gap: 6px; align-items: center; }
+.search input { flex: 1; font-size: 12px; padding: 5px 8px; }
+.search small { font: 10px var(--f-num); color: var(--fg2); white-space: nowrap; }
+.cols { grid-column: 1; display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); min-height: 0; }
+.col { background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+.col h3 { margin: 0; padding: 3px 6px; font: 500 10px var(--f-leg); letter-spacing: .08em; text-transform: uppercase; color: var(--fg3); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
+.col ul { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; }
+.col li { padding: 3px 6px; display: flex; gap: 6px; align-items: baseline; cursor: pointer; white-space: nowrap; }
+.col li:hover { background: var(--surf); }
+.col li.sel { background: var(--blue); color: #fff; }
+.col li .n { margin-left: auto; font: 10px var(--f-num); color: var(--fg2); }
+.col li.sel .n, .col li.sel .src { color: #dbe7ff; }
+.col li .m { color: var(--fg2); }
+.col li .src { font: 600 9px var(--f-num); letter-spacing: .06em; color: var(--cyan); }
+.col li.pin { color: var(--fg2); font-style: italic; }
+.col li.pin.sel { color: #fff; }
+.col .empty { padding: 8px; color: var(--fg3); }
+.fields { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 5px; }
+.fields .pick { font: 500 13px var(--f-leg); min-height: 34px; }
+.fields .pick small { display: block; font: 10px var(--f-num); color: var(--fg2); }
+.f { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 6px; font-size: 11px; color: var(--fg2); }
+.fields .sp { flex: 1; }
+
+/* tables */
+table.t { width: 100%; border-collapse: collapse; font: 11px var(--f-num); font-variant-numeric: tabular-nums; }
+.t th { text-align: left; font: 500 10px var(--f-leg); letter-spacing: .08em; color: var(--fg3); padding: 2px 5px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); }
+.t td { padding: 4px 5px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.t tr.click { cursor: pointer; }
+.t tr.click:hover td { background: var(--surf); }
+.t tr.sel td { background: color-mix(in srgb, var(--blue) 22%, transparent); }
+.t tr.sel td:first-child { box-shadow: inset 2px 0 0 var(--blue); }
+.t .dim { color: var(--fg3); }
+.t .chg { color: var(--amber); }
+.t input { width: 100%; }
+.tag { display: inline-block; min-width: 18px; text-align: center; padding: 0 3px; border-radius: 2px; font: 600 9px var(--f-num); color: #111; }
+.sw { display: inline-block; width: 14px; height: 10px; border-radius: 1px; vertical-align: -1px; box-shadow: inset 0 0 0 1px var(--line2); }
+
+/* editor */
+.ehead { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--bg); }
+.ehead .crumb { font: 10px var(--f-num); color: var(--fg2); }
+.ehead h1 { margin: 0; font: 600 15px var(--f-leg); }
+.ehead .src { font: 600 9px var(--f-num); letter-spacing: .06em; color: var(--cyan); }
+.ehead .sp { flex: 1; }
+.props { display: grid; grid-template-columns: 74px 1fr; gap: 6px 8px; align-items: center; font-size: 11px; color: var(--fg2); }
+.seg { display: flex; gap: 2px; }
+.seg button { flex: 1; height: 24px; border-radius: 2px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); font: 600 10px var(--f-num); }
+.seg button.on { box-shadow: inset 0 0 0 2px var(--fg); color: var(--fg); }
+.lvl { display: grid; grid-template-columns: 1fr 52px 40px; gap: 6px; align-items: center; }
+.lvl input[type=range] { width: 100%; accent-color: var(--fg2); padding: 0; border: 0; background: none; }
+.lvl output { font: 11px var(--f-num); color: var(--fg); text-align: right; }
+.lvl small { font: 10px var(--f-num); color: var(--fg3); }
+.bar { position: relative; height: 26px; display: flex; border: 1px solid var(--line2); border-radius: 2px; overflow: hidden; margin: 2px 0 6px; }
+.bar div { height: 100%; border-right: 1px solid var(--bg); font: 9px var(--f-num); color: #111; overflow: hidden; white-space: nowrap; padding: 2px 3px; cursor: pointer; }
+.bar div.sel { box-shadow: inset 0 0 0 2px var(--blue); }
+.scale { display: flex; justify-content: space-between; font: 9px var(--f-num); color: var(--fg3); margin-top: -4px; }
+.tools { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
+.tools .hint { font-size: 11px; color: var(--fg2); margin-left: 6px; }
+.msg { font-size: 11px; color: var(--amber); padding: 0 8px 6px; background: var(--bg); min-height: 18px; }
+.qs { background: var(--bg); padding: 8px 12px; font-size: 12px; color: var(--fg2); max-height: 180px; overflow: auto; }
+.qs h3 { margin: 0 0 4px; font: 600 11px var(--f-leg); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); }
+.qs ol { margin: 0; padding-left: 18px; }
+.qs li { margin: 2px 0; }
+.qs b { color: var(--fg); font-weight: 500; }
+@media (max-width: 900px) { .app { grid-template-columns: 1fr; grid-template-areas: "status" "main"; } .rail { display: none; } .add { height: auto; } .add .wb { grid-template-columns: 1fr; } .fields { grid-column: 1; grid-row: auto; } .row { flex-direction: column; } }
+</style>
+
+<div class="app">
+  <div class="status"><b>ColourmotionDMX</b><span>Kerk · saved 3 s ago</span><span class="sp"></span>
+    <span>Sketch P1-14:</span><span class="views"><button data-v="add" class="on">Add panel</button><button data-v="edit">Profile editor</button></span></div>
+  <nav class="rail"><button>Program<small>screen</small></button><button class="on">Patch<small>screen</small></button><button>Output<small>screen</small></button><button>Control<small>screen</small></button><button>Show<small>screen</small></button></nav>
+
+  <div class="main">
+    <!-- view 1: Patch screen with the new Add panel -->
+    <section class="view on" id="v-add">
+      <div class="win add"><header><h2>Add</h2><span>search narrows both columns · ↑↓ ←→ move between them · Return = Add</span></header>
+        <div class="wb">
+          <div class="search"><input id="q" placeholder="Search, e.g. showtec par 56" autocomplete="off"><small id="qinfo"></small></div>
+          <div class="cols">
+            <div class="col"><h3>Manufacturer <span id="mcount"></span></h3><ul id="mans"></ul></div>
+            <div class="col"><h3>Model <span id="modcount"></span></h3><ul id="models"></ul></div>
+            <div class="col"><h3>Mode <span>channels</span></h3><ul id="modes"></ul></div>
+          </div>
+          <div class="fields">
+            <div class="pick" id="pick">Pick a model<small>&nbsp;</small></div>
+            <label class="f">Count<input value="1"></label>
+            <label class="f">Universe<input value="1"></label>
+            <label class="f">Address<input placeholder="next free"></label>
+            <label class="f">Number<input placeholder="next free"></label>
+            <span class="sp"></span>
+            <button class="k" id="toEdit" disabled>Edit profile…</button>
+            <button class="k">New from channel list…</button>
+            <button class="k pri" id="addBtn" disabled>Add</button>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="flex:1">
+        <div class="win" style="flex:1"><header><h2>Patch</h2><span>56 fixtures</span></header>
+          <div class="wb"><table class="t"><thead><tr><th>No</th><th>Name</th><th>Profile</th><th>Mode</th><th>Address</th><th>Ch</th></tr></thead><tbody>
+            <tr class="click"><td>101</td><td>Par 1</td><td>Showtec LED Par 56</td><td>6 Channel</td><td>1.1</td><td>6</td></tr>
+            <tr class="click"><td>102</td><td>Par 2</td><td>Showtec LED Par 56</td><td>6 Channel</td><td>1.7</td><td>6</td></tr>
+            <tr class="click sel"><td>201</td><td>Spot 1</td><td>Showtec Phantom 25 LED Spot <span class="tag" style="background:var(--cyan)">USER</span></td><td>11 Channel</td><td>1.301</td><td>11</td></tr>
+            <tr class="click"><td>202</td><td>Spot 2</td><td>Showtec Phantom 25 LED Spot <span class="tag" style="background:var(--cyan)">USER</span></td><td>11 Channel</td><td>1.312</td><td>11</td></tr>
+            <tr class="click"><td>301</td><td>Wash 1</td><td>Shehds LED Beam+Wash 19x15W RGBW Zoom</td><td>24 Channel</td><td>1.361</td><td>24</td></tr>
+            <tr class="click"><td>1101</td><td>MH6</td><td>beamZ Fuze 75S Spot <span class="tag" style="background:var(--cyan)">USER</span></td><td>16 Bit</td><td>1.464</td><td>13</td></tr>
+          </tbody></table></div></div>
+        <div class="win" style="width:320px"><header><h2>Selected</h2><span>201 Spot 1</span></header>
+          <div class="wb"><div class="props">
+            <span>Address</span><input value="1.301"><span>Number</span><input value="201"><span>Name</span><input value="Spot 1">
+            <span>Mode</span><select><option>11 Channel</option></select>
+            <span>Profile</span><button class="k" data-goto="edit">Edit profile…</button>
+          </div></div></div>
+      </div>
+    </section>
+
+    <!-- view 2: profile editor -->
+    <section class="view" id="v-edit">
+      <div class="ehead">
+        <div><div class="crumb">Patch › Profile editor</div><h1>Showtec · Phantom 25 LED Spot <span class="src">USER</span></h1></div>
+        <label class="f" style="grid-template-columns:auto 140px">Mode<select><option>11 Channel</option></select></label>
+        <span class="sp"></span>
+        <button class="k test" id="test" title="Click a slot or move a level: the value goes into the programmer for the selected fixtures of this type">Test on 201–204</button>
+        <button class="k" data-goto="add">Cancel</button>
+        <button class="k pri" id="save">Save</button>
+      </div>
+      <div class="msg" id="emsg">Save writes the user profile and updates the 4 fixtures of this type in the show (one undo step).</div>
+      <div class="row" style="flex:1">
+        <div class="win" style="flex:1.1"><header><h2>Channels</h2><span>11 channels · footprint 11</span><span class="r"><button class="k">+</button><button class="k">−</button><button class="k">▲</button><button class="k">▼</button></span></header>
+          <div class="wb"><table class="t"><thead><tr><th>Ch</th><th>Attribute</th><th>Grp</th><th>Kind</th><th>Default</th><th>Slots</th></tr></thead><tbody id="chans"></tbody></table></div></div>
+        <div style="flex:1.4; display:flex; flex-direction:column; gap:5px; min-width:0">
+          <div class="win" style="flex:none"><header><h2>Channel</h2><span id="chTitle"></span></header>
+            <div class="wb"><div class="props" id="props"></div></div></div>
+          <div class="win" style="flex:1"><header><h2>Slots</h2><span id="slotInfo"></span></header>
+            <div class="wb">
+              <div class="bar" id="bar"></div><div class="scale"><span>0</span><span>64</span><span>128</span><span>192</span><span>255</span></div>
+              <table class="t"><thead><tr><th style="width:52px">From</th><th style="width:52px">To</th><th>Name</th><th style="width:70px">Colour</th></tr></thead><tbody id="slots"></tbody></table>
+              <div class="tools"><button class="k" id="sAdd">+ Slot</button><button class="k" id="sSplit">Split</button><button class="k" id="sMerge">Merge with next</button><button class="k" id="sDel">Remove</button>
+                <span class="hint" id="hint"></span></div>
+            </div></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="qs"><h3>Open questions (P1-14), each with a recommendation</h3><ol>
+      <li><b>Add panel place:</b> a full-width strip above the patch table (sketched), not the 320 px side column, so three columns fit. Selected stays at the right.</li>
+      <li><b>Search and browse are one:</b> typing narrows the manufacturer column to makers with a match and the model column to matches; no separate result list.</li>
+      <li><b>Mode column with channel counts:</b> the index learns each mode's channel count while indexing (no conversion), so the third column reads "6 Channel · 6".</li>
+      <li><b>"In this show" on top</b> of the manufacturer column: the profiles already patched, for adding one more of the same.</li>
+      <li><b>Save writes both:</b> the user profile (wins over QLC+, LIB-12) and the show's copy for every fixture of that type, one undo step. A mode change that drops channels is refused here; the editor never changes footprints of patched modes.</li>
+      <li><b>Slots per channel</b> (the model already has them), not ONYX's separate wheels linked to a channel: one step instead of two. Split halves a range; Merge joins it with the next.</li>
+      <li><b>Test</b> puts the clicked slot's middle value (or the level being edited) into the programmer for the selected fixtures of this type: plain programmer values, Clear removes them. No new engine concept.</li>
+      <li><b>Gobo pictures later</b> with the icon library (IDEA-14); phase 1 slots carry a name and, on C channels, a colour.</li>
+      <li><b>Lightkey slots typed by hand</b> in this editor; a Lightkey importer stays out of scope until a file is studied.</li>
+    </ol></div>
+  </div>
+</div>
+
+<script>
+// sample of the bundled QLC+ index (146 manufacturers, 1781 fixtures) plus user profiles
+const LIB = {
+  "beamZ": [["Fuze 75S Spot", ["16 Bit"], [13], "user"], ["BAC500 Fog Machine", ["2 Channel"], [2]]],
+  "Chauvet": [["SlimPAR 56", ["3 Channel", "7 Channel"], [3, 7]], ["Intimidator Spot 375Z IRC", ["11 Channel", "15 Channel"], [11, 15]], ["COLORado 1 Solo", ["6 Channel", "8 Channel"], [6, 8]]],
+  "Eurolite": [["LED PAR-56 RGB", ["5 Channel"], [5]], ["LED TMH-X25", ["13 Channel"], [13]], ["LED KLS-801", ["7 Channel", "10 Channel"], [7, 10]]],
+  "Pro-Lights": [["LumiPar 7QPro", ["4 Channel", "8 Channel"], [4, 8]]],
+  "Shehds": [["LED Beam+Wash 19x15W RGBW Zoom", ["16 Channel", "24 Channel"], [16, 24]], ["LED Flat Par 18x18W RGBWA+UV", ["6 Channel", "10 Channel"], [6, 10]], ["LED Spot 100W", ["13 Channel"], [13]], ["Big Bee Eyes LED Wash 19x40W RGBW", ["16 Channel", "26 Channel"], [16, 26]]],
+  "Showtec": [["LED Par 56", ["3 Channel", "6 Channel"], [3, 6]], ["Phantom 25 LED Spot", ["11 Channel"], [11], "user"], ["Phantom 75 LED Spot V2", ["12 Channel"], [12]], ["Phantom 250 Wash", ["Mode 1"], [16]], ["Compact Par 7 Q4", ["4 Channel", "8 Channel"], [4, 8]]],
+  "Stairville": [["LED Par 56 MKII RGBA", ["4 Channel", "8 Channel"], [4, 8]], ["MH-110 Wash", ["11 Channel"], [11]]],
+  "U'King": [["RGBL Par", ["4 Channel", "8 Channel"], [4, 8]]],
+};
+const SHOW = [["Showtec", "LED Par 56"], ["Showtec", "Phantom 25 LED Spot"], ["Shehds", "LED Beam+Wash 19x15W RGBW Zoom"], ["beamZ", "Fuze 75S Spot"]];
+const IN_SHOW = "In this show";
+let man = null, model = null, mode = 0;
+const $ = id => document.getElementById(id);
+const words = () => $("q").value.toLowerCase().split(/\s+/).filter(Boolean);
+const hit = (m, mo) => words().every(w => `${m} ${mo}`.toLowerCase().includes(w));
+const modelsOf = m => m === IN_SHOW ? SHOW.map(([a, b]) => [a, LIB[a].find(x => x[0] === b)]) : (LIB[m] || []).map(x => [m, x]);
+
+function renderAdd() {
+  const mans = Object.keys(LIB).filter(m => LIB[m].some(x => hit(m, x[0])));
+  if (man && man !== IN_SHOW && !mans.includes(man)) { man = null; model = null; }
+  const showHits = SHOW.filter(([a, b]) => hit(a, b)).length;
+  $("mans").innerHTML = (showHits ? `<li class="pin ${man === IN_SHOW ? "sel" : ""}" data-m="${IN_SHOW}">${IN_SHOW}<span class="n">${showHits}</span></li>` : "") +
+    mans.map(m => `<li class="${m === man ? "sel" : ""}" data-m="${m}">${m}<span class="n">${LIB[m].filter(x => hit(m, x[0])).length}</span></li>`).join("");
+  $("mcount").textContent = words().length ? `${mans.length} of 146` : "146";
+  const list = (man ? modelsOf(man) : mans.flatMap(modelsOf)).filter(([m, x]) => hit(m, x[0]));
+  $("models").innerHTML = list.length ? list.map(([m, x]) => {
+    const k = `${m}/${x[0]}`;
+    return `<li class="${k === model ? "sel" : ""}" data-k="${k}">${man && man !== IN_SHOW ? "" : `<span class="m">${m}</span>`}${x[0]}${x[3] ? ' <span class="src">USER</span>' : ""}<span class="n">${x[1].length}</span></li>`;
+  }).join("") : `<li class="empty">No match</li>`;
+  $("modcount").textContent = list.length;
+  $("qinfo").textContent = words().length ? `${list.length} models` : "1781 fixtures";
+  const picked = model && list.find(([m, x]) => `${m}/${x[0]}` === model);
+  $("modes").innerHTML = picked ? picked[1][1].map((md, i) => `<li class="${i === mode ? "sel" : ""}" data-i="${i}">${md}<span class="n">${picked[1][2][i]}</span></li>`).join("") : `<li class="empty">Pick a model</li>`;
+  $("pick").innerHTML = picked ? `${picked[0]} ${picked[1][0]}<small>${picked[1][1][mode]} · ${picked[1][2][mode]} channels · ${picked[1][3] ? "user profile" : "QLC+"}</small>` : `Pick a model<small>&nbsp;</small>`;
+  $("addBtn").disabled = $("toEdit").disabled = !picked;
+}
+$("q").oninput = () => { model = null; mode = 0; renderAdd(); };
+$("mans").onclick = e => { const li = e.target.closest("li[data-m]"); if (li) { man = li.dataset.m === man ? null : li.dataset.m; model = null; mode = 0; renderAdd(); } };
+$("models").onclick = e => { const li = e.target.closest("li[data-k]"); if (li) { model = li.dataset.k; mode = 0; renderAdd(); } };
+$("modes").onclick = e => { const li = e.target.closest("li[data-i]"); if (li) { mode = +li.dataset.i; renderAdd(); } };
+
+// profile editor: the church Phantom 25 user profile (PAT-16), built from a channel list, wheels still without slots
+const G = { I: "--gI", P: "--gP", C: "--gC", G: "--gG", B: "--gB", E: "--gE", S: "--gS", FX: "--gFX" };
+const CH = [
+  { n: "Pan", g: "P", k: "LTP", fine: 3, d: 0, slots: [] },
+  { n: "Tilt", g: "P", k: "LTP", fine: 4, d: 0, slots: [] },
+  { n: "Pan fine", g: "P", k: "fine of Pan", d: null, slots: [] },
+  { n: "Tilt fine", g: "P", k: "fine of Tilt", d: null, slots: [] },
+  { n: "Pan/Tilt Speed", g: "S", k: "LTP", d: 0, slots: [] },
+  { n: "Colour Wheel", g: "C", k: "LTP", d: 0, slots: [[0, 255, "", null]] },
+  { n: "Shutter", g: "I", k: "LTP", d: 1, slots: [[0, 7, "Closed", null], [8, 15, "Open", null], [16, 131, "Strobe slow → fast", null], [132, 255, "Open", null]] },
+  { n: "Dimmer", g: "I", k: "HTP", d: 0, slots: [] },
+  { n: "Gobo", g: "G", k: "LTP", d: 0, slots: [[0, 255, "", null]] },
+  { n: "Control", g: "S", k: "LTP", d: 0, slots: [] },
+  { n: "Programs", g: "S", k: "LTP", d: 0, slots: [] },
+];
+let ch = 0, slot = 0, testing = false;
+const orig = CH.map(c => c.d);
+const pct = v => v == null ? "—" : `${Math.round(v * 100)} %`;
+const dmx = v => Math.round(v * 255);
+
+function renderEdit() {
+  $("chans").innerHTML = CH.map((c, i) => `<tr class="click ${i === ch ? "sel" : ""}" data-i="${i}"><td>${i + 1}</td><td>${c.n}</td><td><span class="tag" style="background:var(${G[c.g]})">${c.g}</span></td><td class="${c.k.startsWith("fine") ? "dim" : ""}">${c.k}</td><td class="${c.d !== orig[i] ? "chg" : ""}">${pct(c.d)}</td><td class="${c.slots.length ? "" : "dim"}">${c.slots.length || "—"}</td></tr>`).join("");
+  const c = CH[ch];
+  $("chTitle").textContent = `channel ${ch + 1}`;
+  const fineCh = c.k.startsWith("fine");
+  $("props").innerHTML = `<span>Name</span><input id="pName" value="${c.n}">
+    <span>Group</span><div class="seg">${Object.keys(G).map(g => `<button class="${g === c.g ? "on" : ""}" data-g="${g}" style="color:var(${G[g]})">${g}</button>`).join("")}</div>
+    <span>Kind</span><div class="seg">${["HTP", "LTP"].map(k => `<button class="${k === c.k ? "on" : ""}" ${fineCh ? "disabled" : ""}>${k}</button>`).join("")}</div>
+    ${fineCh ? `<span>Fine</span><span>fine byte of ${c.k.slice(8)}; set its default on ${c.k.slice(8)}</span>` : `
+    <span>Default</span><div class="lvl"><input type="range" min="0" max="1000" value="${c.d * 1000}" data-p="d"><output>${pct(c.d)}</output><small>DMX ${dmx(c.d)}</small></div>
+    <span>Locate</span><div class="lvl"><input type="range" min="0" max="1000" value="${(c.loc ?? c.d) * 1000}" data-p="loc"><output>${pct(c.loc ?? c.d)}</output><small>DMX ${dmx(c.loc ?? c.d)}</small></div>
+    <span>Highlight</span><div class="lvl"><input type="range" min="0" max="1000" value="${(c.hl ?? c.d) * 1000}" data-p="hl"><output>${pct(c.hl ?? c.d)}</output><small>DMX ${dmx(c.hl ?? c.d)}</small></div>`}`;
+  const s = c.slots;
+  slot = Math.min(slot, Math.max(0, s.length - 1));
+  $("slotInfo").textContent = s.length ? `${s.length} ranges on ${c.n}` : `${c.n} has no slots`;
+  $("bar").innerHTML = s.length ? s.map(([a, b, n, col], i) => `<div class="${i === slot ? "sel" : ""}" data-i="${i}" style="flex:${b - a + 1};background:${col || `var(${G[c.g]})`}" title="${a}–${b} ${n}">${n}</div>`).join("") : `<div style="flex:1;background:var(--surf);color:var(--fg3)">plain level 0–255</div>`;
+  $("slots").innerHTML = s.map(([a, b, n, col], i) => `<tr class="click ${i === slot ? "sel" : ""}" data-i="${i}"><td><input value="${a}" data-f="0"></td><td><input value="${b}" data-f="1"></td><td><input value="${n}" placeholder="name, e.g. Red" data-f="2"></td><td>${c.g === "C" ? `<input type="color" value="${col || "#ffffff"}" data-f="3" style="width:40px;height:20px;padding:0">` : `<span class="dim">—</span>`}</td></tr>`).join("");
+  $("sSplit").disabled = $("sDel").disabled = !s.length;
+  $("sMerge").disabled = slot >= s.length - 1;
+  $("hint").textContent = testing && s.length ? `Test: 201–204 ${c.n} at DMX ${Math.round((s[slot][0] + s[slot][1]) / 2)} in the programmer` : "";
+}
+$("chans").onclick = e => { const tr = e.target.closest("tr[data-i]"); if (tr) { ch = +tr.dataset.i; slot = 0; renderEdit(); } };
+$("props").oninput = e => { const p = e.target.dataset.p; if (p) { CH[ch][p] = e.target.value / 1000; renderEdit(); } if (e.target.id === "pName") CH[ch].n = e.target.value; };
+$("props").onclick = e => { const g = e.target.dataset.g; if (g) { CH[ch].g = g; renderEdit(); } };
+$("bar").onclick = e => { const d = e.target.closest("[data-i]"); if (d) { slot = +d.dataset.i; renderEdit(); } };
+$("slots").onclick = e => { const tr = e.target.closest("tr[data-i]"); if (tr && +tr.dataset.i !== slot) { slot = +tr.dataset.i; renderEdit(); } };
+$("slots").onchange = e => { const f = e.target.dataset.f; if (f == null) return; const r = CH[ch].slots[slot]; r[f] = f < 2 ? Math.max(0, Math.min(255, +e.target.value || 0)) : e.target.value; renderEdit(); };
+$("sAdd").onclick = () => { const s = CH[ch].slots; if (!s.length) { s.push([0, 255, "", null]); } else { $("sSplit").onclick(); return; } renderEdit(); };
+$("sSplit").onclick = () => { const s = CH[ch].slots, [a, b] = s[slot]; if (b - a < 1) return; const m = Math.floor((a + b) / 2); s.splice(slot, 1, [a, m, s[slot][2], s[slot][3]], [m + 1, b, "", null]); slot++; renderEdit(); };
+$("sMerge").onclick = () => { const s = CH[ch].slots; if (slot < s.length - 1) { s[slot][1] = s[slot + 1][1]; s.splice(slot + 1, 1); renderEdit(); } };
+$("sDel").onclick = () => { const s = CH[ch].slots; if (s.length === 1) s.splice(0, 1); else { const [a, b] = s[slot]; s.splice(slot, 1); if (slot > 0) s[slot - 1][1] = b; else s[0][0] = a; slot = Math.max(0, slot - 1); } renderEdit(); };
+$("test").onclick = () => { testing = !testing; $("test").classList.toggle("on", testing); renderEdit(); };
+$("save").onclick = () => { $("emsg").textContent = "Saved: Showtec/Phantom 25 LED Spot (user profile) · 4 fixtures in the show updated · Undo: Edit profile"; orig.splice(0, orig.length, ...CH.map(c => c.d)); renderEdit(); };
+
+function show(v) { document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === `v-${v}`)); document.querySelectorAll(".views button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); }
+document.querySelector(".views").onclick = e => { if (e.target.dataset.v) show(e.target.dataset.v); };
+document.addEventListener("click", e => { const g = e.target.closest("[data-goto]"); if (g) show(g.dataset.goto); });
+$("toEdit").onclick = () => show("edit");
+renderAdd(); renderEdit();
+</script>

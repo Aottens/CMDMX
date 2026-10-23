@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11)**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14)**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -163,15 +163,106 @@ model, and a show carries the profiles it uses.
   The library is indexed in the background at daemon start; until then a search is answered
   with an error ("library is loading"). Output never waits for the library.
 
+### Browsing the library (P1-14, IDEA-08; sketch `specs/ux/library-and-profile-editor.html`)
+- **LIB-19** The index knows each mode's channel count without converting a profile: while
+  indexing, a QLC+ mode counts its `<Channel>` entries and a user profile takes the mode's
+  footprint. An index entry's modes are `{name, channels}`. Showtec LED Par 56 → "3 Channel" 3,
+  "6 Channel" 6; Shehds 19x15 → "16 Channel" 16, "24 Channel" 24. `library.search` (LIB-14) is
+  unchanged.
+- **LIB-20** Manufacturers: the index lists every manufacturer once, sorted case-insensitively,
+  with its number of models (a user profile that hides a QLC+ one counts once, LIB-12). With a
+  query, only manufacturers with at least one model matching it (the word rule of LIB-14), and
+  the count is the number of matches. Wire: IPC-35.
+- **LIB-21** Models: the models of one manufacturer, sorted case-insensitively, each with its
+  modes (LIB-19) and source; with a query only the matches. With a query and no manufacturer,
+  the matches across all manufacturers, sorted by manufacturer then model, at most 500 with a
+  `truncated` flag. Without both it is an error. Wire: IPC-36.
+- **LIB-22** The Add panel (app; replaces PAT-10's Add panel) is a full-width strip above the
+  patch table, the Selected panel stays at the right. One search field over three columns:
+  - *Manufacturer:* LIB-20's list for the current query, with counts. A selected manufacturer
+    that no longer matches is deselected. On top, when it has matches, an entry **In this show**:
+    the profiles of the patched fixtures (from the snapshot), whose modes come from the show's
+    own copy (IPC-37), because a patch of a type the show already carries uses that copy.
+  - *Model:* the selected manufacturer's models matching the query (LIB-21); with no
+    manufacturer selected, every match, each prefixed with its manufacturer. A user profile
+    carries a `USER` tag; each row shows its number of modes.
+  - *Mode:* the picked model's modes with their channel counts; the first is preselected.
+  Beside the columns: the pick ("Showtec Phantom 25 LED Spot · 11 Channel · 11 channels · user
+  profile"), Count, Universe, Address, Number and Add as PAT-10, plus **Edit profile…** (LIB-23,
+  disabled without a pick) and **New from channel list…** (LIB-26). Arrow keys move within and
+  between the columns; Return adds when Add is enabled. Replies to an older query are dropped.
+  Verified by `tests/manual/app-patch.md` (amended).
+
+### Profile editor (P1-14, IDEA-13; ONYX's fixture editor as reference)
+- **LIB-23** A full-screen profile editor ("Patch › Profile editor") opens from the Add panel's
+  Edit profile… (on the picked model: the show's copy when the show carries it, IPC-37, else
+  `library.profile`) or from the Selected panel's Edit profile… (the show's copy of that
+  fixture's profile). It edits one mode at a time, chosen in a mode picker, opening on the
+  picked or patched mode. Manufacturer and model are read-only. Left, the channels of the mode:
+  channel, attribute name, group tag, kind, default (%), number of slots. Right, the selected
+  channel: name, group (I P C G B E S FX), kind HTP/LTP, and Default, Locate and Highlight as a
+  level in % with its DMX value. A fine channel reads "fine of Pan" and has no fields of its own;
+  a colour-system component or emitter shows its role and keeps it (only its name and, for an
+  emitter, its defaults change). + adds a plain channel at the end (name "Channel n", group S,
+  LTP, default 0), − removes the selected one, ▲▼ move it; channel offsets follow the order.
+  Cancel leaves without saving; unsaved changes ask once before leaving.
+- **LIB-24** Slots: the selected channel's slots in a table (From, To, Name, and on group C
+  channels a colour, entered as sRGB and stored as a target colour like LIB-18) over a bar from
+  0 to 255 that shows each range; clicking a range in the bar selects its row. Editing:
+  + Slot (on a channel without slots one slot 0–255, otherwise a Split), **Split** (the selected
+  range in two halves; the lower half keeps name and colour), **Merge with next** (the selected
+  range grows over the next; its name and colour stay), **Remove** (the neighbour below takes
+  the freed values; when the first range is removed, the next one does). Gaps typed into From/To
+  are allowed. Slots are stored sorted by From. Slots belong to the coarse channel; a fine channel
+  has none.
+- **LIB-25** Save sends the edited profile to the engine (IPC-38), all or nothing:
+  - validated as LIB-02, plus: a slot with From above To, or two slots of one channel that
+    overlap, is refused (only on this path; loading existing profiles is unchanged);
+  - when the show carries a profile with this key, every mode a patched fixture uses must still
+    exist with the same footprint, and no attribute that stored content (palettes, cues, playbacks, the
+    programmer) holds for fixtures of this type may disappear;
+    otherwise it is refused with a warning naming the mode or the attribute and where it is used
+    ("Gobo is used by cue 1.3 of list 2");
+  - on success the show's copy is replaced as one undo step "Edit profile Phantom 25 LED Spot",
+    output follows on the next tick (an unproposed attribute outputs its new default, LIB-03),
+    and then the user profile is written atomically (LIB-12), so it hides the QLC+ entry from
+    then on. A failed file write after the show was updated is a warning ("Saved in the show,
+    not in the library: …"). Undo restores the show's copy only, not the file.
+  Scenario: the church Phantom 25 with Pan and Tilt defaults 0.5 saved → fixtures 201–204 with
+  no Pan/Tilt in any source output Pan and Tilt 0.5 (16-bit with their fine channels) on the next
+  tick.
+- **LIB-26** New from channel list… opens the same editor on an empty profile with manufacturer,
+  model and mode name editable; + adds a channel of a LIB-11 type (picked from the list, with a
+  name for Emitter and Other). Save sends `library.save_channel_list` (LIB-11, LIB-14); the new
+  profile is then picked in the Add panel.
+- **LIB-27** Test: a **Test** toggle in the editor's header (red while on), enabled when the
+  current selection holds fixtures of this profile ("Test on 201–204"). While on, clicking a slot
+  sets the channel's attribute to the slot's middle DMX value ((From + To) / 2 / 255), and moving
+  Default, Locate or Highlight sets the attribute to that level, both with `programmer.set`
+  (IPC-39) for the selected fixtures of this profile: ordinary programmer values, which Clear
+  removes. Leaving the editor does not clear them.
+
 ## Out of scope (this spec)
 The GDTF importer (its own spec section and task after QLC+, phase 1, ADR-006) and the OFL
 importer (later: QLC+ already covers most of OFL's budget fixtures); Lightkey profile import
 (checked once a file is available); per-cell selection (PRG task, LIB-07); picking a colour-wheel
 slot from a target colour (VS2-06 follow-up, LIB-15 provides the data); showing degrees on the
-wheels (UX); a graphical profile editor beyond LIB-12's fields.
+wheels (UX). In the profile editor (LIB-23..27): gobo pictures on slots (with the icon library,
+IDEA-14), adding, copying or removing modes, renaming manufacturer or model, editing cells and the
+colour system of multi-head modes, and ONYX's separate wheels linked to channels (slots stay per
+channel, owner 2026-10-23).
 
 ## Open questions for the owner
 1. ~~Shehds 19x15 Focus or Zoom?~~ Closed 2026-10-18 (VS2-13, owner): Lightkey calls it Zoom
    (10–60°); the church user profile renames it (PAT-16).
 2. ~~Which QLC+ mode per church fixture?~~ Closed 2026-10-18: the Lightkey export gives them
    (`patch.md` PAT-16 table; Shehds 24 Channel).
+3. ~~*(P1-14)* An edit that removes or renames an attribute that palettes, cues or the programmer
+   hold for fixtures of this type: refuse the Save and name where it is used (LIB-25), or carry
+   the values across a rename? **Recommendation:** refuse for now; a rename that carries values
+   is a later task once someone needs it (the church renames were done at import, PAT-16).~~ Closed 2026-10-23 (owner): refuse.
+4. ~~*(P1-14)* Test needs an absolute programmer value, which IPC does not have yet (only wheel
+   steps and the command line). **Recommendation:** add `programmer.set` (IPC-39), the same as a
+   wheel move to an absolute level, so Test is ordinary programmer content.~~ Closed 2026-10-23 (owner): `programmer.set`.
+5. ~~*(P1-14)* One mode at a time in the editor, without adding or copying modes. **Recommendation:**
+   yes; a profile with a missing mode is made from a channel list (LIB-26) for now.~~ Closed 2026-10-23 (owner): one mode at a time.
