@@ -567,10 +567,7 @@ fn lib_19_header_counts_the_channels_of_each_mode() {
         modes("Shehds-LED-Beam+Wash-19x15W-RGBW-Zoom.qxf"),
         [("16 Channel".into(), 16), ("24 Channel".into(), 24)]
     );
-    assert_eq!(
-        modes("Showtec-LED-Par-56.qxf"),
-        [("6 Channel".into(), 6)]
-    );
+    assert_eq!(modes("Showtec-LED-Par-56.qxf"), [("6 Channel".into(), 6)]);
     assert_eq!(
         modes("Pro-Lights-LumiPar-7QPro.qxf"),
         [

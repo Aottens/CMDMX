@@ -509,9 +509,26 @@ pub enum ControlRequest {
 /// LIB-14: the fixture library requests.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LibraryRequest {
-    Search { query: String },
-    ImportReport { manufacturer: String, model: String },
-    Profile { manufacturer: String, model: String },
+    Search {
+        query: String,
+    },
+    /// LIB-20
+    Manufacturers {
+        query: Option<String>,
+    },
+    /// LIB-21: at least one of the two is given.
+    Models {
+        manufacturer: Option<String>,
+        query: Option<String>,
+    },
+    ImportReport {
+        manufacturer: String,
+        model: String,
+    },
+    Profile {
+        manufacturer: String,
+        model: String,
+    },
     SaveProfile(Profile),
     SaveChannelList(ChannelList),
 }
@@ -559,6 +576,11 @@ fn string(v: &serde_json::Value, key: &str) -> Result<String, String> {
         .and_then(|s| s.as_str())
         .map(String::from)
         .ok_or_else(|| format!("missing or invalid \"{key}\""))
+}
+
+/// An optional string field: absent is `None`, present but not a string is an error.
+fn opt_string(v: &serde_json::Value, key: &str) -> Result<Option<String>, String> {
+    v.get(key).map(|_| string(v, key)).transpose()
 }
 
 /// An optional unsigned integer field: absent is `None`, present but invalid is an error.
@@ -980,6 +1002,20 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("library.search") => Ok(Command::Library(LibraryRequest::Search {
             query: string(&v, "query")?,
         })),
+        Some("library.manufacturers") => Ok(Command::Library(LibraryRequest::Manufacturers {
+            query: opt_string(&v, "query")?,
+        })),
+        Some("library.models") => {
+            let manufacturer = opt_string(&v, "manufacturer")?;
+            let query = opt_string(&v, "query")?;
+            if manufacturer.is_none() && query.is_none() {
+                return Err("library.models needs a manufacturer or a query".into());
+            }
+            Ok(Command::Library(LibraryRequest::Models {
+                manufacturer,
+                query,
+            }))
+        }
         Some("library.import_report") => Ok(Command::Library(LibraryRequest::ImportReport {
             manufacturer: string(&v, "manufacturer")?,
             model: string(&v, "model")?,
@@ -2413,7 +2449,38 @@ fn library_reply(
         LibraryRequest::Search { query } => {
             let guard = lib.read().map_err(|_| LIBRARY_POISONED)?;
             let found = guard.as_ref().ok_or(LIBRARY_LOADING)?.search(&query);
-            Ok(json!({"v": 0, "type": "library.results", "items": found}))
+            // The search reply keeps mode names only; the footprints come with `library.models`.
+            let items: Vec<_> = found
+                .iter()
+                .map(|e| {
+                    json!({"manufacturer": e.manufacturer, "model": e.model,
+                           "modes": e.modes.iter().map(|m| &m.name).collect::<Vec<_>>(),
+                           "source": e.source})
+                })
+                .collect();
+            Ok(json!({"v": 0, "type": "library.results", "items": items}))
+        }
+        LibraryRequest::Manufacturers { query } => {
+            let guard = lib.read().map_err(|_| LIBRARY_POISONED)?;
+            let items = guard
+                .as_ref()
+                .ok_or(LIBRARY_LOADING)?
+                .manufacturers(query.as_deref().unwrap_or(""));
+            Ok(json!({"v": 0, "type": "library.manufacturers", "query": query, "items": items}))
+        }
+        LibraryRequest::Models {
+            manufacturer,
+            query,
+        } => {
+            let guard = lib.read().map_err(|_| LIBRARY_POISONED)?;
+            let (items, truncated) = guard
+                .as_ref()
+                .ok_or(LIBRARY_LOADING)?
+                .models(manufacturer.as_deref(), query.as_deref().unwrap_or(""));
+            Ok(
+                json!({"v": 0, "type": "library.models", "manufacturer": manufacturer,
+                      "query": query, "items": items, "truncated": truncated}),
+            )
         }
         LibraryRequest::ImportReport {
             manufacturer,
@@ -3524,7 +3591,10 @@ mod tests {
     #[test]
     fn ipc_35_manufacturers_answer_the_asking_client() {
         let lib = library("manufacturers");
-        let v = ask(&lib, r#"{"v":0,"cmd":"library.manufacturers","query":"par"}"#);
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.manufacturers","query":"par"}"#,
+        );
         assert_eq!(
             v,
             json!({"v":0,"type":"library.manufacturers","query":"par","items":[
@@ -3555,7 +3625,10 @@ mod tests {
                              "source":"qlcplus"}],
                    "truncated":false})
         );
-        let v = ask(&lib, r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec"}"#);
+        let v = ask(
+            &lib,
+            r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec"}"#,
+        );
         assert_eq!(v["query"], Value::Null);
         assert_eq!(
             v["items"][0]["modes"],
