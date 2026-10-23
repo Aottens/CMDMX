@@ -192,6 +192,52 @@ chip, PIO for LEDs and encoders) with an external ADC; **Teensy 4.1** for the fi
 because its MIDI and motor-fader examples get a working surface fastest. Both stay "a controller
 profile" on CTL; no engine change.
 
+### 5a. Modular fader strips (owner's proposal, 2026-10-23)
+
+Rather than one big surface PCB: small identical **fader-strip boards** (faders, keys, LEDs,
+motor drivers, touch sense) that plug into one **main controller board**, which is the single
+USB-MIDI device towards the compute. 10 faders = 5 boards of 2 faders; 15 faders = 8 boards
+(one with a single fader populated). The fader count stays configuration (`faders_per_page`); the
+main controller simply reports how many strips it found.
+
+**Cost data point (owner, 2026-10-23):** 5 fully SMD-assembled JLCPCB boards of about
+200 × 50 mm cost about **€65 in total**, including parts, assembly, shipping and import duties.
+So the strip PCBs themselves are a small line in the BOM; the faders, switches and caps on them
+are the real cost.
+
+**Design points for the strip:**
+- **Size and pitch.** A 100 mm fader has a body of about 128 mm, so 200 mm along the travel
+  leaves room for 2–3 keys above it. Two faders side by side need about 60–70 mm of board width
+  at a console-like pitch of 30–35 mm; a 50 mm wide board fits one fader at a roomy pitch. Pick
+  the fader pitch first, then the board width.
+- **Smart or dumb strip.**
+  - *Dumb:* only faders, switches, LEDs and an I/O expander/ADC, read by the main MCU over a
+    ribbon cable. Cheapest, but motor PID loops and many analog lines travel over the cable, and
+    motor noise gets onto the ADC lines.
+  - *Smart (recommended):* one **RP2350** per strip runs the motor PID, touch sense, key scan and
+    LEDs locally, and talks to the main controller over a digital bus. Analog stays on the strip,
+    and a strip that hangs is reset by its own watchdog without touching the others. The extra
+    chip costs about €1–2 in an assembled JLCPCB run.
+- **Bus to the main controller.** **RS485** (half-duplex UART, one transceiver per board) or
+  **CAN** (RP2350 has none built in; needs an MCP2515/MCP251863-class part) are robust over
+  a desk-length cable with motor noise. I²C is fine on one board but fragile across connectors and
+  next to fader motors, so avoid it between boards.
+- **Connector.** One keyed, locking cable per strip carrying 12 V, GND and the bus (e.g. a
+  JST-XH/PH or a shrouded IDC header, daisy-chained). Each strip makes its own 10 V (motors),
+  5 V (LEDs) and 3.3 V locally with small bucks/LDOs; 12 V distribution keeps currents low.
+- **Addressing.** Position in the chain (a strap or DIP switch per strip, or auto-enumeration
+  along the daisy chain) so the main controller knows which strip is fader 1–2, 3–4, …
+- **Through-hole parts.** Motorised faders and MX switches are through-hole. Either use
+  JLCPCB's THT assembly (extra cost) or hand-solder them; Kailh **hot-swap sockets** for MX
+  switches are SMD and can be machine-placed, so switches just push in.
+- **Show-proof.** The main controller treats a missing or silent strip as "no change": its
+  faders send nothing, the others keep working. Strips power up with motors off until they have
+  a target from the main controller.
+
+This is its own design track (strip PCB, main controller PCB, firmware for both) inside phase 3,
+and it fits the build path: strips plus main controller are step 1 (a USB-MIDI surface for
+today's Mac app).
+
 ## 6. DMX and network outputs
 
 **Art-Net / sACN** come from the compute board's Ethernet. On the desk this means an **etherCON**
@@ -316,7 +362,7 @@ Indicative, 10 playback faders + grand master, two 15.6" touch screens, ~30 keys
 | Faders | 10 plain 100 mm + 1 GM (motorised upgrade: +€200) | €60–130 |
 | Keys | 30 MX RGB switches, SK6812 Mini-E, relegendable caps | €60–100 |
 | Encoders | 4 AS5600 wheels + 4 PEC11R | €20–40 |
-| Surface electronics | RP2350 custom PCB (JLCPCB, assembled), MCP3208, muxes, I/O expanders | €60–120 |
+| Surface electronics | 5 fader-strip PCBs + main controller PCB (RP2350, JLCPCB assembled; see §5a) | €60–120 |
 | DMX | 2 ports: ADM2587E, NC5FD, second MCU | €30–50 |
 | Power | powerCON TRUE1, Mean Well PSU, DC-DC, supercap UPS | €80–130 |
 | Connectors & cables | etherCON, USB, internal cables, strain reliefs | €40–70 |
@@ -334,7 +380,7 @@ Indicative, 10 playback faders + grand master, two 15.6" touch screens, ~30 keys
 | Faders | 10 motorised Bourns PSM + 1 plain GM, 5–6 TB6612FNG, MPR121 | €250–320 |
 | Keys | 30 MX RGB switches, SK6812 Mini-E, relegendable caps | €60–100 |
 | Encoders | 4 optical wheels + 4 PEC11R | €130–220 |
-| Surface electronics | Teensy 4.1 or RP2350 PCB, ADC, 10 V rail | €60–130 |
+| Surface electronics | 5 fader-strip PCBs + main controller (Teensy 4.1 or RP2350; see §5a) | €60–130 |
 | DMX | 2 isolated ports with ENTTEC-Pro-compatible MCU | €30–50 |
 | Power | powerCON TRUE1, Mean Well PSU for surface, external USB UPS | €120–190 |
 | Connectors & cables | etherCON, USB, internal cables | €40–70 |
@@ -363,7 +409,9 @@ down to roughly €2,000–2,400. Both are a fraction of a commercial two-screen
    (CERN-OHL-S vs -W).
 8. **Licence:** CERN-OHL-S or CERN-OHL-W for PCB/CAD, CC BY-SA for the build guide?
 9. **Outdoor use:** is sunlight readability a requirement (1,000-nit panels, +€800)?
-10. **Prototype order:** start with a USB-MIDI fader/key box (step 1) on the BCF2000-style
+10. **Fader strips (§5a):** fader pitch, one or two faders per strip, smart (own RP2350) or
+    dumb strips, RS485 or CAN between boards?
+11. **Prototype order:** start with a USB-MIDI fader/key box (step 1) on the BCF2000-style
     profile, before any screens or enclosure?
 
 ## Sources

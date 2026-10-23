@@ -431,4 +431,4 @@ many times more.
 - Plans only, or also sell kits/PCBs later?
 - Hardware licence (CERN-OHL-S, CERN-OHL-W, CC BY-SA)?
 **Owner's answer (2026-10-23):** phase 3 becomes the hardware phase; IDEA-23 goes there.
-**Research (2026-10-23):** candidate parts, sample BOMs and open questions in `docs/research/hardware-desk.md`.
+**Research (2026-10-23):** candidate parts, sample BOMs and open questions in `docs/research/hardware-desk.md`; §5a records the owner's modular fader-strip boards (2 faders per JLCPCB board on a bus to one main controller).
