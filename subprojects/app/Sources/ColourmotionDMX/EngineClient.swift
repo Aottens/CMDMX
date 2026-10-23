@@ -576,13 +576,32 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     }
 }
 
-/// One fixture type found by `library.search` (LIB-14). The patch profile key is `manufacturer/model`.
-struct LibraryItem: Decodable, Identifiable, Equatable {
+/// One manufacturer in a `library.manufacturers` reply (LIB-20), with its model count.
+struct LibraryManufacturer: Decodable, Equatable {
+    let name: String
+    let models: Int
+}
+
+/// One mode of a library model: `channels` in a `library.models` reply, `footprint` in a `patch.profile` reply.
+struct LibraryMode: Decodable, Equatable {
+    let name: String
+    let channels: Int
+
+    private enum CodingKeys: String, CodingKey { case name, channels, footprint }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        channels = (try? c.decode(Int.self, forKey: .channels)) ?? (try? c.decode(Int.self, forKey: .footprint)) ?? 0
+    }
+}
+
+/// One fixture type from `library.models` (LIB-21) or `patch.profile`. The patch profile key is `manufacturer/model`.
+struct LibraryModel: Decodable, Equatable {
     let manufacturer: String
     let model: String
-    let modes: [String]
+    let modes: [LibraryMode]
     let source: String
-    var id: String { "\(source)/\(manufacturer)/\(model)" }
     var profileKey: String { "\(manufacturer)/\(model)" }
 
     private enum CodingKeys: String, CodingKey { case manufacturer, model, modes, source }
@@ -591,9 +610,27 @@ struct LibraryItem: Decodable, Identifiable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         manufacturer = try c.decode(String.self, forKey: .manufacturer)
         model = try c.decode(String.self, forKey: .model)
-        modes = (try? c.decode([String].self, forKey: .modes)) ?? []
+        modes = (try? c.decode([LibraryMode].self, forKey: .modes)) ?? []
         source = (try? c.decode(String.self, forKey: .source)) ?? ""
     }
+}
+
+private struct ManufacturersReply: Decodable {
+    let query: String?
+    let items: [LibraryManufacturer]
+}
+
+private struct ModelsReply: Decodable {
+    let manufacturer: String?
+    let query: String?
+    let items: [LibraryModel]
+    let truncated: Bool?
+}
+
+private struct ProfileReply: Decodable {
+    let profileKey: String
+    let profile: LibraryModel
+    private enum CodingKeys: String, CodingKey { case profileKey = "profile_key", profile }
 }
 
 /// One output node as reported by the daemon (OUT-33, IPC-20). Every field falls back to a default,
@@ -1024,10 +1061,15 @@ final class EngineClient: ObservableObject {
     @Published private(set) var paletteSettings: PaletteSettings?
     /// PRG-43: Clear order, LTP on Clear and the Rem Dim level; nil until the snapshot.
     @Published private(set) var programmerSettings: ProgrammerSettings?
-    /// Reply to the last `library.search` (this client only).
-    @Published private(set) var libraryResults: [LibraryItem] = []
-    /// Last query sent; a reply that arrives after the field was emptied is ignored.
-    private var lastLibraryQuery = ""
+    /// Replies to the last `library.manufacturers` / `library.models` (this client only, LIB-20..21).
+    @Published private(set) var libraryManufacturers: [LibraryManufacturer] = []
+    @Published private(set) var libraryModels: [LibraryModel] = []
+    @Published private(set) var libraryModelsTruncated = false
+    /// `patch.profile` replies by profile key, for the "In this show" modes (LIB-22).
+    @Published private(set) var profileCache: [String: LibraryModel] = [:]
+    /// What was asked last (empty = nil); a reply that echoes something else is stale and dropped.
+    private var lastManufacturersQuery: String?
+    private var lastModelsAsk: [String?] = [nil, nil]
     @Published private(set) var programmer = ProgrammerState()
     /// IPC-20: one entry per output node; empty while offline (the state is unknown then).
     @Published private(set) var outputs: [OutputNode] = []
@@ -1207,11 +1249,29 @@ final class EngineClient: ObservableObject {
     // Patch commands (PAT-09, LIB-14). All take internal ids; the engine checks and may refuse
     // with a warning/error, which lands in `lastMessage`.
 
-    func searchLibrary(_ query: String) {
-        lastLibraryQuery = query
-        if query.trimmingCharacters(in: .whitespaces).isEmpty { libraryResults = []; return }
-        sendJSON("library.search", ["query": query])
+    private func trimmedOrNil(_ text: String?) -> String? {
+        let trimmed = text?.trimmingCharacters(in: .whitespaces) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
     }
+
+    func requestManufacturers(query: String) {
+        let q = trimmedOrNil(query)
+        lastManufacturersQuery = q
+        sendJSON("library.manufacturers", q.map { ["query": $0] } ?? [:])
+    }
+
+    /// With neither a manufacturer nor a query nothing is sent and the list is empty (LIB-21).
+    func requestModels(manufacturer: String?, query: String) {
+        let m = trimmedOrNil(manufacturer), q = trimmedOrNil(query)
+        lastModelsAsk = [m, q]
+        guard m != nil || q != nil else { libraryModels = []; libraryModelsTruncated = false; return }
+        var fields: [String: Any] = [:]
+        if let m { fields["manufacturer"] = m }
+        if let q { fields["query"] = q }
+        sendJSON("library.models", fields)
+    }
+
+    func requestProfile(key: String) { sendJSON("patch.profile", ["profile": key]) }
 
     /// `address` / `number` nil = omitted, the engine picks (PAT-03).
     func patchAdd(profile: String, mode: String, count: Int, universe: Int, address: Int?, number: Int?) {
@@ -1490,7 +1550,6 @@ final class EngineClient: ObservableObject {
         fileprivate let paletteSettings: Tolerant<PaletteSettings>?
         fileprivate let programmerSettings: Tolerant<ProgrammerSettings>?
         let programmer: ProgrammerState?
-        let items: [LibraryItem]?
         fileprivate let outputs: Tolerant<[OutputNode]>?
         fileprivate let control: Tolerant<ControlState>?
         fileprivate let ports: Tolerant<[Tolerant<SerialPort>]>?
@@ -1498,7 +1557,7 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, items, outputs, control, ports, show, shows
+            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -1574,8 +1633,17 @@ final class EngineClient: ObservableObject {
             listShows()
         case "show.list":
             if let shows = incoming.shows?.value { self.shows = shows.compactMap(\.value) }
-        case "library.results":
-            if !lastLibraryQuery.trimmingCharacters(in: .whitespaces).isEmpty { libraryResults = incoming.items ?? [] }
+        case "library.manufacturers":
+            if let reply = try? JSONDecoder().decode(ManufacturersReply.self, from: data),
+               trimmedOrNil(reply.query) == lastManufacturersQuery { libraryManufacturers = reply.items }
+        case "library.models":
+            if let reply = try? JSONDecoder().decode(ModelsReply.self, from: data),
+               [trimmedOrNil(reply.manufacturer), trimmedOrNil(reply.query)] == lastModelsAsk {
+                libraryModels = reply.items
+                libraryModelsTruncated = reply.truncated ?? false
+            }
+        case "patch.profile":
+            if let reply = try? JSONDecoder().decode(ProfileReply.self, from: data) { profileCache[reply.profileKey] = reply.profile }
         case "groups":
             if let groups = incoming.groups { self.groups = groups }
         case "palette_settings":

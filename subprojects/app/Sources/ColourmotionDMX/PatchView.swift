@@ -10,28 +10,30 @@ struct PatchView: View {
 
     var body: some View {
         let rows = engine.fixtures.sorted { $0.number < $1.number }
-        HStack(spacing: 8) {
-            VStack(spacing: 8) {
-                AddPanel()
-                SelectedPanel(fixture: rows.first { $0.id == selection })
-                if let message = engine.lastMessage {
-                    Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 8) {
+            AddPanel().frame(height: 220)
+            HStack(spacing: 8) {
+                PanelWindow(title: "Patch", info: "\(rows.count) fixtures", framed: true, accessory: { EmptyView() }) {
+                    Table(rows, selection: $selection) {
+                        TableColumn("No") { Text("\($0.number)").monospacedDigit() }.width(min: 40, ideal: 50, max: 70)
+                        TableColumn("Name") { Text($0.name) }.width(min: 60, ideal: 120)
+                        TableColumn("Fixture") { Text($0.profile) }.width(min: 100, ideal: 200)
+                        TableColumn("Mode") { Text($0.virtualDimmer ? "\($0.mode) · virtual dimmer" : $0.mode) }
+                            .width(min: 100, ideal: 180)
+                        TableColumn("Address") { Text("\($0.universe).\($0.address)").monospacedDigit() }
+                            .width(min: 50, ideal: 70, max: 90)
+                        TableColumn("Ch") { Text("\($0.footprint)").monospacedDigit() }.width(min: 30, ideal: 40, max: 60)
+                    }
                 }
-                Spacer(minLength: 0)
-            }
-            .frame(width: 320)
-            PanelWindow(title: "Patch", info: "\(rows.count) fixtures", framed: true, accessory: { EmptyView() }) {
-                Table(rows, selection: $selection) {
-                    TableColumn("No") { Text("\($0.number)").monospacedDigit() }.width(min: 40, ideal: 50, max: 70)
-                    TableColumn("Name") { Text($0.name) }.width(min: 60, ideal: 120)
-                    TableColumn("Fixture") { Text($0.profile) }.width(min: 100, ideal: 200)
-                    TableColumn("Mode") { Text($0.virtualDimmer ? "\($0.mode) · virtual dimmer" : $0.mode) }
-                        .width(min: 100, ideal: 180)
-                    TableColumn("Address") { Text("\($0.universe).\($0.address)").monospacedDigit() }
-                        .width(min: 50, ideal: 70, max: 90)
-                    TableColumn("Ch") { Text("\($0.footprint)").monospacedDigit() }.width(min: 30, ideal: 40, max: 60)
+                VStack(spacing: 8) {
+                    SelectedPanel(fixture: rows.first { $0.id == selection })
+                    if let message = engine.lastMessage {
+                        Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Spacer(minLength: 0)
                 }
+                .frame(width: 320)
             }
         }
         .padding(8)
@@ -55,67 +57,267 @@ func labelled<Content: View>(_ label: String, @ViewBuilder _ content: () -> Cont
     }
 }
 
+/// Library browser (LIB-20..22): search, then Manufacturer / Model / Mode columns, then the patch fields.
+/// All lookups are the engine's (`library.manufacturers`, `library.models`, `patch.profile`); this view only
+/// holds the selection. Keyboard: Down in the search field enters Manufacturer; Up/Down move within the
+/// focused column, Left/Right move between columns (Right selects the first row of an empty Model/Mode
+/// column), Return adds when Add is enabled.
 private struct AddPanel: View {
     @EnvironmentObject private var engine: EngineClient
     @State private var query = ""
-    @State private var pickedID: String?
+    @State private var mfr: ManufacturerPick?
+    @State private var pick: ModelPick?
     @State private var mode = ""
     @State private var count = "1"
     @State private var universe = "1"
     @State private var address = ""
     @State private var number = ""
+    @FocusState private var focus: Field?
+
+    private enum Field: Hashable { case search, manufacturer, model, mode }
+    private enum ManufacturerPick: Hashable { case show, named(String) }
+    /// Manufacturer/model key plus whether it came from the show's own copy.
+    private struct ModelPick: Hashable { let key: String; let fromShow: Bool }
+    private struct ModelRow: Identifiable {
+        let manufacturer: String
+        let model: String
+        let source: String
+        let modes: [LibraryMode]
+        let fromShow: Bool
+        var pick: ModelPick { ModelPick(key: "\(manufacturer)/\(model)", fromShow: fromShow) }
+        var id: ModelPick { pick }
+        /// QLC+ profiles are the stock library; anything else is the user's own.
+        var isUser: Bool { fromShow ? !source.isEmpty && !source.hasPrefix("qlcplus") : source == "user" }
+    }
+
+    /// Distinct profile keys in the show whose "manufacturer model" text holds every query word.
+    private var showKeys: [String] {
+        let words = query.lowercased().split(whereSeparator: \.isWhitespace)
+        let keys = Set(engine.fixtures.map(\.profile)).filter { key in
+            let text = key.replacingOccurrences(of: "/", with: " ").lowercased()
+            return words.allSatisfy { text.contains($0) }
+        }
+        return keys.sorted()
+    }
+
+    private var modelRows: [ModelRow] {
+        if mfr == .show {
+            return showKeys.map { key in
+                if let p = engine.profileCache[key] {
+                    return ModelRow(manufacturer: p.manufacturer, model: p.model, source: p.source, modes: p.modes, fromShow: true)
+                }
+                let parts = key.split(separator: "/", maxSplits: 1).map(String.init)
+                return ModelRow(manufacturer: parts.first ?? "", model: parts.count > 1 ? parts[1] : key,
+                                source: "", modes: [], fromShow: true)
+            }
+        }
+        return engine.libraryModels.map {
+            ModelRow(manufacturer: $0.manufacturer, model: $0.model, source: $0.source, modes: $0.modes, fromShow: false)
+        }
+    }
+
+    private var pickedRow: ModelRow? { modelRows.first { $0.pick == pick } }
+
+    /// The Manufacturer column's choices in display order.
+    private var mfrChoices: [ManufacturerPick] {
+        (showKeys.isEmpty ? [] : [.show]) + engine.libraryManufacturers.map { .named($0.name) }
+    }
 
     var body: some View {
-        let picked = engine.libraryResults.first { $0.id == pickedID }
+        let picked = pickedRow
         let countValue = Int(count), universeValue = Int(universe)
         let addressValue = optionalInt(address), numberValue = optionalInt(number)
+        let canAdd = picked != nil && !mode.isEmpty && countValue != nil && universeValue != nil
+            && addressValue != nil && numberValue != nil
 
         PanelWindow(title: "Add", framed: true, accessory: { EmptyView() }) {
             VStack(alignment: .leading, spacing: 6) {
                 TextField("Search library, e.g. showtec par 56", text: $query)
                     .textFieldStyle(.roundedBorder)
-                    .onSubmit { engine.searchLibrary(query) }
-                    .onChange(of: query) { _, q in engine.searchLibrary(q) }
-                List(engine.libraryResults, selection: $pickedID) { item in
-                    Text("\(item.manufacturer) \(item.model)").font(.caption).lineLimit(1)
-                }
-                .listStyle(.plain)
-                .frame(height: 110)
-                .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(Color.secondary.opacity(0.3), lineWidth: hairline))
-                .onChange(of: pickedID) { _, id in
-                    mode = engine.libraryResults.first { $0.id == id }?.modes.first ?? ""
-                }
-                .onChange(of: engine.libraryResults) { _, _ in
-                    // A new result list may hold the same pick under the same id; keep the mode valid.
-                    if let item = engine.libraryResults.first(where: { $0.id == pickedID }) {
-                        if !item.modes.contains(mode) { mode = item.modes.first ?? "" }
-                    } else {
-                        pickedID = nil
-                        mode = ""
+                    .focused($focus, equals: .search)
+                    .onSubmit { if canAdd { add() } }
+                    .onKeyPress(.downArrow) {
+                        focus = .manufacturer
+                        if mfr == nil { mfr = mfrChoices.first }
+                        return .handled
+                    }
+                HStack(spacing: 6) {
+                    column("Manufacturer", count: engine.libraryManufacturers.count, field: .manufacturer, selected: mfr) {
+                        if !showKeys.isEmpty {
+                            row(mfr == .show, id: ManufacturerPick.show, tap: { toggle(.show) }) {
+                                Text("In this show").lineLimit(1)
+                                Spacer(minLength: 4)
+                                Text("\(showKeys.count)").font(Typo.mono(10)).foregroundStyle(.secondary)
+                            }
+                        }
+                        ForEach(engine.libraryManufacturers, id: \.name) { m in
+                            row(mfr == .named(m.name), id: ManufacturerPick.named(m.name), tap: { toggle(.named(m.name)) }) {
+                                Text(m.name).lineLimit(1)
+                                Spacer(minLength: 4)
+                                Text("\(m.models)").font(Typo.mono(10)).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    column("Model", count: modelRows.count, field: .model, selected: pick) {
+                        ForEach(modelRows) { r in
+                            row(pick == r.pick, id: r.pick, tap: { pick = r.pick }) {
+                                if mfr == nil || mfr == .show {
+                                    Text(r.manufacturer).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                                Text(r.model).lineLimit(1)
+                                if r.isUser { Text("USER").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary) }
+                                Spacer(minLength: 4)
+                                Text("\(r.modes.count)").font(Typo.mono(10)).foregroundStyle(.secondary)
+                            }
+                        }
+                        if modelRows.isEmpty { Text("No match").font(.caption).foregroundStyle(.secondary).padding(6) }
+                        if engine.libraryModelsTruncated && mfr != .show {
+                            Text("truncated, refine the search").font(.caption).foregroundStyle(.secondary).padding(6)
+                        }
+                    }
+                    column("Mode", count: picked?.modes.count ?? 0, field: .mode, selected: mode) {
+                        ForEach(picked?.modes ?? [], id: \.name) { m in
+                            row(mode == m.name, id: m.name, tap: { mode = m.name }) {
+                                Text(m.name).lineLimit(1)
+                                Spacer(minLength: 4)
+                                Text("\(m.channels) ch").font(Typo.mono(10)).foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
-                labelled("Mode") {
-                    Picker("", selection: $mode) {
-                        ForEach(picked?.modes ?? [], id: \.self) { Text($0).tag($0) }
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(picked.map { "\($0.manufacturer) \($0.model)" } ?? "Pick a model").lineLimit(1)
+                        if let picked, let m = picked.modes.first(where: { $0.name == mode }) {
+                            Text("\(m.name) · \(m.channels) channels · \(picked.isUser ? "user profile" : "QLC+")")
+                                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
                     }
-                    .labelsHidden().disabled(picked == nil)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    field("Count", $count, "1")
+                    field("Universe", $universe, "1")
+                    field("Address", $address, "next free")
+                    field("Number", $number, "next free")
+                    // Both belong to VS2-26 (profile editor); inert until then.
+                    Button("Edit profile…") {}.buttonStyle(FlatButton()).disabled(true)
+                    Button("New from channel list…") {}.buttonStyle(FlatButton()).disabled(true)
+                    Button("Add") { add() }.buttonStyle(FlatButton(fill: .blue)).disabled(!canAdd)
                 }
-                labelled("Count") { TextField("1", text: $count).textFieldStyle(.roundedBorder) }
-                labelled("Universe") { TextField("1", text: $universe).textFieldStyle(.roundedBorder) }
-                labelled("Address") { TextField("next free", text: $address).textFieldStyle(.roundedBorder) }
-                labelled("Number") { TextField("next free", text: $number).textFieldStyle(.roundedBorder) }
-                Button("Add") {
-                    if let picked, let countValue, let universeValue, case let .some(addressValue) = addressValue,
-                       case let .some(numberValue) = numberValue {
-                        engine.patchAdd(profile: picked.profileKey, mode: mode, count: countValue,
-                                        universe: universeValue, address: addressValue, number: numberValue)
-                    }
-                }
-                .buttonStyle(FlatButton(fill: .blue))
-                .disabled(picked == nil || mode.isEmpty || countValue == nil || universeValue == nil
-                          || addressValue == nil || numberValue == nil)
             }
             .padding(8)
+        }
+        .onAppear { engine.requestManufacturers(query: query) }
+        .onChange(of: query) { _, _ in
+            pick = nil
+            engine.requestManufacturers(query: query)
+            refreshModels()
+        }
+        .onChange(of: mfr) { _, _ in pick = nil; refreshModels() }
+        .onChange(of: engine.libraryManufacturers) { _, list in
+            // A selected manufacturer that left the list is dropped.
+            if case let .named(name) = mfr, !list.contains(where: { $0.name == name }) { mfr = nil }
+        }
+        .onChange(of: showKeys) { _, keys in
+            guard mfr == .show else { return }
+            // A type patched meanwhile needs its show copy too.
+            if keys.isEmpty { mfr = nil } else { keys.filter { engine.profileCache[$0] == nil }.forEach(engine.requestProfile) }
+        }
+        .onChange(of: pick) { _, _ in mode = pickedRow?.modes.first?.name ?? "" }
+        .onChange(of: picked?.modes) { _, modes in
+            // The show copy's modes arrive later (patch.profile); keep the mode valid.
+            if let modes, !modes.contains(where: { $0.name == mode }) { mode = modes.first?.name ?? "" }
+        }
+    }
+
+    private func add() {
+        guard let picked = pickedRow, let c = Int(count), let u = Int(universe),
+              case let .some(a) = optionalInt(address), case let .some(n) = optionalInt(number) else { return }
+        engine.patchAdd(profile: picked.pick.key, mode: mode, count: c, universe: u, address: a, number: n)
+    }
+
+    /// Clicking the selected manufacturer again deselects it.
+    private func toggle(_ m: ManufacturerPick) { mfr = mfr == m ? nil : m }
+
+    private func refreshModels() {
+        if mfr == .show {
+            showKeys.forEach { engine.requestProfile(key: $0) }
+        } else if case let .named(name) = mfr {
+            engine.requestModels(manufacturer: name, query: query)
+        } else {
+            engine.requestModels(manufacturer: nil, query: query)
+        }
+    }
+
+    private func field(_ label: String, _ text: Binding<String>, _ prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            TextField(prompt, text: text).textFieldStyle(.roundedBorder).frame(width: label == "Count" ? 50 : 76)
+        }
+    }
+
+    private func row<C: View>(_ selected: Bool, id: AnyHashable, tap: @escaping () -> Void, @ViewBuilder _ content: () -> C) -> some View {
+        HStack(spacing: 4) { content() }
+            .font(.caption)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(selected ? Color.accentColor.opacity(0.35) : Color.clear)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: tap)
+            .id(id)
+    }
+
+    /// `selected` is the row id kept scrolled into view, so arrow keys never leave the selection off screen.
+    private func column<C: View>(_ title: String, count: Int, field f: Field, selected: AnyHashable?, @ViewBuilder _ rows: () -> C) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Text("\(count)").font(Typo.mono(10)).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            let content = rows()
+            ScrollViewReader { proxy in
+                ScrollView { LazyVStack(spacing: 0) { content } }
+                    .onChange(of: selected) { _, id in if let id { proxy.scrollTo(id) } }
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: radius)
+            .strokeBorder(focus == f ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: hairline))
+        .focusable()
+        .focusEffectDisabled()
+        .focused($focus, equals: f)
+        .onKeyPress(.upArrow) { step(-1, f); return .handled }
+        .onKeyPress(.downArrow) { step(1, f); return .handled }
+        .onKeyPress(.leftArrow) { focus = f == .mode ? .model : .manufacturer; return .handled }
+        .onKeyPress(.rightArrow) { enter(f); return .handled }
+        .onKeyPress(.return) { add(); return .handled }
+        .simultaneousGesture(TapGesture().onEnded { focus = f })
+    }
+
+    /// Up/Down inside a column: move the selection one row, starting at the first row when nothing is selected.
+    private func step(_ delta: Int, _ f: Field) {
+        func moved<T: Equatable>(_ items: [T], _ current: T?) -> T? {
+            guard !items.isEmpty else { return nil }
+            guard let current, let i = items.firstIndex(of: current) else { return items[0] }
+            return items[min(max(i + delta, 0), items.count - 1)]
+        }
+        switch f {
+        case .manufacturer: mfr = moved(mfrChoices, mfr)
+        case .model: pick = moved(modelRows.map(\.pick), pick)
+        case .mode: if let m = moved(pickedRow?.modes.map(\.name) ?? [], mode) { mode = m }
+        case .search: break
+        }
+    }
+
+    /// Right: move focus to the next column, selecting its first row when it has no selection.
+    private func enter(_ f: Field) {
+        switch f {
+        case .manufacturer:
+            focus = .model
+            if pick == nil { pick = modelRows.first?.pick }
+        case .model:
+            if pickedRow != nil { focus = .mode }
+        default: break
         }
     }
 }
