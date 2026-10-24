@@ -312,7 +312,9 @@ private struct ProfileDocEditor: View {
         let mid = (s.from + s.to) / 2
         editSlots(i) { list in
             list[k].to = mid
-            list.insert(SlotDoc(name: "Slot \(list.count + 1)", from: mid + 1, to: s.to), at: k + 1)
+            let names = Set(list.map(\.name))
+            let n = (1...).first { !names.contains("Slot \($0)") } ?? list.count + 1
+            list.insert(SlotDoc(name: "Slot \(n)", from: mid + 1, to: s.to), at: k + 1)
         }
     }
 
