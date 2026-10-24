@@ -16,8 +16,8 @@ cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --no-serial \
 
 Open *Kerk* on the Show screen if the Demo opens. App: `cd subprojects/app && swift build &&
 scripts/bundle-app.sh && open .build/ColourmotionDMX.app`. Art-Net listener on universe 1 for the
-output steps (Phantom 25 spots 201–204 at 1.301, 1.312, …; Pan 1/3, Tilt 2/4, Colour Wheel 6,
-Gobo 9).
+output steps (Phantom 25 spots 201–204 at 1.109, 1.120, 1.131, 1.142; Pan +0/+2, Tilt +1/+3, Colour
+Wheel +5, Gobo +8, so 201's Colour Wheel is channel 114).
 
 ## A. Opening and leaving (LIB-23)
 - [ ] Add panel: Edit profile… is disabled without a pick; pick Showtec Phantom 25 LED Spot
@@ -56,7 +56,7 @@ Gobo 9).
 
 ## D. Save (LIB-25, IPC-38)
 - [ ] Set Pan and Tilt default 50 % on the Phantom 25 and Save: the editor closes or shows
-      "Saved"; Art-Net shows Pan 1/3 and Tilt 2/4 at 128/0 on 201–204
+      "Saved"; Art-Net shows Pan and Tilt (and their fine bytes) at 128/0 on 201–204 (109–112 on 201)
 - [ ] ⌘Z on the main screen: the message says "Undone: Edit profile Phantom 25 LED Spot" and Pan/Tilt
       go back to 0; ⌘⇧Z brings them back
 - [ ] Make two slots overlap (0–100 and 90–255) and Save: refused with the engine's warning, the
@@ -80,8 +80,8 @@ Gobo 9).
 - [ ] With nothing selected in the programmer, Test is disabled
 - [ ] On Program select 201 Thru 204, back in the editor: Test reads "Test on 201–204"; turn it on:
       it is red
-- [ ] Click a Colour Wheel slot 32–63: Art-Net channel 6 of 201–204 reads 47 ((32 + 63) / 2)
-- [ ] Move Gobo's Default slider: channel 9 follows live
+- [ ] Click a Colour Wheel slot 32–63: Art-Net Colour Wheel of 201–204 (114 on 201) reads 47 ((32 + 63) / 2)
+- [ ] Move Gobo's Default slider: the Gobo channel (117 on 201) follows live
 - [ ] Leave the editor: the values stay in the programmer (Program shows them); Clear removes them
 
 ## G. Church Phantom 25 (owner, on the real show)
