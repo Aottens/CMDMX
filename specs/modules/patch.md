@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -86,6 +86,65 @@ to end up with two fixtures on the same channel by accident.
   Amended (P1-14, approved by owner 2026-10-23): the Add panel is LIB-22's (search over manufacturer,
   model and mode columns, a full-width strip above the table); the Selected panel gains Edit
   profile… (LIB-23).
+  Amended (P1-15, approved by owner 2026-10-24): the table takes a multi-row selection (PAT-25).
+- **PAT-25** Multi-select on the Patch screen (P1-15, approved by owner 2026-10-24): click selects one row,
+  Shift-click a run of rows, Cmd-click adds or drops a row, Cmd-A selects all (macOS table
+  conventions). With more than one row selected the Selected panel is titled "Selected · 6
+  fixtures" and its actions send the range forms (IPC-40) for the whole selection: Move (start
+  universe and address, PAT-20), Renumber (start number, PAT-21), Name (prefilled with the first
+  row's name, hint "Par 1 numbers them Par 1, Par 2, …", PAT-23), Change Mode (a dropdown of the
+  modes every selected row has, in the first row's order, the shared current mode preselected or
+  none when they differ; Change disabled while nothing new is picked, PAT-22) and Remove ("Remove 6
+  fixtures", two-step confirm). Edit profile… is enabled only when every selected row has the
+  same profile. The selection stays on the same fixtures (ids) after an edit, so the table shows
+  where they went; a refused range edit shows its warning in the panel and changes nothing.
+  Verified by `tests/manual/app-patch.md` (amended).
+
+### Range edits (P1-15, IDEA-09; approved by owner 2026-10-24)
+Titan reference (*Changing the Patch*, *Copying, moving and deleting fixtures*): fixtures selected
+together are repatched from one start address, get user numbers counting up from the one typed,
+can share one legend, and are deleted in one go; a clash is refused or the clashing fixtures are
+parked. Titan exchanges fixture types one fixture at a time and has no multi-fixture mode change.
+ColourmotionDMX has no parking (a removed fixture is gone, PAT-05), so every clash refuses.
+
+- **Range:** the fixtures one range command acts on, given as a list of ids (`ids`). A range is
+  worked in **number order** (ascending user number), whatever order the list or the clicks came
+  in. A range of one fixture behaves exactly as the single-fixture command (PAT-04, 06, 13).
+
+- **PAT-19** A range command is checked as a whole before anything changes: if one fixture of the
+  range would be refused, the command is refused with one warning naming the first clash in
+  number order ("224 would overlap 301 at 1.67"), and nothing changes (PAT-02). An empty `ids`,
+  an id not in the patch or an id listed twice refuses the command. An accepted range command is
+  one undo step (UNDO-01, UNDO-03), labelled with the count when it holds more than one fixture
+  ("Patch move 6 fixtures").
+- **PAT-20** Move a range back to back: `patch.move` with `ids` places the range in number order
+  from the given universe and address, each fixture right after the previous one's footprint as
+  in PAT-01, whatever gaps or order the fixtures had before. The range's own old channels do not
+  count as a clash (PAT-04). 221–226 (6 Channel) at 1.37–1.67 moved to 2.101 → 2.101, 107, 113,
+  119, 125, 131. A range that would run past slot 512 or overlap a fixture outside the range is
+  refused (PAT-19).
+- **PAT-21** Renumber a range, order kept: `patch.renumber` with `ids` gives the range consecutive
+  user numbers from the given number, in number order. 1221–1226 from 1301 → 1301–1306 (1221 →
+  1301 … 1226 → 1306); 1221, 1223, 1225 from 1301 → 1301, 1302, 1303 (gaps close). The range's own
+  old numbers do not count as used, so 201–206 from 203 is allowed (→ 203–208) unless 207 or 208
+  belongs to a fixture outside the range, which refuses the command naming it. Nothing but the
+  numbers changes (PAT-06).
+- **PAT-22** Change the mode of a range: `patch.change_mode` with `ids` gives every fixture of the
+  range the named mode; every fixture's profile must have a mode of that name, otherwise the
+  command is refused naming the first fixture without it. Fixtures keep their addresses; each
+  new footprint is checked against fixtures outside the range and against the range's own new
+  footprints, so six 6-channel pars back to back cannot grow to 7 channels in place (refused,
+  "221 would overlap 222 at 1.43"; the operator moves the range first, or after a smaller mode,
+  PAT-20). Attributes are matched by name per fixture as in PAT-13; dropped programmer values and
+  recorded data give one warning for the range ("Dropped Strobe on 6 fixtures").
+- **PAT-23** Numbered names: `patch.name` with `ids` names the range in number order. A name that
+  ends in a number counts up from it, keeping the number of digits: "Par 1" → Par 1 … Par 6;
+  "P40" → P40 … P45; "Par 01" → Par 01 … Par 09, Par 10, …. A name
+  without a trailing number is given to every fixture as it is (Titan Set Legend on a group); an
+  empty name clears every name. Names need not be unique, so a name never clashes.
+- **PAT-24** Remove a range: `patch.remove {ids}` (PAT-05) is a range command under PAT-19: an
+  unknown or repeated id refuses the whole removal; an accepted one is one undo step that brings
+  every removed fixture back with its groups, palettes and cue data (UNDO-03).
 
 ### The church
 - **PAT-11** The church rig from the owner's Lightkey export is patched once through these commands
@@ -148,6 +207,26 @@ slot names for now (the Lightkey show has them; adding them is a LIB-12 edit lat
 Per-cell selection and Unfold (cells exist in the model, LIB-07; selecting them is a PRG task),
 a fixture spanning several universes (pixel products, with the pixel mapper), patching from a
 visual plot (with the visualiser).
+
+## Owner decisions (P1-15, 2026-10-24: every recommendation accepted)
+1. **Move: back to back or keep the spacing?** Titan's repatch keeps the address gaps between the
+   selected fixtures; the backlog row says back to back. *Recommend back to back* (PAT-20): it is
+   what you asked for and what a church rig of identical pars needs. Keeping gaps can be a later
+   option if you miss it.
+2. **Change mode that no longer fits in place: refuse or re-pack?** *Recommend refuse* (PAT-22)
+   with the clash in the warning: re-packing silently moves fixtures the operator did not ask to
+   move. Change mode then Move is two undo steps, each one visible.
+3. **Change mode on mixed fixture types:** *recommend allowed* when every type has a mode of that
+   name (PAT-22; the dropdown shows only shared modes), instead of only one profile per range.
+4. **Name without a trailing number:** *recommend the same name for every fixture* (Titan), so
+   "Front" names all six "Front" and "Front 1" numbers them (PAT-23).
+5. **Order:** *recommend number order*, not click order (the table is sorted by number, so what
+   you see is what you get).
+6. **Wire:** *recommend `ids` on the existing commands* (IPC-40) instead of new `*_range`
+   commands: one command per edit, and a range of one is the old command.
+7. **Handles of a range** (moving several Fixtures-window buttons at once, Titan Move with Retain
+   Layout / Bunch Up) stay out of this spec: *recommend* a later PRG/UI task when the Fixtures
+   window gets its own Move.
 
 ## Owner decisions (2026-10-17)
 1. Internal id and user number are separate, as on Titan (PAT-06, PAT-12): the church is the

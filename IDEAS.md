@@ -33,7 +33,7 @@ the backlog, not the whole idea.
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
 | IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | done (VS2-05, #66) | 1 | PRG, IPC, app |
 | IDEA-08 | Browse the library by manufacturer, then model | done (P1-14; VS2-23 #86, VS2-25 #88) | 1 | LIB, IPC, app |
-| IDEA-09 | Multi-select in the patch table: every edit on a range | backlog (P1-15) | 1 | PAT, app |
+| IDEA-09 | Multi-select in the patch table: every edit on a range | backlog (P1-15 specified; VS2-27, VS2-28 todo) | 1 | PAT, app |
 | IDEA-10 | Output lamps on fixture buttons (what each fixture outputs now) | triaged (owner to confirm the phase) | 1 (later, proposed) | IPC, UI |
 | IDEA-11 | Tap a selected group again to deselect it | done (VS2-15) | 1 | PRG |
 | IDEA-12 | Command history with the arrow keys | done (UX-02c, #33) | 1 | UI |
@@ -138,6 +138,7 @@ with a quick sketch first.
   Selected panel.
 **Outcome (2026-10-17):** owner: phase 1, every edit on a range — remove, move, renumber, change
 mode and name (numbered, e.g. "Par 1…6"). Spec task P1-15 in `BACKLOG.md`.
+**Specified (2026-10-24, P1-15):** PAT-19..25, IPC-40; build tasks VS2-27 and VS2-28.
 
 ### IDEA-10 — Output lamps on fixture buttons (2026-10-17, UX-02.0)
 **Owner's intent:** the sketch's coloured strip on each fixture cell, showing what the fixture

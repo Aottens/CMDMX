@@ -31,12 +31,12 @@ window with each fixture's values; cyan means the value comes from a palette.*
 
 ## Status
 
-Early, under active development, not yet for real shows. In progress: browsing the fixture library
-by manufacturer and a profile editor for slot names and defaults (the engine can browse the library
-and save an edited profile into the show, the app's Add panel browses by manufacturer and opens
-the profile editor for channels, defaults and wheel slots, with Test on the selected fixtures; sketch in
-[`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)), then the
-church's TouchOSC remote on the OSC layer. Progress is in
+Early, under active development, not yet for real shows. Library browsing by manufacturer and the
+profile editor for channels, defaults and wheel slots are in (sketch in
+[`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)). In
+progress: multi-select in the patch table, so a range of fixtures is moved back to back,
+renumbered, renamed ("Par 1…6"), changed in mode or removed in one checked step (spec PAT-19..25);
+then the church's TouchOSC remote on the OSC layer. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
 sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 

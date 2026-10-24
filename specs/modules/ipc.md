@@ -94,6 +94,15 @@ The patch messages (snapshot `fixtures` entries, `fixtures` delta, `patch.*` com
 Patch screen are specified in `patch.md` PAT-09 and PAT-10; IPC-10's `fixtures` entries grow to
 the PAT-09 shape.
 
+- **IPC-40** Range forms (P1-15, PAT-19..24; approved by owner 2026-10-24): `patch.move`, `patch.renumber`,
+  `patch.name` and `patch.change_mode` take either `id` (one fixture, as today) or `ids` (a range);
+  both or neither → `error` (IPC-06). `{"v":0,"cmd":"patch.move","ids":[3,4,5],"universe":2,"address":101}`,
+  `{"v":0,"cmd":"patch.renumber","ids":[3,4,5],"number":1301}`,
+  `{"v":0,"cmd":"patch.name","ids":[3,4,5],"name":"Par 1"}`,
+  `{"v":0,"cmd":"patch.change_mode","ids":[3,4,5],"mode":"7 Channel"}`. `patch.remove {ids}` is
+  unchanged. Class edit, one undo step each (UNDO-04); a refusal is one `warning` and no
+  `fixtures` delta; an accepted command sends one `fixtures` delta (PAT-09).
+
 ### Library browsing and the profile editor (P1-14; behaviour in `fixture-library.md` LIB-19..27, approved 2026-10-23)
 - **IPC-35** `library.manufacturers {"query":"phantom"}` (`query` optional) → to the asking client
   only `{"v":0,"type":"library.manufacturers","query":"phantom","items":[{"name":"Showtec","models":3}]}`
