@@ -13,8 +13,8 @@ control layer, cue lists, group masters, library browsing, the profile editor an
 (VS2-27/28) are done.
 
 ## Next
-1. The owner picks the next task; candidates: VS4-04 (own TouchOSC layout; check the TouchOSC
-   version on the church iPad mini first), VS3-08 (open points of the VS3-05 run), VS2-29
+1. The owner picks the next task; candidates: VS4-04 (own TouchOSC Mk1 layout; iPad facts from the
+   2026-10-25 church run), VS3-08 (open points of the VS3-05 run), VS2-29
    (numbers above 999 without a thousands separator), P1-13 (per-cell selection spec), P1-19
    (Stream Deck spec).
 2. The church hardware runs below, when the hardware is at hand.
