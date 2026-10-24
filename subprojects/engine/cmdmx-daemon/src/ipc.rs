@@ -3351,7 +3351,7 @@ mod tests {
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.move","id":3,"universe":2,"address":101}"#),
             Command::PatchMove {
-                id: 3,
+                ids: vec![3],
                 universe: 2,
                 address: 101
             }
@@ -3363,21 +3363,21 @@ mod tests {
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.renumber","id":3,"number":1201}"#),
             Command::PatchRenumber {
-                id: 3,
+                ids: vec![3],
                 number: 1201
             }
         );
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.name","id":3,"name":"Front left"}"#),
             Command::PatchName {
-                id: 3,
+                ids: vec![3],
                 name: "Front left".into()
             }
         );
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.change_mode","id":3,"mode":"Big"}"#),
             Command::PatchChangeMode {
-                id: 3,
+                ids: vec![3],
                 mode: "Big".into()
             }
         );
@@ -3388,6 +3388,65 @@ mod tests {
                 handle: Handle { page: 2, slot: 5 }
             }
         );
+    }
+
+    #[test]
+    fn ipc_40_range_forms_take_ids() {
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.move","ids":[3,4,5],"universe":2,"address":101}"#),
+            Command::PatchMove {
+                ids: vec![3, 4, 5],
+                universe: 2,
+                address: 101
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.renumber","ids":[3,4,5],"number":1301}"#),
+            Command::PatchRenumber {
+                ids: vec![3, 4, 5],
+                number: 1301
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.name","ids":[3,4,5],"name":"Par 1"}"#),
+            Command::PatchName {
+                ids: vec![3, 4, 5],
+                name: "Par 1".into()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.change_mode","ids":[3,4,5],"mode":"7 Channel"}"#),
+            Command::PatchChangeMode {
+                ids: vec![3, 4, 5],
+                mode: "7 Channel".into()
+            }
+        );
+        // An empty range parses; the engine refuses it with a warning (PAT-19).
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.name","ids":[],"name":"Par 1"}"#),
+            Command::PatchName {
+                ids: vec![],
+                name: "Par 1".into()
+            }
+        );
+    }
+
+    #[test]
+    fn ipc_40_both_or_neither_id_and_ids_is_an_error() {
+        for bad in [
+            r#"{"v":0,"cmd":"patch.move","id":3,"ids":[3,4],"universe":2,"address":101}"#,
+            r#"{"v":0,"cmd":"patch.move","universe":2,"address":101}"#,
+            r#"{"v":0,"cmd":"patch.renumber","id":3,"ids":[3],"number":1301}"#,
+            r#"{"v":0,"cmd":"patch.renumber","number":1301}"#,
+            r#"{"v":0,"cmd":"patch.name","id":3,"ids":[3],"name":"Par 1"}"#,
+            r#"{"v":0,"cmd":"patch.name","name":"Par 1"}"#,
+            r#"{"v":0,"cmd":"patch.change_mode","id":3,"ids":[3],"mode":"Big"}"#,
+            r#"{"v":0,"cmd":"patch.change_mode","mode":"Big"}"#,
+            r#"{"v":0,"cmd":"patch.move","ids":3,"universe":2,"address":101}"#,
+            r#"{"v":0,"cmd":"patch.name","ids":["3"],"name":"Par 1"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]
