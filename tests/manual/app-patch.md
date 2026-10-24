@@ -1,4 +1,4 @@
-# App patch checklist (PAT-09, PAT-10, LIB-22) — template
+# App patch checklist (PAT-09, PAT-10, PAT-25, LIB-22) — template
 
 No Swift test target exists (CLAUDE.md), so the Patch screen of `specs/modules/patch.md` PAT-10
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
@@ -60,6 +60,62 @@ The demo show (IPC-14) uses universe 1 channels 1–150.
       footprint 24 (or the overlap warning) and Pan is kept
 - [ ] Remove 1222: the button asks to confirm; after confirming the row is gone, its channels
       (1.207–212) go to 0 on Art-Net, and it leaves any group it was in
+
+## Multi-select (PAT-25, PAT-19..24)
+Start from a fresh Demo (restart the daemon with the `rm -rf` above) and add 1221–1226 (Showtec
+LED Par 56, 6 Channel) at 1.201 as in *Add*.
+- [ ] Click 1221, Shift-click 1226: six rows are selected and the panel reads "Selected · 6
+      fixtures"; Cmd-click 1223 drops it (5 fixtures), Cmd-click it again adds it back; click one
+      row: back to one fixture ("Selected · 1224"); Cmd-A in the table selects every row
+- [ ] With 1221–1226 selected, a plain click on 1223 (inside the selection) leaves only 1223
+      selected, in one click (macOS 26 Table workaround, VS2-28 run); the No column shows 1221,
+      not "1.221" (no thousands separator)
+- [ ] Select 1221–1226: Move shows universe 1 address 201 (the first row's); Move to 2.101:
+      the rows show 2.101, 2.107 … 2.131, back to back, still selected; Undo brings them back to
+      1.201 … in one step (PAT-20)
+- [ ] Select 1221, 1223, 1225 (Cmd-click), Move to 1.40: refused with the overlap warning naming
+      the first clash; nothing moved (PAT-19)
+- [ ] Select 1221–1226, Renumber from 1301: they become 1301–1306 in the same order and stay
+      selected; Renumber them from 201: refused ("… already in use"), nothing changes (PAT-21)
+- [ ] Name is prefilled with the first row's name and shows the hint "Par 1 numbers them Par 1,
+      Par 2, …"; set `Par 1`: Par 1 … Par 6; set `Front`: all six are named Front (PAT-23)
+- [ ] With the six pars selected the Mode dropdown lists only 6 Channel (the Par 56's one mode),
+      picked, with Change disabled. Add two Shehds LED Beam+Wash 19x15W in 16 Channel at 2.1 (1401,
+      1402), select both: 16 and 24 Channel listed, 16 picked; pick 24 Channel, Change asks to
+      confirm, then refused (1401 would overlap 1402, addresses are kept); move 1402 to 2.201 and
+      change both again: both show 24 Channel, footprint 24 (PAT-22)
+- [ ] Add one Shehds LED Beam+Wash 19x15W in 16 Channel, select it and set its Pan in Program;
+      back on Patch the Mode dropdown lists 16 Channel and 24 Channel with 16 Channel picked; pick
+      24 Channel: Change asks to confirm first; after confirming the row shows 24 Channel with
+      footprint 24 (or the overlap warning) and Pan is kept
+- [ ] Remove 1222: the button asks to confirm; after confirming the row is gone, its channels
+      (1.207–212) go to 0 on Art-Net, and it leaves any group it was in
+
+## Multi-select (PAT-25, PAT-19..24)
+Start from a fresh Demo (restart the daemon with the `rm -rf` above) and add 1221–1226 (Showtec
+LED Par 56, 6 Channel) at 1.201 as in *Add*.
+- [ ] Click 1221, Shift-click 1226: six rows are selected and the panel reads "Selected · 6
+      fixtures"; Cmd-click 1223 drops it (5 fixtures), Cmd-click it again adds it back; click one
+      row: back to one fixture ("Selected · 1224"); Cmd-A in the table selects every row
+- [ ] Select 1221–1226: Move shows universe 1 address 201 (the first row's); Move to 2.101:
+      the rows show 2.101, 2.107 … 2.131, back to back, still selected; Undo brings them back to
+      1.201 … in one step (PAT-20)
+- [ ] Select 1221, 1223, 1225 (Cmd-click), Move to 1.40: refused with the overlap warning naming
+      the first clash; nothing moved (PAT-19)
+- [ ] Select 1221–1226, Renumber from 1301: they become 1301–1306 in the same order and stay
+      selected; Renumber them from 201: refused ("… already in use"), nothing changes (PAT-21)
+- [ ] Name is prefilled with the first row's name and shows the hint "Par 1 numbers them Par 1,
+      Par 2, …"; set `Par 1`: Par 1 … Par 6; set `Front`: all six are named Front (PAT-23)
+- [ ] With the six pars selected the Mode dropdown lists the Par 56 modes with 6 Channel picked and
+      Change disabled; pick another mode: Change asks to confirm, then all six change or the panel
+      shows the refusal (PAT-22)
+- [ ] Select a Shehds together with a par: Mode
+      shows only modes both have (none → empty dropdown, Change disabled), nothing preselected when
+      their modes differ; Edit profile… is disabled (two profiles) and enabled again with only pars
+      selected
+- [ ] Select three pars, Remove reads "Remove 3 fixtures", asks to confirm; after confirming the
+      three rows are gone and the panel says "Select a row"; Undo brings all three back in one step
+      (PAT-24)
 
 ## Still works
 - [ ] A second app window (or a restart of the app) shows the same patch: the table comes from the

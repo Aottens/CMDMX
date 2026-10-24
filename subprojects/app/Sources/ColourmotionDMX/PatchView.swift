@@ -6,10 +6,11 @@ import SwiftUI
 struct PatchView: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
-    @State private var selection: Int?
+    @State private var selection = Set<Int>()
     /// LIB-23: the profile editor covers the screen while set; the Add panel stays alive underneath.
     @State private var editor: ProfileEditorTarget?
     @State private var pendingPick: SavedPick?
+    @State private var clickMonitor: Any?
 
     var body: some View {
         ZStack {
@@ -31,7 +32,7 @@ struct PatchView: View {
             HStack(spacing: 8) {
                 PanelWindow(title: "Patch", info: "\(rows.count) fixtures", framed: true, accessory: { EmptyView() }) {
                     Table(rows, selection: $selection) {
-                        TableColumn("No") { Text("\($0.number)").monospacedDigit() }.width(min: 40, ideal: 50, max: 70)
+                        TableColumn("No") { Text(String($0.number)).monospacedDigit() }.width(min: 40, ideal: 50, max: 70)
                         TableColumn("Name") { Text($0.name) }.width(min: 60, ideal: 120)
                         TableColumn("Fixture") { Text($0.profile) }.width(min: 100, ideal: 200)
                         TableColumn("Mode") { Text($0.virtualDimmer ? "\($0.mode) · virtual dimmer" : $0.mode) }
@@ -42,7 +43,7 @@ struct PatchView: View {
                     }
                 }
                 VStack(spacing: 8) {
-                    SelectedPanel(fixture: rows.first { $0.id == selection }, edit: { editor = $0 })
+                    SelectedPanel(fixtures: rows.filter { selection.contains($0.id) }, edit: { editor = $0 })
                     if let message = engine.lastMessage {
                         Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -55,8 +56,35 @@ struct PatchView: View {
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
-        .onChange(of: selection) { _, _ in engine.clearMessage() }
+        .onChange(of: selection) { old, new in
+            if !old.isEmpty, new.isEmpty, let id = clickedRowID(rows) { selection = [id] }
+            engine.clearMessage()
+        }
+        // A plain click on a row inside a multi-selection keeps only that row, on mouse-down (PAT-25);
+        // the onChange above puts it back when the Table empties the selection afterwards.
+        .onAppear {
+            clickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+                if selection.count > 1, let id = clickedRowID(engine.fixtures.sorted { $0.number < $1.number }),
+                   selection.contains(id) { selection = [id] }
+                return event
+            }
+        }
+        .onDisappear { clickMonitor.map(NSEvent.removeMonitor); clickMonitor = nil }
     }
+}
+
+/// macOS 26 SwiftUI `Table` empties a multi-selection on a plain click inside it, and only after the
+/// double-click wait, instead of keeping the clicked row at once (PAT-25, VS2-28 run). The id of the row
+/// under the mouse, with no Shift/Cmd held; no row dragging here, so acting on mouse-down loses nothing.
+/// ponytail: AppKit hit test on the Table's NSTableView, drop when Apple fixes it.
+private func clickedRowID(_ rows: [FixtureInfo]) -> Int? {
+    guard NSEvent.modifierFlags.intersection([.shift, .command]).isEmpty, let window = NSApp.keyWindow else { return nil }
+    let point = window.convertPoint(fromScreen: NSEvent.mouseLocation)
+    var v = window.contentView?.hitTest(point)
+    while let c = v, !(c is NSTableView) { v = c.superview }
+    guard let table = v as? NSTableView else { return nil }
+    let r = table.row(at: table.convert(point, from: nil))
+    return rows.indices.contains(r) ? rows[r].id : nil
 }
 
 /// "" = nil (omitted), a number = that number, anything else = invalid (`.some(nil)` is never produced).
@@ -383,7 +411,8 @@ private struct AddPanel: View {
 
 private struct SelectedPanel: View {
     @EnvironmentObject private var engine: EngineClient
-    let fixture: FixtureInfo?
+    /// The selection in number order (PAT-25); every action sends all their ids (IPC-40).
+    let fixtures: [FixtureInfo]
     let edit: (ProfileEditorTarget) -> Void
     @State private var universe = ""
     @State private var address = ""
@@ -395,49 +424,69 @@ private struct SelectedPanel: View {
 
     private enum Armed { case remove, mode }
 
+    private var ids: [Int] { fixtures.map(\.id) }
+    /// The current mode when every selected fixture has the same one, else "".
+    private var sharedMode: String {
+        guard let first = fixtures.first, fixtures.allSatisfy({ $0.mode == first.mode }) else { return "" }
+        return first.mode
+    }
+    /// Modes every selected fixture has, in the first fixture's order.
+    private var commonModes: [String] {
+        guard let first = fixtures.first else { return [] }
+        return first.modes.filter { m in fixtures.allSatisfy { $0.modes.contains(m) } }
+    }
+    private var sharedProfile: Bool { fixtures.dropFirst().allSatisfy { $0.profile == fixtures.first?.profile } }
+
     var body: some View {
-        PanelWindow(title: fixture.map { "Selected · \($0.number)" } ?? "Selected", framed: true, accessory: { EmptyView() }) {
-            if let fixture {
+        let title = fixtures.count > 1 ? "Selected · \(fixtures.count) fixtures"
+            : fixtures.first.map { "Selected · \($0.number)" } ?? "Selected"
+        PanelWindow(title: title, framed: true, accessory: { EmptyView() }) {
+            if let fixture = fixtures.first {
                 VStack(alignment: .leading, spacing: 6) {
                     labelled("Move") {
                         TextField("univ", text: $universe).textFieldStyle(.roundedBorder).frame(width: 50)
                         TextField("address", text: $address).textFieldStyle(.roundedBorder)
                         Button("Move") {
-                            if let u = Int(universe), let a = Int(address) { engine.patchMove(id: fixture.id, universe: u, address: a) }
+                            if let u = Int(universe), let a = Int(address) { engine.patchMove(ids: ids, universe: u, address: a) }
                         }.buttonStyle(FlatButton())
                     }
                     labelled("Renumber") {
                         TextField("number", text: $number).textFieldStyle(.roundedBorder)
                         Button("Set") {
-                            if let n = Int(number) { engine.patchRenumber(id: fixture.id, number: n) }
+                            if let n = Int(number) { engine.patchRenumber(ids: ids, number: n) }
                         }.buttonStyle(FlatButton())
                     }
                     labelled("Name") {
                         TextField("name", text: $name).textFieldStyle(.roundedBorder)
-                            .onSubmit { engine.patchName(id: fixture.id, name: name) }
-                        Button("Set") { engine.patchName(id: fixture.id, name: name) }.buttonStyle(FlatButton())
+                            .onSubmit { engine.patchName(ids: ids, name: name) }
+                        Button("Set") { engine.patchName(ids: ids, name: name) }.buttonStyle(FlatButton())
+                    }
+                    if fixtures.count > 1 {
+                        Text("Par 1 numbers them Par 1, Par 2, …").font(.caption).foregroundStyle(.secondary)
                     }
                     labelled("Mode") {
                         Picker("", selection: $mode) {
-                            ForEach(fixture.modes, id: \.self) { Text($0).tag($0) }
+                            if !commonModes.contains(mode) { Text("").tag(mode) }
+                            ForEach(commonModes, id: \.self) { Text($0).tag($0) }
                         }
                         .labelsHidden()
                         Button(armed == .mode ? "Confirm change" : "Change") {
                             if armed == .mode {
-                                engine.patchChangeMode(id: fixture.id, mode: mode)
+                                engine.patchChangeMode(ids: ids, mode: mode)
                                 armed = nil
                             } else {
                                 armed = .mode
                             }
                         }
                         .buttonStyle(FlatButton(fill: armed == .mode ? .red : nil))
-                        .disabled(mode == fixture.mode)
+                        .disabled(mode.isEmpty || mode == sharedMode)
                     }
                     Button("Edit profile…") { edit(.show(key: fixture.profile, mode: fixture.mode)) }
                         .buttonStyle(FlatButton())
-                    Button(armed == .remove ? "Confirm remove" : "Remove") {
+                        .disabled(!sharedProfile)
+                    Button(armed == .remove ? "Confirm remove" : fixtures.count > 1 ? "Remove \(fixtures.count) fixtures" : "Remove") {
                         if armed == .remove {
-                            engine.patchRemove(ids: [fixture.id])
+                            engine.patchRemove(ids: ids)
                             armed = nil
                         } else {
                             armed = .remove
@@ -446,8 +495,8 @@ private struct SelectedPanel: View {
                 }
                 .padding(8)
                 .onAppear { load(fixture) }
-                .onChange(of: fixture.id) { _, _ in load(fixture) }
-                .onChange(of: fixture.mode) { _, m in mode = m }
+                .onChange(of: ids) { _, _ in load(fixture) }
+                .onChange(of: sharedMode) { _, m in mode = m }
             } else {
                 Text("Select a row").font(.caption).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity).padding(12)
@@ -455,9 +504,9 @@ private struct SelectedPanel: View {
         }
     }
 
-    /// Prefill the fields from the engine's values for the newly selected fixture.
+    /// Prefill the fields from the engine's values for the first selected fixture.
     private func load(_ f: FixtureInfo) {
         universe = "\(f.universe)"; address = "\(f.address)"; number = "\(f.number)"
-        name = f.name; mode = f.mode; armed = nil
+        name = f.name; mode = sharedMode; armed = nil
     }
 }

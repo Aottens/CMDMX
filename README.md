@@ -33,10 +33,10 @@ window with each fixture's values; cyan means the value comes from a palette.*
 
 Early, under active development, not yet for real shows. Library browsing by manufacturer and the
 profile editor for channels, defaults and wheel slots are in (sketch in
-[`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)). In
-progress: multi-select in the patch table, so a range of fixtures is moved back to back,
-renumbered, renamed ("Par 1…6"), changed in mode or removed in one checked step (spec PAT-19..25;
-the engine side is in, the app's table is next); then the church's TouchOSC remote on the OSC layer. Progress is in
+[`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)). Multi-select
+in the patch table is in too: Shift/Cmd-click a range of fixtures and move it back to back,
+renumber it, name it ("Par 1…6"), change its mode or remove it in one checked step. Next: the
+church's TouchOSC remote on the OSC layer, once the iPad is at hand. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
 sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 
