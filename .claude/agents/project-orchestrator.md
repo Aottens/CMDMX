@@ -22,7 +22,8 @@ When the user is about to commit:
 3. If a spec changed: list which tests reference its criterion ids and whether they still match.
 4. If engine code changed without a test naming a criterion id: flag it.
 5. If a `STATE.md` or `BACKLOG.md` was not updated despite code changes: flag it. Run
-   `scripts/check-tracking.py` (with `PR_TITLE` set to the planned PR title) and report its errors;
+   `scripts/check-tracking.py --summary origin/main` (with `PR_TITLE` set to the planned PR title),
+   report its errors and hand its summary over for the PR's `## Tracking` section;
    flag a task row of this PR that is not `done (…, #PR)` or `gate3: …`, and open points from a
    run file in the diff that have no backlog row or IDEA.
 6. Grep staged Rust changes for `unwrap(`, `expect(`, `panic!`, `todo!`, `unreachable!` outside `#[cfg(test)]`: flag each.
