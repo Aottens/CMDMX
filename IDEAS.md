@@ -34,7 +34,7 @@ the backlog, not the whole idea.
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
 | IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | done (VS2-05, #66) | 1 | PRG, IPC, app |
 | IDEA-08 | Browse the library by manufacturer, then model | done (P1-14; VS2-23 #86, VS2-25 #88) | 1 | LIB, IPC, app |
-| IDEA-09 | Multi-select in the patch table: every edit on a range | backlog (P1-15 specified; VS2-27, VS2-28 todo) | 1 | PAT, app |
+| IDEA-09 | Multi-select in the patch table: every edit on a range | backlog (P1-15 specified; VS2-27 done, VS2-28 todo) | 1 | PAT, app |
 | IDEA-10 | Output lamps on fixture buttons (what each fixture outputs now) | triaged (owner to confirm the phase) | 1 (later, proposed) | IPC, UI |
 | IDEA-11 | Tap a selected group again to deselect it | done (VS2-15) | 1 | PRG |
 | IDEA-12 | Command history with the arrow keys | done (UX-02c, #33) | 1 | UI |

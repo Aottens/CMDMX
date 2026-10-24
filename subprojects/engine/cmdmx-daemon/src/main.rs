@@ -557,10 +557,10 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             engine.patch_add(&add).map(drop)
         }
         PatchMove {
-            id,
+            ids,
             universe,
             address,
-        } => engine.patch_move(id, universe, address),
+        } => engine.patch_move_range(&ids, universe, address),
         OutputAdd {
             line,
             enabled,
@@ -597,9 +597,9 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         // Answered in the client thread (OUT-35).
         OutputPorts => Ok(()),
         PatchRemove { ids } => engine.patch_remove(&ids),
-        PatchRenumber { id, number } => engine.patch_renumber(id, number),
-        PatchName { id, name } => engine.patch_name(id, &name),
-        PatchChangeMode { id, mode } => engine.patch_change_mode(id, &mode),
+        PatchRenumber { ids, number } => engine.patch_renumber_range(&ids, number),
+        PatchName { ids, name } => engine.patch_name_range(&ids, &name),
+        PatchChangeMode { ids, mode } => engine.patch_change_mode_range(&ids, &mode),
         PatchHandle { id, handle } => engine.patch_handle(id, handle),
         PaletteRecord(record) => engine.record_palette(&record).map(drop),
         PaletteApply { number, timing } => engine.apply_palette(number, timing),
@@ -818,6 +818,15 @@ fn group_name(group: &cmdmx_core::attribute::AttributeGroup) -> String {
         .unwrap_or_default()
 }
 
+/// "Patch move 3" for one fixture, "Patch move 6 fixtures" for a range (IPC-40).
+fn range_label(verb: &str, ids: &[u32]) -> String {
+    match ids {
+        [id] => format!("Patch {verb} {id}"),
+        [] => format!("Patch {verb}"),
+        _ => format!("Patch {verb} {} fixtures", ids.len()),
+    }
+}
+
 /// UNDO-01, 05: the step's label and its coalescing key.
 fn label(cmd: &ipc::Command) -> (String, Option<String>) {
     use ipc::Command::*;
@@ -856,11 +865,12 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         OutputEdit { .. } => ("Edit output".into(), None),
         OutputRemove { .. } => ("Remove output".into(), None),
         PatchAdd { .. } => ("Patch add".into(), None),
-        PatchMove { id, .. } => (format!("Patch move {id}"), None),
+        PatchMove { ids, .. } => (range_label("move", ids), None),
+        PatchRemove { ids } if ids.len() > 1 => (range_label("remove", ids), None),
         PatchRemove { .. } => ("Patch remove".into(), None),
-        PatchRenumber { id, .. } => (format!("Patch renumber {id}"), None),
-        PatchName { id, .. } => (format!("Patch name {id}"), None),
-        PatchChangeMode { id, .. } => (format!("Patch mode {id}"), None),
+        PatchRenumber { ids, .. } => (range_label("renumber", ids), None),
+        PatchName { ids, .. } => (range_label("name", ids), None),
+        PatchChangeMode { ids, .. } => (range_label("mode", ids), None),
         PatchHandle { id, .. } => (format!("Patch handle {id}"), None),
         PaletteRecord(_) => ("Record palette".into(), None),
         PaletteApply { number, .. } => (format!("Apply palette {number}"), None),
@@ -1558,16 +1568,16 @@ mod tests {
         let mut engine = demo_engine().unwrap();
         let mut run = |cmd| apply(&mut engine, cmd, 0.0).unwrap();
         run(ipc::Command::PatchMove {
-            id: 301,
+            ids: vec![301],
             universe: 2,
             address: 1,
         });
         run(ipc::Command::PatchRenumber {
-            id: 302,
+            ids: vec![302],
             number: 1302,
         });
         run(ipc::Command::PatchName {
-            id: 303,
+            ids: vec![303],
             name: "Pulpit".into(),
         });
         run(ipc::Command::PatchHandle {
@@ -1590,10 +1600,97 @@ mod tests {
     }
 
     #[test]
+    fn ipc_40_range_commands_reach_the_engine() {
+        let mut engine = demo_engine().unwrap();
+        // 301..306 are one-channel dimmers.
+        let cmd = ipc::Command::PatchMove {
+            ids: vec![303, 301, 302],
+            universe: 2,
+            address: 101,
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        let at = |id| engine.fixture(id).map(|f| (f.universe, f.address));
+        assert_eq!(at(301), Some((2, 101)));
+        assert_eq!(at(302), Some((2, 102)));
+        assert_eq!(at(303), Some((2, 103)));
+        let cmd = ipc::Command::PatchName {
+            ids: vec![301, 302, 303],
+            name: "Par 1".into(),
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert_eq!(
+            engine.fixture(303).map(|f| f.name.clone()),
+            Some("Par 3".into())
+        );
+        // PAT-19: a refused range changes nothing.
+        let before: Vec<_> = engine.fixtures().cloned().collect();
+        let cmd = ipc::Command::PatchRenumber {
+            ids: vec![301, 301],
+            number: 900,
+        };
+        assert_eq!(
+            apply(&mut engine, cmd, 0.0),
+            Err(CoreError::RepeatedFixture(301))
+        );
+        let after: Vec<_> = engine.fixtures().cloned().collect();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn pat_19_range_undo_labels_carry_the_count() {
+        use ipc::Command::*;
+        let six = || vec![1, 2, 3, 4, 5, 6];
+        let cases = [
+            (
+                PatchMove {
+                    ids: six(),
+                    universe: 2,
+                    address: 1,
+                },
+                "Patch move 6 fixtures",
+            ),
+            (
+                PatchRenumber {
+                    ids: six(),
+                    number: 1,
+                },
+                "Patch renumber 6 fixtures",
+            ),
+            (
+                PatchName {
+                    ids: six(),
+                    name: "Par 1".into(),
+                },
+                "Patch name 6 fixtures",
+            ),
+            (
+                PatchChangeMode {
+                    ids: six(),
+                    mode: "Big".into(),
+                },
+                "Patch mode 6 fixtures",
+            ),
+            (PatchRemove { ids: six() }, "Patch remove 6 fixtures"),
+            (
+                PatchMove {
+                    ids: vec![301],
+                    universe: 2,
+                    address: 1,
+                },
+                "Patch move 301",
+            ),
+            (PatchRemove { ids: vec![301] }, "Patch remove"),
+        ];
+        for (cmd, want) in cases {
+            assert_eq!(label(&cmd).0, want);
+        }
+    }
+
+    #[test]
     fn pat_09_change_mode_reaches_the_engine() {
         let mut engine = demo_engine().unwrap();
         let cmd = ipc::Command::PatchChangeMode {
-            id: 201,
+            ids: vec![201],
             mode: "Nope".into(),
         };
         assert!(matches!(
@@ -1601,7 +1698,7 @@ mod tests {
             Err(CoreError::UnknownMode { .. })
         ));
         let cmd = ipc::Command::PatchChangeMode {
-            id: 201,
+            ids: vec![201],
             mode: "default".into(),
         };
         apply(&mut engine, cmd, 0.0).unwrap();

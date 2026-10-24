@@ -159,7 +159,7 @@ pub enum Command {
         profile: Option<Profile>,
     },
     PatchMove {
-        id: FixtureId,
+        ids: Vec<FixtureId>,
         universe: UniverseId,
         address: u16,
     },
@@ -167,15 +167,15 @@ pub enum Command {
         ids: Vec<FixtureId>,
     },
     PatchRenumber {
-        id: FixtureId,
+        ids: Vec<FixtureId>,
         number: u32,
     },
     PatchName {
-        id: FixtureId,
+        ids: Vec<FixtureId>,
         name: String,
     },
     PatchChangeMode {
-        id: FixtureId,
+        ids: Vec<FixtureId>,
         mode: String,
     },
     PatchHandle {
@@ -581,6 +581,18 @@ fn uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<T, String> 
         .and_then(|n| n.as_u64())
         .and_then(|n| T::try_from(n).ok())
         .ok_or_else(|| format!("missing or invalid \"{key}\""))
+}
+
+/// IPC-40: exactly one of `id` (one fixture) or `ids` (an array of fixture ids).
+fn ids_or_id(v: &serde_json::Value) -> Result<Vec<FixtureId>, String> {
+    match (v.get("id"), v.get("ids")) {
+        (Some(_), None) => Ok(vec![uint(v, "id")?]),
+        (None, Some(t)) => t
+            .as_array()
+            .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
+            .ok_or_else(|| "invalid \"ids\" (expected an array of fixture ids)".to_string()),
+        _ => Err("expected exactly one of \"id\" or \"ids\"".to_string()),
+    }
 }
 
 /// A number field in 0.0..=1.0.
@@ -1114,7 +1126,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             profile: None,
         }),
         Some("patch.move") => Ok(Command::PatchMove {
-            id: uint(&v, "id")?,
+            ids: ids_or_id(&v)?,
             universe: uint(&v, "universe")?,
             address: uint(&v, "address")?,
         }),
@@ -1126,15 +1138,15 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 .ok_or("missing or invalid \"ids\" (expected an array of fixture ids)")?,
         }),
         Some("patch.renumber") => Ok(Command::PatchRenumber {
-            id: uint(&v, "id")?,
+            ids: ids_or_id(&v)?,
             number: uint(&v, "number")?,
         }),
         Some("patch.name") => Ok(Command::PatchName {
-            id: uint(&v, "id")?,
+            ids: ids_or_id(&v)?,
             name: string(&v, "name")?,
         }),
         Some("patch.change_mode") => Ok(Command::PatchChangeMode {
-            id: uint(&v, "id")?,
+            ids: ids_or_id(&v)?,
             mode: string(&v, "mode")?,
         }),
         Some("patch.handle") => Ok(Command::PatchHandle {
@@ -3351,7 +3363,7 @@ mod tests {
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.move","id":3,"universe":2,"address":101}"#),
             Command::PatchMove {
-                id: 3,
+                ids: vec![3],
                 universe: 2,
                 address: 101
             }
@@ -3363,21 +3375,21 @@ mod tests {
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.renumber","id":3,"number":1201}"#),
             Command::PatchRenumber {
-                id: 3,
+                ids: vec![3],
                 number: 1201
             }
         );
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.name","id":3,"name":"Front left"}"#),
             Command::PatchName {
-                id: 3,
+                ids: vec![3],
                 name: "Front left".into()
             }
         );
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.change_mode","id":3,"mode":"Big"}"#),
             Command::PatchChangeMode {
-                id: 3,
+                ids: vec![3],
                 mode: "Big".into()
             }
         );
@@ -3388,6 +3400,66 @@ mod tests {
                 handle: Handle { page: 2, slot: 5 }
             }
         );
+    }
+
+    #[test]
+    fn ipc_40_range_forms_take_ids() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.move","ids":[3,4,5],"universe":2,"address":101}"#),
+            Command::PatchMove {
+                ids: vec![3, 4, 5],
+                universe: 2,
+                address: 101
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.renumber","ids":[3,4,5],"number":1301}"#),
+            Command::PatchRenumber {
+                ids: vec![3, 4, 5],
+                number: 1301
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.name","ids":[3,4,5],"name":"Par 1"}"#),
+            Command::PatchName {
+                ids: vec![3, 4, 5],
+                name: "Par 1".into()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.change_mode","ids":[3,4,5],"mode":"7 Channel"}"#),
+            Command::PatchChangeMode {
+                ids: vec![3, 4, 5],
+                mode: "7 Channel".into()
+            }
+        );
+        // An empty range parses; the engine refuses it with a warning (PAT-19).
+        assert_eq!(
+            ok(r#"{"v":0,"cmd":"patch.name","ids":[],"name":"Par 1"}"#),
+            Command::PatchName {
+                ids: vec![],
+                name: "Par 1".into()
+            }
+        );
+    }
+
+    #[test]
+    fn ipc_40_both_or_neither_id_and_ids_is_an_error() {
+        for bad in [
+            r#"{"v":0,"cmd":"patch.move","id":3,"ids":[3,4],"universe":2,"address":101}"#,
+            r#"{"v":0,"cmd":"patch.move","universe":2,"address":101}"#,
+            r#"{"v":0,"cmd":"patch.renumber","id":3,"ids":[3],"number":1301}"#,
+            r#"{"v":0,"cmd":"patch.renumber","number":1301}"#,
+            r#"{"v":0,"cmd":"patch.name","id":3,"ids":[3],"name":"Par 1"}"#,
+            r#"{"v":0,"cmd":"patch.name","name":"Par 1"}"#,
+            r#"{"v":0,"cmd":"patch.change_mode","id":3,"ids":[3],"mode":"Big"}"#,
+            r#"{"v":0,"cmd":"patch.change_mode","mode":"Big"}"#,
+            r#"{"v":0,"cmd":"patch.move","ids":3,"universe":2,"address":101}"#,
+            r#"{"v":0,"cmd":"patch.name","ids":["3"],"name":"Par 1"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

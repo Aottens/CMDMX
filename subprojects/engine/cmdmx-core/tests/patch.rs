@@ -1,4 +1,4 @@
-//! Patch core (VS2-10): `specs/modules/patch.md` PAT-01..07, 12..14.
+//! Patch core (VS2-10, VS2-27): `specs/modules/patch.md` PAT-01..07, 12..14, 19..24.
 
 #![allow(
     clippy::panic,
@@ -578,4 +578,301 @@ fn pat_09_has_profile() {
     let e = engine();
     assert!(e.has_profile("showtec"));
     assert!(!e.has_profile("Showtec/LED Par 56"));
+}
+
+// ---- PAT-19..24: range edits (VS2-27) ------------------------------------------------
+
+/// Ids of the fixtures with these numbers, in the order given.
+fn ids_of(e: &Engine, numbers: &[u32]) -> Vec<FixtureId> {
+    numbers.iter().map(|&n| id_of(e, n)).collect()
+}
+
+/// Six 6-channel pars 221–226 at 1.37–1.67 and a dimmer 301 at 1.100.
+fn six_pars() -> Engine {
+    let mut e = engine();
+    e.patch_add(&add("showtec", None, 6, 1, Some(37), Some(221)))
+        .unwrap();
+    e.patch_add(&add("dimmer", None, 1, 1, Some(100), Some(301)))
+        .unwrap();
+    e
+}
+
+fn snapshot(e: &Engine) -> Vec<cmdmx_core::patch::Fixture> {
+    e.fixtures().cloned().collect()
+}
+
+#[test]
+fn pat_19_empty_unknown_or_repeated_ids_refuse_every_range_command() {
+    let mut e = six_pars();
+    let before = snapshot(&e);
+    let a = id_of(&e, 221);
+    let b = id_of(&e, 222);
+    type Case<'a> = (&'a [FixtureId], fn(FixtureId) -> CoreError);
+    let cases: [Case; 3] = [
+        (&[], |_| CoreError::EmptySelection),
+        (&[a, 999], |_| CoreError::UnknownFixture(999)),
+        (&[a, b, a], CoreError::RepeatedFixture),
+    ];
+    for (ids, err) in cases {
+        assert_eq!(e.patch_move_range(ids, 2, 1), Err(err(a)), "{ids:?}");
+        assert_eq!(e.patch_renumber_range(ids, 900), Err(err(a)));
+        assert_eq!(e.patch_name_range(ids, "Par 1"), Err(err(a)));
+        assert_eq!(e.patch_change_mode_range(ids, "6 Channel"), Err(err(a)));
+    }
+    assert_eq!(snapshot(&e), before, "nothing changes");
+}
+
+#[test]
+fn pat_20_move_places_the_range_back_to_back_in_number_order() {
+    let mut e = six_pars();
+    // Listed out of order: the range is worked in number order.
+    let ids = ids_of(&e, &[226, 221, 224, 222, 225, 223]);
+    e.patch_move_range(&ids, 2, 101).unwrap();
+    assert_eq!(
+        layout(&e),
+        [
+            (221, 2, 101),
+            (222, 2, 107),
+            (223, 2, 113),
+            (224, 2, 119),
+            (225, 2, 125),
+            (226, 2, 131),
+            (301, 1, 100)
+        ]
+    );
+}
+
+#[test]
+fn pat_20_move_closes_gaps_and_ignores_the_ranges_own_channels() {
+    let mut e = six_pars();
+    // 221, 223, 225 (at 37, 49, 61) back to back from 1.200, then shifted over their own
+    // new channels by two.
+    let ids = ids_of(&e, &[221, 223, 225]);
+    e.patch_move_range(&ids, 1, 200).unwrap();
+    e.patch_move_range(&ids, 1, 202).unwrap();
+    let placed: Vec<_> = layout(&e)
+        .into_iter()
+        .filter(|(n, _, _)| [221, 223, 225].contains(n))
+        .collect();
+    assert_eq!(placed, [(221, 1, 202), (223, 1, 208), (225, 1, 214)]);
+}
+
+#[test]
+fn pat_20_move_refuses_a_clash_outside_the_range_or_past_512() {
+    let mut e = six_pars();
+    let before = snapshot(&e);
+    let ids = ids_of(&e, &[221, 222, 223, 224, 225, 226]);
+    // From 1.70 the range runs 70..105: 226 (100..105) hits 301 at 1.100.
+    assert_eq!(
+        e.patch_move_range(&ids, 1, 70),
+        Err(CoreError::PatchOverlap {
+            number: 226,
+            other: 301,
+            universe: 1,
+            address: 100
+        })
+    );
+    // From 2.480 the sixth (226) would start at 510 and run past 512.
+    assert_eq!(
+        e.patch_move_range(&ids, 2, 480),
+        Err(CoreError::AddressOutOfRange {
+            fixture: 226,
+            universe: 2,
+            address: 510
+        })
+    );
+    assert_eq!(snapshot(&e), before, "nothing changes");
+}
+
+#[test]
+fn pat_21_renumber_keeps_the_order_and_closes_gaps() {
+    let mut e = engine();
+    e.patch_add(&add("showtec", None, 6, 1, Some(1), Some(1221)))
+        .unwrap();
+    let all = ids_of(&e, &[1221, 1222, 1223, 1224, 1225, 1226]);
+    let mut shuffled = all.clone();
+    shuffled.reverse();
+    e.patch_renumber_range(&shuffled, 1301).unwrap();
+    let numbers: Vec<u32> = all
+        .iter()
+        .map(|&id| e.fixture(id).unwrap().number)
+        .collect();
+    assert_eq!(numbers, [1301, 1302, 1303, 1304, 1305, 1306]);
+    // 1301, 1303, 1305 from 1401 → 1401, 1402, 1403.
+    let odd = [all[0], all[2], all[4]];
+    e.patch_renumber_range(&odd, 1401).unwrap();
+    let numbers: Vec<u32> = odd
+        .iter()
+        .map(|&id| e.fixture(id).unwrap().number)
+        .collect();
+    assert_eq!(numbers, [1401, 1402, 1403]);
+    assert_eq!(e.fixture_by_number(1402).map(|f| f.id), Some(all[2]));
+}
+
+#[test]
+fn pat_21_own_old_numbers_are_free_but_outside_numbers_refuse() {
+    let mut e = engine();
+    e.patch_add(&add("showtec", None, 6, 1, Some(1), Some(201)))
+        .unwrap();
+    let ids = ids_of(&e, &[201, 202, 203, 204, 205, 206]);
+    e.patch_renumber_range(&ids, 203).unwrap();
+    let numbers: Vec<u32> = ids
+        .iter()
+        .map(|&id| e.fixture(id).unwrap().number)
+        .collect();
+    assert_eq!(numbers, [203, 204, 205, 206, 207, 208]);
+
+    let mut e = engine();
+    e.patch_add(&add("showtec", None, 6, 1, Some(1), Some(201)))
+        .unwrap();
+    e.patch_add(&add("dimmer", None, 1, 1, Some(100), Some(207)))
+        .unwrap();
+    let before = snapshot(&e);
+    let ids = ids_of(&e, &[201, 202, 203, 204, 205, 206]);
+    assert_eq!(
+        e.patch_renumber_range(&ids, 203),
+        Err(CoreError::NumberInUse(207))
+    );
+    assert_eq!(
+        e.patch_renumber_range(&ids, 0),
+        Err(CoreError::InvalidNumber)
+    );
+    assert_eq!(snapshot(&e), before, "nothing changes");
+}
+
+#[test]
+fn pat_22_change_mode_refuses_a_range_that_no_longer_fits_in_place() {
+    let mut e = engine();
+    // Six 2-channel movers back to back at 1.1–1.11: Big (4 channels) cannot fit in place.
+    e.patch_add(&add("mover", Some("Small"), 6, 1, Some(1), Some(221)))
+        .unwrap();
+    let before = snapshot(&e);
+    let ids = ids_of(&e, &[226, 225, 224, 223, 222, 221]);
+    assert_eq!(
+        e.patch_change_mode_range(&ids, "Big"),
+        Err(CoreError::PatchOverlap {
+            number: 221,
+            other: 222,
+            universe: 1,
+            address: 3
+        })
+    );
+    assert_eq!(snapshot(&e), before, "nothing changes");
+    // Moved apart first, the whole range changes.
+    e.patch_move(ids[0], 1, 200).unwrap();
+    e.patch_move(ids[1], 1, 210).unwrap();
+    e.patch_move(ids[2], 1, 220).unwrap();
+    e.patch_move(ids[3], 1, 230).unwrap();
+    e.patch_move(ids[4], 1, 240).unwrap();
+    e.patch_move(ids[5], 1, 250).unwrap();
+    e.patch_change_mode_range(&ids, "Big").unwrap();
+    assert!(ids
+        .iter()
+        .all(|&id| e.fixture(id).unwrap().mode.as_deref() == Some("Big")));
+}
+
+#[test]
+fn pat_22_change_mode_refuses_naming_the_first_fixture_without_the_mode() {
+    let mut e = engine();
+    e.patch_add(&add("mover", Some("Small"), 1, 1, Some(1), Some(101)))
+        .unwrap();
+    e.patch_add(&add("showtec", None, 2, 1, Some(101), Some(102)))
+        .unwrap();
+    let before = snapshot(&e);
+    let ids = ids_of(&e, &[103, 101, 102]);
+    assert_eq!(
+        e.patch_change_mode_range(&ids, "Big"),
+        Err(CoreError::FixtureLacksMode {
+            fixture: 102,
+            mode: "Big".into()
+        })
+    );
+    assert_eq!(snapshot(&e), before, "nothing changes");
+}
+
+#[test]
+fn pat_22_dropped_values_give_one_warning_for_the_range() {
+    let mut e = engine();
+    for (address, number) in [(1, 101), (11, 102), (21, 103)] {
+        e.patch_add(&add(
+            "mover",
+            Some("Big"),
+            1,
+            1,
+            Some(address),
+            Some(number),
+        ))
+        .unwrap();
+    }
+    let ids = ids_of(&e, &[101, 102, 103]);
+    for &id in &ids {
+        e.set_programmer_value(id, "Pan", 0.5).unwrap();
+    }
+    e.add_playback(Playback::new(
+        1,
+        1,
+        1,
+        BTreeMap::from([(ids[1], BTreeMap::from([("Tilt".to_string(), 0.3.into())]))]),
+    ));
+    e.drain_warnings();
+    e.patch_change_mode_range(&ids, "Small").unwrap();
+    let warnings: Vec<String> = e.drain_warnings().into_iter().map(|w| w.message).collect();
+    assert_eq!(warnings, ["Dropped Pan, Tilt on 3 fixtures"]);
+    assert!(ids
+        .iter()
+        .all(|&id| e.programmer().value(id, "Pan").is_none()));
+}
+
+#[test]
+fn pat_23_numbered_names_count_up_in_number_order() {
+    let mut e = engine();
+    e.patch_add(&add("showtec", None, 10, 1, Some(1), Some(221)))
+        .unwrap();
+    let mut ids = ids_of(&e, &[221, 222, 223, 224, 225, 226, 227, 228, 229, 230]);
+    let names = |e: &Engine, ids: &[FixtureId]| -> Vec<String> {
+        let mut by_number: Vec<_> = ids
+            .iter()
+            .map(|&id| e.fixture(id).unwrap())
+            .map(|f| (f.number, f.name.clone()))
+            .collect();
+        by_number.sort();
+        by_number.into_iter().map(|(_, n)| n).collect()
+    };
+    ids.reverse();
+    let six = &ids[4..]; // 221–226, listed backwards
+    e.patch_name_range(six, "Par 1").unwrap();
+    assert_eq!(
+        names(&e, six),
+        ["Par 1", "Par 2", "Par 3", "Par 4", "Par 5", "Par 6"]
+    );
+    e.patch_name_range(six, "P40").unwrap();
+    assert_eq!(names(&e, six), ["P40", "P41", "P42", "P43", "P44", "P45"]);
+    e.patch_name_range(&ids, "Par 01").unwrap();
+    assert_eq!(
+        names(&e, &ids),
+        [
+            "Par 01", "Par 02", "Par 03", "Par 04", "Par 05", "Par 06", "Par 07", "Par 08",
+            "Par 09", "Par 10"
+        ]
+    );
+    e.patch_name_range(six, "Front").unwrap();
+    assert!(names(&e, six).iter().all(|n| n == "Front"));
+    e.patch_name_range(six, "").unwrap();
+    assert!(names(&e, six).iter().all(String::is_empty));
+}
+
+#[test]
+fn pat_24_remove_refuses_repeated_unknown_or_empty_ids() {
+    let mut e = six_pars();
+    let before = snapshot(&e);
+    let a = id_of(&e, 221);
+    assert_eq!(e.patch_remove(&[a, a]), Err(CoreError::RepeatedFixture(a)));
+    assert_eq!(
+        e.patch_remove(&[a, 999]),
+        Err(CoreError::UnknownFixture(999))
+    );
+    assert_eq!(e.patch_remove(&[]), Err(CoreError::EmptySelection));
+    assert_eq!(snapshot(&e), before, "nothing changes");
+    e.patch_remove(&ids_of(&e, &[221, 222])).unwrap();
+    assert!(e.fixture(a).is_none());
 }
