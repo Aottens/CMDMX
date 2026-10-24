@@ -627,6 +627,29 @@ private struct ModelsReply: Decodable {
     let truncated: Bool?
 }
 
+/// A profile for the editor, and the key (`manufacturer/model`) it was asked under.
+struct EditorProfile: Equatable {
+    let key: String
+    let doc: ProfileDoc
+}
+
+struct ProfileSaved: Equatable {
+    let manufacturer: String
+    let model: String
+    let token: Int
+}
+
+private struct SavedReply: Decodable {
+    let manufacturer: String
+    let model: String
+}
+
+private struct DocReply: Decodable {
+    let profile: ProfileDoc
+    let profileKey: String?
+    private enum CodingKeys: String, CodingKey { case profileKey = "profile_key", profile }
+}
+
 private struct ProfileReply: Decodable {
     let profileKey: String
     let profile: LibraryModel
@@ -1067,6 +1090,11 @@ final class EngineClient: ObservableObject {
     @Published private(set) var libraryModelsTruncated = false
     /// `patch.profile` replies by profile key, for the "In this show" modes (LIB-22).
     @Published private(set) var profileCache: [String: LibraryModel] = [:]
+    /// LIB-23: the full profile the editor asked for (`patch.profile` or `library.profile`), and the last
+    /// `library.saved` reply (the token changes with every reply so repeated saves fire `onChange`).
+    @Published private(set) var editorProfile: EditorProfile?
+    @Published private(set) var profileSaved: ProfileSaved?
+    private var editorAsk: String?
     /// What was asked last (empty = nil); a reply that echoes something else is stale and dropped.
     private var lastManufacturersQuery: String?
     private var lastModelsAsk: [String?] = [nil, nil]
@@ -1272,6 +1300,49 @@ final class EngineClient: ObservableObject {
     }
 
     func requestProfile(key: String) { sendJSON("patch.profile", ["profile": key]) }
+
+    // Profile editor (LIB-23..27, IPC-37..39). The engine validates and refuses with a warning.
+
+    func clearEditorProfile() { editorProfile = nil; editorAsk = nil }
+
+    /// The show's own copy of a profile (IPC-37).
+    func requestShowProfile(key: String) { editorAsk = key; sendJSON("patch.profile", ["profile": key]) }
+
+    func requestLibraryProfile(manufacturer: String, model: String) {
+        editorAsk = "\(manufacturer)/\(model)"
+        sendJSON("library.profile", ["manufacturer": manufacturer, "model": model])
+    }
+
+    func saveProfile(_ doc: ProfileDoc) {
+        guard let data = try? JSONEncoder().encode(doc),
+              let object = try? JSONSerialization.jsonObject(with: data) else { return }
+        lastMessage = nil
+        sendJSON("profile.save", ["profile": object])
+    }
+
+    /// `channels` are LIB-11 channel types as JSON values (a string, `{"Emitter": name}` or `{"Other": {...}}`).
+    func saveChannelList(manufacturer: String, model: String, mode: String, channels: [Any]) {
+        lastMessage = nil
+        sendJSON("library.save_channel_list",
+                 ["manufacturer": manufacturer, "model": model, "mode": mode, "channels": channels])
+    }
+
+    /// IPC-39: an ordinary programmer value for the selected fixtures that have the attribute.
+    func programmerSet(attribute: String, value: Double) {
+        sendJSON("programmer.set", ["attribute": attribute, "value": value])
+    }
+
+    private func acceptEditorProfile(_ data: Data) {
+        guard let ask = editorAsk else { return }
+        guard let reply = try? JSONDecoder().decode(DocReply.self, from: data) else {
+            lastMessage = "Could not read the profile"
+            return
+        }
+        let key = reply.profileKey ?? "\(reply.profile.manufacturer)/\(reply.profile.model)"
+        guard key == ask else { return }
+        editorAsk = nil
+        editorProfile = EditorProfile(key: key, doc: reply.profile)
+    }
 
     /// `address` / `number` nil = omitted, the engine picks (PAT-03).
     func patchAdd(profile: String, mode: String, count: Int, universe: Int, address: Int?, number: Int?) {
@@ -1644,6 +1715,13 @@ final class EngineClient: ObservableObject {
             }
         case "patch.profile":
             if let reply = try? JSONDecoder().decode(ProfileReply.self, from: data) { profileCache[reply.profileKey] = reply.profile }
+            acceptEditorProfile(data)
+        case "library.profile":
+            acceptEditorProfile(data)
+        case "library.saved":
+            if let saved = try? JSONDecoder().decode(SavedReply.self, from: data) {
+                profileSaved = ProfileSaved(manufacturer: saved.manufacturer, model: saved.model, token: (profileSaved?.token ?? 0) + 1)
+            }
         case "groups":
             if let groups = incoming.groups { self.groups = groups }
         case "palette_settings":

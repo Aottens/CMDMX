@@ -7,11 +7,27 @@ struct PatchView: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     @State private var selection: Int?
+    /// LIB-23: the profile editor covers the screen while set; the Add panel stays alive underneath.
+    @State private var editor: ProfileEditorTarget?
+    @State private var pendingPick: SavedPick?
 
     var body: some View {
+        ZStack {
+            patchScreen.disabled(editor != nil).opacity(editor == nil ? 1 : 0)
+            if let editor {
+                ProfileEditor(target: editor) { saved in
+                    if let saved { pendingPick = saved }
+                    self.editor = nil
+                }
+                .id(editor.key + editor.mode + "\(editor.source)")
+            }
+        }
+    }
+
+    private var patchScreen: some View {
         let rows = engine.fixtures.sorted { $0.number < $1.number }
-        VStack(spacing: 8) {
-            AddPanel().frame(height: 220)
+        return VStack(spacing: 8) {
+            AddPanel(pendingPick: $pendingPick, edit: { editor = $0 }).frame(height: 220)
             HStack(spacing: 8) {
                 PanelWindow(title: "Patch", info: "\(rows.count) fixtures", framed: true, accessory: { EmptyView() }) {
                     Table(rows, selection: $selection) {
@@ -26,7 +42,7 @@ struct PatchView: View {
                     }
                 }
                 VStack(spacing: 8) {
-                    SelectedPanel(fixture: rows.first { $0.id == selection })
+                    SelectedPanel(fixture: rows.first { $0.id == selection }, edit: { editor = $0 })
                     if let message = engine.lastMessage {
                         Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,6 +80,10 @@ func labelled<Content: View>(_ label: String, @ViewBuilder _ content: () -> Cont
 /// column), Return adds when Add is enabled.
 private struct AddPanel: View {
     @EnvironmentObject private var engine: EngineClient
+    /// A model saved in the profile editor: shown and picked here once the library lists it (LIB-26).
+    @Binding var pendingPick: SavedPick?
+    let edit: (ProfileEditorTarget) -> Void
+    @State private var wantedMode: String?
     @State private var query = ""
     @State private var mfr: ManufacturerPick?
     @State private var pick: ModelPick?
@@ -198,9 +218,8 @@ private struct AddPanel: View {
                     field("Universe", $universe, "1")
                     field("Address", $address, "next free")
                     field("Number", $number, "next free")
-                    // Both belong to VS2-26 (profile editor); inert until then.
-                    Button("Edit profile…") {}.buttonStyle(FlatButton()).disabled(true)
-                    Button("New from channel list…") {}.buttonStyle(FlatButton()).disabled(true)
+                    Button("Edit profile…") { editPicked() }.buttonStyle(FlatButton()).disabled(picked == nil)
+                    Button("New from channel list…") { edit(ProfileEditorTarget(source: .channelList)) }.buttonStyle(FlatButton())
                     Button("Add") { add() }.buttonStyle(FlatButton(fill: .blue)).disabled(!canAdd)
                 }
             }
@@ -222,11 +241,51 @@ private struct AddPanel: View {
             // A type patched meanwhile needs its show copy too.
             if keys.isEmpty { mfr = nil } else { keys.filter { engine.profileCache[$0] == nil }.forEach(engine.requestProfile) }
         }
-        .onChange(of: pick) { _, _ in mode = pickedRow?.modes.first?.name ?? "" }
+        .onChange(of: pick) { _, _ in
+            let first = pickedRow?.modes.first?.name ?? ""
+            mode = wantedMode.flatMap { w in pickedRow?.modes.contains { $0.name == w } == true ? w : nil } ?? first
+            wantedMode = nil
+        }
+        .onChange(of: pendingPick) { _, p in
+            guard let p else { return }
+            if query.isEmpty, mfr == .named(p.manufacturer) {
+                engine.requestManufacturers(query: "")
+                refreshModels()
+                applyPending()
+            } else {
+                query = ""
+                mfr = .named(p.manufacturer)
+                engine.requestManufacturers(query: "")
+                refreshModels()
+            }
+        }
+        .onChange(of: engine.libraryModels) { _, _ in applyPending() }
         .onChange(of: picked?.modes) { _, modes in
             // The show copy's modes arrive later (patch.profile); keep the mode valid.
             if let modes, !modes.contains(where: { $0.name == mode }) { mode = modes.first?.name ?? "" }
         }
+    }
+
+    /// Picks the saved model (and its mode) once the library lists it.
+    private func applyPending() {
+        guard let p = pendingPick,
+              let row = modelRows.first(where: { $0.manufacturer == p.manufacturer && $0.model == p.model }) else { return }
+        wantedMode = p.mode
+        pendingPick = nil
+        if pick == row.pick {
+            mode = row.modes.contains { $0.name == p.mode } ? p.mode : (row.modes.first?.name ?? "")
+            wantedMode = nil
+        } else {
+            pick = row.pick
+        }
+    }
+
+    /// LIB-23: the show's copy when the show carries the profile, else the library's.
+    private func editPicked() {
+        guard let picked = pickedRow else { return }
+        let inShow = engine.fixtures.contains { $0.profile == picked.pick.key }
+        edit(ProfileEditorTarget(source: inShow ? .show : .library, manufacturer: picked.manufacturer,
+                                 model: picked.model, mode: mode))
     }
 
     private func add() {
@@ -325,6 +384,7 @@ private struct AddPanel: View {
 private struct SelectedPanel: View {
     @EnvironmentObject private var engine: EngineClient
     let fixture: FixtureInfo?
+    let edit: (ProfileEditorTarget) -> Void
     @State private var universe = ""
     @State private var address = ""
     @State private var number = ""
@@ -373,6 +433,8 @@ private struct SelectedPanel: View {
                         .buttonStyle(FlatButton(fill: armed == .mode ? .red : nil))
                         .disabled(mode == fixture.mode)
                     }
+                    Button("Edit profile…") { edit(.show(key: fixture.profile, mode: fixture.mode)) }
+                        .buttonStyle(FlatButton())
                     Button(armed == .remove ? "Confirm remove" : "Remove") {
                         if armed == .remove {
                             engine.patchRemove(ids: [fixture.id])
