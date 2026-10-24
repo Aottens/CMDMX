@@ -1538,6 +1538,8 @@ struct LiveInfo {
     cue: Option<CueLive>,
     /// CUE-40, IPC-28: the effective BPM of a chase or BPM master.
     bpm: Option<f32>,
+    /// CUE-44, IPC-28: the effective multiplier of a BPM master.
+    multiplier: Option<f32>,
 }
 
 /// CUE-40: `ListLive` on the wire.
@@ -1701,6 +1703,7 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
         paused: l.paused,
     });
     let bpm = engine.effective_bpm(id);
+    let multiplier = engine.effective_multiplier(id);
     let Some(s) = engine.playback_state(id) else {
         return LiveInfo {
             level: 0.0,
@@ -1710,6 +1713,7 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
             fired: None,
             cue,
             bpm,
+            multiplier,
         };
     };
     LiveInfo {
@@ -1726,6 +1730,7 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
         fired: s.activated,
         cue,
         bpm,
+        multiplier,
     }
 }
 
@@ -3944,7 +3949,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.5,"state":"active",
-                   "flash":false,"latched":false,"cue":null,"bpm":null})
+                   "flash":false,"latched":false,"cue":null,"bpm":null,"multiplier":null})
         );
         e.tick(0.05);
         assert!(
@@ -4518,7 +4523,7 @@ mod tests {
                         "speed_source":"Free"},
                "master":null,
                "buttons":["Swop","Flash"],
-               "cue":null,"bpm":null})
+               "cue":null,"bpm":null,"multiplier":null})
     }
 
     #[test]
@@ -4591,7 +4596,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
-                   "flash":true,"latched":false,"cue":null,"bpm":null})
+                   "flash":true,"latched":false,"cue":null,"bpm":null,"multiplier":null})
         );
         e.set_flash(1, false, 0.025).unwrap();
         e.latch_flash(1, 0.025).unwrap();
@@ -4602,7 +4607,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
-                   "flash":true,"latched":true,"cue":null,"bpm":null}),
+                   "flash":true,"latched":true,"cue":null,"bpm":null,"multiplier":null}),
             "flash means held or latched"
         );
     }
@@ -5156,6 +5161,50 @@ mod tests {
         assert_eq!(m["bpm"], json!(120.0));
         assert_eq!(m["buttons"], json!(["None", "Tap"]));
         assert_eq!(m["cue"], json!(null));
+    }
+
+    #[test]
+    fn ipc_28_a_bpm_master_sends_its_effective_multiplier() {
+        let mut e = list_engine();
+        e.add_playback(Playback {
+            kind: Kind::Chase,
+            cues: vec![Cue::new(dimmer(1, 1.0)), Cue::new(dimmer(2, 1.0))],
+            ..Playback::new(3, 1, 3, BTreeMap::new())
+        });
+        let master = e.record_master(1, 4, MasterKind::Bpm, 1).unwrap();
+        let bpm = cmdmx_core::playback::BpmMaster {
+            number: 1,
+            bpm: 120.0,
+            multiplier: 1.0,
+            fader: BpmFader::Multiplier,
+            fader_max: 240.0,
+        };
+        let change = PlaybackChange {
+            master: Some(Master::Bpm(bpm)),
+            ..PlaybackChange::default()
+        };
+        e.change_playback(master, &change).unwrap();
+        e.set_fader(master, 0.7, 0.0).unwrap(); // zone ×2
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
+        let m = entry(&v, u64::from(master));
+        assert_eq!(
+            m["multiplier"],
+            json!(2.0),
+            "the fader's zone, not the stored ×1"
+        );
+        assert_eq!(
+            m["master"]["multiplier"],
+            json!(1.0),
+            "the stored one is unchanged"
+        );
+        assert_eq!(m["bpm"], json!(240.0));
+        assert_eq!(entry(&v, 3)["multiplier"], json!(null), "only BPM masters");
     }
 
     #[test]
