@@ -311,7 +311,9 @@ remote (IDEA-06, phase 2); DMX-in and audio triggers (Titan has them; later phas
 7. MIDI Show Control is phase 2 (with IDEA-16 and timecode).
 8. The church TouchOSC layout runs on a very old iPad mini; the owner does not know yet how to
    get the `.tosc` out. VS4-04 tries to export it and bind its addresses (CTL-38); if that fails,
-   a new TouchOSC layout is built on the `/cmdmx` schema (CTL-36).
+   a new TouchOSC layout is built on the `/cmdmx` schema (CTL-36). **Amended 2026-10-24
+   (owner):** VS4-04 builds a new layout tailored to ColourmotionDMX on `/cmdmx`; the old layout
+   is not exported. CTL-38 stays for other people's layouts.
 9. Mackie Control defaults as in CTL-33.
 10. `midir` for CoreMIDI and an own OSC 1.0 codec in `cmdmx-control` (no `rosc`).
 
@@ -329,5 +331,6 @@ remote (IDEA-06, phase 2); DMX-in and audio triggers (Titan has them; later phas
   Learn (CTL-35..38). Needs VS7-02.
 - **VS7-04** App: Control screen, learn mode on the main screen, status-bar dot; manual run
   (CTL-41..43). Needs VS7-02.
-- **VS4-04** (re-scoped) The church TouchOSC layout as an OSC client: its addresses bound with
-  CTL-38, `tests/hardware/touchosc.md` run in the church (gate 3). Needs VS7-03 and VS7-04.
+- **VS4-04** (re-scoped 2026-10-24) A TouchOSC layout made for ColourmotionDMX on the `/cmdmx`
+  schema (CTL-36/37), shipped in the repo, `tests/hardware/touchosc.md` run on the church iPad
+  mini (gate 3). Needs VS7-03 and VS7-04.

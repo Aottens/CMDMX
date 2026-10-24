@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-24 — The church remote gets a TouchOSC layout made for ColourmotionDMX (VS4-04, owner)
+
+**Decision:** VS4-04 builds a new TouchOSC layout on the `/cmdmx` schema (CTL-36/37), shipped in the repo, instead of exporting the old church layout from the iPad mini and binding its addresses with custom-address Learn (CTL-38). CTL-38 stays for other people's layouts. Amends owner decision 8 of `control-surfaces.md`.
+
+**Alternatives considered:** export the old `.tosc` and learn its addresses (the 2026-10-23 plan).
+
+**Reasoning:** a layout tailored to the console uses its feedback (legends, page, cue texts, messages) that the old layout cannot show, and VS4-04 no longer waits for the old iPad.
+
+**Reversal trigger:** the church operators need the old layout's look and placement unchanged.
+
 ## 2026-10-24 — Range edits in the patch table (P1-15, owner)
 
 **Decision:** Move, Renumber, Name, Change Mode and Remove work on a multi-row selection in the patch table. Each range command is checked as a whole and refused naming the first clash (no parking), worked in number order, one undo step. Move places the range back to back from one start; Renumber keeps the order and closes gaps; a name ending in a number counts up ("Par 1…6"), another name is given to all; Change Mode needs the mode name on every fixture and refuses instead of re-packing when a bigger footprint no longer fits. Wire: `ids` on the existing `patch.*` commands. Moving several handles at once is a later task. Criteria PAT-19..25, IPC-40.

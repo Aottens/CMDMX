@@ -32,7 +32,7 @@ ColourmotionDMX instead of Lightkey.
 
 **Order now (owner, 2026-10-22, DECISIONS):** 1. P1-10 undo spec, then its build tasks; 2. VS2-05;
 3. P1-18 multi-universe output; 4. P1-05 control surfaces (general MIDI + OSC, owner 2026-10-23), then VS7-01, VS7-02, VS1-07, VS7-03, VS7-04, VS4-04. Church hardware
-runs and P1-14/P1-15 after that; P1-14 and VS2-23..26 done, P1-15 specified, VS2-27 and VS2-28 done (VS4-04 waits for the iPad). Three demonstrable milestones; tasks
+runs and P1-14/P1-15 after that; P1-14 and VS2-23..26 done, P1-15 specified, VS2-27 and VS2-28 done (VS4-04 re-scoped to an own layout). Three demonstrable milestones; tasks
 after the specs are added when each spec is approved (no sizing of code before its spec).
 
 ### VS2 — Programming: select, set, record, play back (screen only, output visible via Art-Net)
@@ -110,7 +110,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | VS4-01 | Write `tests/hardware/church.md`: checklist for running a service (rig patched, all fixture types match, front-out works, fallback to Lightkey ready). | — | S | todo |
 | VS4-02 | VS1-04 serial lines of `tests/hardware/output.md` pass with the Eurolite (now on the owner's desk). | OUT-09, 20..24 | S | gate3: `tests/hardware/output.md` (250000 baud OUT-20, no auto-detect + hint OUT-23, 20 Hz OUT-24 merged #34; left: mid-run unplug OUT-12 and the fade steps, see VS4-05) |
 | VS4-05 | Serial node writes on its own 30 ms timer instead of every second tick (33 Hz instead of 20 Hz, OUT-24 amended); owner drags a fade on the RGBL par at 361 with no flicker and compares the steps with Lightkey on the same par. If steps remain at 33 Hz, record a criterion for frames cut to the highest patched channel. **Next after VS3-03** (owner, 2026-10-21). | OUT-24 | S | gate3: `tests/hardware/runs/2026-10-21-VS4-05.md` (merged #52, 2026-10-21; waits for the Eurolite + RGBL par) |
-| VS4-04 | (re-scoped 2026-10-23) The church TouchOSC layout as one OSC client of the generic layer: its addresses bound by custom-address Learn (CTL-38) so the layout stays unchanged (if the `.tosc` cannot be exported from the old iPad mini, a new layout on `/cmdmx`, owner 2026-10-23), `tests/hardware/touchosc.md` run in the church (gate 3). Needs VS7-03, VS7-04. | CTL-35..38 | M | blocked: the old iPad mini with the layout is not at hand (owner, 2026-10-23); P1-14 goes first |
+| VS4-04 | (re-scoped 2026-10-24, owner) A TouchOSC layout made for ColourmotionDMX on the `/cmdmx` schema (CTL-36/37: faders with legends, page, Go/cue texts, GM/DBO, messages), shipped in the repo; `tests/hardware/touchosc.md` run on the church iPad mini (gate 3). The old layout is not exported. The iPad mini runs the old TouchOSC (Mk1, `.touchosc` layout file; owner 2026-10-24). Needs VS7-03, VS7-04. | CTL-36, 37 | M | todo |
 | VS4-03 | One real Sunday morning service run entirely on ColourmotionDMX, Lightkey on standby as fallback; checklist ticked. | all phase 1 | — | todo |
 
 ### Supporting specs (needed by the milestones above)
