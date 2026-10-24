@@ -1351,11 +1351,11 @@ final class EngineClient: ObservableObject {
         if let number { fields["number"] = number }
         patch("patch.add", fields)
     }
-    func patchMove(id: Int, universe: Int, address: Int) { patch("patch.move", ["id": id, "universe": universe, "address": address]) }
+    func patchMove(ids: [Int], universe: Int, address: Int) { patch("patch.move", ["ids": ids, "universe": universe, "address": address]) }
     func patchRemove(ids: [Int]) { patch("patch.remove", ["ids": ids]) }
-    func patchRenumber(id: Int, number: Int) { patch("patch.renumber", ["id": id, "number": number]) }
-    func patchName(id: Int, name: String) { patch("patch.name", ["id": id, "name": name]) }
-    func patchChangeMode(id: Int, mode: String) { patch("patch.change_mode", ["id": id, "mode": mode]) }
+    func patchRenumber(ids: [Int], number: Int) { patch("patch.renumber", ["ids": ids, "number": number]) }
+    func patchName(ids: [Int], name: String) { patch("patch.name", ["ids": ids, "name": name]) }
+    func patchChangeMode(ids: [Int], mode: String) { patch("patch.change_mode", ["ids": ids, "mode": mode]) }
 
     // Palette commands (PAL-27). Numbers and cells, never ids; a refusal comes back as a warning.
 

@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-24 (VS2-27 range edits in core and daemon)_
+_Last updated: 2026-10-24 (VS2-28 multi-select in the patch table)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -9,12 +9,13 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 ## Current focus
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
-control layer, cue lists, group masters, library browsing and the profile editor are done; multi-select in the
-patch table is specified (P1-15) and its engine side is built (VS2-27).
+control layer, cue lists, group masters, library browsing, the profile editor and multi-select in the patch table
+(VS2-27/28) are done.
 
 ## Next
-1. **VS2-28** multi-select in the patch table of the app (PAT-25), owner run; the engine takes
-   the range forms since VS2-27.
+1. The owner picks the next task; candidates: VS3-08 (open points of the VS3-05 run), VS2-29
+   (numbers above 999 without a thousands separator), P1-13 (per-cell selection spec), P1-19
+   (Stream Deck spec).
 2. The church hardware runs below, when the hardware is at hand.
 
 ## Waiting for a hardware run (gate 3, owner)
