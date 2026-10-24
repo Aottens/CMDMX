@@ -79,6 +79,7 @@ Never run the Demo show on the church rig (its fixtures on 9..150 light real lam
 ## At the church (each type once)
 - [ ] 101..120 Showtec LED Par 56: colour from the HSI wheel; 120 is the par at 256
 - [ ] 201..204 Phantom 25: with Dimmer up the beam is on (Shutter defaults to open, PAT-16); Pan/Tilt move; Colour Wheel and Gobo channels step through the wheel
+- [ ] 201..204 Phantom 25 slots (typed from the Highlite manual 40185 in the VS2-26 run, `tests/manual/runs/2026-10-24-VS2-26.md`): with Test in the profile editor each Colour Wheel and Gobo slot shows the named colour or gobo on the real lamp; correct the slot colours (nominal sRGB guesses) to what the lamp shows, and set the Pan/Tilt defaults if wanted
 - [ ] 301..308 Lumipar6UQ: RGB + White
 - [ ] 501..502 Compact Par 7 Tri: RGB
 - [ ] 601..602 PAR Wash (RGBW): RGB + White
