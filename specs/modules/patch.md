@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) proposed 2026-10-24, awaiting owner approval. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -86,8 +86,8 @@ to end up with two fixtures on the same channel by accident.
   Amended (P1-14, approved by owner 2026-10-23): the Add panel is LIB-22's (search over manufacturer,
   model and mode columns, a full-width strip above the table); the Selected panel gains Edit
   profile… (LIB-23).
-  Amended (P1-15, proposed 2026-10-24): the table takes a multi-row selection (PAT-25).
-- **PAT-25** Multi-select on the Patch screen (P1-15, proposed 2026-10-24): click selects one row,
+  Amended (P1-15, approved by owner 2026-10-24): the table takes a multi-row selection (PAT-25).
+- **PAT-25** Multi-select on the Patch screen (P1-15, approved by owner 2026-10-24): click selects one row,
   Shift-click a run of rows, Cmd-click adds or drops a row, Cmd-A selects all (macOS table
   conventions). With more than one row selected the Selected panel is titled "Selected · 6
   fixtures" and its actions send the range forms (IPC-40) for the whole selection: Move (start
@@ -100,7 +100,7 @@ to end up with two fixtures on the same channel by accident.
   where they went; a refused range edit shows its warning in the panel and changes nothing.
   Verified by `tests/manual/app-patch.md` (amended).
 
-### Range edits (P1-15, IDEA-09; proposed 2026-10-24, awaiting owner approval)
+### Range edits (P1-15, IDEA-09; approved by owner 2026-10-24)
 Titan reference (*Changing the Patch*, *Copying, moving and deleting fixtures*): fixtures selected
 together are repatched from one start address, get user numbers counting up from the one typed,
 can share one legend, and are deleted in one go; a clash is refused or the clashing fixtures are
@@ -208,7 +208,7 @@ Per-cell selection and Unfold (cells exist in the model, LIB-07; selecting them 
 a fixture spanning several universes (pixel products, with the pixel mapper), patching from a
 visual plot (with the visualiser).
 
-## Open questions (P1-15, for the owner; recommendation first)
+## Owner decisions (P1-15, 2026-10-24: every recommendation accepted)
 1. **Move: back to back or keep the spacing?** Titan's repatch keeps the address gaps between the
    selected fixtures; the backlog row says back to back. *Recommend back to back* (PAT-20): it is
    what you asked for and what a church rig of identical pars needs. Keeping gaps can be a later

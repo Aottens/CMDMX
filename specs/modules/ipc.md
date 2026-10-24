@@ -94,7 +94,7 @@ The patch messages (snapshot `fixtures` entries, `fixtures` delta, `patch.*` com
 Patch screen are specified in `patch.md` PAT-09 and PAT-10; IPC-10's `fixtures` entries grow to
 the PAT-09 shape.
 
-- **IPC-40** Range forms (P1-15, PAT-19..24; proposed 2026-10-24): `patch.move`, `patch.renumber`,
+- **IPC-40** Range forms (P1-15, PAT-19..24; approved by owner 2026-10-24): `patch.move`, `patch.renumber`,
   `patch.name` and `patch.change_mode` take either `id` (one fixture, as today) or `ids` (a range);
   both or neither → `error` (IPC-06). `{"v":0,"cmd":"patch.move","ids":[3,4,5],"universe":2,"address":101}`,
   `{"v":0,"cmd":"patch.renumber","ids":[3,4,5],"number":1301}`,

@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-24 — Range edits in the patch table (P1-15, owner)
+
+**Decision:** Move, Renumber, Name, Change Mode and Remove work on a multi-row selection in the patch table. Each range command is checked as a whole and refused naming the first clash (no parking), worked in number order, one undo step. Move places the range back to back from one start; Renumber keeps the order and closes gaps; a name ending in a number counts up ("Par 1…6"), another name is given to all; Change Mode needs the mode name on every fixture and refuses instead of re-packing when a bigger footprint no longer fits. Wire: `ids` on the existing `patch.*` commands. Moving several handles at once is a later task. Criteria PAT-19..25, IPC-40.
+
+**Alternatives considered:** Titan's repatch that keeps the spacing between fixtures; re-packing the range on a mode change; one profile per range; click order; new `*_range` commands.
+
+**Reasoning:** back to back is what a rig of identical pars needs and what the owner asked; silent re-packing would move fixtures nobody asked to move; number order matches the sorted table.
+
+**Reversal trigger:** the owner misses Titan's keep-spacing repatch in a real patch session.
+
 ## 2026-10-24 — Merged = done; tracking checked in CI (owner)
 
 **Decision:** A task PR sets its own `BACKLOG.md` row to `done (date, #PR)`, or `gate3: <checklist path>` when only the owner's hardware run is left. Statuses are `todo · doing · done · gate3 · blocked` (first word of the cell); `review` and `merged` are gone. Open points from a run become their own backlog row or IDEA in that PR. Root `STATE.md` is the handoff (focus, next, gate 3, blocked, owner decisions), not a log. `scripts/check-tracking.py` runs in CI: status vocabulary, gate3 paths exist, every IDEA section has an index row, and a task id in the PR title is not left `todo`.
