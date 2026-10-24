@@ -1,0 +1,22 @@
+name: Tracking
+
+# Own workflow so that editing a PR description re-runs only this check;
+# the engine and app results of the last push stay as they are.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  tracking:
+    name: tracking (BACKLOG, IDEAS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git fetch -q --depth=1 origin main
+      - name: tracking summary (shown on the run page)
+        run: set -o pipefail; scripts/check-tracking.py --summary origin/main | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}

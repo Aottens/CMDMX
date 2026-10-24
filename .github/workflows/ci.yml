@@ -4,24 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, edited]
 
 jobs:
-  tracking:
-    name: tracking (BACKLOG, IDEAS)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: git fetch -q --depth=1 origin main
-      - name: tracking summary (shown on the run page)
-        run: set -o pipefail; scripts/check-tracking.py --summary origin/main | tee -a "$GITHUB_STEP_SUMMARY"
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-
   engine:
     name: engine (Rust)
-    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -42,7 +28,6 @@ jobs:
 
   app:
     name: app (Swift, macOS)
-    if: github.event.action != 'edited'
     runs-on: macos-14
     defaults:
       run:
