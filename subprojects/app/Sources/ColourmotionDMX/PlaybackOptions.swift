@@ -267,7 +267,7 @@ private struct TimesTab: View {
                 NumberField(value: time.delay, unit: "", width: 54) { send(cue, group, GroupTime(delay: $0, fade: time.fade)) }.frame(height: 24)
                 HStack(spacing: 2) {
                     NumberField(value: time.fade, unit: "", width: 54) { send(cue, group, GroupTime(delay: time.delay, fade: $0)) }
-                    Button("×") { send(cue, group, nil) }.buttonStyle(FlatButton(compact: true)).help("Back to the cue's own times")
+                    Button("×") { send(cue, group, nil) }.buttonStyle(FlatButton(compact: true)).fixedSize().help("Back to the cue's own times")
                 }
                 .frame(height: 24)
             } else {
