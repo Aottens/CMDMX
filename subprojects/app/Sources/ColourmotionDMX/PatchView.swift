@@ -37,9 +37,9 @@ struct PatchView: View {
                         TableColumn("Fixture") { Text($0.profile) }.width(min: 100, ideal: 200)
                         TableColumn("Mode") { Text($0.virtualDimmer ? "\($0.mode) · virtual dimmer" : $0.mode) }
                             .width(min: 100, ideal: 180)
-                        TableColumn("Address") { Text("\($0.universe).\($0.address)").monospacedDigit() }
+                        TableColumn("Address") { Text(verbatim: "\($0.universe).\($0.address)").monospacedDigit() }
                             .width(min: 50, ideal: 70, max: 90)
-                        TableColumn("Ch") { Text("\($0.footprint)").monospacedDigit() }.width(min: 30, ideal: 40, max: 60)
+                        TableColumn("Ch") { Text(String($0.footprint)).monospacedDigit() }.width(min: 30, ideal: 40, max: 60)
                     }
                 }
                 VStack(spacing: 8) {
@@ -195,14 +195,14 @@ private struct AddPanel: View {
                             row(mfr == .show, id: ManufacturerPick.show, tap: { toggle(.show) }) {
                                 Text("In this show").lineLimit(1)
                                 Spacer(minLength: 4)
-                                Text("\(showKeys.count)").font(Typo.mono(10)).foregroundStyle(.secondary)
+                                Text(String(showKeys.count)).font(Typo.mono(10)).foregroundStyle(.secondary)
                             }
                         }
                         ForEach(engine.libraryManufacturers, id: \.name) { m in
                             row(mfr == .named(m.name), id: ManufacturerPick.named(m.name), tap: { toggle(.named(m.name)) }) {
                                 Text(m.name).lineLimit(1)
                                 Spacer(minLength: 4)
-                                Text("\(m.models)").font(Typo.mono(10)).foregroundStyle(.secondary)
+                                Text(String(m.models)).font(Typo.mono(10)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -215,7 +215,7 @@ private struct AddPanel: View {
                                 Text(r.model).lineLimit(1)
                                 if r.isUser { Text("USER").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary) }
                                 Spacer(minLength: 4)
-                                Text("\(r.modes.count)").font(Typo.mono(10)).foregroundStyle(.secondary)
+                                Text(String(r.modes.count)).font(Typo.mono(10)).foregroundStyle(.secondary)
                             }
                         }
                         if modelRows.isEmpty { Text("No match").font(.caption).foregroundStyle(.secondary).padding(6) }
@@ -228,7 +228,7 @@ private struct AddPanel: View {
                             row(mode == m.name, id: m.name, tap: { mode = m.name }) {
                                 Text(m.name).lineLimit(1)
                                 Spacer(minLength: 4)
-                                Text("\(m.channels) ch").font(Typo.mono(10)).foregroundStyle(.secondary)
+                                Text(verbatim: "\(m.channels) ch").font(Typo.mono(10)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -237,7 +237,7 @@ private struct AddPanel: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(picked.map { "\($0.manufacturer) \($0.model)" } ?? "Pick a model").lineLimit(1)
                         if let picked, let m = picked.modes.first(where: { $0.name == mode }) {
-                            Text("\(m.name) · \(m.channels) channels · \(picked.isUser ? "user profile" : "QLC+")")
+                            Text(verbatim: "\(m.name) · \(m.channels) channels · \(picked.isUser ? "user profile" : "QLC+")")
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                         }
                     }
@@ -359,7 +359,7 @@ private struct AddPanel: View {
             HStack {
                 Text(title).font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Text("\(count)").font(Typo.mono(10)).foregroundStyle(.secondary)
+                Text(String(count)).font(Typo.mono(10)).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 6).padding(.vertical, 2)
             let content = rows()

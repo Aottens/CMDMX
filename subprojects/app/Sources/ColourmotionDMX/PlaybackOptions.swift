@@ -468,7 +468,7 @@ private struct MasterTab: View {
         if let m = playback.stored.master, playback.stored.isGroupMaster {
             let mode = m.mode ?? "Scale"
             OptionRow(label: "Master") {
-                Text("Group \(m.group ?? 0)").font(Typo.mono())
+                Text(verbatim: "Group \(m.group ?? 0)").font(Typo.mono())
             }
             OptionRow(label: "Mode", note: "Scale: the fader scales the group's intensity. HTP: it is a floor. Limit: it is a ceiling. Take Over: it puts a fixture in the programmer once the level reaches its intensity.") {
                 Choice(options: [("Scale", "Scale"), ("HTP", "Htp"), ("Limit", "Limit"), ("Take Over", "TakeOver")], selected: mode) {
@@ -487,7 +487,7 @@ private struct MasterTab: View {
             }
         } else if let m = playback.stored.master {
             OptionRow(label: "Master") {
-                Text("\(m.rateScale == nil ? "BPM" : "Rate") \(m.number)").font(Typo.mono())
+                Text(verbatim: "\(m.rateScale == nil ? "BPM" : "Rate") \(m.number)").font(Typo.mono())
             }
             if let rate = m.rateScale {
                 OptionRow(label: "Rate scale", note: "The fader runs a chase at 0 to this many % of its speed.") {

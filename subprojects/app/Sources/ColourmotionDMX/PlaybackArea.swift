@@ -45,7 +45,7 @@ private struct PagesColumn: View {
                     }
                 } label: {
                     HStack(spacing: 3) {
-                        Text("\(number)").font(Typo.mono(Typo.small))
+                        Text(String(number)).font(Typo.mono(Typo.small))
                         Text(legend).font(Typo.legend(9)).lineLimit(1)
                         Spacer(minLength: 0)
                     }
@@ -56,11 +56,11 @@ private struct PagesColumn: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).frame(height: 16)
-                .help(legend.isEmpty ? "Page \(number)" : "Page \(number): \(legend)")
+                .help(legend.isEmpty ? "Page \(number)" as String : "Page \(number): \(legend)")
             }
             Spacer(minLength: 0)
             Text("per page").font(Typo.mono(9)).foregroundStyle(t.fg3)
-            Text("\(engine.fadersPerPage)").font(Typo.mono(Typo.small)).foregroundStyle(t.fg)
+            Text(String(engine.fadersPerPage)).font(Typo.mono(Typo.small)).foregroundStyle(t.fg)
                 .padding(.horizontal, 4).padding(.vertical, 2).frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: 1))
@@ -177,7 +177,7 @@ private struct FaderStrip: View {
                 .overlay { if selected { Rectangle().strokeBorder(t.blue, lineWidth: 2) } }
                 .onTapGesture(perform: onLegendTap)
                 .overlay { RightClickCatcher(action: onRightClick) }
-                .help(empty ? "Empty handle \(page).\(slot.id + 1)" : "Right-click: Playback Options")
+                .help(empty ? "Empty handle \(page).\(slot.id + 1)" as String : "Right-click: Playback Options")
             if let info = slot.info {
                 LevelBar(value: Binding(get: { info.live.level }, set: onChange), running: slot.isActive, warn: info.levelWarns,
                          progress: slot.isActive ? info.live.cue.flatMap { $0.current != nil && $0.progress < 1 ? $0.progress : nil } : nil,
@@ -253,7 +253,7 @@ private struct StripLegend: View {
         HStack(spacing: 3) {
             if paging != "Unlocked" && info.stored.page != page {
                 Image(systemName: paging == "Locked" ? "lock.fill" : "lock").font(.system(size: 8))
-                Text("page \(info.stored.page)")
+                Text(verbatim: "page \(info.stored.page)")
             } else if let summary = cueSummary(info) {
                 Text(summary).foregroundStyle(info.isLocked ? t.amber : t.fg2)
             } else if !info.stored.legend.isEmpty {

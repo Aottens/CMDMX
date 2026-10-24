@@ -203,12 +203,12 @@ struct LegendEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("SET LEGEND · PALETTE \(number)").font(Typo.legend(Typo.body, .semibold)).tracking(0.7)
+            Text(verbatim: "SET LEGEND · PALETTE \(number)").font(Typo.legend(Typo.body, .semibold)).tracking(0.7)
 
             HStack(spacing: 8) {
                 TextField("Legend", text: $legend).textFieldStyle(.roundedBorder).onSubmit(apply)
                     .onChange(of: legend) { _, new in if new.count > 32 { legend = String(new.prefix(32)) } }
-                Text("\(legend.count)/32").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
+                Text(verbatim: "\(legend.count)/32").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
             }
             HStack(spacing: 8) {
                 Text("Number").font(Typo.ui(11)).foregroundStyle(t.fg2)

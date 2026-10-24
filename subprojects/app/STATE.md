@@ -1,8 +1,10 @@
 # app — State
 
-_Last updated: 2026-10-24 (VS3-08)_
+_Last updated: 2026-10-24 (VS2-29)_
 
 ## Current step
+VS2-29 (2026-10-24, UI): no thousands separator anywhere. An integer interpolated into a `Text`, `Button` or `.help` string literal is a `LocalizedStringKey` and is formatted for the locale (1001 → "1.001" in Dutch); such places now use `Text(String(n))` or `Text(verbatim: "…")`, and a `.help` ternary of two literals gets `as String`. Left as they are: values that never pass 999 (percent, 0–255, pickers 1–99). `engine.say` and other `String` parameters were never affected. Run `tests/manual/runs/2026-10-24-VS2-29.md`.
+
 VS3-08 (2026-10-24, CUE-44, 46): the BPM master strip shows the live `multiplier` (the fader's zone with fader Multiplier); Playback Options shows the Fader tab only on a memory (`PlaybackInfo.isCueList`), a chase's Cue list tab only Kind and Renumber All and its Times tab no Track; the group-times row is one row of "—" buttons until a group has times, and the × beside a group's fade has `.fixedSize()` (it drew as an empty box). Run `tests/manual/runs/2026-10-24-VS3-08.md` passed; this closes the VS3-05 run's open points.
 
 VS2-28 (2026-10-24, PAT-25, IPC-40): the patch table selects a `Set<Int>` of ids (Shift-click, Cmd-click, Cmd-A natively); `SelectedPanel` takes the selection in number order, titled "Selected · n fixtures" when more than one, prefilled from the first row, and every action sends `ids` (`EngineClient.patchMove/Renumber/Name/ChangeMode(ids:)`, always the range form, a range of one being the single command). Mode lists the modes every row has in the first row's order, the shared current mode preselected or nothing; Change disabled while nothing new is picked. "Remove n fixtures"; Edit profile… only with one profile. Fields reload when the set of ids changes, not on a fixture delta, so the rows stay selected where they went. macOS 26.6 SwiftUI `Table` empties a multi-selection on a plain click inside it, after the double-click wait: a local `leftMouseDown` monitor keeps the clicked row at once and `onChange` puts it back when the Table empties it (`clickedRowID`, AppKit hit test, ponytail). The No column uses `Text(String(n))` (no thousands separator; the rest of the app is VS2-29). Run `tests/manual/runs/2026-10-24-VS2-28.md` passed.
