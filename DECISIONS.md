@@ -25,6 +25,8 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 **Reversal trigger:** the check blocks real work more often than it catches drift.
 
+**Amended 2026-10-24 (owner: "ik ga het in een review niet zien"):** the owner cannot catch drift by reading diffs, so the PR shows it. Every PR description carries `## Tracking`, the output of `scripts/check-tracking.py --summary origin/main` (new tasks, status moves, ideas, open points), also written to the CI job summary; CI fails without it. Run files end with `## Open points`, each point `→` the row, IDEA or checklist it went to.
+
 ## 2026-10-23 — Library browsing and the profile editor (P1-14, owner)
 
 **Decision:** The Patch screen's Add panel becomes a full-width strip with one search field over Manufacturer, Model and Mode columns (search narrows the columns; no separate result list), with an "In this show" entry and channel counts per mode from the index. A full-screen profile editor edits one mode at a time: per channel name, group, HTP/LTP, Default/Locate/Highlight and slots (From/To/Name, colour on C channels, Split/Merge/Remove). Slots stay per channel, not ONYX's separate wheels linked to channels. Save writes both the show's copy (one undo step, all or nothing: used modes keep their footprint, an attribute used by stored content may not disappear) and the user profile. Test uses a new absolute `programmer.set`, so it is ordinary programmer content. Gobo pictures wait for the icon library (IDEA-14); Lightkey slots are typed by hand. Criteria LIB-19..27, IPC-35..39; sketch `specs/ux/library-and-profile-editor.html`.

@@ -14,7 +14,8 @@ phase is planned.
 5. **done** / **rejected** (with the reason, so it is not proposed again).
 
 The table below is the index: every `### IDEA-nn` section has a row, and the row's Status moves
-along in the same PR that moves the idea (`scripts/check-tracking.py` checks both in CI).
+along in the same PR that moves the idea; a task status it names ("VS2-26 todo") must match
+BACKLOG (`scripts/check-tracking.py` checks all of this in CI).
 
 Scope rule: phase 1 is `specs/PRD.md`. A new idea lands in a later phase unless the owner
 explicitly pulls it in. If an idea forces a decision *earlier* (because something being
@@ -37,7 +38,7 @@ the backlog, not the whole idea.
 | IDEA-10 | Output lamps on fixture buttons (what each fixture outputs now) | triaged (owner to confirm the phase) | 1 (later, proposed) | IPC, UI |
 | IDEA-11 | Tap a selected group again to deselect it | done (VS2-15) | 1 | PRG |
 | IDEA-12 | Command history with the arrow keys | done (UX-02c, #33) | 1 | UI |
-| IDEA-13 | Easy editing of wheel and slot names, and attribute defaults | backlog (P1-14 done; VS2-24 #87 done, VS2-26 todo) | 1 | LIB, app |
+| IDEA-13 | Easy editing of wheel and slot names, and attribute defaults | done (P1-14; VS2-24 #87, VS2-26 #91) | 1 | LIB, app |
 | IDEA-14 | Icon library for legends, plus a user folder with own drawings | done for phase 1 (library + picker, VS2-19/VS2-22); user folder triaged | 1 / 2 (user folder) | PAL, PBK, app |
 | IDEA-15 | More selection orders and patterns: random, 1 in 3, … | triaged | 2 | PRG |
 | IDEA-16 | BPM masters follow Ableton (Link or MIDI clock), with subdivisions and multiples | triaged | 2 | CUE, CTL |

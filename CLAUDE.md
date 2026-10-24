@@ -24,9 +24,12 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
    in the same PR. A decision made along the way goes in `DECISIONS.md` (and an ADR if it is
    structural). **Merged = done:** the PR sets its own `BACKLOG.md` row to `done (date, #PR)`, or
    `gate3: <checklist path>` when only the owner's hardware run is left; never `review`/`merged`.
-   Open points found in a run become their own backlog row or IDEA in that PR. Root `STATE.md` is
-   the handoff (focus, next, gate 3, blocked), not a log. `scripts/check-tracking.py` checks this
-   in CI.
+   Open points found in a run go under `## Open points` in the run file, each ending in `→` its
+   backlog row, IDEA or checklist, made in that PR. Root `STATE.md` is the handoff (focus, next,
+   gate 3, blocked, owner decisions), not a log. `scripts/check-tracking.py` checks this in CI.
+   **Every PR description has a `## Tracking` section** with the output of
+   `scripts/check-tracking.py --summary origin/main` (new tasks, status moves, ideas, open points),
+   so the owner sees in plain lines what the PR records without reading the tables.
 
 Use the project-management conventions from the `project-manage` skill when available
 (session start: read STATE files; session end: handoff in STATE.md). Use the
