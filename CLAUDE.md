@@ -22,7 +22,11 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
 5. **Close the loop.** Update the subproject `STATE.md`, root `STATE.md`, `BACKLOG.md` and
    `README.md` (status line, and the description whenever the project's direction has moved)
    in the same PR. A decision made along the way goes in `DECISIONS.md` (and an ADR if it is
-   structural).
+   structural). **Merged = done:** the PR sets its own `BACKLOG.md` row to `done (date, #PR)`, or
+   `gate3: <checklist path>` when only the owner's hardware run is left; never `review`/`merged`.
+   Open points found in a run become their own backlog row or IDEA in that PR. Root `STATE.md` is
+   the handoff (focus, next, gate 3, blocked), not a log. `scripts/check-tracking.py` checks this
+   in CI.
 
 Use the project-management conventions from the `project-manage` skill when available
 (session start: read STATE files; session end: handoff in STATE.md). Use the

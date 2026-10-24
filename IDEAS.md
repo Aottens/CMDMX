@@ -13,6 +13,9 @@ phase is planned.
    loop (spec → test → code → review) applies.
 5. **done** / **rejected** (with the reason, so it is not proposed again).
 
+The table below is the index: every `### IDEA-nn` section has a row, and the row's Status moves
+along in the same PR that moves the idea (`scripts/check-tracking.py` checks both in CI).
+
 Scope rule: phase 1 is `specs/PRD.md`. A new idea lands in a later phase unless the owner
 explicitly pulls it in. If an idea forces a decision *earlier* (because something being
 specced now would otherwise have to be redone), Claude flags it and adds that decision to
@@ -28,13 +31,24 @@ the backlog, not the whole idea.
 | IDEA-04 | Phase 1 = programming the building blocks of any show (robust programmer); cue lists and busking both run on them | accepted 2026-10-17 | 1 | PRD, PRG, new `cuelists.md` |
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
 | IDEA-06 | Own web remote: anyone on the network with a password, from an iPad or the Mac's browser (replaces TouchOSC) | triaged | 2 (OSC bridge in 1) | IPC, CTL |
-| IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | accepted 2026-10-17 | 1 (with VS2-05) | PRG, IPC, app |
+| IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | done (VS2-05, #66) | 1 | PRG, IPC, app |
+| IDEA-08 | Browse the library by manufacturer, then model | done (P1-14; VS2-23 #86, VS2-25 #88) | 1 | LIB, IPC, app |
+| IDEA-09 | Multi-select in the patch table: every edit on a range | backlog (P1-15) | 1 | PAT, app |
+| IDEA-10 | Output lamps on fixture buttons (what each fixture outputs now) | triaged (owner to confirm the phase) | 1 (later, proposed) | IPC, UI |
+| IDEA-11 | Tap a selected group again to deselect it | done (VS2-15) | 1 | PRG |
+| IDEA-12 | Command history with the arrow keys | done (UX-02c, #33) | 1 | UI |
+| IDEA-13 | Easy editing of wheel and slot names, and attribute defaults | backlog (P1-14 done; VS2-24 #87 done, VS2-26 todo) | 1 | LIB, app |
+| IDEA-14 | Icon library for legends, plus a user folder with own drawings | done for phase 1 (library + picker, VS2-19/VS2-22); user folder triaged | 1 / 2 (user folder) | PAL, PBK, app |
+| IDEA-15 | More selection orders and patterns: random, 1 in 3, … | triaged | 2 | PRG |
+| IDEA-16 | BPM masters follow Ableton (Link or MIDI clock), with subdivisions and multiples | triaged | 2 | CUE, CTL |
+| IDEA-17 | MCP server: build shows with an AI assistant | triaged | 2 | IPC |
 | IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | triaged | 2 (flagship) | new `effects.md`, ENG, PRG, CUE, PAL |
 | IDEA-19 | Rebrand to CMDMX by Colourmotion | accepted 2026-10-22 | 1 (after VS6) | docs, app, README |
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
 | IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | triaged | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
 | IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 3 (hardware; owner 2026-10-23) | new `hardware.md`, CTL, licence |
+| IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -435,3 +449,12 @@ many times more.
 - Hardware licence (CERN-OHL-S, CERN-OHL-W, CC BY-SA)?
 **Owner's answer (2026-10-23):** phase 3 becomes the hardware phase; IDEA-23 goes there.
 **Research (2026-10-23):** candidate parts, sample BOMs and open questions in `docs/research/hardware-desk.md`; §5a records the owner's modular fader-strip boards (2 faders per JLCPCB board on a bus to one main controller).
+
+### IDEA-24 — An info message type for good news (2026-10-18, SHW-c run; recorded 2026-10-24)
+**Owner's intent (from the SHW-c run, finding 1):** "autosave of <name> works again" is shown in
+amber, as every engine message is, so good news looks like a warning.
+**Triage:**
+- Proposed later in phase 1: an `info` level next to the warning level on engine messages
+  (`ipc.md`), shown in a calm colour in the message zone (`ui.md`).
+- Touches now: nothing; the SHW-13 text stays as it is.
+**Open questions:** the owner confirms the phase.

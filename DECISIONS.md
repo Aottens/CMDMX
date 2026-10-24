@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-24 — Merged = done; tracking checked in CI (owner)
+
+**Decision:** A task PR sets its own `BACKLOG.md` row to `done (date, #PR)`, or `gate3: <checklist path>` when only the owner's hardware run is left. Statuses are `todo · doing · done · gate3 · blocked` (first word of the cell); `review` and `merged` are gone. Open points from a run become their own backlog row or IDEA in that PR. Root `STATE.md` is the handoff (focus, next, gate 3, blocked, owner decisions), not a log. `scripts/check-tracking.py` runs in CI: status vocabulary, gate3 paths exist, every IDEA section has an index row, and a task id in the PR title is not left `todo`.
+
+**Alternatives considered:** a catch-up "sync planning" PR now and then (#60, #83); a notes column next to Status; GitHub Issues as the task list.
+
+**Reasoning:** the rows were written before the merge ("in review") and nobody flipped them after, so drift was built in; a check in CI catches it in the same PR instead of relying on memory.
+
+**Reversal trigger:** the check blocks real work more often than it catches drift.
+
 ## 2026-10-23 — Library browsing and the profile editor (P1-14, owner)
 
 **Decision:** The Patch screen's Add panel becomes a full-width strip with one search field over Manufacturer, Model and Mode columns (search narrows the columns; no separate result list), with an "In this show" entry and channel counts per mode from the index. A full-screen profile editor edits one mode at a time: per channel name, group, HTP/LTP, Default/Locate/Highlight and slots (From/To/Name, colour on C channels, Split/Merge/Remove). Slots stay per channel, not ONYX's separate wheels linked to channels. Save writes both the show's copy (one undo step, all or nothing: used modes keep their footprint, an attribute used by stored content may not disappear) and the user profile. Test uses a new absolute `programmer.set`, so it is ordinary programmer content. Gobo pictures wait for the icon library (IDEA-14); Lightkey slots are typed by hand. Criteria LIB-19..27, IPC-35..39; sketch `specs/ux/library-and-profile-editor.html`.

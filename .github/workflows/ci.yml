@@ -6,6 +6,15 @@ on:
   pull_request:
 
 jobs:
+  tracking:
+    name: tracking (BACKLOG, IDEAS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-tracking.py
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+
   engine:
     name: engine (Rust)
     runs-on: ubuntu-latest
