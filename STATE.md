@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-24 (tracking cleanup: one status vocabulary, `scripts/check-tracking.py` in CI)_
+_Last updated: 2026-10-24 (VS2-26 profile editor in the app, #91)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -9,12 +9,11 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 ## Current focus
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
-control layer, cue lists, group masters and library browsing are done.
+control layer, cue lists, group masters, library browsing and the profile editor are done.
 
 ## Next
-1. **VS2-26** the profile editor in the app (LIB-23, 24, 26, 27).
-2. **P1-15** multi-select in the patch table (IDEA-09).
-3. The church hardware runs below, when the hardware is at hand.
+1. **P1-15** multi-select in the patch table (IDEA-09).
+2. The church hardware runs below, when the hardware is at hand.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
