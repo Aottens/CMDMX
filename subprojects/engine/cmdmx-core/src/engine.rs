@@ -2109,6 +2109,14 @@ impl Engine {
         }
     }
 
+    /// CUE-44: the multiplier of a BPM master; `None` for anything else.
+    pub fn effective_multiplier(&self, id: PlaybackId) -> Option<f32> {
+        match &self.playbacks.get(&id)?.master {
+            Some(Master::Bpm(m)) => Some(self.master_multiplier(id, m)),
+            _ => None,
+        }
+    }
+
     /// CUE-29: a source whose master does not exist runs as `Free`.
     fn chase_bpm(&self, chase: &ChaseOptions) -> f32 {
         let (kind, number) = match chase.speed_source {
@@ -2131,20 +2139,23 @@ impl Engine {
     fn master_tempo(&self, id: PlaybackId, m: &BpmMaster) -> f32 {
         let state = self.states.get(&id);
         let level = state.map_or(0.0, |s| s.level);
-        let (bpm, multiplier) = match m.fader {
-            BpmFader::Bpm if state.is_some_and(|s| s.fader_moved) => {
-                (level * m.fader_max, m.multiplier)
-            }
-            BpmFader::Multiplier => {
-                let zone = ((level * 5.0) as usize).min(4); // /4 /2 ×1 ×2 ×4
-                (
-                    m.bpm,
-                    [0.25, 0.5, 1.0, 2.0, 4.0].get(zone).copied().unwrap_or(1.0),
-                )
-            }
-            _ => (m.bpm, m.multiplier),
+        let bpm = match m.fader {
+            BpmFader::Bpm if state.is_some_and(|s| s.fader_moved) => level * m.fader_max,
+            _ => m.bpm,
         };
-        bpm * multiplier
+        bpm * self.master_multiplier(id, m)
+    }
+
+    /// CUE-44: the multiplier a BPM master applies: its own, or the fader's zone.
+    fn master_multiplier(&self, id: PlaybackId, m: &BpmMaster) -> f32 {
+        match m.fader {
+            BpmFader::Multiplier => {
+                let level = self.states.get(&id).map_or(0.0, |s| s.level);
+                let zone = ((level * 5.0) as usize).min(4); // /4 /2 ×1 ×2 ×4
+                [0.25, 0.5, 1.0, 2.0, 4.0].get(zone).copied().unwrap_or(1.0)
+            }
+            _ => m.multiplier,
+        }
     }
 
     /// The playback holding speed master `kind` `number`.

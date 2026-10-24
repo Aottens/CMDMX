@@ -448,7 +448,8 @@ values.
   assigns to the kind (GO, TAP, FLASH, …; CUE-25), send `playback.button` (CUE-55) and are live
   while pressed; the legend's second
   line shows "Q3 › 4" on a cue list, the step and BPM on a chase ("2/8 · 120"), "BPM 1 · 120 ×1"
-  or "RATE 2 · ×1.0" on a master; the level bar of a running cue list shows the transition's
+  or "RATE 2 · ×1.0" on a master (a BPM master's tempo and × are the effective ones: with fader
+  `Multiplier` the × is the fader's zone, not the stored multiplier; IPC-28, VS3-08); the level bar of a running cue list shows the transition's
   progress (sketch); the connected list's strip has a 2 pt blue frame (UI-03: the selected
   playback). A plain tap on a list's legend (no function button armed) connects it (CUE-26).
 - **CUE-45** **Record** on a used handle shows the softkeys Replace, Merge, **Append**, **Insert**
@@ -463,6 +464,12 @@ values.
   shows Handle and **Master** tabs (number, multiplier, fader mode and maximum, or rate scale).
   `Auto connect`, the cue-list fader default, the update mode and the handle buttons per kind
   sit in the Playback settings.
+  Only what applies is shown (VS3-08): the **Fader** tab (fader mode, kill point) only on a memory,
+  since neither applies to a cue list (CUE-15) or a chase (CUE-31); on a chase the Cue list tab
+  shows only kind and Renumber All and the Times tab has no track (a chase never tracks and
+  ignores the list's fader, fire first cue and loop, CUE-28..31, 50). The group-times row of a cue
+  without group times is the group letters and a "—" button each; the delay and fade rows appear
+  once a group has its own times.
 - **CUE-47** **Keys** (UI-19 amended): while Keys is live, Space = Go and Shift+Space = Back on the
   connected list; never while a text field has focus (UI-19). Space does nothing while Keys is
   off, so a stray key never fires a cue (research: "Space = Go only when armed").

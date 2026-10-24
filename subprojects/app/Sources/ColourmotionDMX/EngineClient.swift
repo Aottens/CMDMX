@@ -52,10 +52,12 @@ struct PlaybackLive: Decodable, Equatable {
     var cue: CueLive?
     /// The effective BPM of a chase or BPM master.
     var bpm: Double?
+    /// CUE-44: the effective multiplier of a BPM master (the fader's zone included).
+    var multiplier: Double?
 
     init() {}
 
-    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired, cue, bpm }
+    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired, cue, bpm, multiplier }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -66,6 +68,7 @@ struct PlaybackLive: Decodable, Equatable {
         fired = try? c.decode(Int.self, forKey: .fired)
         cue = try? c.decode(CueLive.self, forKey: .cue)
         bpm = try? c.decode(Double.self, forKey: .bpm)
+        multiplier = try? c.decode(Double.self, forKey: .multiplier)
     }
 }
 
@@ -398,6 +401,8 @@ struct PlaybackInfo: Identifiable, Equatable {
     /// A cue list or a chase: the engine sends live cue state for these only (CUE-40).
     var hasCues: Bool { live.cue != nil }
     var isChase: Bool { stored.kind == "Chase" }
+    /// A cue list: kind Cues with two or more cues; fewer is a memory (CUE-46).
+    var isCueList: Bool { stored.kind == "Cues" && stored.cues.count >= 2 }
     /// The stored cue with this number.
     func cue(_ number: Double?) -> StoredCue? { number.flatMap { n in stored.cues.first { $0.number == n } } }
 }
@@ -1768,7 +1773,7 @@ final class EngineClient: ObservableObject {
         var state = playbackLive[id] ?? PlaybackLive()
         state.flash = new.flash; state.latched = new.latched; state.fired = new.fired
         state.state = new.state
-        state.cue = new.cue; state.bpm = new.bpm
+        state.cue = new.cue; state.bpm = new.bpm; state.multiplier = new.multiplier
         if heldFaders[id] != nil {
             heldFaders[id] = .some(new.level.clamped01)
         } else {

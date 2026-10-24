@@ -191,7 +191,9 @@ The cue-list messages are specified in `cuelists.md` as CUE-40 (snapshot `playba
   say before anything changes.
 - **IPC-28** Entry shape (VS3-05): `list` and `chase` are always present, `master` is `null` except on
   masters; the live part gains `cue` (`null` except on lists) and `bpm` (the effective BPM of a
-  chase or BPM master, else `null`), so CUE-40's `effective_bpm` is this live `bpm`; the stored
+  chase or BPM master, else `null`), so CUE-40's `effective_bpm` is this live `bpm`, and
+  `multiplier` (a BPM master's effective multiplier: the fader's zone with fader `Multiplier`,
+  else the stored one; `null` on anything else; VS3-08); the stored
   part gains `buttons` (the two functions `handle_buttons` gives this handle now, e.g.
   `["Go","Flash"]`, CUE-25), so the app labels strips without knowing the setting's rules. The
   `connected` delta is `{"v":0,"type":"connected","id":1}` (`id` `null` when none).

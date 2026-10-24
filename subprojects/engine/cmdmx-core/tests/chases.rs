@@ -332,6 +332,19 @@ fn cue_35_multiplier_on_fader_picks_five_zones() {
 }
 
 #[test]
+fn cue_44_a_bpm_master_reports_its_effective_multiplier() {
+    let mut e = common::church();
+    let m = bpm_master(&mut e, 2, 120.0, 1.0, BpmFader::Multiplier);
+    e.set_fader(m, 0.7, 0.0).unwrap();
+    assert_eq!(e.effective_multiplier(m), Some(2.0), "the fader's zone");
+    assert_eq!(e.effective_multiplier(999), None, "only BPM masters");
+    let mut e = common::church();
+    let fixed = bpm_master(&mut e, 3, 120.0, 0.5, BpmFader::Unused);
+    e.set_fader(fixed, 0.7, 0.0).unwrap();
+    assert_eq!(e.effective_multiplier(fixed), Some(0.5), "the stored one");
+}
+
+#[test]
 fn cue_35_without_a_fader_mode_the_fader_does_nothing() {
     let mut e = common::church();
     let m = bpm_master(&mut e, 2, 120.0, 0.5, BpmFader::Unused);

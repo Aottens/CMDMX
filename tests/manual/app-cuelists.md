@@ -94,6 +94,17 @@ universe 1 during the run and reports the measured values and times.
 - [ ] Record → Rate Master, tap 3.5: "RATE 1 · ×1.0" at fader 50 %. Chase speed source Rate 1:
       fader full doubles the chase speed.
 
+## Only what applies (CUE-44, 46; VS3-08)
+- [ ] BPM master 3.4, Master tab fader Multiplier: with the fader at about 70 % the strip reads
+      "BPM 1 · 240 ×2" (the zone's ×, not the stored ×1); at 10 % "… ×0.25". Back to None: the
+      stored × again.
+- [ ] Options on a memory: tabs Fader, Times, Release, Playback, Handle, Cue list, Settings. On the
+      service list (3.1): no Fader tab; the Cue list tab still has tracking, fader, fire first cue
+      and loop. On the chase (3.3): no Fader tab, the Cue list tab shows only Kind and Renumber
+      All, the Times tab has no Track row.
+- [ ] Times tab on a cue without group times: one row of group letters with a "—" button each, no
+      delay / fade rows. Tap "—" under I: the delay and fade rows appear; × on I: back to one row.
+
 ## Handle buttons (CUE-25, 55)
 - [ ] Settings tab → handle buttons Titan: every list/chase strip shows SWOP / FLASH; GO only in
       the Go block. Custom: Cue list = Go / Back; the 3.1 strip shows GO / BACK and they work.

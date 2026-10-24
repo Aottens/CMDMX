@@ -275,7 +275,7 @@ private func cueSummary(_ info: PlaybackInfo) -> String? {
             return "GRP·" + mode
         }
         if let scale = m.rateScale { return "RATE \(m.number) · ×" + String(format: "%.1f", info.live.level * Double(scale) / 100) }
-        return "BPM \(m.number) · \(Int((info.live.bpm ?? m.bpm ?? 0).rounded())) ×\(plain(m.multiplier ?? 1))"
+        return "BPM \(m.number) · \(Int((info.live.bpm ?? m.bpm ?? 0).rounded())) ×\(plain(info.live.multiplier ?? m.multiplier ?? 1))"
     }
     guard let cue = info.live.cue else { return nil }
     if info.isChase {
