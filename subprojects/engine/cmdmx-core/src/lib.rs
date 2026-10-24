@@ -106,6 +106,12 @@ pub enum CoreError {
     NothingToRedo,
     #[error("nothing is selected")]
     EmptySelection,
+    /// PAT-19: a range command lists the same fixture twice.
+    #[error("fixture id {0} is listed twice")]
+    RepeatedFixture(u32),
+    /// PAT-22: `fixture` is a user number.
+    #[error("{fixture} has no mode '{mode}'")]
+    FixtureLacksMode { fixture: u32, mode: String },
     #[error("no selected fixture has attribute '{0}'")]
     AttributeNotInTargets(String),
     #[error("invalid pattern of {0} stages (expected at least 2)")]

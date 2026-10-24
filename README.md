@@ -35,8 +35,8 @@ Early, under active development, not yet for real shows. Library browsing by man
 profile editor for channels, defaults and wheel slots are in (sketch in
 [`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)). In
 progress: multi-select in the patch table, so a range of fixtures is moved back to back,
-renumbered, renamed ("Par 1…6"), changed in mode or removed in one checked step (spec PAT-19..25);
-then the church's TouchOSC remote on the OSC layer. Progress is in
+renumbered, renamed ("Par 1…6"), changed in mode or removed in one checked step (spec PAT-19..25;
+the engine side is in, the app's table is next); then the church's TouchOSC remote on the OSC layer. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
 sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 

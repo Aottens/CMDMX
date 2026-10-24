@@ -607,7 +607,8 @@ fn pat_19_empty_unknown_or_repeated_ids_refuse_every_range_command() {
     let before = snapshot(&e);
     let a = id_of(&e, 221);
     let b = id_of(&e, 222);
-    let cases: [(&[FixtureId], fn(FixtureId) -> CoreError); 3] = [
+    type Case<'a> = (&'a [FixtureId], fn(FixtureId) -> CoreError);
+    let cases: [Case; 3] = [
         (&[], |_| CoreError::EmptySelection),
         (&[a, 999], |_| CoreError::UnknownFixture(999)),
         (&[a, b, a], CoreError::RepeatedFixture),

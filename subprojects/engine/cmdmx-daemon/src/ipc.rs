@@ -159,7 +159,7 @@ pub enum Command {
         profile: Option<Profile>,
     },
     PatchMove {
-        id: FixtureId,
+        ids: Vec<FixtureId>,
         universe: UniverseId,
         address: u16,
     },
@@ -167,15 +167,15 @@ pub enum Command {
         ids: Vec<FixtureId>,
     },
     PatchRenumber {
-        id: FixtureId,
+        ids: Vec<FixtureId>,
         number: u32,
     },
     PatchName {
-        id: FixtureId,
+        ids: Vec<FixtureId>,
         name: String,
     },
     PatchChangeMode {
-        id: FixtureId,
+        ids: Vec<FixtureId>,
         mode: String,
     },
     PatchHandle {
@@ -581,6 +581,18 @@ fn uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<T, String> 
         .and_then(|n| n.as_u64())
         .and_then(|n| T::try_from(n).ok())
         .ok_or_else(|| format!("missing or invalid \"{key}\""))
+}
+
+/// IPC-40: exactly one of `id` (one fixture) or `ids` (an array of fixture ids).
+fn ids_or_id(v: &serde_json::Value) -> Result<Vec<FixtureId>, String> {
+    match (v.get("id"), v.get("ids")) {
+        (Some(_), None) => Ok(vec![uint(v, "id")?]),
+        (None, Some(t)) => t
+            .as_array()
+            .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
+            .ok_or_else(|| "invalid \"ids\" (expected an array of fixture ids)".to_string()),
+        _ => Err("expected exactly one of \"id\" or \"ids\"".to_string()),
+    }
 }
 
 /// A number field in 0.0..=1.0.
@@ -1114,7 +1126,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             profile: None,
         }),
         Some("patch.move") => Ok(Command::PatchMove {
-            id: uint(&v, "id")?,
+            ids: ids_or_id(&v)?,
             universe: uint(&v, "universe")?,
             address: uint(&v, "address")?,
         }),
@@ -1126,15 +1138,15 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 .ok_or("missing or invalid \"ids\" (expected an array of fixture ids)")?,
         }),
         Some("patch.renumber") => Ok(Command::PatchRenumber {
-            id: uint(&v, "id")?,
+            ids: ids_or_id(&v)?,
             number: uint(&v, "number")?,
         }),
         Some("patch.name") => Ok(Command::PatchName {
-            id: uint(&v, "id")?,
+            ids: ids_or_id(&v)?,
             name: string(&v, "name")?,
         }),
         Some("patch.change_mode") => Ok(Command::PatchChangeMode {
-            id: uint(&v, "id")?,
+            ids: ids_or_id(&v)?,
             mode: string(&v, "mode")?,
         }),
         Some("patch.handle") => Ok(Command::PatchHandle {
@@ -3392,6 +3404,7 @@ mod tests {
 
     #[test]
     fn ipc_40_range_forms_take_ids() {
+        let ok = |s: &str| parse_command(s).unwrap();
         assert_eq!(
             ok(r#"{"v":0,"cmd":"patch.move","ids":[3,4,5],"universe":2,"address":101}"#),
             Command::PatchMove {
