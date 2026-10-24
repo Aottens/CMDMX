@@ -329,7 +329,7 @@ private struct CueViewWindow: View {
                         Section {
                             ForEach(reply.fixtures) { row in
                                 let fixture = fixtures[row.fixture]
-                                line(number: Text("\(fixture?.number ?? row.fixture)").foregroundStyle(t.fg2),
+                                line(number: Text(String(fixture?.number ?? row.fixture)).foregroundStyle(t.fg2),
                                      name: Text(fixture.map(Self.title) ?? "").foregroundStyle(t.fg)) { group in
                                     cell(row, fixture, group)
                                 }
@@ -428,7 +428,7 @@ struct CueLegendEditor: View {
             HStack(spacing: 8) {
                 TextField("Legend", text: $legend).textFieldStyle(.roundedBorder).onSubmit(apply)
                     .onChange(of: legend) { _, new in if new.count > 32 { legend = String(new.prefix(32)) } }
-                Text("\(legend.count)/32").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
+                Text(verbatim: "\(legend.count)/32").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
             }
             HStack {
                 Spacer()

@@ -40,7 +40,7 @@ struct ProgrammerWindow: View {
                         Section {
                             ForEach(rows) { row in
                                 let fixture = fixtures[row.fixture]
-                                line(number: Text("\(fixture?.number ?? row.fixture)").foregroundStyle(t.fg2),
+                                line(number: Text(String(fixture?.number ?? row.fixture)).foregroundStyle(t.fg2),
                                      name: Text(fixture.map(Self.title) ?? "").foregroundStyle(t.fg)) { group in
                                     cell(row, fixture, group)
                                 }

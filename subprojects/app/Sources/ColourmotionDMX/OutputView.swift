@@ -26,7 +26,7 @@ struct OutputView: View {
             VStack(spacing: 8) {
                 ForEach(silent, id: \.self) { u in
                     let n = counts[u] ?? 0
-                    Text("Universe \(u): \(n) fixture\(n == 1 ? "" : "s"), no output").font(Typo.ui(11)).foregroundStyle(t.amber)
+                    Text(verbatim: "Universe \(u): \(n) fixture\(n == 1 ? "" : "s"), no output").font(Typo.ui(11)).foregroundStyle(t.amber)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 PanelWindow(title: "Output", info: "\(rows.count) nodes", framed: true, accessory: { EmptyView() }) {
@@ -119,7 +119,7 @@ private struct DestinationCell: View {
                     if let pa = portAddress(s) { if pa != node.portAddress { engine.editOutput(node.id, ["port_address": pa]) } }
                     else { engine.say("Port address is net:subnet:universe or a number") }
                 }
-                Text("(\(node.portAddress ?? 0))").font(.caption).foregroundStyle(.secondary)
+                Text(verbatim: "(\(node.portAddress ?? 0))").font(.caption).foregroundStyle(.secondary)
                 NodeField(node: node, placeholder: "target", load: { $0.target ?? "" }) { s in
                     if s != node.target { engine.editOutput(node.id, ["target": s]) }
                 }
