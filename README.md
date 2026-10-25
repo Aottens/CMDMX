@@ -35,7 +35,15 @@ Early, under active development, not yet for real shows. Library browsing by man
 profile editor for channels, defaults and wheel slots are in (sketch in
 [`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)). Multi-select
 in the patch table is in too: Shift/Cmd-click a range of fixtures and move it back to back,
-renumber it, name it ("Par 1…6"), change its mode or remove it in one checked step. Next: the
+renumber it, name it ("Par 1…6"), change its mode or remove it in one checked step. Playback
+Options shows only the options that apply to a memory, cue list or chase. The engine selects single cells of multi-cell fixtures on the command line (`901 . 2`, `901 Thro 904 . 2`); the app shows them later. Fixture and cue numbers above 999 read
+without a thousands separator (1001, not "1.001"). Killing the app with `kill -9` mid-show was checked: DMX ran on without a dropped frame and the restarted app showed the live faders, cue and programmer. The app and engine now check the protocol
+version: an app that meets an engine of another release says which versions differ, shows and
+sends nothing and keeps retrying, and the engine names both versions to any client that sends the wrong one. Selecting single
+cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build, and so is native Elgato Stream Deck support: keys showing a
+playback's legend, colour, level and state, linked by dragging a playback onto an on-screen deck,
+no Elgato app needed. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
+Wings, Arrow), moving-head positions above all. Next: the
 church's TouchOSC remote on the OSC layer, once the iPad is at hand. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
 sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).

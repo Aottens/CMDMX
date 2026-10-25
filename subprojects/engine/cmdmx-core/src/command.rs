@@ -10,6 +10,19 @@ use crate::CoreError;
 pub enum Kind {
     Fixture,
     Group,
+    /// PRG-48: the `.`-first forms, the selected fixtures.
+    Selected,
+}
+
+/// PRG-48: the cells of an item.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Cells {
+    All,
+    /// `from > to` means the typed direction is descending.
+    Range {
+        from: u32,
+        to: u32,
+    },
 }
 
 /// `From` or `From Thro To`; `from > to` means the typed direction is descending.
@@ -18,6 +31,8 @@ pub struct Item {
     pub kind: Kind,
     pub from: u32,
     pub to: u32,
+    /// PRG-48: `None` = the whole fixture.
+    pub cells: Option<Cells>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,28 +58,107 @@ fn level(token: &str) -> Option<f32> {
     token.parse::<f32>().ok().filter(|v| v.is_finite())
 }
 
+type Tokens<'a, 'b> = std::iter::Peekable<std::slice::Iter<'a, &'b str>>;
+
+fn peek_number(it: &mut Tokens) -> Option<u32> {
+    it.peek().and_then(|t| t.parse().ok())
+}
+
+/// After a `.`: an optional cell number.
+fn dot_cell(it: &mut Tokens) -> Option<Cells> {
+    Some(match peek_number(it) {
+        Some(m) => {
+            it.next();
+            Cells::Range { from: m, to: m }
+        }
+        None => Cells::All,
+    })
+}
+
+/// One item after any `Fixture`/`Group` word (PRG-48 grammar); `from..to` are the fixtures.
+fn item(it: &mut Tokens, kind: Kind) -> Option<Item> {
+    let from = number(it.next())?;
+    let (mut to, mut cells) = (from, None);
+    if it.peek() == Some(&&"Thro") {
+        it.next();
+        to = number(it.next())?;
+        if it.peek() == Some(&&".") {
+            it.next();
+            cells = dot_cell(it);
+        }
+    } else if it.peek() == Some(&&".") {
+        it.next();
+        cells = dot_cell(it);
+        if let Some(Cells::Range { from: m, .. }) = cells {
+            if it.peek() == Some(&&"Thro") {
+                it.next();
+                if it.peek() == Some(&&".") {
+                    it.next();
+                    cells = Some(Cells::Range {
+                        from: m,
+                        to: number(it.next())?,
+                    });
+                } else {
+                    let x = number(it.next())?;
+                    if it.peek() == Some(&&".") {
+                        it.next();
+                        to = x;
+                        cells = Some(Cells::Range {
+                            from: m,
+                            to: number(it.next())?,
+                        });
+                    } else {
+                        cells = Some(Cells::Range { from: m, to: x });
+                    }
+                }
+            }
+        }
+    }
+    (kind == Kind::Fixture || cells.is_none()).then_some(Item {
+        kind,
+        from,
+        to,
+        cells,
+    })
+}
+
 fn selection(tokens: &[&str]) -> Option<Vec<(bool, Item)>> {
     let mut items = Vec::new();
     let mut kind = Kind::Fixture;
     let mut not = false;
     let mut it = tokens.iter().peekable();
     loop {
-        match it.peek() {
-            Some(&&"Fixture") => kind = Kind::Fixture,
-            Some(&&"Group") => kind = Kind::Group,
-            _ => {}
-        }
-        if matches!(it.peek(), Some(&&"Fixture") | Some(&&"Group")) {
+        let one = if it.peek() == Some(&&".") {
             it.next();
-        }
-        let from = number(it.next())?;
-        let to = if it.peek() == Some(&&"Thro") {
-            it.next();
-            number(it.next())?
+            let cells = match dot_cell(&mut it)? {
+                Cells::Range { from, .. } if it.peek() == Some(&&"Thro") => {
+                    it.next();
+                    (it.next() == Some(&".")).then_some(())?;
+                    Cells::Range {
+                        from,
+                        to: number(it.next())?,
+                    }
+                }
+                c => c,
+            };
+            Item {
+                kind: Kind::Selected,
+                from: 0,
+                to: 0,
+                cells: Some(cells),
+            }
         } else {
-            from
+            match it.peek() {
+                Some(&&"Fixture") => kind = Kind::Fixture,
+                Some(&&"Group") => kind = Kind::Group,
+                _ => {}
+            }
+            if matches!(it.peek(), Some(&&"Fixture") | Some(&&"Group")) {
+                it.next();
+            }
+            item(&mut it, kind)?
         };
-        items.push((not, Item { kind, from, to }));
+        items.push((not, one));
         match it.next() {
             None => return Some(items),
             Some(&"And") => not = false,

@@ -5,6 +5,64 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Fan: four curves, latched, wheels only (P1-20, owner)
+
+**Decision:** Fan is live engine state toggled by the Fan key, off on a new selection; a fanned wheel turn changes each target by `d · k` with *k* from the curve over the targets that have the attribute, in selection order (items, cells included). Phase 1 has Line, Mirror, Wings and Arrow with the factors of PRG-58; Mirror and Arrow are redefined because the UI v0.1 sketch had them as each other's negative. Only wheels fan; fanned values are plain manual values. Spec PRG-56..62, UI-30, IPC-43, CTL-59; build tasks VS2-35..36.
+
+**Alternatives considered:** press-and-hold Fan; Titan's seven curves, Fan parts and group options now; a keypad fan; the sketch's formulas.
+
+**Reasoning:** the four curves cover moving-head spreads, V shapes and rainbows; the rest is Titan polish that plugs into the same factor rule later. Engine state means every surface fans alike and the UI holds no lighting logic.
+
+**Owner answers (2026-10-25):** all seven recommendations of P1-20 (see the spec's Owner decisions).
+
+**Reversal trigger:** the owner finds a curve shape wrong against Titan on a real rig.
+
+## 2026-10-25 — Stream Decks over native USB HID from the daemon (ADR-009, P1-19, owner)
+
+**Decision:** Elgato Stream Decks are devices on the general control layer, driven by the daemon over USB HID (`hidapi`, own `deck` thread); no Elgato plugin. A deck is opened only while enabled, then exclusively (`Busy` while the Elgato app holds it); models are a table, not code; the daemon renders the key images (halo bar, legend, function, level bar, state) with a pure renderer in `cmdmx-control`; decks have their own pages besides the console page; links by drag onto an on-screen deck and by Learn. Spec CTL-44..58, ADR-009; build tasks VS7-05..08.
+
+**Alternatives considered:** an Elgato Stream Deck plugin talking OSC/IPC; both routes; a shared open; the app rendering the images.
+
+**Reasoning:** a show must not depend on a second program (the Elgato app, a Node runtime) running; the daemon keeps the deck alive with the app closed. The Elgato app and Bitfocus Companion can already send OSC to `/cmdmx` for whoever wants that route.
+
+**Owner answers (2026-10-25):** all nine recommendations of P1-19 (see the spec's Owner decisions).
+
+**Reversal trigger:** raw HID on macOS proves unreliable in the gate-3 run, or Elgato changes the protocol beyond the open references.
+
+## 2026-10-25 — Fan is phase 1, Align stays phase 2 (IDEA-27, owner)
+
+**Decision:** plain Fan (spread a value over the selection order) moves from phase 2 to phase 1; spec task P1-20. Align stays in phase 2.
+
+**Alternatives considered:** Fan and Align together in phase 2 (`PROJECT.md` until now).
+
+**Reasoning:** fanning positions of moving heads is basic programming; a phase-1 console without it is not a general console.
+
+**Reversal trigger:** none expected.
+
+## 2026-10-25 — Per-cell selection (P1-13, owner)
+
+**Decision:** `programmer.md` PRG-46..55, `ui.md` UI-29, `ipc.md` IPC-42. A selection item is a whole fixture or one cell (`901.2`); cell ranges follow Titan's keypad table (`901 . 2 Thro 4` = cells 2–4 of 901, `901 Thro 904 . 2` = cell 2 of each); a cell without a Dimmer gets a virtual Dimmer under the master Dimmer; within one source a cell value beats the fixture value, between sources the ENG rules decide per cell; cues, groups and palettes key cell values by item; Unfold opens cells in place in the Fixtures window; IPC `v` goes to 1.
+**Alternatives:** grandMA's running cell count; cells with colour only (`@` refused on a cell); Titan's Unfold replacing the whole page; cells as a separate list next to the selection.
+**Why:** Titan is the behavioural reference for the keypad; a virtual cell dimmer makes cell chases on the Shehds possible; unfolding in place keeps the other fixtures in view.
+**Reversal trigger:** pixel fixtures with dozens of cells make in-place Unfold unusable (then a page per fixture, as Titan).
+
+## 2026-10-25 — IPC protocol versioning (P1-06, owner)
+
+**Decision:** `ipc.md` IPC-41: `v` is one integer for the whole contract and goes up only on a change an older peer would misread (key removed or renamed, type/unit/meaning changed, command reshaped); new types, commands and keys do not raise it. Daemon and app each speak one version, no negotiation. The app checks the snapshot's `v` and on a mismatch closes, renders and sends nothing, shows both versions in place of the offline banner and keeps retrying; the daemon answers a command with another `v` with an `error` naming both versions. Tick, DMX output and other clients never notice. Build task VS1-09.
+**Alternatives:** version negotiation (a daemon speaking several versions); bumping `v` on every addition.
+**Why:** app and engine ship together from one repo, so one version each is enough; the snapshot arrives first, so the app sees a mismatch in both directions and the operator gets a clear message instead of a misread console.
+**Reversal trigger:** remotes from other releases (IDEA-06) must keep working across an engine update.
+
+## 2026-10-24 — The church remote gets a TouchOSC layout made for ColourmotionDMX (VS4-04, owner)
+
+**Decision:** VS4-04 builds a new TouchOSC layout on the `/cmdmx` schema (CTL-36/37), shipped in the repo, instead of exporting the old church layout from the iPad mini and binding its addresses with custom-address Learn (CTL-38). CTL-38 stays for other people's layouts. Amends owner decision 8 of `control-surfaces.md`.
+
+**Alternatives considered:** export the old `.tosc` and learn its addresses (the 2026-10-23 plan).
+
+**Reasoning:** a layout tailored to the console uses its feedback (legends, page, cue texts, messages) that the old layout cannot show, and VS4-04 no longer waits for the old iPad.
+
+**Reversal trigger:** the church operators need the old layout's look and placement unchanged.
+
 ## 2026-10-24 — Range edits in the patch table (P1-15, owner)
 
 **Decision:** Move, Renumber, Name, Change Mode and Remove work on a multi-row selection in the patch table. Each range command is checked as a whole and refused naming the first clash (no parking), worked in number order, one undo step. Move places the range back to back from one start; Renumber keeps the order and closes gaps; a name ending in a number counts up ("Par 1…6"), another name is given to all; Change Mode needs the mode name on every fixture and refuses instead of re-packing when a bigger footprint no longer fits. Wire: `ids` on the existing `patch.*` commands. Moving several handles at once is a later task. Criteria PAT-19..25, IPC-40.

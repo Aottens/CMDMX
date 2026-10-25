@@ -52,10 +52,12 @@ struct PlaybackLive: Decodable, Equatable {
     var cue: CueLive?
     /// The effective BPM of a chase or BPM master.
     var bpm: Double?
+    /// CUE-44: the effective multiplier of a BPM master (the fader's zone included).
+    var multiplier: Double?
 
     init() {}
 
-    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired, cue, bpm }
+    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired, cue, bpm, multiplier }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -66,6 +68,7 @@ struct PlaybackLive: Decodable, Equatable {
         fired = try? c.decode(Int.self, forKey: .fired)
         cue = try? c.decode(CueLive.self, forKey: .cue)
         bpm = try? c.decode(Double.self, forKey: .bpm)
+        multiplier = try? c.decode(Double.self, forKey: .multiplier)
     }
 }
 
@@ -398,6 +401,8 @@ struct PlaybackInfo: Identifiable, Equatable {
     /// A cue list or a chase: the engine sends live cue state for these only (CUE-40).
     var hasCues: Bool { live.cue != nil }
     var isChase: Bool { stored.kind == "Chase" }
+    /// A cue list: kind Cues with two or more cues; fewer is a memory (CUE-46).
+    var isCueList: Bool { stored.kind == "Cues" && stored.cues.count >= 2 }
     /// The stored cue with this number.
     func cue(_ number: Double?) -> StoredCue? { number.flatMap { n in stored.cues.first { $0.number == n } } }
 }
@@ -1127,8 +1132,23 @@ final class EngineClient: ObservableObject {
     private let settleTimeout: UInt64 = 1_000_000_000
     private let echoEpsilon = 0.001
 
-    private let url = URL(string: "ws://127.0.0.1:7319")
+    private let url = URL(string: "ws://127.0.0.1:\(EngineClient.ipcPort)")
     private var socket: URLSessionWebSocketTask?
+
+    /// The engine's WebSocket port (IPC-08): `--ipc-port <n>` (1...65535), else 7319.
+    nonisolated static let ipcPort: Int = {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--ipc-port") else { return 7319 }
+        if i + 1 < args.count, let n = Int(args[i + 1]), (1...65535).contains(n) { return n }
+        FileHandle.standardError.write(Data("ignoring invalid --ipc-port, using 7319\n".utf8))
+        return 7319
+    }()
+
+    /// The protocol version this app speaks (IPC-41); the one place to bump.
+    nonisolated static let protocolVersion = 0
+    /// The engine's version ("v1", or "no version") while its snapshot named another; nothing
+    /// from it is shown.
+    @Published private(set) var protocolMismatch: String?
 
     init() {
         rebuildSlots()
@@ -1537,7 +1557,7 @@ final class EngineClient: ObservableObject {
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
-              let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": 0, "cmd": cmd]) { a, _ in a }),
+              let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": Self.protocolVersion, "cmd": cmd]) { a, _ in a }),
               let text = String(data: data, encoding: .utf8) else { return }
         socket.send(.string(text)) { error in
             if error != nil { socket.cancel(with: .goingAway, reason: nil) }
@@ -1545,14 +1565,14 @@ final class EngineClient: ObservableObject {
     }
 
     private struct FaderSet: Encodable {
-        let v = 0
+        let v = EngineClient.protocolVersion
         let cmd = "fader.set"
         let playback: Int
         let level: Double
     }
 
     private struct GrandMasterSet: Encodable {
-        let v = 0
+        let v = EngineClient.protocolVersion
         let cmd = "grand_master.set"
         let level: Double
     }
@@ -1602,6 +1622,7 @@ final class EngineClient: ObservableObject {
     /// Union of all server message shapes; unused fields stay nil.
     private struct Incoming: Decodable {
         let type: String
+        let v: Int?
         fileprivate let page: Tolerant<PageState>?
         let fadersPerPage: Int?
         let grandMaster: Double?
@@ -1628,7 +1649,7 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
+            case type, v, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -1643,8 +1664,18 @@ final class EngineClient: ObservableObject {
               let incoming = try? JSONDecoder().decode(Incoming.self, from: data)
         else { return }
 
+        // IPC-41: after a version mismatch nothing but a matching snapshot is applied.
+        if incoming.type != "snapshot", protocolMismatch != nil { return }
         switch incoming.type {
         case "snapshot":
+            if incoming.v != Self.protocolVersion {
+                protocolMismatch = incoming.v.map { "v\($0)" } ?? "no version"
+                let task = socket
+                socket = nil
+                task?.cancel(with: .goingAway, reason: nil)
+                return
+            }
+            protocolMismatch = nil
             releaseTasks.values.forEach { $0.cancel() }; releaseTasks = [:]
             heldFaders = [:]; settling = []; lastSent = [:]
             gmHeld = false; gmSettling = false; gmLastSent = nil; gmEngineLevel = nil
@@ -1768,7 +1799,7 @@ final class EngineClient: ObservableObject {
         var state = playbackLive[id] ?? PlaybackLive()
         state.flash = new.flash; state.latched = new.latched; state.fired = new.fired
         state.state = new.state
-        state.cue = new.cue; state.bpm = new.bpm
+        state.cue = new.cue; state.bpm = new.bpm; state.multiplier = new.multiplier
         if heldFaders[id] != nil {
             heldFaders[id] = .some(new.level.clamped01)
         } else {

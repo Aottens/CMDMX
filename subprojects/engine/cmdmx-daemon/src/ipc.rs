@@ -56,6 +56,9 @@ use crate::shows::{valid_name, Opened, ShowRequest, ShowState, Shows};
 /// Messages a client may have queued before it is disconnected (IPC-07).
 const QUEUE: usize = 64;
 
+/// The protocol version this engine speaks; a command naming another is refused (IPC-41).
+pub const PROTOCOL: u64 = 0;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     /// CTL-40: handled by the control layer on the tick, never by the engine.
@@ -914,8 +917,18 @@ pub fn stamp(cmd: Command, at: f64) -> Command {
 /// IPC-04/06/13: one JSON text frame to a command, or a human-readable error.
 pub fn parse_command(text: &str) -> Result<Command, String> {
     let v: serde_json::Value = serde_json::from_str(text).map_err(|e| format!("bad JSON: {e}"))?;
-    if v.get("v").and_then(|n| n.as_u64()) != Some(0) {
-        return Err("missing or unsupported \"v\" (expected 0)".into());
+    match v.get("v").and_then(|n| n.as_u64()) {
+        Some(PROTOCOL) => {}
+        Some(other) => {
+            return Err(format!(
+                "protocol v{other} not supported, this engine speaks v{PROTOCOL}"
+            ))
+        }
+        None => {
+            return Err(format!(
+                "missing or invalid \"v\" (this engine speaks v{PROTOCOL})"
+            ))
+        }
     }
     let level = || {
         v.get("level")
@@ -1538,6 +1551,8 @@ struct LiveInfo {
     cue: Option<CueLive>,
     /// CUE-40, IPC-28: the effective BPM of a chase or BPM master.
     bpm: Option<f32>,
+    /// CUE-44, IPC-28: the effective multiplier of a BPM master.
+    multiplier: Option<f32>,
 }
 
 /// CUE-40: `ListLive` on the wire.
@@ -1701,6 +1716,7 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
         paused: l.paused,
     });
     let bpm = engine.effective_bpm(id);
+    let multiplier = engine.effective_multiplier(id);
     let Some(s) = engine.playback_state(id) else {
         return LiveInfo {
             level: 0.0,
@@ -1710,6 +1726,7 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
             fired: None,
             cue,
             bpm,
+            multiplier,
         };
     };
     LiveInfo {
@@ -1726,6 +1743,7 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
         fired: s.activated,
         cue,
         bpm,
+        multiplier,
     }
 }
 
@@ -3928,6 +3946,23 @@ mod tests {
     }
 
     #[test]
+    fn ipc_41_another_version_names_both_versions() {
+        let other = PROTOCOL + 1;
+        assert_eq!(
+            parse_command(&format!(
+                r#"{{"v":{other},"cmd":"grand_master.set","level":0.5}}"#
+            )),
+            Err(format!(
+                "protocol v{other} not supported, this engine speaks v{PROTOCOL}"
+            ))
+        );
+        assert!(parse_command(&format!(
+            r#"{{"v":{PROTOCOL},"cmd":"grand_master.set","level":0.5}}"#
+        ))
+        .is_ok());
+    }
+
+    #[test]
     fn ipc_05_deltas_only_for_changed_items() {
         let mut e = engine();
         let mut published = Published::new(&e, &[], &show_state());
@@ -3944,7 +3979,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.5,"state":"active",
-                   "flash":false,"latched":false,"cue":null,"bpm":null})
+                   "flash":false,"latched":false,"cue":null,"bpm":null,"multiplier":null})
         );
         e.tick(0.05);
         assert!(
@@ -4518,7 +4553,7 @@ mod tests {
                         "speed_source":"Free"},
                "master":null,
                "buttons":["Swop","Flash"],
-               "cue":null,"bpm":null})
+               "cue":null,"bpm":null,"multiplier":null})
     }
 
     #[test]
@@ -4591,7 +4626,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
-                   "flash":true,"latched":false,"cue":null,"bpm":null})
+                   "flash":true,"latched":false,"cue":null,"bpm":null,"multiplier":null})
         );
         e.set_flash(1, false, 0.025).unwrap();
         e.latch_flash(1, 0.025).unwrap();
@@ -4602,7 +4637,7 @@ mod tests {
         assert_eq!(
             v,
             json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
-                   "flash":true,"latched":true,"cue":null,"bpm":null}),
+                   "flash":true,"latched":true,"cue":null,"bpm":null,"multiplier":null}),
             "flash means held or latched"
         );
     }
@@ -5156,6 +5191,50 @@ mod tests {
         assert_eq!(m["bpm"], json!(120.0));
         assert_eq!(m["buttons"], json!(["None", "Tap"]));
         assert_eq!(m["cue"], json!(null));
+    }
+
+    #[test]
+    fn ipc_28_a_bpm_master_sends_its_effective_multiplier() {
+        let mut e = list_engine();
+        e.add_playback(Playback {
+            kind: Kind::Chase,
+            cues: vec![Cue::new(dimmer(1, 1.0)), Cue::new(dimmer(2, 1.0))],
+            ..Playback::new(3, 1, 3, BTreeMap::new())
+        });
+        let master = e.record_master(1, 4, MasterKind::Bpm, 1).unwrap();
+        let bpm = cmdmx_core::playback::BpmMaster {
+            number: 1,
+            bpm: 120.0,
+            multiplier: 1.0,
+            fader: BpmFader::Multiplier,
+            fader_max: 240.0,
+        };
+        let change = PlaybackChange {
+            master: Some(Master::Bpm(bpm)),
+            ..PlaybackChange::default()
+        };
+        e.change_playback(master, &change).unwrap();
+        e.set_fader(master, 0.7, 0.0).unwrap(); // zone ×2
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
+        let m = entry(&v, u64::from(master));
+        assert_eq!(
+            m["multiplier"],
+            json!(2.0),
+            "the fader's zone, not the stored ×1"
+        );
+        assert_eq!(
+            m["master"]["multiplier"],
+            json!(1.0),
+            "the stored one is unchanged"
+        );
+        assert_eq!(m["bpm"], json!(240.0));
+        assert_eq!(entry(&v, 3)["multiplier"], json!(null), "only BPM masters");
     }
 
     #[test]

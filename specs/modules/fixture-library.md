@@ -84,7 +84,7 @@ model, and a show carries the profiles it uses.
   per-cell control exists. In the engine: a fixture attribute drives the mode's attribute of that
   name and the same-named attribute of every cell; Colour drives the mode's and every cell's
   mixing channels. Per-cell selection (`201.2`, Unfold) is a programmer task with its own
-  PRG criteria; the model does not change for it.
+  PRG criteria (PRG-46..55); the model does not change for it.
 - **LIB-15** Wheel-type channels keep their slots (and, by LIB-18, every channel with two or more ranges): for each QLC+ capability range its name, and for
   colour-wheel slots its colour (QLC+ `Res1`/colour hint) converted to a target colour (ADR-005),
   so a target colour can later pick the nearest slot. `ColorWheel` → Colour Wheel (C) with slots;

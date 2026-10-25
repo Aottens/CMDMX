@@ -43,7 +43,7 @@ struct Cell: View {
             Rectangle().fill(empty ? Color.clear : t.surf)
 
             if let number {
-                Text("\(number)").font(Typo.mono(Typo.small))
+                Text(String(number)).font(Typo.mono(Typo.small))
                     .foregroundStyle(selected ? t.blue.opacity(dimmed ? 0.4 : 1) : empty ? (armed ? t.red : t.fg3) : t.fg2)
                     .padding(.leading, 4).padding(.top, 4)
             } else if armed {
@@ -83,7 +83,7 @@ struct Cell: View {
         .frame(maxWidth: .infinity).frame(height: 72)
         .overlay(alignment: .topTrailing) {
             if let order {
-                Text("\(order)").font(Typo.mono(Typo.small, .semibold)).foregroundStyle(t.blue.opacity(dimmed ? 0.4 : 1)).padding(4)
+                Text(String(order)).font(Typo.mono(Typo.small, .semibold)).foregroundStyle(t.blue.opacity(dimmed ? 0.4 : 1)).padding(4)
             } else if let tag {
                 Text(tag.uppercased()).font(Typo.mono(9, .medium)).tracking(0.5).foregroundStyle(t.fg2).padding(4)
             }
@@ -175,7 +175,7 @@ struct FixturesWindow: View {
                 if pageCount > 1 {
                     HStack(spacing: 2) {
                         ForEach(0..<pageCount, id: \.self) { p in
-                            Button("\(p + 1)") { page = p }.buttonStyle(FlatButton(fill: p == shown ? .blue : nil, compact: true))
+                            Button(String(p + 1)) { page = p }.buttonStyle(FlatButton(fill: p == shown ? .blue : nil, compact: true))
                         }
                     }
                 }

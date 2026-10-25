@@ -154,7 +154,7 @@ struct AttributeBar: View {
                 .truncationMode(.tail).frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 4) {
-                Text(!programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
+                Text(verbatim: !programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
                     .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
                     .lineLimit(1).padding(.horizontal, 8).frame(minWidth: 90, alignment: .leading)
                 Button("Undo") { ui.learnOrRun("key undo", engine) { engine.undo() } }.disabled(engine.undoLabel == nil && !ui.learnMode).help(engine.undoLabel.map { "Undo: \($0) · ⌘Z" } ?? "Nothing to undo")
@@ -260,7 +260,7 @@ private struct WheelFace: View {
                 .padding(.leading, 6).padding(.top, 4)
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) { onNameDoubleClick?() }
-            Text("enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
+            Text(verbatim: "enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 6).padding(.top, 4)
             Text(text).font(Typo.mono(15, .medium))
                 .foregroundStyle(value == nil ? t.fg3 : fromPalette ? t.cyan : touched ? t.red : t.fg).lineLimit(1)

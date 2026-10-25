@@ -461,7 +461,7 @@ private struct ProfileDocEditor: View {
                 Button("▲") { moveChannel(-1) }.buttonStyle(FlatButton()).disabled(selCh == nil)
                 Button("▼") { moveChannel(1) }.buttonStyle(FlatButton()).disabled(selCh == nil)
                 Spacer()
-                Text("\(m.footprint) channels").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
+                Text(verbatim: "\(m.footprint) channels").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
             }
             .padding(8)
         }
@@ -483,7 +483,7 @@ private struct ProfileDocEditor: View {
         let coarse = r.entry.map { !$0.fine } ?? false
         let tag: String? = !coarse ? nil : (a?.group ?? (r.entry.flatMap { role(m, $0) } != nil ? "C" : nil))
         return HStack(spacing: 6) {
-            Text("\(r.channel)").font(Typo.mono()).frame(width: 34, alignment: .leading)
+            Text(String(r.channel)).font(Typo.mono()).frame(width: 34, alignment: .leading)
             Text(r.entry.map { label(m, $0) } ?? "—").lineLimit(1)
                 .foregroundStyle(r.entry == nil ? t.fg3 : t.fg).frame(maxWidth: .infinity, alignment: .leading)
             Group {
@@ -526,10 +526,10 @@ private struct ProfileDocEditor: View {
     private func properties(_ m: ModeDoc, _ e: ChannelEntry) -> some View {
         if e.fine {
             let owner = attribute(m, e)?.name ?? role(m, e).map { "\($0) (colour)" } ?? "?"
-            Text("Channel \(e.channel): fine of \(owner)").font(Typo.ui(Typo.large, .medium))
+            Text(verbatim: "Channel \(e.channel): fine of \(owner)").font(Typo.ui(Typo.large, .medium))
             Text("The fine byte has no fields of its own.").font(Typo.ui(11)).foregroundStyle(t.fg2)
         } else if case let .attr(i) = e.ref, let a = m.attributes[safe: i] {
-            Text("Channel \(e.channel)").font(Typo.ui(Typo.large, .medium))
+            Text(verbatim: "Channel \(e.channel)").font(Typo.ui(Typo.large, .medium))
             labelled("Name") { TextField("", text: attrBinding(i, \.name, "")).textFieldStyle(.roundedBorder) }
             labelled("Group") {
                 Picker("", selection: attrBinding(i, \.group, "S")) {
@@ -549,10 +549,10 @@ private struct ProfileDocEditor: View {
             LevelRow(label: "Locate", optional: true, value: levelBinding(i, \.locate))
             LevelRow(label: "Highlight", optional: true, value: levelBinding(i, \.highlight))
         } else if let r = role(m, e) {
-            Text("Channel \(e.channel): \(r) (colour component)").font(Typo.ui(Typo.large, .medium))
+            Text(verbatim: "Channel \(e.channel): \(r) (colour component)").font(Typo.ui(Typo.large, .medium))
             Text("Part of the colour mixing system; the role stays as it is.").font(Typo.ui(11)).foregroundStyle(t.fg2)
         } else if let a = attribute(m, e) {
-            Text("Channel \(e.channel): \(label(m, e))").font(Typo.ui(Typo.large, .medium))
+            Text(verbatim: "Channel \(e.channel): \(label(m, e))").font(Typo.ui(Typo.large, .medium))
             Text("\(a.group) · \(a.kind == "Htp" ? "HTP" : "LTP") · cells are read-only here.")
                 .font(Typo.ui(11)).foregroundStyle(t.fg2)
         }
@@ -802,7 +802,7 @@ private struct ChannelListEditor: View {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(channels.enumerated()), id: \.offset) { n, c in
                         HStack(spacing: 6) {
-                            Text("\(n + 1)").font(Typo.mono()).frame(width: 34, alignment: .leading)
+                            Text(String(n + 1)).font(Typo.mono()).frame(width: 34, alignment: .leading)
                             Text(c.label).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .font(Typo.ui(11))
@@ -829,7 +829,7 @@ private struct ChannelListEditor: View {
                 Button("▲") { move(-1) }.buttonStyle(FlatButton()).disabled(selected == nil)
                 Button("▼") { move(1) }.buttonStyle(FlatButton()).disabled(selected == nil)
                 Spacer()
-                Text("\(channels.count) channels").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
+                Text(verbatim: "\(channels.count) channels").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
             }
             .padding(8)
         }

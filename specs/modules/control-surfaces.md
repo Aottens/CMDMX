@@ -1,8 +1,9 @@
 # Module spec: control-surfaces (CTL)
 
 Owner: `cmdmx-control` (pure: MIDI and OSC decode/encode, mappings, pickup, feedback, learn) and
-`cmdmx-daemon` (CoreMIDI ports, the OSC socket, mapping files, IPC). Status: **CTL-05..43
-approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
+`cmdmx-daemon` (CoreMIDI ports, the OSC socket, Stream Decks over USB HID, mapping files, IPC). Status: **CTL-05..43
+approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions); **CTL-44..58 (Stream Deck) approved
+by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
 and already tested in `cmdmx-control/src/mcu.rs`; they now belong to the Mackie Control profile.
 Scope set by the owner on 2026-10-23 (DECISIONS): a **general MIDI and OSC control layer**; named
 hardware (the BCF2000) and named clients (the church TouchOSC remote) are profiles and clients on
@@ -25,6 +26,7 @@ Learn, stored as readable files and travel between Macs.
 ## Definitions
 - **Device:** a MIDI input (CoreMIDI source) together with the output (destination) of the same
   name, if there is one. Identified by its name; a second device with the same name is `name #2`.
+  A Stream Deck is a device too (CTL-44).
 - **Input:** one control on a device: `{kind, channel, number}` with kind `note`, `cc`, `cc14`
   (MSB on CC 0..31 with its LSB on CC +32), `pitchbend` or `program`; channel 1..16; `number` the
   note, CC or program (none for pitchbend). For OSC the input is an address.
@@ -60,9 +62,14 @@ Learn, stored as readable files and travel between Macs.
   | `keypad <token>`: `0`–`9`, `.`, `@`, `Thro`, `And`, `Not`, `Fixture`, `Group`, `Palette`, `Full`, `Enter`, `Backspace` | button | the token into the command line as the screen keypad does (UI-17) |
   | `wheel <n>` | relative | `programmer.wheel` on the n-th wheel of the active attribute group (`wheels`, IPC-11) |
   | `attribute_group <I\|P\|C\|G\|B\|E\|S\|FX>` | button | `programmer.attribute_group` |
+  | `fan`, `fan <line\|mirror\|wings\|arrow>`, `fan off` (CTL-59) | button | `programmer.fan` |
   | `group <id>`, `palette <id>` | button | select the group / apply the palette as its window button does |
 
   New actions are added to this table by later criteria, never as free-form commands.
+- **CTL-59** Fan (P1-20, PRG-56). `fan` toggles Fan as the Fan key does, `fan <curve>` turns it on
+  with that curve, `fan off` turns it off (IPC-43). A `wheel <n>` binding needs nothing new: Fan
+  is engine state, so encoder turns fan while it is on. Its feedback is on while `fan` is not
+  `null` (`fan <curve>`: while that curve is on), like the `highlight` key LED.
 - **CTL-06** An action runs with the class of its command (UNDO-04): a fader move is live and never
   in the history; `keypad Enter` that records is an edit and undoable. A refusal is a warning in
   the message zone with the device name (`BCF2000: page 11 does not exist`), as for any client.
@@ -280,26 +287,147 @@ Learn, stored as readable files and travel between Macs.
 - **CTL-43** Status bar: a `Control` dot with the worst state of the enabled devices and OSC
   (Missing = amber); hover lists those not Ok.
 
+### Stream Deck (native USB HID; IDEA-22, P1-19, ADR-009)
+An Elgato Stream Deck is a device on this layer like a MIDI device: its keys, dials and touch
+areas are inputs, bound to CTL-05 actions in a mapping, learned (CTL-25) and given feedback. Its
+feedback is a **key image** instead of an LED or a motor.
+
+- **CTL-44** Route: the daemon drives Stream Decks itself over USB HID (`hidapi`, ADR-009) on its
+  own `deck` thread, as MIDI runs on the `midi` thread (CTL-14). No Elgato app, plugin or driver,
+  no admin rights. A deck is listed in the CTL-08 device table with `kind: "streamdeck"`; its name
+  is the model name and the last 4 characters of its USB serial number
+  (`Stream Deck XL (A1B2)`), so two decks of one model keep their own mapping whichever port they
+  are in. A deck without a serial number falls back to CTL-08's `name #2` numbering.
+- **CTL-45** Models are configuration, never code: a model table
+  `subprojects/engine/profiles/streamdeck-models.json`, built into the daemon, holds per USB
+  product id (vendor `0x0fd9`): name, `cols`, `rows`, key image size in pixels, image format
+  (`jpeg` or `bmp`), rotation and flip, the report family (the packet layout), `verified`, and
+  extras: `dials`, `touch_keys`, `strip` (w × h) and `info` (w × h). Nothing in the code assumes
+  15 keys, 72 px or one layout. The phase-1 table: Original (15 keys, 72 px BMP), Original V2 and
+  MK.2 (15, 72 px JPEG), Mini and Mini MK.2 (6, 80 px BMP), XL and XL V2 (32, 96 px JPEG),
+  Neo (8, 96 px JPEG; 2 touch keys; info screen 248 × 58), Stream Deck + (8, 120 px JPEG; 4 dials;
+  touch strip 800 × 100), Pedal (3 pedals, no images). A model passed in a gate-3 run is
+  `verified: true`; the others are listed as `untested` in the device table but work the same. An
+  Elgato product id not in the table is listed `Unsupported` with one warning and is not opened.
+- **CTL-46** The Elgato app and other programs: a deck seen for the first time is `Disabled`
+  (CTL-24) and is **not opened**, so another program can keep it. Enabled, the daemon opens it
+  exclusively. When another program holds it, the deck is `Busy` with one warning
+  (`Stream Deck XL (A1B2) is in use by another app; quit the Elgato Stream Deck app`), the daemon
+  tries again every 2 s, and the deck becomes `Ok` once it is free. Disabling a deck blanks its
+  keys and closes it at once. `Busy` and `Unsupported` count as not Ok for the status dot (CTL-43,
+  amber).
+- **CTL-47** Inputs, numbered as printed on the model, left to right and top to bottom from 1:
+  `{"kind":"key","number":n}` per key or pedal (button, CTL-12 modes apply);
+  `{"kind":"touch","number":n}` per Neo touch key (button); `{"kind":"dial","number":n}` per
+  Stream Deck + dial (relative, signed steps per report, CTL-07 relative rules) and
+  `{"kind":"dial_push","number":n}` (button); `{"kind":"strip","number":n}`, a short tap on the
+  n-th of `dials` equal segments of the touch strip (press and release at once). Long press and
+  drag on the strip are ignored in phase 1. Input text in messages: `Stream Deck XL (A1B2) key 5`.
+  Reports that do not parse are ignored and counted (CTL-15).
+- **CTL-48** Deck pages: a deck mapping holds bindings in the CTL-22 format; a key binding may
+  carry `"deck_page": n` (default 1). New actions in the CTL-05 catalogue: `deck page next`,
+  `deck page prev`, `deck page <n>` (button; no engine command; they switch the pages of the deck
+  that sent them and do nothing from any other device). A deck has as many pages as the highest
+  `deck_page` in its mapping; `next` on the last and `prev` on page 1 do nothing. The deck page is
+  per deck, starts at 1 and is not saved. Changing the deck page sends that page's full feedback
+  (CTL-21). A "folder" is a key bound to `deck page <n>` with a key on page n bound back.
+  Handle-relative actions (`upper 3`, `fader 3`) follow the console page as on every device
+  (CTL-21); the deck page only chooses which bindings the keys show.
+- **CTL-49** Default deck mapping: a deck enabled without a mapping gets a generated read-only
+  profile `Stream Deck <model>` (CTL-30 rules: editing saves a user copy). With K keys: when
+  K ≥ 8 the last three keys are `page prev`, `page next`, `go`, else the last key is `go`; the
+  keys from 1 get `upper 1 … upper n`, n = the smaller of the keys left and `faders_per_page`
+  (never assumed 8); other keys stay unbound. Pedal: 1 `back`, 2 `go`, 3 `stop`. Neo touch keys:
+  `deck page prev`, `deck page next`. Stream Deck + dials: `wheel 1..4`, dial pushes unbound.
+  Examples: MK.2 (15) with 10 per page: keys 1–10 `upper 1–10`, 11–12 unbound, 13–15 page prev,
+  page next, go; Mini (6) with 8 per page: keys 1–5 `upper 1–5`, key 6 `go`.
+- **CTL-50** Key image, the feedback kind of a key binding (on by default, `feedback: false` makes
+  the key black). The daemon builds a **key look** per key from the state CTL-17 already knows:
+  - **playback actions** (`upper`, `lower`, `fader`, `go`, `back`, `stop`, `release`, `tap` on a
+    slot or playback): a top bar in the playback's halo (PBK-33; no halo, no bar), the legend
+    (PBK-31; empty legend: `PB <id>`), under it the button's function in small text (`Flash`,
+    `Swop`, `Go`, … as CUE-25 sets the handle button, or the action word), a level bar along the
+    bottom with the playback's level, and the state: **active** (level > 0 or running) at full
+    brightness, inactive dimmed to 40 %, **held** (Flash or Swop held through this key) inverted.
+    An empty slot is a black key.
+  - **other actions**: a label (`Go`, `Page 2`, `Clear`, `GM`, `Deck 2`; a group or palette its
+    name) and the CTL-17 LED state as active/inactive; continuous actions (`gm`, `playback <id>
+    level`) also show the level bar.
+  - per binding `label` replaces the legend and `colour` (sRGB) replaces the halo.
+  - an unbound key is black.
+  The legend wraps over at most 3 lines and the text shrinks to fit the model's key size; what
+  still does not fit ends in `…`.
+- **CTL-51** Rendering is pure: `cmdmx-control` turns a key look and a model entry into the image
+  bytes the model wants (size, rotation, flip, JPEG or BMP), with one font built in (open licence,
+  ADR-009). Same look and model, same bytes (golden tests per image size). The tick only compares
+  looks; rendering and USB writes happen on the deck thread.
+- **CTL-52** Image feedback timing: CTL-19..21 apply with the key look as the value. The level in
+  a look is rounded to the level bar's pixel width, so a slow fade changes a key only when the bar
+  moves. The deck thread keeps only the newest look per key: a deck that cannot keep up skips
+  intermediate images, never queues them, and the tick never waits for USB. Full feedback on
+  attach, reattach, mapping change, deck page change and console page change (CTL-21).
+- **CTL-53** Brightness per deck, 0–100 (default 70), kept in `state.json` under the deck's
+  `control.devices` entry and set by `control.deck {device, brightness}` (added to CTL-40, class
+  neutral). Disabling a deck or quitting the daemon blanks its keys first.
+- **CTL-54** Show-proof: an unplugged deck goes `Missing` (CTL-16), its mapping kept; plugged back
+  in it is `Ok` within 2 s with its full images. A failed write counts as unplugged. A panic in the
+  deck thread is caught, logged once, the decks go `Missing` and the thread starts again; MIDI,
+  OSC and output keep running.
+- **CTL-55** Stream Deck + and Neo extras: the touch strip shows one segment per dial with the
+  label and value of what that dial is bound to (a wheel: its attribute name and value; a level:
+  the legend and level); the Neo info screen shows the current page (`2 Service`) and the next cue
+  of the connected list (`"<number> <legend>"`, as CTL-37). Both follow CTL-52's timing.
+- **CTL-56** Learn: a deck key, touch key, dial push or strip tap qualifies at once, a dial after
+  one step (CTL-25). It binds on the deck's current deck page:
+  `Learned: Stream Deck XL (A1B2) key 5 → upper 3`. CTL-27 applies per deck page.
+- **CTL-57** IPC: a deck in the snapshot's `control.devices` adds `kind`, `model`, `verified`,
+  `cols`, `rows`, `extras` (`dials`, `touch_keys`, `strip`, `info`), `deck_page`, `deck_pages`,
+  `brightness` and `keys`: the looks of the current deck page
+  (`[{"key":5,"label":"Wash","sub":"Flash","halo":"#ff3000","level":0.5,"state":"active"}]`), so
+  the app draws the deck itself. States may be `Busy` and `Unsupported`. A `control` delta carries
+  changed looks, at most 10 per second per deck (CTL-39).
+- **CTL-58** App: selecting a deck in the Control screen shows it as the model draws it (`cols` ×
+  `rows` keys, the Neo touch keys and info screen, the + dials and strip), each key drawn from its
+  look, with a deck page selector (`+` adds a page) and the brightness. Linking:
+  - **drag** onto a key: a playback handle → `upper <slot>` (follows the page; with ⌥ held
+    `upper <page>.<slot>`, fixed); a Go block key → `go`/`back`/`stop`/`release`; a page button →
+    `page <n>`; a group or palette button → `group <id>`/`palette <id>`; the GM → `gm`;
+    a key onto another key moves the binding (swaps when the other key is bound). Dropping on a
+    bound key replaces it and says so (`key 5 was go`, CTL-27);
+  - **right-click** a key: the action menu of the bindings table, Label, Colour, Remove;
+  - **Learn** (CTL-42): click a console control, then press the deck key.
+  The bindings table (CTL-41) lists deck bindings too, with their deck page.
+
 ## Where the code lives
 - `cmdmx-control` (pure, no ports, no clock): MIDI decode (CTL-09..12), mapping model and JSON
   (CTL-22), action catalogue and parsing (CTL-05), conversion and pickup (CTL-07, 13), feedback
   diffing (CTL-17..21), the learn guess (CTL-26), the Mackie Control driver (CTL-01..04, 31..33)
-  and an own OSC 1.0 codec (CTL-34; small, byte-exact tested like the Art-Net framing).
+  and an own OSC 1.0 codec (CTL-34; small, byte-exact tested like the Art-Net framing); for
+  Stream Decks the model table, the HID report codec (inputs, image packets, brightness), key
+  looks, the key image renderer and the default deck mapping (CTL-45, 47..52, 55).
 - `cmdmx-daemon`: CoreMIDI through `midir` (planned in ARCHITECTURE), hotplug polling, the UDP
   socket, mapping files and `state.json`, turning actions into commands on the command channel,
-  sending feedback after each tick, the `control.*` commands.
+  sending feedback after each tick, the `control.*` commands; the `deck` thread through `hidapi`
+  (open, Busy retry, hotplug, writes; CTL-44, 46, 53, 54).
 
 ## Tests
 Unit tests in `cmdmx-control` carry the criterion ids (`ctl_11_twos_complement_decodes_minus_3`);
 the daemon gets a test with a virtual CoreMIDI port and a loopback OSC socket (CTL-14, 16, 36, 37);
 hardware lines stay in `tests/hardware/bcf2000.md` (gate 3) and a new `tests/hardware/touchosc.md`
-for the church remote (VS4-04).
+for the church remote (VS4-04). Stream Deck: report decode and image packets byte-exact against
+reference captures, golden images per key size (CTL-51), the deck thread against a fake HID
+device (Busy, unplug, slow writes; CTL-46, 52, 54); `tests/hardware/streamdeck.md` on the
+owner's deck (gate 3), which also records whether macOS asks for Input Monitoring.
 
 ## Out of scope (phase 1)
 MIDI Show Control, MIDI clock and MTC (cue triggers and sync: IDEA-16 and timecode, later phases,
 owner decision 7); MIDI or OSC sent by cues (macros); NRPN; Mackie
 Control scribble strips and the 7-segment display (X-Touch legends, later task); HUI; the own web
-remote (IDEA-06, phase 2); DMX-in and audio triggers (Titan has them; later phase); OSC over TCP.
+remote (IDEA-06, phase 2); DMX-in and audio triggers (Titan has them; later phase); OSC over TCP;
+an Elgato Stream Deck plugin (ADR-009; the Elgato app or Bitfocus Companion can already send OSC
+to `/cmdmx`, CTL-36); playback icons on deck keys (later task); long press and drag on the
+Stream Deck + strip; Stream Deck Studio and + XL (added to the model table when someone verifies
+them).
 
 ## Owner decisions (P1-05, 2026-10-23: 1–7, 9, 10 as proposed; 8 answered)
 1. Mappings live per Mac in `Application Support/…/control/`, exportable as a file; not in the show (CTL-23).
@@ -311,9 +439,27 @@ remote (IDEA-06, phase 2); DMX-in and audio triggers (Titan has them; later phas
 7. MIDI Show Control is phase 2 (with IDEA-16 and timecode).
 8. The church TouchOSC layout runs on a very old iPad mini; the owner does not know yet how to
    get the `.tosc` out. VS4-04 tries to export it and bind its addresses (CTL-38); if that fails,
-   a new TouchOSC layout is built on the `/cmdmx` schema (CTL-36).
+   a new TouchOSC layout is built on the `/cmdmx` schema (CTL-36). **Amended 2026-10-24
+   (owner):** VS4-04 builds a new layout tailored to ColourmotionDMX on `/cmdmx`; the old layout
+   is not exported. CTL-38 stays for other people's layouts.
 9. Mackie Control defaults as in CTL-33.
 10. `midir` for CoreMIDI and an own OSC 1.0 codec in `cmdmx-control` (no `rosc`).
+
+## Owner decisions (P1-19, Stream Deck, 2026-10-25: all nine as recommended)
+1. Native USB HID from the daemon, no Elgato plugin (CTL-44, ADR-009).
+2. A deck stays closed until it is enabled; enabled, it is opened exclusively and shows `Busy`
+   while the Elgato app holds it (CTL-46).
+3. Models as a configuration table; only the owner's model is verified on hardware, the others
+   are `untested` (CTL-45). Which model the owner has is named in `tests/hardware/streamdeck.md`.
+4. A dragged playback becomes its handle's `upper` button, so the key does what the handle's
+   button does (Flash, Swop, Go; CTL-58).
+5. Key image: halo bar, legend, level bar and state; icons later (CTL-50).
+6. Handle-bound keys follow the console page; decks have their own pages, a folder is a key to a
+   deck page (CTL-48).
+7. Link by drag and by Learn (CTL-56, 58).
+8. Stream Deck + dials and strip and the Neo extras in a separate, last build task (CTL-55).
+9. The daemon renders the images (decks work without the app), with `hidapi`, a font rasterizer
+   and a JPEG encoder as new dependencies (CTL-51, ADR-009).
 
 ## Build tasks (`BACKLOG.md`, sized after approval)
 - **VS7-01** `cmdmx-control`: generic MIDI decode, mapping model and JSON, action catalogue,
@@ -329,5 +475,16 @@ remote (IDEA-06, phase 2); DMX-in and audio triggers (Titan has them; later phas
   Learn (CTL-35..38). Needs VS7-02.
 - **VS7-04** App: Control screen, learn mode on the main screen, status-bar dot; manual run
   (CTL-41..43). Needs VS7-02.
-- **VS4-04** (re-scoped) The church TouchOSC layout as an OSC client: its addresses bound with
-  CTL-38, `tests/hardware/touchosc.md` run in the church (gate 3). Needs VS7-03 and VS7-04.
+- **VS4-04** (re-scoped 2026-10-24) A TouchOSC layout made for ColourmotionDMX on the `/cmdmx`
+  schema (CTL-36/37), shipped in the repo, `tests/hardware/touchosc.md` run on the church iPad
+  mini (gate 3). Needs VS7-03 and VS7-04.
+- **VS7-05** `cmdmx-control`: Stream Deck model table, HID report codec, key inputs and deck
+  pages, key looks, the image renderer, the default deck mapping (CTL-45, 47..51). Needs P1-19.
+- **VS7-06** Daemon: the `deck` thread through `hidapi` (enumerate, open, Busy retry, Unsupported,
+  hotplug, newest-look writes, brightness), deck inputs to commands, image feedback, Learn, the
+  snapshot and `control.deck` (CTL-44, 46, 52..54, 56, 57). Needs VS7-05.
+- **VS7-07** App: the on-screen deck in the Control screen, drag, right-click menu, Learn, deck
+  pages; owner run and `tests/hardware/streamdeck.md` on the owner's deck (gate 3) (CTL-58).
+  Needs VS7-06.
+- **VS7-08** Stream Deck + dials and touch strip, Neo touch keys and info screen (CTL-47 extras,
+  55). Needs VS7-06; gate 3 only on a model someone owns.

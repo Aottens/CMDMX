@@ -14,7 +14,8 @@ enum PlaybackOptionsTab: String, CaseIterable {
 
     static func tabs(for playback: PlaybackInfo) -> [PlaybackOptionsTab] {
         if playback.stored.isMaster { return [.handle, .master, .settings] }
-        return [.fader, .times, .release, .playback, .handle, .cueList] + (playback.isChase ? [.chase] : []) + [.settings]
+        let memory = !playback.isChase && !playback.isCueList // CUE-15, 31: no fader modes on lists
+        return (memory ? [.fader] : []) + [.times, .release, .playback, .handle, .cueList] + (playback.isChase ? [.chase] : []) + [.settings]
     }
 }
 
@@ -234,9 +235,11 @@ private struct TimesTab: View {
                 }
             }
         }
-        OptionRow(label: "Track", note: "What the cue does with the values before it (tracking lists).") {
-            Choice(options: [("Track", "Track"), ("Block", "Block"), ("Cue only", "CueOnly"), ("Solo", "Solo")], selected: cue.track) {
-                engine.setCueTrack(id, cue: cue.number, track: $0)
+        if !playback.isChase {
+            OptionRow(label: "Track", note: "What the cue does with the values before it (tracking lists).") {
+                Choice(options: [("Track", "Track"), ("Block", "Block"), ("Cue only", "CueOnly"), ("Solo", "Solo")], selected: cue.track) {
+                    engine.setCueTrack(id, cue: cue.number, track: $0)
+                }
             }
         }
     }
@@ -244,12 +247,14 @@ private struct TimesTab: View {
     private func groupTimes(_ cue: StoredCue) -> some View {
         OptionRow(label: "Group times", note: "Delay and fade per attribute group; — uses the cue's own times.") {
             HStack(alignment: .top, spacing: 6) {
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("").frame(height: 14)
-                    Text("delay").frame(height: 24)
-                    Text("fade").frame(height: 24)
+                if !cue.groupTimes.isEmpty {
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text("").frame(height: 14)
+                        Text("delay").frame(height: 24)
+                        Text("fade").frame(height: 24)
+                    }
+                    .font(Typo.ui(11)).foregroundStyle(t.fg2)
                 }
-                .font(Typo.ui(11)).foregroundStyle(t.fg2)
                 ForEach(Array(attributeGroupOrder.prefix(7)), id: \.self) { group in groupColumn(cue, group) }
             }
         }
@@ -262,13 +267,13 @@ private struct TimesTab: View {
                 NumberField(value: time.delay, unit: "", width: 54) { send(cue, group, GroupTime(delay: $0, fade: time.fade)) }.frame(height: 24)
                 HStack(spacing: 2) {
                     NumberField(value: time.fade, unit: "", width: 54) { send(cue, group, GroupTime(delay: time.delay, fade: $0)) }
-                    Button("×") { send(cue, group, nil) }.buttonStyle(FlatButton(compact: true)).help("Back to the cue's own times")
+                    Button("×") { send(cue, group, nil) }.buttonStyle(FlatButton(compact: true)).fixedSize().help("Back to the cue's own times")
                 }
                 .frame(height: 24)
             } else {
                 Button("—") { send(cue, group, GroupTime(delay: cue.delay, fade: cue.fadeIn)) }
                     .buttonStyle(FlatButton()).help("Give \(group) its own times")
-                Spacer().frame(height: 24)
+                if !cue.groupTimes.isEmpty { Spacer().frame(height: 24) }
             }
         }
     }
@@ -377,20 +382,22 @@ private struct CueListTab: View {
                 engine.setPlaybackOptions(id, ["kind": $0])
             }
         }
-        OptionRow(label: "Tracking", note: "On: a cue holds only what changed. Off: every cue holds everything.") {
-            Choice(options: yesNo(true), selected: list.tracking) { engine.setPlaybackOptions(id, ["list": ["tracking": $0]]) }
-        }
-        OptionRow(label: "Fader", note: "What 0 means: Kill with Off keeps the cue and only the intensity goes out.") {
-            Choice(options: [("Kill with Off", "KillWithOff"), ("Kill at 0", "KillAtZero")], selected: list.fader) {
-                engine.setPlaybackOptions(id, ["list": ["fader": $0]])
+        if !playback.isChase {
+            OptionRow(label: "Tracking", note: "On: a cue holds only what changed. Off: every cue holds everything.") {
+                Choice(options: yesNo(true), selected: list.tracking) { engine.setPlaybackOptions(id, ["list": ["tracking": $0]]) }
             }
-        }
-        OptionRow(label: "Fire first cue", note: "Raising the fader of a list that is off runs its first cue.") {
-            Choice(options: yesNo(true), selected: list.fireFirstCue) { engine.setPlaybackOptions(id, ["list": ["fire_first_cue": $0]]) }
-        }
-        OptionRow(label: "Loop") {
-            Choice(options: [("Stop on final", "StopOnFinal"), ("Loop", "Loop")], selected: list.loop) {
-                engine.setPlaybackOptions(id, ["list": ["loop": $0]])
+            OptionRow(label: "Fader", note: "What 0 means: Kill with Off keeps the cue and only the intensity goes out.") {
+                Choice(options: [("Kill with Off", "KillWithOff"), ("Kill at 0", "KillAtZero")], selected: list.fader) {
+                    engine.setPlaybackOptions(id, ["list": ["fader": $0]])
+                }
+            }
+            OptionRow(label: "Fire first cue", note: "Raising the fader of a list that is off runs its first cue.") {
+                Choice(options: yesNo(true), selected: list.fireFirstCue) { engine.setPlaybackOptions(id, ["list": ["fire_first_cue": $0]]) }
+            }
+            OptionRow(label: "Loop") {
+                Choice(options: [("Stop on final", "StopOnFinal"), ("Loop", "Loop")], selected: list.loop) {
+                    engine.setPlaybackOptions(id, ["list": ["loop": $0]])
+                }
             }
         }
         OptionRow(label: "Cue numbers", note: "Renumber All makes the cues Q1, Q2, Q3 … in their order.") {
@@ -461,7 +468,7 @@ private struct MasterTab: View {
         if let m = playback.stored.master, playback.stored.isGroupMaster {
             let mode = m.mode ?? "Scale"
             OptionRow(label: "Master") {
-                Text("Group \(m.group ?? 0)").font(Typo.mono())
+                Text(verbatim: "Group \(m.group ?? 0)").font(Typo.mono())
             }
             OptionRow(label: "Mode", note: "Scale: the fader scales the group's intensity. HTP: it is a floor. Limit: it is a ceiling. Take Over: it puts a fixture in the programmer once the level reaches its intensity.") {
                 Choice(options: [("Scale", "Scale"), ("HTP", "Htp"), ("Limit", "Limit"), ("Take Over", "TakeOver")], selected: mode) {
@@ -480,7 +487,7 @@ private struct MasterTab: View {
             }
         } else if let m = playback.stored.master {
             OptionRow(label: "Master") {
-                Text("\(m.rateScale == nil ? "BPM" : "Rate") \(m.number)").font(Typo.mono())
+                Text(verbatim: "\(m.rateScale == nil ? "BPM" : "Rate") \(m.number)").font(Typo.mono())
             }
             if let rate = m.rateScale {
                 OptionRow(label: "Rate scale", note: "The fader runs a chase at 0 to this many % of its speed.") {

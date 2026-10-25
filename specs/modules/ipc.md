@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -25,11 +25,39 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   `{"v":0,"type":"playback","id":1,"level":0.5,"active":true}`, `{"v":0,"type":"grand_master","level":0.8}`. A change made by one client therefore reaches all clients, including the sender (its optimistic local value is replaced by the engine's).
 - **IPC-06** Errors: invalid JSON, an unknown `cmd`, missing fields, or `"v"` other than 0 → `{"v":0,"type":"error","message":"…"}` to that client only; the connection stays open. An engine refusal (e.g. unknown playback) → `{"v":0,"type":"warning","message":"…"}` to every client (engine warnings are shared state).
 
+- **IPC-41** Versioning (P1-06). `v` is one integer for the whole contract. It goes up only on a
+  change an older peer would misread: a key removed or renamed, a value's type, unit or meaning
+  changed, a command that changes shape. A new message type, command or key does not raise it
+  (the app ignores types and keys it does not know; the daemon answers an unknown `cmd` with an
+  `error`, IPC-06). A daemon speaks exactly one version and the app speaks exactly one; there is
+  no negotiation. When they differ:
+  - The app checks `v` of the snapshot (it always arrives first, IPC-03, so the app notices in
+    both directions). On another version it closes the connection, renders nothing from it and
+    sends nothing, and shows in place of the offline banner (UI-06): "Engine speaks protocol
+    v<n>, this app speaks v<m>: install the app and engine from the same release." It then
+    retries as when offline (IPC-08), so a restarted engine of the right version is picked up.
+  - The daemon answers a command with another `v` with an `error` to that client only, naming
+    both versions ("protocol v<n> not supported, this engine speaks v<m>"); the connection
+    stays open (IPC-06). This is the backstop for other clients (remotes, scripts).
+  - Either way the tick, DMX output, the show and every other client carry on untouched.
+
 ### Isolation (show-proof)
 - **IPC-07** Each client runs on its own thread. The tick never waits on a client: commands reach the tick through a non-blocking channel drained at the start of each tick; messages to a client go through a bounded queue (64 messages). A client whose queue is full is disconnected (it resyncs from a fresh snapshot when it reconnects). A panic in a client thread is caught and closes only that client.
+- **IPC-44** Losing a client changes nothing but that connection (VS1-08, ADR-002; approved by owner 2026-10-25).
+  When a client disappears without a close handshake (the app killed with `kill -9`, its TCP
+  connection reset or closed mid-message), every enabled node keeps sending one frame per tick
+  (OUT-03/06) with the same values: no frame is skipped (the Art-Net sequence runs on without a
+  gap), and fader levels, running cues and programmer values hold. The daemon logs at most one
+  line for it. A client that connects afterwards gets a snapshot (IPC-03) that shows that live
+  state: playback levels and states, each cue list's current cue, and the programmer. Tested on
+  the real binary with an Art-Net node to `127.0.0.1`; the app side is IPC-08 and the manual run.
 
 ### App behaviour (verified by `swift build` + `tests/manual/app-ipc.md`; no Swift test target)
 - **IPC-08** The app connects to `ws://127.0.0.1:7319` on launch. While not connected it shows the "engine offline" banner and retries every second; on (re)connect it rebuilds its state from the snapshot.
+  *(Amended 2026-10-25, VS1-08, approved by owner:)* `--ipc-port <n>` on the app's command line
+  (`open ColourmotionDMX.app --args --ipc-port 7400`) points it at another port, as the daemon's
+  IPC-01, so a test daemon runs beside the real one; default 7319. A value that is not a port
+  number is ignored with a line on stderr (the app uses 7319).
 - **IPC-09** Moving an on-screen fader sends `fader.set` (slot n → playback n for now; paging is VS1-06) and the grand master sends `grand_master.set`; the displayed levels follow the deltas. To make this testable the daemon's demo show has one dimmer per fader (playback n → channel n of universe 1), and the breathing demo on playback 1 only runs with `--demo` (so it does not fight the app's fader).
 
 ### Programmer (VS2-07; behaviour in `programmer.md`)
@@ -103,6 +131,20 @@ the PAT-09 shape.
   unchanged. Class edit, one undo step each (UNDO-04); a refusal is one `warning` and no
   `fixtures` delta; an accepted command sends one `fixtures` delta (PAT-09).
 
+- **IPC-42** Cells (P1-13, PRG-46..55; approved by owner 2026-10-25). A selection item on the wire is
+  an integer for a whole fixture (`901`, as today) or a string `"<fixture>.<cell>"` for a cell
+  (`"901.2"`). `selection`, `sub_selection` and group contents (IPC-11/12) are lists of items;
+  `contents` keys (already strings) may be `"901.2"`; each `fixtures` entry gains `cells` (count,
+  0 for none), and `in_programmer` entries become items. `programmer.select {"fixture":901,"cell":2}`
+  selects a cell (`cell` optional). A list that holds a string is a type change an older app would
+  misread, so `v` goes up to 1 with this criterion (IPC-41).
+
+- **IPC-43** Fan (P1-20, PRG-56..62; approved by owner 2026-10-25). `programmer.fan {}` toggles Fan
+  (off → on with the last curve, on → off); `programmer.fan {"curve":"Wings"}` (`Line`, `Mirror`,
+  `Wings`, `Arrow`) turns it on with that curve; `programmer.fan {"curve":null}` turns it off. An
+  unknown curve → `error` to the sender. The `programmer` snapshot and delta (IPC-11/12) gain
+  `"fan":null|"Line"|…` and `"fan_curve":"Line"`. `programmer.wheel` is unchanged: the engine fans.
+  New optional fields an older app ignores: `v` stays (IPC-41).
 ### Library browsing and the profile editor (P1-14; behaviour in `fixture-library.md` LIB-19..27, approved 2026-10-23)
 - **IPC-35** `library.manufacturers {"query":"phantom"}` (`query` optional) → to the asking client
   only `{"v":0,"type":"library.manufacturers","query":"phantom","items":[{"name":"Showtec","models":3}]}`
@@ -147,7 +189,7 @@ IPC-20..23 (output health, programmer contents, the first target's colour, absol
 saturation for the colour picker) are specified in `ui.md`, approved by the owner 2026-10-17.
 
 ## Out of scope (this version)
-Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), a colour picker or swatch (UX-02), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.
+Remote access over the LAN with a password (IDEA-06); a daemon or app that speaks more than one version (IPC-41); command acknowledgements (the result of a command is its delta, or a `warning`/`error`); binary encoding. Everything listed here before is now in: pages, playbacks, palettes, cue lists, group masters, Locate/Highlight/Off/Rem Dim/Clear, undo, output nodes, patch, library, show file, the main screen and its colour picker and keypad each have their own section in this file.
 
 ### Playbacks (VS2-22; behaviour in `playbacks.md`)
 The playback messages are specified in `playbacks.md` as PBK-35 (snapshot `playbacks` entries
@@ -191,7 +233,9 @@ The cue-list messages are specified in `cuelists.md` as CUE-40 (snapshot `playba
   say before anything changes.
 - **IPC-28** Entry shape (VS3-05): `list` and `chase` are always present, `master` is `null` except on
   masters; the live part gains `cue` (`null` except on lists) and `bpm` (the effective BPM of a
-  chase or BPM master, else `null`), so CUE-40's `effective_bpm` is this live `bpm`; the stored
+  chase or BPM master, else `null`), so CUE-40's `effective_bpm` is this live `bpm`, and
+  `multiplier` (a BPM master's effective multiplier: the fader's zone with fader `Multiplier`,
+  else the stored one; `null` on anything else; VS3-08); the stored
   part gains `buttons` (the two functions `handle_buttons` gives this handle now, e.g.
   `["Go","Flash"]`, CUE-25), so the app labels strips without knowing the setting's rules. The
   `connected` delta is `{"v":0,"type":"connected","id":1}` (`id` `null` when none).
