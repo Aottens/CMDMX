@@ -528,7 +528,8 @@ fn ctl_57_the_snapshot_describes_the_deck_and_its_keys() {
     let d = device(&s, DECK);
     assert_eq!(d["kind"], "streamdeck");
     assert_eq!(d["model"], "Stream Deck Original");
-    assert_eq!(d["verified"], false);
+    // Verified in the VS7-07 run (CTL-45).
+    assert_eq!(d["verified"], true);
     assert_eq!(d["cols"], 5);
     assert_eq!(d["rows"], 3);
     assert_eq!(
@@ -551,7 +552,11 @@ fn ctl_57_the_snapshot_describes_the_deck_and_its_keys() {
         .map(String::as_str)
         .collect();
     fields.sort_unstable();
-    assert_eq!(fields, ["halo", "key", "label", "level", "state", "sub"]);
+    assert_eq!(
+        fields,
+        ["fixed", "halo", "key", "label", "level", "state", "sub"]
+    );
+    assert_eq!(first["fixed"], false);
     assert!(!first["sub"].as_str().unwrap().is_empty());
     assert!(first["halo"].is_null() || first["halo"].as_str().unwrap().len() == 7);
     assert_eq!(first["key"], 1);
@@ -836,6 +841,8 @@ fn ctl_57_each_key_says_whether_it_is_fixed() {
             .to_string(),
     )
     .unwrap();
+    // The keys in the snapshot are the looks of the last tick.
+    c.deck_out(&e);
     let d = device(&c.snapshot(), DECK).clone();
     let key = |n: u64| {
         d["keys"]
