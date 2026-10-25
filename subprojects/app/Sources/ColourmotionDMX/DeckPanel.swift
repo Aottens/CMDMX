@@ -9,6 +9,8 @@ struct DeckPanel: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     let device: ControlDevice
+    /// Deselects the deck (CTL-58a): the Devices and OSC panels come back.
+    let onClose: () -> Void
     /// The empty page `deckPages + 1` the `+` shows; the deck itself stays on its page until a binding lands there.
     @State private var virtualPage = false
     @State private var brightness = 100.0
@@ -17,9 +19,12 @@ struct DeckPanel: View {
 
     var body: some View {
         let cols = max(1, device.cols)
-        let size = min(72, floor((500 - 4 * CGFloat(cols - 1)) / CGFloat(cols)))
+        let size = min(96, floor((500 - 4 * CGFloat(cols - 1)) / CGFloat(cols)))
         PanelWindow(title: "Deck", info: device.name, framed: true, accessory: {
             if device.state != .ok { Text(device.state.word).font(Typo.ui(11)).foregroundStyle(t.amber) }
+            Button("‹ Devices", action: onClose)
+                .buttonStyle(.plain).font(Typo.ui(11)).foregroundStyle(t.fg2)
+                .keyboardShortcut(.cancelAction)
         }) {
             VStack(alignment: .leading, spacing: 8) {
                 VStack(spacing: 4) {
@@ -201,7 +206,14 @@ struct DeckPanel: View {
     private func setAction(_ key: Int, _ action: String, bound: ControlBinding?) {
         let action = action.trimmingCharacters(in: .whitespaces)
         guard !action.isEmpty, let mapping = target() else { return }
-        engine.controlBinding(mapping, input: keyInput(key), ["deck_page": shownPage, "action": action])
+        var fields: [String: Any] = ["deck_page": shownPage, "action": action]
+        if let bound {
+            // CTL-58b: a different action drops the old look (null removes a field); the same one changes nothing.
+            if bound.action == action { return }
+            fields["label"] = NSNull()
+            fields["colour"] = NSNull()
+        }
+        engine.controlBinding(mapping, input: keyInput(key), fields)
         if bound == nil { followIfVirtual() }
     }
 

@@ -19,11 +19,13 @@ struct ControlView: View {
             topBar
             HStack(alignment: .top, spacing: 8) {
                 VStack(spacing: 8) {
-                    DevicesPanel(selected: $selected)
+                    // CTL-58a: a selected deck gets the column to itself.
                     if let deck = engine.control.devices.first(where: { $0.name == selected && $0.isDeck }) {
-                        DeckPanel(device: deck)
+                        DeckPanel(device: deck, onClose: { selected = nil })
+                    } else {
+                        DevicesPanel(selected: $selected)
+                        OSCPanel()
                     }
-                    OSCPanel()
                 }
                 .frame(width: 540)
                 BindingsPanel(mappingName: $mappingName)
