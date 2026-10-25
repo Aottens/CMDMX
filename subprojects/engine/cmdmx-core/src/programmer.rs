@@ -165,6 +165,48 @@ pub struct ProgrammerView {
     pub located: BTreeMap<FixtureId, Vec<String>>,
     /// PRG-26.
     pub highlight: bool,
+    /// PRG-56, PRG-62: Fan mode, `None` when off.
+    pub fan: Option<FanCurve>,
+    /// PRG-56: the curve the Fan key turns on.
+    pub fan_curve: FanCurve,
+}
+
+/// PRG-56: the shape of a fan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum FanCurve {
+    #[default]
+    Line,
+    Mirror,
+    Wings,
+    Arrow,
+}
+
+/// PRG-58: the factor k (-1..1) of each of `n` fan positions.
+pub fn fan_factors(curve: FanCurve, n: usize) -> Vec<f32> {
+    if n < 2 {
+        return vec![0.0; n];
+    }
+    // A line over `m` positions, position `i`; one position stays put.
+    let line = |i: usize, m: usize| {
+        if m < 2 {
+            0.0
+        } else {
+            2.0 * i as f32 / (m - 1) as f32 - 1.0
+        }
+    };
+    let half = n.div_ceil(2);
+    let wing = n / 3;
+    (0..n)
+        .map(|i| match curve {
+            FanCurve::Line => line(i, n),
+            FanCurve::Arrow => line(i, n).abs(),
+            FanCurve::Mirror => line(i.min(n - 1 - i), half),
+            FanCurve::Wings if wing == 0 => 0.0,
+            FanCurve::Wings if i < wing => -((wing - i) as f32) / wing as f32,
+            FanCurve::Wings if i >= n - wing => (i + 1 + wing - n) as f32 / wing as f32,
+            FanCurve::Wings => 0.0,
+        })
+        .collect()
 }
 
 /// PAL-13/14: a palette fade of one attribute. Live state, never saved.

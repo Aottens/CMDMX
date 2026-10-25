@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (owner: Fan first, then cells; Elgato line waived; BCF2000 postponed)_
+_Last updated: 2026-10-25 (VS2-35: Fan in the core)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -13,7 +13,7 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 (VS2-27/28) are done.
 
 ## Next
-1. VS2-35 (Fan in the core, PRG-56..62), then VS2-36 (Fan over the wire and on screen).
+1. VS2-36 (Fan over the wire and on screen: IPC-43, UI-30, CTL-59); the core fans since VS2-35.
 2. Then VS2-31..34 (cells: PRG-47, 51..55; VS2-33 raises the protocol to v1 and its run checks
    the VS1-09 mismatch line).
 3. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey

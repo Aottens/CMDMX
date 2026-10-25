@@ -23,7 +23,7 @@ use crate::playback::{
     PAGES,
 };
 use crate::profile::Profile;
-use crate::programmer::Resolution;
+use crate::programmer::{FanCurve, Resolution};
 use crate::show::ShowGroup;
 use crate::undo::History;
 use crate::{CoreError, Timestamp, UniverseId};
@@ -245,6 +245,8 @@ pub enum PrgAction {
     Locate(Vec<AttributeGroup>),
     /// PRG-26 (live, not undoable).
     Highlight(bool),
+    /// PRG-56 (live, not undoable): a curve turns Fan on, `null` off.
+    Fan(Option<FanCurve>),
     /// PRG-27.
     Off(Vec<AttributeGroup>),
     RemDim,
@@ -449,6 +451,10 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                     history.edit(&mut engine, "Locate", None, |e| e.locate(mask))?;
                 }
                 ActionKind::Prg(PrgAction::Highlight(on)) => engine.set_highlight(*on)?,
+                ActionKind::Prg(PrgAction::Fan(curve)) => {
+                    engine.set_fan(*curve);
+                    history.live(); // PRG-61: ends a wheel coalescing run
+                }
                 ActionKind::Prg(PrgAction::Off(mask)) => {
                     history.edit(&mut engine, "Off", None, |e| e.off(mask))?;
                 }
