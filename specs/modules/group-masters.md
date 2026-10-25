@@ -189,7 +189,7 @@ contents.
 Flash Fixtures, Timed Flash and Timed Flash Master with Edit Times (Titan key-profile options);
 group masters on executor or touch buttons; a Playback master, Flash/Swop masters and the
 Preset master (Pearl extras); the Scene Master (phase 2, Titan analysis); Size masters (phase 2);
-Release All Masters; masters on LTP attributes; per-cell masters (P1-13); fader pickup on a
+Release All Masters; masters on LTP attributes; per-cell masters (phase 2; cells are selectable since PRG-46..55); fader pickup on a
 physical surface (CTL).
 
 ## Owner decisions (2026-10-21: each as recommended)
