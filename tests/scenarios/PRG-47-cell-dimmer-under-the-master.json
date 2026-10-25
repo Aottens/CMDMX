@@ -1,0 +1,30 @@
+{
+  "spec": "PRG-47",
+  "profiles": {
+    "shehds": { "manufacturer": "T", "model": "Cells", "source": "channel-list", "modes": [ {
+      "name": "24ch", "footprint": 24,
+      "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 6 } ],
+      "cells": [
+        { "colour": { "system": "RGB", "components": [ { "channel": 8 }, { "channel": 9 }, { "channel": 10 } ] },
+          "attributes": [ { "name": "White", "group": "C", "kind": "Ltp", "channel": 11, "emitter": true } ] },
+        { "colour": { "system": "RGB", "components": [ { "channel": 12 }, { "channel": 13 }, { "channel": 14 } ] },
+          "attributes": [ { "name": "White", "group": "C", "kind": "Ltp", "channel": 15, "emitter": true } ] },
+        { "colour": { "system": "RGB", "components": [ { "channel": 16 }, { "channel": 17 }, { "channel": 18 } ] },
+          "attributes": [ { "name": "White", "group": "C", "kind": "Ltp", "channel": 19, "emitter": true } ] } ] } ] }
+  },
+  "patch": [ { "id": 901, "profile": "shehds", "universe": 1, "address": 1 } ],
+  "playbacks": [
+    { "id": 1, "priority": "Normal", "fader_mode": 0, "values": {
+      "901": { "Dimmer": 1.0, "Colour": { "r": 1.0, "g": 0.0, "b": 0.0 } } } }
+  ],
+  "actions": [
+    { "t": 0.0, "fader": { "playback": 1, "level": 1.0 } },
+    { "t": 0.5, "prg": { "command": ["901", ".", "2", "@", "50", "Enter"] } },
+    { "t": 1.0, "grand_master": 0.5 }
+  ],
+  "expect": [
+    { "t": 0.4, "universe": 1, "channels": { "6": 255, "8": 255, "12": 255, "16": 255 } },
+    { "t": 0.6, "universe": 1, "channels": { "6": 255, "8": 255, "9": 0, "12": 128, "13": 0, "16": 255 } },
+    { "t": 1.1, "universe": 1, "channels": { "6": 128, "8": 255, "12": 128, "16": 255 } }
+  ]
+}
