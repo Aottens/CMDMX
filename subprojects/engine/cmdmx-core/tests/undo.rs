@@ -32,6 +32,7 @@ use cmdmx_core::engine::Engine;
 use cmdmx_core::palette::{Cell, Record, Window};
 use cmdmx_core::patch::PatchAdd;
 use cmdmx_core::playback::{Master, Playback, PlaybackRecord, Values};
+use cmdmx_core::programmer::Item;
 use cmdmx_core::programmer::Resolution;
 use cmdmx_core::undo::{History, DEPTH};
 use cmdmx_core::value::{Stored, Value};
@@ -50,7 +51,7 @@ fn cmd(h: &mut History, e: &mut Engine, text: &str) {
 
 fn dimmer(fixture: u32, level: f32) -> Values {
     [(
-        fixture,
+        Item::fixture(fixture),
         [("Dimmer".to_string(), Stored::Value(Value::Level(level)))].into(),
     )]
     .into()
@@ -140,15 +141,15 @@ fn undo_03_one_patch_remove_brings_back_groups_palettes_and_cues_at_once() {
     h.edit(&mut e, "Patch remove 101", None, |e| e.patch_remove(&[101]))
         .unwrap();
     assert!(e.fixture(101).is_none());
-    assert_eq!(e.group(1), Some(&[102][..]));
+    assert_eq!(e.group(1), Some(vec![102]));
 
     h.undo(&mut e).unwrap();
     assert_eq!(e.edit_state(), before);
     assert!(e.fixture(101).is_some());
-    assert_eq!(e.group(1), Some(&[101, 102][..]));
+    assert_eq!(e.group(1), Some(vec![101, 102]));
     assert_eq!(e.palette_value(1, 101, "Pan"), Some(Value::Level(0.25)));
     let pb = e.playbacks().next().unwrap();
-    assert!(pb.cues[0].values.contains_key(&101));
+    assert!(pb.cues[0].values.contains_key(&Item::fixture(101)));
 }
 
 // ---- UNDO-05 ----------------------------------------------------------------

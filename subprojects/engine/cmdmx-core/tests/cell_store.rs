@@ -142,7 +142,10 @@ fn prg_52_contents_key_cell_values_by_item() {
     assert!(got[&f(901)].contains_key("Dimmer"));
     assert!(got[&f(901)].contains_key("Colour"));
     assert_eq!(
-        got[&c(901, 2)].keys().map(String::as_str).collect::<Vec<_>>(),
+        got[&c(901, 2)]
+            .keys()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
         ["Colour"]
     );
     assert!(
@@ -167,7 +170,10 @@ fn prg_52_a_cue_stores_and_plays_cell_values() {
     red_901_blue_cell_2(&mut e);
     let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
     let values = &e.playback(id).unwrap().cues[0].values;
-    assert_eq!(values.keys().copied().collect::<Vec<_>>(), [f(901), c(901, 2)]);
+    assert_eq!(
+        values.keys().copied().collect::<Vec<_>>(),
+        [f(901), c(901, 2)]
+    );
     clear_all(&mut e);
     for mut e in [reload(&e), e] {
         e.set_fader(id, 1.0, 0.0).unwrap();
@@ -325,10 +331,12 @@ fn shw_04_schema_6_groups_migrate_to_items() {
     let mut e = rig();
     run(&mut e, "902 And 901 Enter");
     e.record_group(1).unwrap();
-    let mut value: serde_json::Value =
-        serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
+    let mut value: serde_json::Value = serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
     assert_eq!(value["schema_version"], 7);
-    assert_eq!(value["groups"][0]["items"], serde_json::json!(["902", "901"]));
+    assert_eq!(
+        value["groups"][0]["items"],
+        serde_json::json!(["902", "901"])
+    );
     // The same show as schema 6 wrote it: groups hold fixture ids.
     value["schema_version"] = 6.into();
     value["groups"] = serde_json::json!([{ "id": 1, "fixtures": [902, 901] }]);
@@ -337,4 +345,17 @@ fn shw_04_schema_6_groups_migrate_to_items() {
     assert!(migrations[0].starts_with("6 -> 7"), "{migrations:?}");
     let (l, _) = Engine::from_show(&show);
     assert_eq!(l.group_items(1), Some(vec![f(902), f(901)]));
+}
+
+#[test]
+fn shw_04_the_schema_6_church_demo_migrates_to_the_schema_7_file() {
+    let dir = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../tests/fixtures/shows/"
+    );
+    let v6 = std::fs::read_to_string(format!("{dir}church-demo-v6.cmdmx.json")).unwrap();
+    let v7 = std::fs::read_to_string(format!("{dir}church-demo.cmdmx.json")).unwrap();
+    let (show, migrations) = Show::from_json(&v6).unwrap();
+    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert_eq!(show.to_json(), v7);
 }

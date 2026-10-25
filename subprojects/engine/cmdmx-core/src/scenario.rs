@@ -23,10 +23,16 @@ use crate::playback::{
     PAGES,
 };
 use crate::profile::Profile;
-use crate::programmer::{FanCurve, Resolution};
-use crate::show::ShowGroup;
+use crate::programmer::{FanCurve, GroupId, Resolution};
 use crate::undo::History;
 use crate::{CoreError, Timestamp, UniverseId};
+
+/// A group as scenario files write it: its fixture ids in order.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScenarioGroup {
+    pub id: GroupId,
+    pub fixtures: Vec<FixtureId>,
+}
 
 pub const TICK_SECONDS: f64 = 1.0 / 40.0;
 
@@ -41,9 +47,9 @@ pub struct Scenario {
     /// PAL-23: palettes as in the show file, placed after the patch.
     #[serde(default)]
     pub palettes: Vec<Palette>,
-    /// GRM: groups as in the show file, placed before the playbacks.
+    /// GRM: groups of whole fixtures, placed before the playbacks.
     #[serde(default)]
-    pub groups: Vec<ShowGroup>,
+    pub groups: Vec<ScenarioGroup>,
     #[serde(default)]
     pub playbacks: Vec<ScenarioPlayback>,
     #[serde(default)]

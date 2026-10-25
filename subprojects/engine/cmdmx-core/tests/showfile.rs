@@ -18,6 +18,7 @@ use cmdmx_core::output::NodeKind;
 use cmdmx_core::patch::{Fixture, PatchAdd};
 use cmdmx_core::playback::{FaderMode, GroupMaster, GroupMode, Master, Playback, Priority};
 use cmdmx_core::profile::Profile;
+use cmdmx_core::programmer::Item;
 use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
 use serde_json::{json, Value as Json};
 
@@ -66,11 +67,16 @@ fn rig() -> Engine {
     common::select(&mut e, &[306, 305, 304, 303, 302, 301]);
     e.record_group(4).unwrap();
     e.clear_selection();
-    let mut washes: BTreeMap<u32, BTreeMap<String, cmdmx_core::value::Stored>> = (101..=104)
-        .map(|id| (id, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])))
+    let mut washes: BTreeMap<Item, BTreeMap<String, cmdmx_core::value::Stored>> = (101..=104)
+        .map(|id| {
+            (
+                Item::fixture(id),
+                BTreeMap::from([("Dimmer".to_string(), 1.0.into())]),
+            )
+        })
         .collect();
     washes
-        .get_mut(&101)
+        .get_mut(&Item::fixture(101))
         .unwrap()
         .insert("Pan".into(), 0.5.into());
     e.add_playback(Playback::new(1, 1, 1, washes));
@@ -81,7 +87,10 @@ fn rig() -> Engine {
             2,
             1,
             2,
-            BTreeMap::from([(301, BTreeMap::from([("Dimmer".to_string(), 0.8.into())]))]),
+            BTreeMap::from([(
+                Item::fixture(301),
+                BTreeMap::from([("Dimmer".to_string(), 0.8.into())]),
+            )]),
         )
     });
     e.set_colour_model(ColourModel::Rgb);
@@ -140,7 +149,7 @@ fn shw_01_top_level_keys_in_order() {
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
-    assert_eq!(SCHEMA_VERSION, 6); // OUT-13
+    assert_eq!(SCHEMA_VERSION, 7); // OUT-13, PRG-52
     assert_eq!(
         v["meta"],
         json!({"name": "Church demo", "created": "2026-10-18T09:00:00Z",
@@ -182,7 +191,7 @@ fn shw_01_patch_groups_and_playbacks_shape() {
     );
     assert_eq!(
         v["groups"][1],
-        json!({"id": 4, "fixtures": [306, 305, 304, 303, 302, 301]})
+        json!({"id": 4, "items": ["306", "305", "304", "303", "302", "301"]})
     );
     assert_eq!(v["playbacks"]["playbacks"][1]["priority"], json!("High"));
     assert_eq!(v["playbacks"]["playbacks"][1]["fader_mode"], json!(2));
@@ -297,12 +306,12 @@ fn shw_03_fixture_show_is_the_church_rig() {
 #[test]
 fn shw_04_newer_schema_is_refused_with_a_clear_message() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["schema_version"] = json!(7);
+    v["schema_version"] = json!(8);
     let err = Show::from_json(&v.to_string()).unwrap_err().to_string();
     assert!(err.contains("Church demo"), "{err}");
     assert!(err.contains("newer"), "{err}");
-    assert!(err.contains("schema 7"), "{err}");
-    assert!(err.contains("up to 6"), "{err}");
+    assert!(err.contains("schema 8"), "{err}");
+    assert!(err.contains("up to 7"), "{err}");
 }
 
 #[test]
@@ -442,7 +451,7 @@ fn shw_07_clashing_fixture_is_left_out_the_earlier_one_stays() {
     let (engine, warnings) = load(&v);
     assert_eq!(warnings.len(), 1, "{warnings:?}");
     assert!(warnings[0].contains("302"), "{warnings:?}");
-    assert_eq!(engine.group(4), Some(&[306, 305, 304, 303, 301][..]));
+    assert_eq!(engine.group(4), Some(vec![306, 305, 304, 303, 301]));
     let ids = fixture_ids(&engine);
     assert!(ids.contains(&301) && !ids.contains(&302));
 }
@@ -450,16 +459,16 @@ fn shw_07_clashing_fixture_is_left_out_the_earlier_one_stays() {
 #[test]
 fn shw_07_dangling_group_members_and_playback_values_are_left_out() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["groups"][1]["fixtures"]
+    v["groups"][1]["items"]
         .as_array_mut()
         .unwrap()
-        .push(json!(999));
+        .push(json!("999"));
     v["playbacks"]["playbacks"][0]["cues"][0]["values"]["998"] = json!({"Dimmer": 1.0});
     let (engine, warnings) = load(&v);
     assert_eq!(warnings.len(), 2, "{warnings:?}");
     assert!(warnings.iter().any(|w| w.contains("999")), "{warnings:?}");
     assert!(warnings.iter().any(|w| w.contains("998")), "{warnings:?}");
-    assert_eq!(engine.group(4), Some(&[306, 305, 304, 303, 302, 301][..]));
+    assert_eq!(engine.group(4), Some(vec![306, 305, 304, 303, 302, 301]));
 }
 
 #[test]
@@ -522,7 +531,7 @@ fn group_master_of(e: &Engine, id: u32) -> GroupMaster {
 fn grm_13_a_group_master_is_saved_with_its_level() {
     let e = rig_with_group_master();
     let v = as_json(&e.to_show(meta()));
-    assert_eq!(v["schema_version"], json!(6));
+    assert_eq!(v["schema_version"], json!(7));
     let pb = &v["playbacks"]["playbacks"][2];
     assert_eq!(pb["kind"], json!("GroupMaster"));
     assert_eq!(
@@ -553,9 +562,10 @@ fn grm_13_a_restart_keeps_the_masters_level_and_the_stage() {
 fn grm_13_a_schema_4_show_is_migrated() {
     let file = std::fs::read_to_string(V4_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 2, "{migrations:?}");
+    assert_eq!(migrations.len(), 3, "{migrations:?}");
     assert!(migrations[0].starts_with("4 -> 5"), "{migrations:?}");
     assert!(migrations[1].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
+    assert!(migrations[2].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
     let (engine, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(

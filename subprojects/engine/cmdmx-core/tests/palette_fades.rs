@@ -102,6 +102,7 @@ fn rig_with(settings: Settings) -> Engine {
             icon: None,
             global,
             shared,
+            shared_cells: BTreeMap::new(),
             fixtures: BTreeMap::new(),
         })
         .unwrap();

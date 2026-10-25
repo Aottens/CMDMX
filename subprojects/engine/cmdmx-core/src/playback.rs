@@ -22,7 +22,7 @@ use crate::colour::TargetColour;
 use crate::cuelist::ListRun;
 use crate::palette::{RecordBy, RecordMode};
 use crate::patch::FixtureId;
-use crate::programmer::GroupId;
+use crate::programmer::{GroupId, Item};
 use crate::value::{Stored, Value};
 use crate::{CoreError, Timestamp};
 
@@ -74,8 +74,9 @@ impl From<FaderMode> for u8 {
     }
 }
 
-/// Attribute values a playback proposes: fixture → attribute name → value or palette reference.
-pub type Values = BTreeMap<FixtureId, BTreeMap<String, Stored>>;
+/// Attribute values a playback proposes: item (a fixture or one of its cells, PRG-52) →
+/// attribute name → value or palette reference.
+pub type Values = BTreeMap<Item, BTreeMap<String, Stored>>;
 
 /// PBK-19: when a playback leaves the merge.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -778,13 +779,13 @@ impl Playback {
     }
 
     /// CUE-52: store recorded values in the cue at `at` of a tracking list by update mode.
-    /// `is_htp` says whether a fixture's attribute is HTP (`None` when it is unknown).
+    /// `is_htp` says whether an item's attribute is HTP (`None` when it is unknown).
     pub(crate) fn store_tracked(
         &mut self,
         at: usize,
         values: Values,
         mode: UpdateMode,
-        is_htp: impl Fn(FixtureId, &str) -> Option<bool>,
+        is_htp: impl Fn(Item, &str) -> Option<bool>,
     ) {
         let old = self.cue_state(at);
         for (fixture, attributes) in values {
@@ -837,11 +838,11 @@ pub struct CueValue {
     pub from: CueNumber,
 }
 
-/// CUE-54: the state of one cue per fixture and attribute.
-pub type CueView = BTreeMap<FixtureId, BTreeMap<String, CueValue>>;
+/// CUE-54: the state of one cue per item (fixture or cell) and attribute.
+pub type CueView = BTreeMap<Item, BTreeMap<String, CueValue>>;
 
-/// CUE-50: fixture → attribute → (value, index of the cue it is hard in).
-pub(crate) type State = BTreeMap<FixtureId, BTreeMap<String, (Stored, usize)>>;
+/// CUE-50: item → attribute → (value, index of the cue it is hard in).
+pub(crate) type State = BTreeMap<Item, BTreeMap<String, (Stored, usize)>>;
 
 /// `playback.options` and `playback.times` (PBK-36): every field optional; `Option<Option<_>>`
 /// for the nullable ones (`Some(None)` clears). The times are the first cue's.
@@ -987,8 +988,8 @@ pub(crate) struct Origin {
     pub(crate) lag: f32,
 }
 
-/// fixture → attribute → origin.
-pub(crate) type Origins = BTreeMap<FixtureId, BTreeMap<String, Origin>>;
+/// item → attribute → origin.
+pub(crate) type Origins = BTreeMap<Item, BTreeMap<String, Origin>>;
 
 /// PBK-20: the LTP attributes of a killed playback fading back, per fixture and attribute from
 /// the output at the kill to what is underneath (`to` is the playback's origin, used when no
@@ -998,7 +999,7 @@ pub(crate) struct Release {
     /// Set by the first tick after the kill (PBK, Timing).
     pub(crate) start: Option<Timestamp>,
     pub(crate) duration: f32,
-    pub(crate) entries: BTreeMap<FixtureId, BTreeMap<String, (Value, Value)>>,
+    pub(crate) entries: BTreeMap<Item, BTreeMap<String, (Value, Value)>>,
 }
 
 impl Release {

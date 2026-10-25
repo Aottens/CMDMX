@@ -12,6 +12,7 @@
 mod common;
 
 use cmdmx_core::attribute::AttributeGroup::{self, *};
+use cmdmx_core::programmer::Item;
 use cmdmx_core::programmer::{AttributeGroupState, ProgrammerView, WheelState};
 use cmdmx_core::value::Value;
 use common::{church, select};
@@ -146,7 +147,7 @@ fn eng_07_htp_falls_to_zero_when_the_last_source_is_killed_ltp_holds() {
         1,
         1,
         BTreeMap::from([(
-            101,
+            Item::fixture(101),
             BTreeMap::from([
                 ("Dimmer".to_string(), 1.0.into()),
                 ("Tilt".to_string(), 0.6.into()),

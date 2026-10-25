@@ -17,6 +17,7 @@ use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
+use cmdmx_core::programmer::Item;
 use cmdmx_core::programmer::Resolution::{Coarse, Normal};
 use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
@@ -208,7 +209,7 @@ fn prg_15_contents_carry_the_colour_value() {
     assert_eq!(
         c,
         BTreeMap::from([(
-            201,
+            Item::fixture(201),
             BTreeMap::from([("Colour".to_string(), rgb(0.0, 0.0, 1.0).into())])
         )])
     );
@@ -438,7 +439,7 @@ fn lib_03_released_colour_holds_its_last_value() {
         1,
         1,
         1,
-        BTreeMap::from([(201, red.clone()), (221, red)]),
+        BTreeMap::from([(Item::fixture(201), red.clone()), (Item::fixture(221), red)]),
     ));
     e.set_fader(1, 1.0, 0.0).unwrap();
     e.tick(0.0);

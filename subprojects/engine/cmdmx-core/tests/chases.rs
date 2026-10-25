@@ -57,7 +57,7 @@ fn steps(n: u32) -> Vec<Cue> {
         .map(|k| {
             let mut values = Values::new();
             values
-                .entry(200 + k)
+                .entry((200 + k).into())
                 .or_default()
                 .insert("Dimmer".to_string(), 1.0.into());
             Cue {

@@ -32,6 +32,7 @@ use cmdmx_core::palette::{
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
+use cmdmx_core::programmer::Item;
 use cmdmx_core::programmer::Resolution;
 use cmdmx_core::show::{Meta, Show};
 use cmdmx_core::value::{Reference, Stored, Value};
@@ -218,6 +219,7 @@ fn global_palette(id: PaletteId, number: u32, values: &[(&str, GlobalValue)]) ->
             .map(|(k, v)| (k.to_string(), v.clone()))
             .collect(),
         shared: BTreeMap::new(),
+        shared_cells: BTreeMap::new(),
         fixtures: BTreeMap::new(),
     }
 }
@@ -428,7 +430,10 @@ fn pal_04_different_positions_are_per_fixture() {
     let p = e.palette(1).unwrap();
     assert_eq!(p.kind(), PaletteKind::Normal);
     assert!(p.global.is_empty() && p.shared.is_empty());
-    assert_eq!(p.fixtures.keys().copied().collect::<Vec<_>>(), [101, 102]);
+    assert_eq!(
+        p.fixtures.keys().copied().collect::<Vec<_>>(),
+        [Item::fixture(101), Item::fixture(102)]
+    );
 }
 
 #[test]
@@ -527,7 +532,7 @@ fn pal_05_record_as_normal_stores_per_fixture() {
     let p = e.palette(1).unwrap();
     assert_eq!(p.kind(), PaletteKind::Normal);
     assert_eq!(
-        p.fixtures.keys().copied().collect::<Vec<_>>(),
+        p.fixtures.keys().map(|i| i.fixture).collect::<Vec<_>>(),
         [201, 202, 221]
     );
 }
@@ -675,8 +680,10 @@ fn pal_07_per_fixture_beats_shared_beats_global() {
         "rgbw".into(),
         BTreeMap::from([("Colour".to_string(), blue())]),
     );
-    p.fixtures
-        .insert(202, BTreeMap::from([("Colour".to_string(), green)]));
+    p.fixtures.insert(
+        Item::fixture(202),
+        BTreeMap::from([("Colour".to_string(), green)]),
+    );
     e.add_palette(p).unwrap();
     assert_eq!(e.palette_value(1, 202, "Colour"), Some(green));
     assert_eq!(e.palette_value(1, 201, "Colour"), Some(blue()));
@@ -802,7 +809,7 @@ fn pal_09_no_selection_applies_to_every_fixture_it_fits() {
     e.add_palette(global_palette(1, 1, &[("Colour", g(red()))]))
         .unwrap();
     e.apply_palette(1, Timing::default()).unwrap();
-    let in_programmer: Vec<u32> = e.programmer().values().keys().copied().collect();
+    let in_programmer: Vec<u32> = e.programmer().values().keys().map(|i| i.fixture).collect();
     assert_eq!(in_programmer, [201, 202, 211, 212, 221]);
     assert!(e.programmer().selection().is_empty());
 }
@@ -848,7 +855,7 @@ fn playback_with_reference(e: &mut Engine, palette: PaletteId, fallback: Value) 
         1,
         1,
         BTreeMap::from([(
-            201,
+            Item::fixture(201),
             BTreeMap::from([
                 ("Dimmer".to_string(), Stored::Value(level(1.0))),
                 (
@@ -890,8 +897,10 @@ fn pal_11_a_recorded_palette_changes_a_playback_on_the_next_tick() {
 fn pal_11_a_reference_that_resolves_nothing_uses_its_fallback() {
     let mut e = rig();
     let mut p = global_palette(1, 1, &[]);
-    p.fixtures
-        .insert(202, BTreeMap::from([("Colour".to_string(), blue())]));
+    p.fixtures.insert(
+        Item::fixture(202),
+        BTreeMap::from([("Colour".to_string(), blue())]),
+    );
     e.add_palette(p).unwrap();
     playback_with_reference(&mut e, 1, red());
     tick(&mut e, 0.0);
@@ -1028,7 +1037,7 @@ fn pal_18_delete_falls_back_to_the_values_at_record_time() {
     e.delete_palette(1).unwrap();
     assert!(e.palette(1).is_none());
     let values = &e.playback(1).unwrap().cues[0].values;
-    assert_eq!(values[&201]["Colour"], Stored::Value(red()));
+    assert_eq!(values[&Item::fixture(201)]["Colour"], Stored::Value(red()));
     assert_eq!(
         e.programmer().stored(202, "Colour"),
         Some(Stored::Value(blue()))
@@ -1071,7 +1080,7 @@ fn pal_19_removing_a_fixture_removes_its_entries() {
             .unwrap()
             .fixtures
             .keys()
-            .copied()
+            .map(|i| i.fixture)
             .collect::<Vec<_>>(),
         [101]
     );
@@ -1194,7 +1203,7 @@ fn pal_23_palettes_and_references_round_trip() {
     let show = e.to_show(meta());
     let json = show.to_json();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(v["schema_version"], serde_json::json!(6)); // GRM-13
+    assert_eq!(v["schema_version"], serde_json::json!(7)); // GRM-13
                                                            // Top-level keys in file order: lines with exactly two spaces of indent.
     let keys: Vec<&str> = json
         .lines()
@@ -1257,8 +1266,8 @@ fn pal_23_a_version_1_show_is_migrated() {
     let (show, migrations) = Show::from_json(&v1).unwrap();
     assert_eq!(
         migrations.len(),
-        5,
-        "1 -> 2, 2 -> 3, 3 -> 4, 4 -> 5 and 5 -> 6: {migrations:?}"
+        6,
+        "1 -> 2, 2 -> 3, 3 -> 4, 4 -> 5, 5 -> 6 and 6 -> 7: {migrations:?}"
     );
     let (engine, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
@@ -1291,7 +1300,11 @@ fn pal_24_bad_palette_entries_are_left_out_with_a_warning() {
     let (engine, warnings) = Engine::from_show(&show);
     assert_eq!(warnings.len(), 3, "{warnings:?}");
     assert_eq!(engine.palettes().count(), 2);
-    assert!(!engine.palette(1).unwrap().fixtures.contains_key(&999));
+    assert!(!engine
+        .palette(1)
+        .unwrap()
+        .fixtures
+        .contains_key(&Item::fixture(999)));
     assert!(engine.palette(1).unwrap().shared.contains_key("gone"));
 }
 
@@ -1305,7 +1318,7 @@ fn pal_24_a_reference_to_a_missing_palette_becomes_its_fallback() {
     let (engine, warnings) = Engine::from_show(&show);
     assert_eq!(warnings.len(), 1, "{warnings:?}");
     assert_eq!(
-        engine.playback(1).unwrap().cues[0].values[&201]["Colour"],
+        engine.playback(1).unwrap().cues[0].values[&Item::fixture(201)]["Colour"],
         Stored::Value(red())
     );
 }
@@ -1329,7 +1342,7 @@ fn pal_32_contents_keep_references() {
     e.apply_palette(1, Timing::default()).unwrap();
     let contents = e.contents(&[C]);
     assert_eq!(
-        contents[&201]["Colour"],
+        contents[&Item::fixture(201)]["Colour"],
         Stored::Reference(Reference {
             palette: 4,
             value: red()

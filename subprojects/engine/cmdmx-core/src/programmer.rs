@@ -3,12 +3,14 @@
 //! Implements `specs/modules/programmer.md` PRG-01..07, PRG-14 and the located set (PRG-23..25,
 //! 38); the merge reads its values at `Priority::Programmer` (PRG-12/13). A value is manual or a palette
 //! reference (PAL-08). The view also carries the values and the picker colour (IPC-21, IPC-22).
-//! Cell items (PRG-46, 47, 51) keep their values in twin maps next to the fixture-keyed ones: the
-//! fixture-keyed API (`values()`, `stored()`, ...) stays whole fixtures only.
+//! Values, fades, located values and clear fades are kept per [`Item`] (PRG-46, 47, 51, 52): a
+//! whole fixture and each of its cells have their own entry.
 
 use std::collections::BTreeMap;
+use std::fmt;
+use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
@@ -24,6 +26,48 @@ pub type GroupId = u32;
 pub struct Item {
     pub fixture: FixtureId,
     pub cell: Option<u16>,
+}
+
+/// PRG-52: `"901"` for a whole fixture, `"901.2"` for a cell (cells are 1-based).
+impl fmt::Display for Item {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.cell {
+            None => write!(f, "{}", self.fixture),
+            Some(c) => write!(f, "{}.{c}", self.fixture),
+        }
+    }
+}
+
+impl FromStr for Item {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, String> {
+        let bad = || format!("not an item: {s:?}");
+        let (fixture, cell) = match s.split_once('.') {
+            None => (s, None),
+            Some((f, c)) => (
+                f,
+                Some(c.parse::<u16>().ok().filter(|c| *c > 0).ok_or_else(bad)?),
+            ),
+        };
+        Ok(Item {
+            fixture: fixture.parse().map_err(|_| bad())?,
+            cell,
+        })
+    }
+}
+
+impl Serialize for Item {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Item {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
 }
 
 impl From<FixtureId> for Item {
@@ -50,52 +94,12 @@ impl Item {
 
 type Attrs<V> = BTreeMap<String, V>;
 
-/// PRG-47: the attribute map of an item, from the fixture-keyed map or its twin for cells.
-fn slot<'a, V>(
-    whole: &'a BTreeMap<FixtureId, Attrs<V>>,
-    cells: &'a BTreeMap<Item, Attrs<V>>,
-    item: Item,
-) -> Option<&'a Attrs<V>> {
-    match item.cell {
-        None => whole.get(&item.fixture),
-        Some(_) => cells.get(&item),
-    }
-}
-
-fn slot_mut<'a, V>(
-    whole: &'a mut BTreeMap<FixtureId, Attrs<V>>,
-    cells: &'a mut BTreeMap<Item, Attrs<V>>,
-    item: Item,
-) -> &'a mut Attrs<V> {
-    match item.cell {
-        None => whole.entry(item.fixture).or_default(),
-        Some(_) => cells.entry(item).or_default(),
-    }
-}
-
 /// Remove one attribute of an item; an emptied map goes too.
-fn take<V>(
-    whole: &mut BTreeMap<FixtureId, Attrs<V>>,
-    cells: &mut BTreeMap<Item, Attrs<V>>,
-    item: Item,
-    attribute: &str,
-) {
-    match item.cell {
-        None => {
-            if let Some(attrs) = whole.get_mut(&item.fixture) {
-                attrs.remove(attribute);
-                if attrs.is_empty() {
-                    whole.remove(&item.fixture);
-                }
-            }
-        }
-        Some(_) => {
-            if let Some(attrs) = cells.get_mut(&item) {
-                attrs.remove(attribute);
-                if attrs.is_empty() {
-                    cells.remove(&item);
-                }
-            }
+fn take<V>(map: &mut BTreeMap<Item, Attrs<V>>, item: Item, attribute: &str) {
+    if let Some(attrs) = map.get_mut(&item) {
+        attrs.remove(attribute);
+        if attrs.is_empty() {
+            map.remove(&item);
         }
     }
 }
@@ -310,10 +314,8 @@ pub(crate) struct EditPart {
     selection: Vec<Item>,
     sub: Sub,
     changed: bool,
-    values: BTreeMap<FixtureId, BTreeMap<String, Stored>>,
-    located: BTreeMap<FixtureId, BTreeMap<String, Value>>,
-    cell_values: BTreeMap<Item, Attrs<Stored>>,
-    cell_located: BTreeMap<Item, Attrs<Value>>,
+    values: BTreeMap<Item, Attrs<Stored>>,
+    located: BTreeMap<Item, Attrs<Value>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -322,22 +324,17 @@ pub struct Programmer {
     sub: Sub,
     /// Set by a value change; the next select starts a new selection (PRG-03).
     changed: bool,
-    values: BTreeMap<FixtureId, BTreeMap<String, Stored>>,
+    values: BTreeMap<Item, Attrs<Stored>>,
     /// Running palette fades (PAL-13..16); an entry always has a value here.
-    fades: BTreeMap<FixtureId, BTreeMap<String, Fade>>,
+    fades: BTreeMap<Item, Attrs<Fade>>,
     /// Located values (PRG-23): not contents, under the programmer value in the merge (PRG-25).
-    located: BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    located: BTreeMap<Item, Attrs<Value>>,
     /// Fades of values a timed Clear removed (ENG-10): live state; HTP `from` → 0, LTP `from`
     /// → what the other sources give. Never has a programmer value of its own.
-    clearing: BTreeMap<FixtureId, BTreeMap<String, Fade>>,
+    clearing: BTreeMap<Item, Attrs<Fade>>,
     /// Engine activation counter at the last value change: orders the
     /// programmer against other sources in LTP ties (ENG-04).
     activated: u64,
-    /// PRG-47, 51: the same four maps for cell items (`Item::cell`), twins of the above.
-    cell_values: BTreeMap<Item, Attrs<Stored>>,
-    cell_fades: BTreeMap<Item, Attrs<Fade>>,
-    cell_located: BTreeMap<Item, Attrs<Value>>,
-    cell_clearing: BTreeMap<Item, Attrs<Fade>>,
 }
 
 fn whole(items: &[Item]) -> Vec<FixtureId> {
@@ -356,8 +353,6 @@ impl Programmer {
             changed: self.changed,
             values: self.values.clone(),
             located: self.located.clone(),
-            cell_values: self.cell_values.clone(),
-            cell_located: self.cell_located.clone(),
         }
     }
 
@@ -369,29 +364,16 @@ impl Programmer {
         self.sub = part.sub;
         self.changed = part.changed;
         self.located = part.located;
-        let old_cells = std::mem::replace(&mut self.cell_values, part.cell_values);
-        self.cell_located = part.cell_located;
         self.clearing.clear(); // ENG-10: undo during a timed Clear puts the programmer back at once
-        self.cell_clearing.clear();
         let values = &self.values;
-        for (fixture, attrs) in &mut self.fades {
+        for (item, attrs) in &mut self.fades {
             attrs.retain(|a, _| {
-                let get = |m: &BTreeMap<FixtureId, BTreeMap<String, Stored>>| {
-                    m.get(fixture).and_then(|v| v.get(a)).copied()
-                };
+                let get =
+                    |m: &BTreeMap<Item, Attrs<Stored>>| m.get(item).and_then(|v| v.get(a)).copied();
                 get(values).is_some() && get(values) == get(&old)
             });
         }
         self.fades.retain(|_, a| !a.is_empty());
-        let cells = &self.cell_values;
-        for (item, attrs) in &mut self.cell_fades {
-            attrs.retain(|a, _| {
-                let get =
-                    |m: &BTreeMap<Item, Attrs<Stored>>| m.get(item).and_then(|v| v.get(a)).copied();
-                get(cells).is_some() && get(cells) == get(&old_cells)
-            });
-        }
-        self.cell_fades.retain(|_, a| !a.is_empty());
     }
 
     /// PRG-46: the selected items in selection order.
@@ -439,47 +421,41 @@ impl Programmer {
 
     /// PRG-47: like [`Programmer::stored`] for a whole fixture or a cell.
     pub fn stored_item(&self, item: Item, attribute: &str) -> Option<Stored> {
-        slot(&self.values, &self.cell_values, item)?
-            .get(attribute)
-            .copied()
+        self.values.get(&item)?.get(attribute).copied()
     }
 
     /// PRG-47: the item's manual values and palette references.
     pub(crate) fn values_of(&self, item: Item) -> Option<&Attrs<Stored>> {
-        slot(&self.values, &self.cell_values, item)
+        self.values.get(&item)
     }
 
-    /// The cells of `fixture` that have a value, a located value or a clear fade (ascending).
-    pub(crate) fn cells_of(&self, fixture: FixtureId) -> Vec<u16> {
-        let range = Item::cell(fixture, 0)..=Item::cell(fixture, u16::MAX);
-        let mut cells: Vec<u16> = (self.cell_values.range(range.clone()).map(|(i, _)| i.cell))
-            .chain(self.cell_located.range(range.clone()).map(|(i, _)| i.cell))
-            .chain(self.cell_clearing.range(range).map(|(i, _)| i.cell))
-            .flatten()
-            .collect();
-        cells.sort_unstable();
-        cells.dedup();
-        cells
+    /// The cell items that have a value, a located value or a clear fade.
+    pub(crate) fn cell_items(&self) -> impl Iterator<Item = Item> + '_ {
+        (self.values.keys().chain(self.located.keys()))
+            .chain(self.clearing.keys())
+            .copied()
+            .filter(|i| i.cell.is_some())
     }
 
-    pub fn values(&self) -> &BTreeMap<FixtureId, BTreeMap<String, Stored>> {
+    /// Every item with a value, by item (a cell next to its fixture).
+    pub fn values(&self) -> &BTreeMap<Item, Attrs<Stored>> {
         &self.values
     }
 
     pub(crate) fn fade(&self, item: Item, attribute: &str) -> Option<&Fade> {
-        slot(&self.fades, &self.cell_fades, item)?.get(attribute)
+        self.fades.get(&item)?.get(attribute)
     }
 
     pub(crate) fn set_fade(&mut self, item: Item, attribute: &str, fade: Fade) {
-        slot_mut(&mut self.fades, &mut self.cell_fades, item).insert(attribute.to_string(), fade);
+        self.fades
+            .entry(item)
+            .or_default()
+            .insert(attribute.to_string(), fade);
     }
 
     /// Called at the start of a tick: fades that have not begun start now (PAL-13).
     pub(crate) fn start_fades(&mut self, now: Timestamp) {
-        let all = (self.fades.values_mut())
-            .chain(self.clearing.values_mut())
-            .chain(self.cell_fades.values_mut())
-            .chain(self.cell_clearing.values_mut());
+        let all = (self.fades.values_mut()).chain(self.clearing.values_mut());
         for fade in all.flat_map(|a| a.values_mut()) {
             fade.start.get_or_insert(now);
         }
@@ -497,53 +473,50 @@ impl Programmer {
             }
             fades.retain(|_, a| !a.is_empty());
         }
-        for fades in [&mut self.cell_fades, &mut self.cell_clearing] {
-            for attrs in fades.values_mut() {
-                attrs.retain(|_, f| !done(f));
-            }
-            fades.retain(|_, a| !a.is_empty());
-        }
     }
 
     /// ENG-10: the fade of a value a timed Clear removed.
     pub(crate) fn clearing(&self, item: Item, attribute: &str) -> Option<&Fade> {
-        slot(&self.clearing, &self.cell_clearing, item)?.get(attribute)
+        self.clearing.get(&item)?.get(attribute)
     }
 
     pub(crate) fn set_clearing(&mut self, item: Item, attribute: &str, fade: Fade) {
-        slot_mut(&mut self.clearing, &mut self.cell_clearing, item)
+        self.clearing
+            .entry(item)
+            .or_default()
             .insert(attribute.to_string(), fade);
     }
 
-    pub fn located(&self) -> &BTreeMap<FixtureId, BTreeMap<String, Value>> {
+    /// The located values by item.
+    pub fn located(&self) -> &BTreeMap<Item, Attrs<Value>> {
         &self.located
     }
 
     pub(crate) fn located_value(&self, item: Item, attribute: &str) -> Option<Value> {
-        slot(&self.located, &self.cell_located, item)?
-            .get(attribute)
-            .copied()
+        self.located.get(&item)?.get(attribute).copied()
     }
 
     /// PRG-47: the item's located values.
     pub(crate) fn located_of(&self, item: Item) -> Option<&Attrs<Value>> {
-        slot(&self.located, &self.cell_located, item)
+        self.located.get(&item)
     }
 
     /// Some item has a located value.
     pub(crate) fn has_located(&self) -> bool {
-        !self.located.is_empty() || !self.cell_located.is_empty()
+        !self.located.is_empty()
     }
 
     /// PRG-38: Locate again overwrites. The attribute is touched, so no clear fade runs on it.
     pub(crate) fn set_located(&mut self, item: Item, attribute: &str, value: Value) {
-        take(&mut self.clearing, &mut self.cell_clearing, item, attribute);
-        slot_mut(&mut self.located, &mut self.cell_located, item)
+        take(&mut self.clearing, item, attribute);
+        self.located
+            .entry(item)
+            .or_default()
             .insert(attribute.to_string(), value);
     }
 
     pub(crate) fn remove_located(&mut self, item: Item, attribute: &str) {
-        take(&mut self.located, &mut self.cell_located, item, attribute);
+        take(&mut self.located, item, attribute);
     }
 
     /// PRG-03: Locate and Rem Dim count as a change, so the next select starts afresh.
@@ -553,11 +526,8 @@ impl Programmer {
 
     /// Every item (fixture or cell) with a value or a located value.
     pub(crate) fn touched_items(&self) -> Vec<Item> {
-        let whole = self.values.keys().chain(self.located.keys());
-        let cells = self.cell_values.keys().chain(self.cell_located.keys());
-        let mut items: Vec<Item> = whole
-            .map(|&f| Item::fixture(f))
-            .chain(cells.copied())
+        let mut items: Vec<Item> = (self.values.keys().chain(self.located.keys()))
+            .copied()
             .collect();
         items.sort_unstable();
         items.dedup();
@@ -569,11 +539,11 @@ impl Programmer {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.values.is_empty() && self.cell_values.is_empty()
+        self.values.is_empty()
     }
 
     pub fn in_programmer(&self, fixture: FixtureId) -> bool {
-        self.values.contains_key(&fixture)
+        self.values.contains_key(&Item::fixture(fixture))
     }
 
     /// PRG-03: the first select after a change starts a new selection.
@@ -619,14 +589,10 @@ impl Programmer {
 
     /// PAT-05: the fixture is gone; drop it from the selection (ending any sub-selection) and the values.
     pub(crate) fn remove_fixture(&mut self, fixture: FixtureId) {
-        self.values.remove(&fixture);
-        self.fades.remove(&fixture);
-        self.located.remove(&fixture);
-        self.clearing.remove(&fixture);
-        self.cell_values.retain(|i, _| i.fixture != fixture);
-        self.cell_fades.retain(|i, _| i.fixture != fixture);
-        self.cell_located.retain(|i, _| i.fixture != fixture);
-        self.cell_clearing.retain(|i, _| i.fixture != fixture);
+        self.values.retain(|i, _| i.fixture != fixture);
+        self.fades.retain(|i, _| i.fixture != fixture);
+        self.located.retain(|i, _| i.fixture != fixture);
+        self.clearing.retain(|i, _| i.fixture != fixture);
         let before = self.selection.len();
         self.selection.retain(|i| i.fixture != fixture);
         if self.selection.len() != before {
@@ -636,8 +602,8 @@ impl Programmer {
 
     /// PAT-13: drop one attribute value of an item.
     pub(crate) fn remove_value(&mut self, item: Item, attribute: &str) {
-        take(&mut self.fades, &mut self.cell_fades, item, attribute);
-        take(&mut self.values, &mut self.cell_values, item, attribute);
+        take(&mut self.fades, item, attribute);
+        take(&mut self.values, item, attribute);
     }
 
     /// PRG-29: empty the programmer's values and the located set.
@@ -645,9 +611,6 @@ impl Programmer {
         self.values.clear();
         self.fades.clear();
         self.located.clear();
-        self.cell_values.clear();
-        self.cell_fades.clear();
-        self.cell_located.clear();
     }
 
     pub(crate) fn clear_selection(&mut self) {
@@ -689,22 +652,14 @@ impl Programmer {
             self.sub = Sub::None;
         } else {
             // PRG-50: every item in the programmer, a whole fixture before its cells.
-            let mut items: Vec<Item> = (self.values.keys().map(|&f| Item::fixture(f)))
-                .chain(self.cell_values.keys().copied())
-                .collect();
-            items.sort_unstable();
-            self.selection = items;
+            self.selection = self.values.keys().copied().collect();
             self.changed = false;
         }
     }
 
     /// PAL-18: references to a deleted palette become their fallback values.
     pub(crate) fn dereference(&mut self, palette: PaletteId) {
-        let all = self
-            .values
-            .values_mut()
-            .chain(self.cell_values.values_mut());
-        for stored in all.flat_map(|a| a.values_mut()) {
+        for stored in self.values.values_mut().flat_map(|a| a.values_mut()) {
             *stored = stored.without_palette(palette);
         }
     }
@@ -719,10 +674,12 @@ impl Programmer {
         let item = item.into();
         self.activated = activated;
         // PAL-16: a new value takes over from the faded one; ENG-10 and PRG-24 likewise.
-        take(&mut self.fades, &mut self.cell_fades, item, attribute);
-        take(&mut self.clearing, &mut self.cell_clearing, item, attribute);
+        take(&mut self.fades, item, attribute);
+        take(&mut self.clearing, item, attribute);
         self.remove_located(item, attribute);
-        slot_mut(&mut self.values, &mut self.cell_values, item)
+        self.values
+            .entry(item)
+            .or_default()
             .insert(attribute.to_string(), value);
         self.changed = true;
     }

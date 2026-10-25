@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::playback::{Playback, PAGES};
+use cmdmx_core::programmer::Item;
 
 /// The church rig with one playback per id in `ids`, each putting one wash's Dimmer at full.
 fn rig(settings: Option<Settings>, ids: &[u32]) -> Engine {
@@ -40,7 +41,10 @@ fn rig(settings: Option<Settings>, ids: &[u32]) -> Engine {
             id,
             page,
             slot,
-            BTreeMap::from([(101, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
+            BTreeMap::from([(
+                Item::fixture(101),
+                BTreeMap::from([("Dimmer".to_string(), 1.0.into())]),
+            )]),
         ));
     }
     e

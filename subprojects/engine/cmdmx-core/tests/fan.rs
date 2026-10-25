@@ -381,7 +381,7 @@ fn prg_59_every_item_is_touched_from_its_output_value() {
     let mut values = Values::new();
     for id in [101, 102, 103] {
         values
-            .entry(id)
+            .entry(id.into())
             .or_default()
             .insert("Pan".into(), 0.5.into());
     }
@@ -508,7 +508,14 @@ fn prg_61_fanned_values_are_plain_manual_values() {
     let contents = e.contents(&[AttributeGroup::P]);
     let pans: Vec<Value> = WASHES
         .iter()
-        .map(|id| contents.get(id).unwrap().get("Pan").unwrap().value())
+        .map(|id| {
+            contents
+                .get(&Item::fixture(*id))
+                .unwrap()
+                .get("Pan")
+                .unwrap()
+                .value()
+        })
         .collect();
     let expected = [0.1, 0.3, 0.5, 0.7, 0.9];
     for (v, x) in pans.iter().zip(expected) {

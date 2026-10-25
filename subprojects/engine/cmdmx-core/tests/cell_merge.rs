@@ -3,7 +3,6 @@
 //! Shehds-like washes 901–902 with Pan, a master Dimmer and three RGBW cells each (no cell
 //! Dimmer channels, so every cell has a virtual Dimmer). Between sources (playback against
 //! programmer) on the frame is also in `tests/scenarios/PRG-47-*.json` and `PRG-51-*.json`.
-//! Cell values are not recorded into cues, groups or palettes yet (VS2-32).
 
 #![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
 

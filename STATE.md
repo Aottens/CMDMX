@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (hardware track set up beside phase 1)_
+_Last updated: 2026-10-25 (VS2-32)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -16,9 +16,9 @@ Parallel track: phase 3, the open-hardware desk (IDEA-23), runs beside phase 1 i
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
 
 ## Next
-1. VS2-32..34 (cells: storage PRG-52/53, protocol v1 PRG-55, app Unfold; VS2-33 raises the
-   protocol to v1 and its run checks the VS1-09 mismatch line). Cells already merge (VS2-31) but
-   their values are not recorded until VS2-32.
+1. VS2-33..34 (cells: protocol v1 PRG-55, app Unfold; VS2-33 raises the protocol to v1 and its
+   run checks the VS1-09 mismatch line). Cells merge (VS2-31) and are stored by item in cues,
+   groups and palettes (VS2-32, show schema 7); the wire still shows whole fixtures only.
 2. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
 

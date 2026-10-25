@@ -5,6 +5,13 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Cell values stored by item, show schema 7 (VS2-32)
+
+**Decision:** an item is written as a string, `"901"` for a whole fixture and `"901.2"` for a cell, both as a map key (cue values, palette per-fixture values, programmer contents) and in a list (groups). A whole fixture's key is byte-identical to the old fixture-id key, so cue and palette keys need no migration; groups become `{id, items}` (schema 7, migration 6 → 7 turns `fixtures: [901]` into `items: ["901"]`). A palette's shared value for a type's cell lives in a separate optional `shared_cells` (`type → cell → attribute → value`), because profile keys may contain dots (`"Acme/Wash 2.0"`).
+**Alternatives:** keys like `"<type>.2"` inside `shared`; numbers for whole fixtures and strings for cells in group lists; cells in side maps next to the fixture-keyed ones (the VS2-30/31 stopgap).
+**Why:** one key type everywhere removes the twin maps; strings keep JSON map keys and list entries the same shape; a separate field cannot be misread.
+**Reversal trigger:** none expected.
+
 ## 2026-10-25 — Phase 3 (hardware) runs as a parallel track beside phase 1 (owner)
 
 **Decision:** the open-hardware desk (IDEA-23, phase 3) starts now as a parallel track instead of after phase 1. It lives in `subprojects/hardware/` with its own `STATE.md`, spec `specs/modules/hardware.md` (`HW-nn` criteria) and the `## Phase 3 track — hardware` section of `BACKLOG.md`. Its only contract with the software is the general control layer (CTL): the surface is a USB-MIDI (later possibly HID) device mapped like any other controller. Hardware tasks run in their own sessions and PRs, never touch `subprojects/engine` or `subprojects/app`, and never move a phase-1 task. A hardware need that would change the software becomes an IDEA or a backlog row for the software, not a change in a hardware PR. First task HW-01: the owner answers the open questions of `docs/research/hardware-desk.md` and approves `hardware.md`.

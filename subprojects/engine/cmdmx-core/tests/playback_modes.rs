@@ -29,6 +29,7 @@ use cmdmx_core::attribute::AttributeGroup::{B, P};
 use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
 use cmdmx_core::palette::{Cell, Record, RecordMode, Window};
 use cmdmx_core::playback::{FaderMode, KillPoint, Playback, Values};
+use cmdmx_core::programmer::Item;
 use cmdmx_core::show::Meta;
 use cmdmx_core::value::{Reference, Stored, Value};
 
@@ -42,7 +43,7 @@ fn rig() -> Engine {
 fn values(entries: &[(u32, &str, f32)]) -> Values {
     let mut v: Values = BTreeMap::new();
     for (id, name, level) in entries {
-        v.entry(*id)
+        v.entry((*id).into())
             .or_default()
             .insert((*name).to_string(), (*level).into());
     }
@@ -257,7 +258,7 @@ fn pbk_18_a_fade_runs_towards_the_references_current_value() {
         1,
         1,
         BTreeMap::from([(
-            101,
+            Item::fixture(101),
             BTreeMap::from([(
                 "Zoom".to_string(),
                 Stored::Reference(Reference {

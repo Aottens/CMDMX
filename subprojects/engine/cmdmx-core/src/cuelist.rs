@@ -19,14 +19,15 @@ use crate::playback::{
     Origins, Playback,
 };
 use crate::profile::{Mode, Profile};
+use crate::programmer::Item;
 use crate::value::{Stored, Value};
 use crate::Timestamp;
 
 /// Allowance for float error when a link falls due (CUE-20).
 const EPSILON: f64 = 1e-6;
 
-/// fixture → attribute → the list's value for it.
-type Fades = BTreeMap<FixtureId, BTreeMap<String, ListFade>>;
+/// item → attribute → the list's value for it.
+type Fades = BTreeMap<Item, BTreeMap<String, ListFade>>;
 
 /// One attribute of a running list: from its value when the cue started to the cue state's value.
 #[derive(Debug, Clone, PartialEq)]
@@ -73,7 +74,7 @@ pub(crate) struct Env<'a> {
     pub(crate) profiles: &'a BTreeMap<String, Profile>,
     pub(crate) palettes: &'a BTreeMap<PaletteId, Palette>,
     /// The output of the LTP attributes (the previous tick's).
-    pub(crate) held: &'a BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    pub(crate) held: &'a BTreeMap<Item, BTreeMap<String, Value>>,
 }
 
 impl<'a> Env<'a> {
@@ -82,8 +83,8 @@ impl<'a> Env<'a> {
         Some((fixture, resolve_mode(self.profiles, fixture)?))
     }
 
-    fn held(&self, fixture: FixtureId, name: &str) -> Option<Value> {
-        (self.held.get(&fixture)).and_then(|a| a.get(name).copied())
+    fn held(&self, item: Item, name: &str) -> Option<Value> {
+        crate::engine::held_value(self.held, item, name)
     }
 }
 
@@ -102,7 +103,7 @@ pub(crate) struct Ctx<'a> {
 
 /// A fade the transition starts, before the overlap stagger.
 struct Plan {
-    fixture: FixtureId,
+    item: Item,
     name: String,
     ltp: bool,
     from: Value,
@@ -212,13 +213,18 @@ impl ListRun {
     /// The list's value for an attribute at `now` and its LTP order, for the merge.
     pub(crate) fn fade_value(
         &self,
-        fixture: FixtureId,
+        item: Item,
         name: &str,
         now: Timestamp,
         resolve: impl Fn(Stored) -> Value,
     ) -> Option<(Value, u64)> {
-        let fade = self.fades.get(&fixture).and_then(|a| a.get(name))?;
+        let fade = self.fades.get(&item).and_then(|a| a.get(name))?;
         Some((fade.value(self.clock(now), resolve), fade.order))
+    }
+
+    /// The items the list has a fade for (the tick finds the cells it must merge on their own).
+    pub(crate) fn items(&self) -> impl Iterator<Item = Item> + '_ {
+        self.fades.keys().copied()
     }
 
     /// CUE-07, 08: the current and next cue follow a renumbered cue.
@@ -515,16 +521,18 @@ impl ListRun {
             }
         };
         let mut plans: Vec<Plan> = Vec::new();
-        for (&fixture, attributes) in &state {
-            let Some((fx, mode)) = env.lookup(fixture) else {
+        for (&item, attributes) in &state {
+            let Some((fx, mode)) = env.lookup(item.fixture) else {
                 continue;
             };
-            let resolve = |s: Stored, name: &str| resolve_stored(env.palettes, fx, mode, name, s);
+            let resolve =
+                |s: Stored, name: &str| resolve_stored(env.palettes, item, fx, mode, name, s);
             for (name, &(stored, _)) in attributes {
-                let Some(l) = mode.logical(name) else {
+                // PRG-53: a cell the mode lacks has no attributes: kept in the cue, plays nothing.
+                let Some(l) = mode.item_logical(item.cell, name) else {
                     continue;
                 };
-                let old = self.fades.get(&fixture).and_then(|a| a.get(name));
+                let old = self.fades.get(&item).and_then(|a| a.get(name));
                 // The same value as it has or fades to: nothing changes (HTP not there: 0).
                 let same = match old {
                     Some(o) => o.to == stored,
@@ -538,11 +546,11 @@ impl ListRun {
                 let current = match old {
                     Some(o) if !ltp => o.value(clock, |s| resolve(s, name)),
                     _ if !ltp => Value::Level(0.0),
-                    _ => env.held(fixture, name).unwrap_or(l.default),
+                    _ => env.held(item, name).unwrap_or(l.default),
                 };
                 let (delay, fade) = times(l.group, ltp || to.level() >= current.level());
                 plans.push(Plan {
-                    fixture,
+                    item,
                     name: name.clone(),
                     ltp,
                     from: current,
@@ -555,23 +563,23 @@ impl ListRun {
             }
         }
         // What the list had and the state does not hold: HTP fades out, LTP keeps its value.
-        for (&fixture, attributes) in &self.fades {
-            let Some((fx, mode)) = env.lookup(fixture) else {
+        for (&item, attributes) in &self.fades {
+            let Some((fx, mode)) = env.lookup(item.fixture) else {
                 continue;
             };
-            let held_in_state = state.get(&fixture);
+            let held_in_state = state.get(&item);
             for (name, old) in attributes {
                 if held_in_state.is_some_and(|a| a.contains_key(name)) {
                     continue;
                 }
-                let Some(l) = mode.logical(name) else {
+                let Some(l) = mode.item_logical(item.cell, name) else {
                     continue;
                 };
-                let resolve = |s: Stored| resolve_stored(env.palettes, fx, mode, name, s);
+                let resolve = |s: Stored| resolve_stored(env.palettes, item, fx, mode, name, s);
                 if l.kind == AttributeKind::Ltp {
-                    let current = env.held(fixture, name).unwrap_or(l.default);
+                    let current = env.held(item, name).unwrap_or(l.default);
                     plans.push(Plan {
-                        fixture,
+                        item,
                         name: name.clone(),
                         ltp: true,
                         from: current,
@@ -584,7 +592,7 @@ impl ListRun {
                 } else if old.to != zero {
                     let (delay, fade) = times(l.group, false);
                     plans.push(Plan {
-                        fixture,
+                        item,
                         name: name.clone(),
                         ltp: false,
                         from: old.value(clock, resolve),
@@ -599,7 +607,7 @@ impl ListRun {
         }
         // PBK-15: the fixtures that fade start one after the other in user-number order.
         let mut ranked: Vec<(u32, FixtureId)> = (plans.iter().filter(|p| p.spread))
-            .filter_map(|p| Some((env.fixtures.get(&p.fixture)?.number, p.fixture)))
+            .filter_map(|p| Some((env.fixtures.get(&p.item.fixture)?.number, p.item.fixture)))
             .collect();
         ranked.sort_unstable();
         ranked.dedup();
@@ -613,7 +621,7 @@ impl ListRun {
         };
         let mut duration = 0.0_f32;
         for p in plans {
-            let rank = rank_of.get(&p.fixture).copied().unwrap_or(0);
+            let rank = rank_of.get(&p.item.fixture).copied().unwrap_or(0);
             let lag = if p.spread {
                 rank as f32 * p.fade * stagger
             } else {
@@ -624,7 +632,7 @@ impl ListRun {
             }
             if p.ltp {
                 // PBK-20: a kill releases to what the attribute was before the list took it.
-                (cx.from.entry(p.fixture).or_default())
+                (cx.from.entry(p.item).or_default())
                     .entry(p.name.clone())
                     .or_insert(Origin {
                         value: p.from,
@@ -638,10 +646,7 @@ impl ListRun {
                 fade: p.fade,
                 order: p.order,
             };
-            self.fades
-                .entry(p.fixture)
-                .or_default()
-                .insert(p.name, fade);
+            self.fades.entry(p.item).or_default().insert(p.name, fade);
         }
         duration
     }

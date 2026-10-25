@@ -30,7 +30,8 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
   (`faders_per_page`, `handles_per_page`, `ltp_trigger_level`, the three wheel steps,
   `colour_model`), `profiles` (engine profile key → profile), `patch` (`next_id` and `fixtures`:
   `{id, number, name, profile, mode, universe, address, handle}`), `groups` (`{id, fixtures}`,
-  fixtures in their recorded order) and `playbacks` (`{id, priority, fader_mode, values}`).
+  fixtures in their recorded order; from schema 7 `{id, items}` with items as `"901"` or
+  `"901.2"`, PRG-52) and `playbacks` (`{id, priority, fader_mode, values}`).
   `Engine::to_show` and `Engine::from_show` convert between an engine and a `Show`; times in
   `meta` come in as parameters (the core never reads the clock).
 - **SHW-02** The output is stable: pretty-printed with two-space indents and a trailing newline,
