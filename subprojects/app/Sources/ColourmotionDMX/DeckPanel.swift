@@ -9,8 +9,6 @@ struct DeckPanel: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     let device: ControlDevice
-    /// Deselects the deck (CTL-58a): the Devices and OSC panels come back.
-    let onClose: () -> Void
     /// The empty page `deckPages + 1` the `+` shows; the deck itself stays on its page until a binding lands there.
     @State private var virtualPage = false
     @State private var brightness = 100.0
@@ -22,9 +20,6 @@ struct DeckPanel: View {
         let size = min(96, floor((500 - 4 * CGFloat(cols - 1)) / CGFloat(cols)))
         PanelWindow(title: "Deck", info: device.name, framed: true, accessory: {
             if device.state != .ok { Text(device.state.word).font(Typo.ui(11)).foregroundStyle(t.amber) }
-            Button("‹ Devices", action: onClose)
-                .buttonStyle(.plain).font(Typo.ui(11)).foregroundStyle(t.fg2)
-                .keyboardShortcut(.cancelAction)
         }) {
             VStack(alignment: .leading, spacing: 8) {
                 VStack(spacing: 4) {

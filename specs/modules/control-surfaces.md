@@ -487,8 +487,8 @@ feedback is a **key image** instead of an LED or a motor.
   a new action):**
   - **CTL-58a Focus.** Selecting a deck shows only what is being worked on: the Devices and OSC
     panels are hidden, the left column holds the Deck panel alone (keys up to 96 pt instead of
-    72) and the bindings table beside it shows that deck's mapping. A `‹ Devices` button in the
-    Deck panel's title bar, and Esc, deselect the deck and bring the Devices and OSC panels back.
+    72) and the bindings table beside it shows that deck's mapping. A blue `‹ Devices` button at the left of the Control
+    screen's top bar (where the Devices panel was), and Esc, deselect the deck and bring the Devices and OSC panels back.
     Selecting a MIDI device or OSC works as before (no focus).
   - **CTL-58b New action clears the look.** Choosing a different action for a bound key from the
     right-click menu (Action ▸, Group ▸, Palette ▸, Edit action…) or by Learn on the on-screen

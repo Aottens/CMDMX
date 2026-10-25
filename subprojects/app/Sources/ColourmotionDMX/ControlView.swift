@@ -21,7 +21,7 @@ struct ControlView: View {
                 VStack(spacing: 8) {
                     // CTL-58a: a selected deck gets the column to itself.
                     if let deck = engine.control.devices.first(where: { $0.name == selected && $0.isDeck }) {
-                        DeckPanel(device: deck, onClose: { selected = nil })
+                        DeckPanel(device: deck)
                     } else {
                         DevicesPanel(selected: $selected)
                         OSCPanel()
@@ -61,6 +61,12 @@ struct ControlView: View {
     private var topBar: some View {
         let c = engine.control
         return HStack(spacing: 10) {
+            // CTL-58a: back from a deck's focus, top left where the Devices panel was.
+            if c.devices.contains(where: { $0.name == selected && $0.isDeck }) {
+                Button("‹ Devices") { selected = nil }
+                    .buttonStyle(FlatButton(fill: .blue))
+                    .keyboardShortcut(.cancelAction)
+            }
             Text("LAST INPUT").font(Typo.legend(11, .semibold)).tracking(0.7).foregroundStyle(t.fg2)
             Text(c.lastInput.map { "\($0.device) · \($0.input) · \($0.value)" } ?? "—").font(Typo.mono(Typo.body)).foregroundStyle(t.fg)
             Spacer(minLength: 0)
