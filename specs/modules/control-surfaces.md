@@ -3,7 +3,7 @@
 Owner: `cmdmx-control` (pure: MIDI and OSC decode/encode, mappings, pickup, feedback, learn) and
 `cmdmx-daemon` (CoreMIDI ports, the OSC socket, Stream Decks over USB HID, mapping files, IPC). Status: **CTL-05..43
 approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions); **CTL-44..58 (Stream Deck) approved
-by owner 2026-10-25** (P1-19; the nine questions as recommended). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
+by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
 and already tested in `cmdmx-control/src/mcu.rs`; they now belong to the Mackie Control profile.
 Scope set by the owner on 2026-10-23 (DECISIONS): a **general MIDI and OSC control layer**; named
 hardware (the BCF2000) and named clients (the church TouchOSC remote) are profiles and clients on
@@ -62,9 +62,14 @@ Learn, stored as readable files and travel between Macs.
   | `keypad <token>`: `0`–`9`, `.`, `@`, `Thro`, `And`, `Not`, `Fixture`, `Group`, `Palette`, `Full`, `Enter`, `Backspace` | button | the token into the command line as the screen keypad does (UI-17) |
   | `wheel <n>` | relative | `programmer.wheel` on the n-th wheel of the active attribute group (`wheels`, IPC-11) |
   | `attribute_group <I\|P\|C\|G\|B\|E\|S\|FX>` | button | `programmer.attribute_group` |
+  | `fan`, `fan <line\|mirror\|wings\|arrow>`, `fan off` (CTL-59) | button | `programmer.fan` |
   | `group <id>`, `palette <id>` | button | select the group / apply the palette as its window button does |
 
   New actions are added to this table by later criteria, never as free-form commands.
+- **CTL-59** Fan (P1-20, PRG-56). `fan` toggles Fan as the Fan key does, `fan <curve>` turns it on
+  with that curve, `fan off` turns it off (IPC-43). A `wheel <n>` binding needs nothing new: Fan
+  is engine state, so encoder turns fan while it is on. Its feedback is on while `fan` is not
+  `null` (`fan <curve>`: while that curve is on), like the `highlight` key LED.
 - **CTL-06** An action runs with the class of its command (UNDO-04): a fader move is live and never
   in the history; `keypad Enter` that records is an edit and undoable. A refusal is a warning in
   the message zone with the device name (`BCF2000: page 11 does not exist`), as for any client.

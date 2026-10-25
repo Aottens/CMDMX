@@ -41,7 +41,8 @@ without a thousands separator (1001, not "1.001"). The app/engine protocol now h
 rule: a mismatched app shows which versions differ instead of misreading the engine. Selecting single
 cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build, and so is native Elgato Stream Deck support: keys showing a
 playback's legend, colour, level and state, linked by dragging a playback onto an on-screen deck,
-no Elgato app needed. Next: the
+no Elgato app needed. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
+Wings, Arrow), moving-head positions above all. Next: the
 church's TouchOSC remote on the OSC layer, once the iPad is at hand. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
 sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).

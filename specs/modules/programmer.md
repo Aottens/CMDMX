@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20)**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -288,6 +288,59 @@ Multi-Cell Fixtures and Sub-Fixtures (keypad table) and Unfold.
   selected cell numbers; "in programmer" holds per fixture whether the whole fixture and which
   cells have programmer values.
 
+### Fan (P1-20, IDEA-27, approved by owner 2026-10-25)
+Titan reference: *Controlling Fixtures*, Changing Fixture Attributes, Fan Mode. Fan spreads a
+wheel change over the targets in their order, so the ends move most and the middle least (Line),
+or in one of the other curves. It is engine state like the active attribute group, so the
+screen wheels and every control surface fan alike; the client only says "fan on, curve X".
+- **PRG-56** Fan mode is engine state: off, or on with a curve `Line`, `Mirror`, `Wings` or
+  `Arrow`; the engine also keeps the last curve (default `Line`). The Fan key toggles: off → on
+  with the last curve, on → off. Choosing a curve turns Fan on with that curve and makes it the
+  last curve. Fan stays on (latched, Titan's default) until the Fan key is pressed again or the
+  selection changes (PRG-01..03, 08, a group select, Clear of the selection); Fix ±1, patterns
+  and All (PRG-04..06) change only the targets and keep Fan on. Fan mode and the last curve are
+  live state: not undoable (UNDO-04), not saved in the show, off when the engine starts.
+- **PRG-57** Fan positions. For a wheel on attribute *a*, the fan list is the targets that have
+  *a*, in target order: selection order, a group in its stored order (PRG-02), cells as items
+  (PRG-46) — the whole selection is one list (Titan's "Ignore Groups"). With *n* items in the
+  list, item *i* (0-based) sits at `x = i / (n − 1)`. Items without *a* take no position, so a
+  spot between two washes does not break a Pan fan. With *n* < 2 the wheel acts as without Fan
+  (PRG-19), so it never seems dead. Targets 901–904 unfolded to `[901.1, …, 904.3]` on Hue → a
+  fan over 12 cells.
+- **PRG-58** Fan curves give each position a factor *k* in −1..1:
+  - **Line** `k = 2x − 1`: 5 items → −1, −½, 0, ½, 1; 6 → −1, −0.6, −0.2, 0.2, 0.6, 1. The
+    middle stays; the ends move most, in opposite directions (Pan spread).
+  - **Mirror**: the first ⌈n/2⌉ and the last ⌈n/2⌉ positions are two halves (an odd middle item is
+    in both); each half is a Line of its own, the second mirrored (`k_i = k_{n−1−i}`): 5 → −1, 0, 1,
+    0, −1; 6 → −1, 0, 1, 1, 0, −1. A half of one item has `k = 0`.
+  - **Wings**: `s = ⌊n/3⌋` items in each outer wing, the rest is the middle with `k = 0`; the left
+    wing has `k = −(s − j)/s` for its item *j* (0-based from the outer end), the right wing the
+    same with `+`: 6 → −1, −½, 0, 0, ½, 1; 9 → −1, −⅔, −⅓, 0, 0, 0, ⅓, ⅔, 1; 5 → −1, 0, 0, 0, 1.
+    With *n* < 3 every `k` is 0.
+  - **Arrow** `k = |2x − 1|`: 5 → 1, ½, 0, ½, 1; 6 → 1, 0.6, 0.2, 0.2, 0.6, 1. The ends move
+    together, the middle stays (a V on Tilt or Dimmer).
+  These replace the formulas of the UI v0.1 sketch, where Mirror and Arrow were each other's
+  negative and so one curve (the wheel's direction flips the sign). Titan's Pull curves and Fan
+  parts are phase 2 (Out of scope).
+- **PRG-59** A fanned wheel turn by *d* (the step size of PRG-21 times `steps`) changes item *i* by
+  `d · k_i` from its own current value (its programmer value, or its output value when untouched,
+  PRG-20), clamped per item (PRG-19); Hue wraps (PRG-32). Every item in the fan list becomes a
+  touched value, also those with `k = 0`, so recording stores the whole fan. Washes 101–105 at
+  Pan 0.5, Fan Line, +10 `Coarse` (+0.40) → 0.10, 0.30, 0.50, 0.70, 0.90; a −10 turn → all 0.50
+  again. Fan Arrow on Dimmer, 201–205 at 0.20, +10 `Coarse` → 0.60, 0.40, 0.20, 0.40, 0.60.
+  Changing a palette reference this way makes it manual per item (PRG-22).
+- **PRG-60** Fan works on every wheel of the layout (PRG-17): any attribute group, the colour
+  model's wheels and direct emitters. A colour wheel's fan list is the targets with a colour
+  attribute (PRG-31): 201–208 at red, Fan Line on Hue, +0.25 → a rainbow from 270° to 90° through
+  red. Only wheel turns fan: keypad levels (`@`, PRG-09), palettes, Locate, Highlight, Off and the
+  absolute `programmer.set` (colour picker) act as without Fan.
+- **PRG-61** Fanned values are plain manual values per item: `contents()` (PRG-15), Record,
+  Update, cues and palettes need nothing new (a fanned palette is detected per fixture, PAL-04).
+  A fanned wheel turn is a wheel command for undo: one step, coalesced with further turns on the
+  same attribute (UNDO-05); the live Fan commands end that run.
+- **PRG-62** Engine state (PRG-35) carries `fan` (`null` or the curve) and `fan_curve` (the last
+  curve).
+
 ## Scenario test format
 Scenario files (`tests/scenarios/PRG-nn-*.json`, format of `engine-merge.md`) gain a `prg` action
 and a `programmer` expectation:
@@ -304,7 +357,10 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 `Programmer`; anything that reaches the frame (PRG-12, 13, 20, 21, 23..26) is a scenario file.
 
 ## Out of scope (phase 1 unless noted)
-- Fan (phase 1, spec task P1-20, IDEA-27), Align (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
+- Fan beyond PRG-56..62 (phase 2): Titan's Pull Middle, Pull Ends and Pull End curves, Fan parts
+  (hold Fan + a number), the group options Fan Within Group and Fan Group as Fixture, press-and-hold
+  Fan as a setting, and a keypad fan (`@ 0 Thro 100`); the extra orders of IDEA-15. Align
+  (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
 - Select If (phase 2). Cells: per-cell group masters, Titan's cell buttons in an attribute
   editor, and Shapes or pixel mapping over cells (phase 2); cells are selected by `.` and Unfold
   (PRG-46..55, UI-29).
@@ -320,7 +376,8 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 1. Clear defaults to `SelectionThenProgrammer` (UI v0.1); Titan's one-press Clear is a setting.
 2. Locate removes existing programmer values of the located attributes (PRG-24), a deliberate
    deviation from Titan's default, so what you see is what you record.
-3. Fan and Blind stay out of phase 1; their buttons are greyed out in UI v0.1.
+3. Fan and Blind stay out of phase 1; their buttons are greyed out in UI v0.1. (Fan: reversed
+   2026-10-25, IDEA-27; PRG-56..62.)
 4. Undo is a separate backlog item (P1-10), not part of PRG.
 5. A typed selection replaces the current selection; tapping adds (PRG-08 vs PRG-01).
 
@@ -331,3 +388,16 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 3. Unfold opens cells in place behind their fixture instead of replacing the page (UI-29).
 4. Within one source a cell value beats the fixture value; between sources the ENG rules decide
    per cell (PRG-51).
+
+## Owner decisions (2026-10-25, P1-20: all seven as recommended)
+1. Phase 1 has the four curves of UI v0.1 with the factors of PRG-58; Pull curves and Fan parts
+   are phase 2.
+2. The Fan key toggles (latched); a new selection turns Fan off, Fix ±1, patterns and All keep it
+   (PRG-56). Press-and-hold is a phase-2 setting.
+3. Fan follows the selection order, a group its stored order, the whole selection as one list
+   (PRG-57); the group options are phase 2.
+4. Fan works over items, cells included; only items with the attribute take a position (PRG-57).
+5. Only wheel turns fan; no keypad fan in phase 1 (PRG-60).
+6. The encoders fan through the engine state; a `fan` control action for a button is phase 1
+   (CTL-59).
+7. An item with factor 0 still becomes a touched value, so Record stores the whole fan (PRG-59).

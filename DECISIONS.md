@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Fan: four curves, latched, wheels only (P1-20, owner)
+
+**Decision:** Fan is live engine state toggled by the Fan key, off on a new selection; a fanned wheel turn changes each target by `d · k` with *k* from the curve over the targets that have the attribute, in selection order (items, cells included). Phase 1 has Line, Mirror, Wings and Arrow with the factors of PRG-58; Mirror and Arrow are redefined because the UI v0.1 sketch had them as each other's negative. Only wheels fan; fanned values are plain manual values. Spec PRG-56..62, UI-30, IPC-43, CTL-59; build tasks VS2-35..36.
+
+**Alternatives considered:** press-and-hold Fan; Titan's seven curves, Fan parts and group options now; a keypad fan; the sketch's formulas.
+
+**Reasoning:** the four curves cover moving-head spreads, V shapes and rainbows; the rest is Titan polish that plugs into the same factor rule later. Engine state means every surface fans alike and the UI holds no lighting logic.
+
+**Owner answers (2026-10-25):** all seven recommendations of P1-20 (see the spec's Owner decisions).
+
+**Reversal trigger:** the owner finds a curve shape wrong against Titan on a real rig.
+
 ## 2026-10-25 — Stream Decks over native USB HID from the daemon (ADR-009, P1-19, owner)
 
 **Decision:** Elgato Stream Decks are devices on the general control layer, driven by the daemon over USB HID (`hidapi`, own `deck` thread); no Elgato plugin. A deck is opened only while enabled, then exclusively (`Busy` while the Elgato app holds it); models are a table, not code; the daemon renders the key images (halo bar, legend, function, level bar, state) with a pure renderer in `cmdmx-control`; decks have their own pages besides the console page; links by drag onto an on-screen deck and by Learn. Spec CTL-44..58, ADR-009; build tasks VS7-05..08.

@@ -4,6 +4,7 @@ Owner: `subprojects/app` (rendering, input), with four small IPC additions in `c
 Status: **draft for owner approval (UX-02.0, 2026-10-17); open questions answered by owner 2026-10-17**.
 UI-03, 13, 18, 19, 22, 23 amended for cue lists: **approved by owner 2026-10-21 (VS3-05)**.
 UI-29 (cells, Unfold): **approved by owner 2026-10-25 (P1-13)**.
+UI-30 (Fan): **approved by owner 2026-10-25 (P1-20)**.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -149,8 +150,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     handles as PBK-38/39 describe (VS2-22).
   - Every other button is disabled with its spec in the tooltip: Edit "phase 2" (palettes
     decision 4); Off from VS2-05 (UI-26); Help
-    and System later; Select If, Unfold, Blind, Fan and Shape "later" as in the
-    sketch.
+    and System later; Select If, Unfold, Blind and Shape "later" as in the
+    sketch; Fan from UI-30.
 - **UI-17 [now]** The keypad has the sketch's 30 keys in its order. Keys that work now:
   - The digits, `.`, Fixture, Group, Thro, And and `@`, which add a token to the command line.
   - Enter, which sends the tokens as `programmer.command`.
@@ -237,6 +238,12 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   `programmer.select` with `cell`. Unfold + tap an unfolded fixture folds it; **Exit Unfold**
   folds all. Which fixtures are unfolded is view state in the app, not in the show.
 
+- **UI-30** Fan (P1-20, PRG-56..62, IPC-43; approved by owner 2026-10-25). The Fan function button
+  sends `programmer.fan {}` and is lit while `fan` is not `null`. While Fan is on, the softkeys show
+  the Fan context: Line, Mirror, Wings, Arrow (the current one marked; a tap sends
+  `programmer.fan` with that curve) and Fan off; the attribute bar shows an amber tag
+  `FAN <CURVE>` next to the wheels, as in UI v0.1. The wheels send `programmer.wheel` as always;
+  the app computes no fanned value.
 ### Attribute bar (UX-02b)
 - **UI-20 [now]** Two rows (owner, UX-02b run 2026-10-17: the command line gets its own row, so the
   wheels have the full width, up to the BCF2000's eight encoders).
