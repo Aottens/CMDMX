@@ -37,7 +37,7 @@ profile editor for channels, defaults and wheel slots are in (sketch in
 in the patch table is in too: Shift/Cmd-click a range of fixtures and move it back to back,
 renumber it, name it ("Par 1…6"), change its mode or remove it in one checked step. Playback
 Options shows only the options that apply to a memory, cue list or chase. The engine selects single cells of multi-cell fixtures on the command line (`901 . 2`, `901 Thro 904 . 2`); the app shows them later. Fixture and cue numbers above 999 read
-without a thousands separator (1001, not "1.001"). The app and engine now check the protocol
+without a thousands separator (1001, not "1.001"). Killing the app with `kill -9` mid-show was checked: DMX ran on without a dropped frame and the restarted app showed the live faders, cue and programmer. The app and engine now check the protocol
 version: an app that meets an engine of another release says which versions differ, shows and
 sends nothing and keeps retrying, and the engine names both versions to any client that sends the wrong one. Selecting single
 cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build, and so is native Elgato Stream Deck support: keys showing a

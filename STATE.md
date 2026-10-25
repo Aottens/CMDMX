@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS2-30)_
+_Last updated: 2026-10-25 (VS1-08)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -9,7 +9,7 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 ## Current focus
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
-control layer, cue lists, group masters, library browsing, the profile editor and multi-select in the patch table
+control layer, cue lists, group masters, the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor and multi-select in the patch table
 (VS2-27/28) are done.
 
 ## Next
