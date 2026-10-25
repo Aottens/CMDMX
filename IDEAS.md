@@ -54,6 +54,7 @@ the backlog, not the whole idea.
 | IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
 | IDEA-27 | Fan in phase 1: spread a value over the selection order (moving heads above all) | specified 2026-10-25 (P1-20, PRG-56..62; VS2-35 todo) | 1 | PRG, UI |
 | IDEA-28 | Local AI assistant: a small model on the Mac, a chat window in the app that builds palettes, groups and more on request | triaged | 2, with IDEA-17 (owner 2026-10-25) | IPC, UI, new `assistant.md` |
+| IDEA-29 | Serial fade steps: check the "fraction" more steps than Lightkey with an engine cue fade; cut frames to the highest patched channel only if they remain | new | 2 (proposed) | OUT |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -581,3 +582,13 @@ documented, as now.
 - Locked while playbacks are live, or always allowed as a planning tool (nothing changes until
   Apply)?
 **Owner's answer (2026-10-25):** phase 2, together with IDEA-17.
+
+### IDEA-29 — Serial fade steps after VS4-05 (2026-10-25)
+**Found in:** the church run (`tests/hardware/runs/2026-10-25-church.md`, section 2). At 33 Hz the fade on P37 was
+"comparable" with Lightkey, but the owner saw "a fraction" more steps in ColourmotionDMX.
+**Note:** that fade was Claude's IPC script (30 `programmer.set` per second, ~2 DMX per step), coarser than an
+engine cue fade, which the engine computes every tick.
+**Proposed:** phase 2 (owner to confirm). First look again with a cue fade on the Eurolite; only if steps remain,
+a criterion in `output-protocols.md` for serial frames cut to the highest patched channel (shorter frames, a higher
+rate). Touches now: nothing.
+**Open questions:** does the Eurolite MK2 accept short label-6 frames; what rate does a 373-channel frame allow?
