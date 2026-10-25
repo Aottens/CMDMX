@@ -1132,8 +1132,17 @@ final class EngineClient: ObservableObject {
     private let settleTimeout: UInt64 = 1_000_000_000
     private let echoEpsilon = 0.001
 
-    private let url = URL(string: "ws://127.0.0.1:7319")
+    private let url = URL(string: "ws://127.0.0.1:\(EngineClient.ipcPort)")
     private var socket: URLSessionWebSocketTask?
+
+    /// The engine's WebSocket port (IPC-08): `--ipc-port <n>` (1...65535), else 7319.
+    nonisolated static let ipcPort: Int = {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--ipc-port") else { return 7319 }
+        if i + 1 < args.count, let n = Int(args[i + 1]), (1...65535).contains(n) { return n }
+        FileHandle.standardError.write(Data("ignoring invalid --ipc-port, using 7319\n".utf8))
+        return 7319
+    }()
 
     /// The protocol version this app speaks (IPC-41); the one place to bump.
     nonisolated static let protocolVersion = 0
