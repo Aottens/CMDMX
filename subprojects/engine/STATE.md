@@ -3,7 +3,7 @@
 _Last updated: 2026-10-25 (VS1-09)_
 
 ## Current step
-VS1-09 (2026-10-25, IPC-41): `ipc::PROTOCOL` (0) is the one version the daemon speaks; `parse_command` answers another integer `v` with "protocol v<n> not supported, this engine speaks v<m>" and a missing or non-integer `v` with "missing or invalid \"v\" (this engine speaks v0)" (both `error`, IPC-06). Outgoing messages still write `"v":0` literally (bump them with `PROTOCOL` in VS2-33). Test `ipc_41_another_version_names_both_versions`.
+VS1-09 (2026-10-25, #105, IPC-41): `ipc::PROTOCOL` (0) is the one version the daemon speaks; `parse_command` answers another integer `v` with "protocol v<n> not supported, this engine speaks v<m>" and a missing or non-integer `v` with "missing or invalid \"v\" (this engine speaks v0)" (both `error`, IPC-06). Outgoing messages still write `"v":0` literally (bump them with `PROTOCOL` in VS2-33). Test `ipc_41_another_version_names_both_versions`.
 
 VS3-08 (2026-10-24, #98): `Engine::effective_multiplier(id)` (CUE-44: a BPM master's multiplier, the fader's zone with fader `Multiplier`; private `master_multiplier`, shared with `master_tempo`); the live part of every playback entry carries `multiplier` (IPC-28, `null` except on BPM masters). Tests `cue_44_a_bpm_master_reports_its_effective_multiplier`, `ipc_28_a_bpm_master_sends_its_effective_multiplier`.
 

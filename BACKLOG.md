@@ -24,7 +24,7 @@ Software first (owner, 2026-10-17). Left: VS1-08 and the hardware track (VS1-07 
 | VS1-06 | App shows `faders_per_page` on-screen faders bound to playbacks of page 1; moving one changes DMX. | PBK (subset) | M | done (2026-10-18, #40 with UX-02d; PBK-01..05) |
 | VS1-07 | (re-scoped 2026-10-23) Mackie Control profile on the generic control layer: window and banks from `faders_per_page` (never 8), default bindings, motor and touch rules; BCF2000 fader 1 moves playback 1 and the motors follow a page change; `tests/hardware/bcf2000.md` (gate 3). Needs VS7-02. | CTL-01..04, 30..33 | M | gate3: `tests/hardware/bcf2000.md` (merged 2026-10-23, #79; virtual BCF2000 passed in the VS7-04 run) |
 | VS1-08 | Supervisor-less resilience check: kill the app while output runs; DMX keeps streaming; app reconnects and shows the live state. | ADR-002 | S | todo |
-| VS1-09 | Protocol version check: the app checks the snapshot's `v`, on another version closes, renders and sends nothing, shows the IPC-41 message in place of the offline banner and keeps retrying; the daemon's `error` names both versions (unit test with the id). Needs P1-06. | IPC-41 | S | done (2026-10-25, #PR) |
+| VS1-09 | Protocol version check: the app checks the snapshot's `v`, on another version closes, renders and sends nothing, shows the IPC-41 message in place of the offline banner and keeps retrying; the daemon's `error` names both versions (unit test with the id). Needs P1-06. | IPC-41 | S | done (2026-10-25, #105) |
 
 ## Phase 1 milestones — a general console; first proof: replace Lightkey in the church
 Phase 1 delivers a well-working general DMX console (owner, 2026-10-22). Its first proof is a real
