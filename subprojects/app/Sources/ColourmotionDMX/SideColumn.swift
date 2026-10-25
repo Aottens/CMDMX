@@ -104,7 +104,7 @@ private struct FunctionButtons: View {
         ("Patch", ""), ("Disk", ""),
         ("Help", "later"), ("System", "later"),
         ("Blind", "later"), ("Off", ""),
-        ("Fan", "later"), ("Options", ""),
+        ("Fan", ""), ("Options", ""),
         ("Latch", ""), ("Shape", "later"),
     ]
 
@@ -115,6 +115,7 @@ private struct FunctionButtons: View {
                 ForEach(Self.keys, id: \.0) { label, spec in
                     FunctionKey(label: label, spec: spec,
                                 ring: label == "Record" ? ui.recordArmed : ui.function?.rawValue == label,
+                                lit: label == "Fan" && engine.programmer.fan != nil,
                                 tip: label == "Off" ? "Off: takes the active attribute group out of the programmer for the targets (PRG-27)" : "",
                                 action: spec.isEmpty ? { press(label) } : nil)
                 }
@@ -133,6 +134,7 @@ private struct FunctionButtons: View {
                 ui.recordArmed = true
             }
         case "Patch": ui.screen = .patch
+        case "Fan": ui.learnOrRun("fan", engine) { engine.fanToggle() }   // CTL-59
         case "Off": engine.programmerOff()   // UI-26: the active attribute group, as Titan's Off
         case "Disk": ui.screen = .show
         default:
@@ -150,16 +152,18 @@ private struct FunctionKey: View {
     let spec: String
     /// Record armed: red ring.
     var ring = false
+    /// Switched on (Fan): amber.
+    var lit = false
     /// Tooltip of a live key.
     var tip = ""
     var action: (() -> Void)?
 
     var body: some View {
         Button { action?() } label: {
-            Text(label).font(Typo.legend(13)).foregroundStyle(t.fg)
+            Text(label).font(Typo.legend(13)).foregroundStyle(lit ? t.bg : t.fg)
                 .padding(.horizontal, 7)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
+                .background(RoundedRectangle(cornerRadius: radius).fill(lit ? t.amber : t.surf))
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ring ? t.red : t.line, lineWidth: ring ? 2 : 1))
                 .overlay(alignment: .bottom) { Rectangle().fill(t.line2).frame(height: 2).padding(.horizontal, 1) }
                 .contentShape(Rectangle())
@@ -295,6 +299,7 @@ private struct Softkeys: View {
         if let ref = ui.cueMenu { return cueContext(ref) }
         if let function = ui.function { return functionContext(function) }
         if ui.paletteMenu { return paletteContext }
+        if let current = engine.programmer.fan { return fanContext(current) }
         if !engine.programmer.selection.isEmpty {
             return ("Selection", [
                 Softkey(name: "Next", sub: "Fix +1", action: { ui.learnOrRun("key step_next", engine) { engine.step(1) } }),
@@ -315,6 +320,16 @@ private struct Softkeys: View {
             Softkey(name: "Lock", sub: "venue mode", spec: "later"),
             undoKey,
         ])
+    }
+
+    /// UI-30: while Fan is on, the curves (the current one inverted) and Fan off.
+    private func fanContext(_ current: String) -> (name: String, keys: [Softkey?]) {
+        var keys: [Softkey?] = ["Line", "Mirror", "Wings", "Arrow"].map { curve in
+            Softkey(name: curve, on: curve == current,
+                    action: { ui.learnOrRun("fan \(curve.lowercased())", engine) { engine.fan(curve: curve) } })
+        }
+        keys.append(Softkey(name: "Fan off", action: { ui.learnOrRun("fan off", engine) { engine.fanOff() } }))
+        return ("Fan", keys)
     }
 
     /// UNDO-18: the IPC-31 label as the second line; no action while there is nothing to undo.

@@ -113,6 +113,13 @@ struct AttributeBar: View {
                 .fixedSize()
             }
 
+            if let fan = programmer.fan {   // UI-30
+                Text("FAN \(fan.uppercased())").font(Typo.mono(11)).foregroundStyle(t.bg)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 3).fill(t.amber))
+                    .fixedSize()
+            }
+
             GeometryReader { geo in
                 // At least three slots like the encoders.
                 let slots = max(3, programmer.wheels.count)

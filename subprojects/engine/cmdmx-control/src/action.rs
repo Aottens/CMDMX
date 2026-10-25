@@ -65,6 +65,25 @@ impl fmt::Display for Key {
     }
 }
 
+/// What a `fan` action does (CTL-59): toggle, pick a curve, or turn off.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FanArg {
+    Toggle,
+    Line,
+    Mirror,
+    Wings,
+    Arrow,
+    Off,
+}
+
+const FAN_ARGS: [(&str, FanArg); 5] = [
+    ("line", FanArg::Line),
+    ("mirror", FanArg::Mirror),
+    ("wings", FanArg::Wings),
+    ("arrow", FanArg::Arrow),
+    ("off", FanArg::Off),
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeypadToken {
     Digit(u8),
@@ -184,6 +203,7 @@ pub enum Action {
     Dbo,
     Key(Key),
     Keypad(KeypadToken),
+    Fan(FanArg),
     Wheel(u8),
     AttributeGroup(AttrGroup),
     Group(u32),
@@ -237,6 +257,8 @@ fn parse_action(s: &str) -> Option<Action> {
         ["dbo"] => Action::Dbo,
         ["key", k] => Action::Key(Key::from_name(k)?),
         ["keypad", t] => Action::Keypad(KeypadToken::from_name(t)?),
+        ["fan"] => Action::Fan(FanArg::Toggle),
+        ["fan", a] => Action::Fan(FAN_ARGS.iter().find(|(n, _)| n == a).map(|(_, f)| *f)?),
         ["wheel", n] => Action::Wheel(num(n)?),
         ["attribute_group", g] => Action::AttributeGroup(AttrGroup::from_name(g)?),
         ["group", id] => Action::Group(num(id)?),
@@ -320,6 +342,11 @@ impl fmt::Display for Action {
             Action::Dbo => f.write_str("dbo"),
             Action::Key(k) => write!(f, "key {k}"),
             Action::Keypad(t) => write!(f, "keypad {t}"),
+            Action::Fan(FanArg::Toggle) => f.write_str("fan"),
+            Action::Fan(a) => {
+                let name = FAN_ARGS.iter().find(|(_, x)| x == a).map_or("", |(n, _)| n);
+                write!(f, "fan {name}")
+            }
             Action::Wheel(n) => write!(f, "wheel {n}"),
             Action::AttributeGroup(g) => write!(f, "attribute_group {g}"),
             Action::Group(id) => write!(f, "group {id}"),

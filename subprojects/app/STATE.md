@@ -1,8 +1,10 @@
 # app — State
 
-_Last updated: 2026-10-25 (VS7-09)_
+_Last updated: 2026-10-25 (VS2-36)_
 
 ## Current step
+VS2-36 (2026-10-25, UI-30): `ProgrammerState.fan`/`fanCurve`; `EngineClient.fanToggle`, `fan(curve:)`, `fanOff` (sends `"curve":null` as `NSNull`). The Fan function key is live (`learnOrRun("fan")`, amber while on; `FunctionKey.lit`); while Fan is on the softkeys show the Fan context (Line, Mirror, Wings, Arrow with the current one on, Fan off), after the armed/menu contexts and before Selection/Main; the attribute bar shows an amber `FAN <CURVE>` tag before the wheels. Run `tests/manual/runs/2026-10-25-VS2-36.md`.
+
 VS7-09 (2026-10-25, CTL-58a/b): a selected deck gets the left column alone (no Devices/OSC panels, keys up to 96 pt); a blue `‹ Devices` button at the left of the Control top bar and Esc (`.cancelAction`; Learn's Esc monitor wins first) deselect it. `DeckPanel.setAction` on a bound key sends `label`/`colour` null with a different action and nothing for the same one. Run `tests/hardware/runs/2026-10-25-VS7-09.md`.
 
 VS7-07 (2026-10-25, CTL-58, 67): `DeckPanel.swift` draws a selected deck from the snapshot's `keys` (one top bar: level in the halo colour, rest at 25 %; label, sub, 40 % inactive, inverted held, `lock.fill` when `fixed`), a `Deck page` selector (`control.deck {page}`; `+` is an app-only empty page until a binding lands there) and a brightness slider. Drops (`deckDrag(action)` on the handle legend, page buttons, GM label, Go block keys — outside `.disabled`) unbind the target then bind (`key n was …`); key → key moves or swaps the whole raw binding minus its `input`; right-click Action ▸ (incl. Group/Palette), Label…, Colour, Remove; with Learn armed a click on a tile binds. `ControlBinding` keeps `raw` and `deckPage` (id includes the page); the bindings table has a Page column, follows the selected device's mapping when it changes, and sends `deck_page` for deck rows. `ControlDevice` decodes the deck fields and `Busy`/`Unsupported`. Run `tests/hardware/runs/2026-10-25-VS7-07.md`.

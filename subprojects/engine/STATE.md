@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-10-25 (VS2-35)_
+_Last updated: 2026-10-25 (VS2-36)_
 
 ## Current step
+VS2-36 (2026-10-25, IPC-43, CTL-59): `programmer.fan` → `Command::Fan { curve: Option<Option<FanCurve>> }` via `nullable` (absent toggles, null off, a curve on), class live. Control action `fan`, `fan line|mirror|wings|arrow`, `fan off` (`cmdmx_control::action::FanArg`); feedback: `fan`/`fan off` lit while Fan is on, `fan <curve>` while that curve is on. Tests `ipc_43_*` (main.rs, ipc.rs), `ctl_59_*` (mapping.rs, control/tests.rs). Run `tests/manual/runs/2026-10-25-VS2-36.md`.
+
 VS2-35 (2026-10-25, #123, PRG-56..62): Fan in the core. `programmer::FanCurve` (Line default, Mirror, Wings, Arrow) and `fan_factors(curve, n)` (PRG-58). `Engine.fan`/`fan_curve` sit next to `highlight`: live, outside `EditState` and the show. `fan_key`, `set_fan(Option)`, `fan`, `fan_curve`; fan goes off in `select_item`, `select_group`, `clear_selection` and the typed `replace_selection` paths, stays on for Fix ±1, patterns and All. `fan_list(wheel)`: target items with the attribute (cells: Colour, own attributes, always Dimmer). `turn_wheel` with Fan on and ≥ 2 items moves each whole fixture by `delta · k`; cell items take a position but no value until VS2-31/32. `ProgrammerView.fan`/`fan_curve` (already in snapshot and delta JSON; the command is VS2-36). Scenario action `{"prg":{"fan":"Line"}}` runs `set_fan` + `History::live`. Tests `cmdmx-core/tests/fan.rs`, `tests/scenarios/PRG-59-line-fan-spreads-pan-over-five-washes.json`.
 
 VS7-07 (2026-10-25, CTL-46, 47, 50, 57, 67): `control.deck {device, brightness?, page?}` (page 1..=deck_pages, refused outside); `control.binding`/`unbind` pick by `input` and `deck_page` (default 1). Key looks: `fixed` (`Action::is_fixed`: a `<page>.<slot>` or playback-id target) drawn as a lock and sent per key; one top bar with the level in the halo colour, nothing along the bottom (golden images rewritten). Continuous actions on a key, touch key, dial push or strip only show. Enabling re-arms the Busy warning. The Original's model row is `verified: true`.

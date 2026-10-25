@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS2-35: Fan in the core)_
+_Last updated: 2026-10-25 (VS2-36: Fan over the wire and on the screen)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -9,14 +9,13 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 ## Current focus
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
-control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on the church iPad passed), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor and multi-select in the patch table
-(VS2-27/28) are done.
+control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on the church iPad passed), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor, multi-select in the patch table
+(VS2-27/28) and Fan (VS2-35/36) are done.
 
 ## Next
-1. VS2-36 (Fan over the wire and on screen: IPC-43, UI-30, CTL-59); the core fans since VS2-35.
-2. Then VS2-31..34 (cells: PRG-47, 51..55; VS2-33 raises the protocol to v1 and its run checks
+1. VS2-31..34 (cells: PRG-47, 51..55; VS2-33 raises the protocol to v1 and its run checks
    the VS1-09 mismatch line).
-3. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
+2. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
 
 ## Waiting for a hardware run (gate 3, owner)
