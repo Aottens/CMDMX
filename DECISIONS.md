@@ -15,6 +15,13 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 **Reversal trigger:** none expected.
 
+## 2026-10-25 — Per-cell selection (P1-13, owner)
+
+**Decision:** `programmer.md` PRG-46..55, `ui.md` UI-29, `ipc.md` IPC-42. A selection item is a whole fixture or one cell (`901.2`); cell ranges follow Titan's keypad table (`901 . 2 Thro 4` = cells 2–4 of 901, `901 Thro 904 . 2` = cell 2 of each); a cell without a Dimmer gets a virtual Dimmer under the master Dimmer; within one source a cell value beats the fixture value, between sources the ENG rules decide per cell; cues, groups and palettes key cell values by item; Unfold opens cells in place in the Fixtures window; IPC `v` goes to 1.
+**Alternatives:** grandMA's running cell count; cells with colour only (`@` refused on a cell); Titan's Unfold replacing the whole page; cells as a separate list next to the selection.
+**Why:** Titan is the behavioural reference for the keypad; a virtual cell dimmer makes cell chases on the Shehds possible; unfolding in place keeps the other fixtures in view.
+**Reversal trigger:** pixel fixtures with dozens of cells make in-place Unfold unusable (then a page per fixture, as Titan).
+
 ## 2026-10-25 — IPC protocol versioning (P1-06, owner)
 
 **Decision:** `ipc.md` IPC-41: `v` is one integer for the whole contract and goes up only on a change an older peer would misread (key removed or renamed, type/unit/meaning changed, command reshaped); new types, commands and keys do not raise it. Daemon and app each speak one version, no negotiation. The app checks the snapshot's `v` and on a mismatch closes, renders and sends nothing, shows both versions in place of the offline banner and keeps retrying; the daemon answers a command with another `v` with an `error` naming both versions. Tick, DMX output and other clients never notice. Build task VS1-09.

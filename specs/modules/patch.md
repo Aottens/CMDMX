@@ -204,7 +204,7 @@ Colour wheel, gobo and prism channels of the Phantom 25 and Fuze 75S are plain c
 slot names for now (the Lightkey show has them; adding them is a LIB-12 edit later).
 
 ## Out of scope (this spec)
-Per-cell selection and Unfold (cells exist in the model, LIB-07; selecting them is a PRG task),
+Per-cell selection and Unfold (cells exist in the model, LIB-07; selecting them is PRG-46..55),
 a fixture spanning several universes (pixel products, with the pixel mapper), patching from a
 visual plot (with the visualiser).
 

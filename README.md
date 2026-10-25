@@ -38,7 +38,8 @@ in the patch table is in too: Shift/Cmd-click a range of fixtures and move it ba
 renumber it, name it ("Par 1…6"), change its mode or remove it in one checked step. Playback
 Options shows only the options that apply to a memory, cue list or chase. Fixture and cue numbers above 999 read
 without a thousands separator (1001, not "1.001"). The app/engine protocol now has a versioning
-rule: a mismatched app shows which versions differ instead of misreading the engine. Next: the
+rule: a mismatched app shows which versions differ instead of misreading the engine. Selecting single
+cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build. Next: the
 church's TouchOSC remote on the OSC layer, once the iPad is at hand. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
 sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
