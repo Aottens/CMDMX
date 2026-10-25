@@ -704,7 +704,8 @@ impl Control {
             }
             (dev.connected, dev.input, dev.output) = (true, p.input, p.output);
         }
-        for (name, dev) in &mut self.devices {
+        // Decks come and go with the deck thread's list, not the MIDI one.
+        for (name, dev) in self.devices.iter_mut().filter(|(_, d)| d.deck.is_none()) {
             if dev.connected && !list.iter().any(|p| &p.name == name) {
                 (dev.connected, dev.input, dev.output) = (false, false, false);
                 if dev.enabled {

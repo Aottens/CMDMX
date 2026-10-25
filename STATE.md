@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS7-05 Stream Deck control layer)_
+_Last updated: 2026-10-25 (VS7-06 Stream Deck in the daemon)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -13,10 +13,11 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 (VS2-27/28) are done.
 
 ## Next
-1. The owner picks the next task; candidates: VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS2-33
-   raises the protocol to v1 and its run checks the VS1-09 mismatch line), VS7-06 (Stream Deck in
-   the daemon, the next step of VS7-05..08, CTL-44..58, ADR-009; the owner's deck is a Stream Deck
-   Original, `tests/hardware/streamdeck.md`), VS2-35..36 (Fan, PRG-56..62; VS2-35 first).
+1. The owner picks the next task; candidates: VS7-07 (the on-screen deck in the app, drag and Learn,
+   and the gate-3 run `tests/hardware/streamdeck.md` on the owner's Stream Deck Original; VS7-06
+   drives the deck from the daemon), VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-33 raises
+   the protocol to v1 and its run checks the VS1-09 mismatch line), VS2-35..36 (Fan, PRG-56..62;
+   VS2-35 first).
 2. Before the next service: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey answers
    the iPad again; lag on the church wifi).
 

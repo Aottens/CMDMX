@@ -44,8 +44,9 @@ version: an app that meets an engine of another release says which versions diff
 sends nothing and keeps retrying, and the engine names both versions to any client that sends the wrong one. Selecting single
 cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build. Native Elgato Stream Deck support is being built: the engine already
 knows the decks (Original, MK.2, Mini, XL, Neo, +, Pedal), reads their keys and draws each key's
-image (a playback's legend, colour, level and state); the daemon and the on-screen deck come next,
-no Elgato app needed. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
+image (a playback's legend, colour, level and state), and the engine now drives a plugged-in deck itself, no Elgato app needed: a
+fresh deck gets playback keys, page and Go, survives unplugging and goes black when the engine stops (checked on a Stream Deck Original).
+The on-screen deck in the app comes next. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
 Wings, Arrow), moving-head positions above all. A TouchOSC layout for the
 church's old iPad (TouchOSC Mk1) ships in [`touchosc/`](touchosc/): faders with legends, page,
 Go/Back/Stop with the cue texts, Grand Master, DBO and the message line, loaded from the Mac

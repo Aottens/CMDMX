@@ -601,3 +601,18 @@ fn ctl_57_changed_looks_reach_the_clients_at_most_ten_times_a_second() {
     // 0.5 s of changes every 25 ms: about 5 deltas, never 20.
     assert!((4..=6).contains(&sent), "{sent} deltas");
 }
+
+#[test]
+fn ctl_44_a_midi_port_list_leaves_the_decks_alone() {
+    let e = engine();
+    let (mut c, _) = ready("midi-ports", &e);
+    c.event(super::MidiEvent::Ports(Vec::new()), 0.0);
+    let s = c.snapshot();
+    assert_eq!(device(&s, DECK)["state"], "Ok");
+    assert!(c.take_messages().is_empty());
+    // A deck seen but not enabled is not forgotten either.
+    let (mut c, _) = setup("midi-ports-2");
+    decks(&mut c, &[(DECK, ORIGINAL)]);
+    c.event(super::MidiEvent::Ports(Vec::new()), 0.0);
+    assert_eq!(device(&c.snapshot(), DECK)["state"], "Disabled");
+}
