@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS7-07 on-screen Stream Deck)_
+_Last updated: 2026-10-25 (VS7-09 deck focus in the Control screen)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -13,8 +13,7 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 (VS2-27/28) are done.
 
 ## Next
-1. The owner picks the next task; candidates: VS7-09 (Control screen room for the deck; label vs a
-   new action), VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-33 raises
+1. The owner picks the next task; candidates: VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-33 raises
    the protocol to v1 and its run checks the VS1-09 mismatch line), VS2-35..36 (Fan, PRG-56..62;
    VS2-35 first).
 2. Before the next service: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey answers
