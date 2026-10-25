@@ -47,7 +47,7 @@ the backlog, not the whole idea.
 | IDEA-19 | Rebrand to CMDMX by Colourmotion | accepted 2026-10-22 | 1 (after VS6) | docs, app, README |
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
-| IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | triaged | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
+| IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | specified 2026-10-25 (P1-19, CTL-44..58; VS7-05 todo) | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
 | IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 3 (hardware; owner 2026-10-23) | new `hardware.md`, CTL, licence |
 | IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
@@ -413,6 +413,9 @@ CTL-17 and one dependency (`hidapi`) in the daemon when its phase comes.
 - Route 1 (native, no Elgato app), route 2 (plugin), or both?
 - Which models: Stream Deck (15), Mini, XL, Stream Deck+ (dials for wheels/levels), Neo?
 - What a playback key does by default: Go, Flash or Swop (as the handle's buttons, CUE-25)?
+
+**Specified 2026-10-25 (P1-19):** route 1, native HID from the daemon (ADR-009); all models as a
+table; a playback key is its handle's `upper` button; CTL-44..58, build tasks VS7-05..08.
 
 ### IDEA-23 — Open-hardware desk for the maker community (2026-10-23)
 **Owner's intent:** CMDMX becomes a lighting desk for the maker community. The software stays

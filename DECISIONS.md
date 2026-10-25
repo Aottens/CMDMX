@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Stream Decks over native USB HID from the daemon (ADR-009, P1-19, owner)
+
+**Decision:** Elgato Stream Decks are devices on the general control layer, driven by the daemon over USB HID (`hidapi`, own `deck` thread); no Elgato plugin. A deck is opened only while enabled, then exclusively (`Busy` while the Elgato app holds it); models are a table, not code; the daemon renders the key images (halo bar, legend, function, level bar, state) with a pure renderer in `cmdmx-control`; decks have their own pages besides the console page; links by drag onto an on-screen deck and by Learn. Spec CTL-44..58, ADR-009; build tasks VS7-05..08.
+
+**Alternatives considered:** an Elgato Stream Deck plugin talking OSC/IPC; both routes; a shared open; the app rendering the images.
+
+**Reasoning:** a show must not depend on a second program (the Elgato app, a Node runtime) running; the daemon keeps the deck alive with the app closed. The Elgato app and Bitfocus Companion can already send OSC to `/cmdmx` for whoever wants that route.
+
+**Owner answers (2026-10-25):** all nine recommendations of P1-19 (see the spec's Owner decisions).
+
+**Reversal trigger:** raw HID on macOS proves unreliable in the gate-3 run, or Elgato changes the protocol beyond the open references.
+
 ## 2026-10-25 — Fan is phase 1, Align stays phase 2 (IDEA-27, owner)
 
 **Decision:** plain Fan (spread a value over the selection order) moves from phase 2 to phase 1; spec task P1-20. Align stays in phase 2.
