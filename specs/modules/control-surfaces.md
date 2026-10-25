@@ -3,7 +3,7 @@
 Owner: `cmdmx-control` (pure: MIDI and OSC decode/encode, mappings, pickup, feedback, learn) and
 `cmdmx-daemon` (CoreMIDI ports, the OSC socket, Stream Decks over USB HID, mapping files, IPC). Status: **CTL-05..43
 approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions); **CTL-44..58 (Stream Deck) approved
-by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
+by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
 and already tested in `cmdmx-control/src/mcu.rs`; they now belong to the Mackie Control profile.
 Scope set by the owner on 2026-10-23 (DECISIONS): a **general MIDI and OSC control layer**; named
 hardware (the BCF2000) and named clients (the church TouchOSC remote) are profiles and clients on
@@ -258,7 +258,7 @@ Learn, stored as readable files and travel between Macs.
   `Learned: OSC /1/fader1 → fader 1` and a learned OSC fader is saved as `jump`. Button
   feedback is 1.0/0.0 (VS7-03).
 
-### The shipped TouchOSC layout (VS4-04; proposed 2026-10-25, awaiting owner approval)
+### The shipped TouchOSC layout (VS4-04; approved by owner 2026-10-25)
 A remote for the church iPad mini (1st gen, iOS 9.3.5, TouchOSC Mk1 1.9.8, held landscape),
 made for ColourmotionDMX on the built-in schema (CTL-36/37). It is a client like any other: no
 mapping, no Learn, nothing in the daemon changes.
