@@ -1,8 +1,10 @@
 # app — State
 
-_Last updated: 2026-10-24 (VS2-29)_
+_Last updated: 2026-10-25 (VS1-09)_
 
 ## Current step
+VS1-09 (2026-10-25, IPC-41): `EngineClient.protocolVersion` (0) is used by every command. A snapshot with another or no `v` is not applied: `protocolMismatch` ("v1" or "no version") is set, `socket` cleared so nothing is sent, the task cancelled, and `connectForever` retries as when offline; other messages are ignored while a mismatch stands, a matching snapshot clears it. The status bar shows the IPC-41 line in place of the offline text. Checked with `swift build` only (the app URL is fixed to port 7319); the VS2-33 run shows it with an app of the previous release.
+
 VS2-29 (2026-10-24, UI): no thousands separator anywhere. An integer interpolated into a `Text`, `Button` or `.help` string literal is a `LocalizedStringKey` and is formatted for the locale (1001 → "1.001" in Dutch); such places now use `Text(String(n))` or `Text(verbatim: "…")`, and a `.help` ternary of two literals gets `as String`. Left as they are: values that never pass 999 (percent, 0–255, pickers 1–99). `engine.say` and other `String` parameters were never affected. Run `tests/manual/runs/2026-10-24-VS2-29.md`.
 
 VS3-08 (2026-10-24, CUE-44, 46): the BPM master strip shows the live `multiplier` (the fader's zone with fader Multiplier); Playback Options shows the Fader tab only on a memory (`PlaybackInfo.isCueList`), a chase's Cue list tab only Kind and Renumber All and its Times tab no Track; the group-times row is one row of "—" buttons until a group has times, and the × beside a group's fade has `.fixedSize()` (it drew as an empty box). Run `tests/manual/runs/2026-10-24-VS3-08.md` passed; this closes the VS3-05 run's open points.

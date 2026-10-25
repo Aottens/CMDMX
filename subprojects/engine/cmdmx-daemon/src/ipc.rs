@@ -56,6 +56,9 @@ use crate::shows::{valid_name, Opened, ShowRequest, ShowState, Shows};
 /// Messages a client may have queued before it is disconnected (IPC-07).
 const QUEUE: usize = 64;
 
+/// The protocol version this engine speaks; a command naming another is refused (IPC-41).
+pub const PROTOCOL: u64 = 0;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     /// CTL-40: handled by the control layer on the tick, never by the engine.
@@ -914,8 +917,18 @@ pub fn stamp(cmd: Command, at: f64) -> Command {
 /// IPC-04/06/13: one JSON text frame to a command, or a human-readable error.
 pub fn parse_command(text: &str) -> Result<Command, String> {
     let v: serde_json::Value = serde_json::from_str(text).map_err(|e| format!("bad JSON: {e}"))?;
-    if v.get("v").and_then(|n| n.as_u64()) != Some(0) {
-        return Err("missing or unsupported \"v\" (expected 0)".into());
+    match v.get("v").and_then(|n| n.as_u64()) {
+        Some(PROTOCOL) => {}
+        Some(other) => {
+            return Err(format!(
+                "protocol v{other} not supported, this engine speaks v{PROTOCOL}"
+            ))
+        }
+        None => {
+            return Err(format!(
+                "missing or invalid \"v\" (this engine speaks v{PROTOCOL})"
+            ))
+        }
     }
     let level = || {
         v.get("level")
@@ -3930,6 +3943,23 @@ mod tests {
         let v = parse(&error("boom"));
         assert_eq!(v, json!({"v":0,"type":"error","message":"boom"}));
         assert_eq!(parse(&warning("w"))["type"], "warning");
+    }
+
+    #[test]
+    fn ipc_41_another_version_names_both_versions() {
+        let other = PROTOCOL + 1;
+        assert_eq!(
+            parse_command(&format!(
+                r#"{{"v":{other},"cmd":"grand_master.set","level":0.5}}"#
+            )),
+            Err(format!(
+                "protocol v{other} not supported, this engine speaks v{PROTOCOL}"
+            ))
+        );
+        assert!(parse_command(&format!(
+            r#"{{"v":{PROTOCOL},"cmd":"grand_master.set","level":0.5}}"#
+        ))
+        .is_ok());
     }
 
     #[test]

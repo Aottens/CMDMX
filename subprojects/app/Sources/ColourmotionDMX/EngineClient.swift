@@ -1135,6 +1135,12 @@ final class EngineClient: ObservableObject {
     private let url = URL(string: "ws://127.0.0.1:7319")
     private var socket: URLSessionWebSocketTask?
 
+    /// The protocol version this app speaks (IPC-41); the one place to bump.
+    nonisolated static let protocolVersion = 0
+    /// The engine's version ("v1", or "no version") while its snapshot named another; nothing
+    /// from it is shown.
+    @Published private(set) var protocolMismatch: String?
+
     init() {
         rebuildSlots()
         Task { await connectForever() }
@@ -1542,7 +1548,7 @@ final class EngineClient: ObservableObject {
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
-              let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": 0, "cmd": cmd]) { a, _ in a }),
+              let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": Self.protocolVersion, "cmd": cmd]) { a, _ in a }),
               let text = String(data: data, encoding: .utf8) else { return }
         socket.send(.string(text)) { error in
             if error != nil { socket.cancel(with: .goingAway, reason: nil) }
@@ -1550,14 +1556,14 @@ final class EngineClient: ObservableObject {
     }
 
     private struct FaderSet: Encodable {
-        let v = 0
+        let v = EngineClient.protocolVersion
         let cmd = "fader.set"
         let playback: Int
         let level: Double
     }
 
     private struct GrandMasterSet: Encodable {
-        let v = 0
+        let v = EngineClient.protocolVersion
         let cmd = "grand_master.set"
         let level: Double
     }
@@ -1607,6 +1613,7 @@ final class EngineClient: ObservableObject {
     /// Union of all server message shapes; unused fields stay nil.
     private struct Incoming: Decodable {
         let type: String
+        let v: Int?
         fileprivate let page: Tolerant<PageState>?
         let fadersPerPage: Int?
         let grandMaster: Double?
@@ -1633,7 +1640,7 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
+            case type, v, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -1648,8 +1655,18 @@ final class EngineClient: ObservableObject {
               let incoming = try? JSONDecoder().decode(Incoming.self, from: data)
         else { return }
 
+        // IPC-41: after a version mismatch nothing but a matching snapshot is applied.
+        if incoming.type != "snapshot", protocolMismatch != nil { return }
         switch incoming.type {
         case "snapshot":
+            if incoming.v != Self.protocolVersion {
+                protocolMismatch = incoming.v.map { "v\($0)" } ?? "no version"
+                let task = socket
+                socket = nil
+                task?.cancel(with: .goingAway, reason: nil)
+                return
+            }
+            protocolMismatch = nil
             releaseTasks.values.forEach { $0.cancel() }; releaseTasks = [:]
             heldFaders = [:]; settling = []; lastSent = [:]
             gmHeld = false; gmSettling = false; gmLastSent = nil; gmEngineLevel = nil
