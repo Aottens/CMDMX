@@ -63,6 +63,7 @@ use cmdmx_core::playback::{
     HandleButtons, Kind, Link, ListAction, ListFader, ListLive, ListOptions, LoopAction,
     MasterKind, Playback, PlaybackChange, PlaybackRecord, Track, UpdateMode, Values,
 };
+use cmdmx_core::programmer::Item;
 use cmdmx_core::show::{Meta, Show};
 use cmdmx_core::value::{Stored, Value};
 use common::dmx;
@@ -78,7 +79,7 @@ fn q(n: f64) -> CueNumber {
 fn levels(entries: &[(u32, &str, f32)]) -> Values {
     let mut v: Values = BTreeMap::new();
     for (id, name, level) in entries {
-        v.entry(*id)
+        v.entry((*id).into())
             .or_default()
             .insert((*name).to_string(), (*level).into());
     }
@@ -220,7 +221,7 @@ fn hard(e: &Engine, n: f64, fixture: u32, attribute: &str) -> Option<f32> {
         .find(|c| c.number == q(n))
         .unwrap();
     cue.values
-        .get(&fixture)
+        .get(&Item::fixture(fixture))
         .and_then(|a| a.get(attribute))
         .map(|s| match s {
             Stored::Value(Value::Level(v)) => *v,
@@ -1411,7 +1412,7 @@ fn cue_53_a_track_change_to_the_current_cue_is_on_stage_at_once() {
 
 fn viewed(e: &Engine, n: f64, fixture: u32, attribute: &str) -> Option<(f32, f64)> {
     let view = e.cue_view(1, q(n)).unwrap();
-    view.get(&fixture)
+    view.get(&Item::fixture(fixture))
         .and_then(|a| a.get(attribute))
         .map(|v: &CueValue| match v.value {
             Stored::Value(Value::Level(l)) => (l, v.from.as_f64()),

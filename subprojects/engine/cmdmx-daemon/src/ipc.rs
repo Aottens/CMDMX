@@ -2173,6 +2173,7 @@ pub fn snapshot(
     control: &serde_json::Value,
 ) -> String {
     let stored = stored_infos(engine);
+    let groups = engine.groups();
     to_json(&Snapshot {
         v: 0,
         kind: "snapshot",
@@ -2185,7 +2186,7 @@ pub fn snapshot(
         dbo: engine.dbo(),
         playback_settings: playback_settings(engine),
         fixtures: fixture_infos(engine),
-        groups: group_infos(engine.groups()),
+        groups: group_infos(&groups),
         palettes: palette_infos(engine),
         palette_settings: palette_settings(engine),
         programmer_settings: programmer_settings(engine),
@@ -2226,16 +2227,18 @@ struct CueViewMessage {
 /// CUE-54, IPC-24: the answer to `cue.view`, sorted by fixture; a palette reference shows what
 /// its palette resolves (as `contents`, IPC-21) with its id.
 pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<String, CoreError> {
+    // The wire lists whole fixtures until it carries items (VS2-33).
     let fixtures = (engine.cue_view(id, cue)?.into_iter())
-        .map(|(fixture, attributes)| CueViewFixture {
-            fixture,
+        .filter(|(item, _)| item.cell.is_none())
+        .map(|(item, attributes)| CueViewFixture {
+            fixture: item.fixture,
             values: (attributes.into_iter())
                 .map(|(name, v)| {
                     let palette = match v.value {
                         Stored::Reference(r) => Some(r.palette),
                         Stored::Value(_) => None,
                     };
-                    let value = engine.resolve_stored(fixture, &name, v.value);
+                    let value = engine.resolve_stored(item, &name, v.value);
                     let shown = CueViewValue {
                         value,
                         from: v.from,
@@ -2307,7 +2310,7 @@ impl Published {
             dbo: engine.dbo(),
             playback_settings: playback_settings(engine),
             programmer: engine.programmer_view(),
-            groups: engine.groups().clone(),
+            groups: engine.groups(),
             palettes: palette_infos(engine),
             palette_settings: palette_settings(engine),
             programmer_settings: programmer_settings(engine),
@@ -2432,8 +2435,9 @@ impl Published {
             }));
             self.programmer = view;
         }
-        if engine.groups() != &self.groups {
-            self.groups = engine.groups().clone();
+        let groups = engine.groups();
+        if groups != self.groups {
+            self.groups = groups;
             out.push(to_json(&GroupsDelta {
                 v: 0,
                 kind: "groups",
@@ -2941,7 +2945,10 @@ mod tests {
             1,
             1,
             1,
-            BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
+            BTreeMap::from([(
+                cmdmx_core::programmer::Item::fixture(1),
+                BTreeMap::from([("Dimmer".to_string(), 1.0.into())]),
+            )]),
         ));
         e
     }
@@ -4314,6 +4321,7 @@ mod tests {
             icon: None,
             global: BTreeMap::from([(attribute.to_string(), GlobalValue::Value(value))]),
             shared: BTreeMap::new(),
+            shared_cells: BTreeMap::new(),
             fixtures: BTreeMap::new(),
         };
         e.add_palette(palette(
@@ -4692,7 +4700,10 @@ mod tests {
             2,
             1,
             2,
-            BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 0.5.into())]))]),
+            BTreeMap::from([(
+                cmdmx_core::programmer::Item::fixture(1),
+                BTreeMap::from([("Dimmer".to_string(), 0.5.into())]),
+            )]),
         ));
         e.set_fader(2, 1.0, 0.0).unwrap();
         e.set_fader(1, 1.0, 0.0).unwrap();
@@ -4746,7 +4757,10 @@ mod tests {
             2,
             1,
             2,
-            BTreeMap::from([(2, BTreeMap::from([("Pan".to_string(), 1.0.into())]))]),
+            BTreeMap::from([(
+                cmdmx_core::programmer::Item::fixture(2),
+                BTreeMap::from([("Pan".to_string(), 1.0.into())]),
+            )]),
         );
         pb.release_mask = Some(vec![AttributeGroup::P]);
         pb.release_time = Some(4.0);
@@ -5066,7 +5080,7 @@ mod tests {
 
     fn dimmer(fixture: u32, level: f32) -> cmdmx_core::playback::Values {
         BTreeMap::from([(
-            fixture,
+            cmdmx_core::programmer::Item::fixture(fixture),
             BTreeMap::from([("Dimmer".to_string(), level.into())]),
         )])
     }

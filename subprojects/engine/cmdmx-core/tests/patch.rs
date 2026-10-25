@@ -13,6 +13,7 @@ use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::{FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
+use cmdmx_core::programmer::Item;
 use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
 
@@ -327,7 +328,7 @@ fn pat_05_remove_takes_the_fixture_out_of_everything() {
     e.patch_remove(&[two]).unwrap();
     assert!(e.fixture(two).is_none());
     assert_eq!(e.programmer().selection(), [one, three]);
-    assert_eq!(e.group(1), Some(&[one, three][..]));
+    assert_eq!(e.group(1), Some(vec![one, three]));
     assert!(!e.programmer().in_programmer(two));
     e.tick(0.025);
     assert_eq!(dmx(&e, 1, 2), 0, "its channel drops to 0");
@@ -356,7 +357,7 @@ fn pat_06_renumber_changes_only_the_number() {
     for (n, id) in (1201..).zip(&ids) {
         e.patch_renumber(*id, n).unwrap();
     }
-    assert_eq!(e.group(3), Some(ids.as_slice()));
+    assert_eq!(e.group(3), Some(ids.clone()));
     assert_eq!(
         e.programmer().value(ids[0], "Dimmer"),
         Some(Value::Level(0.5))
@@ -451,7 +452,7 @@ fn pat_13_change_mode_keeps_matching_attributes_and_drops_the_rest() {
         1,
         1,
         BTreeMap::from([(
-            m,
+            Item::fixture(m),
             BTreeMap::from([
                 ("Tilt".to_string(), 0.3.into()),
                 ("Zoom".to_string(), 0.7.into()),
@@ -812,7 +813,10 @@ fn pat_22_dropped_values_give_one_warning_for_the_range() {
         1,
         1,
         1,
-        BTreeMap::from([(ids[1], BTreeMap::from([("Tilt".to_string(), 0.3.into())]))]),
+        BTreeMap::from([(
+            Item::fixture(ids[1]),
+            BTreeMap::from([("Tilt".to_string(), 0.3.into())]),
+        )]),
     ));
     e.drain_warnings();
     e.patch_change_mode_range(&ids, "Small").unwrap();

@@ -266,7 +266,7 @@ fn prg_07_record_group_stores_selection_order() {
     let mut e = church();
     select(&mut e, &[203, 201, 202]);
     e.record_group(1).unwrap();
-    assert_eq!(e.group(1), Some(&[203, 201, 202][..]));
+    assert_eq!(e.group(1), Some(vec![203, 201, 202]));
     e.clear_selection();
     e.select_group(1).unwrap();
     assert_eq!(selection(&e), vec![203, 201, 202]);
@@ -279,7 +279,7 @@ fn prg_07_record_group_with_empty_selection_is_refused_and_keeps_the_group() {
     e.record_group(1).unwrap();
     e.clear_selection();
     assert_eq!(e.record_group(1), Err(CoreError::EmptySelection));
-    assert_eq!(e.group(1), Some(&[301][..]));
+    assert_eq!(e.group(1), Some(vec![301]));
     assert_eq!(e.record_group(2), Err(CoreError::EmptySelection));
     assert_eq!(e.group(2), None);
 }
@@ -292,7 +292,7 @@ fn prg_07_record_onto_a_used_group_replaces_it() {
     e.clear_selection();
     select(&mut e, &[101]);
     e.record_group(1).unwrap();
-    assert_eq!(e.group(1), Some(&[101][..]));
+    assert_eq!(e.group(1), Some(vec![101]));
 }
 
 // ---- PRG-14 -----------------------------------------------------------------

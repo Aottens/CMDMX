@@ -66,6 +66,7 @@ use cmdmx_core::playback::{
     MasterKind, Playback, PlaybackChange, PlaybackRecord, RateMaster, SpeedSource, Track,
     UpdateMode, Values,
 };
+use cmdmx_core::programmer::Item;
 use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
 use cmdmx_core::value::{Stored, Value};
 use serde_json::{json, Value as Json};
@@ -93,7 +94,7 @@ fn q(n: f64) -> CueNumber {
 fn dimmers(ids: &[u32], level: f32) -> Values {
     let mut v: Values = BTreeMap::new();
     for &id in ids {
-        v.entry(id)
+        v.entry(id.into())
             .or_default()
             .insert("Dimmer".to_string(), level.into());
     }
@@ -352,7 +353,9 @@ fn cue_03_append_records_the_programmer_in_the_mask() {
     })
     .unwrap();
     let mut pan: Values = BTreeMap::new();
-    pan.entry(101).or_default().insert("Pan".into(), 0.3.into());
+    pan.entry(101.into())
+        .or_default()
+        .insert("Pan".into(), 0.3.into());
     assert_eq!(cue_at(&e, 1, 4.0).values, pan);
 }
 
@@ -456,9 +459,18 @@ fn cue_04_replace_merge_and_update_act_on_that_cue_and_keep_its_fields() {
     e.record_playback(&to_cue(2.0, Some(RecordMode::Merge)))
         .unwrap();
     let q2 = cue_at(&e, 1, 2.0);
-    assert_eq!(q2.values[&301]["Dimmer"], Stored::Value(Value::Level(0.5)));
-    assert_eq!(q2.values[&302]["Dimmer"], Stored::Value(Value::Level(0.8)));
-    assert_eq!(q2.values[&221]["Dimmer"], Stored::Value(Value::Level(0.6)));
+    assert_eq!(
+        q2.values[&Item::fixture(301)]["Dimmer"],
+        Stored::Value(Value::Level(0.5))
+    );
+    assert_eq!(
+        q2.values[&Item::fixture(302)]["Dimmer"],
+        Stored::Value(Value::Level(0.8))
+    );
+    assert_eq!(
+        q2.values[&Item::fixture(221)]["Dimmer"],
+        Stored::Value(Value::Level(0.6))
+    );
     assert_eq!(
         (q2.legend.as_str(), q2.fade_in, q2.link),
         ("Welcome", 3.0, Link::After { offset: 1.0 })
@@ -476,9 +488,15 @@ fn cue_04_replace_merge_and_update_act_on_that_cue_and_keep_its_fields() {
     e.record_playback(&to_cue(3.0, Some(RecordMode::QuickMerge)))
         .unwrap();
     let q3 = cue_at(&e, 1, 3.0);
-    assert_eq!(q3.values[&101]["Dimmer"], Stored::Value(Value::Level(0.2)));
-    assert_eq!(q3.values[&221]["Dimmer"], Stored::Value(Value::Level(0.9)));
-    assert!(!q3.values.contains_key(&222));
+    assert_eq!(
+        q3.values[&Item::fixture(101)]["Dimmer"],
+        Stored::Value(Value::Level(0.2))
+    );
+    assert_eq!(
+        q3.values[&Item::fixture(221)]["Dimmer"],
+        Stored::Value(Value::Level(0.9))
+    );
+    assert!(!q3.values.contains_key(&Item::fixture(222)));
 
     // Replace: only the programmer's contents.
     e.record_playback(&to_cue(3.0, Some(RecordMode::Replace)))
@@ -569,7 +587,7 @@ fn cue_08_renumber_moves_a_cue_to_its_place() {
     e.renumber_cue(1, q(1.0), q(3.5)).unwrap();
     assert_eq!(numbers(&e, 1), [2.0, 3.0, 3.5]);
     assert_eq!(
-        cue_at(&e, 1, 3.5).values[&201]["Dimmer"],
+        cue_at(&e, 1, 3.5).values[&Item::fixture(201)]["Dimmer"],
         Stored::Value(Value::Level(0.45))
     );
     let before = e.playback(1).unwrap().clone();
@@ -1078,11 +1096,11 @@ fn styled() -> Engine {
 
 #[test]
 fn cue_38_schema_4_shape() {
-    assert_eq!(SCHEMA_VERSION, 6); // GRM-13 adds only the GroupMaster kind, OUT-13 the output key
+    assert_eq!(SCHEMA_VERSION, 7); // PRG-52 groups store items; GRM-13 adds only the GroupMaster kind, OUT-13 the output key
     let e = styled();
     let text = e.to_show(meta()).to_json();
     let v: Json = serde_json::from_str(&text).unwrap();
-    assert_eq!(v["schema_version"], json!(6));
+    assert_eq!(v["schema_version"], json!(7));
     keys_in_order(
         &text,
         "\"playbacks\": [",
@@ -1196,10 +1214,11 @@ fn cue_38_a_schema_3_show_is_migrated() {
         .unwrap()
         .push(second);
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 3, "{migrations:?}");
+    assert_eq!(migrations.len(), 4, "{migrations:?}");
     assert!(migrations[0].starts_with("3 -> 4"), "{migrations:?}");
     assert!(migrations[1].starts_with("4 -> 5"), "{migrations:?}"); // GRM-13
     assert!(migrations[2].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
+    assert!(migrations[3].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(numbers(&e, 1), [1.0, 2.0]);

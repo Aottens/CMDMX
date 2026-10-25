@@ -33,6 +33,7 @@ use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::{Playback, Values};
 use cmdmx_core::profile::Profile;
+use cmdmx_core::programmer::Item;
 use cmdmx_core::programmer::{ClearLtp, ClearPrecedence, ProgrammerSettingsChange, Resolution};
 use cmdmx_core::show::Meta;
 use cmdmx_core::undo::History;
@@ -124,7 +125,7 @@ fn dmx_range(e: &Engine, from: u16, to: u16) -> Vec<u8> {
 fn playback(e: &mut Engine, id: u32, entries: &[(u32, &str, f32)]) {
     let mut v: Values = BTreeMap::new();
     for &(fixture, attr, val) in entries {
-        v.entry(fixture)
+        v.entry(fixture.into())
             .or_default()
             .insert(attr.to_string(), val.into());
     }
@@ -142,7 +143,7 @@ fn level(e: &Engine, fixture: u32, attribute: &str) -> Option<f32> {
 
 fn located_attrs(e: &Engine, fixture: u32) -> Vec<String> {
     e.located()
-        .get(&fixture)
+        .get(&Item::fixture(fixture))
         .map(|a| a.keys().cloned().collect())
         .unwrap_or_default()
 }
@@ -470,8 +471,8 @@ fn prg_28_rem_dim_puts_dimmer_0_on_every_unselected_intensity_fixture() {
     for id in [101, 102, 111, 202, 302, 303] {
         assert_eq!(level(&e, id, "Dimmer"), Some(0.0), "{id}");
     }
-    assert!(!contents.contains_key(&301));
-    assert!(!contents.contains_key(&201));
+    assert!(!contents.contains_key(&Item::fixture(301)));
+    assert!(!contents.contains_key(&Item::fixture(201)));
     // Recorded as values: the playback's 302 is held down by the programmer.
     assert_eq!(dmx(&e, 27), 0);
 }

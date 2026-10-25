@@ -1015,7 +1015,12 @@ fn engine_fpp(fpp: u16) -> Engine {
     });
     show.settings.faders_per_page = fpp;
     let (mut e, _) = Engine::from_show(&show);
-    let values = || BTreeMap::from([(1, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]);
+    let values = || {
+        BTreeMap::from([(
+            cmdmx_core::programmer::Item::fixture(1),
+            BTreeMap::from([("Dimmer".to_string(), 1.0.into())]),
+        )])
+    };
     for s in 9..=fpp {
         e.add_playback(Playback::new(900 + u32::from(s), 1, s, values()));
     }

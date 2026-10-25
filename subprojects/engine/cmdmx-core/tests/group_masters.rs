@@ -63,7 +63,7 @@ fn record_group(e: &mut Engine, group: u32, ids: &[u32]) {
 fn dimmers(ids: &[u32], level: f32) -> Values {
     let mut v: Values = BTreeMap::new();
     for &id in ids {
-        v.entry(id)
+        v.entry(id.into())
             .or_default()
             .insert("Dimmer".to_string(), level.into());
     }

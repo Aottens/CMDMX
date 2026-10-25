@@ -742,10 +742,10 @@ mod tests {
         let s = shows("bak");
         let json = save(&s, "Kerk", &demo());
         let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
-        v["groups"][0]["fixtures"]
+        v["groups"][0]["items"]
             .as_array_mut()
             .unwrap()
-            .push(serde_json::json!(999));
+            .push(serde_json::json!("999"));
         let broken = Show::from_json(&v.to_string()).unwrap().0.to_json();
         fs::write(s.path("Kerk"), &broken).unwrap();
         let opened = s.open("Kerk").unwrap();

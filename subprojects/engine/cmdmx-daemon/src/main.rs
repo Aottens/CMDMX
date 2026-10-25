@@ -52,6 +52,7 @@ use cmdmx_core::engine::{Engine, Settings, ALL_GROUPS};
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::Playback;
 use cmdmx_core::profile::Profile;
+use cmdmx_core::programmer::Item;
 use cmdmx_core::undo::History;
 use cmdmx_core::CoreError;
 const TICK: Duration = Duration::from_millis(25);
@@ -1151,7 +1152,10 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             n,
             1,
             u16::try_from(n).unwrap_or(1),
-            BTreeMap::from([(n, BTreeMap::from([("Dimmer".to_string(), 1.0.into())]))]),
+            BTreeMap::from([(
+                Item::fixture(n),
+                BTreeMap::from([("Dimmer".to_string(), 1.0.into())]),
+            )]),
         ));
     }
     // IPC-14: the church rig on universe 1, each fixture right after the previous one.
@@ -1206,8 +1210,13 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             per_page + u32::from(slot),
             2,
             slot,
-            ids.map(|f| (f, BTreeMap::from([("Dimmer".to_string(), 1.0.into())])))
-                .collect(),
+            ids.map(|f| {
+                (
+                    Item::fixture(f),
+                    BTreeMap::from([("Dimmer".to_string(), 1.0.into())]),
+                )
+            })
+            .collect(),
         ));
     }
     for (group, members) in (1..).zip(groups) {
@@ -1434,11 +1443,11 @@ mod tests {
         ] {
             assert_eq!(fixture(id).profile, profile, "fixture {id}");
         }
-        assert_eq!(engine.group(1), Some(church().as_slice()));
-        assert_eq!(engine.group(2), Some(&[101, 102, 103, 104][..]));
+        assert_eq!(engine.group(1), Some(church()));
+        assert_eq!(engine.group(2), Some(vec![101, 102, 103, 104]));
         let pars: Vec<u32> = (201..=208).chain(211..=216).chain(221..=226).collect();
-        assert_eq!(engine.group(3), Some(pars.as_slice()));
-        assert_eq!(engine.group(4), Some(&[301, 302, 303, 304, 305, 306][..]));
+        assert_eq!(engine.group(3), Some(pars.clone()));
+        assert_eq!(engine.group(4), Some(vec![301, 302, 303, 304, 305, 306]));
         assert!(engine.programmer().selection().is_empty());
         assert!(engine.programmer().is_empty());
     }
@@ -1665,7 +1674,7 @@ mod tests {
             Some(Handle { page: 3, slot: 7 })
         );
         assert!(f(305).is_none() && f(306).is_none());
-        assert_eq!(engine.group(4), Some(&[301, 302, 303, 304][..]));
+        assert_eq!(engine.group(4), Some(vec![301, 302, 303, 304]));
     }
 
     #[test]
@@ -3068,10 +3077,13 @@ mod tests {
             r#"{"v":0,"cmd":"programmer.locate","groups":["P"]}"#,
         )
         .unwrap();
-        assert!(e.located().get(&101).is_some_and(|a| a.contains_key("Pan")));
+        assert!(e
+            .located()
+            .get(&Item::fixture(101))
+            .is_some_and(|a| a.contains_key("Pan")));
         assert!(!e
             .located()
-            .get(&101)
+            .get(&Item::fixture(101))
             .is_some_and(|a| a.contains_key("Dimmer")));
         json_run(
             &mut e,
@@ -3079,11 +3091,14 @@ mod tests {
             r#"{"v":0,"cmd":"programmer.off","attribute":"Pan"}"#,
         )
         .unwrap();
-        assert!(!e.located().get(&101).is_some_and(|a| a.contains_key("Pan")));
+        assert!(!e
+            .located()
+            .get(&Item::fixture(101))
+            .is_some_and(|a| a.contains_key("Pan")));
         json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.locate"}"#).unwrap();
         assert!(e
             .located()
-            .get(&101)
+            .get(&Item::fixture(101))
             .is_some_and(|a| a.contains_key("Dimmer")));
         // No field: Off of the active group.
         json_run(
@@ -3095,7 +3110,7 @@ mod tests {
         json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.off"}"#).unwrap();
         assert!(!e
             .located()
-            .get(&101)
+            .get(&Item::fixture(101))
             .is_some_and(|a| a.contains_key("Dimmer")));
         json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.rem_dim"}"#).unwrap();
         assert!(e.programmer().in_programmer(102));

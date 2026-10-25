@@ -3,7 +3,8 @@
 //! the actions (`record_palette`, `apply_palette`, …).
 //!
 //! A palette holds values on three levels: global (`attribute → value`), shared (fixture type,
-//! the profile key, `→ attribute → value`) and per fixture. Programmer and playbacks store a
+//! the profile key, `→ attribute → value`, and per cell of the type) and per item (a fixture or
+//! one of its cells, PRG-52). Programmer and playbacks store a
 //! [`Reference`](crate::value::Reference) to its id, so a change shows on the next tick.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,8 +13,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::{AttributeGroup, AttributeKind};
 use crate::colour::TargetColour;
-use crate::patch::{Fixture, FixtureId};
+use crate::patch::Fixture;
 use crate::profile::{Mode, COLOUR};
+use crate::programmer::Item;
 use crate::value::Value;
 use crate::CoreError;
 
@@ -162,7 +164,12 @@ pub struct Palette {
     pub global: BTreeMap<String, GlobalValue>,
     /// Fixture type (profile key) → attribute → value.
     pub shared: BTreeMap<String, BTreeMap<String, Value>>,
-    pub fixtures: BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    /// PRG-52: fixture type (profile key) → cell (1-based) → attribute → value. A field of its
+    /// own because a profile key can contain dots.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub shared_cells: BTreeMap<String, BTreeMap<u16, BTreeMap<String, Value>>>,
+    /// Per item: a whole fixture (`"901"`) or one cell of it (`"901.2"`).
+    pub fixtures: BTreeMap<Item, BTreeMap<String, Value>>,
 }
 
 /// PAL-21: what a client draws for a palette without a picked icon.
@@ -183,37 +190,55 @@ impl Palette {
     pub fn kind(&self) -> PaletteKind {
         if !self.global.is_empty() {
             PaletteKind::Global
-        } else if !self.shared.is_empty() {
+        } else if !self.shared.is_empty() || !self.shared_cells.is_empty() {
             PaletteKind::Shared
         } else {
             PaletteKind::Normal
         }
     }
 
-    /// PAL-07: per fixture, then shared by type, then global (if the fixture has the attribute);
-    /// an extra emitter is 0 when the palette resolves Colour for the fixture. Nothing when the
-    /// mode lacks the attribute (PAL-19).
-    pub fn resolve(&self, fixture: &Fixture, mode: &Mode, attribute: &str) -> Option<Value> {
-        let logical = mode.logical(attribute)?;
-        if let Some(v) = self.level_value(fixture, mode, attribute) {
+    /// PAL-07, PRG-52: per item (a cell: its own value, then its fixture's), then shared by
+    /// type (a cell: the type's cell, then the type), then global (if the item has the
+    /// attribute); an extra emitter is 0 when the palette resolves Colour for the item. Nothing
+    /// when the mode lacks the attribute or the cell (PAL-19, PRG-53).
+    pub fn resolve(
+        &self,
+        item: Item,
+        fixture: &Fixture,
+        mode: &Mode,
+        attribute: &str,
+    ) -> Option<Value> {
+        let logical = mode.item_logical(item.cell, attribute)?;
+        if let Some(v) = self.level_value(item, fixture, mode, attribute) {
             return Some(v);
         }
-        let colour =
-            mode.logical(COLOUR).is_some() && self.level_value(fixture, mode, COLOUR).is_some();
+        let colour = mode.item_logical(item.cell, COLOUR).is_some()
+            && self.level_value(item, fixture, mode, COLOUR).is_some();
         (logical.emitter && colour).then_some(Value::Level(0.0))
     }
 
-    fn level_value(&self, fixture: &Fixture, mode: &Mode, attribute: &str) -> Option<Value> {
-        if let Some(v) = self
-            .fixtures
-            .get(&fixture.id)
-            .and_then(|a| a.get(attribute))
-            .or_else(|| {
-                self.shared
-                    .get(&fixture.profile)
-                    .and_then(|a| a.get(attribute))
-            })
-        {
+    fn level_value(
+        &self,
+        item: Item,
+        fixture: &Fixture,
+        mode: &Mode,
+        attribute: &str,
+    ) -> Option<Value> {
+        let per_item = |i: Item| self.fixtures.get(&i)?.get(attribute);
+        // PRG-52: a cell tries its own value, its fixture's, its type's cell, then its type.
+        let type_cell = |c: u16| {
+            self.shared_cells
+                .get(&fixture.profile)?
+                .get(&c)?
+                .get(attribute)
+        };
+        let own = per_item(item);
+        let fixture_of_cell = item
+            .cell
+            .and_then(|_| per_item(Item::fixture(item.fixture)));
+        let cell_of_type = item.cell.and_then(type_cell);
+        let of_type = || self.shared.get(&fixture.profile)?.get(attribute);
+        if let Some(v) = own.or(fixture_of_cell).or(cell_of_type).or_else(of_type) {
             return Some(*v);
         }
         match self.global.get(attribute)? {
@@ -236,8 +261,14 @@ impl Palette {
         for (profile, values) in d.shared {
             self.shared.entry(profile).or_default().extend(values);
         }
-        for (fixture, values) in d.fixtures {
-            self.fixtures.entry(fixture).or_default().extend(values);
+        for (profile, cells) in d.shared_cells {
+            let own = self.shared_cells.entry(profile).or_default();
+            for (cell, values) in cells {
+                own.entry(cell).or_default().extend(values);
+            }
+        }
+        for (item, values) in d.fixtures {
+            self.fixtures.entry(item).or_default().extend(values);
         }
     }
 
@@ -245,6 +276,8 @@ impl Palette {
     pub(crate) fn holds(&self, attribute: &str) -> bool {
         self.global.contains_key(attribute)
             || self.shared.values().any(|a| a.contains_key(attribute))
+            || (self.shared_cells.values().flat_map(BTreeMap::values))
+                .any(|a| a.contains_key(attribute))
             || self.fixtures.values().any(|a| a.contains_key(attribute))
     }
 
@@ -254,6 +287,10 @@ impl Palette {
             .chain(
                 self.shared
                     .values()
+                    .flat_map(|a| a.keys().map(String::as_str)),
+            )
+            .chain(
+                (self.shared_cells.values().flat_map(BTreeMap::values))
                     .flat_map(|a| a.keys().map(String::as_str)),
             )
             .chain(
@@ -283,6 +320,12 @@ impl Palette {
             .collect::<BTreeMap<&str, Value>>();
         let sets: Vec<BTreeMap<&str, Value>> = std::iter::once(global)
             .chain(self.shared.values().map(as_set))
+            .chain(
+                self.shared_cells
+                    .values()
+                    .flat_map(BTreeMap::values)
+                    .map(as_set),
+            )
             .chain(self.fixtures.values().map(as_set))
             .collect();
         auto_icon_of(&sets, group_of)
@@ -363,7 +406,7 @@ pub fn valid_icon(icon: &str) -> bool {
 
 // ---- kind detection (PAL-04/05) -------------------------------------------------
 
-/// One fixture's values going into a record, with the type and mode they belong to.
+/// One item's values going into a record, with the type and mode they belong to.
 pub(crate) struct Entry<'a> {
     pub profile: &'a str,
     pub mode: &'a Mode,
@@ -375,7 +418,8 @@ pub(crate) struct Entry<'a> {
 pub(crate) struct Detected {
     pub global: BTreeMap<String, GlobalValue>,
     pub shared: BTreeMap<String, BTreeMap<String, Value>>,
-    pub fixtures: BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    pub shared_cells: BTreeMap<String, BTreeMap<u16, BTreeMap<String, Value>>>,
+    pub fixtures: BTreeMap<Item, BTreeMap<String, Value>>,
 }
 
 /// How far detection may go: `Record as` narrowed by the kind a merge must not widen (PAL-05/06).
@@ -468,26 +512,29 @@ fn degrees(entry: &Entry, name: &str) -> Option<f32> {
 }
 
 /// PAL-04/05: sort the values of a record into global, shared and per-fixture levels.
-pub(crate) fn detect(
-    entries: &BTreeMap<FixtureId, Entry>,
-    limit: Limit,
-) -> Result<Detected, CoreError> {
+pub(crate) fn detect(entries: &BTreeMap<Item, Entry>, limit: Limit) -> Result<Detected, CoreError> {
     let per_fixture = || Detected {
         fixtures: entries
             .iter()
-            .map(|(&id, e)| (id, e.values.clone()))
+            .map(|(&item, e)| (item, e.values.clone()))
             .collect(),
         ..Detected::default()
     };
     if !limit.shared {
         return Ok(per_fixture());
     }
-    let mut types: BTreeMap<&str, Vec<&Entry>> = BTreeMap::new();
-    for entry in entries.values() {
-        types.entry(entry.profile).or_default().push(entry);
+    // PRG-52: a type's whole fixtures and each of its cells are compared among themselves.
+    let mut types: BTreeMap<(&str, Option<u16>), Vec<&Entry>> = BTreeMap::new();
+    for (item, entry) in entries {
+        types
+            .entry((entry.profile, item.cell))
+            .or_default()
+            .push(entry);
     }
     let mut shared: BTreeMap<String, BTreeMap<String, Value>> = BTreeMap::new();
-    for (&profile, members) in &types {
+    let mut shared_cells: BTreeMap<String, BTreeMap<u16, BTreeMap<String, Value>>> =
+        BTreeMap::new();
+    for (&(profile, cell), members) in &types {
         let Some((first, rest)) = members.split_first() else {
             continue;
         };
@@ -498,7 +545,15 @@ pub(crate) fn detect(
                 Ok(per_fixture())
             };
         }
-        shared.insert(profile.to_string(), first.values.clone());
+        match cell {
+            None => {
+                shared.insert(profile.to_string(), first.values.clone());
+            }
+            Some(c) => {
+                (shared_cells.entry(profile.to_string()).or_default())
+                    .insert(c, first.values.clone());
+            }
+        }
     }
 
     let mut global = BTreeMap::new();
@@ -536,16 +591,23 @@ pub(crate) fn detect(
             };
             if let Some(value) = value {
                 global.insert(name.clone(), value);
-                for values in shared.values_mut() {
+                for values in (shared.values_mut())
+                    .chain(shared_cells.values_mut().flat_map(BTreeMap::values_mut))
+                {
                     values.remove(&name);
                 }
             }
         }
         shared.retain(|_, values| !values.is_empty());
+        for cells in shared_cells.values_mut() {
+            cells.retain(|_, values| !values.is_empty());
+        }
+        shared_cells.retain(|_, cells| !cells.is_empty());
     }
     Ok(Detected {
         global,
         shared,
+        shared_cells,
         fixtures: BTreeMap::new(),
     })
 }

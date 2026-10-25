@@ -351,7 +351,7 @@ fn prg_49_a_group_of_whole_fixtures_is_unchanged() {
     let mut e = rig();
     tap(&mut e, &[f(902), f(901)]);
     e.record_group(1).unwrap();
-    assert_eq!(e.group(1), Some(&[902, 901][..]));
+    assert_eq!(e.group(1), Some(vec![902, 901]));
     assert_eq!(e.group_items(1), Some(vec![f(902), f(901)]));
     assert_eq!(e.group_items(2), None);
 }

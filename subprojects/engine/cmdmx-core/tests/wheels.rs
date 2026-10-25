@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::playback::{Playback, Priority, Values};
+use cmdmx_core::programmer::Item;
 use cmdmx_core::programmer::Resolution;
 use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
@@ -21,7 +22,7 @@ use AttributeGroup::*;
 fn values(entries: &[(u32, &str, f32)]) -> Values {
     let mut v: Values = BTreeMap::new();
     for &(id, attr, val) in entries {
-        v.entry(id)
+        v.entry(id.into())
             .or_default()
             .insert(attr.to_string(), val.into());
     }
@@ -70,7 +71,7 @@ fn prg_15_contents_returns_only_touched_values_in_the_mask() {
     // Tilt (playback) and 102 (playback only) never appear.
     let all = e.contents(&[I, P, C, G, B, E, S, Fx]);
     assert_eq!(all.len(), 2);
-    assert!(all.get(&101).unwrap().get("Tilt").is_none());
+    assert!(all.get(&Item::fixture(101)).unwrap().get("Tilt").is_none());
 }
 
 // ---- PRG-17 -----------------------------------------------------------------

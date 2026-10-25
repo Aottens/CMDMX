@@ -15,11 +15,11 @@ use crate::palette::{Palette, PaletteId, RecordBy};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{HandleButtons, ListFader, Playback, PlaybackId, UpdateMode};
 use crate::profile::Profile;
-use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId};
+use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId, Item};
 use crate::{CoreError, UniverseId};
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 6;
+pub const SCHEMA_VERSION: u32 = 7;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -89,8 +89,8 @@ pub struct ShowPatch {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShowGroup {
     pub id: GroupId,
-    /// In recorded order.
-    pub fixtures: Vec<FixtureId>,
+    /// In recorded order: whole fixtures and cells (PRG-49).
+    pub items: Vec<Item>,
 }
 
 /// PAL-23: above every palette id ever used, so ids are never reused across a save and load.
@@ -251,7 +251,34 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
     if version < 6 {
         migrations.push(migrate_5_to_6(value));
     }
+    if version < 7 {
+        migrations.push(migrate_6_to_7(value));
+    }
     migrations
+}
+
+/// PRG-49, 52: a group holds items, not fixture ids: `[901, 902]` becomes `["901", "902"]`.
+fn migrate_6_to_7(value: &mut serde_json::Value) -> String {
+    if let Some(show) = value.as_object_mut() {
+        let groups = show
+            .get_mut("groups")
+            .and_then(serde_json::Value::as_array_mut);
+        for group in groups.into_iter().flatten() {
+            let Some(group) = group.as_object_mut() else {
+                continue;
+            };
+            if let Some(serde_json::Value::Array(fixtures)) = group.remove("fixtures") {
+                let items: Vec<_> = fixtures
+                    .iter()
+                    .filter_map(serde_json::Value::as_u64)
+                    .map(|f| serde_json::Value::String(f.to_string()))
+                    .collect();
+                group.insert("items".into(), items.into());
+            }
+        }
+        show.insert("schema_version".into(), 7.into());
+    }
+    "6 -> 7: groups store items (whole fixtures and cells), nothing else changes".into()
 }
 
 /// OUT-27: line 1's defaults plus serial `auto`, then the defaults of every other universe the

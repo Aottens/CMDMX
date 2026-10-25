@@ -48,6 +48,7 @@ use cmdmx_core::playback::{
     Cue, FaderMode, KillPoint, Paging, Playback, PlaybackChange, PlaybackRecord, Priority, Values,
 };
 use cmdmx_core::profile::Profile;
+use cmdmx_core::programmer::Item;
 use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
 use cmdmx_core::value::{Reference, Stored, Value};
 use serde_json::{json, Value as Json};
@@ -100,7 +101,7 @@ fn rgb(r: f32, g: f32, b: f32) -> TargetColour {
 fn values(entries: &[(u32, &str, Stored)]) -> Values {
     let mut v: Values = BTreeMap::new();
     for (id, name, stored) in entries {
-        v.entry(*id)
+        v.entry((*id).into())
             .or_default()
             .insert((*name).to_string(), *stored);
     }
@@ -265,7 +266,7 @@ fn pbk_07_record_onto_a_locked_slot_addresses_the_locked_playback() {
         })
         .unwrap();
     assert_eq!(id, 1);
-    assert!(cue_values(&e, 1).contains_key(&302));
+    assert!(cue_values(&e, 1).contains_key(&Item::fixture(302)));
     assert_eq!(e.playbacks().count(), 1);
 }
 
@@ -399,7 +400,7 @@ fn pbk_10_record_by_channel_is_the_default_mixed_takes_the_whole_group() {
             ..PlaybackRecord::at(1, 2)
         })
         .unwrap();
-    let attrs: Vec<&String> = cue_values(&e, b)[&101].keys().collect();
+    let attrs: Vec<&String> = cue_values(&e, b)[&Item::fixture(101)].keys().collect();
     assert_eq!(attrs, ["Pan", "Tilt"]);
 }
 
@@ -416,7 +417,7 @@ fn pbk_11_references_stay_references_manual_values_stay_values() {
     let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
     let cue = cue_values(&e, id);
     assert_eq!(
-        cue[&501]["Colour"],
+        cue[&Item::fixture(501)]["Colour"],
         Stored::Reference(Reference {
             palette,
             value: Value::Colour(rgb(1.0, 0.0, 0.0)),
@@ -424,7 +425,7 @@ fn pbk_11_references_stay_references_manual_values_stay_values() {
         "a reference to the same palette, fallback = what it resolves to when recording"
     );
     assert_eq!(
-        cue[&502]["Colour"],
+        cue[&Item::fixture(502)]["Colour"],
         Stored::Value(Value::Colour(rgb(0.0, 0.0, 1.0)))
     );
 }
@@ -753,7 +754,7 @@ fn pbk_14_deleting_a_palette_leaves_the_fallback_in_every_cue() {
     ));
     e.delete_palette(1).unwrap();
     assert_eq!(
-        cue_values(&e, 1)[&501]["Colour"],
+        cue_values(&e, 1)[&Item::fixture(501)]["Colour"],
         Stored::Value(Value::Colour(rgb(1.0, 0.0, 0.0)))
     );
 }
@@ -1003,7 +1004,7 @@ fn keys_in_order(text: &str, from: &str, keys: &[&str]) {
 
 #[test]
 fn pbk_34_schema_3_shape() {
-    assert_eq!(SCHEMA_VERSION, 6); // CUE-38, GRM-13 and OUT-13 add keys; this order still holds
+    assert_eq!(SCHEMA_VERSION, 7); // CUE-38, GRM-13 and OUT-13 add keys; this order still holds
     let mut e = styled();
     e.set_page_legend(2, "Service").unwrap();
     let text = e.to_show(meta()).to_json();
@@ -1197,9 +1198,9 @@ fn pbk_44_values_for_unknown_fixtures_and_palettes() {
     let (e, warnings) = load(&v);
     assert_eq!(warnings.len(), 2, "{warnings:?}");
     assert!(warnings.iter().any(|w| w.contains("998")), "{warnings:?}");
-    assert!(!cue_values(&e, 1).contains_key(&998));
+    assert!(!cue_values(&e, 1).contains_key(&Item::fixture(998)));
     assert_eq!(
-        cue_values(&e, 2)[&101]["Pan"],
+        cue_values(&e, 2)[&Item::fixture(101)]["Pan"],
         Stored::Value(Value::Level(0.3))
     );
 }
@@ -1210,18 +1211,19 @@ fn pbk_44_values_for_unknown_fixtures_and_palettes() {
 fn pbk_45_a_schema_2_show_keeps_its_playbacks_where_pbk_01_put_them() {
     let file = std::fs::read_to_string(V2_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 4, "{migrations:?}");
+    assert_eq!(migrations.len(), 5, "{migrations:?}");
     assert!(migrations[0].starts_with("2 -> 3"), "{migrations:?}");
     assert!(migrations[1].starts_with("3 -> 4"), "{migrations:?}"); // CUE-38
     assert!(migrations[2].starts_with("4 -> 5"), "{migrations:?}"); // GRM-13
     assert!(migrations[3].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
+    assert!(migrations[4].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     let one = e.playback(1).unwrap();
     assert_eq!((one.page, one.slot), (1, 1));
     assert_eq!(one.cues.len(), 1);
     assert_eq!(
-        one.cues[0].values[&101]["Pan"],
+        one.cues[0].values[&Item::fixture(101)]["Pan"],
         Stored::Value(Value::Level(0.5))
     );
     let cue = &one.cues[0];

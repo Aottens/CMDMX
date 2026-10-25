@@ -191,7 +191,8 @@ lists) store, so they come first.
 - **PAL-23** Schema version 2 (SHW-04 migration from 1, which adds the defaults): `settings`
   gains `palette_time`, `palette_overlap` and `record_by`; a new key `palettes` after `groups`
   holds `{"next_id": n, "palettes": [{id, number, window, handle, legend, icon, global, shared,
-  fixtures}]}`,
+  fixtures}]}`, with `fixtures` keyed by item (`"901"`, `"901.2"`) and an optional
+  `shared_cells` (`type → cell → attribute → value`, PRG-52) from schema 7,
   sorted by id, maps sorted by key (SHW-02); a global Pan or Tilt is `{"degrees": -90.0}`; a
   playback value may be a reference `{"palette": id, "value": …}`. Live
   state (programmer references, running fades) is not saved (SHW decision 3).
