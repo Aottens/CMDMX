@@ -53,6 +53,7 @@ the backlog, not the whole idea.
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
 | IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
 | IDEA-27 | Fan in phase 1: spread a value over the selection order (moving heads above all) | specified 2026-10-25 (P1-20, PRG-56..62; VS2-35 todo) | 1 | PRG, UI |
+| IDEA-28 | Local AI assistant: a small model on the Mac, a chat window in the app that builds palettes, groups and more on request | triaged | 2, with IDEA-17 (owner 2026-10-25) | IPC, UI, new `assistant.md` |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -542,3 +543,41 @@ redefined, the sketch had them as one curve), Fan latched and off on a new selec
 selection order over items, only wheels fan, a `fan` control action; PRG-56..62, UI-30, IPC-43,
 CTL-59, build tasks VS2-35..36. Phase 2 remainder: Titan's Pull curves, Fan parts, the group
 options, press-and-hold Fan, a keypad fan.
+
+### IDEA-28 — A local AI assistant with a chat window (2026-10-25)
+**Owner's intent:** next to the MCP server for a cloud assistant (IDEA-17), run a model locally.
+Everything is JSON and the whole context (patch, profiles, groups, palettes) is already there,
+so a relatively small model should manage. A chat window in the app takes requests like "make
+the default colours for all fixtures", "build basic groups", "do this, do that".
+**Triage:**
+- Phase 2, together with IDEA-17: both talk to CMDMX through the same tool layer (the
+  IPC commands, `ipc.md`), so the work is shared. The app holds no lighting logic, so the
+  chat window only shows the conversation and a preview; the model and its tool calls live
+  outside the UI.
+- Show-proof as IDEA-17: what the assistant wants to change is shown first and applied as one
+  undoable step (`undo.md`); never live output without the operator; the model runs in its own
+  process so it can never slow the DMX tick.
+- Feasibility study: `docs/research/local-llm-assistant.md` (2026-10-25). Verdict: feasible
+  on a 16 GB Apple Silicon Mac (8 GB with care) with a ~4B model at 4-bit, when the model only
+  chooses and fills parameters of built-in deterministic "wizards" (colour palettes from wheel
+  slots and colour mixing, groups by type, odd/even); the lighting maths stays code. Aiming
+  ("movers at the stage") needs fixture positions, so it waits for IDEA-25.
+- Proposed shape: `llama-server` (llama.cpp, MIT) as its own process on loopback, output
+  constrained to a JSON schema; candidate models Qwen3.5-4B, Gemma 4 E4B, Phi-4-mini, downloaded
+  on first use, never in the app bundle; Apple Foundation Models (macOS 26) as a zero-download
+  option. A separate `cmdmx-assistant` process, a client of the same IPC and tool catalogue as
+  the IDEA-17 MCP server; the chat window shows the diff and an Apply button.
+- Engine work it needs (useful without a model too): blind store commands (`palette.store`,
+  `group.store`) — today `palette.record` records through the programmer, which is live, so
+  building palettes would light the rig — and `plan.preview` / `plan.apply` as one undo step.
+- Spike before any spec (1–2 days, no engine change): the church demo show on Art-Net only,
+  three 4B models and Apple FM, 20 Dutch and English prompts for a schema-constrained plan of
+  today's IPC commands; pass bar ≥ 18/20 correct, < 10 s, no tick overrun.
+**What it touches now:** nothing forced; like IDEA-17 it needs every IPC command complete and
+documented, as now.
+**Open questions:**
+- Which church laptop (chip, RAM, macOS)? Not recorded in the repo; it decides 8 vs. 16 GB.
+- Wizards first as plain commands in the app (no model), with the assistant on top later?
+- Locked while playbacks are live, or always allowed as a planning tool (nothing changes until
+  Apply)?
+**Owner's answer (2026-10-25):** phase 2, together with IDEA-17.
