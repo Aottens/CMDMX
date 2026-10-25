@@ -5,6 +5,7 @@ by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
 
 Setup: two terminals. Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`.
 App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+To run beside another daemon, start both on another port: `--ipc-port 7400` on the daemon and `open .build/ColourmotionDMX.app --args --ipc-port 7400` (IPC-08).
 Optional: Wireshark on `en0`, filter `artnet`, to see the DMX values.
 
 - [ ] Start the app with the daemon **stopped**: the "engine offline" banner shows (IPC-08)
