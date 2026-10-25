@@ -61,7 +61,7 @@ start.
   classified when it is added. Phase 1 classes: **live** `fader.set`, `grand_master.set`,
   `dbo.set`, `page.set`, `master.level`, `playback.button` (Go, Back, Stop, Flash, Swop, Latch,
   Release …), `playback.tap`, `playback.bpm`, Go to cue / Set next, `programmer.attribute_group`,
-  `programmer.colour_model`; **reset** `show.open`, `show.new`; **neutral** `library.*`,
+  `programmer.colour_model`, `programmer.fan` (PRG-56); **reset** `show.open`, `show.new`; **neutral** `library.*`,
   `show.list`, `show.save_as`, `cue.view`; **edit** everything else (programmer selection and
   values, Clear, palette apply, Record/Update/Include/Merge, Copy, Move, Delete, Renumber,
   legends, icons, options, settings, patch).

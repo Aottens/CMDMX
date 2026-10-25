@@ -52,7 +52,7 @@ the backlog, not the whole idea.
 | IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
 | IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
-| IDEA-27 | Fan in phase 1: spread a value over the selection order (moving heads above all) | accepted 2026-10-25 (spec task P1-20 todo) | 1 | PRG, UI |
+| IDEA-27 | Fan in phase 1: spread a value over the selection order (moving heads above all) | specified 2026-10-25 (P1-20, PRG-56..62; VS2-35 todo) | 1 | PRG, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -536,3 +536,9 @@ P1-20 in `BACKLOG.md`.
 - Does Fan stay on until switched off (latched) or only while the key is held?
 - Fan on groups: does a group's own order count, and how do sub-selections (Next/Prev) fan?
 - Fan from a fader or encoder on the BCF2000 (CTL action "fan") in phase 1?
+
+**Specified 2026-10-25 (P1-20):** the four curves of UI v0.1 with exact factors (Mirror and Arrow
+redefined, the sketch had them as one curve), Fan latched and off on a new selection, one list in
+selection order over items, only wheels fan, a `fan` control action; PRG-56..62, UI-30, IPC-43,
+CTL-59, build tasks VS2-35..36. Phase 2 remainder: Titan's Pull curves, Fan parts, the group
+options, press-and-hold Fan, a keypad fan.
