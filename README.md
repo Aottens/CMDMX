@@ -39,6 +39,7 @@ Next up: selecting single cells of multi-head fixtures in the app (`901.2`, Unfo
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in clickable sketches:
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html) and
 [`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html).
+Beside it, the open-hardware desk (phase 3) has started as its own track in `subprojects/hardware/`.
 
 ## What works today
 
@@ -140,6 +141,7 @@ PROJECT.md ARCHITECTURE.md DECISIONS.md STATE.md BACKLOG.md IDEAS.md CLAUDE.md
 specs/              PRD, ADRs, module specs with numbered acceptance criteria, UX sketch
 subprojects/engine  Rust workspace: cmdmx-core, -protocols, -control, -daemon
 subprojects/app     SwiftPM app (Command Line Tools only, no Xcode.app)
+subprojects/hardware  Open-hardware desk (phase 3 track): PCB, firmware, CAD, BOM
 tests/              scenario tests, manual and hardware checklists
 touchosc/           TouchOSC Mk1 layout and its generator
 scripts/            tracking check (runs in CI)

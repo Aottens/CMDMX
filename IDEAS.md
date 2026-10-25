@@ -48,7 +48,7 @@ the backlog, not the whole idea.
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
 | IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | specified 2026-10-25 (P1-19, CTL-44..58; VS7-05, VS7-06, VS7-07 and VS7-09 done) | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
-| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 3 (hardware; owner 2026-10-23) | new `hardware.md`, CTL, licence |
+| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 3 (hardware; parallel track beside phase 1, owner 2026-10-25: HW-01 todo) | new `hardware.md`, CTL, licence |
 | IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
 | IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
@@ -460,6 +460,7 @@ many times more.
 - Hardware licence (CERN-OHL-S, CERN-OHL-W, CC BY-SA)?
 **Owner's answer (2026-10-23):** phase 3 becomes the hardware phase; IDEA-23 goes there.
 **Research (2026-10-23):** candidate parts, sample BOMs and open questions in `docs/research/hardware-desk.md`; §5a records the owner's modular fader-strip boards (2 faders per JLCPCB board on a bus to one main controller).
+**Owner's answer (2026-10-25):** phase 3 starts now as a parallel track beside phase 1 (DECISIONS); `subprojects/hardware/`, first task HW-01 (the open questions, then `hardware.md`).
 
 ### IDEA-24 — An info message type for good news (2026-10-18, SHW-c run; recorded 2026-10-24)
 **Owner's intent (from the SHW-c run, finding 1):** "autosave of <name> works again" is shown in
