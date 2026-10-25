@@ -24,7 +24,7 @@ Setup: the deck on USB to the Mac (directly or through a hub), the Elgato Stream
 - [ ] macOS asked for **Input Monitoring** when the deck was opened: yes / no (ADR-009)
 - [ ] With the Elgato app running, enabling shows `Busy` with the "quit the Elgato Stream Deck
       app" warning; quitting the Elgato app makes it `Ok` within ~2 s (2026-10-25: checked with a
-      second daemon as the other program; the Elgato app itself is still to do)
+      second daemon as the other program; the Elgato app itself is waived, owner 2026-10-25: not installed)
 - [ ] Disable: the keys go black at once and the Elgato app can take the deck again
 
 ## Keys and images (CTL-47, 50, 51)
