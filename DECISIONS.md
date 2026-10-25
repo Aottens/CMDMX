@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Phase 3 (hardware) runs as a parallel track beside phase 1 (owner)
+
+**Decision:** the open-hardware desk (IDEA-23, phase 3) starts now as a parallel track instead of after phase 1. It lives in `subprojects/hardware/` with its own `STATE.md`, spec `specs/modules/hardware.md` (`HW-nn` criteria) and the `## Phase 3 track — hardware` section of `BACKLOG.md`. Its only contract with the software is the general control layer (CTL): the surface is a USB-MIDI (later possibly HID) device mapped like any other controller. Hardware tasks run in their own sessions and PRs, never touch `subprojects/engine` or `subprojects/app`, and never move a phase-1 task. A hardware need that would change the software becomes an IDEA or a backlog row for the software, not a change in a hardware PR. First task HW-01: the owner answers the open questions of `docs/research/hardware-desk.md` and approves `hardware.md`.
+
+**Alternatives considered:** wait until phase 1 is done; build the surface inside the engine tracks.
+
+**Reasoning:** the CTL layer already decouples the surface, so firmware can be tested against today's app through Learn, and long lead items (PCB rounds, parts, case drawings) no longer wait for the software.
+
+**Reversal trigger:** hardware work delays a phase-1 task, or the surface needs an engine change before phase 1 is done.
+
 ## 2026-10-25 — Cells in the merge: the virtual cell Dimmer and per-item Off/Locate (VS2-31)
 
 **Decision:** the virtual cell Dimmer is full until a cell value proposes it; a fixture's Dimmer is the master and does not count as a value for it, and the Grand Master and group masters act on the master only. In the programmer a cell's entry (value, else located) beats the fixture's; Off and Locate act on the items they target only. Cell values stay in the programmer until VS2-32 stores them (PRG-47, 51 refined).
