@@ -48,13 +48,14 @@ the backlog, not the whole idea.
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
 | IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | specified 2026-10-25 (P1-19, CTL-44..58; VS7-05, VS7-06, VS7-07 and VS7-09 done) | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
-| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 3 (hardware; parallel track beside phase 1, owner 2026-10-25: HW-01 todo) | new `hardware.md`, CTL, licence |
+| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | specified 2026-10-25 (`hardware.md` HW-01..71; HW-01 done) | 3 (hardware; parallel track beside phase 1) | `hardware.md`, CTL, licence |
 | IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
 | IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
 | IDEA-27 | Fan in phase 1: spread a value over the selection order (moving heads above all) | specified 2026-10-25 (P1-20, PRG-56..62; VS2-35 done) | 1 | PRG, UI |
 | IDEA-28 | Local AI assistant: a small model on the Mac, a chat window in the app that builds palettes, groups and more on request | triaged | 2, with IDEA-17 (owner 2026-10-25) | IPC, UI, new `assistant.md` |
 | IDEA-29 | Serial fade steps: check the "fraction" more steps than Lightkey with an engine cue fade; cut frames to the highest patched channel only if they remain | new | 2 (proposed) | OUT |
+| IDEA-30 | Cross-platform UI, so the reference desk runs on Linux (HW-02) | triaged | 3, after the surface (owner 2026-10-25) | UI, IPC, daemon on Linux |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -461,6 +462,7 @@ many times more.
 **Owner's answer (2026-10-23):** phase 3 becomes the hardware phase; IDEA-23 goes there.
 **Research (2026-10-23):** candidate parts, sample BOMs and open questions in `docs/research/hardware-desk.md`; §5a records the owner's modular fader-strip boards (2 faders per JLCPCB board on a bus to one main controller).
 **Owner's answer (2026-10-25):** phase 3 starts now as a parallel track beside phase 1 (DECISIONS); `subprojects/hardware/`, first task HW-01 (the open questions, then `hardware.md`).
+**Specified (2026-10-25, HW-01):** the owner answered the eleven questions (`hardware.md`, *Owner decisions*): a Tiger Touch II-size desk with one touch screen, Linux reference compute (IDEA-30), 10 motorised playback + 10 preset faders, four optical wheels, four isolated DMX ports, CERN-OHL-S v2. Build tasks HWB-01..09, the USB-MIDI box first.
 
 ### IDEA-24 — An info message type for good news (2026-10-18, SHW-c run; recorded 2026-10-24)
 **Owner's intent (from the SHW-c run, finding 1):** "autosave of <name> works again" is shown in
@@ -593,3 +595,18 @@ engine cue fade, which the engine computes every tick.
 a criterion in `output-protocols.md` for serial frames cut to the highest patched channel (shorter frames, a higher
 rate). Touches now: nothing.
 **Open questions:** does the Eurolite MK2 accept short label-6 frames; what rate does a 373-channel frame allow?
+
+### IDEA-30 — Cross-platform UI for the Linux desk (2026-10-25, HW-01)
+**Owner's intent:** the reference desk runs Linux (macOS needs a paid touch driver, and a desk
+without touch is not acceptable); development stays on the Mac. "At some point we have to go to
+the cross-platform UI."
+**Triage:**
+- Phase 3, after the surface (owner 2026-10-25). The UI holds no lighting logic and talks to the
+  daemon over WebSocket, so it is a rewrite of the screens, not of the console.
+- The daemon needs Linux too: MIDI through ALSA instead of CoreMIDI, serial ports under
+  `/dev/tty*` instead of `/dev/cu.*` (OUT-09/35), paths outside `~/Library`.
+- `PROJECT.md` lists "Windows/Linux UI" out of scope for this milestone; that stays until this
+  idea's phase is planned.
+**What it touches now:** nothing; HW-02 keeps the Mac mini as a variant and HW-35 waits for it.
+**Open questions:** which UI toolkit (web UI in a kiosk browser, Qt, Slint, Flutter, …); does
+the Mac keep the SwiftUI app or move to the same UI?

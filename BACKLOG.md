@@ -154,12 +154,21 @@ after the specs are added when each spec is approved (no sizing of code before i
 ## Phase 3 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions
 and PRs, no changes under `subprojects/engine` or `subprojects/app`, never ahead of a phase-1 task.
-Its contract with the software is the general control layer (CTL). Build tasks (firmware box,
-fader-strip PCB, enclosure, flight case) are added when `hardware.md` is approved.
+Its contract with the software is the general control layer (CTL). Build tasks are `HWB-nn` (criteria
+are `HW-nn`), in the prototype order of HW-60; each ships a checklist in `tests/hardware/` (gate 3).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
-| HW-01 | Write `specs/modules/hardware.md` from the owner's answers to the eleven open questions of `docs/research/hardware-desk.md`: scope of the reference desk, layout, fader strips, MCU and its USB-MIDI mapping, show-proof rules, licence, prototype order; numbered `HW-nn` criteria, owner approves. | HW | M | todo |
+| HW-01 | Write `specs/modules/hardware.md` from the owner's answers to the eleven open questions of `docs/research/hardware-desk.md`: scope of the reference desk, layout, fader strips, MCU and its USB-MIDI mapping, show-proof rules, licence, prototype order; numbered `HW-nn` criteria, owner approves. | HW | M | done (2026-10-25, #127) |
+| HWB-01 | USB-MIDI box: Rust firmware on a Pico 2 with two faders, four RGB keys and one optical encoder, enumerating as `CMDMX Desk` with the HW-20 wire map; learned on the Mac, it plays faders 1–2, `upper`/`lower` and wheel 1 with LED feedback; checklist `tests/hardware/hw-box.md`. | HW-14, 18, 20, 22, 30, 32, 33, 61, 62, 70 | M | todo |
+| HWB-02 | Playback strip: KiCad PCB (two motorised Bourns PSM faders, touch sense, four RGB keys, RP2350, RS485) and strip firmware; checklist passed on one assembled strip. Needs HWB-01. | HW-10..18, 30, 31 | L | todo |
+| HWB-03 | Main controller: PCB and firmware (USB-MIDI `CMDMX Desk`, RS485 master, addressing, LED dim knob, status console); checklist with one playback strip connected. Needs HWB-02. | HW-12, 13, 19..23, 31, 32, 63 | L | todo |
+| HWB-04 | Preset strip: PCB (two plain faders, two RGB keys, RP2350, RS485) on the strip firmware; checklist. Needs HWB-03. | HW-10, 11, 14, 15, 18 | M | todo |
+| HWB-05 | DMX board: PCB with four isolated DMX ports and firmware presenting four ENTTEC-Pro-compatible serial ports; checklist with a DMX monitor and a fixture through OUT-31 nodes. | HW-40..44 | L | todo |
+| HWB-06 | Programmer panel: PCB with keypad, programmer and group keys, macro keys and four optical wheels on RS485; checklist. Needs HWB-03. | HW-07, 08, 22 | L | todo |
+| HWB-07 | Enclosure: parametric ply + 2020 body and laser-cut front plates (CAD native + STEP/DXF), rear panel connectors, power and UPS; checklist on the built body. Needs HWB-02..06. | HW-01, 04, 34, 36, 50, 51, 53 | L | todo |
+| HWB-08 | Flight case drawings (outer dimensions, foam plan, standard hardware). Needs HWB-07. | HW-52 | S | todo |
+| HWB-09 | Build guide, BOM with dated prices, licence files (CERN-OHL-S v2, CC BY-SA 4.0). | HW-02, 03, 35, 55 | M | todo |
 
 ## Later phases
 Ideas waiting for their phase live in `IDEAS.md`. They get backlog rows when their phase is planned.
