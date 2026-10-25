@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS4-04)_
+_Last updated: 2026-10-25 (church run)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -16,19 +16,18 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, hardwar
 1. The owner picks the next task; candidates: VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS2-33
    raises the protocol to v1 and its run checks the VS1-09 mismatch line), VS7-05..08 (Stream Deck,
    CTL-44..58, ADR-009; VS7-05 first), VS2-35..36 (Fan, PRG-56..62; VS2-35 first).
-2. The church hardware runs below, when the hardware is at hand.
+2. The VS4-04 TouchOSC run at home (Restore the iPad before Sunday), then the church lines left for VS2-13.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
-- VS1-04 / VS4-02 Eurolite serial lines, `tests/hardware/output.md`: mid-run unplug (OUT-12) and the
-  fade steps are left; VS4-05 `tests/hardware/runs/2026-10-21-VS4-05.md` compares a fade on the RGBL
-  par at 361 with Lightkey at ~33 Hz.
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run).
-- VS2-13 church patch, `tests/hardware/church.md` (run `tests/hardware/runs/2026-10-18-church.md`).
-- VS4-04 TouchOSC layout on the church iPad mini, `tests/hardware/touchosc.md`: first check is
+- VS2-13 church patch, `tests/hardware/church.md`: 10 of 16 lines passed 2026-10-25
+  (`tests/hardware/runs/2026-10-25-church.md`); left are fixtures parked in Lightkey (601..602, 701,
+  801..802, 1201) and the Phantom 25s and Fuze 75S, which are not hung.
+- VS4-04 TouchOSC layout on the church iPad mini, run copy `tests/hardware/runs/2026-10-25-VS4-04.md`
+  (the owner takes the iPad home): first check is
   whether `touchosc/serve.sh` loads it (fallback TouchOSC Editor) and whether the landscape turn
   is right; restore the iPad's Lightkey settings afterwards.
-- VS6-03 Eurolite steps of `tests/manual/runs/2026-10-22-VS6-03.md`, in the church.
 
 Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.
 
@@ -36,6 +35,7 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
+- IDEA-29 (serial fade steps after VS4-05): confirm the phase.
 - Which Stream Deck model the owner has, for the VS7-07 gate-3 run (`tests/hardware/streamdeck.md`).
 - IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
