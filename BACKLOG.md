@@ -159,7 +159,7 @@ are `HW-nn`), in the prototype order of HW-60; each ships a checklist in `tests/
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
-| HW-01 | Write `specs/modules/hardware.md` from the owner's answers to the eleven open questions of `docs/research/hardware-desk.md`: scope of the reference desk, layout, fader strips, MCU and its USB-MIDI mapping, show-proof rules, licence, prototype order; numbered `HW-nn` criteria, owner approves. | HW | M | done (2026-10-25, #PR) |
+| HW-01 | Write `specs/modules/hardware.md` from the owner's answers to the eleven open questions of `docs/research/hardware-desk.md`: scope of the reference desk, layout, fader strips, MCU and its USB-MIDI mapping, show-proof rules, licence, prototype order; numbered `HW-nn` criteria, owner approves. | HW | M | done (2026-10-25, #127) |
 | HWB-01 | USB-MIDI box: Rust firmware on a Pico 2 with two faders, four RGB keys and one optical encoder, enumerating as `CMDMX Desk` with the HW-20 wire map; learned on the Mac, it plays faders 1–2, `upper`/`lower` and wheel 1 with LED feedback; checklist `tests/hardware/hw-box.md`. | HW-14, 18, 20, 22, 30, 32, 33, 61, 62, 70 | M | todo |
 | HWB-02 | Playback strip: KiCad PCB (two motorised Bourns PSM faders, touch sense, four RGB keys, RP2350, RS485) and strip firmware; checklist passed on one assembled strip. Needs HWB-01. | HW-10..18, 30, 31 | L | todo |
 | HWB-03 | Main controller: PCB and firmware (USB-MIDI `CMDMX Desk`, RS485 master, addressing, LED dim knob, status console); checklist with one playback strip connected. Needs HWB-02. | HW-12, 13, 19..23, 31, 32, 63 | L | todo |
