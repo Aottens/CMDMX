@@ -808,12 +808,22 @@ fn ctl_47_a_continuous_action_on_a_key_only_shows() {
     .unwrap();
     state(&mut c, DeckState::Ok);
     let out = c.deck_out(&e);
-    assert_eq!(look_of(&out, 1).unwrap().level, Some(1.0), "the GM level shows");
+    assert_eq!(
+        look_of(&out, 1).unwrap().level,
+        Some(1.0),
+        "the GM level shows"
+    );
     press(&mut c, 1);
     press(&mut c, 2);
-    assert!(c.commands(&e, 0.0).is_empty(), "no GM or fader command from a key");
+    assert!(
+        c.commands(&e, 0.0).is_empty(),
+        "no GM or fader command from a key"
+    );
     press(&mut c, 3);
-    assert!(!c.commands(&e, 0.0).is_empty(), "a button action still runs");
+    assert!(
+        !c.commands(&e, 0.0).is_empty(),
+        "a button action still runs"
+    );
 }
 
 #[test]
