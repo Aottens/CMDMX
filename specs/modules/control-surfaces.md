@@ -258,6 +258,47 @@ Learn, stored as readable files and travel between Macs.
   `Learned: OSC /1/fader1 → fader 1` and a learned OSC fader is saved as `jump`. Button
   feedback is 1.0/0.0 (VS7-03).
 
+### The shipped TouchOSC layout (VS4-04; proposed 2026-10-25, awaiting owner approval)
+A remote for the church iPad mini (1st gen, iOS 9.3.5, TouchOSC Mk1 1.9.8, held landscape),
+made for ColourmotionDMX on the built-in schema (CTL-36/37). It is a client like any other: no
+mapping, no Learn, nothing in the daemon changes.
+- **CTL-60** The repo ships `touchosc/ColourmotionDMX.touchosc`: a TouchOSC Mk1 layout (a zip
+  holding `index.xml`) for the iPad size (1024×768) in landscape, one tab, every control on a
+  `/cmdmx` address (TouchOSC's automatic `/<tab>/<name>` addresses off). It is written by
+  `touchosc/generate.py` (Python 3, standard library only) and checked in; the same input gives
+  the same bytes.
+- **CTL-61** Fader strips: the generator takes the fader count (`--faders N`, default 8 =
+  the default `faders_per_page`; never a fixed 8 in the layout code) and draws N strips of equal
+  width, slot n top to bottom: the legend label (`/cmdmx/fader/<n>/legend`), the upper button
+  (`/cmdmx/fader/<n>/upper`), a vertical fader 0..1 (`/cmdmx/fader/<n>`) and the lower button
+  (`/cmdmx/fader/<n>/lower`). Buttons are momentary (1.0 press, 0.0 release) and light from the
+  feedback (CTL-37). A show with another `faders_per_page` gets its layout by running the
+  generator with that number (README line).
+- **CTL-62** Top bar, left to right: `Page ◀` (`/cmdmx/page/prev`), the page number label
+  (`/cmdmx/page`), the page legend label (`/cmdmx/page/legend`), `Page ▶` (`/cmdmx/page/next`),
+  then the message line (`/cmdmx/message`) over the rest of the width.
+- **CTL-63** Right column, top to bottom: the current cue label (`/cmdmx/cue/current`), the next
+  cue label (`/cmdmx/cue/next`), a large `GO` (`/cmdmx/go`, lit by its feedback), `BACK`
+  (`/cmdmx/back`) and `STOP` (`/cmdmx/stop`) side by side, `DBO` (`/cmdmx/dbo`) and a vertical
+  `GM` fader (`/cmdmx/gm`). DBO is a toggle button (tap on, tap off; it sends 1.0/0.0, which the
+  held `dbo` action of CTL-05 reads as press and release) because holding a glass button through
+  a blackout is impractical; the feedback keeps it in step with the console.
+- **CTL-64** One test fails when the layout and the schema drift: every address the layout sends
+  decodes with the engine's CTL-36 decoder (`osc::schema`), and every address it shows (labels,
+  lit buttons, faders) is one the daemon's CTL-37 feedback sends for a page of N slots. The
+  generator also has `--check`, which fails when the checked-in `.touchosc` differs from a fresh
+  run; CI runs it.
+- **CTL-65** `touchosc/serve.sh` loads the layout on the iPad without the TouchOSC Editor: it
+  announces the Mac over Bonjour as the editor's Sync does (`dns-sd -R`) and serves the file over
+  HTTP until Ctrl-C, so TouchOSC → Layout → Add lists the Mac under Found Hosts. If Mk1 does not
+  accept it, the fallback is the TouchOSC Editor (Java): open the file, press Sync. Both ways are
+  in `tests/hardware/touchosc.md`.
+- **CTL-66** `tests/hardware/touchosc.md` (gate 3, church iPad): load the layout, point TouchOSC
+  at the Mac (host, port 8000, receive port 9000), work every control and see it on the console,
+  check the feedback (a page change moves the faders and rewrites the legends; a cue Go rewrites
+  the cue texts; a warning shows on the message line), and at the end restore the iPad's Lightkey
+  settings (MIDI Bridge, OSC host 192.168.178.36:21600) and its old layout.
+
 ### IPC and the app
 - **CTL-39** Snapshot gains `control`: `devices` (`[{"name":"BCF2000","input":true,"output":true,
   "state":"Ok","enabled":true,"mapping":"Mackie Control","errors":0}]`), `mappings` (names, with
