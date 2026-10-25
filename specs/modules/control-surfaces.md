@@ -466,7 +466,10 @@ feedback is a **key image** instead of an LED or a motor.
     a key onto another key moves the binding (swaps when the other key is bound). Dropping on a
     bound key replaces it and says so (`key 5 was go`, CTL-27);
   - **right-click** a key: the action menu of the bindings table, Label, Colour, Remove;
-  - **Learn** (CTL-42): click a console control, then press the deck key.
+  - **Learn** (CTL-42): click a console control, then press the deck key — or click the key on
+    the on-screen deck (amended 2026-10-25, owner, VS7-07 run): that binds the armed action to
+    that key on the deck page shown, cancels the armed `control.learn` and says
+    `Learned: <deck> key n → <action>`; Learn mode stays on as CTL-42.
   The bindings table (CTL-41) lists deck bindings too, with their deck page.
   Details (VS7-07, approved by owner 2026-10-25): the deck page selector, labelled `Deck page`, shows pages 1..`deck_pages`;
   choosing one sets the deck's own page (CTL-67), so the screen and the deck always show the same
