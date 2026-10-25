@@ -1,0 +1,19 @@
+[package]
+name = "cmdmx-box"
+version = "0.1.0"
+edition = "2021"
+license = "TBD"
+description = "USB-MIDI box proof of concept on a Raspberry Pi Pico 2 (HWB-01, HW-61)"
+
+[dependencies]
+cmdmx-desk-logic = { path = "../logic" }
+embassy-executor = "0.10.0"
+embassy-futures = "0.1.2"
+embassy-rp = { version = "0.10.0", features = ["rp235xa", "time-driver", "critical-section-impl", "binary-info", "executor-thread"] }
+embassy-sync = "0.8.0"
+embassy-time = "0.5.1"
+embassy-usb = "0.6.0"
+cortex-m = { version = "0.7.7", features = ["inline-asm"] }
+cortex-m-rt = "0.7.5"
+smart-leds = "0.4"
+panic-halt = "1.0.0"

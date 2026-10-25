@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Box firmware details: palette in blocks of 8, end-snap, settled position per connection (HWB-01)
+
+**Decision:** the HW-20 feedback palette has 16 colours, one per block of 8 velocities (0–7 off, 120–127 white; `wire-map.md`). A fader value within the deadband of an end stop snaps to 0 or 16383, so full travel is reachable before HW-15 calibration exists. HW-18 is read as: no value until the fader has settled, then its settled position once, again on every new USB connection, so a new host learns where the faders are. Prototypes use the pid.codes test PID `0x1209:0x0001`. The firmware workspace gets its own CI job (host tests and an RP2350 build).
+
+**Alternatives considered:** a hue wheel over 1–126 (no named colours to set); sending nothing until the fader moves (the host would not know the position after a reconnect).
+
+**Reasoning:** named colours at fixed velocities are easy to set as `on_value`; the settled position per connection matches what a motor strip does at boot.
+
+**Reversal trigger:** the `CMDMX Desk` profile (HW-21) needs more colours or a brightness per key.
+
+---
+
 ## 2026-10-25 — The reference desk: Tiger Touch II size, one screen, Linux compute (owner, HW-01)
 
 **Decision:** the open-hardware reference desk is a Tiger Touch II-size console with one 15.6" PCAP touch screen, 10 motorised playback faders (two keys each), 10 plain preset faders (one key), a plain grand master, four optical wheels and a keypad, four isolated DMX ports on an own ENTTEC-Pro-compatible board and the rest on Art-Net/sACN. Its compute is Linux on an N100-class mini-PC; development and proofs of concept run on the Mac, and the cross-platform UI is IDEA-30 (phase 3, after the surface). The surface is smart two-fader strips (own RP2350, RS485) behind one USB-MIDI main controller; firmware in Rust. Hardware licence CERN-OHL-S v2, build guide CC BY-SA 4.0. Quality before price. All in `specs/modules/hardware.md`.

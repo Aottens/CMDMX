@@ -12,3 +12,5 @@ tests/hardware/runs/*.tmp
 *.cmdmx.json.tmp
 # QLC+ fixture library (scripts/fetch-qlcplus.sh)
 subprojects/engine/vendor/
+# Hardware firmware
+subprojects/hardware/firmware/target/
