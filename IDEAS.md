@@ -47,7 +47,7 @@ the backlog, not the whole idea.
 | IDEA-19 | Rebrand to CMDMX by Colourmotion | accepted 2026-10-22 | 1 (after VS6) | docs, app, README |
 | IDEA-20 | Website: the place to download CMDMX | triaged | end of 1 (first release) | new `distribution.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
-| IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | specified 2026-10-25 (P1-19, CTL-44..58; VS7-05, VS7-06 done, VS7-07 gate3, VS7-09 done) | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
+| IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | specified 2026-10-25 (P1-19, CTL-44..58; VS7-05, VS7-06, VS7-07 and VS7-09 done) | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
 | IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 3 (hardware; owner 2026-10-23) | new `hardware.md`, CTL, licence |
 | IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |

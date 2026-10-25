@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Busy check with a second daemon stands; BCF2000 run postponed (owner)
+
+**Decision:** the Stream Deck `Busy` line (CTL-44) counts as passed with a second daemon holding the deck; the Elgato app is not installed, so its own line is waived and VS7-07 is done. The BCF2000 run (VS1-07) waits until the owner finds the controller; it stays `gate3`. Order of work: VS2-35..36 (Fan), then VS2-31..34 (cells); the church service (VS4-03) the Sunday after.
+
+**Alternatives considered:** install the Elgato app only for this check.
+
+**Reasoning:** another program holding the HID device is the case the line tests; which program does not matter to the daemon.
+
+**Reversal trigger:** a user reports the Elgato app is not detected as Busy.
+
 ## 2026-10-25 — Deck keys: level on top, a lock on fixed keys, levels only shown (VS7-07 run, owner)
 
 **Decision:** a key image has one bar, on top: the level fills it in the halo colour (white without a halo), the rest is the halo at 25 %; nothing along the bottom. A key whose action does not follow the console page (`<page>.<slot>`, `playback <id>`) shows a lock, on the deck and on screen. A continuous action (`gm`, `fader`, `playback <id> level`) on a key only shows its level; a press sends nothing. The app sets a deck's page (`control.deck {page}`), and `control.binding`/`unbind` pick a key's binding by deck page (CTL-46, 47, 50, 57, 58, 67 amended).

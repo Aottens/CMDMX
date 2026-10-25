@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS7-09 deck focus in the Control screen)_
+_Last updated: 2026-10-25 (owner: Fan first, then cells; Elgato line waived; BCF2000 postponed)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -13,17 +13,16 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 (VS2-27/28) are done.
 
 ## Next
-1. The owner picks the next task; candidates: VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-33 raises
-   the protocol to v1 and its run checks the VS1-09 mismatch line), VS2-35..36 (Fan, PRG-56..62;
-   VS2-35 first).
-2. Before the next service: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey answers
-   the iPad again; lag on the church wifi).
+1. VS2-35 (Fan in the core, PRG-56..62), then VS2-36 (Fan over the wire and on screen).
+2. Then VS2-31..34 (cells: PRG-47, 51..55; VS2-33 raises the protocol to v1 and its run checks
+   the VS1-09 mismatch line).
+3. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
+   answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
-- VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run).
-- VS7-07 Stream Deck, `tests/hardware/streamdeck.md`: only the Elgato app → Busy → Ok line is left
-  (the app is not installed; the run used a second daemon as the other program).
+- VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
+  until the owner finds the BCF2000.
 
 Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.
 

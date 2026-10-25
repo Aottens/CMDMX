@@ -35,8 +35,8 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up: selecting single cells of multi-head fixtures in the app (`901.2`, Unfold) and Fan
-(spread a wheel change over the selection: Line, Mirror, Wings, Arrow). Progress is in
+Next up: Fan (spread a wheel change over the selection: Line, Mirror, Wings, Arrow), then
+selecting single cells of multi-head fixtures in the app (`901.2`, Unfold). Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in clickable sketches:
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html) and
 [`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html).
