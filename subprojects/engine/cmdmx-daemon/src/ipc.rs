@@ -488,6 +488,11 @@ pub enum ControlRequest {
         mapping: Option<String>,
     },
     LearnCancel,
+    /// CTL-53: a Stream Deck's brightness, 0..=100 (refused above).
+    Deck {
+        device: String,
+        brightness: u8,
+    },
     /// CTL-31: the order of the Mackie units.
     Order {
         devices: Vec<String>,
@@ -856,6 +861,10 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
             mapping: opt_field(v, "mapping", "a mapping name")?,
         },
         "learn_cancel" => ControlRequest::LearnCancel,
+        "deck" => ControlRequest::Deck {
+            device: string(v, "device")?,
+            brightness: field(v, "brightness", "a number 0..=100")?,
+        },
         "order" => ControlRequest::Order {
             devices: field(v, "devices", "a list of device names")?,
         },

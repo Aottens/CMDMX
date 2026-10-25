@@ -23,6 +23,12 @@ serde_json.workspace = true
 midir = "0.11"
 # CTL-16: the MIDI thread runs its run loop so CoreMIDI sees devices that appear later.
 core-foundation-sys = "0.8.7"
+# CTL-44, ADR-009: Stream Decks over USB HID. macOS only, so the Linux CI needs no libudev.
+hidapi = { version = "2.6", default-features = false }
+
+# CTL-53: SIGINT and SIGTERM blank the decks before the daemon exits.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 # PAT-11, PAT-15..18: the church patch from the Lightkey export, run once (VS2-13).
 [[example]]

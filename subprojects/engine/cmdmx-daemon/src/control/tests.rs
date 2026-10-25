@@ -726,7 +726,7 @@ fn ctl_39_snapshot_has_the_control_section() {
     let control = &s["control"];
     assert_eq!(
         device(control, "nano"),
-        &json!({"name":"nano","input":true,"output":true,"state":"Ok","enabled":true,"mapping":"nano","errors":0})
+        &json!({"name":"nano","input":true,"output":true,"state":"Ok","enabled":true,"mapping":"nano","errors":0,"kind":"midi"})
     );
     assert!(control["mappings"]
         .as_array()

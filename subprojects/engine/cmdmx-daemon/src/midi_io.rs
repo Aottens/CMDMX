@@ -5,7 +5,6 @@ use std::sync::mpsc::Sender;
 use crate::control::{MidiEvent, MidiOut};
 
 /// CTL-08: a second device with the same name is `name #2`, a third `name #3`, in port order.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn number_names(names: &[String]) -> Vec<String> {
     let mut seen: Vec<&str> = Vec::new();
     names
