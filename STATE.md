@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (church run)_
+_Last updated: 2026-10-25 (VS4-04 TouchOSC run at home)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -9,22 +9,20 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 ## Current focus
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
-control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, hardware run left), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor and multi-select in the patch table
+control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on the church iPad passed), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor and multi-select in the patch table
 (VS2-27/28) are done.
 
 ## Next
 1. The owner picks the next task; candidates: VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS2-33
    raises the protocol to v1 and its run checks the VS1-09 mismatch line), VS7-05..08 (Stream Deck,
-   CTL-44..58, ADR-009; VS7-05 first), VS2-35..36 (Fan, PRG-56..62; VS2-35 first).
-2. The VS4-04 TouchOSC run at home (Restore the iPad before Sunday).
+   CTL-44..58, ADR-009; VS7-05 first; the owner has a Stream Deck at home), VS2-35..36 (Fan,
+   PRG-56..62; VS2-35 first), VS4-06 (current/next cue clearly apart; criteria first).
+2. Before the next service: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey answers
+   the iPad again; lag on the church wifi).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run).
-- VS4-04 TouchOSC layout on the church iPad mini, run copy `tests/hardware/runs/2026-10-25-VS4-04.md`
-  (the owner takes the iPad home): first check is
-  whether `touchosc/serve.sh` loads it (fallback TouchOSC Editor) and whether the landscape turn
-  is right; restore the iPad's Lightkey settings afterwards.
 
 Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.
 
@@ -33,7 +31,7 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 
 ## Owner to decide
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
-- Which Stream Deck model the owner has, for the VS7-07 gate-3 run (`tests/hardware/streamdeck.md`).
+- Which Stream Deck model the owner has at home, for the VS7-07 gate-3 run (`tests/hardware/streamdeck.md`).
 - IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
 

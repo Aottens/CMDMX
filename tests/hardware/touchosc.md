@@ -17,7 +17,7 @@ Mac IP for this run: ________ (2026-10-25: 192.168.178.221). iPad IP: ________ (
 ## Load the layout (CTL-65)
 - [ ] On the Mac: `touchosc/serve.sh` runs and says it serves `ColourmotionDMX.touchosc`
 - [ ] iPad: TouchOSC → Layout → Add: the Mac is listed under **Found Hosts**; tap it: the layout
-      `ColourmotionDMX` downloads and is selected
+      `ColourmotionDMX` downloads; tick it in the Layout list and tap Done: it opens
 - [ ] Only if the line above failed: TouchOSC Editor on the Mac, open
       `touchosc/ColourmotionDMX.touchosc`, press Sync, then Add on the iPad as above. Which way
       worked: serve.sh / Editor

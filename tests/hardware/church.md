@@ -90,3 +90,6 @@ Never run the Demo show on the church rig (its fixtures on 9..150 light real lam
 - [ ] 1101..1102 Fuze 75S: beam on with Dimmer up; 16-bit Pan/Tilt smooth; Focus focuses
 - [ ] 1201 PAR Spot (RGB)
 - [ ] Back to Lightkey works (fallback ready)
+- [ ] The iPad's TouchOSC drives Lightkey as before (settings restored after the VS4-04 run at home)
+- [ ] TouchOSC with the ColourmotionDMX layout on the church wifi: faders follow without the lag
+      felt on the home wifi (VS4-04 run, ping 32 ms average, peaks 84 ms)
