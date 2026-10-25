@@ -243,7 +243,7 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 `Programmer`; anything that reaches the frame (PRG-12, 13, 20, 21, 23..26) is a scenario file.
 
 ## Out of scope (phase 1 unless noted)
-- Fan and align (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
+- Fan (phase 1, spec task P1-20, IDEA-27), Align (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
 - Select If, Unfold, per-cell selection of multi-cell fixtures (phase 2; cells as a whole only).
 - Gel book / filter numbers (phase 2, IDEA-02); colour calibration (phase 2, IDEA-03).
 - Channel mode of the colour picker (one slider per raw emitter) beyond W/Lime: ADR-005 decides.

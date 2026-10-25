@@ -15,7 +15,7 @@ control layer, cue lists, group masters, library browsing, the profile editor an
 ## Next
 1. The owner picks the next task; candidates: VS4-04 (own TouchOSC Mk1 layout; iPad facts from the
    2026-10-25 church run), VS1-09 (protocol version check, IPC-41), P1-13 (per-cell
-   selection spec), P1-19 (Stream Deck spec).
+   selection spec), P1-19 (Stream Deck spec), P1-20 (Fan spec, IDEA-27).
 2. The church hardware runs below, when the hardware is at hand.
 
 ## Waiting for a hardware run (gate 3, owner)

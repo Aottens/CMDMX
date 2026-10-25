@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Fan is phase 1, Align stays phase 2 (IDEA-27, owner)
+
+**Decision:** plain Fan (spread a value over the selection order) moves from phase 2 to phase 1; spec task P1-20. Align stays in phase 2.
+
+**Alternatives considered:** Fan and Align together in phase 2 (`PROJECT.md` until now).
+
+**Reasoning:** fanning positions of moving heads is basic programming; a phase-1 console without it is not a general console.
+
+**Reversal trigger:** none expected.
+
 ## 2026-10-25 — IPC protocol versioning (P1-06, owner)
 
 **Decision:** `ipc.md` IPC-41: `v` is one integer for the whole contract and goes up only on a change an older peer would misread (key removed or renamed, type/unit/meaning changed, command reshaped); new types, commands and keys do not raise it. Daemon and app each speak one version, no negotiation. The app checks the snapshot's `v` and on a mismatch closes, renders and sends nothing, shows both versions in place of the offline banner and keeps retrying; the daemon answers a command with another `v` with an `error` naming both versions. Tick, DMX output and other clients never notice. Build task VS1-09.

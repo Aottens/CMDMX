@@ -13,7 +13,7 @@ them as cue lists, busking pages or (later) a timeline.
 - Phase 1 "program the building blocks of any show" (decided 2026-10-17, see DECISIONS):
   - Fixture library via GDTF import (thin overlay for attribute group, locate values, virtual dimmer)
   - Patch, groups, attribute groups (IPCGBES-FX)
-  - **Programmer as the core:** ordered selection, touched attributes only, wheels (encoders), colour picker in RGB/CMY/HSI, Locate/Highlight, Clear options, 16-bit
+  - **Programmer as the core:** ordered selection, touched attributes only, wheels (encoders), colour picker in RGB/CMY/HSI, Locate/Highlight, Clear options, 16-bit, Fan over the selection order (IDEA-27)
   - Palettes (Global/Shared/Normal, reference model, quick palette, fade + overlap)
   - Recording cues onto playbacks and into cue lists; chases (BPM, tap)
   - Running what you programmed: playbacks with fader modes 0/1/2, priority, release mask/time, kill point; cue lists with Go/Back, fade/delay per cue, attribute-group times, link/follow and tracking (Track/Block/Cue Only/Solo, Update modes; pulled into phase 1 by the owner 2026-10-21)
@@ -22,7 +22,7 @@ them as cue lists, busking pages or (later) a timeline.
   - Output: Art-Net, sACN, ENTTEC-Pro-compatible USB (Eurolite USB-DMX512 PRO MK2 as reference)
   - Input: a general MIDI and OSC control layer (any device, Learn, feedback, portable mappings); Mackie Control (BCF2000 in MC mode, X-Touch) and the church TouchOSC remote are a profile and a client on it
   - Show file: one readable JSON file, autosave, git-friendly
-- Phase 2: show-running depth (tracking views, Move In Dark, …), shape generator, fader mode 3, nested/time palettes, fan/align, virtual faders, scene master, gel picker + colour calibration (IDEA-02/03), more USB interfaces (IDEA-01)
+- Phase 2: show-running depth (tracking views, Move In Dark, …), shape generator, fader mode 3, nested/time palettes, align (fan moved to phase 1, IDEA-27), virtual faders, scene master, gel picker + colour calibration (IDEA-02/03), more USB interfaces (IDEA-01)
 - Phase 3: hardware — the open-hardware maker desk (IDEA-23)
 - Phase 3+: timeline synced to Ableton/timecode (IDEA-05), pixel mapper, key frame shapes, set list, sACN input, visualiser
 - Ideas not yet placed: `IDEAS.md`

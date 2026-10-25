@@ -52,6 +52,7 @@ the backlog, not the whole idea.
 | IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
 | IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
+| IDEA-27 | Fan in phase 1: spread a value over the selection order (moving heads above all) | accepted 2026-10-25 (spec task P1-20 todo) | 1 | PRG, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -509,3 +510,26 @@ self-contained (UI-09), which is what a free grid needs.
 - Which widgets first besides the show clock?
 - Does a user page also replace the side column and attribute bar, or only the 2×2 grid?
 **Owner's answer (2026-10-25):** phase 2.
+
+### IDEA-27 — Fan belongs to basic programming (2026-10-25)
+**Owner's intent:** plain fanning is part of basic programming, moving heads above all, so it
+goes in phase 1 instead of phase 2.
+**Owner's decision (2026-10-25):** Fan moves to phase 1; Align stays in phase 2. Spec task
+P1-20 in `BACKLOG.md`.
+**Triage:**
+- Titan: Fan mode on the Fan key; while it is on, a wheel spreads its change over the selected
+  fixtures in selection order (the middle fixture stays, the ends move most for Line), with fan
+  curves on the softkeys. UI v0.1 already sketches this: Fan key, curves Line, Mirror, Wings,
+  Arrow on the softkeys, and a FAN tag on the attribute bar (`specs/ux/main-screen.html`).
+- It is programmer logic (PRG): the core computes the per-fixture values; the app only sends
+  the wheel delta with "fan on" and the curve, so the UI holds no lighting logic.
+- Fanned values are plain programmer values per fixture, so record, palettes and cues need
+  nothing new.
+- Fan follows the selection order of PRG; the extra orders of IDEA-15 (random, 1 in 3) stay in
+  phase 2 and plug into the same rule later.
+**Open questions (for P1-20):**
+- Which curves in phase 1: Line only, or Line, Mirror, Wings, Arrow as sketched?
+- Fan from the middle (Titan: symmetric around the centre) or from the first fixture?
+- Does Fan stay on until switched off (latched) or only while the key is held?
+- Fan on groups: does a group's own order count, and how do sub-selections (Next/Prev) fan?
+- Fan from a fader or encoder on the BCF2000 (CTL action "fan") in phase 1?
