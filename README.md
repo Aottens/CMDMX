@@ -31,32 +31,15 @@ window with each fixture's values; cyan means the value comes from a palette.*
 
 ## Status
 
-Early, under active development, not yet for real shows. Library browsing by manufacturer and the
-profile editor for channels, defaults and wheel slots are in (sketch in
-[`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html)). Multi-select
-in the patch table is in too: Shift/Cmd-click a range of fixtures and move it back to back,
-renumber it, name it ("Par 1…6"), change its mode or remove it in one checked step. Playback
-Options shows only the options that apply to a memory, cue list or chase. The engine selects single cells of multi-cell fixtures on the command line (`901 . 2`, `901 Thro 904 . 2`); the app shows them later. Fixture and cue numbers above 999 read
-without a thousands separator (1001, not "1.001"). In the church (2026-10-25) the console drove the real rig through the Eurolite: the port chosen on the Output
-screen survives a restart, fades are comparable with Lightkey, unplugging and replugging needs no restart, and the
-lamps did not blink when the app was killed. Killing the app with `kill -9` mid-show was checked: DMX ran on without a dropped frame and the restarted app showed the live faders, cue and programmer. The church iPad mini (TouchOSC Mk1) runs the shipped layout: loaded over wifi with `touchosc/serve.sh`, it moves faders, pages, cues, DBO and GM and follows every change made on the Mac. The current cue now reads large and green and the next cue small and grey with "Next:", on the iPad and in the app's Go block. The app and engine now check the protocol
-version: an app that meets an engine of another release says which versions differ, shows and
-sends nothing and keeps retrying, and the engine names both versions to any client that sends the wrong one. Selecting single
-cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build. Native Elgato Stream Deck support is being built: the engine already
-knows the decks (Original, MK.2, Mini, XL, Neo, +, Pedal), reads their keys and draws each key's
-image (a playback's legend, colour, level and state), and the engine now drives a plugged-in deck itself, no Elgato app needed: a
-fresh deck gets playback keys, page and Go, survives unplugging and goes black when the engine stops (checked on a Stream Deck Original).
-The Control screen now shows the deck as it looks and links keys by dragging a playback, Go, a page
-or the GM onto a key, by right-click (groups, palettes, label, colour) or by Learn; a deck has its own
-pages, the level fills the top of each key, and a key fixed to one playback shows a lock. Selecting a deck
-focuses the screen on that deck and its bindings (`‹ Devices` or Esc goes back), and a key given a new action
-drops its old label and colour. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
-Wings, Arrow), moving-head positions above all. A TouchOSC layout for the
-church's old iPad (TouchOSC Mk1) ships in [`touchosc/`](touchosc/): faders with legends, page,
-Go/Back/Stop with the cue texts, Grand Master, DBO and the message line, loaded from the Mac
-without the TouchOSC Editor; its run on the iPad is next. Progress is in
-[`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
-sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
+Phase 1, under active development, not yet trusted for a full service. On 2026-10-25 it drove
+the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
+interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
+
+Next up: selecting single cells of multi-head fixtures in the app (`901.2`, Unfold) and Fan
+(spread a wheel change over the selection: Line, Mirror, Wings, Arrow). Progress is in
+[`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in clickable sketches:
+[`specs/ux/main-screen.html`](specs/ux/main-screen.html) and
+[`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html).
 
 ## What works today
 
@@ -66,17 +49,24 @@ sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
   outputs are part of the show and can be added, changed and removed on the Output screen
   without the others dropping a frame.
 - The Eurolite USB-DMX512 PRO MK2 drives real dimmers and LED pars (250000 baud, about 33 Hz).
-  `--no-artnet`, `--no-sacn` and `--no-serial` silence a protocol for one run.
+  The port chosen on the Output screen survives a restart; unplugging and replugging needs no
+  restart. `--no-artnet`, `--no-sacn` and `--no-serial` silence a protocol for one run.
+- If the app hangs or is killed, output runs on without a dropped frame; the restarted app shows
+  the live faders, cue and programmer.
 
 **Patch and fixtures**
-- Pick a fixture from the library, set mode, count, address and user number; clashes are
-  refused. Move, renumber, rename, change mode and remove.
+- Browse the library by manufacturer, pick a fixture, set mode, count, address and user number;
+  clashes are refused. Move, renumber, rename, change mode and remove.
+- Multi-select in the patch table: Shift/Cmd-click a range and move it back to back, renumber
+  it, name it ("Par 1…6"), change its mode or remove it in one checked step.
+- A profile editor for channels, defaults and wheel slots; profiles are saved into the show.
 - The church rig (56 fixtures from the owner's Lightkey patch) is patched by a one-off into the
   show *Kerk*.
 
 **Programmer**
 - Select fixtures and groups, Fix ±1, odd/even, a Titan-style command line
-  (`201 Thro 205 @ 50`), wheels, and the console keypad with command history.
+  (`201 Thro 205 @ 50`), wheels, and the console keypad with command history. The command line
+  already selects single cells of multi-cell fixtures (`901 . 2`); the app shows them later.
 - Colour as one value per fixture: HSI, RGB or CMY wheels or a colour picker, with extra
   emitters (White, Lime, …) driven directly.
 - Locate, Highlight with lowlight, Off (per attribute group or one attribute), Rem Dim, and
@@ -91,7 +81,8 @@ sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 - Record the programmer onto a handle; Replace/Merge/Update, Copy/Move/Delete, Titan paging
   locks, fader modes with fades and kill point, Flash/Swop/Latch, legends with icons, and DBO.
 - Cue lists with Go, Back, Go to cue, links, loop and tracking (Block, Cue Only, Solo), times per
-  attribute group, a Go block, a Cue list window and a Cue view.
+  attribute group, a Go block, a Cue list window and a Cue view. The current cue reads large and
+  green, the next small and grey. Playback Options shows only what applies to the playback type.
 - Chases at a BPM with crossfade and direction, Tap tempo, and BPM and Rate masters that drive
   several chases at once.
 - Group masters: a group on a fader masters its fixtures' intensity (Scale, HTP, Limit or Take
@@ -104,8 +95,14 @@ sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
   the page, Channel scrolls when a page has more faders than the surface.
 - OSC, once switched on: a tablet sends to port 8000 and gets faders, page, cue and messages
   back on 9000; an existing layout's own addresses can be learned, so it needs no editing.
-- A ready TouchOSC Mk1 layout for an iPad (`touchosc/`, regenerated for any faders per page);
-  `touchosc/serve.sh` puts it on the iPad over wifi.
+- A ready TouchOSC Mk1 layout for an iPad ([`touchosc/`](touchosc/), regenerated for any faders
+  per page): faders with legends, page, Go/Back/Stop with cue texts, GM, DBO and the message line.
+  `touchosc/serve.sh` puts it on the iPad over wifi, no TouchOSC Editor needed; checked on the
+  church iPad mini.
+- Elgato Stream Decks (Original, MK.2, Mini, XL, Neo, +, Pedal) driven by the engine itself, no
+  Elgato app needed: a fresh deck gets playback keys, page and Go, each key drawn with the
+  playback's legend, colour, level and state. In the Control screen you link keys by dragging a
+  playback, Go, a page or the GM onto a key, by right-click or by Learn; a deck has its own pages.
 
 **Show, undo and app**
 - The show is one readable JSON file in `~/Documents/ColourmotionDMX/Shows/`, autosaved within
@@ -114,6 +111,7 @@ sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
   touched; ⌘Z and ⇧⌘Z.
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four
   workspaces, Patch, Output, Control and Show screens, and a dark and a day theme.
+- App and engine check each other's protocol version and say plainly which versions differ.
 
 ## Build and run
 
@@ -140,6 +138,8 @@ specs/              PRD, ADRs, module specs with numbered acceptance criteria, U
 subprojects/engine  Rust workspace: cmdmx-core, -protocols, -control, -daemon
 subprojects/app     SwiftPM app (Command Line Tools only, no Xcode.app)
 tests/              scenario tests, manual and hardware checklists
+touchosc/           TouchOSC Mk1 layout and its generator
+scripts/            tracking check (runs in CI)
 docs/screenshots/   README images
 ```
 
