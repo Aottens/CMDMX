@@ -246,7 +246,10 @@ Multi-Cell Fixtures and Sub-Fixtures (keypad table) and Unfold.
   fixture's master Dimmer still scales all cells on top. Wheels (PRG-17..19), keypad levels
   (PRG-09), Locate (PRG-38), Highlight (PRG-39), Off (PRG-27, 40) and palettes act on an item
   through exactly these attributes. Targets 901.2 only → active group C or I; Pan is not on the
-  wheels. `901.2 @ 50 Enter` → cell 2's Dimmer 0.50, master Dimmer untouched.
+  wheels. `901.2 @ 50 Enter` → cell 2's Dimmer 0.50, master Dimmer untouched. The virtual cell
+  Dimmer is proposed only by cell values (the fixture's Dimmer is the master, not a value for it);
+  nobody proposing it means full, and the Grand Master and group masters act on the master Dimmer
+  only, so a cell is never mastered twice (VS2-31, 2026-10-25).
 - **PRG-48** Command line (Titan keypad syntax; `.` is its own token, `901.2` typed on the
   keypad is the tokens `901` `.` `2`). In fixture order, then cell order:
   `n . m` cell m of n · `n .` all cells of n · `n . m Thro i` cells m..i of n ·
@@ -270,6 +273,9 @@ Multi-Cell Fixtures and Sub-Fixtures (keypad table) and Unfold.
   red, cell 2 blue; Off on 901.2 → cell 2 red again. Between sources the fixture value counts as
   a value for every cell, so ENG rules (priority, HTP, latest LTP) decide per cell attribute:
   playback 1 holds 901 red, programmer touches 901.2 blue → cell 2 blue, cells 1 and 3 red.
+  In the programmer an item's entry is its value, else its located value, and the cell's entry
+  beats the fixture's, so Locate on 901.2 shows on cell 2 while 901 holds red. Off and Locate act
+  on the items they target only: Off on 901 leaves 901.2's own values (VS2-31, 2026-10-25).
 - **PRG-52** Programmer contents, cues, groups and palettes key cell values by item
   (`"901.2"`): `contents(mask)` (PRG-15) returns them under their item, Record stores them so,
   Include (PRG-16) loads them back. A palette reference on a cell resolves as PAL-07 with the cell

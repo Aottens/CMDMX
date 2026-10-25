@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS2-36: Fan over the wire and on the screen)_
+_Last updated: 2026-10-25 (VS2-31: cells in the merge)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -13,8 +13,9 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 (VS2-27/28) and Fan (VS2-35/36) are done.
 
 ## Next
-1. VS2-31..34 (cells: PRG-47, 51..55; VS2-33 raises the protocol to v1 and its run checks
-   the VS1-09 mismatch line).
+1. VS2-32..34 (cells: storage PRG-52/53, protocol v1 PRG-55, app Unfold; VS2-33 raises the
+   protocol to v1 and its run checks the VS1-09 mismatch line). Cells already merge (VS2-31) but
+   their values are not recorded until VS2-32.
 2. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
 

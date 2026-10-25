@@ -362,6 +362,60 @@ impl Mode {
         self.logical_attributes().find(|l| l.name == name)
     }
 
+    /// PRG-47: cell `cell` (1-based) when the mode has it.
+    pub fn cell(&self, cell: u16) -> Option<&Cell> {
+        self.cells.get(usize::from(cell).checked_sub(1)?)
+    }
+
+    /// PRG-47: the cell has no Dimmer channel, so its Dimmer is virtual: it scales the cell's
+    /// colour and emitters and is full until a cell value proposes otherwise.
+    pub fn virtual_cell_dimmer(&self, cell: u16) -> bool {
+        self.cell(cell)
+            .is_some_and(|c| c.attribute(DIMMER).is_none())
+    }
+
+    /// PRG-47: what a cell item has: the (virtual) Dimmer, Colour when the cell mixes colour, and
+    /// the cell's own attributes. Nothing for a cell the mode lacks; never a mode attribute.
+    pub fn cell_attributes(&self, cell: u16) -> impl Iterator<Item = LogicalAttribute<'_>> {
+        let c = self.cell(cell);
+        let dimmer = self.virtual_cell_dimmer(cell).then_some(LogicalAttribute {
+            name: DIMMER,
+            group: AttributeGroup::I,
+            kind: AttributeKind::Htp,
+            emitter: false,
+            sixteen_bit: false,
+            default: Value::Level(1.0),
+        });
+        let colour = c.filter(|c| c.colour.is_some()).map(|_| LogicalAttribute {
+            name: COLOUR,
+            group: AttributeGroup::C,
+            kind: AttributeKind::Ltp,
+            emitter: false,
+            sixteen_bit: false,
+            default: Value::Colour(TargetColour::WHITE),
+        });
+        let own = c.into_iter().flat_map(|c| &c.attributes);
+        dimmer
+            .into_iter()
+            .chain(colour)
+            .chain(own.map(LogicalAttribute::from_def))
+    }
+
+    /// PRG-47: the attributes of a selection item: the fixture's, or its cell's.
+    pub fn item_attributes(&self, cell: Option<u16>) -> Vec<LogicalAttribute<'_>> {
+        match cell {
+            None => self.logical_attributes().collect(),
+            Some(c) => self.cell_attributes(c).collect(),
+        }
+    }
+
+    pub fn item_logical(&self, cell: Option<u16>, name: &str) -> Option<LogicalAttribute<'_>> {
+        match cell {
+            None => self.logical(name),
+            Some(c) => self.cell_attributes(c).find(|l| l.name == name),
+        }
+    }
+
     /// Extra emitters (LIB-17): found by flag, never by name, in profile order.
     pub fn emitters(&self) -> impl Iterator<Item = &AttributeDef> {
         self.attributes.iter().filter(|a| a.emitter)

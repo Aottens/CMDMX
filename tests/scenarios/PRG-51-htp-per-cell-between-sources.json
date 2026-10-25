@@ -9,7 +9,7 @@
   },
   "patch": [ { "id": 301, "profile": "bar", "universe": 1, "address": 1 } ],
   "playbacks": [
-    { "id": 1, "priority": "Normal", "fader_mode": 0, "values": { "301": { "Dimmer": 0.8 } } }
+    { "id": 1, "priority": "Programmer", "fader_mode": 0, "values": { "301": { "Dimmer": 0.8 } } }
   ],
   "actions": [
     { "t": 0.0, "fader": { "playback": 1, "level": 1.0 } },

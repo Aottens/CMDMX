@@ -65,7 +65,8 @@ Next up: selecting single cells of multi-head fixtures in the app (`901.2`, Unfo
 **Programmer**
 - Select fixtures and groups, Fix ±1, odd/even, a Titan-style command line
   (`201 Thro 205 @ 50`), wheels, and the console keypad with command history. The command line
-  already selects single cells of multi-cell fixtures (`901 . 2`); the app shows them later.
+  already selects and sets single cells of multi-cell fixtures (`901 . 2 @ 50`, a colour on one
+  cell over the fixture's colour); the app shows them later.
 - Fan: the Fan key (lit while on) makes a wheel spread its change over the selection order as a
   Line, Mirror, Wings or Arrow curve, picked on the Fan softkeys and shown as `FAN <CURVE>` next
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.

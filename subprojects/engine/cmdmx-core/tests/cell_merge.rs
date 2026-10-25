@@ -98,7 +98,11 @@ fn prg_47_a_cell_level_sets_the_cell_dimmer_not_the_master() {
     run(&mut e, "901 . 2 @ 50 Enter");
     assert_eq!(ch(&mut e, 6), 255, "master Dimmer untouched");
     assert_eq!(rgb(&mut e, 1), [255, 0, 0]);
-    assert_eq!(rgb(&mut e, 2), [128, 0, 0], "virtual cell Dimmer scales its colour");
+    assert_eq!(
+        rgb(&mut e, 2),
+        [128, 0, 0],
+        "virtual cell Dimmer scales its colour"
+    );
     assert_eq!(rgb(&mut e, 3), [255, 0, 0]);
 }
 
@@ -119,8 +123,16 @@ fn prg_47_the_cell_dimmer_is_not_mastered_again() {
     red_901(&mut e);
     run(&mut e, "901 . 2 @ 50 Enter");
     e.set_grand_master(0.5).unwrap();
-    assert_eq!(ch(&mut e, 6), 128, "the Grand Master scales the master Dimmer");
-    assert_eq!(rgb(&mut e, 2), [128, 0, 0], "not the cell Dimmer on top of it");
+    assert_eq!(
+        ch(&mut e, 6),
+        128,
+        "the Grand Master scales the master Dimmer"
+    );
+    assert_eq!(
+        rgb(&mut e, 2),
+        [128, 0, 0],
+        "not the cell Dimmer on top of it"
+    );
 }
 
 #[test]
@@ -156,7 +168,11 @@ fn prg_47_locate_a_cell_locates_only_that_cell() {
     red_901(&mut e);
     run(&mut e, "901 . 2 Enter");
     e.locate(&[I, C]).unwrap();
-    assert_eq!(rgb(&mut e, 2), [255, 255, 255], "located white beats the fixture's red");
+    assert_eq!(
+        rgb(&mut e, 2),
+        [255, 255, 255],
+        "located white beats the fixture's red"
+    );
     assert_eq!(rgb(&mut e, 1), [255, 0, 0]);
     assert_eq!(ch(&mut e, 6), 255, "master Dimmer is not a cell attribute");
 }
@@ -172,7 +188,11 @@ fn prg_47_a_palette_recorded_on_the_fixture_colours_one_cell() {
     run(&mut e, "901 . 2 Enter");
     e.apply_palette(1, Timing::default()).unwrap();
     assert_eq!(rgb(&mut e, 2), [255, 0, 0]);
-    assert_eq!(rgb(&mut e, 1), [255, 255, 255], "cell 1 stays at the default");
+    assert_eq!(
+        rgb(&mut e, 1),
+        [255, 255, 255],
+        "cell 1 stays at the default"
+    );
 }
 
 // ---- PRG-51 -----------------------------------------------------------------
@@ -239,6 +259,21 @@ fn prg_51_removing_the_fixture_drops_its_cell_values() {
     run(&mut e, "901 . 2 @ 50 Enter");
     e.patch_remove(&[901]).unwrap();
     assert!(e.programmer().is_empty());
+}
+
+#[test]
+fn prg_51_a_timed_clear_lets_the_cell_dimmer_go_back_to_full() {
+    let mut e = rig();
+    red_901(&mut e);
+    run(&mut e, "901 . 2 @ 0 Enter");
+    e.tick(0.0);
+    e.clear_timed(2.0, None).unwrap();
+    e.tick(1.0); // the fade starts on this tick
+    e.tick(2.0);
+    let half = e.frame(1).and_then(|f| f.channel(12)).unwrap();
+    assert!((126..=129).contains(&half), "halfway: {half}");
+    e.tick(3.5);
+    assert_eq!(e.frame(1).and_then(|f| f.channel(12)), Some(255));
 }
 
 // ---- PRG-54 -----------------------------------------------------------------
