@@ -1,8 +1,10 @@
 # app — State
 
-_Last updated: 2026-10-25 (VS1-08)_
+_Last updated: 2026-10-25 (VS4-06)_
 
 ## Current step
+VS4-06 (2026-10-25, CUE-42 amendment): the Go block's "now" line is 20 pt green (number and legend) with a 3 pt green bar on its left, row 28 pt high; the GO button shows "Next: <number>  <legend>" and "end of list" at `Typo.small` in `fg2`. The TouchOSC side is `touchosc/generate.py` (CTL-63). Checked with `swift build`; the look is checked in the iPad run (`tests/manual/app-cuelists.md`).
+
 VS1-08 (2026-10-25, #107, IPC-08 amendment): `EngineClient.ipcPort` reads `--ipc-port <n>` (1...65535) from `CommandLine.arguments` once, else 7319; an invalid value prints one stderr line. `open .build/ColourmotionDMX.app --args --ipc-port 7400` runs the app against a test daemon beside the real one. Run `tests/manual/runs/2026-10-25-VS1-08.md`: kill -9 of the app, Art-Net unchanged, the restarted app shows the live state.
 
 VS1-09 (2026-10-25, #105, IPC-41): `EngineClient.protocolVersion` (0) is used by every command. A snapshot with another or no `v` is not applied: `protocolMismatch` ("v1" or "no version") is set, `socket` cleared so nothing is sent, the task cancelled, and `connectForever` retries as when offline; other messages are ignored while a mismatch stands, a matching snapshot clears it. The status bar shows the IPC-41 line in place of the offline text. Checked with `swift build` only (the app URL is fixed to port 7319); the VS2-33 run shows it with an app of the previous release.
