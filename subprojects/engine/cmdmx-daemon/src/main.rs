@@ -575,6 +575,13 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         },
         Locate { groups } => engine.locate(groups.as_deref().unwrap_or(&ALL_GROUPS)),
         Highlight { on } => engine.set_highlight(on),
+        Fan { curve } => {
+            match curve {
+                None => engine.fan_key(),
+                Some(c) => engine.set_fan(c),
+            }
+            Ok(())
+        }
         Off {
             groups: None,
             attribute: Some(attribute),
@@ -804,6 +811,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CuelistConnect { .. }
         | AttributeGroup { .. }
         | Highlight { .. }
+        | Fan { .. }
         | ColourModel { .. } => Class::Live,
         Show(New { .. } | Open { .. }) => Class::Reset,
         Show(List | SaveAs { .. })
@@ -2546,6 +2554,7 @@ mod tests {
             r#"{"v":0,"cmd":"programmer.highlight","on":true}"#,
             Class::Live,
         ),
+        (r#"{"v":0,"cmd":"programmer.fan"}"#, Class::Live),
         (
             r#"{"v":0,"cmd":"programmer.off","groups":["C"]}"#,
             Class::Edit,
@@ -3117,6 +3126,57 @@ mod tests {
             r#"{"v":0,"cmd":"programmer.locate","groups":["Q"]}"#,
             r#"{"v":0,"cmd":"settings.programmer","clear_ltp":"Melt"}"#,
             r#"{"v":0,"cmd":"settings.programmer","clear_precedence":"Never"}"#,
+        ] {
+            assert!(ipc::parse_command(json).is_err(), "{json}");
+        }
+    }
+
+    #[test]
+    fn ipc_43_programmer_fan_toggles_sets_and_turns_off_as_a_live_command() {
+        use cmdmx_core::programmer::FanCurve;
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.select","fixture":101}"#,
+        )
+        .unwrap();
+        let n = h.len();
+        let toggle = r#"{"v":0,"cmd":"programmer.fan"}"#;
+        assert!(matches!(
+            class(&ipc::parse_command(toggle).unwrap()),
+            Class::Live
+        ));
+        json_run(&mut e, &mut h, toggle).unwrap();
+        assert_eq!(e.fan(), Some(FanCurve::Line));
+        json_run(&mut e, &mut h, toggle).unwrap();
+        assert_eq!(e.fan(), None);
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.fan","curve":"Wings"}"#,
+        )
+        .unwrap();
+        assert_eq!(e.fan(), Some(FanCurve::Wings));
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":0,"cmd":"programmer.fan","curve":null}"#,
+        )
+        .unwrap();
+        assert_eq!(e.fan(), None);
+        assert_eq!(e.fan_curve(), FanCurve::Wings);
+        json_run(&mut e, &mut h, toggle).unwrap();
+        assert_eq!(e.fan(), Some(FanCurve::Wings));
+        assert_eq!(h.len(), n, "Fan is live, never in the history");
+    }
+
+    #[test]
+    fn ipc_43_an_unknown_curve_is_an_error() {
+        for json in [
+            r#"{"v":0,"cmd":"programmer.fan","curve":"Sideways"}"#,
+            r#"{"v":0,"cmd":"programmer.fan","curve":3}"#,
         ] {
             assert!(ipc::parse_command(json).is_err(), "{json}");
         }

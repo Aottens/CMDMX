@@ -1407,3 +1407,63 @@ fn ctl_21_motors_follow_a_page_change() {
     let fb = c.feedback(&e);
     assert!(fb.contains(&motor("BCF2000", 1, 0.0)), "{fb:?}");
 }
+
+// --- CTL-59 Fan ---------------------------------------------------------------
+
+const FAN: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"note","channel":1,"number":80},"action":"fan"},
+  {"input":{"kind":"note","channel":1,"number":81},"action":"fan wings"},
+  {"input":{"kind":"note","channel":1,"number":82},"action":"fan off"}
+]}"#;
+
+#[test]
+fn ctl_59_fan_buttons_toggle_set_and_turn_off_with_led_feedback() {
+    use cmdmx_core::programmer::FanCurve;
+    let dir = tmp("fan");
+    fs::write(dir.join("control/nano.json"), FAN).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    let mut e = engine();
+    let mut h = History::default();
+    e.select_fixture(101).unwrap();
+    let n = h.len();
+    let _ = c.feedback(&e);
+
+    let mut push = |c: &mut Control, e: &mut Engine, key: u8| {
+        press(c, "nano", key);
+        let cmds = c.commands(e, 0.0);
+        assert!(run_all(e, &mut h, cmds).is_empty());
+        e.tick(0.025);
+        c.feedback(e)
+    };
+
+    let out = push(&mut c, &mut e, 80);
+    assert_eq!(e.fan(), Some(FanCurve::Line));
+    assert!(out.contains(&note_out(80, 127)), "fan LED on: {out:?}");
+
+    let out = push(&mut c, &mut e, 81);
+    assert_eq!(e.fan(), Some(FanCurve::Wings));
+    assert!(
+        out.contains(&note_out(81, 127)),
+        "fan wings LED on: {out:?}"
+    );
+
+    let out = push(&mut c, &mut e, 82);
+    assert_eq!(e.fan(), None);
+    assert!(out.contains(&note_out(80, 0)), "fan LED off: {out:?}");
+    assert!(out.contains(&note_out(81, 0)), "fan wings LED off: {out:?}");
+
+    push(&mut c, &mut e, 80);
+    assert_eq!(
+        e.fan(),
+        Some(FanCurve::Wings),
+        "the toggle keeps the last curve"
+    );
+    assert_eq!(h.len(), n, "Fan is live, never in the history");
+}

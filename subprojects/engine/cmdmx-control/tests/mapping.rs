@@ -157,6 +157,24 @@ fn ctl_05_refuses_strings_outside_the_catalogue() {
 }
 
 #[test]
+fn ctl_59_fan_actions_round_trip_and_bad_curves_are_refused() {
+    for s in [
+        "fan",
+        "fan line",
+        "fan mirror",
+        "fan wings",
+        "fan arrow",
+        "fan off",
+    ] {
+        assert_eq!(parse(s).to_string(), s);
+        assert_eq!(parse(s).value_kind(), ValueKind::Button, "{s}");
+    }
+    for s in ["fan sideways", "fan line wings", "fan 2"] {
+        assert!(s.parse::<Action>().is_err(), "{s}");
+    }
+}
+
+#[test]
 fn ctl_05_tolerates_extra_whitespace() {
     assert_eq!(parse("  fader   3 "), Action::Fader(Target::Slot(3)));
 }

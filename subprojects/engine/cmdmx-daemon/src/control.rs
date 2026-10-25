@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::PathBuf;
 
-use cmdmx_control::action::{Action, AttrGroup, Key, KeypadToken, Target, ValueKind};
+use cmdmx_control::action::{Action, AttrGroup, FanArg, Key, KeypadToken, Target, ValueKind};
 use cmdmx_control::convert::{ActionValue, BindingState, Reading, Resolution};
 use cmdmx_control::deck::{self, DeckInput, DeckKind, DeckReader, Model};
 use cmdmx_control::deck_image::{key_look, KeyLook, KeyState, PlaybackView, Subject};
@@ -318,6 +318,17 @@ fn cc14_pairs(m: &Mapping) -> Vec<(u8, u8)> {
         .collect()
 }
 
+fn fan_curve(a: FanArg) -> Option<cmdmx_core::programmer::FanCurve> {
+    use cmdmx_core::programmer::FanCurve as C;
+    match a {
+        FanArg::Line => Some(C::Line),
+        FanArg::Mirror => Some(C::Mirror),
+        FanArg::Wings => Some(C::Wings),
+        FanArg::Arrow => Some(C::Arrow),
+        FanArg::Toggle | FanArg::Off => None,
+    }
+}
+
 fn core_group(g: AttrGroup) -> AttributeGroup {
     match g {
         AttrGroup::I => AttributeGroup::I,
@@ -455,6 +466,13 @@ impl Tick<'_> {
             Action::Page(n) => page(self, Some(n)),
             // The deck page belongs to the deck device (VS7-06), not to the engine.
             Action::DeckPageNext | Action::DeckPagePrev | Action::DeckPage(_) => None,
+            Action::Fan(a) => Some(Command::Fan {
+                curve: match a {
+                    FanArg::Toggle => None,
+                    FanArg::Off => Some(None),
+                    c => Some(fan_curve(c)),
+                },
+            }),
             Action::Key(k) => Some(match k {
                 Key::Clear => Command::Clear,
                 Key::Locate => Command::Locate { groups: None },
@@ -523,6 +541,9 @@ fn state_of(engine: &Engine, action: Action, wheels: &mut Option<Vec<f32>>) -> S
         Action::Page(n) => Shown::On(engine.page() == n),
         Action::Dbo => Shown::On(engine.dbo()),
         Action::Key(Key::Highlight) => Shown::On(engine.highlight()),
+        // `fan off` is lit while Fan is on, so the button shows there is something to turn off.
+        Action::Fan(FanArg::Toggle | FanArg::Off) => Shown::On(engine.fan().is_some()),
+        Action::Fan(c) => Shown::On(engine.fan() == fan_curve(c)),
         Action::AttributeGroup(g) => Shown::On(engine.active_group() == core_group(g)),
         Action::Wheel(n) => {
             let all = wheels.get_or_insert_with(|| {

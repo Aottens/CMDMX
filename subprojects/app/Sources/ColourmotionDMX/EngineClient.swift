@@ -961,15 +961,19 @@ struct ProgrammerState: Decodable, Equatable {
     /// IPC-32: fixture id → attributes that Locate drives; Highlight on or off.
     var located: [Int: [String]] = [:]
     var highlight = false
+    /// IPC-43: the Fan curve while Fan is on (nil = off) and the last curve used.
+    var fan: String?
+    var fanCurve = "Line"
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case selection, targets, wheels, contents, colour, palettes, located, highlight
+        case selection, targets, wheels, contents, colour, palettes, located, highlight, fan
         case activeGroup = "active_group"
         case attributeGroups = "attribute_groups"
         case inProgrammer = "in_programmer"
         case colourModel = "colour_model"
+        case fanCurve = "fan_curve"
     }
 
     init(from decoder: Decoder) throws {
@@ -987,6 +991,8 @@ struct ProgrammerState: Decodable, Equatable {
         let rawLocated = (try? c.decode([String: [String]].self, forKey: .located)) ?? [:]
         located = Dictionary(rawLocated.compactMap { key, value in Int(key).map { ($0, value) } }, uniquingKeysWith: { a, _ in a })
         highlight = (try? c.decode(Bool.self, forKey: .highlight)) ?? false
+        fan = try? c.decode(String.self, forKey: .fan)
+        fanCurve = (try? c.decode(String.self, forKey: .fanCurve)) ?? "Line"
     }
 }
 
@@ -1266,6 +1272,10 @@ final class EngineClient: ObservableObject {
     /// UI-26: Locate (no groups = all), Highlight, Off (no field = the active group; or one attribute)
     /// and Rem Dim; the `programmer` delta shows the result.
     func locate() { sendJSON("programmer.locate") }
+    /// IPC-43: Fan key (no curve = toggle), a curve ("Line", "Mirror", "Wings", "Arrow") or off.
+    func fanToggle() { sendJSON("programmer.fan") }
+    func fan(curve: String) { sendJSON("programmer.fan", ["curve": curve]) }
+    func fanOff() { sendJSON("programmer.fan", ["curve": NSNull()]) }
     func setHighlight(_ on: Bool) { sendJSON("programmer.highlight", ["on": on]) }
     func programmerOff(attribute: String? = nil) {
         sendJSON("programmer.off", attribute.map { ["attribute": $0] } ?? [:])

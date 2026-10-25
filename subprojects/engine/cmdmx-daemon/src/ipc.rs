@@ -39,7 +39,8 @@ use cmdmx_core::playback::{
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
-    ClearLtp, ClearPrecedence, GroupId, ProgrammerSettingsChange, ProgrammerView, Resolution,
+    ClearLtp, ClearPrecedence, FanCurve, GroupId, ProgrammerSettingsChange, ProgrammerView,
+    Resolution,
 };
 use cmdmx_core::value::{Stored, Value};
 use cmdmx_core::CoreError;
@@ -115,6 +116,10 @@ pub enum Command {
     },
     Highlight {
         on: bool,
+    },
+    /// IPC-43: absent toggles, `Some(None)` turns Fan off, `Some(Some(c))` turns it on with `c`.
+    Fan {
+        curve: Option<Option<FanCurve>>,
     },
     /// `groups` and `attribute` are never both set; neither means the active group.
     Off {
@@ -1015,6 +1020,13 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         }),
         Some("programmer.highlight") => Ok(Command::Highlight {
             on: boolean(&v, "on")?,
+        }),
+        Some("programmer.fan") => Ok(Command::Fan {
+            curve: nullable(
+                &v,
+                "curve",
+                "a fan curve (Line, Mirror, Wings, Arrow) or null",
+            )?,
         }),
         Some("programmer.off") => {
             let groups = opt_field(&v, "groups", "an array of attribute groups")?;
@@ -5569,6 +5581,22 @@ mod tests {
     }
 
     // ---- VS2-05: IPC-33 ----------------------------------------------------------------
+
+    #[test]
+    fn ipc_43_fan_and_fan_curve_are_in_the_programmer_delta() {
+        let mut e = engine_with_palettes();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_fan(Some(cmdmx_core::programmer::FanCurve::Wings));
+        e.tick(0.025);
+        let d: Vec<serde_json::Value> = published
+            .diff(&e, &[], &show_state())
+            .iter()
+            .map(|m| parse(m))
+            .collect();
+        let prog = d.iter().find(|m| m["type"] == "programmer").unwrap();
+        assert_eq!(prog["fan"], json!("Wings"));
+        assert_eq!(prog["fan_curve"], json!("Wings"));
+    }
 
     #[test]
     fn ipc_33_programmer_view_has_located_and_highlight_and_settings_are_published() {
