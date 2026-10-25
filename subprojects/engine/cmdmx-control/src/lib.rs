@@ -9,10 +9,13 @@
 //! [`midi`] decode/encode (CTL-09, 17), [`mapping`] files (CTL-10..12, 22, 27),
 //! [`convert`] value conversion and pickup (CTL-07, 12, 13), [`feedback`]
 //! diffing (CTL-17..21), [`learn`] guess (CTL-26) and [`osc`] codec and
-//! `/cmdmx` schema (CTL-34, 36).
+//! `/cmdmx` schema (CTL-34, 36), [`deck`] Stream Deck codec and mapping (CTL-45..49) and
+//! [`deck_image`] key looks and renderer (CTL-50, 51).
 
 pub mod action;
 pub mod convert;
+pub mod deck;
+pub mod deck_image;
 pub mod error;
 pub mod feedback;
 pub mod learn;

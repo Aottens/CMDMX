@@ -9,6 +9,8 @@ license.workspace = true
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+fontdue = { version = "0.9.5", default-features = false }
+jpeg-encoder = { version = "0.7.1", default-features = false }
 
 [lints]
 workspace = true

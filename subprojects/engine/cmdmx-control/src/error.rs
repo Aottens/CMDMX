@@ -6,6 +6,8 @@ pub enum ControlError {
     UnknownAction(String),
     #[error("malformed OSC packet: {0}")]
     MalformedOsc(&'static str),
+    #[error("malformed HID report: {0}")]
+    MalformedHid(&'static str),
     #[error("invalid mapping: {0}")]
     InvalidMapping(String),
 }

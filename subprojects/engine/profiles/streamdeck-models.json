@@ -1,0 +1,12 @@
+{"models":[
+{"product_id":"0x0060","name":"Stream Deck Original","cols":5,"rows":3,"key_px":72,"format":"bmp","rotation":0,"flip":[true,true],"family":"v1","verified":false},
+{"product_id":"0x006d","name":"Stream Deck Original V2","cols":5,"rows":3,"key_px":72,"format":"jpeg","rotation":0,"flip":[true,true],"family":"v2","verified":false},
+{"product_id":"0x0080","name":"Stream Deck MK.2","cols":5,"rows":3,"key_px":72,"format":"jpeg","rotation":0,"flip":[true,true],"family":"v2","verified":false},
+{"product_id":"0x0063","name":"Stream Deck Mini","cols":3,"rows":2,"key_px":80,"format":"bmp","rotation":90,"flip":[false,true],"family":"mini","verified":false},
+{"product_id":"0x0090","name":"Stream Deck Mini MK.2","cols":3,"rows":2,"key_px":80,"format":"bmp","rotation":90,"flip":[false,true],"family":"mini","verified":false},
+{"product_id":"0x006c","name":"Stream Deck XL","cols":8,"rows":4,"key_px":96,"format":"jpeg","rotation":0,"flip":[true,true],"family":"v2","verified":false},
+{"product_id":"0x008f","name":"Stream Deck XL V2","cols":8,"rows":4,"key_px":96,"format":"jpeg","rotation":0,"flip":[true,true],"family":"v2","verified":false},
+{"product_id":"0x009a","name":"Stream Deck Neo","cols":4,"rows":2,"key_px":96,"format":"jpeg","rotation":0,"flip":[true,true],"family":"v2","verified":false,"touch_keys":2,"info":{"w":248,"h":58}},
+{"product_id":"0x0084","name":"Stream Deck +","cols":4,"rows":2,"key_px":120,"format":"jpeg","rotation":0,"flip":[false,false],"family":"v2","verified":false,"dials":4,"strip":{"w":800,"h":100}},
+{"product_id":"0x0086","name":"Stream Deck Pedal","cols":3,"rows":1,"key_px":0,"format":"none","rotation":0,"flip":[false,false],"family":"v2","verified":false}
+]}
