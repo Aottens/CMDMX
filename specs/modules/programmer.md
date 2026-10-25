@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13)**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -227,6 +227,67 @@ editing the line (Back, Exit) stays in the client.
 - **PRG-37** Same patch, same timestamped programmer actions → identical programmer state and
   byte-identical frames (ENG-11).
 
+### Cells of multi-cell fixtures (P1-13, approved by owner 2026-10-25)
+Builds on LIB-07: a multi-cell mode has cells 1..n in profile order, each with its own Colour,
+emitters and optionally its own Dimmer; the mode's own attributes (Pan, Tilt, master Dimmer,
+Strobe, Zoom) belong to the fixture as a whole. Church example: Shehds 901–904, three RGBW cells
+each, a master Dimmer and Pan/Tilt on the fixture. Titan reference: *Controlling Fixtures*,
+Multi-Cell Fixtures and Sub-Fixtures (keypad table) and Unfold.
+- **PRG-46** Selection items. A selection item is a whole fixture (`901`) or one cell
+  (`901.2`, cell numbers 1-based). Every selection rule (PRG-01..07) works on items: the selection
+  is an ordered list of items without duplicates, so `901` and `901.2` are different items and may
+  both be selected. Tap 901.2, 901.3, 901.2 → `[901.3]`. A cell item of a fixture without cells, or
+  a cell number above the mode's cell count, does not exist (skipped on the command line as
+  PRG-08 skips unpatched numbers).
+- **PRG-47** Item attributes. A whole-fixture item has the fixture's attributes as today
+  (LIB-07: its Colour and emitters drive every cell). A cell item has only its cell's attributes
+  (Colour, emitters, its own Dimmer) and, when the cell has no Dimmer channel, a virtual Dimmer
+  that scales that cell's colour and emitters (as `virtual_dimmer` does for a mode, PRG-09); the
+  fixture's master Dimmer still scales all cells on top. Wheels (PRG-17..19), keypad levels
+  (PRG-09), Locate (PRG-38), Highlight (PRG-39), Off (PRG-27, 40) and palettes act on an item
+  through exactly these attributes. Targets 901.2 only → active group C or I; Pan is not on the
+  wheels. `901.2 @ 50 Enter` → cell 2's Dimmer 0.50, master Dimmer untouched.
+- **PRG-48** Command line (Titan keypad syntax; `.` is its own token, `901.2` typed on the
+  keypad is the tokens `901` `.` `2`). In fixture order, then cell order:
+  `n . m` cell m of n · `n .` all cells of n · `n . m Thro i` cells m..i of n ·
+  `n . m Thro . j` cells m..j of n · `n Thro i . j` cell j of each of n..i ·
+  `n Thro i .` all cells of n..i · `n . m Thro i . j` cells m..j of each of n..i ·
+  `. m` cell m of every selected fixture · `.` all cells of the selected fixtures ·
+  `. m Thro . j` cells m..j of the selected fixtures. `And`, `Not` and `@` combine as in PRG-08/09.
+  `901 . 2 Thro 3 Enter` → `[901.2, 901.3]`; `901 Thro 904 . 2 Enter` →
+  `[901.2, 902.2, 903.2, 904.2]`; `901 Thro 902 . Enter` → `[901.1, 901.2, 901.3, 902.1, …, 902.3]`;
+  `Not` removes the items it names: `901 . Not 901 . 2 Enter` → `[901.1, 901.3]`. A fixture in a cell range that has no
+  cells is skipped; nothing left → refused (PRG-08). "Selected fixtures" for the `.`-first forms
+  are the fixtures that are in the selection or have a cell in it, in selection order.
+- **PRG-49** Group selection and recording store items: a group recorded with `[901.1, 902.1]`
+  selects those two cells again (Titan stores the cell state with the group). PRG-02's toggle
+  compares items.
+- **PRG-50** Fix ±1 and patterns step through items by position (PRG-04/05): selection
+  `[901.1, 901.2, 901.3]`, Odd/Even → `[901.1, 901.3]`. All (PRG-06) with no sub-selection
+  selects every item in the programmer, in fixture order then whole fixture before its cells.
+- **PRG-51** Whole fixture and cell in the merge. Within one source a cell's own value beats the
+  fixture value for that cell: programmer 901 Colour red and 901.2 Colour blue → cells 1 and 3
+  red, cell 2 blue; Off on 901.2 → cell 2 red again. Between sources the fixture value counts as
+  a value for every cell, so ENG rules (priority, HTP, latest LTP) decide per cell attribute:
+  playback 1 holds 901 red, programmer touches 901.2 blue → cell 2 blue, cells 1 and 3 red.
+- **PRG-52** Programmer contents, cues, groups and palettes key cell values by item
+  (`"901.2"`): `contents(mask)` (PRG-15) returns them under their item, Record stores them so,
+  Include (PRG-16) loads them back. A palette reference on a cell resolves as PAL-07 with the cell
+  first: per-item value for `901.2`; else the per-fixture value for 901 of that attribute; else
+  the shared value for the type's cell 2; else the shared value for the type; else global. So a
+  colour palette recorded on whole fixtures also colours one cell it is applied to.
+- **PRG-53** A cell item whose cell no longer exists (Change Mode to a mode with fewer cells) is kept
+  in groups, cues and palettes but outputs nothing and is skipped on select, as PAL-19 does for an
+  attribute the new mode lacks. Removing the fixture removes its cell items as it removes the
+  fixture (PAT-12 / undo).
+- **PRG-54** Rem Dim (PRG-28, 41): a fixture with any selected item keeps its intensity; every
+  other fixture gets master Dimmer 0 (its cells untouched). Highlight lowlight (PRG-26) applies
+  per item: the other selected items get the lowlight level on their own intensity.
+- **PRG-55** Engine state (PRG-35) lists items: selection and sub-selection are item lists,
+  per fixture "selected" means the whole fixture is selected and "cells selected" lists its
+  selected cell numbers; "in programmer" holds per fixture whether the whole fixture and which
+  cells have programmer values.
+
 ## Scenario test format
 Scenario files (`tests/scenarios/PRG-nn-*.json`, format of `engine-merge.md`) gain a `prg` action
 and a `programmer` expectation:
@@ -244,7 +305,9 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 
 ## Out of scope (phase 1 unless noted)
 - Fan and align (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
-- Select If, Unfold, per-cell selection of multi-cell fixtures (phase 2; cells as a whole only).
+- Select If (phase 2). Cells: per-cell group masters, Titan's cell buttons in an attribute
+  editor, and Shapes or pixel mapping over cells (phase 2); cells are selected by `.` and Unfold
+  (PRG-46..55, UI-29).
 - Gel book / filter numbers (phase 2, IDEA-02); colour calibration (phase 2, IDEA-03).
 - Channel mode of the colour picker (one slider per raw emitter) beyond W/Lime: ADR-005 decides.
 - Shapes and effects (phase 2). Multiple programmers (multi-user, remotes): one programmer.
@@ -260,3 +323,11 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 3. Fan and Blind stay out of phase 1; their buttons are greyed out in UI v0.1.
 4. Undo is a separate backlog item (P1-10), not part of PRG.
 5. A typed selection replaces the current selection; tapping adds (PRG-08 vs PRG-01).
+
+## Owner decisions (2026-10-25, P1-13)
+1. Cell ranges read as Titan's: `901 . 2 Thro 4` is cells 2–4 of 901, `901 Thro 904 . 2` is cell 2
+   of each (PRG-48), not grandMA's running count.
+2. A cell without its own Dimmer gets a virtual Dimmer; the master Dimmer scales on top (PRG-47).
+3. Unfold opens cells in place behind their fixture instead of replacing the page (UI-29).
+4. Within one source a cell value beats the fixture value; between sources the ENG rules decide
+   per cell (PRG-51).
