@@ -7,6 +7,8 @@
 - A task status named in an IDEAS index row ("VS2-26 todo") matches its BACKLOG row.
 - A run file from 2026-10-24 on has `## Open points`: `- none`, or one line per point ending in
   `→ <where it went>` (a BACKLOG id, an IDEA id or an existing file in backticks).
+- README.md's `## Status` has at most STATUS_MAX_LINES lines of text (features go under
+  *What works today*).
 - With PR_TITLE set: every backlog task id in the title is not `todo` (the PR updates its row), and
   PR_BODY has a `## Tracking` section.
 
@@ -26,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATUSES = ("todo", "doing", "done", "gate3", "blocked")
 TASK = r"[A-Z][A-Z0-9]*-[0-9A-Za-z.]+"
 RUNS_FROM = "2026-10-24"
+STATUS_MAX_LINES = 8
 errors = []
 
 
@@ -88,6 +91,11 @@ for run in sorted(ROOT.glob("tests/*/runs/*.md")):
         ok = target and (target.group(2) and (ROOT / target.group(2)).exists() or target.group(1) in status or target.group(1) in ideas)
         if not ok:
             errors.append(f"{where}: open point needs `→ <BACKLOG id | IDEA id | `existing file`>`: {point[:60]}")
+
+readme_status = re.search(r"^## Status\n(.*?)(?=^## )", (ROOT / "README.md").read_text(), re.M | re.S)
+status_lines = [line for line in readme_status.group(1).splitlines() if line.strip()] if readme_status else []
+if len(status_lines) > STATUS_MAX_LINES:
+    errors.append(f"README.md: ## Status has {len(status_lines)} lines, at most {STATUS_MAX_LINES}; rewrite it and move features under What works today")
 
 if os.environ.get("PR_TITLE") and "## Tracking" not in os.environ.get("PR_BODY", ""):
     errors.append("PR description: add a `## Tracking` section with `scripts/check-tracking.py --summary origin/main`")
