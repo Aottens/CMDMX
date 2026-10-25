@@ -21,7 +21,7 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, hardwar
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run).
-- VS2-13 church patch, `tests/hardware/church.md`: 10 of 16 lines passed 2026-10-25
+- VS2-13 church patch, `tests/hardware/church.md`: 9 of 16 lines passed 2026-10-25
   (`tests/hardware/runs/2026-10-25-church.md`); left are fixtures parked in Lightkey (601..602, 701,
   801..802, 1201) and the Phantom 25s and Fuze 75S, which are not hung.
 - VS4-04 TouchOSC layout on the church iPad mini, run copy `tests/hardware/runs/2026-10-25-VS4-04.md`
