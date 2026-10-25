@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS7-06 Stream Deck in the daemon)_
+_Last updated: 2026-10-25 (VS7-07 on-screen Stream Deck)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -13,9 +13,8 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 (VS2-27/28) are done.
 
 ## Next
-1. The owner picks the next task; candidates: VS7-07 (the on-screen deck in the app, drag and Learn,
-   and the gate-3 run `tests/hardware/streamdeck.md` on the owner's Stream Deck Original; VS7-06
-   drives the deck from the daemon), VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-33 raises
+1. The owner picks the next task; candidates: VS7-09 (Control screen room for the deck; label vs a
+   new action), VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-33 raises
    the protocol to v1 and its run checks the VS1-09 mismatch line), VS2-35..36 (Fan, PRG-56..62;
    VS2-35 first).
 2. Before the next service: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey answers
@@ -24,6 +23,8 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run).
+- VS7-07 Stream Deck, `tests/hardware/streamdeck.md`: only the Elgato app → Busy → Ok line is left
+  (the app is not installed; the run used a second daemon as the other program).
 
 Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.
 
@@ -38,7 +39,7 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 ## Hardware available for testing
 - Behringer BCF2000 (use in Mackie Control mode)
 - Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, product string "FT232R USB UART", ENTTEC Pro label 6 at 250000 baud, ≤ 33 Hz, needs `--serial <path>`) — on the owner's desk since 2026-10-18 with six 1-channel dimmers (185–190) and an RGBL par (361–364)
-- Elgato Stream Deck Original (first generation, USB `0fd9:0060`, 15 keys) — at home, on the owner's Mac (VS7-05)
+- Elgato Stream Deck Original (first generation, USB `0fd9:0060`, 15 keys) — at home, on the owner's Mac (VS7-05); `verified` since the VS7-07 run; no Elgato app installed
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Repo

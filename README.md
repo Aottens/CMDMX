@@ -46,7 +46,9 @@ cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build. N
 knows the decks (Original, MK.2, Mini, XL, Neo, +, Pedal), reads their keys and draws each key's
 image (a playback's legend, colour, level and state), and the engine now drives a plugged-in deck itself, no Elgato app needed: a
 fresh deck gets playback keys, page and Go, survives unplugging and goes black when the engine stops (checked on a Stream Deck Original).
-The on-screen deck in the app comes next. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
+The Control screen now shows the deck as it looks and links keys by dragging a playback, Go, a page
+or the GM onto a key, by right-click (groups, palettes, label, colour) or by Learn; a deck has its own
+pages, the level fills the top of each key, and a key fixed to one playback shows a lock. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
 Wings, Arrow), moving-head positions above all. A TouchOSC layout for the
 church's old iPad (TouchOSC Mk1) ships in [`touchosc/`](touchosc/): faders with legends, page,
 Go/Back/Stop with the cue texts, Grand Master, DBO and the message line, loaded from the Mac

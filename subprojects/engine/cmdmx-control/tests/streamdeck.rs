@@ -59,8 +59,10 @@ fn ctl_45_the_table_holds_the_phase_1_models() {
     for x in &all {
         assert!(x.cols > 0 && x.rows > 0, "{}", x.name);
         assert!(x.name.starts_with("Stream Deck"), "{}", x.name);
-        assert!(
-            !x.verified,
+        // Only a model that passed a gate-3 run: the Original (VS7-07 run, 2026-10-25).
+        assert_eq!(
+            x.verified,
+            x.product_id == 0x0060,
             "{} is verified only after a gate-3 run",
             x.name
         );

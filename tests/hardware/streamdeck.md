@@ -23,17 +23,21 @@ Setup: the deck on USB to the Mac (directly or through a hub), the Elgato Stream
 - [ ] Enable it: within 2 s the keys show the default mapping's images
 - [ ] macOS asked for **Input Monitoring** when the deck was opened: yes / no (ADR-009)
 - [ ] With the Elgato app running, enabling shows `Busy` with the "quit the Elgato Stream Deck
-      app" warning; quitting the Elgato app makes it `Ok` within ~2 s
+      app" warning; quitting the Elgato app makes it `Ok` within ~2 s (2026-10-25: checked with a
+      second daemon as the other program; the Elgato app itself is still to do)
 - [ ] Disable: the keys go black at once and the Elgato app can take the deck again
 
 ## Keys and images (CTL-47, 50, 51)
 - [ ] Key 1 (top left) is `upper 1`: it does what playback 1's button does (Flash) and the key
-      shows the legend, `Flash`, the halo bar and the level bar
+      shows the legend, `Flash` and the level filling the top bar in the halo colour (nothing
+      along the bottom; CTL-50 as amended 2026-10-25)
 - [ ] Images are upright and in the right key (not mirrored, not rotated)
 - [ ] An inactive playback is dimmed, an active one bright, a held Flash inverted
 - [ ] An empty slot and an unbound key (11, 12) are black
 - [ ] A long legend wraps to at most 3 lines and stays readable at arm's length
 - [ ] Keys 13–15: page prev, page next, go; a console page change redraws keys 1–10
+- [ ] A key bound to `gm` shows the GM level and a press does nothing (CTL-47 amended)
+- [ ] A key fixed to a playback (`upper 1.4`) shows a lock, on the deck and on screen
 
 ## Deck pages, brightness, show-proof (CTL-48, 53, 54)
 - [ ] A key bound to `deck page 2` switches the deck to page 2; a key there goes back
@@ -55,7 +59,7 @@ Setup: the deck on USB to the Mac (directly or through a hub), the Elgato Stream
 - [ ] `+` shows an empty page 2; dropping on it makes it real, the deck follows to page 2; the page
       buttons switch the deck's page
 - [ ] Learn: Learn mode, click a console control, press a deck key: the key is bound on the page
-      shown
+      shown; the same by clicking the key in the Deck panel
 - [ ] The bindings table lists the deck bindings with their deck page
 
 ## Open points
