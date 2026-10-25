@@ -277,6 +277,9 @@ pub struct Engine {
     /// Last value of every LTP logical attribute per fixture: what it outputs while
     /// nothing proposes it, and where a wheel starts (LIB-03, PRG-20).
     held: BTreeMap<FixtureId, BTreeMap<String, Value>>,
+    /// PRG-51: the same per cell, for the cells the tick merges on their own (a cell without an
+    /// entry follows the fixture's held value).
+    held_cells: BTreeMap<(FixtureId, u16), BTreeMap<String, Value>>,
     /// CUE-26: the list the Go block acts on. Live state, not in the show.
     connected: Option<PlaybackId>,
     /// PRG-26: Highlight. Live state, not in the show or the edit state.
@@ -305,7 +308,7 @@ pub struct EditState {
 }
 
 /// PAL-08: what applying a palette puts in the programmer: fixture, attribute, resolved value.
-type PalettePlan = Vec<(FixtureId, String, Value)>;
+type PalettePlan = Vec<(Item, String, Value)>;
 
 /// A candidate value for one attribute from one source, during a merge.
 struct Candidate {
@@ -316,7 +319,7 @@ struct Candidate {
 
 /// A programmer or located value that was taken out (Off, Clear), for PRG-43 and ENG-10.
 struct Gone {
-    fixture: FixtureId,
+    item: Item,
     name: String,
     kind: AttributeKind,
     default: Value,
@@ -372,6 +375,7 @@ impl Engine {
             active_group: AttributeGroup::I,
             colour_model: ColourModel::default(),
             held: BTreeMap::new(),
+            held_cells: BTreeMap::new(),
             connected: None,
             highlight: false,
             fan: None,
@@ -725,6 +729,7 @@ impl Engine {
             self.clear_channels(fixture.universe, fixture.address, footprint);
             self.numbers.remove(&fixture.number);
             self.held.remove(&id);
+            self.held_cells.retain(|(f, _), _| *f != id);
             self.programmer.remove_fixture(id);
             for members in self.groups.values_mut() {
                 members.retain(|&f| f != id);
@@ -820,7 +825,10 @@ impl Engine {
         };
         let mut warnings: Vec<(String, String)> = Vec::new();
         let mut dropped_programmer = Vec::new();
-        for (name, value) in self.programmer.values().get(&id).into_iter().flatten() {
+        for (name, value) in (self.programmer.values_of(Item::fixture(id)))
+            .into_iter()
+            .flatten()
+        {
             if !keeps(name, value) {
                 dropped_programmer.push(name.clone());
                 warnings.push((
@@ -850,6 +858,7 @@ impl Engine {
                 }
             }
         }
+        self.held_cells.retain(|(f, _), _| *f != id);
         let old_held = self.held.remove(&id).unwrap_or_default();
         let held: BTreeMap<String, Value> = new
             .logical_attributes()
@@ -864,7 +873,7 @@ impl Engine {
             })
             .collect();
         for name in dropped_programmer {
-            self.programmer.remove_value(id, &name);
+            self.programmer.remove_value(Item::fixture(id), &name);
         }
         self.held.insert(id, held);
         self.clear_channels(universe, address, old_footprint);
@@ -1262,6 +1271,8 @@ impl Engine {
         self.nodes = s.nodes;
         let old_fixtures = std::mem::replace(&mut self.fixtures, s.fixtures);
         self.held.retain(|id, _| self.fixtures.contains_key(id));
+        self.held_cells
+            .retain(|(id, _), _| self.fixtures.contains_key(id));
         let fixtures: Vec<Fixture> = self.fixtures.values().cloned().collect();
         for f in fixtures {
             self.frames.entry(f.universe).or_default();
@@ -1301,24 +1312,23 @@ impl Engine {
         }
         self.playbacks = new;
         let p = &self.programmer;
-        let mut held_before: Vec<(FixtureId, String)> = Vec::new();
-        for (&f, attrs) in p.values() {
-            held_before.extend(attrs.keys().map(|n| (f, n.clone())));
-        }
-        for (&f, attrs) in p.located() {
-            held_before.extend(attrs.keys().map(|n| (f, n.clone())));
+        let mut held_before: Vec<(Item, String)> = Vec::new();
+        for item in p.touched_items() {
+            let values = p.values_of(item).into_iter().flat_map(|a| a.keys());
+            let located = p.located_of(item).into_iter().flat_map(|a| a.keys());
+            held_before.extend(values.chain(located).map(|n| (item, n.clone())));
         }
         self.programmer.restore_edit_part(s.programmer);
         let gone: Vec<Gone> = held_before
             .into_iter()
-            .filter(|(f, n)| {
-                self.programmer.stored(*f, n).is_none()
-                    && self.programmer.located_value(*f, n).is_none()
+            .filter(|(i, n)| {
+                self.programmer.stored_item(*i, n).is_none()
+                    && self.programmer.located_value(*i, n).is_none()
             })
-            .filter_map(|(fixture, name)| {
-                let l = self.mode_of(fixture)?.logical(&name)?;
+            .filter_map(|(item, name)| {
+                let l = self.mode_of(item.fixture)?.item_logical(item.cell, &name)?;
                 Some(Gone {
-                    fixture,
+                    item,
                     name,
                     kind: l.kind,
                     default: l.default,
@@ -3383,7 +3393,7 @@ impl Engine {
     /// empties the programmer and the located set).
     pub fn clear(&mut self) {
         let selected = !self.programmer.items().is_empty();
-        let has_content = !self.programmer.is_empty() || !self.programmer.located().is_empty();
+        let has_content = !self.programmer.is_empty() || self.programmer.has_located();
         match self.settings.clear_precedence {
             ClearPrecedence::SelectionThenProgrammer => {
                 if selected {
@@ -3427,44 +3437,41 @@ impl Engine {
     /// Take the values and located values in `mask` (all when `None`) out of the programmer and
     /// let go of them (PRG-43, ENG-10).
     fn clear_matching(&mut self, mask: Option<&[AttributeGroup]>, time: f32) {
-        let fixtures = self.programmer.touched_fixtures();
-        let gone = self.take_out(&fixtures, |l| mask.is_none_or(|m| m.contains(&l.group)));
+        let items = self.programmer.touched_items();
+        let gone = self.take_out(&items, |l| mask.is_none_or(|m| m.contains(&l.group)));
         if mask.is_none() {
             self.programmer.clear_values(); // also what no mode can name any more
         }
         self.give_up(gone, time);
     }
 
-    /// Remove the programmer values and located values of `fixtures` whose attribute `keep`
-    /// accepts; what was removed, with its value, is returned for [`Engine::give_up`].
-    fn take_out(
-        &mut self,
-        fixtures: &[FixtureId],
-        keep: impl Fn(&LogicalAttribute) -> bool,
-    ) -> Vec<Gone> {
+    /// Remove the programmer values and located values of `items` (each one's own, PRG-51) whose
+    /// attribute `keep` accepts; what was removed, with its value, is returned for
+    /// [`Engine::give_up`].
+    fn take_out(&mut self, items: &[Item], keep: impl Fn(&LogicalAttribute) -> bool) -> Vec<Gone> {
         let mut gone = Vec::new();
-        for &fixture in fixtures {
-            let Some(mode) = self.mode_of(fixture) else {
+        for &item in items {
+            let Some(mode) = self.mode_of(item.fixture) else {
                 continue;
             };
-            let values = self.programmer.values().get(&fixture);
-            let located = self.programmer.located().get(&fixture);
+            let values = self.programmer.values_of(item);
+            let located = self.programmer.located_of(item);
             let names: BTreeSet<&String> = (values.into_iter().flat_map(|a| a.keys()))
                 .chain(located.into_iter().flat_map(|a| a.keys()))
                 .collect();
             for name in names {
-                let Some(l) = mode.logical(name).filter(|l| keep(l)) else {
+                let Some(l) = mode.item_logical(item.cell, name).filter(|l| keep(l)) else {
                     continue;
                 };
-                let value = match self.programmer.stored(fixture, name) {
-                    Some(stored) => self.resolve_stored(fixture, name, stored),
-                    None => match self.programmer.located_value(fixture, name) {
+                let value = match self.programmer.stored_item(item, name) {
+                    Some(stored) => self.resolve_stored(item.fixture, name, stored),
+                    None => match self.programmer.located_value(item, name) {
                         Some(v) => v,
                         None => continue,
                     },
                 };
                 gone.push(Gone {
-                    fixture,
+                    item,
                     name: name.clone(),
                     kind: l.kind,
                     default: l.default,
@@ -3473,8 +3480,8 @@ impl Engine {
             }
         }
         for g in &gone {
-            self.programmer.remove_value(g.fixture, &g.name);
-            self.programmer.remove_located(g.fixture, &g.name);
+            self.programmer.remove_value(g.item, &g.name);
+            self.programmer.remove_located(g.item, &g.name);
         }
         gone
     }
@@ -3495,16 +3502,29 @@ impl Engine {
             match g.kind {
                 AttributeKind::Htp if time > 0.0 => {
                     let fade = fade(g.value);
-                    self.programmer.set_clearing(g.fixture, &g.name, fade);
+                    self.programmer.set_clearing(g.item, &g.name, fade);
                 }
                 AttributeKind::Htp => {}
                 AttributeKind::Ltp if self.settings.clear_ltp == ClearLtp::Freeze => {}
+                // PRG-51: a cell lets go back to the fixture's value, not to the default.
+                // ponytail: with Freeze a cell is not kept at its output; it follows the fixture.
+                AttributeKind::Ltp if g.item.cell.is_some() => {
+                    let key = (g.item.fixture, g.item.cell.unwrap_or_default());
+                    let own = self.held_cells.get(&key).and_then(|h| h.get(&g.name));
+                    let fixture = self.held.get(&g.item.fixture).and_then(|h| h.get(&g.name));
+                    let current = own.or(fixture).copied().unwrap_or(g.value);
+                    if time > 0.0 {
+                        self.programmer.set_clearing(g.item, &g.name, fade(current));
+                    } else if let Some(held) = self.held_cells.get_mut(&key) {
+                        held.remove(&g.name);
+                    }
+                }
                 AttributeKind::Ltp => {
-                    let held = self.held.entry(g.fixture).or_default();
+                    let held = self.held.entry(g.item.fixture).or_default();
                     let current = held.get(&g.name).copied().unwrap_or(g.value);
                     if time > 0.0 {
                         let fade = fade(current);
-                        self.programmer.set_clearing(g.fixture, &g.name, fade);
+                        self.programmer.set_clearing(g.item, &g.name, fade);
                     } else {
                         held.insert(g.name, g.default);
                     }
@@ -3533,25 +3553,25 @@ impl Engine {
     /// PRG-23, 38: put the targets' attributes in `mask` at their locate values. They leave the
     /// programmer (PRG-24); the located values are not contents.
     pub fn locate(&mut self, mask: &[AttributeGroup]) -> Result<(), CoreError> {
-        let targets = self.programmer.targets();
+        let targets = self.programmer.target_items();
         if targets.is_empty() {
             return Err(CoreError::EmptySelection);
         }
         let mut put = Vec::new();
-        for id in targets {
-            let Some(mode) = self.mode_of(id) else {
+        for item in targets {
+            let Some(mode) = self.mode_of(item.fixture) else {
                 continue;
             };
-            for l in mode
-                .logical_attributes()
-                .filter(|l| mask.contains(&l.group))
+            // PRG-47: an item is located through its own attributes.
+            for l in
+                (mode.item_attributes(item.cell).into_iter()).filter(|l| mask.contains(&l.group))
             {
-                put.push((id, l.name.to_string(), locate_value(mode, &l)));
+                put.push((item, l.name.to_string(), locate_value(mode, &l)));
             }
         }
-        for (id, name, value) in put {
-            self.programmer.remove_value(id, &name);
-            self.programmer.set_located(id, &name, value);
+        for (item, name, value) in put {
+            self.programmer.remove_value(item, &name);
+            self.programmer.set_located(item, &name, value);
         }
         self.programmer.mark_changed();
         Ok(())
@@ -3564,7 +3584,7 @@ impl Engine {
                 let attrs = attrs.iter().map(|(n, v)| (n.clone(), Stored::Value(*v)));
                 (id, attrs.collect())
             })
-            .collect()
+            .collect() // whole fixtures; cell located values are not part of the view yet
     }
 
     /// PRG-26, 39: Highlight; refused with nothing selected.
@@ -3656,7 +3676,7 @@ impl Engine {
     }
 
     fn off_where(&mut self, keep: impl Fn(&LogicalAttribute) -> bool) -> Result<(), CoreError> {
-        let targets = self.programmer.targets();
+        let targets = self.programmer.target_items();
         if targets.is_empty() {
             return Err(CoreError::EmptySelection);
         }
@@ -3742,7 +3762,19 @@ impl Engine {
         attribute: &str,
         value: impl Into<Value>,
     ) -> Result<(), CoreError> {
+        self.set_item_value(Item::fixture(fixture), attribute, value)
+    }
+
+    /// PRG-47: like [`Engine::set_programmer_value`] for a whole fixture or one of its cells; a
+    /// cell takes only its own attributes.
+    pub fn set_item_value(
+        &mut self,
+        item: Item,
+        attribute: &str,
+        value: impl Into<Value>,
+    ) -> Result<(), CoreError> {
         let value = value.into();
+        let fixture = item.fixture;
         let fx = self
             .fixtures
             .get(&fixture)
@@ -3750,7 +3782,7 @@ impl Engine {
         let mode = self
             .mode_of(fixture)
             .ok_or_else(|| CoreError::UnknownProfile(fx.profile.clone()))?;
-        let Some(logical) = mode.logical(attribute) else {
+        let Some(logical) = mode.item_logical(item.cell, attribute) else {
             return Err(CoreError::UnknownAttribute {
                 fixture,
                 attribute: attribute.to_string(),
@@ -3766,12 +3798,8 @@ impl Engine {
             return Err(CoreError::InvalidLevel(bad));
         }
         self.activation_seq = self.activation_seq.saturating_add(1);
-        self.programmer.set_value(
-            fixture,
-            attribute,
-            Stored::Value(value),
-            self.activation_seq,
-        );
+        self.programmer
+            .set_value(item, attribute, Stored::Value(value), self.activation_seq);
         Ok(())
     }
 
@@ -3790,11 +3818,11 @@ impl Engine {
         if self.programmer.items().is_empty() {
             self.highlight = false; // PRG-26: deselecting stops Highlight
         }
-        let targets = self.programmer.targets();
+        let targets = self.programmer.target_items();
         let has = |g: AttributeGroup| {
-            targets.iter().any(|id| {
-                self.mode_of(*id)
-                    .is_some_and(|m| m.logical_attributes().any(|l| l.group == g))
+            targets.iter().any(|i| {
+                self.mode_of(i.fixture)
+                    .is_some_and(|m| m.item_attributes(i.cell).iter().any(|l| l.group == g))
             })
         };
         if targets.is_empty() || has(self.active_group) {
@@ -3819,8 +3847,10 @@ impl Engine {
     pub fn wheel_layout(&self) -> Vec<String> {
         let mut names: Vec<String> = Vec::new();
         let mut colour = false;
-        for id in self.programmer.targets() {
-            for l in self.mode_of(id).iter().flat_map(|m| m.logical_attributes()) {
+        for item in self.programmer.target_items() {
+            let attributes =
+                (self.mode_of(item.fixture).into_iter()).flat_map(|m| m.item_attributes(item.cell));
+            for l in attributes {
                 if l.group != self.active_group {
                     continue;
                 }
@@ -3847,7 +3877,7 @@ impl Engine {
         steps: i32,
         resolution: Resolution,
     ) -> Result<(), CoreError> {
-        let targets = self.programmer.targets();
+        let targets = self.programmer.target_items();
         if targets.is_empty() {
             return Err(CoreError::EmptySelection);
         }
@@ -3861,21 +3891,21 @@ impl Engine {
         let name = if colour_wheel { COLOUR } else { attribute };
         // PRG-59: with Fan on and two or more items, each moves by its own share of `delta`.
         let list = self.fan_list(attribute);
-        let shares: Vec<(FixtureId, f32)> = match self.fan {
+        let shares: Vec<(Item, f32)> = match self.fan {
             Some(curve) if list.len() >= 2 => (list.iter())
                 .zip(fan_factors(curve, list.len()))
-                // Cell items hold a position but get no value until cell values exist (VS2-31/32).
-                .filter(|(item, _)| item.cell.is_none())
-                .map(|(item, k)| (item.fixture, delta * k))
+                .map(|(item, k)| (*item, delta * k))
                 .collect(),
-            _ => targets.into_iter().map(|id| (id, delta)).collect(),
+            _ => targets.into_iter().map(|item| (item, delta)).collect(),
         };
         let mut new = Vec::new();
-        for (id, delta) in shares {
-            let Some(l) = self.mode_of(id).and_then(|m| m.logical(name)) else {
+        for (item, delta) in shares {
+            let Some(l) =
+                (self.mode_of(item.fixture)).and_then(|m| m.item_logical(item.cell, name))
+            else {
                 continue;
             };
-            let moved = match (colour_wheel, self.start_value(id, &l)) {
+            let moved = match (colour_wheel, self.start_value(item, &l)) {
                 (true, Value::Colour(c)) => self
                     .colour_model
                     .turn(attribute, c, delta)
@@ -3884,14 +3914,14 @@ impl Engine {
                 _ => None,
             };
             if let Some(value) = moved {
-                new.push((id, value));
+                new.push((item, value));
             }
         }
         if new.is_empty() {
             return Err(CoreError::AttributeNotInTargets(attribute.to_string()));
         }
-        for (id, value) in new {
-            self.set_programmer_value(id, name, value)?;
+        for (item, value) in new {
+            self.set_item_value(item, name, value)?;
         }
         Ok(())
     }
@@ -3907,21 +3937,21 @@ impl Engine {
                 "level: Colour takes a hue and a saturation".into(),
             ));
         }
-        let targets = self.programmer.targets();
+        let targets = self.programmer.target_items();
         if targets.is_empty() {
             return Err(CoreError::EmptySelection);
         }
-        let with: Vec<FixtureId> = (targets.into_iter())
-            .filter(|id| {
-                self.mode_of(*id)
-                    .is_some_and(|m| m.logical(attribute).is_some())
+        let with: Vec<Item> = (targets.into_iter())
+            .filter(|i| {
+                self.mode_of(i.fixture)
+                    .is_some_and(|m| m.item_logical(i.cell, attribute).is_some())
             })
             .collect();
         if with.is_empty() {
             return Err(CoreError::AttributeNotInTargets(attribute.to_string()));
         }
-        for id in with {
-            self.set_programmer_value(id, attribute, Value::Level(value))?;
+        for item in with {
+            self.set_item_value(item, attribute, Value::Level(value))?;
         }
         Ok(())
     }
@@ -3935,72 +3965,85 @@ impl Engine {
         {
             return Err(CoreError::InvalidLevel(bad));
         }
-        let targets = self.programmer.targets();
+        let targets = self.programmer.target_items();
         if targets.is_empty() {
             return Err(CoreError::EmptySelection);
         }
         let mut new = Vec::new();
-        for id in targets {
-            if let Some(l) = self.mode_of(id).and_then(|m| m.logical(COLOUR)) {
-                if let Value::Colour(c) = self.start_value(id, &l) {
+        for item in targets {
+            let mode = self.mode_of(item.fixture);
+            if let Some(l) = mode.and_then(|m| m.item_logical(item.cell, COLOUR)) {
+                if let Value::Colour(c) = self.start_value(item, &l) {
                     let (_, _, v) = c.to_hsv();
-                    new.push((id, TargetColour::from_hsv(hue, saturation, v)));
+                    new.push((item, TargetColour::from_hsv(hue, saturation, v)));
                 }
             }
         }
         if new.is_empty() {
             return Err(CoreError::AttributeNotInTargets(COLOUR.to_string()));
         }
-        for (id, c) in new {
-            self.set_programmer_value(id, COLOUR, c)?;
+        for (item, c) in new {
+            self.set_item_value(item, COLOUR, c)?;
         }
         Ok(())
     }
 
-    /// PRG-20: programmer value, else what is on the output, else the held value.
-    fn start_value(&self, id: FixtureId, l: &LogicalAttribute) -> Value {
-        self.programmer
-            .value(id, l.name)
-            .or_else(|| {
-                let (fixture, mode) = (self.fixtures.get(&id)?, self.mode_of(id)?);
-                merge_attribute(
-                    &MergeSources {
-                        playbacks: &self.playbacks,
-                        states: &self.states,
-                        programmer: &self.programmer,
-                        palettes: &self.palettes,
-                        swop_owner: self.swop_owner,
-                    },
-                    fixture,
-                    mode,
-                    l,
-                    self.last_tick.unwrap_or_default(),
-                )
-            })
-            .or_else(|| self.held.get(&id)?.get(l.name).copied())
-            .unwrap_or(match l.kind {
-                AttributeKind::Htp => Value::Level(0.0),
-                AttributeKind::Ltp => l.default,
-            })
+    /// PRG-20: programmer value, else what is on the output, else the held value. PRG-47: a
+    /// cell reads its own merged output and held value; the virtual cell Dimmer starts full.
+    fn start_value(&self, item: Item, l: &LogicalAttribute) -> Value {
+        let id = item.fixture;
+        let own = match self.programmer.stored_item(item, l.name) {
+            Some(Stored::Value(v)) => Some(v),
+            _ => None,
+        };
+        own.or_else(|| {
+            let (fixture, mode) = (self.fixtures.get(&id)?, self.mode_of(id)?);
+            merge_attribute(
+                &MergeSources {
+                    playbacks: &self.playbacks,
+                    states: &self.states,
+                    programmer: &self.programmer,
+                    palettes: &self.palettes,
+                    swop_owner: self.swop_owner,
+                },
+                fixture,
+                mode,
+                l,
+                self.last_tick.unwrap_or_default(),
+                item.cell,
+            )
+        })
+        .or_else(|| {
+            let own = (item.cell).and_then(|c| self.held_cells.get(&(id, c))?.get(l.name));
+            own.or(self.held.get(&id)?.get(l.name)).copied()
+        })
+        .unwrap_or(match l.kind {
+            AttributeKind::Htp if item.cell.is_some() => l.default,
+            AttributeKind::Htp => Value::Level(0.0),
+            AttributeKind::Ltp => l.default,
+        })
     }
 
     /// PRG-35 / IPC-11: the programmer state for rendering.
     pub fn programmer_view(&self) -> ProgrammerView {
         use AttributeGroup::*;
+        // PRG-47: wheels, groups and the picker read the target items; `targets` below stays the
+        // whole fixtures of the view (cells reach the view with PRG-55).
+        let items = self.programmer.target_items();
         let targets = self.programmer.targets();
         let attribute_groups = [I, P, C, G, B, E, S, Fx]
             .into_iter()
             .map(|group| AttributeGroupState {
                 group,
-                available: targets.iter().any(|&id| {
-                    self.mode_of(id)
-                        .is_some_and(|m| m.logical_attributes().any(|l| l.group == group))
+                available: items.iter().any(|i| {
+                    self.mode_of(i.fixture)
+                        .is_some_and(|m| m.item_attributes(i.cell).iter().any(|l| l.group == group))
                 }),
-                has_values: targets.iter().any(|&id| {
-                    let values = self.programmer.values().get(&id);
-                    values.zip(self.mode_of(id)).is_some_and(|(v, m)| {
+                has_values: items.iter().any(|&i| {
+                    let values = self.programmer.values_of(i);
+                    values.zip(self.mode_of(i.fixture)).is_some_and(|(v, m)| {
                         v.keys()
-                            .any(|n| m.logical(n).is_some_and(|l| l.group == group))
+                            .any(|n| m.item_logical(i.cell, n).is_some_and(|l| l.group == group))
                     })
                 }),
             })
@@ -4016,15 +4059,15 @@ impl Engine {
                 } else {
                     attribute.as_str()
                 };
-                let (id, l) = targets
-                    .iter()
-                    .find_map(|&id| Some((id, self.mode_of(id)?.logical(name)?)))?;
-                let start = self.start_value(id, &l);
+                let (item, l) = items.iter().find_map(|&i| {
+                    Some((i, self.mode_of(i.fixture)?.item_logical(i.cell, name)?))
+                })?;
+                let start = self.start_value(item, &l);
                 let value = match start {
                     Value::Colour(c) => self.colour_model.wheel_value(&attribute, c)?,
                     Value::Level(v) => v,
                 };
-                let stored = self.programmer.stored(id, name);
+                let stored = self.programmer.stored_item(item, name);
                 Some(WheelState {
                     value,
                     touched: stored.is_some(),
@@ -4038,9 +4081,9 @@ impl Engine {
             })
             .collect();
         // IPC-22: the first target that has Colour speaks for the picker.
-        let colour = targets.iter().find_map(|&id| {
-            let l = self.mode_of(id)?.logical(COLOUR)?;
-            let Value::Colour(c) = self.start_value(id, &l) else {
+        let colour = items.iter().find_map(|&i| {
+            let l = self.mode_of(i.fixture)?.item_logical(i.cell, COLOUR)?;
+            let Value::Colour(c) = self.start_value(i, &l) else {
                 return None;
             };
             let (hue, saturation, _) = c.to_hsv();
@@ -4052,7 +4095,7 @@ impl Engine {
                 b: c.b,
             })
         });
-        let palettes = self.palette_use(&targets);
+        let palettes = self.palette_use(&items);
         ProgrammerView {
             selection: self.programmer.selection().to_vec(),
             targets,
@@ -4080,7 +4123,7 @@ impl Engine {
                     fading: values
                         .keys()
                         .filter_map(|name| {
-                            let fade = self.programmer.fade(fixture, name)?;
+                            let fade = self.programmer.fade(Item::fixture(fixture), name)?;
                             Some((
                                 name.clone(),
                                 fade.progress(self.last_tick.unwrap_or_default()),
@@ -4102,7 +4145,7 @@ impl Engine {
 
     /// PAL-26: palettes referenced in the programmer, and those that resolve something for the
     /// targets (all of them when nothing is selected).
-    fn palette_use(&self, targets: &[FixtureId]) -> PaletteUse {
+    fn palette_use(&self, targets: &[Item]) -> PaletteUse {
         let mut in_use: Vec<PaletteId> = (self.programmer.values().values())
             .flat_map(|attrs| attrs.values())
             .filter_map(|s| match s {
@@ -4176,19 +4219,12 @@ impl Engine {
             }
             Some(list)
         };
-        // Cell items get no values until VS2-31: acting commands use the whole fixtures.
-        let whole = |l: &[Item]| -> Vec<FixtureId> {
-            l.iter()
-                .filter(|i| i.cell.is_none())
-                .map(|i| i.fixture)
-                .collect()
-        };
         if let Some(number) = cmd.palette {
             // PAL-10: plan against the typed selection first, so a refusal changes nothing.
             let (time, overlap) = self.palette_timing(Timing::default())?;
             let targets = typed
-                .as_deref()
-                .map_or_else(|| self.programmer.targets(), whole);
+                .clone()
+                .unwrap_or_else(|| self.programmer.target_items());
             let (id, plan) = self.palette_plan(number, &targets)?;
             if let Some(list) = typed {
                 self.fan = None; // PRG-56
@@ -4211,15 +4247,17 @@ impl Engine {
         let level = cmd.level.map(|v| (v / 100.0).clamp(0.0, 1.0));
         if level.is_some() {
             let targets = typed
-                .as_deref()
-                .map_or_else(|| self.programmer.targets(), whole);
-            if typed.is_none() && self.programmer.target_items().is_empty() {
+                .clone()
+                .unwrap_or_else(|| self.programmer.target_items());
+            if typed.is_none() && targets.is_empty() {
                 return Err(CoreError::EmptySelection);
             }
-            for id in targets {
-                for l in self.mode_of(id).iter().flat_map(|m| m.logical_attributes()) {
+            // PRG-47: `901 . 2 @ 50` sets cell 2's Dimmer, not the master.
+            for item in targets {
+                let mode = self.mode_of(item.fixture);
+                for l in mode.into_iter().flat_map(|m| m.item_attributes(item.cell)) {
                     if l.group == AttributeGroup::I && l.kind == AttributeKind::Htp {
-                        touched.push((id, l.name.to_string()));
+                        touched.push((item, l.name.to_string()));
                     }
                 }
             }
@@ -4230,8 +4268,8 @@ impl Engine {
             self.follow_active_group();
         }
         if let Some(level) = level {
-            for (id, name) in touched {
-                self.set_programmer_value(id, &name, level)?;
+            for (item, name) in touched {
+                self.set_item_value(item, &name, level)?;
             }
         }
         Ok(())
@@ -4463,7 +4501,7 @@ impl Engine {
                 .collect();
             for l in whole {
                 if !attrs.contains_key(l.name) {
-                    attrs.insert(l.name.to_string(), self.start_value(id, &l));
+                    attrs.insert(l.name.to_string(), self.start_value(Item::fixture(id), &l));
                 }
             }
         }
@@ -4494,29 +4532,33 @@ impl Engine {
     fn palette_plan(
         &self,
         number: u32,
-        targets: &[FixtureId],
+        targets: &[Item],
     ) -> Result<(PaletteId, PalettePlan), CoreError> {
         let palette = self
             .palette(number)
             .ok_or(CoreError::UnknownPalette(number))?;
-        let all: Vec<FixtureId>;
+        let all: Vec<Item>;
         let list = if targets.is_empty() {
-            all = self.numbers.values().copied().collect();
+            all = self.numbers.values().map(|&id| Item::fixture(id)).collect();
             &all
         } else {
             targets
         };
         let mut plan = Vec::new();
-        for &id in list {
-            let (Some(fixture), Some(mode)) = (self.fixtures.get(&id), self.mode_of(id)) else {
+        for &item in list {
+            let (Some(fixture), Some(mode)) =
+                (self.fixtures.get(&item.fixture), self.mode_of(item.fixture))
+            else {
                 continue;
             };
-            for l in mode.logical_attributes() {
+            // PRG-47: an item takes the palette through its own attributes. ponytail: a cell
+            // resolves like its fixture; the cell-first lookup of PRG-52 is VS2-32.
+            for l in mode.item_attributes(item.cell) {
                 if let Some(v) = palette
                     .resolve(fixture, mode, l.name)
                     .filter(|v| v.same_kind(&l.default))
                 {
-                    plan.push((id, l.name.to_string(), v));
+                    plan.push((item, l.name.to_string(), v));
                 }
             }
         }
@@ -4534,14 +4576,14 @@ impl Engine {
     /// or as manual values. Counts as a programmer change (PRG-03).
     fn put_palette(&mut self, palette: PaletteId, plan: PalettePlan, as_reference: bool) {
         self.activation_seq = self.activation_seq.saturating_add(1);
-        for (fixture, name, value) in plan {
+        for (item, name, value) in plan {
             let stored = if as_reference {
                 Stored::Reference(Reference { palette, value })
             } else {
                 Stored::Value(value)
             };
             self.programmer
-                .set_value(fixture, &name, stored, self.activation_seq);
+                .set_value(item, &name, stored, self.activation_seq);
         }
     }
 
@@ -4551,7 +4593,7 @@ impl Engine {
     /// staggered by the overlap); the programmer holds the reference from the start.
     pub fn apply_palette(&mut self, number: u32, timing: Timing) -> Result<(), CoreError> {
         let (time, overlap) = self.palette_timing(timing)?;
-        let (id, plan) = self.palette_plan(number, &self.programmer.targets())?;
+        let (id, plan) = self.palette_plan(number, &self.programmer.target_items())?;
         self.put_palette_timed(id, plan, time, overlap);
         Ok(())
     }
@@ -4572,19 +4614,20 @@ impl Engine {
             let step = time * (1.0 - overlap / 100.0);
             let mut index = 0.0_f32;
             let mut previous = None;
-            for (fixture, name, _) in &plan {
-                if previous.is_some_and(|p| p != *fixture) {
+            for (item, name, _) in &plan {
+                if previous.is_some_and(|p| p != *item) {
                     index += 1.0;
                 }
-                previous = Some(*fixture);
-                let Some(l) = self.mode_of(*fixture).and_then(|m| m.logical(name)) else {
+                previous = Some(*item);
+                let mode = self.mode_of(item.fixture);
+                let Some(l) = mode.and_then(|m| m.item_logical(item.cell, name)) else {
                     continue;
                 };
                 fades.push((
-                    *fixture,
+                    *item,
                     name.clone(),
                     Fade {
-                        from: self.start_value(*fixture, &l),
+                        from: self.start_value(*item, &l),
                         delay: index * step,
                         duration: time,
                         start: None,
@@ -4593,8 +4636,8 @@ impl Engine {
             }
         }
         self.put_palette(id, plan, true);
-        for (fixture, name, fade) in fades {
-            self.programmer.set_fade(fixture, &name, fade);
+        for (item, name, fade) in fades {
+            self.programmer.set_fade(item, &name, fade);
         }
     }
 
@@ -4615,7 +4658,7 @@ impl Engine {
 
     /// PAL-12: like [`Engine::apply_palette`], but the programmer gets manual values.
     pub fn include_palette(&mut self, number: u32) -> Result<(), CoreError> {
-        let (id, plan) = self.palette_plan(number, &self.programmer.targets())?;
+        let (id, plan) = self.palette_plan(number, &self.programmer.target_items())?;
         self.put_palette(id, plan, false);
         Ok(())
     }
@@ -4852,9 +4895,9 @@ impl Engine {
             let virtual_dimmer = mode.has_virtual_dimmer();
             let mut scale = 1.0;
             for l in mode.logical_attributes() {
-                let merged = merge_attribute(&sources, fixture, mode, &l, now);
+                let merged = merge_attribute(&sources, fixture, mode, &l, now, None);
                 // PRG-26 (ENG-14): Highlight replaces the merged value, never the held one.
-                let lit = highlight.value(*fixture_id, mode, &l);
+                let lit = highlight.value(Item::fixture(*fixture_id), mode, &l);
                 // ENG-07: an HTP attribute nobody proposes is 0; LTP holds its last value (LIB-03).
                 let value = match (merged, l.kind) {
                     (Some(v), AttributeKind::Ltp) => {
@@ -4883,6 +4926,56 @@ impl Engine {
                     scale = value.level();
                 }
                 write_value(frame, fixture.address, mode, &l, value, scale);
+            }
+            // PRG-51: a cell with a value, a located value or a clear fade of its own, or that
+            // Highlight touches, merges on its own and overwrites its slots; the other cells keep
+            // the fixture's output. ponytail: a merge per attribute of each such cell and tick;
+            // fine for tens of cells, batch per fixture if a 1000-cell wall ever shows it.
+            let mut cells = self.programmer.cells_of(*fixture_id);
+            if highlight.on {
+                cells.extend(highlight.cells_of(*fixture_id));
+                cells.sort_unstable();
+                cells.dedup();
+            }
+            for c in cells {
+                let Some(cell) = mode.cell(c) else {
+                    continue;
+                };
+                let item = Item::cell(*fixture_id, c);
+                let cell_held = self.held_cells.entry((*fixture_id, c)).or_default();
+                let mut cell_scale = 1.0;
+                for l in mode.cell_attributes(c) {
+                    let virtual_dimmer = l.name == DIMMER && mode.virtual_cell_dimmer(c);
+                    let merged = merge_attribute(&sources, fixture, mode, &l, now, Some(c));
+                    // A fixture's highlight counts for every cell but its own virtual Dimmer.
+                    let lit = highlight.value(item, mode, &l).or_else(|| {
+                        let fixture_l = mode.logical(l.name).filter(|_| !virtual_dimmer)?;
+                        highlight.value(Item::fixture(*fixture_id), mode, &fixture_l)
+                    });
+                    let value = match (merged, l.kind) {
+                        (Some(v), AttributeKind::Ltp) => {
+                            cell_held.insert(l.name.to_string(), v);
+                            lit.unwrap_or(v)
+                        }
+                        // The virtual cell Dimmer is no master: no group masters, no Grand
+                        // Master (they scale the master Dimmer), and full while nobody proposes.
+                        (merged, AttributeKind::Htp) if virtual_dimmer => {
+                            lit.or(merged).unwrap_or(l.default)
+                        }
+                        (merged, AttributeKind::Htp) => {
+                            let base = lit.or(merged).unwrap_or(Value::Level(0.0));
+                            masters.apply(*fixture_id, base).scaled(grand_master)
+                        }
+                        (None, AttributeKind::Ltp) => lit
+                            .or_else(|| cell_held.get(l.name).copied())
+                            .or_else(|| held.get(l.name).copied())
+                            .unwrap_or(l.default),
+                    };
+                    if virtual_dimmer {
+                        cell_scale = value.level();
+                    }
+                    write_cell(frame, fixture.address, cell, &l, value, scale * cell_scale);
+                }
             }
         }
         self.follow_take_over(&pickups);
@@ -5153,20 +5246,20 @@ fn locate_value(mode: &Mode, l: &LogicalAttribute) -> Value {
     }
 }
 
-/// PRG-26, 39: who Highlight lifts and who it lowlights, as the tick sees it.
+/// PRG-26, 39, 54: who Highlight lifts and who it lowlights, per item, as the tick sees it.
 struct Highlight {
     on: bool,
-    targets: Vec<FixtureId>,
+    targets: Vec<Item>,
     /// The rest of the selection while a sub-selection is active.
-    others: Vec<FixtureId>,
+    others: Vec<Item>,
     lowlight: f32,
 }
 
 impl Highlight {
     fn new(on: bool, programmer: &Programmer, lowlight: f32) -> Self {
-        let targets = programmer.targets();
-        let others = (programmer.selection().iter())
-            .filter(|f| !targets.contains(f))
+        let targets = programmer.target_items();
+        let others = (programmer.items().iter())
+            .filter(|i| !targets.contains(i))
             .copied()
             .collect();
         Highlight {
@@ -5177,21 +5270,31 @@ impl Highlight {
         }
     }
 
-    /// The value Highlight puts the attribute at, `None` when it leaves it alone.
-    fn value(&self, fixture: FixtureId, mode: &Mode, l: &LogicalAttribute) -> Option<Value> {
+    /// The cells of `fixture` Highlight or lowlight touches (unsorted, may repeat).
+    fn cells_of(&self, fixture: FixtureId) -> impl Iterator<Item = u16> + '_ {
+        (self.targets.iter().chain(&self.others))
+            .filter(move |i| i.fixture == fixture)
+            .filter_map(|i| i.cell)
+    }
+
+    /// The value Highlight puts the attribute of the item at, `None` when it leaves it alone.
+    fn value(&self, item: Item, mode: &Mode, l: &LogicalAttribute) -> Option<Value> {
         if !self.on {
             return None;
         }
-        if self.others.contains(&fixture) {
+        if self.others.contains(&item) {
             return (l.group == AttributeGroup::I && l.kind == AttributeKind::Htp)
                 .then_some(Value::Level(self.lowlight));
         }
-        if !self.targets.contains(&fixture) {
+        if !self.targets.contains(&item) {
             return None;
         }
-        let def = mode
-            .attribute(l.name)
-            .or_else(|| mode.cells.iter().find_map(|c| c.attribute(l.name)));
+        let def = match item.cell {
+            Some(c) => mode.cell(c).and_then(|c| c.attribute(l.name)),
+            None => mode
+                .attribute(l.name)
+                .or_else(|| mode.cells.iter().find_map(|c| c.attribute(l.name))),
+        };
         let own = def.and_then(|a| a.highlight).map(Value::Level);
         if l.group == AttributeGroup::I && l.kind == AttributeKind::Htp {
             own.or(Some(Value::Level(1.0)))
@@ -5231,6 +5334,31 @@ fn write_value(
             let cells = mode.cells.iter().filter_map(|cell| cell.colour.as_ref());
             for mixing in mode.colour.iter().chain(cells) {
                 frame.set_mixing(address, mixing, c);
+            }
+        }
+    }
+}
+
+/// PRG-51: write one attribute of one cell into that cell's own slots. `scale` is the mode's
+/// virtual dimmer times the cell's (PRG-47), applied as in [`write_value`].
+fn write_cell(
+    frame: &mut Frame,
+    address: u16,
+    cell: &crate::profile::Cell,
+    l: &LogicalAttribute,
+    value: Value,
+    scale: f32,
+) {
+    match value {
+        Value::Level(v) => {
+            let v = if l.emitter { v * scale } else { v };
+            if let Some(attr) = cell.attribute(l.name) {
+                frame.set_attribute(address, attr, v);
+            }
+        }
+        Value::Colour(c) => {
+            if let Some(mixing) = &cell.colour {
+                frame.set_mixing(address, mixing, c.scaled(scale));
             }
         }
     }
@@ -5399,6 +5527,10 @@ fn origins(
 /// Merge one attribute of one fixture across all active playbacks and the programmer.
 /// A palette reference is resolved here, every tick (PAL-11).
 ///
+/// PRG-51: with `cell` the merge is that cell's. The sources see the fixture's value as the cell's
+/// value; the programmer's entry for the cell beats its entry for the fixture. The virtual cell
+/// Dimmer (PRG-47) is proposed by cell values only, never by a playback or a fixture value.
+///
 /// Returns `None` when no active source proposes a value. `tick` then writes 0
 /// for an HTP attribute and the held value for an LTP one (ENG-07, LIB-03).
 fn merge_attribute(
@@ -5407,13 +5539,18 @@ fn merge_attribute(
     mode: &Mode,
     attr: &LogicalAttribute,
     now: Timestamp,
+    cell: Option<u16>,
 ) -> Option<Value> {
     let mut best: Option<Candidate> = None;
+    let own_only = cell.is_some_and(|c| attr.name == DIMMER && mode.virtual_cell_dimmer(c));
+    // The programmer items that speak for this attribute, the most specific first.
+    let items = (cell.map(|c| Item::cell(fixture.id, c)).into_iter())
+        .chain((!own_only).then_some(Item::fixture(fixture.id)));
     // A reference gives what its palette resolves, else its fallback (PAL-07, PAL-11); a value
     // of the wrong kind (a level for Colour, say) is ignored, not output.
     let resolve = |stored: Stored| resolve_stored(src.palettes, fixture, mode, attr.name, stored);
 
-    for (id, playback) in src.playbacks {
+    for (id, playback) in src.playbacks.iter().filter(|_| !own_only) {
         let Some(state) = src.states.get(id) else {
             continue;
         };
@@ -5485,21 +5622,21 @@ fn merge_attribute(
     }
 
     // ENG-04: manual values are absolute and sit at Priority::Programmer.
-    if let Some(value) = src
-        .programmer
-        .stored(fixture.id, attr.name)
-        .map(resolve)
-        .filter(|v| v.same_kind(&attr.default))
-        .map(|to| match src.programmer.fade(fixture.id, attr.name) {
-            Some(fade) => fade.at(to, now), // PAL-13
-            None => to,
-        })
-        // PRG-25: a located value sits under the programmer value, at the same priority.
-        .or_else(|| {
-            let located = src.programmer.located_value(fixture.id, attr.name)?;
-            Some(located).filter(|v| v.same_kind(&attr.default))
-        })
-    {
+    let proposal = items.clone().find_map(|item| {
+        (src.programmer.stored_item(item, attr.name))
+            .map(resolve)
+            .filter(|v| v.same_kind(&attr.default))
+            .map(|to| match src.programmer.fade(item, attr.name) {
+                Some(fade) => fade.at(to, now), // PAL-13
+                None => to,
+            })
+            // PRG-25: a located value sits under the programmer value, at the same priority.
+            .or_else(|| {
+                let located = src.programmer.located_value(item, attr.name)?;
+                Some(located).filter(|v| v.same_kind(&attr.default))
+            })
+    });
+    if let Some(value) = proposal {
         let candidate = Candidate {
             priority: Priority::Programmer,
             activated: src.programmer.activated(),
@@ -5514,7 +5651,10 @@ fn merge_attribute(
     // ENG-10: a value a timed Clear removed fades out. HTP: from its value to 0, the highest of it
     // and the other sources wins (ENG-01). LTP: from the output then to what the other sources
     // give, else the default. A source of higher priority owns the attribute outright.
-    if let Some(fade) = src.programmer.clearing(fixture.id, attr.name) {
+    if let Some(fade) = items
+        .clone()
+        .find_map(|item| src.programmer.clearing(item, attr.name))
+    {
         if !best
             .as_ref()
             .is_some_and(|c| c.priority > Priority::Programmer)
@@ -5536,6 +5676,8 @@ fn merge_attribute(
                     priority: Priority::Programmer,
                     activated: src.programmer.activated(),
                     value: match kind {
+                        // PRG-47: the virtual cell Dimmer lets go towards full, its unproposed level.
+                        AttributeKind::Htp if own_only => fade.at(attr.default, now),
                         AttributeKind::Htp => fade.at(Value::Level(0.0), now),
                         AttributeKind::Ltp => fade.at(attr.default, now),
                     },

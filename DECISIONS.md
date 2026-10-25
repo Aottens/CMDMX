@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Cells in the merge: the virtual cell Dimmer and per-item Off/Locate (VS2-31)
+
+**Decision:** the virtual cell Dimmer is full until a cell value proposes it; a fixture's Dimmer is the master and does not count as a value for it, and the Grand Master and group masters act on the master only. In the programmer a cell's entry (value, else located) beats the fixture's; Off and Locate act on the items they target only. Cell values stay in the programmer until VS2-32 stores them (PRG-47, 51 refined).
+
+**Alternatives considered:** the fixture Dimmer as the cell Dimmer's fallback (squares the level under a master); HTP-nobody-is-0 for the cell Dimmer (every existing show would go dark on cell fixtures); Off on a fixture also clearing its cells.
+
+**Reasoning:** output of every show without cell values stays byte-identical, a cell is never mastered twice, and each item behaves through its own attributes as PRG-47 says.
+
+**Reversal trigger:** the owner expects Off or Locate on a whole fixture to reset its cells as well.
+
 ## 2026-10-25 — Busy check with a second daemon stands; BCF2000 run postponed (owner)
 
 **Decision:** the Stream Deck `Busy` line (CTL-44) counts as passed with a second daemon holding the deck; the Elgato app is not installed, so its own line is waived and VS7-07 is done. The BCF2000 run (VS1-07) waits until the owner finds the controller; it stays `gate3`. Order of work: VS2-35..36 (Fan), then VS2-31..34 (cells); the church service (VS4-03) the Sunday after.
