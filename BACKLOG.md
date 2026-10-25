@@ -24,6 +24,7 @@ Software first (owner, 2026-10-17). Left: VS1-08 and the hardware track (VS1-07 
 | VS1-06 | App shows `faders_per_page` on-screen faders bound to playbacks of page 1; moving one changes DMX. | PBK (subset) | M | done (2026-10-18, #40 with UX-02d; PBK-01..05) |
 | VS1-07 | (re-scoped 2026-10-23) Mackie Control profile on the generic control layer: window and banks from `faders_per_page` (never 8), default bindings, motor and touch rules; BCF2000 fader 1 moves playback 1 and the motors follow a page change; `tests/hardware/bcf2000.md` (gate 3). Needs VS7-02. | CTL-01..04, 30..33 | M | gate3: `tests/hardware/bcf2000.md` (merged 2026-10-23, #79; virtual BCF2000 passed in the VS7-04 run) |
 | VS1-08 | Supervisor-less resilience check: kill the app while output runs; DMX keeps streaming; app reconnects and shows the live state. | ADR-002 | S | todo |
+| VS1-09 | Protocol version check: the app checks the snapshot's `v`, on another version closes, renders and sends nothing, shows the IPC-41 message in place of the offline banner and keeps retrying; the daemon's `error` names both versions (unit test with the id). Needs P1-06. | IPC-41 | S | todo |
 
 ## Phase 1 milestones — a general console; first proof: replace Lightkey in the church
 Phase 1 delivers a well-working general DMX console (owner, 2026-10-22). Its first proof is a real
@@ -133,7 +134,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | VS6-04 | Fix: on `output.add/edit` a number that does not fit its field (`priority` 300, `port_address`/`universe`/`line` 70000, negatives) gets OUT-28's range text instead of serde's (`invalid value: integer 300, expected u8`); found in the VS6-03 owner run. | OUT-28 | S | done (2026-10-22, merged #73) |
 | VS6-03 | App: protocol dots in the status bar and the Output screen (table, add/edit/remove, serial port dropdown, "no output" warning row); owner run passes, the Eurolite chosen there survives a daemon restart. Needs VS6-02. | OUT-36/37 | M | gate3: `tests/manual/runs/2026-10-22-VS6-03.md` (merged 2026-10-23, #72; home part passed, the Eurolite steps wait for the church) |
 | P1-19 | Spec native Stream Deck support (IDEA-22, owner 2026-10-23: late phase 1, after VS7-04) as CTL criteria on the control layer: route (native HID / Elgato plugin), models, key images (legend, colour, level, state) as a feedback kind, linking playbacks to keys in the app (drag or Learn); owner approves. | CTL | M | todo |
-| P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | todo |
+| P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #PRNUM; IPC-41 approved as proposed; build task VS1-09) |
 
 ## Later phases
 Ideas waiting for their phase live in `IDEAS.md`. They get backlog rows when their phase is planned.
