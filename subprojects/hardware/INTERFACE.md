@@ -3,6 +3,7 @@
 ## Publishes
 - A control surface that shows up as a USB-MIDI device (CTL); its default mapping becomes a
   profile in `subprojects/engine/profiles/` through a software task, not a hardware PR.
+- A DMX board with four isolated ports, seen as four ENTTEC-Pro-compatible serial ports (HW-41).
 - Build plans: PCB (KiCad), firmware, enclosure and flight case CAD, BOM, build guide.
 
 ## Consumes
@@ -10,7 +11,8 @@
 - `faders_per_page` stays configuration; the hardware never assumes a count.
 
 ## Does NOT handle
-- Any lighting logic or DMX output of its own unless `hardware.md` adds DMX ports by criterion.
+- Any lighting logic. DMX output only through the DMX board (HW-40..44), which the daemon drives
+  as ENTTEC Pro serial nodes (OUT-31); it never decides levels itself.
 - Changes under `subprojects/engine` or `subprojects/app`.
 
 ## Show-proof

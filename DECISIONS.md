@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — The reference desk: Tiger Touch II size, one screen, Linux compute (owner, HW-01)
+
+**Decision:** the open-hardware reference desk is a Tiger Touch II-size console with one 15.6" PCAP touch screen, 10 motorised playback faders (two keys each), 10 plain preset faders (one key), a plain grand master, four optical wheels and a keypad, four isolated DMX ports on an own ENTTEC-Pro-compatible board and the rest on Art-Net/sACN. Its compute is Linux on an N100-class mini-PC; development and proofs of concept run on the Mac, and the cross-platform UI is IDEA-30 (phase 3, after the surface). The surface is smart two-fader strips (own RP2350, RS485) behind one USB-MIDI main controller; firmware in Rust. Hardware licence CERN-OHL-S v2, build guide CC BY-SA 4.0. Quality before price. All in `specs/modules/hardware.md`.
+
+**Alternatives considered:** Quartz size (compact, 12" screen) or Sapphire Touch (two screens, 45 faders); Mac mini as the reference with a paid touch driver (UPDD), or without touch; plain faders everywhere; AS5600 magnetic wheels; CERN-OHL-W.
+
+**Reasoning:** macOS has no native touch support and a desk without touch is not acceptable; Linux touch is native. The DMX board and USB-MIDI surface reuse OUT-31 and CTL, so the engine does not change. Professional parts (motor faders, optical encoders, isolated DMX) because the owner wants pro quality.
+
+**Reversal trigger:** the cross-platform UI (IDEA-30) turns out not to be feasible, or a touch driver for macOS becomes free and native.
+
 ## 2026-10-25 — Phase 3 (hardware) runs as a parallel track beside phase 1 (owner)
 
 **Decision:** the open-hardware desk (IDEA-23, phase 3) starts now as a parallel track instead of after phase 1. It lives in `subprojects/hardware/` with its own `STATE.md`, spec `specs/modules/hardware.md` (`HW-nn` criteria) and the `## Phase 3 track — hardware` section of `BACKLOG.md`. Its only contract with the software is the general control layer (CTL): the surface is a USB-MIDI (later possibly HID) device mapped like any other controller. Hardware tasks run in their own sessions and PRs, never touch `subprojects/engine` or `subprojects/app`, and never move a phase-1 task. A hardware need that would change the software becomes an IDEA or a backlog row for the software, not a change in a hardware PR. First task HW-01: the owner answers the open questions of `docs/research/hardware-desk.md` and approves `hardware.md`.

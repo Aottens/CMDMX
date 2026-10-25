@@ -397,6 +397,8 @@ down to roughly €2,000–2,400. Both are a fraction of a commercial two-screen
 
 ## Open questions for the owner
 
+*Answered 2026-10-25 (HW-01): see *Owner decisions* in `specs/modules/hardware.md`.*
+
 1. **Step 3 at all:** is the Linux build (and so a cross-platform UI) the reference design, or
    is the Mac mini desk the only official build? This decides which BOM gets the build guide.
 2. **Mac touch:** is a paid touch driver (UPDD) acceptable for the Mac desk, or should the Mac

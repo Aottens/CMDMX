@@ -39,7 +39,7 @@ Next up: selecting single cells of multi-head fixtures in the app (`901.2`, Unfo
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in clickable sketches:
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html) and
 [`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html).
-Beside it, the open-hardware desk (phase 3) has started as its own track in `subprojects/hardware/`.
+Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)); first a USB-MIDI fader box.
 
 ## What works today
 
