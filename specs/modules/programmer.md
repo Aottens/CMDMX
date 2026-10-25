@@ -304,7 +304,7 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 `Programmer`; anything that reaches the frame (PRG-12, 13, 20, 21, 23..26) is a scenario file.
 
 ## Out of scope (phase 1 unless noted)
-- Fan and align (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
+- Fan (phase 1, spec task P1-20, IDEA-27), Align (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
 - Select If (phase 2). Cells: per-cell group masters, Titan's cell buttons in an attribute
   editor, and Shapes or pixel mapping over cells (phase 2); cells are selected by `.` and Unfold
   (PRG-46..55, UI-29).

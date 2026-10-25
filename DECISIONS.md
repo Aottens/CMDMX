@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Fan is phase 1, Align stays phase 2 (IDEA-27, owner)
+
+**Decision:** plain Fan (spread a value over the selection order) moves from phase 2 to phase 1; spec task P1-20. Align stays in phase 2.
+
+**Alternatives considered:** Fan and Align together in phase 2 (`PROJECT.md` until now).
+
+**Reasoning:** fanning positions of moving heads is basic programming; a phase-1 console without it is not a general console.
+
+**Reversal trigger:** none expected.
+
 ## 2026-10-25 — Per-cell selection (P1-13, owner)
 
 **Decision:** `programmer.md` PRG-46..55, `ui.md` UI-29, `ipc.md` IPC-42. A selection item is a whole fixture or one cell (`901.2`); cell ranges follow Titan's keypad table (`901 . 2 Thro 4` = cells 2–4 of 901, `901 Thro 904 . 2` = cell 2 of each); a cell without a Dimmer gets a virtual Dimmer under the master Dimmer; within one source a cell value beats the fixture value, between sources the ENG rules decide per cell; cues, groups and palettes key cell values by item; Unfold opens cells in place in the Fixtures window; IPC `v` goes to 1.
