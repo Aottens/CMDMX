@@ -42,8 +42,9 @@ screen survives a restart, fades are comparable with Lightkey, unplugging and re
 lamps did not blink when the app was killed. Killing the app with `kill -9` mid-show was checked: DMX ran on without a dropped frame and the restarted app showed the live faders, cue and programmer. The church iPad mini (TouchOSC Mk1) runs the shipped layout: loaded over wifi with `touchosc/serve.sh`, it moves faders, pages, cues, DBO and GM and follows every change made on the Mac. The current cue now reads large and green and the next cue small and grey with "Next:", on the iPad and in the app's Go block. The app and engine now check the protocol
 version: an app that meets an engine of another release says which versions differ, shows and
 sends nothing and keeps retrying, and the engine names both versions to any client that sends the wrong one. Selecting single
-cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build, and so is native Elgato Stream Deck support: keys showing a
-playback's legend, colour, level and state, linked by dragging a playback onto an on-screen deck,
+cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build. Native Elgato Stream Deck support is being built: the engine already
+knows the decks (Original, MK.2, Mini, XL, Neo, +, Pedal), reads their keys and draws each key's
+image (a playback's legend, colour, level and state); the daemon and the on-screen deck come next,
 no Elgato app needed. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
 Wings, Arrow), moving-head positions above all. A TouchOSC layout for the
 church's old iPad (TouchOSC Mk1) ships in [`touchosc/`](touchosc/): faders with legends, page,

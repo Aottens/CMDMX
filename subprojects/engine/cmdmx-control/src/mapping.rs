@@ -5,6 +5,7 @@ use serde_json::{Map, Value};
 
 use crate::action::{Action, ValueKind};
 use crate::convert::Reading;
+use crate::deck::DeckInput;
 use crate::midi::{Kind, MidiInput, MidiMessage};
 use crate::ControlError;
 
@@ -55,6 +56,7 @@ pub enum ButtonMode {
 pub enum Input {
     Midi(MidiInput),
     Osc(String),
+    Deck(DeckInput),
 }
 
 fn one() -> f32 {
@@ -77,6 +79,12 @@ fn is_yes(v: &bool) -> bool {
 }
 fn is_full(v: &u16) -> bool {
     *v == 127
+}
+fn page_one() -> u16 {
+    1
+}
+fn is_page_one(v: &u16) -> bool {
+    *v == 1
 }
 fn is_zero_u16(v: &u16) -> bool {
     *v == 0
@@ -106,6 +114,14 @@ pub struct Binding {
     pub on_value: u16,
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub off_value: u16,
+    /// Stream Deck page this key binding belongs to (CTL-48).
+    #[serde(default = "page_one", skip_serializing_if = "is_page_one")]
+    pub deck_page: u16,
+    /// Key text and colour (`#rrggbb`) that replace the playback's own (CTL-50).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub colour: Option<String>,
     /// Fields we do not know survive load and save (CTL-22).
     #[serde(flatten)]
     pub extra: Map<String, Value>,
@@ -130,6 +146,9 @@ impl Binding {
             feedback_to: None,
             on_value: 127,
             off_value: 0,
+            deck_page: 1,
+            label: None,
+            colour: None,
             extra: Map::new(),
         }
     }
@@ -237,9 +256,13 @@ impl Mapping {
         serde_json::to_string_pretty(self).unwrap_or_default()
     }
 
-    /// One input, one action: an equal input replaces the old binding (CTL-27).
+    /// One input, one action: an equal input (on the same deck page) replaces the old binding (CTL-27).
     pub fn bind(&mut self, b: Binding) -> Option<Binding> {
-        match self.bindings.iter_mut().find(|o| o.input == b.input) {
+        match self
+            .bindings
+            .iter_mut()
+            .find(|o| o.input == b.input && o.deck_page == b.deck_page)
+        {
             Some(slot) => Some(std::mem::replace(slot, b)),
             None => {
                 self.bindings.push(b);

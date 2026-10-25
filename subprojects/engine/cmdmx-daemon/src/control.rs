@@ -227,6 +227,7 @@ fn input_text(i: &Input) -> String {
     match i {
         Input::Midi(m) => m.to_string(),
         Input::Osc(a) => a.clone(),
+        Input::Deck(d) => d.to_string(),
     }
 }
 
@@ -375,6 +376,8 @@ impl Tick<'_> {
                 page(self, prev)
             }
             Action::Page(n) => page(self, Some(n)),
+            // The deck page belongs to the deck device (VS7-06), not to the engine.
+            Action::DeckPageNext | Action::DeckPagePrev | Action::DeckPage(_) => None,
             Action::Key(k) => Some(match k {
                 Key::Clear => Command::Clear,
                 Key::Locate => Command::Locate { groups: None },
