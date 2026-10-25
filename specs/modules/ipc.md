@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -43,9 +43,21 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 
 ### Isolation (show-proof)
 - **IPC-07** Each client runs on its own thread. The tick never waits on a client: commands reach the tick through a non-blocking channel drained at the start of each tick; messages to a client go through a bounded queue (64 messages). A client whose queue is full is disconnected (it resyncs from a fresh snapshot when it reconnects). A panic in a client thread is caught and closes only that client.
+- **IPC-44** Losing a client changes nothing but that connection (VS1-08, ADR-002; approved by owner 2026-10-25).
+  When a client disappears without a close handshake (the app killed with `kill -9`, its TCP
+  connection reset or closed mid-message), every enabled node keeps sending one frame per tick
+  (OUT-03/06) with the same values: no frame is skipped (the Art-Net sequence runs on without a
+  gap), and fader levels, running cues and programmer values hold. The daemon logs at most one
+  line for it. A client that connects afterwards gets a snapshot (IPC-03) that shows that live
+  state: playback levels and states, each cue list's current cue, and the programmer. Tested on
+  the real binary with an Art-Net node to `127.0.0.1`; the app side is IPC-08 and the manual run.
 
 ### App behaviour (verified by `swift build` + `tests/manual/app-ipc.md`; no Swift test target)
 - **IPC-08** The app connects to `ws://127.0.0.1:7319` on launch. While not connected it shows the "engine offline" banner and retries every second; on (re)connect it rebuilds its state from the snapshot.
+  *(Amended 2026-10-25, VS1-08, approved by owner:)* `--ipc-port <n>` on the app's command line
+  (`open ColourmotionDMX.app --args --ipc-port 7400`) points it at another port, as the daemon's
+  IPC-01, so a test daemon runs beside the real one; default 7319. A value that is not a port
+  number is ignored with a line on stderr (the app uses 7319).
 - **IPC-09** Moving an on-screen fader sends `fader.set` (slot n → playback n for now; paging is VS1-06) and the grand master sends `grand_master.set`; the displayed levels follow the deltas. To make this testable the daemon's demo show has one dimmer per fader (playback n → channel n of universe 1), and the breathing demo on playback 1 only runs with `--demo` (so it does not fight the app's fader).
 
 ### Programmer (VS2-07; behaviour in `programmer.md`)
