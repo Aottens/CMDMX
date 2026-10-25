@@ -347,7 +347,8 @@ private struct StatusBar: View {
 
             Dot(color: engine.connection == .online ? t.green : t.fg3, label: "Engine")
             if engine.connection != .online {
-                Text(engine.connection == .connecting ? "Connecting to engine…" : "Engine offline — faders are not driving output")
+                Text(engine.protocolMismatch.map { "Engine speaks protocol \($0), this app speaks v\(EngineClient.protocolVersion): install the app and engine from the same release." }
+                    ?? (engine.connection == .connecting ? "Connecting to engine…" : "Engine offline — faders are not driving output"))
                     .foregroundStyle(t.amber)
             }
 

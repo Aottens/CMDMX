@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-10-24 (VS3-08)_
+_Last updated: 2026-10-25 (VS1-09)_
 
 ## Current step
+VS1-09 (2026-10-25, #105, IPC-41): `ipc::PROTOCOL` (0) is the one version the daemon speaks; `parse_command` answers another integer `v` with "protocol v<n> not supported, this engine speaks v<m>" and a missing or non-integer `v` with "missing or invalid \"v\" (this engine speaks v0)" (both `error`, IPC-06). Outgoing messages still write `"v":0` literally (bump them with `PROTOCOL` in VS2-33). Test `ipc_41_another_version_names_both_versions`.
+
 VS3-08 (2026-10-24, #98): `Engine::effective_multiplier(id)` (CUE-44: a BPM master's multiplier, the fader's zone with fader `Multiplier`; private `master_multiplier`, shared with `master_tempo`); the live part of every playback entry carries `multiplier` (IPC-28, `null` except on BPM masters). Tests `cue_44_a_bpm_master_reports_its_effective_multiplier`, `ipc_28_a_bpm_master_sends_its_effective_multiplier`.
 
 VS2-27 (2026-10-24, #94): range edits (PAT-19..24, IPC-40). Core: `Engine::patch_move_range`, `patch_renumber_range`, `patch_name_range`, `patch_change_mode_range` (a range of one calls the single method, so its errors and warnings stay); private `range_ids` (empty → `EmptySelection`, unknown, repeated → new `CoreError::RepeatedFixture`; sorted by user number), also used by `patch_remove`. `spans`/`check_place` take `own: &[FixtureId]`, so a range's old channels never clash. Move packs back to back from the start; renumber treats the range's own old numbers as free; numbered names keep the digit count (`Par 01` … `Par 10`), a name without trailing digits goes to all; change mode checks every new footprint against outside fixtures and the range's other new footprints, refuses with new `CoreError::FixtureLacksMode {fixture, mode}`, and gives one warning `Dropped Pan, Tilt on 3 fixtures` (the per-fixture body is `apply_mode`). Daemon: the four commands carry `ids: Vec<FixtureId>`, parsed by `ids_or_id` (exactly one of `id`/`ids`); undo labels `Patch move 6 fixtures` via `range_label`, one id unchanged. Tests `pat_19..24_*` in `cmdmx-core/tests/patch.rs`, `ipc_40_*` and `pat_19_range_undo_labels_carry_the_count` in the daemon.

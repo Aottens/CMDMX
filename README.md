@@ -37,8 +37,9 @@ profile editor for channels, defaults and wheel slots are in (sketch in
 in the patch table is in too: Shift/Cmd-click a range of fixtures and move it back to back,
 renumber it, name it ("Par 1…6"), change its mode or remove it in one checked step. Playback
 Options shows only the options that apply to a memory, cue list or chase. Fixture and cue numbers above 999 read
-without a thousands separator (1001, not "1.001"). The app/engine protocol now has a versioning
-rule: a mismatched app shows which versions differ instead of misreading the engine. Selecting single
+without a thousands separator (1001, not "1.001"). The app and engine now check the protocol
+version: an app that meets an engine of another release says which versions differ, shows and
+sends nothing and keeps retrying, and the engine names both versions to any client that sends the wrong one. Selecting single
 cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build, and so is native Elgato Stream Deck support: keys showing a
 playback's legend, colour, level and state, linked by dragging a playback onto an on-screen deck,
 no Elgato app needed. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
