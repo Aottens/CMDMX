@@ -285,6 +285,21 @@ mapping, no Learn, nothing in the daemon changes.
   `GM` fader (`/cmdmx/gm`). DBO is a toggle button (tap on, tap off; it sends 1.0/0.0, which the
   held `dbo` action of CTL-05 reads as press and release) because holding a glass button through
   a blackout is impractical; the feedback keeps it in step with the console.
+  **Amended 2026-10-25 (VS4-06, draft for owner approval):** the two cue labels must not be
+  mistaken for each other at arm's length (the VS4-04 run mixed them up). The current cue label
+  is large and marked: 70 px high, text size 28, green, with background and outline. The next cue
+  line is small and grey: 30 px high, a static `Next:` label (no address, size 14, grey, no
+  background or outline) followed on the same line by the next cue label (size 14, grey, no
+  background or outline). The 20 px this adds comes off the GM fader. The texts stay the daemon's
+  CTL-37 strings unchanged; `Next:` lives in the layout, because a Mk1 label shows either its own
+  text or the received one, and other OSC clients should not get a prefix they did not ask for.
+  A legend too long for the label is cut off by TouchOSC; that is accepted. Checked by eye in
+  `tests/hardware/touchosc.md` (CTL-66); CTL-64 is unaffected, since the `Next:` label has no
+  address.
+  Titan reference (manual.avolites.com, *Cue list playback*, v13 and v18): the current cue is
+  highlighted and the next cue has a box round it; the Connected Cue List view shows the current
+  cue on top in light blue and the next cue below it in dark blue. Same idea here: the live cue
+  stands out, the next cue is there but quieter.
 - **CTL-64** One test fails when the layout and the schema drift: every address the layout sends
   decodes with the engine's CTL-36 decoder (`osc::schema`), and every address it shows (labels,
   lit buttons, faders) is one the daemon's CTL-37 feedback sends for a page of N slots. The
@@ -299,7 +314,8 @@ mapping, no Learn, nothing in the daemon changes.
 - **CTL-66** `tests/hardware/touchosc.md` (gate 3, church iPad): load the layout, point TouchOSC
   at the Mac (host, port 8000, receive port 9000), work every control and see it on the console,
   check the feedback (a page change moves the faders and rewrites the legends; a cue Go rewrites
-  the cue texts; a warning shows on the message line), and at the end restore the iPad's Lightkey
+  the cue texts, and from the operator's seat the current cue reads as the large green one and the
+  next as the small grey `Next:` line, VS4-06; a warning shows on the message line), and at the end restore the iPad's Lightkey
   settings (MIDI Bridge, OSC host 192.168.178.36:21600) and its old layout.
 
 ### IPC and the app

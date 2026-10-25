@@ -436,6 +436,15 @@ values.
   - the row Back · Stop · Release (Stop lit amber while paused); a chase adds Tap and the BPM
     field (scroll to adjust, type to set, CUE-34);
   - with no connected list, the block is disabled with "No cue list". It is never covered (UI-23).
+  - **Amended 2026-10-25 (VS4-06, draft for owner approval):** current and next must not be
+    mistaken for each other (the VS4-04 run mixed them up on the Mac). The "now" line is the
+    largest text in the block: the current cue number and legend at 20 pt, green, with a green
+    bar along its left edge like the current row of the Cue list window (CUE-43). The next cue on
+    the GO button is small and grey: `Next: <number> <legend>` at the small size in the secondary
+    text colour (`fg2`), never green; "end of list" keeps that style. The word GO stays the
+    button's large green caption. Titan reference as CTL-63: the live cue highlighted, the next
+    cue quieter. Checked in `tests/manual/app-cuelists.md` (a Go block line: current large and
+    green, next small and grey with "Next:").
 - **CUE-43** **Cue list window** (UI-13) shows the connected list: title "Cue list · <legend>",
   info "1.1 · 7 cues"; columns Q, Legend, Delay, Fade (in/out), Link (`·`, "follow +1s", "with
   +2s"), Track (CUE-54), Groups; the current row marked green, the next row outlined; a running transition shows
