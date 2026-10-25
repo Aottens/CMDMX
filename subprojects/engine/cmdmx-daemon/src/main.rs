@@ -25,10 +25,13 @@
 //! `state.json`), devices enabled over `control.*`; their commands run like the app's (CTL-06).
 //! OSC (VS7-03) is the same layer over a UDP socket on its own thread (`osc_io`): off until
 //! `control.osc` enables it (CTL-35), feedback goes to the senders heard and the listed clients.
+//! Stream Decks (VS7-06) are devices on this layer: `deck_io` drives them over USB HID on a
+//! `deck` thread (key images, brightness, reports); SIGINT and SIGTERM blank them before exit.
 //! Edit commands run through the undo history (UNDO-01..04, IPC-30/31); open and new empty it.
 
 mod artnet_out;
 mod control;
+mod deck_io;
 mod ipc;
 mod library;
 mod midi_io;
@@ -107,6 +110,16 @@ fn main() {
             None
         }
     };
+    let (deck_events, deck_in) = std::sync::mpsc::channel();
+    let deck_out = match deck_io::spawn(deck_events) {
+        Ok(tx) => Some(tx),
+        Err(e) => {
+            eprintln!("warning: Stream Decks are off: {e}");
+            pending.push(format!("Stream Decks are off: {e}"));
+            None
+        }
+    };
+    quit_on_signals();
     let (osc_events, osc_in) = std::sync::mpsc::channel();
     let osc_out = match osc_io::spawn(osc_events) {
         Ok(tx) => Some(tx),
@@ -338,6 +351,9 @@ fn main() {
         while let Ok(event) = midi_in.try_recv() {
             control.event(event, now);
         }
+        while let Ok(event) = deck_in.try_recv() {
+            control.deck_event(event, now);
+        }
         let want = control.osc_listen();
         if osc_told != Some(want) {
             osc_told = Some(want);
@@ -366,6 +382,12 @@ fn main() {
         for out in control.feedback(&engine) {
             if let Some(tx) = &midi_out {
                 let _ = tx.send(out);
+            }
+        }
+        // CTL-52: key images after the frame; the deck thread keeps the newest per key.
+        for cmd in control.deck_out(&engine) {
+            if let Some(tx) = &deck_out {
+                let _ = tx.send(cmd);
             }
         }
         control.note_warning(&clients.last_warning);
@@ -421,15 +443,54 @@ fn main() {
         }
 
         tick += 1;
-        if ticks_limit.is_some_and(|limit| tick >= limit) {
+        let stop = QUIT.load(std::sync::atomic::Ordering::Relaxed);
+        if stop || ticks_limit.is_some_and(|limit| tick >= limit) {
             report(&engine);
-            eprintln!("cmdmx-daemon: {tick} ticks done, exiting.");
+            // CTL-53: the decks are blank when the daemon is gone.
+            blank_decks(deck_out.as_ref());
+            let why = if stop { "signal" } else { "ticks done" };
+            eprintln!("cmdmx-daemon: {tick} ticks, {why}, exiting.");
             return;
         }
 
         next += TICK;
         let wait = next.saturating_duration_since(Instant::now());
         std::thread::sleep(wait);
+    }
+}
+
+/// Set by SIGINT and SIGTERM; the tick loop sees it and quits (CTL-53).
+static QUIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(unix)]
+extern "C" fn on_signal(sig: libc::c_int) {
+    QUIT.store(true, std::sync::atomic::Ordering::Relaxed);
+    // A second Ctrl-C ends the daemon at once, whatever the tick is doing.
+    // SAFETY: `signal` is async-signal-safe.
+    unsafe {
+        libc::signal(sig, libc::SIG_DFL);
+    }
+}
+
+#[cfg(unix)]
+fn quit_on_signals() {
+    let handler = on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t;
+    // SAFETY: the handler only stores into an atomic, which is async-signal-safe.
+    unsafe {
+        libc::signal(libc::SIGINT, handler);
+        libc::signal(libc::SIGTERM, handler);
+    }
+}
+
+#[cfg(not(unix))]
+fn quit_on_signals() {}
+
+/// CTL-53: ask the deck thread to blank its decks and wait at most 1 s for the answer.
+fn blank_decks(tx: Option<&Sender<deck_io::DeckCmd>>) {
+    let Some(tx) = tx else { return };
+    let (done, answered) = std::sync::mpsc::channel();
+    if tx.send(deck_io::DeckCmd::Quit { done }).is_ok() {
+        let _ = answered.recv_timeout(Duration::from_secs(1));
     }
 }
 

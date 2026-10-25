@@ -141,7 +141,12 @@ const FAST: Timing = Timing {
 fn start(world: &Shared) -> (Sender<DeckCmd>, Receiver<DeckEvent>) {
     let (events, rx) = channel();
     let w = world.clone();
-    let tx = spawn_with(move || Box::new(FakeHid(w.clone())) as Box<dyn Hid>, events, FAST).unwrap();
+    let tx = spawn_with(
+        move || Box::new(FakeHid(w.clone())) as Box<dyn Hid>,
+        events,
+        FAST,
+    )
+    .unwrap();
     (tx, rx)
 }
 
@@ -224,7 +229,10 @@ fn ctl_44_a_deck_is_named_by_model_and_the_last_four_of_its_serial() {
         info("a", ORIGINAL, Some("AL12A1B2")),
         info("b", 0x006c, Some("CL99ZZ01")),
     ]);
-    assert_eq!(names, ["Stream Deck Original (A1B2)", "Stream Deck XL (ZZ01)"]);
+    assert_eq!(
+        names,
+        ["Stream Deck Original (A1B2)", "Stream Deck XL (ZZ01)"]
+    );
 }
 
 #[test]
@@ -309,7 +317,13 @@ fn ctl_46_a_held_deck_is_busy_and_retried_until_it_is_free() {
     assert!(world.lock().unwrap().opened.is_empty());
     while let Ok(e) = rx.try_recv() {
         assert!(
-            !matches!(e, DeckEvent::State { state: DeckState::Busy, .. }),
+            !matches!(
+                e,
+                DeckEvent::State {
+                    state: DeckState::Busy,
+                    ..
+                }
+            ),
             "Busy reported twice"
         );
     }
@@ -344,7 +358,9 @@ fn ctl_53_brightness_is_set_on_open_and_on_change() {
     wait_state(&rx, DeckState::Ok);
     let m = original();
     wait_until(&world, "brightness 40", |w| {
-        w.features.get("p1").is_some_and(|f| f.contains(&brightness_report(&m, 40)))
+        w.features
+            .get("p1")
+            .is_some_and(|f| f.contains(&brightness_report(&m, 40)))
     });
     tx.send(DeckCmd::Brightness {
         name: NAME.into(),
@@ -368,7 +384,9 @@ fn ctl_53_quit_blanks_every_open_deck_and_answers() {
     })
     .unwrap();
     wait_until(&world, "key 3 drawn", |w| {
-        w.writes.get("p1").is_some_and(|ws| ws.ends_with(&image_of(3, &look("Wash"))))
+        w.writes
+            .get("p1")
+            .is_some_and(|ws| ws.ends_with(&image_of(3, &look("Wash"))))
     });
     let (done, answered) = channel();
     tx.send(DeckCmd::Quit { done }).unwrap();
@@ -489,7 +507,9 @@ fn ctl_54_a_panic_is_caught_the_decks_go_missing_and_the_thread_starts_again() {
         DeckEvent::Decks(l) if l.is_empty() => Some(()),
         _ => None,
     });
-    wait_until(&world, "closed by the unwind", |w| w.open_now.get("p1") == Some(&0));
+    wait_until(&world, "closed by the unwind", |w| {
+        w.open_now.get("p1") == Some(&0)
+    });
     wait_for(&rx, |e| match e {
         DeckEvent::Decks(l) if l.len() == 1 => Some(()),
         _ => None,

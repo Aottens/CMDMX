@@ -120,7 +120,11 @@ fn looks(cmds: &[DeckCmd]) -> Vec<(u16, KeyLook)> {
 }
 
 fn look_of(cmds: &[DeckCmd], key: u16) -> Option<KeyLook> {
-    looks(cmds).into_iter().rev().find(|(k, _)| *k == key).map(|(_, l)| l)
+    looks(cmds)
+        .into_iter()
+        .rev()
+        .find(|(k, _)| *k == key)
+        .map(|(_, l)| l)
 }
 
 fn slot(engine: &Engine, page: u16, slot: u16) -> u32 {
@@ -158,7 +162,10 @@ fn ctl_45_an_unknown_elgato_product_is_unsupported_with_one_warning_and_never_op
     assert_eq!(device(&c.snapshot(), name)["state"], "Unsupported");
     let msgs = c.take_messages();
     assert_eq!(msgs.len(), 1, "{msgs:?}");
-    assert!(msgs[0].contains(name) && msgs[0].contains("not supported"), "{msgs:?}");
+    assert!(
+        msgs[0].contains(name) && msgs[0].contains("not supported"),
+        "{msgs:?}"
+    );
     let j = json!({"v":0,"cmd":"control.enable","device":name,"on":true}).to_string();
     assert!(req(&mut c, &j).is_err());
     assert!(c.deck_out(&engine()).is_empty());
@@ -174,7 +181,8 @@ fn ctl_46_enabling_opens_busy_warns_once_and_disabling_closes() {
     enable(&mut c, true);
     let out = c.deck_out(&e);
     assert!(
-        out.iter().any(|o| matches!(o, DeckCmd::Open { name, brightness: 70 } if name == DECK)),
+        out.iter()
+            .any(|o| matches!(o, DeckCmd::Open { name, brightness: 70 } if name == DECK)),
         "{out:?}"
     );
     // Not open yet: no images go out.
@@ -194,7 +202,8 @@ fn ctl_46_enabling_opens_busy_warns_once_and_disabling_closes() {
     enable(&mut c, false);
     let out = c.deck_out(&e);
     assert!(
-        out.iter().any(|o| matches!(o, DeckCmd::Close { name } if name == DECK)),
+        out.iter()
+            .any(|o| matches!(o, DeckCmd::Close { name } if name == DECK)),
         "{out:?}"
     );
     assert_eq!(device(&c.snapshot(), DECK)["state"], "Disabled");
@@ -216,8 +225,7 @@ fn ctl_49_an_enabled_deck_gets_the_generated_profile() {
         .unwrap()
         .clone();
     assert_eq!(m["profile"], true);
-    let reply: Value =
-        serde_json::from_str(&c.mapping_reply("Stream Deck Original")).unwrap();
+    let reply: Value = serde_json::from_str(&c.mapping_reply("Stream Deck Original")).unwrap();
     let bindings = reply["mapping"]["bindings"].as_array().unwrap();
     let action = |n: u16| {
         bindings
@@ -252,7 +260,10 @@ fn ctl_47_a_key_press_runs_its_action_as_a_command() {
     );
     key(&mut c, 1, false);
     let cmds: Vec<(String, Command)> = c.commands(&e, 2.0);
-    assert!(matches!(cmds[0].1, Command::PlaybackButton { on: false, .. }));
+    assert!(matches!(
+        cmds[0].1,
+        Command::PlaybackButton { on: false, .. }
+    ));
     assert_eq!(cmds[0].0, DECK);
 }
 
@@ -299,7 +310,10 @@ fn ctl_48_deck_page_keys_switch_only_the_deck_and_send_that_page() {
     let out = c.deck_out(&e);
     let keys: Vec<u16> = looks(&out).iter().map(|(k, _)| *k).collect();
     for k in 1..=15 {
-        assert!(keys.contains(&k), "key {k} not sent after the deck page change");
+        assert!(
+            keys.contains(&k),
+            "key {k} not sent after the deck page change"
+        );
     }
     assert_eq!(look_of(&out, 2).unwrap().label, "Three");
     assert_eq!(look_of(&out, 7).unwrap(), KeyLook::black());
@@ -389,7 +403,8 @@ fn ctl_54_unplugged_is_missing_and_back_it_is_opened_with_its_full_images() {
     decks(&mut c, &[(DECK, ORIGINAL)]);
     let out = c.deck_out(&e);
     assert!(
-        out.iter().any(|o| matches!(o, DeckCmd::Open { name, .. } if name == DECK)),
+        out.iter()
+            .any(|o| matches!(o, DeckCmd::Open { name, .. } if name == DECK)),
         "{out:?}"
     );
     state(&mut c, DeckState::Ok);
@@ -416,9 +431,16 @@ fn ctl_54_a_deck_that_failed_a_write_gets_its_full_images_when_it_is_ok_again() 
 fn ctl_56_a_key_press_learns_at_once_on_the_current_deck_page() {
     let e = engine();
     let (mut c, dir) = ready("learn", &e);
-    req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"upper 3"}"#).unwrap();
+    req(
+        &mut c,
+        r#"{"v":0,"cmd":"control.learn","action":"upper 3"}"#,
+    )
+    .unwrap();
     press(&mut c, 14);
-    assert!(c.commands(&e, 0.0).is_empty(), "a learning press does not act");
+    assert!(
+        c.commands(&e, 0.0).is_empty(),
+        "a learning press does not act"
+    );
     let msgs = c.take_messages();
     assert_eq!(msgs[0], format!("Learned: {DECK} key 14 → upper 3"));
     assert_eq!(msgs[1], "key 14 was page next");
@@ -475,7 +497,11 @@ fn ctl_56_learning_on_deck_page_2_binds_on_page_2() {
     req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"dbo"}"#).unwrap();
     press(&mut c, 5);
     let msgs = c.take_messages();
-    assert_eq!(msgs, [format!("Learned: {DECK} key 5 → dbo")], "page 1's go is not replaced");
+    assert_eq!(
+        msgs,
+        [format!("Learned: {DECK} key 5 → dbo")],
+        "page 1's go is not replaced"
+    );
     let reply: Value = serde_json::from_str(&c.mapping_reply("mine")).unwrap();
     let five: Vec<&Value> = reply["mapping"]["bindings"]
         .as_array()
@@ -484,8 +510,12 @@ fn ctl_56_learning_on_deck_page_2_binds_on_page_2() {
         .filter(|b| b["input"] == json!({"kind":"key","number":5}))
         .collect();
     assert_eq!(five.len(), 2);
-    assert!(five.iter().any(|b| b["action"] == "go" && b.get("deck_page").is_none()));
-    assert!(five.iter().any(|b| b["action"] == "dbo" && b["deck_page"] == 2));
+    assert!(five
+        .iter()
+        .any(|b| b["action"] == "go" && b.get("deck_page").is_none()));
+    assert!(five
+        .iter()
+        .any(|b| b["action"] == "dbo" && b["deck_page"] == 2));
 }
 
 // --- CTL-57 snapshot --------------------------------------------------------------------
@@ -514,7 +544,12 @@ fn ctl_57_the_snapshot_describes_the_deck_and_its_keys() {
     // `sub` is the upper button's function as CUE-25 sets it (engine.handle_buttons); `halo`
     // is PBK-33's (`#rrggbb` or null).
     let first = &keys[0];
-    let mut fields: Vec<&str> = first.as_object().unwrap().keys().map(String::as_str).collect();
+    let mut fields: Vec<&str> = first
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
     fields.sort_unstable();
     assert_eq!(fields, ["halo", "key", "label", "level", "state", "sub"]);
     assert!(!first["sub"].as_str().unwrap().is_empty());
