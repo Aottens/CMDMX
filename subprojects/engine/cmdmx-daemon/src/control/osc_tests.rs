@@ -757,3 +757,41 @@ fn ctl_21_a_mapping_change_sends_every_osc_client_the_full_state() {
     let out = c.osc_feedback(&e, 0.025);
     assert!(has(&out, A_FB, "/cmdmx/page", OscArg::Int(1)), "{out:?}");
 }
+
+// --- CTL-64 the shipped TouchOSC layout ----------------------------------------
+
+/// `touchosc/addresses.txt` is written by `touchosc/generate.py` next to the layout (its
+/// `--check` keeps them in step): `send <address>` for what a control sends, `show <address>`
+/// for what a control displays.
+#[test]
+fn ctl_64_every_touchosc_layout_address_is_in_the_schema() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../touchosc/addresses.txt"
+    );
+    let list = fs::read_to_string(path).expect("touchosc/addresses.txt");
+    let (mut c, _) = on("touchosc");
+    let e = engine();
+    send(&mut c, A, "/cmdmx/page", vec![OscArg::Int(1)], 0.0);
+    let _ = c.commands(&e, 0.0);
+    let shown: Vec<String> = to(&c.osc_feedback(&e, 0.0), A_FB)
+        .into_iter()
+        .map(|m| m.address.clone())
+        .collect();
+    let mut lines = 0;
+    for line in list.lines().filter(|l| !l.trim().is_empty()) {
+        lines += 1;
+        match line.split_once(' ') {
+            Some(("send", a)) => assert!(
+                osc::schema(&msg(a, vec![OscArg::Float(1.0)])).is_some(),
+                "{a} is not a CTL-36 address"
+            ),
+            Some(("show", a)) => assert!(
+                shown.iter().any(|s| s == a),
+                "{a} is not in the CTL-37 feedback"
+            ),
+            _ => panic!("bad line: {line}"),
+        }
+    }
+    assert!(lines > 0, "empty address list");
+}

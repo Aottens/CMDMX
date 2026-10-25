@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS1-08)_
+_Last updated: 2026-10-25 (VS4-04)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -9,12 +9,11 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 ## Current focus
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
-control layer, cue lists, group masters, the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor and multi-select in the patch table
+control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, hardware run left), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor and multi-select in the patch table
 (VS2-27/28) are done.
 
 ## Next
-1. The owner picks the next task; candidates: VS4-04 (own TouchOSC Mk1 layout; iPad facts from the
-   2026-10-25 church run), VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS2-33
+1. The owner picks the next task; candidates: VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS2-33
    raises the protocol to v1 and its run checks the VS1-09 mismatch line), VS7-05..08 (Stream Deck,
    CTL-44..58, ADR-009; VS7-05 first), VS2-35..36 (Fan, PRG-56..62; VS2-35 first).
 2. The church hardware runs below, when the hardware is at hand.
@@ -26,6 +25,9 @@ Rows with status `gate3` in `BACKLOG.md`:
   par at 361 with Lightkey at ~33 Hz.
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run).
 - VS2-13 church patch, `tests/hardware/church.md` (run `tests/hardware/runs/2026-10-18-church.md`).
+- VS4-04 TouchOSC layout on the church iPad mini, `tests/hardware/touchosc.md`: first check is
+  whether `touchosc/serve.sh` loads it (fallback TouchOSC Editor) and whether the landscape turn
+  is right; restore the iPad's Lightkey settings afterwards.
 - VS6-03 Eurolite steps of `tests/manual/runs/2026-10-22-VS6-03.md`, in the church.
 
 Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.

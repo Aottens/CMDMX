@@ -43,8 +43,10 @@ sends nothing and keeps retrying, and the engine names both versions to any clie
 cells of multi-head fixtures (`901.2`, Unfold) is specified and next to build, and so is native Elgato Stream Deck support: keys showing a
 playback's legend, colour, level and state, linked by dragging a playback onto an on-screen deck,
 no Elgato app needed. Fan is specified too: spread a wheel change over the selection (Line, Mirror,
-Wings, Arrow), moving-head positions above all. Next: the
-church's TouchOSC remote on the OSC layer, once the iPad is at hand. Progress is in
+Wings, Arrow), moving-head positions above all. A TouchOSC layout for the
+church's old iPad (TouchOSC Mk1) ships in [`touchosc/`](touchosc/): faders with legends, page,
+Go/Back/Stop with the cue texts, Grand Master, DBO and the message line, loaded from the Mac
+without the TouchOSC Editor; its run on the iPad is next. Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in a clickable
 sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 
@@ -94,6 +96,8 @@ sketch: [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
   the page, Channel scrolls when a page has more faders than the surface.
 - OSC, once switched on: a tablet sends to port 8000 and gets faders, page, cue and messages
   back on 9000; an existing layout's own addresses can be learned, so it needs no editing.
+- A ready TouchOSC Mk1 layout for an iPad (`touchosc/`, regenerated for any faders per page);
+  `touchosc/serve.sh` puts it on the iPad over wifi.
 
 **Show, undo and app**
 - The show is one readable JSON file in `~/Documents/ColourmotionDMX/Shows/`, autosaved within
