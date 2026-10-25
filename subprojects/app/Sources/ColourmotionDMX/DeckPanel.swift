@@ -97,6 +97,15 @@ struct DeckPanel: View {
                 return true
             }
             .contextMenu { menu(key, bound: bound) }
+            .onTapGesture { learnHere(key, bound: bound) }
+    }
+
+    /// CTL-58: with Learn armed on an action, a click on a key links that action to it.
+    private func learnHere(_ key: Int, bound: ControlBinding?) {
+        guard let action = engine.control.learn else { return }
+        setAction(key, action, bound: bound)
+        engine.controlLearnCancel()
+        engine.say("Learned: \(device.name) key \(key) → \(action)")
     }
 
     /// Where a link is stored: the device's mapping, or a hint when it has none.
