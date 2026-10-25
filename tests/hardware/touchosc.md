@@ -40,6 +40,8 @@ Mac IP for this run: ________ (2026-10-25: 192.168.178.221). iPad IP: ________ (
 - [ ] The page number label shows the number (if Mk1 shows nothing there, note it: ________)
 - [ ] A page change on the Mac screen updates the iPad too
 - [ ] GO runs the next cue of the connected list; current and next cue texts change (`"<number> <legend>"`)
+- [ ] From the operator's seat the current cue is the large green label and the next cue the small
+      grey `Next:` line under it; you cannot mix them up (CTL-63, VS4-06)
 - [ ] BACK goes back one cue; STOP stops the list
 - [ ] DBO tap → blackout, button lit; tap again → light back, button off; DBO on the Mac screen
       lights/unlights the iPad button

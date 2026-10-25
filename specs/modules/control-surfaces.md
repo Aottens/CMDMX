@@ -285,7 +285,7 @@ mapping, no Learn, nothing in the daemon changes.
   `GM` fader (`/cmdmx/gm`). DBO is a toggle button (tap on, tap off; it sends 1.0/0.0, which the
   held `dbo` action of CTL-05 reads as press and release) because holding a glass button through
   a blackout is impractical; the feedback keeps it in step with the console.
-  **Amended 2026-10-25 (VS4-06, draft for owner approval):** the two cue labels must not be
+  **Amended 2026-10-25 (VS4-06), approved by owner 2026-10-25:** the two cue labels must not be
   mistaken for each other at arm's length (the VS4-04 run mixed them up). The current cue label
   is large and marked: 70 px high, text size 28, green, with background and outline. The next cue
   line is small and grey: 30 px high, a static `Next:` label (no address, size 14, grey, no

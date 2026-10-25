@@ -436,7 +436,7 @@ values.
   - the row Back · Stop · Release (Stop lit amber while paused); a chase adds Tap and the BPM
     field (scroll to adjust, type to set, CUE-34);
   - with no connected list, the block is disabled with "No cue list". It is never covered (UI-23).
-  - **Amended 2026-10-25 (VS4-06, draft for owner approval):** current and next must not be
+  - **Amended 2026-10-25 (VS4-06), approved by owner 2026-10-25:** current and next must not be
     mistaken for each other (the VS4-04 run mixed them up on the Mac). The "now" line is the
     largest text in the block: the current cue number and legend at 20 pt, green, with a green
     bar along its left edge like the current row of the Cue list window (CUE-43). The next cue on
