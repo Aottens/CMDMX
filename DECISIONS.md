@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Stream Deck renderer crates and font confirmed (VS7-05, ADR-009)
+
+**Decision:** the key image renderer in `cmdmx-control` uses `fontdue` 0.9 (MIT/Apache-2.0/Zlib) and `jpeg-encoder` 0.7 ((MIT/Apache-2.0) and IJG), both with `default-features = false`, and the built-in font Atkinson Hyperlegible Bold (SIL OFL 1.1, `cmdmx-control/fonts/`, licence beside it). JPEG quality 90 without chroma subsampling, so small text stays crisp.
+
+**Alternatives considered:** the crates with their default `simd`/`std` features; Inter or Roboto as the font.
+
+**Reasoning:** without SIMD and with fontdue on `libm` the bytes are the same on the arm64 Mac and the x86-64 CI, so the golden images (CTL-51) hold on both. Atkinson Hyperlegible is made for legibility at small sizes, is 55 KB and has the `…` glyph.
+
+**Reversal trigger:** the golden images differ between Mac and CI, or the owner finds the keys hard to read in the VS7-07 run.
+
 ## 2026-10-25 — Fan: four curves, latched, wheels only (P1-20, owner)
 
 **Decision:** Fan is live engine state toggled by the Fan key, off on a new selection; a fanned wheel turn changes each target by `d · k` with *k* from the curve over the targets that have the attribute, in selection order (items, cells included). Phase 1 has Line, Mirror, Wings and Arrow with the factors of PRG-58; Mirror and Arrow are redefined because the UI v0.1 sketch had them as each other's negative. Only wheels fan; fanned values are plain manual values. Spec PRG-56..62, UI-30, IPC-43, CTL-59; build tasks VS2-35..36.

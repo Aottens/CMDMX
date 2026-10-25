@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS4-06 run passed)_
+_Last updated: 2026-10-25 (VS7-05 Stream Deck control layer)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -14,9 +14,9 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 
 ## Next
 1. The owner picks the next task; candidates: VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS2-33
-   raises the protocol to v1 and its run checks the VS1-09 mismatch line), VS7-05..08 (Stream Deck,
-   CTL-44..58, ADR-009; VS7-05 first; the owner has a Stream Deck at home), VS2-35..36 (Fan,
-   PRG-56..62; VS2-35 first).
+   raises the protocol to v1 and its run checks the VS1-09 mismatch line), VS7-06 (Stream Deck in
+   the daemon, the next step of VS7-05..08, CTL-44..58, ADR-009; the owner's deck is a Stream Deck
+   Original, `tests/hardware/streamdeck.md`), VS2-35..36 (Fan, PRG-56..62; VS2-35 first).
 2. Before the next service: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey answers
    the iPad again; lag on the church wifi).
 
@@ -31,13 +31,13 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 
 ## Owner to decide
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
-- Which Stream Deck model the owner has at home, for the VS7-07 gate-3 run (`tests/hardware/streamdeck.md`).
 - IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
 
 ## Hardware available for testing
 - Behringer BCF2000 (use in Mackie Control mode)
 - Eurolite USB-DMX512 PRO Interface MK2 (FTDI FT232R, product string "FT232R USB UART", ENTTEC Pro label 6 at 250000 baud, ≤ 33 Hz, needs `--serial <path>`) — on the owner's desk since 2026-10-18 with six 1-channel dimmers (185–190) and an RGBL par (361–364)
+- Elgato Stream Deck Original (first generation, USB `0fd9:0060`, 15 keys) — at home, on the owner's Mac (VS7-05)
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Repo
