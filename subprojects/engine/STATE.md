@@ -3,7 +3,7 @@
 _Last updated: 2026-10-25 (VS1-10)_
 
 ## Current step
-VS1-10 (2026-10-25, #PR, IPC-44): `client_loss.rs` no longer counts `library:` and `universe` lines as log lines for the lost client; with `vendor/qlcplus` present the library thread logs them seconds after start-up, after the test's baseline. Test change only.
+VS1-10 (2026-10-25, #116, IPC-44): `client_loss.rs` no longer counts `library:` and `universe` lines as log lines for the lost client; with `vendor/qlcplus` present the library thread logs them seconds after start-up, after the test's baseline. Test change only.
 
 VS4-04 (2026-10-25, CTL-60..66): no engine change. The TouchOSC Mk1 layout lives in the repo's `touchosc/` (generator, `addresses.txt`, `serve.sh`); `ctl_64_every_touchosc_layout_address_is_in_the_schema` in `cmdmx-daemon/src/control/osc_tests.rs` decodes every `send` address with `osc::schema` and finds every `show` address in the full-state feedback of the Demo show (8 slots).
 
