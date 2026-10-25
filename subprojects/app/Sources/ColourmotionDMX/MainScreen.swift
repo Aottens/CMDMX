@@ -332,9 +332,9 @@ private struct StatusBar: View {
         let devices = c.devices.filter(\.enabled)
         if !devices.isEmpty || c.osc.enabled {
             let oscError = c.osc.enabled ? c.osc.error : nil
-            let issues = devices.filter { $0.state != .ok }.map { "\($0.name): " + ($0.state == .missing ? "not connected" : "disabled") }
+            let issues = devices.filter { $0.state != .ok }.map { "\($0.name): " + ($0.state == .missing ? "not connected" : $0.state.word.lowercased()) }
                 + (oscError.map { ["OSC: \($0)"] } ?? [])
-            let missing = devices.contains { $0.state == .missing }
+            let missing = devices.contains { $0.state != .ok && $0.state != .disabled }
             Dot(color: oscError != nil ? t.red : missing ? t.amber : t.green, label: "Control \(devices.count + (c.osc.enabled ? 1 : 0))",
                 warn: oscError != nil || missing)
                 .help(issues.joined(separator: "\n"))

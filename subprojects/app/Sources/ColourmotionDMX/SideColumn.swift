@@ -18,6 +18,8 @@ struct KeyButton: View {
     /// Amber fill: a switch that is on (DBO, PBK-41).
     var lit = false
     var action: (() -> Void)?
+    /// CTL-58: dragging the key onto a deck key links this action.
+    var drag: String?
 
     var body: some View {
         let background: Color = lit ? t.amber : style == .enter ? t.fg : style == .command ? t.bg : t.surf2
@@ -32,6 +34,7 @@ struct KeyButton: View {
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ring ? t.red : style == .normal ? t.line : t.line2, lineWidth: ring ? 2 : 1))
         }
         .buttonStyle(.plain)
+        .deckDrag(drag)
         .frame(height: height)
         .disabled(action == nil)
         .opacity(action == nil ? t.disabled : 1)

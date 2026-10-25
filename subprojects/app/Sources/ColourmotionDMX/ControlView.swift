@@ -20,6 +20,9 @@ struct ControlView: View {
             HStack(alignment: .top, spacing: 8) {
                 VStack(spacing: 8) {
                     DevicesPanel(selected: $selected)
+                    if let deck = engine.control.devices.first(where: { $0.name == selected && $0.isDeck }) {
+                        DeckPanel(device: deck)
+                    }
                     OSCPanel()
                 }
                 .frame(width: 540)
@@ -128,14 +131,10 @@ private struct DeviceStateCell: View {
     let device: ControlDevice
 
     var body: some View {
-        let (color, text): (Color, String) = switch device.state {
-        case .ok: (t.green, "Ok")
-        case .missing: (t.amber, "Missing")
-        case .disabled: (t.fg3, "Disabled")
-        }
+        let color: Color = device.state == .ok ? t.green : device.state == .disabled ? t.fg3 : t.amber
         HStack(spacing: 6) {
             Circle().fill(color).frame(width: 6, height: 6)
-            Text(text).font(.caption).foregroundStyle(.secondary)
+            Text(device.state.word).font(.caption).foregroundStyle(.secondary)
         }
     }
 }
@@ -291,7 +290,7 @@ private struct BindingsPanel: View {
 
     private static let columns: [(String, CGFloat)] = [
         ("Input", 140), ("Action", 120), ("", 120), ("Pickup", 74), ("Inv", 30), ("Mode", 96), ("Encoding", 112),
-        ("Min", 46), ("Max", 46), ("FB", 30), ("On", 46), ("Off", 46),
+        ("Min", 46), ("Max", 46), ("FB", 30), ("On", 46), ("Off", 46), ("Page", 40),
     ]
 
     var body: some View {
@@ -421,7 +420,7 @@ private struct BindingRow: View {
                 Button("Learn") { client.controlLearn(binding.action) }
                     .help("Arms Learn: the next input replaces this binding's input")
                 Button(confirmRemove ? "Confirm" : "Remove") {
-                    if confirmRemove { client.controlUnbind(mapping, input: binding.input); confirmRemove = false } else { confirmRemove = true }
+                    if confirmRemove { client.controlUnbind(mapping, input: binding.input, deckPage: binding.isDeck ? binding.deckPage : nil); confirmRemove = false } else { confirmRemove = true }
                 }
                 .buttonStyle(FlatButton(fill: confirmRemove ? .red : nil, compact: true))
             }
@@ -442,12 +441,15 @@ private struct BindingRow: View {
             check(binding.feedback, "feedback").frame(width: columns[9], alignment: .leading)
             whole(binding.onValue, "on_value").frame(width: columns[10])
             whole(binding.offValue, "off_value").frame(width: columns[11])
+            Text(binding.isDeck ? String(binding.deckPage) : "").font(Typo.mono(Typo.body)).frame(width: columns[12], alignment: .leading)
         }
         .padding(.horizontal, 8).padding(.vertical, 2)
         .onChange(of: mapping) { _, _ in confirmRemove = false }
     }
 
-    private func send(_ fields: [String: Any]) { client.controlBinding(mapping, input: binding.input, fields) }
+    private func send(_ fields: [String: Any]) {
+        client.controlBinding(mapping, input: binding.input, binding.isDeck ? fields.merging(["deck_page": binding.deckPage]) { a, _ in a } : fields)
+    }
 
     private func check(_ value: Bool, _ key: String) -> some View {
         Toggle("", isOn: Binding(get: { value }, set: { send([key: $0]) })).toggleStyle(.checkbox).labelsHidden()

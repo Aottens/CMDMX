@@ -489,9 +489,11 @@ pub enum ControlRequest {
     },
     LearnCancel,
     /// CTL-53: a Stream Deck's brightness, 0..=100 (refused above).
+    /// CTL-67: and/or the deck page it shows (1..=its pages).
     Deck {
         device: String,
-        brightness: u8,
+        brightness: Option<u8>,
+        page: Option<u16>,
     },
     /// CTL-31: the order of the Mackie units.
     Order {
@@ -502,9 +504,11 @@ pub enum ControlRequest {
         mapping: String,
         change: serde_json::Map<String, serde_json::Value>,
     },
+    /// CTL-67: `deck_page` picks among the pages of a deck key (default 1).
     Unbind {
         mapping: String,
         input: cmdmx_control::mapping::Input,
+        deck_page: u16,
     },
     MappingNew {
         name: String,
@@ -861,10 +865,24 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
             mapping: opt_field(v, "mapping", "a mapping name")?,
         },
         "learn_cancel" => ControlRequest::LearnCancel,
-        "deck" => ControlRequest::Deck {
-            device: string(v, "device")?,
-            brightness: field(v, "brightness", "a number 0..=100")?,
-        },
+        "deck" => {
+            let brightness = match v.get("brightness") {
+                None => None,
+                Some(_) => Some(field(v, "brightness", "a number 0..=100")?),
+            };
+            let page = match v.get("page") {
+                None => None,
+                Some(_) => Some(field(v, "page", "a deck page number")?),
+            };
+            if brightness.is_none() && page.is_none() {
+                return Err("control.deck needs \"brightness\" or \"page\"".into());
+            }
+            ControlRequest::Deck {
+                device: string(v, "device")?,
+                brightness,
+                page,
+            }
+        }
         "order" => ControlRequest::Order {
             devices: field(v, "devices", "a list of device names")?,
         },
@@ -885,6 +903,10 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
         "unbind" => ControlRequest::Unbind {
             mapping: string(v, "mapping")?,
             input: input(v)?,
+            deck_page: match v.get("deck_page") {
+                None => 1,
+                Some(_) => field(v, "deck_page", "a deck page number")?,
+            },
         },
         "mapping_new" => ControlRequest::MappingNew {
             name: string(v, "name")?,

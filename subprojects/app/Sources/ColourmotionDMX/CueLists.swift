@@ -59,11 +59,11 @@ struct GoBlock: View {
             HStack(spacing: 2) {
                 // CTL-42: in Learn mode the keys are live without a list and arm Learn for their plain action.
                 let usable = list != nil || ui.learnMode
-                KeyButton(label: "Back", spec: "Back one cue", height: 30, action: usable ? { ui.learnOrRun("back", engine) { engine.cuelist("back") } } : nil)
+                KeyButton(label: "Back", spec: "Back one cue", height: 30, action: usable ? { ui.learnOrRun("back", engine) { engine.cuelist("back") } } : nil, drag: "back")
                 KeyButton(label: "Stop", spec: "Pause the running transition; again = Back", height: 30, lit: live?.paused == true,
-                          action: usable ? { ui.learnOrRun("stop", engine) { engine.cuelist("stop") } } : nil)
+                          action: usable ? { ui.learnOrRun("stop", engine) { engine.cuelist("stop") } } : nil, drag: "stop")
                 KeyButton(label: "Release", spec: "Release the list; it starts from its first cue next time", height: 30,
-                          action: usable ? { ui.learnOrRun("release", engine) { engine.releaseConnected() } } : nil)
+                          action: usable ? { ui.learnOrRun("release", engine) { engine.releaseConnected() } } : nil, drag: "release")
             }
         }
         .padding(6)
@@ -154,7 +154,7 @@ struct GoBlock: View {
             .clipShape(RoundedRectangle(cornerRadius: radius))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.green, lineWidth: 2))
         }
-        .buttonStyle(.plain).disabled(!enabled).opacity(enabled ? 1 : t.disabled)
+        .buttonStyle(.plain).deckDrag("go").disabled(!enabled).opacity(enabled ? 1 : t.disabled)
     }
 }
 

@@ -42,5 +42,21 @@ Setup: the deck on USB to the Mac (directly or through a hub), the Elgato Stream
       images within 2 s
 - [ ] Quit the daemon: the keys go black
 
+## On-screen deck in the Control screen (CTL-58, 67)
+- [ ] Selecting the deck shows 5 × 3 keys that look like the real keys (legend, sub, halo bar,
+      level bar, dimmed/bright)
+- [ ] Drag playback 3's handle onto key 6: key 6 becomes `upper 3` on screen and on the deck;
+      with ⌥ held it becomes `upper 1.3` and stays on playback 3 after a console page change
+- [ ] Drag the Go key, a page button and the GM onto keys: they do Go, that page and GM
+- [ ] Drop onto a bound key: it is replaced and the message says `key n was …`
+- [ ] Drag key 6 onto an empty key: it moves; onto a bound key: the two swap
+- [ ] Right-click a key: Action ▸ (incl. a group and a palette), Label, Colour, Remove work and
+      show on the deck
+- [ ] `+` shows an empty page 2; dropping on it makes it real, the deck follows to page 2; the page
+      buttons switch the deck's page
+- [ ] Learn: Learn mode, click a console control, press a deck key: the key is bound on the page
+      shown
+- [ ] The bindings table lists the deck bindings with their deck page
+
 ## Open points
 - none

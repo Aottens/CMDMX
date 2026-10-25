@@ -670,7 +670,10 @@ fn ctl_67_control_deck_page_sets_the_deck_page_and_sends_it_in_full() {
     let out = c.deck_out(&e);
     let keys: Vec<u16> = looks(&out).iter().map(|(k, _)| *k).collect();
     for k in 1..=15 {
-        assert!(keys.contains(&k), "key {k} not sent after control.deck page");
+        assert!(
+            keys.contains(&k),
+            "key {k} not sent after control.deck page"
+        );
     }
     // The brightness is left alone when only the page is given.
     assert_eq!(device(&c.snapshot(), DECK)["brightness"], 70);
@@ -740,7 +743,8 @@ fn ctl_67_binding_and_unbind_pick_the_binding_on_its_deck_page() {
     // Unbind with a deck page removes only that page's binding; without one, page 1's.
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2}).to_string(),
+        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2})
+            .to_string(),
     )
     .unwrap();
     let b = bindings_of(&c, 5);
@@ -748,7 +752,8 @@ fn ctl_67_binding_and_unbind_pick_the_binding_on_its_deck_page() {
     assert_eq!(b[0]["action"], "go");
     assert!(req(
         &mut c,
-        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2}).to_string(),
+        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2})
+            .to_string(),
     )
     .is_err());
     req(
