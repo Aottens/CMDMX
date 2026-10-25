@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (VS4-06 current/next cue apart)_
+_Last updated: 2026-10-25 (VS4-06 run passed)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -23,7 +23,6 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run).
-- VS4-06 current/next cue apart: reload the layout on the iPad (`touchosc/serve.sh`) and tick the CTL-63 line in `tests/hardware/touchosc.md`; Claude checks the Go block line of `tests/manual/app-cuelists.md` on the Mac in the same run.
 
 Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.
 
