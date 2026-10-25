@@ -17,6 +17,29 @@ use crate::Timestamp;
 
 pub type GroupId = u32;
 
+/// PRG-46: a selection item, a whole fixture (`cell == None`) or one cell (1-based).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Item {
+    pub fixture: FixtureId,
+    pub cell: Option<u16>,
+}
+
+impl Item {
+    pub fn fixture(fixture: FixtureId) -> Self {
+        Item {
+            fixture,
+            cell: None,
+        }
+    }
+
+    pub fn cell(fixture: FixtureId, cell: u16) -> Self {
+        Item {
+            fixture,
+            cell: Some(cell),
+        }
+    }
+}
+
 /// Wheel step size (PRG-21); the sizes live in the engine `Settings`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Resolution {
@@ -182,7 +205,7 @@ impl Fade {
 /// the located set is part of it (PRG-44).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct EditPart {
-    selection: Vec<FixtureId>,
+    selection: Vec<Item>,
     sub: Sub,
     changed: bool,
     values: BTreeMap<FixtureId, BTreeMap<String, Stored>>,
@@ -191,7 +214,7 @@ pub(crate) struct EditPart {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Programmer {
-    selection: Vec<FixtureId>,
+    selection: Vec<Item>,
     sub: Sub,
     /// Set by a value change; the next select starts a new selection (PRG-03).
     changed: bool,
@@ -206,6 +229,14 @@ pub struct Programmer {
     /// Engine activation counter at the last value change: orders the
     /// programmer against other sources in LTP ties (ENG-04).
     activated: u64,
+}
+
+fn whole(items: &[Item]) -> Vec<FixtureId> {
+    items
+        .iter()
+        .filter(|i| i.cell.is_none())
+        .map(|i| i.fixture)
+        .collect()
 }
 
 impl Programmer {
@@ -240,12 +271,18 @@ impl Programmer {
         self.fades.retain(|_, a| !a.is_empty());
     }
 
-    pub fn selection(&self) -> &[FixtureId] {
+    /// PRG-46: the selected items in selection order.
+    pub fn items(&self) -> &[Item] {
         &self.selection
     }
 
-    /// Fixtures that receive the next change: the sub-selection, else everything selected.
-    pub fn targets(&self) -> Vec<FixtureId> {
+    /// The whole-fixture items of the selection (cells act with VS2-31).
+    pub fn selection(&self) -> Vec<FixtureId> {
+        whole(&self.selection)
+    }
+
+    /// PRG-04/05/50: the items that receive the next change: the sub-selection, else all.
+    pub fn target_items(&self) -> Vec<Item> {
         match self.sub {
             Sub::None => self.selection.clone(),
             Sub::Step(i) => self.selection.get(i).copied().into_iter().collect(),
@@ -257,6 +294,11 @@ impl Programmer {
                 .map(|(_, f)| *f)
                 .collect(),
         }
+    }
+
+    /// The whole-fixture items of [`Programmer::target_items`].
+    pub fn targets(&self) -> Vec<FixtureId> {
+        whole(&self.target_items())
     }
 
     /// The manual value; `None` for a palette reference (see [`Programmer::stored`]).
@@ -387,19 +429,19 @@ impl Programmer {
         self.sub = Sub::None;
     }
 
-    pub(crate) fn toggle(&mut self, fixture: FixtureId) {
+    pub(crate) fn toggle(&mut self, item: Item) {
         self.begin_select();
-        match self.selection.iter().position(|&f| f == fixture) {
+        match self.selection.iter().position(|&f| f == item) {
             Some(i) => {
                 self.selection.remove(i);
             }
-            None => self.selection.push(fixture),
+            None => self.selection.push(item),
         }
     }
 
     /// PRG-02 (IDEA-11): append the group's fixtures; if all of them are already selected
     /// (after PRG-03's new-selection check) remove them instead, like `toggle` for one fixture.
-    pub(crate) fn add_group(&mut self, members: &[FixtureId]) {
+    pub(crate) fn add_group(&mut self, members: &[Item]) {
         self.begin_select();
         if !members.is_empty() && members.iter().all(|f| self.selection.contains(f)) {
             self.selection.retain(|f| !members.contains(f));
@@ -413,7 +455,7 @@ impl Programmer {
     }
 
     /// PRG-08: a typed selection replaces the selection and ends any sub-selection.
-    pub(crate) fn replace_selection(&mut self, selection: Vec<FixtureId>) {
+    pub(crate) fn replace_selection(&mut self, selection: Vec<Item>) {
         self.selection = selection;
         self.sub = Sub::None;
         self.changed = false;
@@ -426,7 +468,7 @@ impl Programmer {
         self.located.remove(&fixture);
         self.clearing.remove(&fixture);
         let before = self.selection.len();
-        self.selection.retain(|&f| f != fixture);
+        self.selection.retain(|i| i.fixture != fixture);
         if self.selection.len() != before {
             self.sub = Sub::None;
         }
@@ -490,7 +532,7 @@ impl Programmer {
         if self.sub != Sub::None {
             self.sub = Sub::None;
         } else {
-            self.selection = self.values.keys().copied().collect();
+            self.selection = self.values.keys().map(|&f| Item::fixture(f)).collect();
             self.changed = false;
         }
     }

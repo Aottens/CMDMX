@@ -152,6 +152,15 @@ fn prg_46_removing_a_fixture_drops_its_cell_items() {
     assert_eq!(e.group_items(5), Some(vec![c(901, 1)]));
 }
 
+#[test]
+fn prg_54_rem_dim_keeps_a_fixture_with_a_selected_cell() {
+    let mut e = rig();
+    tap(&mut e, &[c(901, 2)]);
+    e.rem_dim().unwrap();
+    assert_eq!(e.programmer().value(901, "Dimmer"), None);
+    assert_eq!(e.programmer().value(902, "Dimmer"), Some(Value::Level(0.0)));
+}
+
 // ---- PRG-48 -----------------------------------------------------------------
 
 #[test]
@@ -183,10 +192,7 @@ fn prg_48_a_cell_range_of_one_fixture() {
 fn prg_48_one_cell_of_each_fixture_in_a_range() {
     let mut e = rig();
     run(&mut e, "901 Thro 904 . 2 Enter").unwrap();
-    assert_eq!(
-        items(&e),
-        vec![c(901, 2), c(902, 2), c(903, 2), c(904, 2)]
-    );
+    assert_eq!(items(&e), vec![c(901, 2), c(902, 2), c(903, 2), c(904, 2)]);
 }
 
 #[test]
@@ -195,7 +201,14 @@ fn prg_48_all_cells_of_a_fixture_range() {
     run(&mut e, "901 Thro 902 . Enter").unwrap();
     assert_eq!(
         items(&e),
-        vec![c(901, 1), c(901, 2), c(901, 3), c(902, 1), c(902, 2), c(902, 3)]
+        vec![
+            c(901, 1),
+            c(901, 2),
+            c(901, 3),
+            c(902, 1),
+            c(902, 2),
+            c(902, 3)
+        ]
     );
 }
 

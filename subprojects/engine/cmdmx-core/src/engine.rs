@@ -25,7 +25,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{ColourModel, TargetColour};
-use crate::command::{self, Item, Kind};
+use crate::command::{self, Cells, Kind};
 use crate::cuelist::{Ctx, Env, ListRun};
 use crate::output::{self, Node, NodeId, NodeKind};
 use crate::palette::{
@@ -43,7 +43,7 @@ use crate::playback::{
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
     default_lowlight, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView, EditPart, Fade,
-    FixtureValues, GroupId, PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView,
+    FixtureValues, GroupId, Item, PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView,
     Resolution, WheelState,
 };
 use crate::show::{
@@ -260,6 +260,9 @@ pub struct Engine {
     last_tick: Option<Timestamp>,
     programmer: Programmer,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    /// PRG-49: the full item list of groups that hold a cell item.
+    // ponytail: a second map only until groups store items in the show (VS2-32) and on the wire (VS2-33).
+    group_cells: BTreeMap<GroupId, Vec<Item>>,
     palettes: BTreeMap<PaletteId, Palette>,
     /// Above every palette id ever used, so ids are never reused (PAL, Definitions).
     palette_next_id: PaletteId,
@@ -292,6 +295,7 @@ pub struct EditState {
     playbacks: BTreeMap<PlaybackId, Playback>,
     page_legends: Vec<String>,
     groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    group_cells: BTreeMap<GroupId, Vec<Item>>,
     palettes: BTreeMap<PaletteId, Palette>,
     nodes: BTreeMap<NodeId, Node>,
     programmer: EditPart,
@@ -338,6 +342,7 @@ impl Engine {
             last_tick: None,
             programmer: Programmer::default(),
             groups: BTreeMap::new(),
+            group_cells: BTreeMap::new(),
             palettes: BTreeMap::new(),
             palette_next_id: 1,
             // OUT-25: line 1 goes out on Art-Net, sACN and the first serial interface.
@@ -718,6 +723,9 @@ impl Engine {
             self.programmer.remove_fixture(id);
             for members in self.groups.values_mut() {
                 members.retain(|&f| f != id);
+            }
+            for items in self.group_cells.values_mut() {
+                items.retain(|i| i.fixture != id);
             }
             for palette in self.palettes.values_mut() {
                 palette.fixtures.remove(&id); // PAL-19
@@ -1215,6 +1223,7 @@ impl Engine {
             playbacks: self.playbacks.clone(),
             page_legends: self.page_legends.clone(),
             groups: self.groups.clone(),
+            group_cells: self.group_cells.clone(),
             palettes: self.palettes.clone(),
             nodes: self.nodes.clone(),
             programmer: self.programmer.edit_part(),
@@ -1243,6 +1252,7 @@ impl Engine {
         self.numbers = s.numbers;
         self.page_legends = s.page_legends;
         self.groups = s.groups;
+        self.group_cells = s.group_cells;
         self.palettes = s.palettes;
         self.nodes = s.nodes;
         let old_fixtures = std::mem::replace(&mut self.fixtures, s.fixtures);
@@ -3308,10 +3318,23 @@ impl Engine {
 
     /// PRG-01/03: toggle a patched fixture in the selection.
     pub fn select_fixture(&mut self, id: FixtureId) -> Result<(), CoreError> {
-        if !self.fixtures.contains_key(&id) {
-            return Err(CoreError::UnknownFixture(id));
+        self.select_item(Item::fixture(id))
+    }
+
+    /// PRG-46: toggle a whole fixture or one of its cells; a cell the mode lacks is refused.
+    pub fn select_item(&mut self, item: Item) -> Result<(), CoreError> {
+        if !self.fixtures.contains_key(&item.fixture) {
+            return Err(CoreError::UnknownFixture(item.fixture));
         }
-        self.programmer.toggle(id);
+        if let Some(cell) = item.cell {
+            if cell == 0 || usize::from(cell) > self.cell_count(item.fixture) {
+                return Err(CoreError::UnknownCell {
+                    fixture: item.fixture,
+                    cell,
+                });
+            }
+        }
+        self.programmer.toggle(item);
         self.follow_active_group();
         Ok(())
     }
@@ -3319,10 +3342,28 @@ impl Engine {
     /// PRG-02/03: append a group's fixtures, keeping the ones already selected in place;
     /// a fully selected group is removed instead (IDEA-11). Typed `Group n` replaces, see PRG-08.
     pub fn select_group(&mut self, id: GroupId) -> Result<(), CoreError> {
-        let members = self.groups.get(&id).ok_or(CoreError::UnknownGroup(id))?;
-        self.programmer.add_group(members);
+        let members = self.group_items(id).ok_or(CoreError::UnknownGroup(id))?;
+        self.programmer.add_group(&members);
         self.follow_active_group();
         Ok(())
+    }
+
+    fn cell_count(&self, id: FixtureId) -> usize {
+        self.mode_of(id).map_or(0, |m| m.cells.len())
+    }
+
+    /// PRG-49: a group's items, cells included.
+    pub fn group_items(&self, id: GroupId) -> Option<Vec<Item>> {
+        match self.group_cells.get(&id) {
+            Some(items) => Some(items.clone()),
+            None => Some(
+                self.groups
+                    .get(&id)?
+                    .iter()
+                    .map(|&f| Item::fixture(f))
+                    .collect(),
+            ),
+        }
     }
 
     pub fn clear_selection(&mut self) {
@@ -3333,7 +3374,7 @@ impl Engine {
     /// PRG-29, PRG-42: Clear by `clear_precedence` (default: the first Clear deselects, the next
     /// empties the programmer and the located set).
     pub fn clear(&mut self) {
-        let selected = !self.programmer.selection().is_empty();
+        let selected = !self.programmer.items().is_empty();
         let has_content = !self.programmer.is_empty() || !self.programmer.located().is_empty();
         match self.settings.clear_precedence {
             ClearPrecedence::SelectionThenProgrammer => {
@@ -3520,7 +3561,7 @@ impl Engine {
 
     /// PRG-26, 39: Highlight; refused with nothing selected.
     pub fn set_highlight(&mut self, on: bool) -> Result<(), CoreError> {
-        if on && self.programmer.selection().is_empty() {
+        if on && self.programmer.items().is_empty() {
             return Err(CoreError::EmptySelection);
         }
         self.highlight = on;
@@ -3572,10 +3613,11 @@ impl Engine {
     /// PRG-28, 41: Dimmer 0 as a touched value on every patched fixture that is not selected and
     /// has an intensity attribute.
     pub fn rem_dim(&mut self) -> Result<(), CoreError> {
-        let selection = self.programmer.selection();
-        if selection.is_empty() {
+        if self.programmer.items().is_empty() {
             return Err(CoreError::EmptySelection);
         }
+        // PRG-54: a fixture with any selected item, a cell included, keeps its intensity.
+        let selection: Vec<FixtureId> = self.programmer.items().iter().map(|i| i.fixture).collect();
         let mut put = Vec::new();
         for &id in self.fixtures.keys().filter(|id| !selection.contains(id)) {
             let Some(mode) = self.mode_of(id) else {
@@ -3622,11 +3664,16 @@ impl Engine {
 
     /// PRG-07: store the selection as a group, replacing any existing one.
     pub fn record_group(&mut self, id: GroupId) -> Result<(), CoreError> {
-        let selection = self.programmer.selection();
-        if selection.is_empty() {
+        let items = self.programmer.items().to_vec();
+        if items.is_empty() {
             return Err(CoreError::EmptySelection);
         }
-        self.groups.insert(id, selection.to_vec());
+        self.groups.insert(id, self.programmer.selection());
+        if items.iter().any(|i| i.cell.is_some()) {
+            self.group_cells.insert(id, items);
+        } else {
+            self.group_cells.remove(&id);
+        }
         Ok(())
     }
 
@@ -3682,7 +3729,7 @@ impl Engine {
     /// PRG-18: after a selection change, leave a group no target has for the
     /// first one (I P C G B E S) some target has. Stored, not computed lazily.
     fn follow_active_group(&mut self) {
-        if self.programmer.selection().is_empty() {
+        if self.programmer.items().is_empty() {
             self.highlight = false; // PRG-26: deselecting stops Highlight
         }
         let targets = self.programmer.targets();
@@ -4033,9 +4080,16 @@ impl Engine {
         let typed = if cmd.selection.is_empty() {
             None
         } else {
-            let mut list: Vec<FixtureId> = Vec::new();
+            // PRG-48: `.`-first forms read the selection as it is before this line applies.
+            let mut selected: Vec<FixtureId> = Vec::new();
+            for i in self.programmer.items() {
+                if !selected.contains(&i.fixture) {
+                    selected.push(i.fixture);
+                }
+            }
+            let mut list: Vec<Item> = Vec::new();
             for (not, item) in &cmd.selection {
-                let ids = self.expand(item);
+                let ids = self.expand_items(item, &selected);
                 if *not {
                     list.retain(|f| !ids.contains(f));
                 } else {
@@ -4051,10 +4105,19 @@ impl Engine {
             }
             Some(list)
         };
+        // Cell items get no values until VS2-31: acting commands use the whole fixtures.
+        let whole = |l: &[Item]| -> Vec<FixtureId> {
+            l.iter()
+                .filter(|i| i.cell.is_none())
+                .map(|i| i.fixture)
+                .collect()
+        };
         if let Some(number) = cmd.palette {
             // PAL-10: plan against the typed selection first, so a refusal changes nothing.
             let (time, overlap) = self.palette_timing(Timing::default())?;
-            let targets = typed.clone().unwrap_or_else(|| self.programmer.targets());
+            let targets = typed
+                .as_deref()
+                .map_or_else(|| self.programmer.targets(), whole);
             let (id, plan) = self.palette_plan(number, &targets)?;
             if let Some(list) = typed {
                 self.programmer.replace_selection(list);
@@ -4074,8 +4137,10 @@ impl Engine {
         let mut touched = Vec::new();
         let level = cmd.level.map(|v| (v / 100.0).clamp(0.0, 1.0));
         if level.is_some() {
-            let targets = typed.clone().unwrap_or_else(|| self.programmer.targets());
-            if targets.is_empty() {
+            let targets = typed
+                .as_deref()
+                .map_or_else(|| self.programmer.targets(), whole);
+            if typed.is_none() && self.programmer.target_items().is_empty() {
                 return Err(CoreError::EmptySelection);
             }
             for id in targets {
@@ -4101,24 +4166,49 @@ impl Engine {
     /// Patched fixtures (user numbers, PAT-12) or members of existing groups (ids) named by one
     /// item, in typed order. Ranges walk only the entries that exist, so `1 Thro 4000000000`
     /// stays cheap.
-    fn expand(&self, item: &Item) -> Vec<FixtureId> {
+    fn expand_items(&self, item: &command::Item, selected: &[FixtureId]) -> Vec<Item> {
         let (lo, hi) = (item.from.min(item.to), item.from.max(item.to));
-        let mut keys: Vec<u32> = match item.kind {
-            Kind::Fixture => self.numbers.range(lo..=hi).map(|(_, id)| *id).collect(),
-            Kind::Group => self.groups.range(lo..=hi).map(|(id, _)| *id).collect(),
+        let desc = item.from > item.to;
+        let ordered = |mut keys: Vec<u32>| {
+            if desc {
+                keys.reverse();
+            }
+            keys
         };
-        if item.from > item.to {
-            keys.reverse();
+        let fixtures: Vec<FixtureId> = match item.kind {
+            Kind::Selected => selected.to_vec(),
+            Kind::Fixture => ordered(self.numbers.range(lo..=hi).map(|(_, id)| *id).collect()),
+            Kind::Group => {
+                let ids = ordered(self.groups.range(lo..=hi).map(|(id, _)| *id).collect());
+                return ids
+                    .iter()
+                    .filter_map(|&g| self.group_items(g))
+                    .flatten()
+                    .collect();
+            }
+        };
+        let Some(cells) = item.cells else {
+            return fixtures.into_iter().map(Item::fixture).collect();
+        };
+        let mut out = Vec::new();
+        for id in fixtures {
+            let n = u32::try_from(self.cell_count(id)).unwrap_or(0);
+            let (from, to) = match cells {
+                Cells::All => (1, n),
+                Cells::Range { from, to } => (from, to),
+            };
+            let mut range: Vec<u32> = (from.min(to).max(1)..=from.max(to).min(n)).collect();
+            if from > to {
+                range.reverse();
+            }
+            out.extend(
+                range
+                    .into_iter()
+                    .filter_map(|c| u16::try_from(c).ok())
+                    .map(|c| Item::cell(id, c)),
+            );
         }
-        match item.kind {
-            Kind::Fixture => keys,
-            Kind::Group => keys
-                .iter()
-                .filter_map(|g| self.groups.get(g))
-                .flatten()
-                .copied()
-                .collect(),
-        }
+        out
     }
 
     // ---- palettes (PAL-01..12, 17..21) --------------------------------------

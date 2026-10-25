@@ -52,6 +52,8 @@ pub const UNIVERSE_SIZE: usize = 512;
 pub enum CoreError {
     #[error("unknown fixture id {0}")]
     UnknownFixture(u32),
+    #[error("fixture {fixture} has no cell {cell}")]
+    UnknownCell { fixture: u32, cell: u16 },
     #[error("unknown playback id {0}")]
     UnknownPlayback(u32),
     #[error("unknown profile '{0}'")]
