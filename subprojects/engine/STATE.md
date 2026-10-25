@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-10-25 (VS4-04)_
+_Last updated: 2026-10-25 (VS1-10)_
 
 ## Current step
+VS1-10 (2026-10-25, #PR, IPC-44): `client_loss.rs` no longer counts `library:` and `universe` lines as log lines for the lost client; with `vendor/qlcplus` present the library thread logs them seconds after start-up, after the test's baseline. Test change only.
+
 VS4-04 (2026-10-25, CTL-60..66): no engine change. The TouchOSC Mk1 layout lives in the repo's `touchosc/` (generator, `addresses.txt`, `serve.sh`); `ctl_64_every_touchosc_layout_address_is_in_the_schema` in `cmdmx-daemon/src/control/osc_tests.rs` decodes every `send` address with `osc::schema` and finds every `show` address in the full-state feedback of the Demo show (8 slots).
 
 VS1-08 (2026-10-25, #107, IPC-44): no engine change; the daemon already kept output and state through a lost client. `cmdmx-daemon/tests/client_loss.rs` runs the real binary (`--no-sacn --no-serial`, temp `HOME`/`--show-dir`, free `--ipc-port`), points the Demo's Art-Net node at `127.0.0.1` (the test binds UDP 6454 on loopback, so it fails if a monitor holds that port), sets a fader, a recorded two-cue list and a programmer value, shuts the client's socket without a close frame and checks the ArtDmx sequence runs on without a gap and unchanged for 2 s (≥ 72 frames), at most one stderr line, and that a new client's snapshot shows the level, `cue.current` and the programmer. Test `ipc_44_killed_client_changes_nothing_and_a_new_client_sees_the_live_state`.

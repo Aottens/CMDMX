@@ -216,11 +216,14 @@ fn ipc_44_killed_client_changes_nothing_and_a_new_client_sees_the_live_state() {
     (last, _) = frames_hold(&artnet, &look, last, 0.5);
 
     // Gone without a close frame: unread data in the socket makes the kernel reset it, as when
-    // the app is killed with `kill -9`.
+    // the app is killed with `kill -9`. The library thread's start-up lines and the once-a-second
+    // channel-1 report can land at any moment (a full `vendor/qlcplus` takes seconds), so they
+    // are not counted.
     let log_lines = || {
         std::fs::read_to_string(dir.join("stderr.log"))
             .unwrap()
             .lines()
+            .filter(|l| !l.starts_with("library: ") && !l.starts_with("universe "))
             .count()
     };
     let before = log_lines();
