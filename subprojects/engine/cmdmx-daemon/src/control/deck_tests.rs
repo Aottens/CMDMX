@@ -616,3 +616,145 @@ fn ctl_44_a_midi_port_list_leaves_the_decks_alone() {
     c.event(super::MidiEvent::Ports(Vec::new()), 0.0);
     assert_eq!(device(&c.snapshot(), DECK)["state"], "Disabled");
 }
+
+// --- CTL-67 IPC for the on-screen deck ------------------------------------------------------
+
+/// An Original, enabled, Ok, on mapping `mine` with key 5 bound on deck pages 1 and 2.
+fn two_pages(test: &str, e: &Engine) -> (Control, PathBuf) {
+    let (mut c, dir) = setup(test);
+    fs::write(
+        dir.join("control/mine.json"),
+        r#"{"name":"mine","device":"Stream Deck Original*","bindings":[
+          {"input":{"kind":"key","number":5},"action":"go"},
+          {"input":{"kind":"key","number":5},"action":"dbo","deck_page":2},
+          {"input":{"kind":"key","number":1},"action":"stop","deck_page":3}
+        ]}"#,
+    )
+    .unwrap();
+    let (mut c2, _) = Control::load(dir.join("control"), dir.join("state.json"));
+    std::mem::swap(&mut c, &mut c2);
+    decks(&mut c, &[(DECK, ORIGINAL)]);
+    enable(&mut c, true);
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
+    )
+    .unwrap();
+    state(&mut c, DeckState::Ok);
+    c.deck_out(e);
+    (c, dir)
+}
+
+fn bindings_of(c: &Control, key: u16) -> Vec<Value> {
+    let reply: Value = serde_json::from_str(&c.mapping_reply("mine")).unwrap();
+    reply["mapping"]["bindings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|b| b["input"] == json!({"kind":"key","number":key}))
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn ctl_67_control_deck_page_sets_the_deck_page_and_sends_it_in_full() {
+    let e = engine();
+    let (mut c, _) = two_pages("setpage", &e);
+    assert_eq!(device(&c.snapshot(), DECK)["deck_page"], 1);
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.deck","device":DECK,"page":2}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(device(&c.snapshot(), DECK)["deck_page"], 2);
+    let out = c.deck_out(&e);
+    let keys: Vec<u16> = looks(&out).iter().map(|(k, _)| *k).collect();
+    for k in 1..=15 {
+        assert!(keys.contains(&k), "key {k} not sent after control.deck page");
+    }
+    // The brightness is left alone when only the page is given.
+    assert_eq!(device(&c.snapshot(), DECK)["brightness"], 70);
+    let err = req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.deck","device":DECK,"page":4}).to_string(),
+    )
+    .unwrap_err();
+    assert_eq!(err, "deck page 4 outside 1..=3");
+    assert!(req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.deck","device":DECK,"page":0}).to_string(),
+    )
+    .is_err());
+    assert_eq!(device(&c.snapshot(), DECK)["deck_page"], 2);
+    // Brightness alone still works; neither field is refused.
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.deck","device":DECK,"brightness":30}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(device(&c.snapshot(), DECK)["brightness"], 30);
+    assert_eq!(device(&c.snapshot(), DECK)["deck_page"], 2);
+    assert!(req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.deck","device":DECK}).to_string()
+    )
+    .is_err());
+}
+
+#[test]
+fn ctl_67_binding_and_unbind_pick_the_binding_on_its_deck_page() {
+    let e = engine();
+    let (mut c, _) = two_pages("perpage", &e);
+    let five = json!({"kind":"key","number":5});
+    // Edit page 2's key 5: page 1's stays as it is.
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.binding","mapping":"mine","input":five,"deck_page":2,"label":"Dark"})
+            .to_string(),
+    )
+    .unwrap();
+    let b = bindings_of(&c, 5);
+    assert_eq!(b.len(), 2, "{b:?}");
+    assert!(b
+        .iter()
+        .any(|b| b["action"] == "dbo" && b["deck_page"] == 2 && b["label"] == "Dark"));
+    assert!(b
+        .iter()
+        .any(|b| b["action"] == "go" && b.get("deck_page").is_none() && b.get("label").is_none()));
+    // A key on a page without a binding there needs an action, then it is added.
+    let six = json!({"kind":"key","number":6});
+    assert!(req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.binding","mapping":"mine","input":six,"deck_page":2,"label":"x"})
+            .to_string(),
+    )
+    .is_err());
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.binding","mapping":"mine","input":six,"deck_page":2,"action":"go"})
+            .to_string(),
+    )
+    .unwrap();
+    assert_eq!(bindings_of(&c, 6).len(), 1);
+    assert_eq!(bindings_of(&c, 6)[0]["deck_page"], 2);
+    // Unbind with a deck page removes only that page's binding; without one, page 1's.
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2}).to_string(),
+    )
+    .unwrap();
+    let b = bindings_of(&c, 5);
+    assert_eq!(b.len(), 1);
+    assert_eq!(b[0]["action"], "go");
+    assert!(req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2}).to_string(),
+    )
+    .is_err());
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five}).to_string(),
+    )
+    .unwrap();
+    assert!(bindings_of(&c, 5).is_empty());
+}
