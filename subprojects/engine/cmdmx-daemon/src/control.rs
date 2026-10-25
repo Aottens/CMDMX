@@ -1041,6 +1041,7 @@ impl Control {
                     if let Some(k) = &mut d.deck {
                         // CTL-46: open when enabled, blank and close when disabled.
                         k.thread = None;
+                        k.busy_warned = false;
                         k.outbox.clear();
                         if !on {
                             k.outbox.push(DeckCmd::Close {
@@ -1057,19 +1058,41 @@ impl Control {
                 self.refresh();
                 self.persist()
             }
-            ControlRequest::Deck { device, brightness } => {
-                if brightness > 100 {
-                    return Err(format!("brightness {brightness} outside 0..=100"));
+            ControlRequest::Deck {
+                device,
+                brightness,
+                page,
+            } => {
+                if let Some(b) = brightness.filter(|b| *b > 100) {
+                    return Err(format!("brightness {b} outside 0..=100"));
                 }
-                let k = (self.devices.get_mut(&device))
-                    .and_then(|d| d.deck.as_mut())
+                let d = (self.devices.get_mut(&device))
                     .ok_or(format!("'{device}' is not a Stream Deck"))?;
-                k.brightness = brightness;
-                k.outbox.push(DeckCmd::Brightness {
-                    name: device,
-                    percent: brightness,
-                });
-                self.persist()
+                let pages = (d.mapping.as_ref().and_then(|n| self.mappings.get(n)))
+                    .map_or(1, deck::deck_pages);
+                let k = d
+                    .deck
+                    .as_mut()
+                    .ok_or(format!("'{device}' is not a Stream Deck"))?;
+                if let Some(page) = page.filter(|p| !(1..=pages).contains(p)) {
+                    return Err(format!("deck page {page} outside 1..={pages}"));
+                }
+                if let Some(page) = page {
+                    if page != k.page {
+                        k.page = page;
+                        k.feedback.clear();
+                    }
+                    self.dirty = true;
+                }
+                if let Some(brightness) = brightness {
+                    k.brightness = brightness;
+                    k.outbox.push(DeckCmd::Brightness {
+                        name: device,
+                        percent: brightness,
+                    });
+                    return self.persist();
+                }
+                Ok(())
             }
             ControlRequest::Order { devices } => {
                 self.order = devices;
@@ -1108,7 +1131,15 @@ impl Control {
                     .and_then(|i| serde_json::from_value(i.clone()).ok())
                     .ok_or("missing or invalid \"input\"")?;
                 // Like `output.edit`: the given fields over the stored binding.
-                let mut merged = match m.bindings.iter().find(|b| b.input == input) {
+                let deck_page = (change.get("deck_page"))
+                    .and_then(Value::as_u64)
+                    .and_then(|p| u16::try_from(p).ok())
+                    .unwrap_or(1);
+                let found = m
+                    .bindings
+                    .iter()
+                    .find(|b| b.input == input && b.deck_page == deck_page);
+                let mut merged = match found {
                     Some(stored) => match serde_json::to_value(stored) {
                         Ok(Value::Object(o)) => o,
                         _ => return Err("cannot read the stored binding".into()),
@@ -1125,10 +1156,15 @@ impl Control {
                 self.refresh();
                 Ok(())
             }
-            ControlRequest::Unbind { mapping, input } => {
+            ControlRequest::Unbind {
+                mapping,
+                input,
+                deck_page,
+            } => {
                 let m = self.mapping_mut(&mapping)?;
                 let before = m.bindings.len();
-                m.bindings.retain(|b| b.input != input);
+                m.bindings
+                    .retain(|b| !(b.input == input && b.deck_page == deck_page));
                 if m.bindings.len() == before {
                     return Err(format!("{} is not bound", input_text(&input)));
                 }
@@ -1423,6 +1459,7 @@ fn deck_snapshot(k: &DeckDev, mapping: Option<&Mapping>) -> serde_json::Map<Stri
                 "halo": l.halo.map(hex),
                 "level": l.level.map(f64::from),
                 "state": state,
+                "fixed": l.fixed,
             })
         })
         .collect();
@@ -1666,6 +1703,12 @@ impl Control {
                             self.dirty = true;
                         }
                     }
+                    continue;
+                }
+                // CTL-47: a continuous action on a key only shows; a dial or strip drives it.
+                if b.action.value_kind() == ValueKind::Continuous
+                    && !matches!(input.kind, DeckKind::Dial)
+                {
                     continue;
                 }
                 let current = match b.action {

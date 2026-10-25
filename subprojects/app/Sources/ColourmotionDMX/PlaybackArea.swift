@@ -56,6 +56,7 @@ private struct PagesColumn: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).frame(height: 16)
+                .deckDrag("page \(number)")   // CTL-58: onto a deck key
                 .help(legend.isEmpty ? "Page \(number)" as String : "Page \(number): \(legend)")
             }
             Spacer(minLength: 0)
@@ -176,6 +177,7 @@ private struct FaderStrip: View {
                 .overlay { if armed { Rectangle().strokeBorder(t.red, lineWidth: 1) } }
                 .overlay { if selected { Rectangle().strokeBorder(t.blue, lineWidth: 2) } }
                 .onTapGesture(perform: onLegendTap)
+                .deckDrag("upper \(slot.id + 1)")   // CTL-58: onto a deck key
                 .overlay { RightClickCatcher(action: onRightClick) }
                 .help(empty ? "Empty handle \(page).\(slot.id + 1)" as String : "Right-click: Playback Options")
             if let info = slot.info {
@@ -398,6 +400,7 @@ private struct GrandMaster: View {
     var body: some View {
         VStack(spacing: 3) {
             Text("GM").font(Typo.legend(11)).foregroundStyle(t.fg2).frame(height: 18)
+                .deckDrag("gm")   // CTL-58: onto a deck key
             // CTL-42: in Learn mode touching the GM arms Learn for `gm`; the level does not move.
             LevelBar(value: Binding(get: { engine.grandMaster }, set: { if !ui.learnMode { engine.setGrandMaster($0) } }), warnBelowFull: true,
                      onTouch: { held in

@@ -1517,7 +1517,15 @@ final class EngineClient: ObservableObject {
     func controlBinding(_ mapping: String, input: Any, _ fields: [String: Any]) {
         patch("control.binding", fields.merging(["mapping": mapping, "input": input]) { a, _ in a })
     }
-    func controlUnbind(_ mapping: String, input: Any) { patch("control.unbind", ["mapping": mapping, "input": input]) }
+    /// `deckPage` picks among the pages of a deck key (CTL-67); nil = the daemon's default, page 1.
+    func controlUnbind(_ mapping: String, input: Any, deckPage: Int? = nil) {
+        var fields: [String: Any] = ["mapping": mapping, "input": input]
+        if let deckPage { fields["deck_page"] = deckPage }
+        patch("control.unbind", fields)
+    }
+    /// CTL-53, 67: a Stream Deck's brightness 0...100, or the deck page it shows.
+    func controlDeck(_ device: String, brightness: Int) { patch("control.deck", ["device": device, "brightness": brightness]) }
+    func controlDeck(_ device: String, page: Int) { patch("control.deck", ["device": device, "page": page]) }
     func controlMappingNew(_ name: String, device: String) { patch("control.mapping_new", ["name": name, "device": device]) }
     func controlMappingRename(_ name: String, to: String) { patch("control.mapping_rename", ["name": name, "to": to]) }
     func controlMappingDelete(_ name: String) { patch("control.mapping_delete", ["name": name]) }

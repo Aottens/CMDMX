@@ -18,6 +18,8 @@ struct KeyButton: View {
     /// Amber fill: a switch that is on (DBO, PBK-41).
     var lit = false
     var action: (() -> Void)?
+    /// CTL-58: dragging the key onto a deck key links this action.
+    var drag: String?
 
     var body: some View {
         let background: Color = lit ? t.amber : style == .enter ? t.fg : style == .command ? t.bg : t.surf2
@@ -35,6 +37,7 @@ struct KeyButton: View {
         .frame(height: height)
         .disabled(action == nil)
         .opacity(action == nil ? t.disabled : 1)
+        .deckDrag(drag)   // outside `.disabled`: a key without a list still links (CTL-58)
         .help(spec)
     }
 }

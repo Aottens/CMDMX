@@ -3,7 +3,7 @@
 Owner: `cmdmx-control` (pure: MIDI and OSC decode/encode, mappings, pickup, feedback, learn) and
 `cmdmx-daemon` (CoreMIDI ports, the OSC socket, Stream Decks over USB HID, mapping files, IPC). Status: **CTL-05..43
 approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions); **CTL-44..58 (Stream Deck) approved
-by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
+by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04); **CTL-58 details and CTL-67 approved by owner 2026-10-25** (VS7-07). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
 and already tested in `cmdmx-control/src/mcu.rs`; they now belong to the Mackie Control profile.
 Scope set by the owner on 2026-10-23 (DECISIONS): a **general MIDI and OSC control layer**; named
 hardware (the BCF2000) and named clients (the church TouchOSC remote) are profiles and clients on
@@ -375,7 +375,8 @@ feedback is a **key image** instead of an LED or a motor.
   (`Stream Deck XL (A1B2) is in use by another app; quit the Elgato Stream Deck app`), the daemon
   tries again every 2 s, and the deck becomes `Ok` once it is free. Disabling a deck blanks its
   keys and closes it at once. `Busy` and `Unsupported` count as not Ok for the status dot (CTL-43,
-  amber).
+  amber). **Amended 2026-10-25 (VS7-07 run):** the warning comes once per Busy spell: the deck
+  going `Ok` or being enabled again re-arms it.
 - **CTL-47** Inputs, numbered as printed on the model, left to right and top to bottom from 1:
   `{"kind":"key","number":n}` per key or pedal (button, CTL-12 modes apply);
   `{"kind":"touch","number":n}` per Neo touch key (button); `{"kind":"dial","number":n}` per
@@ -384,6 +385,9 @@ feedback is a **key image** instead of an LED or a motor.
   n-th of `dials` equal segments of the touch strip (press and release at once). Long press and
   drag on the strip are ignored in phase 1. Input text in messages: `Stream Deck XL (A1B2) key 5`.
   Reports that do not parse are ignored and counted (CTL-15).
+  **Amended 2026-10-25 (owner, VS7-07 run):** a continuous action (`gm`, `fader <t>`,
+  `playback <id> level`) on a key, touch key, dial push or strip segment only shows (CTL-50: the
+  level in the top bar); a press sends no command, so a key can never pull the GM to 0.
 - **CTL-48** Deck pages: a deck mapping holds bindings in the CTL-22 format; a key binding may
   carry `"deck_page": n` (default 1). New actions in the CTL-05 catalogue: `deck page next`,
   `deck page prev`, `deck page <n>` (button; no engine command; they switch the pages of the deck
@@ -417,6 +421,13 @@ feedback is a **key image** instead of an LED or a motor.
   - an unbound key is black.
   The legend wraps over at most 3 lines and the text shrinks to fit the model's key size; what
   still does not fit ends in `…`.
+  **Amended 2026-10-25 (owner, VS7-07 run; a tilted deck hides the bottom edge):** there is one
+  bar, on top: with a level it fills from the left to the level in the halo colour (white without
+  a halo) and the rest of the bar is the halo colour at 25 % (no halo: grey 40); without a level
+  it is the halo as before. Nothing is drawn along the bottom. A key whose action does not follow
+  the console page (a `<page>.<slot>` target or `playback <id>`) is **fixed** and shows a small
+  lock in its top-right corner under the bar; the look carries `fixed` (CTL-57 adds
+  `"fixed": true|false` per key).
 - **CTL-51** Rendering is pure: `cmdmx-control` turns a key look and a model entry into the image
   bytes the model wants (size, rotation, flip, JPEG or BMP), with one font built in (open licence,
   ADR-009). Same look and model, same bytes (golden tests per image size). The tick only compares
@@ -455,8 +466,31 @@ feedback is a **key image** instead of an LED or a motor.
     a key onto another key moves the binding (swaps when the other key is bound). Dropping on a
     bound key replaces it and says so (`key 5 was go`, CTL-27);
   - **right-click** a key: the action menu of the bindings table, Label, Colour, Remove;
-  - **Learn** (CTL-42): click a console control, then press the deck key.
+  - **Learn** (CTL-42): click a console control, then press the deck key — or click the key on
+    the on-screen deck (amended 2026-10-25, owner, VS7-07 run): that binds the armed action to
+    that key on the deck page shown, cancels the armed `control.learn` and says
+    `Learned: <deck> key n → <action>`; Learn mode stays on as CTL-42.
   The bindings table (CTL-41) lists deck bindings too, with their deck page.
+  Details (VS7-07, approved by owner 2026-10-25): the deck page selector, labelled `Deck page`, shows pages 1..`deck_pages`;
+  choosing one sets the deck's own page (CTL-67), so the screen and the deck always show the same
+  page and Learn binds on it (CTL-56). `+` shows an empty page `deck_pages + 1` in the app only
+  (all keys black, the deck stays where it is); the first binding dropped or learned there makes
+  it a real page. Keys are drawn only from `keys` of the deck's current page, never computed in
+  the app. Group and palette buttons are not on screen while the Control screen is shown, so
+  they are linked through the action menu (Group ▸ / Palette ▸ with the show's groups and
+  palettes); playback handles, Go block keys, page buttons and the GM below the Control screen
+  are drag sources. A drop on a bound key and a move are sent as `control.unbind` then
+  `control.binding` with the whole binding, so no option of the old binding stays behind; a swap
+  unbinds both keys first. The Neo touch keys and info screen and the + dials and strip are drawn
+  in VS7-08 (with CTL-55). A deck's `Busy` and `Unsupported` show as those words, amber.
+- **CTL-67** IPC for the on-screen deck (VS7-07, approved by owner 2026-10-25):
+  - `control.deck {device, brightness?, page?}`: `page` sets the deck's current deck page as a
+    `deck page <n>` key would (CTL-48: full feedback, not saved); a page outside
+    1..=`deck_pages` is refused (`deck page 4 outside 1..=3`). At least one field is given.
+  - `control.binding` and `control.unbind` pick the binding by `input` and `deck_page`
+    (default 1), so a key's binding on one deck page is edited or removed without touching the
+    same key on another page. `control.binding` with a `deck_page` and no stored binding on that
+    page adds one (it needs an `action`).
 
 ## Where the code lives
 - `cmdmx-control` (pure, no ports, no clock): MIDI decode (CTL-09..12), mapping model and JSON
@@ -544,7 +578,7 @@ them).
   hotplug, newest-look writes, brightness), deck inputs to commands, image feedback, Learn, the
   snapshot and `control.deck` (CTL-44, 46, 52..54, 56, 57). Needs VS7-05.
 - **VS7-07** App: the on-screen deck in the Control screen, drag, right-click menu, Learn, deck
-  pages; owner run and `tests/hardware/streamdeck.md` on the owner's deck (gate 3) (CTL-58).
+  pages; owner run and `tests/hardware/streamdeck.md` on the owner's deck (gate 3) (CTL-58, 67).
   Needs VS7-06.
 - **VS7-08** Stream Deck + dials and touch strip, Neo touch keys and info screen (CTL-47 extras,
   55). Needs VS7-06; gate 3 only on a model someone owns.

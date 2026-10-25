@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — Deck keys: level on top, a lock on fixed keys, levels only shown (VS7-07 run, owner)
+
+**Decision:** a key image has one bar, on top: the level fills it in the halo colour (white without a halo), the rest is the halo at 25 %; nothing along the bottom. A key whose action does not follow the console page (`<page>.<slot>`, `playback <id>`) shows a lock, on the deck and on screen. A continuous action (`gm`, `fader`, `playback <id> level`) on a key only shows its level; a press sends nothing. The app sets a deck's page (`control.deck {page}`), and `control.binding`/`unbind` pick a key's binding by deck page (CTL-46, 47, 50, 57, 58, 67 amended).
+
+**Alternatives considered:** level bar on top and halo bar at the bottom; GM key as flash-to-full or not allowed; a lock only in the app.
+
+**Reasoning:** the owner's deck stands tilted, so the bottom edge of the keys is hard to see; a key sends 1 then 0, so a GM key pulled the grand master to 0 in the run, a blackout from one press.
+
+**Reversal trigger:** a model whose keys read better with the bar at the bottom, or a wish to drive a level from a key (then as its own action, not `gm`).
+
 ## 2026-10-25 — Stream Deck renderer crates and font confirmed (VS7-05, ADR-009)
 
 **Decision:** the key image renderer in `cmdmx-control` uses `fontdue` 0.9 (MIT/Apache-2.0/Zlib) and `jpeg-encoder` 0.7 ((MIT/Apache-2.0) and IJG), both with `default-features = false`, and the built-in font Atkinson Hyperlegible Bold (SIL OFL 1.1, `cmdmx-control/fonts/`, licence beside it). JPEG quality 90 without chroma subsampling, so small text stays crisp.

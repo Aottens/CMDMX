@@ -3,8 +3,53 @@ import Foundation
 // The `control` section of the snapshot and its delta (CTL-39), and the reply to `control.mapping`
 // (CTL-40). Every field falls back to a default, so an odd entry cannot drop the message it came in.
 
+/// One key of a Stream Deck as the engine draws it (CTL-57); the app only paints it.
+struct DeckKeyLook: Decodable, Equatable {
+    enum State { case off, inactive, active, held }
+
+    let key: Int
+    let label: String
+    let sub: String
+    /// `#rrggbb` or nil.
+    let halo: String?
+    let level: Double?
+    let state: State
+    /// The key's action does not follow the console page (CTL-50): drawn with a lock.
+    let fixed: Bool
+
+    private enum CodingKeys: String, CodingKey { case key, label, sub, halo, level, state, fixed }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        key = (try? c.decode(Int.self, forKey: .key)) ?? 0
+        label = (try? c.decode(String.self, forKey: .label)) ?? ""
+        sub = (try? c.decode(String.self, forKey: .sub)) ?? ""
+        halo = try? c.decode(String.self, forKey: .halo)
+        fixed = (try? c.decode(Bool.self, forKey: .fixed)) ?? false
+        level = try? c.decode(Double.self, forKey: .level)
+        switch try? c.decode(String.self, forKey: .state) {
+        case "inactive": state = .inactive
+        case "active": state = .active
+        case "held": state = .held
+        default: state = .off
+        }
+    }
+}
+
 struct ControlDevice: Decodable, Identifiable, Equatable {
-    enum State { case ok, missing, disabled }
+    enum State {
+        case ok, missing, disabled, busy, unsupported
+
+        var word: String {
+            switch self {
+            case .ok: return "Ok"
+            case .missing: return "Missing"
+            case .disabled: return "Disabled"
+            case .busy: return "Busy"
+            case .unsupported: return "Unsupported"
+            }
+        }
+    }
 
     let name: String
     let input: Bool
@@ -13,9 +58,23 @@ struct ControlDevice: Decodable, Identifiable, Equatable {
     let enabled: Bool
     let mapping: String?
     let errors: Int
+    /// "midi" or "streamdeck"; the rest is a deck's (CTL-57).
+    let kind: String
+    let model: String?
+    let cols: Int
+    let rows: Int
+    let deckPage: Int
+    let deckPages: Int
+    let brightness: Int
+    let keys: [DeckKeyLook]
     var id: String { name }
+    var isDeck: Bool { kind == "streamdeck" }
 
-    private enum CodingKeys: String, CodingKey { case name, input, output, state, enabled, mapping, errors }
+    private enum CodingKeys: String, CodingKey {
+        case name, input, output, state, enabled, mapping, errors, kind, model, cols, rows, brightness, keys
+        case deckPage = "deck_page"
+        case deckPages = "deck_pages"
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -25,11 +84,21 @@ struct ControlDevice: Decodable, Identifiable, Equatable {
         switch try? c.decode(String.self, forKey: .state) {
         case "Ok": state = .ok
         case "Disabled": state = .disabled
+        case "Busy": state = .busy
+        case "Unsupported": state = .unsupported
         default: state = .missing   // "Missing" or something newer: show it as a warning
         }
         enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? false
         mapping = try? c.decode(String.self, forKey: .mapping)
         errors = (try? c.decode(Int.self, forKey: .errors)) ?? 0
+        kind = (try? c.decode(String.self, forKey: .kind)) ?? "midi"
+        model = try? c.decode(String.self, forKey: .model)
+        cols = (try? c.decode(Int.self, forKey: .cols)) ?? 0
+        rows = (try? c.decode(Int.self, forKey: .rows)) ?? 0
+        deckPage = (try? c.decode(Int.self, forKey: .deckPage)) ?? 1
+        deckPages = (try? c.decode(Int.self, forKey: .deckPages)) ?? 1
+        brightness = (try? c.decode(Int.self, forKey: .brightness)) ?? 100
+        keys = ((try? c.decode([Tolerant<DeckKeyLook>].self, forKey: .keys)) ?? []).compactMap(\.value)
     }
 }
 
@@ -154,7 +223,14 @@ struct ControlState: Decodable, Equatable {
 /// One binding of the shown mapping. `input` stays the daemon's own JSON, so it goes back
 /// unchanged in `control.binding` and `control.unbind`.
 struct ControlBinding: Identifiable {
+    /// The binding's own JSON, kept whole so a key can be moved or swapped with all its options.
+    let raw: [String: Any]
     let input: Any
+    /// A deck key's page (CTL-48); 1 otherwise.
+    let deckPage: Int
+    private(set) var isDeck = false
+    /// The key number of a deck `key` input (CTL-58).
+    private(set) var deckKey: Int?
     let inputText: String
     let action: String
     let min: Double
@@ -166,16 +242,25 @@ struct ControlBinding: Identifiable {
     let feedback: Bool
     let onValue: Int
     let offValue: Int
-    var id: String { inputText }
+    var id: String { "\(deckPage)|\(inputText)" }
 
     init(_ json: [String: Any]) {
+        raw = json
+        deckPage = (json["deck_page"] as? NSNumber)?.intValue ?? 1
         input = json["input"] ?? NSNull()
         if let address = json["input"] as? String {
             inputText = address
         } else if let i = json["input"] as? [String: Any] {
             let kind = i["kind"] as? String ?? "?", channel = i["channel"] as? Int ?? 0, number = i["number"] as? Int
+            let deck = ["key": "Key", "touch": "Touch", "dial": "Dial", "dial_push": "Dial push", "strip": "Strip"][kind]
             let label = ["note": "Note", "cc": "CC", "cc14": "CC14", "pitchbend": "Pitch bend", "program": "Program"][kind] ?? kind
-            inputText = [label, number.map(String.init)].compactMap { $0 }.joined(separator: " ") + " ch \(channel)"
+            if let deck {
+                inputText = [deck, number.map(String.init)].compactMap { $0 }.joined(separator: " ")
+            } else {
+                inputText = [label, number.map(String.init)].compactMap { $0 }.joined(separator: " ") + " ch \(channel)"
+            }
+            isDeck = deck != nil
+            if kind == "key" { deckKey = number }
         } else {
             inputText = "?"
         }

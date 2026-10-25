@@ -257,6 +257,23 @@ impl FromStr for Action {
 }
 
 impl Action {
+    /// True when the action addresses a playback by page slot or id, so it does not follow the
+    /// console page (CTL-50).
+    pub fn is_fixed(&self) -> bool {
+        matches!(
+            self,
+            Action::Fader(t)
+                | Action::Upper(t)
+                | Action::Lower(t)
+                | Action::Go(t)
+                | Action::Back(t)
+                | Action::Stop(t)
+                | Action::Release(t)
+                | Action::Tap(t)
+                if matches!(t, Target::PageSlot { .. } | Target::Playback(_))
+        )
+    }
+
     pub fn value_kind(&self) -> ValueKind {
         match self {
             Action::Fader(_) | Action::Gm => ValueKind::Continuous,

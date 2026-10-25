@@ -1,5 +1,5 @@
 {"models":[
-{"product_id":"0x0060","name":"Stream Deck Original","cols":5,"rows":3,"key_px":72,"format":"bmp","rotation":0,"flip":[true,true],"family":"v1","verified":false},
+{"product_id":"0x0060","name":"Stream Deck Original","cols":5,"rows":3,"key_px":72,"format":"bmp","rotation":0,"flip":[true,true],"family":"v1","verified":true},
 {"product_id":"0x006d","name":"Stream Deck Original V2","cols":5,"rows":3,"key_px":72,"format":"jpeg","rotation":0,"flip":[true,true],"family":"v2","verified":false},
 {"product_id":"0x0080","name":"Stream Deck MK.2","cols":5,"rows":3,"key_px":72,"format":"jpeg","rotation":0,"flip":[true,true],"family":"v2","verified":false},
 {"product_id":"0x0063","name":"Stream Deck Mini","cols":3,"rows":2,"key_px":80,"format":"bmp","rotation":90,"flip":[false,true],"family":"mini","verified":false},
