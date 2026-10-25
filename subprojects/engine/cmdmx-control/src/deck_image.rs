@@ -28,6 +28,8 @@ pub struct KeyLook {
     pub halo: Option<Rgb>,
     pub level: Option<f32>,
     pub state: KeyState,
+    /// The key's action does not follow the console page (CTL-50): drawn with a lock.
+    pub fixed: bool,
 }
 
 impl KeyLook {
@@ -38,6 +40,7 @@ impl KeyLook {
             halo: None,
             level: None,
             state: KeyState::Off,
+            fixed: false,
         }
     }
 }
@@ -126,6 +129,7 @@ pub fn key_look(binding: Option<&Binding>, subject: &Subject) -> KeyLook {
                 halo: colour.or(v.halo),
                 level: Some(v.level),
                 state,
+                fixed: b.action.is_fixed(),
             }
         }
         Subject::Other {
@@ -143,6 +147,7 @@ pub fn key_look(binding: Option<&Binding>, subject: &Subject) -> KeyLook {
             } else {
                 KeyState::Inactive
             },
+            fixed: b.action.is_fixed(),
         },
     }
 }
@@ -288,6 +293,29 @@ fn fill(buf: &mut [u8], s: usize, rows: std::ops::Range<usize>, cols: usize, col
     }
 }
 
+/// A small padlock in the top-right corner under the bar: a body with a shackle above it.
+fn lock(buf: &mut [u8], s: usize, halo_h: usize) {
+    let w = (s / 6).max(4);
+    let (x0, y0) = (s.saturating_sub(w + 3), halo_h + 2);
+    let body = y0 + w / 2;
+    fill_at(buf, s, (x0, body), (w, w - w / 2));
+    // Shackle: two posts and a top, 1 px thick, leaving the middle of the body row free.
+    let (l, r) = (x0 + w / 4, x0 + w - w / 4 - 1);
+    fill_at(buf, s, (l, y0), (1, w / 2));
+    fill_at(buf, s, (r, y0), (1, w / 2));
+    fill_at(buf, s, (l, y0), (r - l + 1, 1));
+}
+
+fn fill_at(buf: &mut [u8], s: usize, at: (usize, usize), size: (usize, usize)) {
+    for y in at.1..at.1 + size.1 {
+        for x in at.0..at.0 + size.0 {
+            if let Some(p) = buf.get_mut((y * s + x) * 3..(y * s + x) * 3 + 3) {
+                p.copy_from_slice(&[255; 3]);
+            }
+        }
+    }
+}
+
 /// The key upright, RGB, `px * px * 3` bytes (CTL-51).
 pub fn render_rgb(look: &KeyLook, px: u16) -> Vec<u8> {
     let s = usize::from(px);
@@ -296,23 +324,23 @@ pub fn render_rgb(look: &KeyLook, px: u16) -> Vec<u8> {
         return buf;
     }
     let halo_h = (s / 9).max(2);
-    let level_h = (s / 12).max(2);
-    if let Some(h) = look.halo {
-        fill(&mut buf, s, 0..halo_h, s, h);
+    // The top bar: the level in the halo colour (white without), the rest at 25 % (grey 40).
+    match (look.level, look.halo) {
+        (Some(l), halo) => {
+            let w = round(l.clamp(0.0, 1.0) * s as f32) as usize;
+            let rest = halo.map_or([40; 3], |h| h.map(|v| ((u16::from(v) + 2) / 4) as u8));
+            fill(&mut buf, s, 0..halo_h, s, rest);
+            fill(&mut buf, s, 0..halo_h, w, halo.unwrap_or([255; 3]));
+        }
+        (None, Some(h)) => fill(&mut buf, s, 0..halo_h, s, h),
+        (None, None) => {}
     }
-    if let Some(l) = look.level {
-        let w = round(l.clamp(0.0, 1.0) * s as f32) as usize;
-        fill(
-            &mut buf,
-            s,
-            s - level_h..s,
-            w,
-            look.halo.unwrap_or([255; 3]),
-        );
+    if look.fixed {
+        lock(&mut buf, s, halo_h);
     }
     if let Some(f) = font() {
         let cx = s as i32 / 2;
-        let mut bottom = (s - level_h) as i32;
+        let mut bottom = s as i32;
         if !look.sub.is_empty() {
             let sub_px = (s as f32 / 8.0).max(8.0);
             let lm = f.horizontal_line_metrics(sub_px);

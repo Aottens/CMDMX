@@ -53,7 +53,7 @@ struct DeckPanel: View {
 
     private var pageSelector: some View {
         HStack(spacing: 4) {
-            Text("Page").font(Typo.ui(Typo.small)).foregroundStyle(t.fg2)
+            Text("Deck page").font(Typo.ui(Typo.small)).foregroundStyle(t.fg2)
             ForEach(1...max(1, device.deckPages), id: \.self) { n in
                 Button(String(n)) {
                     virtualPage = false
@@ -236,17 +236,21 @@ private struct DeckKeyTile: View {
                 .foregroundStyle(ink)
                 .padding(.horizontal, 3).padding(.top, 7)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                if let halo = look.halo.flatMap(Color.init(deckHex:)) {
+                // One top bar like the daemon draws it: the level filled, the rest dim.
+                let halo = look.halo.flatMap(Color.init(deckHex:))
+                if let level = look.level {
+                    ZStack(alignment: .leading) {
+                        (halo ?? Color(white: 40 / 255)).opacity(halo == nil ? 1 : 0.25)
+                        (halo ?? .white).frame(width: size * CGFloat(min(max(level, 0), 1)))
+                    }
+                    .frame(height: 4)
+                } else if let halo {
                     halo.frame(height: 4)
                 }
-                if let level = look.level {
-                    VStack {
-                        Spacer(minLength: 0)
-                        HStack(spacing: 0) {
-                            ink.frame(width: size * CGFloat(min(max(level, 0), 1)), height: 4)
-                            Spacer(minLength: 0)
-                        }
-                    }
+                if look.fixed {
+                    Image(systemName: "lock.fill").font(.system(size: 10)).foregroundStyle(.white)
+                        .padding(.top, 6).padding(.trailing, 3)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
             }
             Text(String(number)).font(Typo.mono(8)).foregroundStyle(t.fg3).padding(2)

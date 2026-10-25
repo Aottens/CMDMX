@@ -1041,6 +1041,7 @@ impl Control {
                     if let Some(k) = &mut d.deck {
                         // CTL-46: open when enabled, blank and close when disabled.
                         k.thread = None;
+                        k.busy_warned = false;
                         k.outbox.clear();
                         if !on {
                             k.outbox.push(DeckCmd::Close {
@@ -1458,6 +1459,7 @@ fn deck_snapshot(k: &DeckDev, mapping: Option<&Mapping>) -> serde_json::Map<Stri
                 "halo": l.halo.map(hex),
                 "level": l.level.map(f64::from),
                 "state": state,
+                "fixed": l.fixed,
             })
         })
         .collect();
@@ -1701,6 +1703,12 @@ impl Control {
                             self.dirty = true;
                         }
                     }
+                    continue;
+                }
+                // CTL-47: a continuous action on a key only shows; a dial or strip drives it.
+                if b.action.value_kind() == ValueKind::Continuous
+                    && !matches!(input.kind, DeckKind::Dial)
+                {
                     continue;
                 }
                 let current = match b.action {

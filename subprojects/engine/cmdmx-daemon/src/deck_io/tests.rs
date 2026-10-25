@@ -204,6 +204,7 @@ fn look(label: &str) -> KeyLook {
         halo: None,
         level: None,
         state: KeyState::Active,
+        fixed: false,
     }
 }
 

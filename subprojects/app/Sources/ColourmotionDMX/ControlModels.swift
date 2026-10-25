@@ -14,8 +14,10 @@ struct DeckKeyLook: Decodable, Equatable {
     let halo: String?
     let level: Double?
     let state: State
+    /// The key's action does not follow the console page (CTL-50): drawn with a lock.
+    let fixed: Bool
 
-    private enum CodingKeys: String, CodingKey { case key, label, sub, halo, level, state }
+    private enum CodingKeys: String, CodingKey { case key, label, sub, halo, level, state, fixed }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -23,6 +25,7 @@ struct DeckKeyLook: Decodable, Equatable {
         label = (try? c.decode(String.self, forKey: .label)) ?? ""
         sub = (try? c.decode(String.self, forKey: .sub)) ?? ""
         halo = try? c.decode(String.self, forKey: .halo)
+        fixed = (try? c.decode(Bool.self, forKey: .fixed)) ?? false
         level = try? c.decode(Double.self, forKey: .level)
         switch try? c.decode(String.self, forKey: .state) {
         case "inactive": state = .inactive
