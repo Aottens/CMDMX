@@ -57,9 +57,10 @@ def add(kind, name, x, y, w, h, color, address=None, **extra):
     controls.append("    <control " + " ".join(f"{k}={quoteattr(str(v))}" for k, v in attrs.items()) + "/>")
 
 
-def label(name, address, x, y, w, h, color="gray", size=16, text=""):
+def label(name, address, x, y, w, h, color="gray", size=16, text="", plain=False):
+    box = "false" if plain else "true"
     add("labelh", name, x, y, w, h, color, address, text=b64(text), size=size,
-        background="true", outline="true")
+        background=box, outline=box)
     if address:
         shows.append(address)
 
@@ -114,10 +115,12 @@ def build(n):
     # Right column (CTL-63)
     rx, rw = W - SIDE_W - GAP, SIDE_W
     y = top
-    label("cue current", "/cmdmx/cue/current", rx, y, rw, 40)
-    y += 40 + GAP
-    label("cue next", "/cmdmx/cue/next", rx, y, rw, 40)
-    y += 40 + GAP
+    label("cue current", "/cmdmx/cue/current", rx, y, rw, 70, "green", 28)
+    y += 70 + GAP
+    pw = 54
+    label("cue next prefix", None, rx, y, pw, 30, "gray", 14, "Next:", plain=True)
+    label("cue next", "/cmdmx/cue/next", rx + pw + GAP, y, rw - pw - GAP, 30, "gray", 14, plain=True)
+    y += 30 + GAP
     button("push", "go", "/cmdmx/go", rx, y, rw, 150, "green", "GO")
     y += 150 + GAP
     half = (rw - GAP) // 2

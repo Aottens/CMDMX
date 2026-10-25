@@ -26,6 +26,9 @@ jobs:
       - name: TouchOSC layout is up to date
         working-directory: .
         run: python3 touchosc/generate.py --check
+      - name: TouchOSC layout checks
+        working-directory: .
+        run: python3 touchosc/test_generate.py
       - name: daemon smoke run
         run: cargo run -q -p cmdmx-daemon -- --ticks 20
 

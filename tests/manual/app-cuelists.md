@@ -38,6 +38,9 @@ universe 1 during the run and reports the measured values and times.
 - [ ] GO: Q2 runs; the "now" line shows Q2 Welcome in green with its progress, the GO button
       "Q3 Worship". The pars stay at 45 % (tracked). The Cue list window marks Q2 green, Q3
       outlined; the strip legend reads "Q2 › 3".
+- [ ] Current and next apart (CUE-42, VS4-06): the "now" line is the largest text in the Go block,
+      green with a green bar on its left; the GO button shows "Next: Q3 Worship" small and grey,
+      never green; at the last cue it reads "end of list" in the same small grey.
 - [ ] Back: Q1 again, no delay. Stop during a fade (give Q3 fade in 5 s on the Times tab first):
       "paused" in amber, Stop lit; Claude sees the values freeze. GO resumes. Stop twice = Back.
 - [ ] Tap row Q5 in the Cue list window: it becomes next (outlined), nothing changes on stage.

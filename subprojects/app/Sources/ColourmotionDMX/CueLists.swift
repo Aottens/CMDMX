@@ -103,8 +103,8 @@ struct GoBlock: View {
     private func nowLine(_ list: PlaybackInfo?) -> some View {
         HStack(spacing: 6) {
             if let list, let live = list.live.cue, let current = live.current {
-                Text(cueName(current, chase: list.isChase)).font(Typo.mono()).foregroundStyle(t.green)
-                Text(list.cue(current)?.legend ?? "").font(Typo.legend(13)).foregroundStyle(t.fg).lineLimit(1)
+                Text(cueName(current, chase: list.isChase)).font(Typo.mono(20)).foregroundStyle(t.green)
+                Text(list.cue(current)?.legend ?? "").font(Typo.legend(20)).foregroundStyle(t.green).lineLimit(1)
                 Spacer(minLength: 0)
                 if live.paused {
                     Text("paused").font(Typo.mono(Typo.small)).foregroundStyle(t.amber)
@@ -116,7 +116,9 @@ struct GoBlock: View {
                 Spacer(minLength: 0)
             }
         }
-        .frame(height: 18)
+        .padding(.leading, 8)
+        .frame(height: 28)
+        .overlay(alignment: .leading) { if list?.live.cue?.current != nil { Rectangle().fill(t.green).frame(width: 3) } }
     }
 
     private func goButton(_ list: PlaybackInfo?) -> some View {
@@ -129,10 +131,10 @@ struct GoBlock: View {
                 Text("GO").font(Typo.legend(24, .semibold)).tracking(2.9).foregroundStyle(t.green)
                 if let list {
                     if let next {
-                        (Text(cueName(next, chase: list.isChase)).font(Typo.mono()) + Text("  " + (list.cue(next)?.legend ?? "")).font(Typo.legend()))
-                            .foregroundStyle(t.fg).lineLimit(1)
+                        (Text("Next: " + cueName(next, chase: list.isChase)).font(Typo.mono(Typo.small)) + Text("  " + (list.cue(next)?.legend ?? "")).font(Typo.legend(Typo.small)))
+                            .foregroundStyle(t.fg2).lineLimit(1)
                     } else {
-                        Text("end of list").font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1)
+                        Text("end of list").font(Typo.legend(Typo.small)).foregroundStyle(t.fg2).lineLimit(1)
                     }
                 } else {
                     Text("No cue list").font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1)
