@@ -16,14 +16,11 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, hardwar
 1. The owner picks the next task; candidates: VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS2-33
    raises the protocol to v1 and its run checks the VS1-09 mismatch line), VS7-05..08 (Stream Deck,
    CTL-44..58, ADR-009; VS7-05 first), VS2-35..36 (Fan, PRG-56..62; VS2-35 first).
-2. The VS4-04 TouchOSC run at home (Restore the iPad before Sunday), then the church lines left for VS2-13.
+2. The VS4-04 TouchOSC run at home (Restore the iPad before Sunday).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run).
-- VS2-13 church patch, `tests/hardware/church.md`: 9 of 16 lines passed 2026-10-25
-  (`tests/hardware/runs/2026-10-25-church.md`); left are fixtures parked in Lightkey (601..602, 701,
-  801..802, 1201) and the Phantom 25s and Fuze 75S, which are not hung.
 - VS4-04 TouchOSC layout on the church iPad mini, run copy `tests/hardware/runs/2026-10-25-VS4-04.md`
   (the owner takes the iPad home): first check is
   whether `touchosc/serve.sh` loads it (fallback TouchOSC Editor) and whether the landscape turn
