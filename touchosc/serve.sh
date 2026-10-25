@@ -7,10 +7,11 @@
 # computers found by Bonjour under Found Hosts, with manual host entry as fallback
 #   https://hexler.net/touchosc-mk1/manual/editor-sync
 #   https://hexler.net/touchosc-mk1/manual/configuration-layout-transfer-wifi
-# UNVERIFIED (not documented anywhere I could find; from memory of the editor, to be proven on
-# the iPad): Bonjour type _touchoscedit._tcp (the older _touchosceditor._tcp is announced too),
-# port 9658, a plain HTTP GET answered with the .touchosc bytes. If the iPad does not list the
-# Mac, enter its IP manually; if the download fails, use the TouchOSC Editor's Sync.
+# Proven on the church iPad mini (Mk1 1.9.8, 2026-10-25): the app sends a plain HTTP GET / to
+# port 9658 and wants the bare index.xml, not the .touchosc zip (the zip downloads but the app
+# silently keeps the old layout). Bonjour type _touchoscedit._tcp (the older
+# _touchosceditor._tcp is announced too). If the iPad does not list the Mac, enter its IP
+# manually; if the download fails, use the TouchOSC Editor's Sync.
 set -e
 DIR=$(cd "$(dirname "$0")" && pwd)
 PORT=9658
@@ -20,11 +21,12 @@ dns-sd -R "ColourmotionDMX" _touchosceditor._tcp local $PORT >/dev/null &
 B=$!
 trap 'kill $A $B 2>/dev/null' EXIT INT TERM
 echo "Serving ColourmotionDMX.touchosc on port $PORT (Ctrl-C to stop)"
-python3 - "$DIR/ColourmotionDMX.touchosc" $PORT <<'PY'
+python3 -u - "$DIR/ColourmotionDMX.touchosc" $PORT <<'PY'
 import sys
+import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-data = open(sys.argv[1], "rb").read()
+data = zipfile.ZipFile(sys.argv[1]).read("index.xml")
 
 
 class H(BaseHTTPRequestHandler):

@@ -26,7 +26,11 @@ from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
 HERE = Path(__file__).resolve().parent
-W, H = 1024, 768  # TouchOSC Mk1 mode 1 (iPad), landscape
+# TouchOSC Mk1 mode 1 (iPad), landscape. The app's own toolbar (the (i) button) takes a strip on
+# the landscape left and pushes the layout right (church iPad, 2026-10-25), so the layout stays
+# TOOLBAR narrower. ponytail: guessed width, tune it if the iPad shows a gap or a cut on the right.
+TOOLBAR = 48
+W, H = 1024 - TOOLBAR, 768
 GAP = 4
 TOP_H = 48
 SIDE_W = 220  # right column

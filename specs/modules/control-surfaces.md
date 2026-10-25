@@ -263,7 +263,9 @@ A remote for the church iPad mini (1st gen, iOS 9.3.5, TouchOSC Mk1 1.9.8, held 
 made for ColourmotionDMX on the built-in schema (CTL-36/37). It is a client like any other: no
 mapping, no Learn, nothing in the daemon changes.
 - **CTL-60** The repo ships `touchosc/ColourmotionDMX.touchosc`: a TouchOSC Mk1 layout (a zip
-  holding `index.xml`) for the iPad size (1024×768) in landscape, one tab, every control on a
+  holding `index.xml`) for the iPad size (1024×768) in landscape, less a 48 px strip on the left
+  for TouchOSC's own toolbar (amended 2026-10-25: the VS4-04 run found the right column cut
+  off without it), one tab, every control on a
   `/cmdmx` address (TouchOSC's automatic `/<tab>/<name>` addresses off). It is written by
   `touchosc/generate.py` (Python 3, standard library only) and checked in; the same input gives
   the same bytes.
@@ -289,8 +291,9 @@ mapping, no Learn, nothing in the daemon changes.
   generator also has `--check`, which fails when the checked-in `.touchosc` differs from a fresh
   run; CI runs it.
 - **CTL-65** `touchosc/serve.sh` loads the layout on the iPad without the TouchOSC Editor: it
-  announces the Mac over Bonjour as the editor's Sync does (`dns-sd -R`) and serves the file over
-  HTTP until Ctrl-C, so TouchOSC → Layout → Add lists the Mac under Found Hosts. If Mk1 does not
+  announces the Mac over Bonjour as the editor's Sync does (`dns-sd -R`) and answers HTTP GETs
+  with the bare `index.xml` from the layout until Ctrl-C (amended 2026-10-25: Mk1 1.9.8 accepts
+  the zip's download but silently keeps the old layout), so TouchOSC → Layout → Add lists the Mac under Found Hosts. If Mk1 does not
   accept it, the fallback is the TouchOSC Editor (Java): open the file, press Sync. Both ways are
   in `tests/hardware/touchosc.md`.
 - **CTL-66** `tests/hardware/touchosc.md` (gate 3, church iPad): load the layout, point TouchOSC

@@ -9,7 +9,8 @@ Regenerate with `python3 touchosc/generate.py --faders N`, where N is the show's
 
 ## Load it
 1. `touchosc/serve.sh`, then on the iPad TouchOSC -> Layout -> Add -> pick the Mac under Found Hosts
-   (or type the Mac's IP under Host, then Download). Ctrl-C stops it.
+   (or type the Mac's IP under Host, then Download). Tick `ColourmotionDMX` in the Layout list,
+   then Done. Ctrl-C stops it.
 2. Fallback: open the file in the TouchOSC Editor and press Sync.
 
 ## Connect
