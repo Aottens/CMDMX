@@ -3265,7 +3265,7 @@ mod tests {
             json!({"selection":[],"targets":[],"active_group":"I",
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
                    "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]},
-                   "located":{},"highlight":false})
+                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line"})
         );
     }
 
@@ -3586,7 +3586,7 @@ mod tests {
                    "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false,"palette":null}],
                    "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null,
                    "palettes":{"in_use":[],"relevant":[]},
-                   "located":{},"highlight":false})
+                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line"})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(

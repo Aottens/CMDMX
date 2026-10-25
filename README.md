@@ -35,7 +35,7 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up: Fan (spread a wheel change over the selection: Line, Mirror, Wings, Arrow), then
+Next up: the Fan key and curve softkeys in the app (the engine already fans), then
 selecting single cells of multi-head fixtures in the app (`901.2`, Unfold). Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in clickable sketches:
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html) and
@@ -67,6 +67,8 @@ selecting single cells of multi-head fixtures in the app (`901.2`, Unfold). Prog
 - Select fixtures and groups, Fix ±1, odd/even, a Titan-style command line
   (`201 Thro 205 @ 50`), wheels, and the console keypad with command history. The command line
   already selects single cells of multi-cell fixtures (`901 . 2`); the app shows them later.
+- Fan in the engine: a wheel spreads its change over the selection order as a Line, Mirror,
+  Wings or Arrow curve (Pan spread, a rainbow on Hue); the Fan key in the app comes next.
 - Colour as one value per fixture: HSI, RGB or CMY wheels or a colour picker, with extra
   emitters (White, Lime, …) driven directly.
 - Locate, Highlight with lowlight, Off (per attribute group or one attribute), Rem Dim, and

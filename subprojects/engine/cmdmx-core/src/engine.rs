@@ -42,9 +42,9 @@ use crate::playback::{
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
-    default_lowlight, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView, EditPart, Fade,
-    FixtureValues, GroupId, Item, PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView,
-    Resolution, WheelState,
+    default_lowlight, fan_factors, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView,
+    EditPart, Fade, FanCurve, FixtureValues, GroupId, Item, PaletteUse, Programmer,
+    ProgrammerSettingsChange, ProgrammerView, Resolution, WheelState,
 };
 use crate::show::{
     Meta, Show, ShowGroup, ShowNode, ShowOutput, ShowPage, ShowPalette, ShowPalettes, ShowPatch,
@@ -281,6 +281,9 @@ pub struct Engine {
     connected: Option<PlaybackId>,
     /// PRG-26: Highlight. Live state, not in the show or the edit state.
     highlight: bool,
+    /// PRG-56: Fan mode and the last curve; live state, not undoable, not saved.
+    fan: Option<FanCurve>,
+    fan_curve: FanCurve,
 }
 
 /// UNDO (ADR-008): everything an edit command changes, as one snapshot. Not in it, so live or
@@ -371,6 +374,8 @@ impl Engine {
             held: BTreeMap::new(),
             connected: None,
             highlight: false,
+            fan: None,
+            fan_curve: FanCurve::default(),
         }
     }
 
@@ -3334,6 +3339,7 @@ impl Engine {
                 });
             }
         }
+        self.fan = None; // PRG-56
         self.programmer.toggle(item);
         self.follow_active_group();
         Ok(())
@@ -3343,6 +3349,7 @@ impl Engine {
     /// a fully selected group is removed instead (IDEA-11). Typed `Group n` replaces, see PRG-08.
     pub fn select_group(&mut self, id: GroupId) -> Result<(), CoreError> {
         let members = self.group_items(id).ok_or(CoreError::UnknownGroup(id))?;
+        self.fan = None; // PRG-56
         self.programmer.add_group(&members);
         self.follow_active_group();
         Ok(())
@@ -3367,6 +3374,7 @@ impl Engine {
     }
 
     pub fn clear_selection(&mut self) {
+        self.fan = None; // PRG-56
         self.programmer.clear_selection();
         self.follow_active_group();
     }
@@ -3570,6 +3578,56 @@ impl Engine {
 
     pub fn highlight(&self) -> bool {
         self.highlight
+    }
+
+    /// PRG-56: the Fan key; off → on with the last curve, on → off.
+    pub fn fan_key(&mut self) {
+        self.fan = match self.fan {
+            Some(_) => None,
+            None => Some(self.fan_curve),
+        };
+    }
+
+    /// PRG-56: `Some` turns Fan on with that curve (it becomes the last curve), `None` turns it off.
+    pub fn set_fan(&mut self, curve: Option<FanCurve>) {
+        self.fan = curve;
+        self.fan_curve = curve.unwrap_or(self.fan_curve);
+    }
+
+    pub fn fan(&self) -> Option<FanCurve> {
+        self.fan
+    }
+
+    pub fn fan_curve(&self) -> FanCurve {
+        self.fan_curve
+    }
+
+    /// PRG-57: the targets that have the wheel's attribute, in target order; a colour-model wheel
+    /// means Colour. A cell has Colour or an attribute of its own, and always Dimmer (PRG-47).
+    pub fn fan_list(&self, wheel: &str) -> Vec<Item> {
+        let name = if self.colour_model.wheels().contains(&wheel) {
+            COLOUR
+        } else {
+            wheel
+        };
+        (self.programmer.target_items().into_iter())
+            .filter(|item| {
+                let Some(mode) = self.mode_of(item.fixture) else {
+                    return false;
+                };
+                let Some(n) = item.cell else {
+                    return mode.logical(name).is_some();
+                };
+                let cell = usize::from(n)
+                    .checked_sub(1)
+                    .and_then(|i| mode.cells.get(i));
+                name == DIMMER
+                    || cell.is_some_and(|c| {
+                        (name == COLOUR && c.colour.is_some())
+                            || c.attributes.iter().any(|a| a.name == name)
+                    })
+            })
+            .collect()
     }
 
     /// PRG-27: Off removes the touched and located values of the targets in `mask`.
@@ -3801,8 +3859,19 @@ impl Engine {
         let delta = steps as f32 * step;
         let colour_wheel = self.colour_model.wheels().contains(&attribute);
         let name = if colour_wheel { COLOUR } else { attribute };
+        // PRG-59: with Fan on and two or more items, each moves by its own share of `delta`.
+        let list = self.fan_list(attribute);
+        let shares: Vec<(FixtureId, f32)> = match self.fan {
+            Some(curve) if list.len() >= 2 => (list.iter())
+                .zip(fan_factors(curve, list.len()))
+                // Cell items hold a position but get no value until cell values exist (VS2-31/32).
+                .filter(|(item, _)| item.cell.is_none())
+                .map(|(item, k)| (item.fixture, delta * k))
+                .collect(),
+            _ => targets.into_iter().map(|id| (id, delta)).collect(),
+        };
         let mut new = Vec::new();
-        for id in targets {
+        for (id, delta) in shares {
             let Some(l) = self.mode_of(id).and_then(|m| m.logical(name)) else {
                 continue;
             };
@@ -4026,6 +4095,8 @@ impl Engine {
                 .map(|(&id, attrs)| (id, attrs.keys().cloned().collect()))
                 .collect(),
             highlight: self.highlight,
+            fan: self.fan,
+            fan_curve: self.fan_curve,
         }
     }
 
@@ -4120,6 +4191,7 @@ impl Engine {
                 .map_or_else(|| self.programmer.targets(), whole);
             let (id, plan) = self.palette_plan(number, &targets)?;
             if let Some(list) = typed {
+                self.fan = None; // PRG-56
                 self.programmer.replace_selection(list);
                 self.follow_active_group();
             }
@@ -4129,6 +4201,7 @@ impl Engine {
         if cmd.locate {
             // PRG-10: select, then Locate every group. `typed` is never empty here.
             if let Some(list) = typed {
+                self.fan = None; // PRG-56
                 self.programmer.replace_selection(list);
                 self.follow_active_group();
             }
@@ -4152,6 +4225,7 @@ impl Engine {
             }
         }
         if let Some(list) = typed {
+            self.fan = None; // PRG-56
             self.programmer.replace_selection(list);
             self.follow_active_group();
         }
