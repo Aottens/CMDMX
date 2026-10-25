@@ -50,8 +50,8 @@ the backlog, not the whole idea.
 | IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | triaged | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
 | IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | triaged | 3 (hardware; owner 2026-10-23) | new `hardware.md`, CTL, licence |
 | IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
-| IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged (owner to confirm the phase) | 2 (proposed) | PAT, UI, IPC |
-| IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged (owner to confirm the phase) | 2 (proposed) | UI, SHW, IPC |
+| IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
+| IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -467,7 +467,7 @@ amber, as every engine message is, so good news looks like a warning.
 ### IDEA-25 — 2D rig overview from above (2026-10-25)
 **Owner's intent:** a 2D overview of the rig, seen from above.
 **Triage:**
-- Proposed phase 2 (the PRD keeps the visualiser out of phase 1; a 2D plan is the light part of
+- Phase 2 (the PRD keeps the visualiser out of phase 1; a 2D plan is the light part of
   it). A window that draws every patched fixture at its spot on a top-down plan; tap or
   lasso to select (PRG), and each fixture shows its live output colour and intensity (the same
   feed IDEA-10 needs).
@@ -482,13 +482,14 @@ fixture in the show file (SHW), added when its phase comes; old shows load witho
 - Free placement only, or also helpers (grid snap, "line up selected", truss bars as drawing)?
 - A background image (the venue's floor plan) under the fixtures?
 - Does a fixture show beam direction (pan/tilt), or only colour and intensity?
+**Owner's answer (2026-10-25):** phase 2.
 
 ### IDEA-26 — User pages, as in Onyx (2026-10-25)
 **Owner's intent:** in Onyx you can make a page and lay it out yourself; that worked well. Best
 of both worlds: we steer with default pages (the workspaces we think are right, not editable),
 and the user can add own pages next to them, with things like a show clock.
 **Triage:**
-- Proposed phase 2. The fixed workspaces of UI-07/UI-08 stay as they are: they are the default
+- Phase 2. The fixed workspaces of UI-07/UI-08 stay as they are: they are the default
   pages and cannot be edited. User pages are added below them in the rail (F5 onward), are
   stored in the show file and never change show state (UI-08's rule).
 - A user page is a free grid: the user places and sizes windows from a catalogue — the existing
@@ -507,3 +508,4 @@ self-contained (UI-09), which is what a free grid needs.
 - Per show (in the show file) or per user/Mac (so own pages travel between shows)?
 - Which widgets first besides the show clock?
 - Does a user page also replace the side column and attribute bar, or only the 2×2 grid?
+**Owner's answer (2026-10-25):** phase 2.
