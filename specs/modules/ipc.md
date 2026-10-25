@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -24,6 +24,22 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 - **IPC-05** Deltas to every client, at most one per changed item per tick, only when the value changed:
   `{"v":0,"type":"playback","id":1,"level":0.5,"active":true}`, `{"v":0,"type":"grand_master","level":0.8}`. A change made by one client therefore reaches all clients, including the sender (its optimistic local value is replaced by the engine's).
 - **IPC-06** Errors: invalid JSON, an unknown `cmd`, missing fields, or `"v"` other than 0 → `{"v":0,"type":"error","message":"…"}` to that client only; the connection stays open. An engine refusal (e.g. unknown playback) → `{"v":0,"type":"warning","message":"…"}` to every client (engine warnings are shared state).
+
+- **IPC-41** Versioning (P1-06). `v` is one integer for the whole contract. It goes up only on a
+  change an older peer would misread: a key removed or renamed, a value's type, unit or meaning
+  changed, a command that changes shape. A new message type, command or key does not raise it
+  (the app ignores types and keys it does not know; the daemon answers an unknown `cmd` with an
+  `error`, IPC-06). A daemon speaks exactly one version and the app speaks exactly one; there is
+  no negotiation. When they differ:
+  - The app checks `v` of the snapshot (it always arrives first, IPC-03, so the app notices in
+    both directions). On another version it closes the connection, renders nothing from it and
+    sends nothing, and shows in place of the offline banner (UI-06): "Engine speaks protocol
+    v<n>, this app speaks v<m>: install the app and engine from the same release." It then
+    retries as when offline (IPC-08), so a restarted engine of the right version is picked up.
+  - The daemon answers a command with another `v` with an `error` to that client only, naming
+    both versions ("protocol v<n> not supported, this engine speaks v<m>"); the connection
+    stays open (IPC-06). This is the backstop for other clients (remotes, scripts).
+  - Either way the tick, DMX output, the show and every other client carry on untouched.
 
 ### Isolation (show-proof)
 - **IPC-07** Each client runs on its own thread. The tick never waits on a client: commands reach the tick through a non-blocking channel drained at the start of each tick; messages to a client go through a bounded queue (64 messages). A client whose queue is full is disconnected (it resyncs from a fresh snapshot when it reconnects). A panic in a client thread is caught and closes only that client.
@@ -147,7 +163,7 @@ IPC-20..23 (output health, programmer contents, the first target's colour, absol
 saturation for the colour picker) are specified in `ui.md`, approved by the owner 2026-10-17.
 
 ## Out of scope (this version)
-Remote access over the LAN with a password (IDEA-06), pages and paging (VS1-06/PBK), palette messages, Locate/Highlight/Off/Rem Dim and Clear options (VS2-05), a colour picker or swatch (UX-02), keypad buttons (the Mac keyboard covers the command line for now), command acknowledgements, binary encoding.
+Remote access over the LAN with a password (IDEA-06); a daemon or app that speaks more than one version (IPC-41); command acknowledgements (the result of a command is its delta, or a `warning`/`error`); binary encoding. Everything listed here before is now in: pages, playbacks, palettes, cue lists, group masters, Locate/Highlight/Off/Rem Dim/Clear, undo, output nodes, patch, library, show file, the main screen and its colour picker and keypad each have their own section in this file.
 
 ### Playbacks (VS2-22; behaviour in `playbacks.md`)
 The playback messages are specified in `playbacks.md` as PBK-35 (snapshot `playbacks` entries

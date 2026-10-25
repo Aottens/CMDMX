@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-24 (VS2-29)_
+_Last updated: 2026-10-25 (P1-06)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -14,8 +14,8 @@ control layer, cue lists, group masters, library browsing, the profile editor an
 
 ## Next
 1. The owner picks the next task; candidates: VS4-04 (own TouchOSC Mk1 layout; iPad facts from the
-   2026-10-25 church run), P1-13 (per-cell selection spec), P1-19
-   (Stream Deck spec).
+   2026-10-25 church run), VS1-09 (protocol version check, IPC-41), P1-13 (per-cell
+   selection spec), P1-19 (Stream Deck spec).
 2. The church hardware runs below, when the hardware is at hand.
 
 ## Waiting for a hardware run (gate 3, owner)

@@ -5,6 +5,13 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-25 — IPC protocol versioning (P1-06, owner)
+
+**Decision:** `ipc.md` IPC-41: `v` is one integer for the whole contract and goes up only on a change an older peer would misread (key removed or renamed, type/unit/meaning changed, command reshaped); new types, commands and keys do not raise it. Daemon and app each speak one version, no negotiation. The app checks the snapshot's `v` and on a mismatch closes, renders and sends nothing, shows both versions in place of the offline banner and keeps retrying; the daemon answers a command with another `v` with an `error` naming both versions. Tick, DMX output and other clients never notice. Build task VS1-09.
+**Alternatives:** version negotiation (a daemon speaking several versions); bumping `v` on every addition.
+**Why:** app and engine ship together from one repo, so one version each is enough; the snapshot arrives first, so the app sees a mismatch in both directions and the operator gets a clear message instead of a misread console.
+**Reversal trigger:** remotes from other releases (IDEA-06) must keep working across an engine update.
+
 ## 2026-10-24 — The church remote gets a TouchOSC layout made for ColourmotionDMX (VS4-04, owner)
 
 **Decision:** VS4-04 builds a new TouchOSC layout on the `/cmdmx` schema (CTL-36/37), shipped in the repo, instead of exporting the old church layout from the iPad mini and binding its addresses with custom-address Learn (CTL-38). CTL-38 stays for other people's layouts. Amends owner decision 8 of `control-surfaces.md`.
