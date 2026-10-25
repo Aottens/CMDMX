@@ -45,6 +45,11 @@ struct ControlView: View {
         .onChange(of: selected) { _, name in
             if let mapping = engine.control.devices.first(where: { $0.name == name })?.mapping { mappingName = mapping }
         }
+        // A device that gets its mapping while selected (a deck's profile on enable): the table follows, so
+        // the Deck panel knows the bindings it moves and replaces (CTL-58).
+        .onChange(of: engine.control.devices.first(where: { $0.name == selected })?.mapping) { _, mapping in
+            if let mapping { mappingName = mapping }
+        }
         // The shown mapping was deleted, or none was shown while offline: fall back to the first one.
         .onChange(of: engine.control.mappings) { _, list in
             if !list.contains(where: { $0.name == mappingName }) { mappingName = list.first?.name }

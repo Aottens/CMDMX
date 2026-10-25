@@ -563,6 +563,7 @@ fn ctl_50_a_playback_key_shows_halo_legend_function_level_and_state() {
             halo: Some([255, 48, 0]),
             level: Some(0.5),
             state: KeyState::Active,
+            fixed: false,
         }
     );
     let off = key_look(Some(&bound("upper 3")), &Subject::Playback(pb("Wash", 0.0)));
@@ -691,6 +692,7 @@ fn sample() -> KeyLook {
         halo: Some([255, 48, 0]),
         level: Some(0.5),
         state: KeyState::Active,
+        fixed: false,
     }
 }
 
@@ -707,26 +709,60 @@ fn ctl_51_black_look_is_all_black() {
 }
 
 #[test]
-fn ctl_51_halo_bar_on_top_and_level_bar_along_the_bottom() {
+fn ctl_50_the_level_fills_the_top_bar_in_the_halo_colour_and_the_bottom_stays_black() {
     let rgb = render_rgb(&sample(), 72);
-    assert_eq!(px(&rgb, 72, 36, 1), [255, 48, 0], "halo bar");
-    // Level 0.5: the bottom row is lit on the left half only.
-    assert_ne!(px(&rgb, 72, 10, 71), [0, 0, 0]);
-    assert_eq!(px(&rgb, 72, 62, 71), [0, 0, 0]);
+    // Level 0.5: the left half of the top bar in the halo, the rest the halo at 25 %.
+    assert_eq!(px(&rgb, 72, 10, 1), [255, 48, 0], "filled part");
+    assert_eq!(px(&rgb, 72, 62, 1), [64, 12, 0], "unfilled part");
+    for x in [2, 36, 70] {
+        assert_eq!(px(&rgb, 72, x, 71), [0, 0, 0], "nothing along the bottom");
+    }
     let mut no_halo = sample();
     no_halo.halo = None;
-    assert_eq!(px(&render_rgb(&no_halo, 72), 72, 36, 1), [0, 0, 0]);
+    let rgb = render_rgb(&no_halo, 72);
+    assert_eq!(px(&rgb, 72, 10, 1), [255, 255, 255], "white without a halo");
+    assert_eq!(px(&rgb, 72, 62, 1), [40, 40, 40], "grey 40 without a halo");
+    let mut no_level = sample();
+    no_level.level = None;
+    let rgb = render_rgb(&no_level, 72);
+    assert_eq!(px(&rgb, 72, 62, 1), [255, 48, 0], "no level: the halo bar");
+    no_level.halo = None;
+    assert_eq!(px(&render_rgb(&no_level, 72), 72, 36, 1), [0, 0, 0]);
+}
+
+#[test]
+fn ctl_50_a_key_that_does_not_follow_the_page_is_fixed_and_shows_a_lock() {
+    let p = Subject::Playback(pb("Wash", 0.0));
+    assert!(!key_look(Some(&bound("upper 3")), &p).fixed);
+    assert!(key_look(Some(&bound("upper 1.3")), &p).fixed);
+    assert!(key_look(Some(&bound("go playback 12")), &p).fixed);
+    assert!(key_look(Some(&bound("playback 12 level")), &p).fixed);
+    let gm = Subject::Other {
+        name: None,
+        active: true,
+        level: Some(1.0),
+    };
+    assert!(!key_look(Some(&bound("gm")), &gm).fixed);
+    // The lock: the top-right corner under the bar, black on a key that follows the page.
+    let corner = |look: &KeyLook| {
+        let rgb = render_rgb(look, 72);
+        (58..72).any(|x| (9..23).any(|y| px(&rgb, 72, x, y) != [0, 0, 0]))
+    };
+    let mut look = sample();
+    assert!(!corner(&look));
+    look.fixed = true;
+    assert!(corner(&look));
 }
 
 #[test]
 fn ctl_51_inactive_is_dimmed_to_40_percent_and_held_is_inverted() {
     let mut dim = sample();
     dim.state = KeyState::Inactive;
-    assert_eq!(px(&render_rgb(&dim, 72), 72, 36, 1), [102, 19, 0]);
+    assert_eq!(px(&render_rgb(&dim, 72), 72, 10, 1), [102, 19, 0]);
     let mut held = sample();
     held.state = KeyState::Held;
     let rgb = render_rgb(&held, 72);
-    assert_eq!(px(&rgb, 72, 36, 1), [0, 207, 255], "halo inverted");
+    assert_eq!(px(&rgb, 72, 10, 1), [0, 207, 255], "halo inverted");
     assert_eq!(
         px(&rgb, 72, 1, 36),
         [255, 255, 255],

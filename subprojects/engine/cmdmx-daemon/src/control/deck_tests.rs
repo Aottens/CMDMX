@@ -763,3 +763,79 @@ fn ctl_67_binding_and_unbind_pick_the_binding_on_its_deck_page() {
     .unwrap();
     assert!(bindings_of(&c, 5).is_empty());
 }
+
+// --- VS7-07 run amendments (CTL-46, 47, 50, 57) ------------------------------------------------
+
+#[test]
+fn ctl_46_busy_warns_again_after_disable_and_enable() {
+    let (mut c, _) = setup("busy_again");
+    decks(&mut c, &[(DECK, ORIGINAL)]);
+    enable(&mut c, true);
+    state(&mut c, DeckState::Busy);
+    assert_eq!(c.take_messages().len(), 1);
+    enable(&mut c, false);
+    enable(&mut c, true);
+    state(&mut c, DeckState::Busy);
+    assert_eq!(
+        c.take_messages(),
+        [format!(
+            "{DECK} is in use by another app; quit the Elgato Stream Deck app"
+        )]
+    );
+}
+
+#[test]
+fn ctl_47_a_continuous_action_on_a_key_only_shows() {
+    let e = engine();
+    let (mut c, dir) = setup("gm_key");
+    fs::write(
+        dir.join("control/mine.json"),
+        r#"{"name":"mine","device":"Stream Deck Original*","bindings":[
+          {"input":{"kind":"key","number":1},"action":"gm"},
+          {"input":{"kind":"key","number":2},"action":"fader 1"},
+          {"input":{"kind":"key","number":3},"action":"go"}
+        ]}"#,
+    )
+    .unwrap();
+    let (mut c2, _) = Control::load(dir.join("control"), dir.join("state.json"));
+    std::mem::swap(&mut c, &mut c2);
+    decks(&mut c, &[(DECK, ORIGINAL)]);
+    enable(&mut c, true);
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
+    )
+    .unwrap();
+    state(&mut c, DeckState::Ok);
+    let out = c.deck_out(&e);
+    assert_eq!(look_of(&out, 1).unwrap().level, Some(1.0), "the GM level shows");
+    press(&mut c, 1);
+    press(&mut c, 2);
+    assert!(c.commands(&e, 0.0).is_empty(), "no GM or fader command from a key");
+    press(&mut c, 3);
+    assert!(!c.commands(&e, 0.0).is_empty(), "a button action still runs");
+}
+
+#[test]
+fn ctl_57_each_key_says_whether_it_is_fixed() {
+    let e = engine();
+    let (mut c, _) = ready("fixed", &e);
+    req(
+        &mut c,
+        &json!({"v":0,"cmd":"control.binding","mapping":"Stream Deck Original","input":{"kind":"key","number":9},"action":"upper 1.4"})
+            .to_string(),
+    )
+    .unwrap();
+    let d = device(&c.snapshot(), DECK).clone();
+    let key = |n: u64| {
+        d["keys"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|k| k["key"] == n)
+            .cloned()
+            .unwrap()
+    };
+    assert_eq!(key(9)["fixed"], true);
+    assert_eq!(key(1)["fixed"], false);
+}

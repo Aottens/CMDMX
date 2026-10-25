@@ -375,7 +375,8 @@ feedback is a **key image** instead of an LED or a motor.
   (`Stream Deck XL (A1B2) is in use by another app; quit the Elgato Stream Deck app`), the daemon
   tries again every 2 s, and the deck becomes `Ok` once it is free. Disabling a deck blanks its
   keys and closes it at once. `Busy` and `Unsupported` count as not Ok for the status dot (CTL-43,
-  amber).
+  amber). **Amended 2026-10-25 (VS7-07 run):** the warning comes once per Busy spell: the deck
+  going `Ok` or being enabled again re-arms it.
 - **CTL-47** Inputs, numbered as printed on the model, left to right and top to bottom from 1:
   `{"kind":"key","number":n}` per key or pedal (button, CTL-12 modes apply);
   `{"kind":"touch","number":n}` per Neo touch key (button); `{"kind":"dial","number":n}` per
@@ -384,6 +385,9 @@ feedback is a **key image** instead of an LED or a motor.
   n-th of `dials` equal segments of the touch strip (press and release at once). Long press and
   drag on the strip are ignored in phase 1. Input text in messages: `Stream Deck XL (A1B2) key 5`.
   Reports that do not parse are ignored and counted (CTL-15).
+  **Amended 2026-10-25 (owner, VS7-07 run):** a continuous action (`gm`, `fader <t>`,
+  `playback <id> level`) on a key, touch key, dial push or strip segment only shows (CTL-50: the
+  level in the top bar); a press sends no command, so a key can never pull the GM to 0.
 - **CTL-48** Deck pages: a deck mapping holds bindings in the CTL-22 format; a key binding may
   carry `"deck_page": n` (default 1). New actions in the CTL-05 catalogue: `deck page next`,
   `deck page prev`, `deck page <n>` (button; no engine command; they switch the pages of the deck
@@ -417,6 +421,13 @@ feedback is a **key image** instead of an LED or a motor.
   - an unbound key is black.
   The legend wraps over at most 3 lines and the text shrinks to fit the model's key size; what
   still does not fit ends in `…`.
+  **Amended 2026-10-25 (owner, VS7-07 run; a tilted deck hides the bottom edge):** there is one
+  bar, on top: with a level it fills from the left to the level in the halo colour (white without
+  a halo) and the rest of the bar is the halo colour at 25 % (no halo: grey 40); without a level
+  it is the halo as before. Nothing is drawn along the bottom. A key whose action does not follow
+  the console page (a `<page>.<slot>` target or `playback <id>`) is **fixed** and shows a small
+  lock in its top-right corner under the bar; the look carries `fixed` (CTL-57 adds
+  `"fixed": true|false` per key).
 - **CTL-51** Rendering is pure: `cmdmx-control` turns a key look and a model entry into the image
   bytes the model wants (size, rotation, flip, JPEG or BMP), with one font built in (open licence,
   ADR-009). Same look and model, same bytes (golden tests per image size). The tick only compares
@@ -457,7 +468,7 @@ feedback is a **key image** instead of an LED or a motor.
   - **right-click** a key: the action menu of the bindings table, Label, Colour, Remove;
   - **Learn** (CTL-42): click a console control, then press the deck key.
   The bindings table (CTL-41) lists deck bindings too, with their deck page.
-  Details (VS7-07, approved by owner 2026-10-25): the deck page selector shows pages 1..`deck_pages`;
+  Details (VS7-07, approved by owner 2026-10-25): the deck page selector, labelled `Deck page`, shows pages 1..`deck_pages`;
   choosing one sets the deck's own page (CTL-67), so the screen and the deck always show the same
   page and Learn binds on it (CTL-56). `+` shows an empty page `deck_pages + 1` in the app only
   (all keys black, the deck stays where it is); the first binding dropped or learned there makes

@@ -154,7 +154,7 @@ struct GoBlock: View {
             .clipShape(RoundedRectangle(cornerRadius: radius))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.green, lineWidth: 2))
         }
-        .buttonStyle(.plain).deckDrag("go").disabled(!enabled).opacity(enabled ? 1 : t.disabled)
+        .buttonStyle(.plain).disabled(!enabled).opacity(enabled ? 1 : t.disabled).deckDrag("go")
     }
 }
 

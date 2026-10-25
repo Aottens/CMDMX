@@ -34,10 +34,10 @@ struct KeyButton: View {
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ring ? t.red : style == .normal ? t.line : t.line2, lineWidth: ring ? 2 : 1))
         }
         .buttonStyle(.plain)
-        .deckDrag(drag)
         .frame(height: height)
         .disabled(action == nil)
         .opacity(action == nil ? t.disabled : 1)
+        .deckDrag(drag)   // outside `.disabled`: a key without a list still links (CTL-58)
         .help(spec)
     }
 }
