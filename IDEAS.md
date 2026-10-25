@@ -53,7 +53,7 @@ the backlog, not the whole idea.
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
 | IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
 | IDEA-27 | Fan in phase 1: spread a value over the selection order (moving heads above all) | specified 2026-10-25 (P1-20, PRG-56..62; VS2-35 todo) | 1 | PRG, UI |
-| IDEA-28 | Local AI assistant: a small model on the Mac, a chat window in the app that builds palettes, groups and more on request | triaged (owner to confirm the phase) | 2 (proposed, with IDEA-17) | IPC, UI, new `assistant.md` |
+| IDEA-28 | Local AI assistant: a small model on the Mac, a chat window in the app that builds palettes, groups and more on request | triaged | 2, with IDEA-17 (owner 2026-10-25) | IPC, UI, new `assistant.md` |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -550,7 +550,7 @@ Everything is JSON and the whole context (patch, profiles, groups, palettes) is 
 so a relatively small model should manage. A chat window in the app takes requests like "make
 the default colours for all fixtures", "build basic groups", "do this, do that".
 **Triage:**
-- Proposed phase 2, together with IDEA-17: both talk to CMDMX through the same tool layer (the
+- Phase 2, together with IDEA-17: both talk to CMDMX through the same tool layer (the
   IPC commands, `ipc.md`), so the work is shared. The app holds no lighting logic, so the
   chat window only shows the conversation and a preview; the model and its tool calls live
   outside the UI.
@@ -576,8 +576,8 @@ the default colours for all fixtures", "build basic groups", "do this, do that".
 **What it touches now:** nothing forced; like IDEA-17 it needs every IPC command complete and
 documented, as now.
 **Open questions:**
-- Phase 2 with IDEA-17, or the spike earlier to know where we stand?
 - Which church laptop (chip, RAM, macOS)? Not recorded in the repo; it decides 8 vs. 16 GB.
 - Wizards first as plain commands in the app (no model), with the assistant on top later?
 - Locked while playbacks are live, or always allowed as a planning tool (nothing changes until
   Apply)?
+**Owner's answer (2026-10-25):** phase 2, together with IDEA-17.
