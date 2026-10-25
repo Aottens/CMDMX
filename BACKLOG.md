@@ -25,6 +25,7 @@ Software first (owner, 2026-10-17). Left: the hardware track (VS1-07 BCF2000 and
 | VS1-07 | (re-scoped 2026-10-23) Mackie Control profile on the generic control layer: window and banks from `faders_per_page` (never 8), default bindings, motor and touch rules; BCF2000 fader 1 moves playback 1 and the motors follow a page change; `tests/hardware/bcf2000.md` (gate 3). Needs VS7-02. | CTL-01..04, 30..33 | M | gate3: `tests/hardware/bcf2000.md` (merged 2026-10-23, #79; virtual BCF2000 passed in the VS7-04 run) |
 | VS1-08 | Supervisor-less resilience check: kill the app while output runs; DMX keeps streaming; app reconnects and shows the live state. | ADR-002, IPC-44, IPC-08 | S | done (2026-10-25, #107; run `tests/manual/runs/2026-10-25-VS1-08.md`) |
 | VS1-09 | Protocol version check: the app checks the snapshot's `v`, on another version closes, renders and sends nothing, shows the IPC-41 message in place of the offline banner and keeps retrying; the daemon's `error` names both versions (unit test with the id). Needs P1-06. | IPC-41 | S | done (2026-10-25, #105) |
+| VS1-10 | `client_loss.rs` (IPC-44) passes 5 runs in a row with the QLC+ set in `vendor/qlcplus`: the library thread's late `library:` and `universe` lines no longer count as log lines for the lost client. | IPC-44 | S | done (2026-10-25, #116) |
 
 ## Phase 1 milestones — a general console; first proof: replace Lightkey in the church
 Phase 1 delivers a well-working general DMX console (owner, 2026-10-22). Its first proof is a real
