@@ -14,8 +14,8 @@ control layer, cue lists, group masters, library browsing, the profile editor an
 
 ## Next
 1. The owner picks the next task; candidates: VS4-04 (own TouchOSC Mk1 layout; iPad facts from the
-   2026-10-25 church run), VS1-09 (protocol version check, IPC-41), VS2-31..34 (per-cell
-   selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS1-09 before VS2-33, which raises the protocol to v1), VS7-05..08 (Stream Deck,
+   2026-10-25 church run), VS2-31..34 (per-cell selection, PRG-47, 51..55; VS2-30's cell items are in the core; VS2-33
+   raises the protocol to v1 and its run checks the VS1-09 mismatch line), VS7-05..08 (Stream Deck,
    CTL-44..58, ADR-009; VS7-05 first), VS2-35..36 (Fan, PRG-56..62; VS2-35 first).
 2. The church hardware runs below, when the hardware is at hand.
 
