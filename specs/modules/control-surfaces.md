@@ -3,7 +3,7 @@
 Owner: `cmdmx-control` (pure: MIDI and OSC decode/encode, mappings, pickup, feedback, learn) and
 `cmdmx-daemon` (CoreMIDI ports, the OSC socket, Stream Decks over USB HID, mapping files, IPC). Status: **CTL-05..43
 approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions); **CTL-44..58 (Stream Deck) approved
-by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04); **CTL-58 details and CTL-67 pending owner approval** (VS7-07). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
+by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04); **CTL-58 details and CTL-67 approved by owner 2026-10-25** (VS7-07). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
 and already tested in `cmdmx-control/src/mcu.rs`; they now belong to the Mackie Control profile.
 Scope set by the owner on 2026-10-23 (DECISIONS): a **general MIDI and OSC control layer**; named
 hardware (the BCF2000) and named clients (the church TouchOSC remote) are profiles and clients on
@@ -457,7 +457,7 @@ feedback is a **key image** instead of an LED or a motor.
   - **right-click** a key: the action menu of the bindings table, Label, Colour, Remove;
   - **Learn** (CTL-42): click a console control, then press the deck key.
   The bindings table (CTL-41) lists deck bindings too, with their deck page.
-  Details (VS7-07, pending owner approval): the deck page selector shows pages 1..`deck_pages`;
+  Details (VS7-07, approved by owner 2026-10-25): the deck page selector shows pages 1..`deck_pages`;
   choosing one sets the deck's own page (CTL-67), so the screen and the deck always show the same
   page and Learn binds on it (CTL-56). `+` shows an empty page `deck_pages + 1` in the app only
   (all keys black, the deck stays where it is); the first binding dropped or learned there makes
@@ -469,7 +469,7 @@ feedback is a **key image** instead of an LED or a motor.
   `control.binding` with the whole binding, so no option of the old binding stays behind; a swap
   unbinds both keys first. The Neo touch keys and info screen and the + dials and strip are drawn
   in VS7-08 (with CTL-55). A deck's `Busy` and `Unsupported` show as those words, amber.
-- **CTL-67** IPC for the on-screen deck (VS7-07, pending owner approval):
+- **CTL-67** IPC for the on-screen deck (VS7-07, approved by owner 2026-10-25):
   - `control.deck {device, brightness?, page?}`: `page` sets the deck's current deck page as a
     `deck page <n>` key would (CTL-48: full feedback, not saved); a page outside
     1..=`deck_pages` is refused (`deck page 4 outside 1..=3`). At least one field is given.
