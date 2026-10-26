@@ -80,7 +80,7 @@ fn enabled(test: &str) -> (Control, PathBuf) {
     ports(&mut c, &[port("nano", true)]);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
     )
     .unwrap();
     (c, dir)
@@ -153,7 +153,7 @@ fn ctl_08_states_ok_missing_disabled() {
     assert_eq!(d["errors"], 0);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
     )
     .unwrap();
     assert_eq!(device(&c.snapshot(), "nano")["state"], "Ok");
@@ -161,7 +161,7 @@ fn ctl_08_states_ok_missing_disabled() {
     assert_eq!(device(&c.snapshot(), "nano")["state"], "Missing");
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"nano","on":false}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":false}"#,
     )
     .unwrap();
     assert_eq!(device(&c.snapshot(), "nano")["state"], "Disabled");
@@ -179,7 +179,7 @@ fn ctl_08_two_devices_run_at_once_each_with_its_own_mapping() {
     std::mem::swap(&mut c, &mut c2);
     ports(&mut c, &[port("nano", false), port("other", false)]);
     for d in ["nano", "other"] {
-        let j = format!(r#"{{"v":0,"cmd":"control.enable","device":"{d}","on":true}}"#);
+        let j = format!(r#"{{"v":1,"cmd":"control.enable","device":"{d}","on":true}}"#);
         req(&mut c, &j).unwrap();
     }
     assert_eq!(device(&c.snapshot(), "other")["mapping"], "other");
@@ -228,7 +228,7 @@ fn ctl_24_without_a_matching_mapping_it_gets_an_empty_one() {
     ports(&mut c, &[port("APC mini", true)]);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"APC mini","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"APC mini","on":true}"#,
     )
     .unwrap();
     let s = c.snapshot();
@@ -257,7 +257,7 @@ fn ctl_24_a_star_mapping_matches_any_device() {
     ports(&mut c, &[port("whatever", false)]);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"whatever","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"whatever","on":true}"#,
     )
     .unwrap();
     assert_eq!(device(&c.snapshot(), "whatever")["mapping"], "any");
@@ -290,7 +290,7 @@ fn ctl_23_state_json_keeps_the_last_show_and_the_devices() {
     ports(&mut c, &[port("nano", true)]);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
     )
     .unwrap();
     let v: Value = serde_json::from_str(&fs::read_to_string(&state).unwrap()).unwrap();
@@ -310,7 +310,7 @@ fn ctl_23_every_change_is_written_atomically_to_the_mapping_file() {
     let (mut c, dir) = enabled("written");
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":9},"action":"gm","invert":true}"#,
+        r#"{"v":1,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":9},"action":"gm","invert":true}"#,
     )
     .unwrap();
     let file = fs::read_to_string(dir.join("control/nano.json")).unwrap();
@@ -334,7 +334,7 @@ fn ctl_23_every_change_is_written_atomically_to_the_mapping_file() {
 fn ctl_23_import_refuses_an_existing_name_unless_replace() {
     let (mut c, dir) = setup("import");
     let json = json!({
-        "v": 0, "cmd": "control.mapping_import",
+        "v": 1, "cmd": "control.mapping_import",
         "json": r#"{"name":"nano","device":"x","bindings":[]}"#
     });
     let err = req(&mut c, &json.to_string()).unwrap_err();
@@ -527,7 +527,7 @@ fn ctl_21_a_device_without_output_gets_no_feedback() {
     ports(&mut c, &[port("nano", false)]);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
     )
     .unwrap();
     assert!(c.feedback(&engine()).is_empty());
@@ -573,7 +573,7 @@ fn ctl_06_page_next_at_the_last_page_does_nothing() {
     ports(&mut c, &[port("pad", false)]);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"pad","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"pad","on":true}"#,
     )
     .unwrap();
     let mut e = engine();
@@ -602,7 +602,7 @@ fn ctl_25_learn_needs_three_steps_then_binds_and_ends() {
     let _ = c.take_messages();
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.learn","action":"fader 3"}"#,
+        r#"{"v":1,"cmd":"control.learn","action":"fader 3"}"#,
     )
     .unwrap();
     assert_eq!(c.snapshot()["learn"], "fader 3");
@@ -623,9 +623,9 @@ fn ctl_25_learn_needs_three_steps_then_binds_and_ends() {
 fn ctl_25_a_note_press_learns_at_once_and_replaces_with_a_message() {
     let (mut c, _) = enabled("learn-replace");
     let _ = c.take_messages();
-    req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"go"}"#).unwrap();
+    req(&mut c, r#"{"v":1,"cmd":"control.learn","action":"go"}"#).unwrap();
     // Re-arming replaces the armed action.
-    req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"back"}"#).unwrap();
+    req(&mut c, r#"{"v":1,"cmd":"control.learn","action":"back"}"#).unwrap();
     packet(&mut c, "nano", &[0x90, 61, 127]); // was page 2
     let cmds = c.commands(&engine(), 0.0);
     assert!(
@@ -648,7 +648,7 @@ fn ctl_25_a_note_press_learns_at_once_and_replaces_with_a_message() {
 fn ctl_25_cancel_and_disabled_devices_never_learn() {
     let (mut c, _) = enabled("learn-cancel");
     ports(&mut c, &[port("nano", true), port("other", true)]);
-    req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"go"}"#).unwrap();
+    req(&mut c, r#"{"v":1,"cmd":"control.learn","action":"go"}"#).unwrap();
     packet(&mut c, "other", &[0x90, 1, 127]);
     let _ = c.commands(&engine(), 0.0);
     assert_eq!(
@@ -656,7 +656,7 @@ fn ctl_25_cancel_and_disabled_devices_never_learn() {
         "go",
         "a disabled device does not learn"
     );
-    req(&mut c, r#"{"v":0,"cmd":"control.learn_cancel"}"#).unwrap();
+    req(&mut c, r#"{"v":1,"cmd":"control.learn_cancel"}"#).unwrap();
     assert_eq!(c.snapshot()["learn"], Value::Null);
 }
 
@@ -699,9 +699,9 @@ fn ctl_28_last_input_is_shown_at_most_ten_times_a_second() {
 #[test]
 fn ctl_29_control_commands_are_class_neutral() {
     for json in [
-        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
-        r#"{"v":0,"cmd":"control.learn","action":"go"}"#,
-        r#"{"v":0,"cmd":"control.mapping_delete","name":"nano"}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+        r#"{"v":1,"cmd":"control.learn","action":"go"}"#,
+        r#"{"v":1,"cmd":"control.mapping_delete","name":"nano"}"#,
     ] {
         let cmd = ipc::parse_command(json).unwrap();
         assert_eq!(crate::class(&cmd), crate::Class::Neutral, "{json}");
@@ -750,16 +750,16 @@ fn ctl_39_a_change_sends_a_control_delta() {
 #[test]
 fn ctl_40_every_command_parses_and_unknown_actions_are_refused() {
     for json in [
-        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
-        r#"{"v":0,"cmd":"control.assign","device":"nano","mapping":"nano"}"#,
-        r#"{"v":0,"cmd":"control.learn","action":"fader 2.3","mapping":"nano"}"#,
-        r#"{"v":0,"cmd":"control.learn_cancel"}"#,
-        r#"{"v":0,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":7},"pickup":true}"#,
-        r#"{"v":0,"cmd":"control.unbind","mapping":"nano","input":{"kind":"cc","channel":1,"number":7}}"#,
-        r#"{"v":0,"cmd":"control.mapping_new","name":"x","device":"x*"}"#,
-        r#"{"v":0,"cmd":"control.mapping_rename","name":"x","to":"y"}"#,
-        r#"{"v":0,"cmd":"control.mapping_delete","name":"y"}"#,
-        r#"{"v":0,"cmd":"control.mapping_import","json":"{}","replace":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+        r#"{"v":1,"cmd":"control.assign","device":"nano","mapping":"nano"}"#,
+        r#"{"v":1,"cmd":"control.learn","action":"fader 2.3","mapping":"nano"}"#,
+        r#"{"v":1,"cmd":"control.learn_cancel"}"#,
+        r#"{"v":1,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":7},"pickup":true}"#,
+        r#"{"v":1,"cmd":"control.unbind","mapping":"nano","input":{"kind":"cc","channel":1,"number":7}}"#,
+        r#"{"v":1,"cmd":"control.mapping_new","name":"x","device":"x*"}"#,
+        r#"{"v":1,"cmd":"control.mapping_rename","name":"x","to":"y"}"#,
+        r#"{"v":1,"cmd":"control.mapping_delete","name":"y"}"#,
+        r#"{"v":1,"cmd":"control.mapping_import","json":"{}","replace":true}"#,
     ] {
         assert!(
             matches!(ipc::parse_command(json), Ok(Command::Control(_))),
@@ -767,7 +767,7 @@ fn ctl_40_every_command_parses_and_unknown_actions_are_refused() {
         );
     }
     assert_eq!(
-        ipc::parse_command(r#"{"v":0,"cmd":"control.learn","action":"fader x"}"#),
+        ipc::parse_command(r#"{"v":1,"cmd":"control.learn","action":"fader x"}"#),
         Err("unknown action \"fader x\"".to_string())
     );
 }
@@ -778,7 +778,7 @@ fn ctl_40_mapping_edits_and_their_refusals() {
     // An edit without an action keeps the binding's action.
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":7},"invert":true}"#,
+        r#"{"v":1,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":7},"invert":true}"#,
     )
     .unwrap();
     let reply: Value = serde_json::from_str(&c.mapping_reply("nano")).unwrap();
@@ -795,29 +795,29 @@ fn ctl_40_mapping_edits_and_their_refusals() {
     // A new input needs an action.
     assert!(req(
         &mut c,
-        r#"{"v":0,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":99}}"#
+        r#"{"v":1,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":99}}"#
     )
     .is_err());
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.unbind","mapping":"nano","input":{"kind":"cc","channel":1,"number":7}}"#,
+        r#"{"v":1,"cmd":"control.unbind","mapping":"nano","input":{"kind":"cc","channel":1,"number":7}}"#,
     )
     .unwrap();
     assert!(!c.mapping_reply("nano").contains("fader 1"));
     // New, rename (the device follows), delete.
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.mapping_new","name":"spare","device":"x"}"#,
+        r#"{"v":1,"cmd":"control.mapping_new","name":"spare","device":"x"}"#,
     )
     .unwrap();
     assert!(req(
         &mut c,
-        r#"{"v":0,"cmd":"control.mapping_new","name":"spare","device":"x"}"#
+        r#"{"v":1,"cmd":"control.mapping_new","name":"spare","device":"x"}"#
     )
     .is_err());
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.mapping_rename","name":"nano","to":"mine"}"#,
+        r#"{"v":1,"cmd":"control.mapping_rename","name":"nano","to":"mine"}"#,
     )
     .unwrap();
     assert!(dir.join("control/mine.json").exists());
@@ -825,24 +825,24 @@ fn ctl_40_mapping_edits_and_their_refusals() {
     assert_eq!(device(&c.snapshot(), "nano")["mapping"], "mine");
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.assign","device":"nano","mapping":"spare"}"#,
+        r#"{"v":1,"cmd":"control.assign","device":"nano","mapping":"spare"}"#,
     )
     .unwrap();
     assert_eq!(device(&c.snapshot(), "nano")["mapping"], "spare");
     assert!(req(
         &mut c,
-        r#"{"v":0,"cmd":"control.assign","device":"nano","mapping":"nope"}"#
+        r#"{"v":1,"cmd":"control.assign","device":"nano","mapping":"nope"}"#
     )
     .is_err());
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.mapping_delete","name":"mine"}"#,
+        r#"{"v":1,"cmd":"control.mapping_delete","name":"mine"}"#,
     )
     .unwrap();
     assert!(!dir.join("control/mine.json").exists());
     assert!(req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"ghost","on":true}"#
+        r#"{"v":1,"cmd":"control.enable","device":"ghost","on":true}"#
     )
     .is_err());
 }
@@ -901,7 +901,7 @@ mod virtual_port {
             wait(&mut c, &rx, 3.0, |c| state(c, &name).is_some()),
             "seen"
         );
-        let j = json!({"v":0,"cmd":"control.enable","device":name,"on":true});
+        let j = json!({"v":1,"cmd":"control.enable","device":name,"on":true});
         req(&mut c, &j.to_string()).unwrap();
         assert_eq!(state(&c, &name).as_deref(), Some("Ok"));
         let _ = c.take_messages();
@@ -936,7 +936,7 @@ mod virtual_port {
             .create_virtual(&name)
             .unwrap();
         assert!(wait(&mut c, &rx, 3.0, |c| state(c, &name).is_some()));
-        let j = json!({"v":0,"cmd":"control.enable","device":name,"on":true});
+        let j = json!({"v":1,"cmd":"control.enable","device":name,"on":true});
         req(&mut c, &j.to_string()).unwrap();
         // The sender: 2000 messages a second for one second, ending at 127.
         let sender = std::thread::spawn(move || {
@@ -994,7 +994,7 @@ fn surface(test: &str, names: &[&str]) -> (Control, PathBuf) {
     for n in names {
         req(
             &mut c,
-            &format!(r#"{{"v":0,"cmd":"control.enable","device":"{n}","on":true}}"#),
+            &format!(r#"{{"v":1,"cmd":"control.enable","device":"{n}","on":true}}"#),
         )
         .unwrap();
     }
@@ -1086,7 +1086,7 @@ fn ctl_30_the_profile_ships_read_only_and_is_listed() {
     ports(&mut c, &[port("BCF2000", true)]);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"BCF2000","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"BCF2000","on":true}"#,
     )
     .unwrap();
     assert_eq!(device(&c.snapshot(), "BCF2000")["mapping"], MC);
@@ -1119,7 +1119,7 @@ fn ctl_30_editing_the_profile_saves_a_user_copy_that_hides_it() {
     };
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.binding","mapping":"Mackie Control","input":{"kind":"note","channel":1,"number":33},"action":"key step_prev"}"#,
+        r#"{"v":1,"cmd":"control.binding","mapping":"Mackie Control","input":{"kind":"note","channel":1,"number":33},"action":"key step_prev"}"#,
     )
     .unwrap();
     assert!(dir.join("control/Mackie Control.json").exists());
@@ -1132,7 +1132,7 @@ fn ctl_30_editing_the_profile_saves_a_user_copy_that_hides_it() {
     // Deleting the copy brings the shipped profile back.
     req(
         &mut again,
-        r#"{"v":0,"cmd":"control.mapping_delete","name":"Mackie Control"}"#,
+        r#"{"v":1,"cmd":"control.mapping_delete","name":"Mackie Control"}"#,
     )
     .unwrap();
     assert_eq!(listed(&again), [json!({"name": MC, "profile": true})]);
@@ -1140,12 +1140,12 @@ fn ctl_30_editing_the_profile_saves_a_user_copy_that_hides_it() {
     // The profile itself cannot be deleted or renamed.
     assert!(req(
         &mut again,
-        r#"{"v":0,"cmd":"control.mapping_delete","name":"Mackie Control"}"#,
+        r#"{"v":1,"cmd":"control.mapping_delete","name":"Mackie Control"}"#,
     )
     .is_err());
     assert!(req(
         &mut again,
-        r#"{"v":0,"cmd":"control.mapping_rename","name":"Mackie Control","to":"mine"}"#,
+        r#"{"v":1,"cmd":"control.mapping_rename","name":"Mackie Control","to":"mine"}"#,
     )
     .is_err());
     assert_eq!(listed(&again), [json!({"name": MC, "profile": true})]);
@@ -1248,7 +1248,7 @@ fn ctl_31_the_user_sets_the_unit_order() {
     let e = engine_fpp(16);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.order","devices":["X-Touch-Ext","BCF2000"]}"#,
+        r#"{"v":1,"cmd":"control.order","devices":["X-Touch-Ext","BCF2000"]}"#,
     )
     .unwrap();
     assert_eq!(
@@ -1270,7 +1270,7 @@ fn ctl_31_the_user_sets_the_unit_order() {
     );
     req(
         &mut again,
-        r#"{"v":0,"cmd":"control.enable","device":"A-X-Touch","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"A-X-Touch","on":true}"#,
     )
     .unwrap();
     let e = engine_fpp(24);
@@ -1395,7 +1395,7 @@ fn ctl_20_a_touched_motor_gets_no_position_until_release_and_touch_never_learns(
     assert!(c.feedback(&e).contains(&motor("BCF2000", 1, 0.7)));
     assert!(!c.feedback(&e).iter().any(|o| o.bytes[0] == 0xE0), "once");
     // Learn ignores touch (CTL-25).
-    req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"go"}"#).unwrap();
+    req(&mut c, r#"{"v":1,"cmd":"control.learn","action":"go"}"#).unwrap();
     packet(&mut c, "BCF2000", &note(105, 127));
     assert_eq!(c.snapshot()["learn"], "go");
 }
@@ -1431,7 +1431,7 @@ fn ctl_59_fan_buttons_toggle_set_and_turn_off_with_led_feedback() {
     ports(&mut c, &[port("nano", true)]);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.enable","device":"nano","on":true}"#,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
     )
     .unwrap();
     let mut e = engine();

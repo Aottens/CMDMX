@@ -1303,7 +1303,7 @@ impl Control {
     pub fn mapping_reply(&self, name: &str) -> String {
         match self.mappings.get(name).map(serde_json::to_value) {
             Some(Ok(mapping)) => {
-                json!({"v": 0, "type": "control.mapping", "name": name, "mapping": mapping})
+                json!({"v": crate::ipc::PROTOCOL, "type": "control.mapping", "name": name, "mapping": mapping})
                     .to_string()
             }
             _ => ipc::error(&format!("unknown mapping '{name}'")),

@@ -28,7 +28,7 @@ struct ProgrammerWindow: View {
     private static let columns = ["I", "P", "C", "B"]
 
     var body: some View {
-        let rows = engine.programmer.contents
+        let rows = engine.programmer.contents.filter { $0.item.cell == nil }   // cells show with VS2-34
         let fixtures = Dictionary(engine.fixtures.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
         PanelWindow(title: "Programmer", info: rows.isEmpty ? "empty" : "\(rows.count) fixtures", accessory: { EmptyView() }) {

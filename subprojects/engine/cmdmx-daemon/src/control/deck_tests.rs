@@ -60,7 +60,7 @@ fn req(c: &mut Control, json: &str) -> Result<(), String> {
 }
 
 fn enable(c: &mut Control, on: bool) {
-    let j = json!({"v":0,"cmd":"control.enable","device":DECK,"on":on}).to_string();
+    let j = json!({"v":1,"cmd":"control.enable","device":DECK,"on":on}).to_string();
     req(c, &j).unwrap();
 }
 
@@ -166,7 +166,7 @@ fn ctl_45_an_unknown_elgato_product_is_unsupported_with_one_warning_and_never_op
         msgs[0].contains(name) && msgs[0].contains("not supported"),
         "{msgs:?}"
     );
-    let j = json!({"v":0,"cmd":"control.enable","device":name,"on":true}).to_string();
+    let j = json!({"v":1,"cmd":"control.enable","device":name,"on":true}).to_string();
     assert!(req(&mut c, &j).is_err());
     assert!(c.deck_out(&engine()).is_empty());
 }
@@ -296,7 +296,7 @@ fn ctl_48_deck_page_keys_switch_only_the_deck_and_send_that_page() {
     enable(&mut c, true);
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
+        &json!({"v":1,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
     )
     .unwrap();
     state(&mut c, DeckState::Ok);
@@ -361,7 +361,7 @@ fn ctl_53_brightness_is_set_kept_in_state_json_and_refused_out_of_range() {
     assert_eq!(device(&c.snapshot(), DECK)["brightness"], 70);
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.deck","device":DECK,"brightness":40}).to_string(),
+        &json!({"v":1,"cmd":"control.deck","device":DECK,"brightness":40}).to_string(),
     )
     .unwrap();
     let out = c.deck_out(&e);
@@ -383,9 +383,9 @@ fn ctl_53_brightness_is_set_kept_in_state_json_and_refused_out_of_range() {
             .any(|o| matches!(o, DeckCmd::Open { name, brightness: 40 } if name == DECK)),
         "{out:?}"
     );
-    let bad = json!({"v":0,"cmd":"control.deck","device":DECK,"brightness":101}).to_string();
+    let bad = json!({"v":1,"cmd":"control.deck","device":DECK,"brightness":101}).to_string();
     assert!(req(&mut c, &bad).is_err());
-    let bad = json!({"v":0,"cmd":"control.deck","device":"nope","brightness":50}).to_string();
+    let bad = json!({"v":1,"cmd":"control.deck","device":"nope","brightness":50}).to_string();
     assert!(req(&mut c, &bad).is_err());
 }
 
@@ -433,7 +433,7 @@ fn ctl_56_a_key_press_learns_at_once_on_the_current_deck_page() {
     let (mut c, dir) = ready("learn", &e);
     req(
         &mut c,
-        r#"{"v":0,"cmd":"control.learn","action":"upper 3"}"#,
+        r#"{"v":1,"cmd":"control.learn","action":"upper 3"}"#,
     )
     .unwrap();
     press(&mut c, 14);
@@ -488,13 +488,13 @@ fn ctl_56_learning_on_deck_page_2_binds_on_page_2() {
     enable(&mut c, true);
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
+        &json!({"v":1,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
     )
     .unwrap();
     state(&mut c, DeckState::Ok);
     press(&mut c, 1);
     c.commands(&e, 0.0);
-    req(&mut c, r#"{"v":0,"cmd":"control.learn","action":"dbo"}"#).unwrap();
+    req(&mut c, r#"{"v":1,"cmd":"control.learn","action":"dbo"}"#).unwrap();
     press(&mut c, 5);
     let msgs = c.take_messages();
     assert_eq!(
@@ -642,7 +642,7 @@ fn two_pages(test: &str, e: &Engine) -> (Control, PathBuf) {
     enable(&mut c, true);
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
+        &json!({"v":1,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
     )
     .unwrap();
     state(&mut c, DeckState::Ok);
@@ -668,7 +668,7 @@ fn ctl_67_control_deck_page_sets_the_deck_page_and_sends_it_in_full() {
     assert_eq!(device(&c.snapshot(), DECK)["deck_page"], 1);
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.deck","device":DECK,"page":2}).to_string(),
+        &json!({"v":1,"cmd":"control.deck","device":DECK,"page":2}).to_string(),
     )
     .unwrap();
     assert_eq!(device(&c.snapshot(), DECK)["deck_page"], 2);
@@ -684,27 +684,27 @@ fn ctl_67_control_deck_page_sets_the_deck_page_and_sends_it_in_full() {
     assert_eq!(device(&c.snapshot(), DECK)["brightness"], 70);
     let err = req(
         &mut c,
-        &json!({"v":0,"cmd":"control.deck","device":DECK,"page":4}).to_string(),
+        &json!({"v":1,"cmd":"control.deck","device":DECK,"page":4}).to_string(),
     )
     .unwrap_err();
     assert_eq!(err, "deck page 4 outside 1..=3");
     assert!(req(
         &mut c,
-        &json!({"v":0,"cmd":"control.deck","device":DECK,"page":0}).to_string(),
+        &json!({"v":1,"cmd":"control.deck","device":DECK,"page":0}).to_string(),
     )
     .is_err());
     assert_eq!(device(&c.snapshot(), DECK)["deck_page"], 2);
     // Brightness alone still works; neither field is refused.
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.deck","device":DECK,"brightness":30}).to_string(),
+        &json!({"v":1,"cmd":"control.deck","device":DECK,"brightness":30}).to_string(),
     )
     .unwrap();
     assert_eq!(device(&c.snapshot(), DECK)["brightness"], 30);
     assert_eq!(device(&c.snapshot(), DECK)["deck_page"], 2);
     assert!(req(
         &mut c,
-        &json!({"v":0,"cmd":"control.deck","device":DECK}).to_string()
+        &json!({"v":1,"cmd":"control.deck","device":DECK}).to_string()
     )
     .is_err());
 }
@@ -717,7 +717,7 @@ fn ctl_67_binding_and_unbind_pick_the_binding_on_its_deck_page() {
     // Edit page 2's key 5: page 1's stays as it is.
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.binding","mapping":"mine","input":five,"deck_page":2,"label":"Dark"})
+        &json!({"v":1,"cmd":"control.binding","mapping":"mine","input":five,"deck_page":2,"label":"Dark"})
             .to_string(),
     )
     .unwrap();
@@ -733,13 +733,13 @@ fn ctl_67_binding_and_unbind_pick_the_binding_on_its_deck_page() {
     let six = json!({"kind":"key","number":6});
     assert!(req(
         &mut c,
-        &json!({"v":0,"cmd":"control.binding","mapping":"mine","input":six,"deck_page":2,"label":"x"})
+        &json!({"v":1,"cmd":"control.binding","mapping":"mine","input":six,"deck_page":2,"label":"x"})
             .to_string(),
     )
     .is_err());
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.binding","mapping":"mine","input":six,"deck_page":2,"action":"go"})
+        &json!({"v":1,"cmd":"control.binding","mapping":"mine","input":six,"deck_page":2,"action":"go"})
             .to_string(),
     )
     .unwrap();
@@ -748,7 +748,7 @@ fn ctl_67_binding_and_unbind_pick_the_binding_on_its_deck_page() {
     // Unbind with a deck page removes only that page's binding; without one, page 1's.
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2})
+        &json!({"v":1,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2})
             .to_string(),
     )
     .unwrap();
@@ -757,13 +757,13 @@ fn ctl_67_binding_and_unbind_pick_the_binding_on_its_deck_page() {
     assert_eq!(b[0]["action"], "go");
     assert!(req(
         &mut c,
-        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2})
+        &json!({"v":1,"cmd":"control.unbind","mapping":"mine","input":five,"deck_page":2})
             .to_string(),
     )
     .is_err());
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.unbind","mapping":"mine","input":five}).to_string(),
+        &json!({"v":1,"cmd":"control.unbind","mapping":"mine","input":five}).to_string(),
     )
     .unwrap();
     assert!(bindings_of(&c, 5).is_empty());
@@ -808,7 +808,7 @@ fn ctl_47_a_continuous_action_on_a_key_only_shows() {
     enable(&mut c, true);
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
+        &json!({"v":1,"cmd":"control.assign","device":DECK,"mapping":"mine"}).to_string(),
     )
     .unwrap();
     state(&mut c, DeckState::Ok);
@@ -837,7 +837,7 @@ fn ctl_57_each_key_says_whether_it_is_fixed() {
     let (mut c, _) = ready("fixed", &e);
     req(
         &mut c,
-        &json!({"v":0,"cmd":"control.binding","mapping":"Stream Deck Original","input":{"kind":"key","number":9},"action":"upper 1.4"})
+        &json!({"v":1,"cmd":"control.binding","mapping":"Stream Deck Original","input":{"kind":"key","number":9},"action":"upper 1.4"})
             .to_string(),
     )
     .unwrap();

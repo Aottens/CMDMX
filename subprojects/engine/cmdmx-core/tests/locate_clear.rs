@@ -919,7 +919,8 @@ fn prg_35_the_view_shows_the_located_set_and_highlight() {
     e.set_highlight(true).unwrap();
     let view = e.programmer_view();
     assert_eq!(
-        view.located.get(&101),
+        view.located
+            .get(&cmdmx_core::programmer::Item::fixture(101)),
         Some(&vec!["Pan".to_string(), "Tilt".to_string()])
     );
     assert!(view.highlight);

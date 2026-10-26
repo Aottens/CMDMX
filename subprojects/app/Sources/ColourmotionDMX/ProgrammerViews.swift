@@ -161,7 +161,7 @@ struct AttributeBar: View {
                 .truncationMode(.tail).frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 4) {
-                Text(verbatim: !programmer.inProgrammer.isEmpty ? "\(programmer.inProgrammer.count) fx · \(touchedGroups)" : "empty")
+                Text(verbatim: !programmer.inProgrammer.isEmpty ? "\(Set(programmer.inProgrammer.map(\.fixture)).count) fx · \(touchedGroups)" : "empty")
                     .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
                     .lineLimit(1).padding(.horizontal, 8).frame(minWidth: 90, alignment: .leading)
                 Button("Undo") { ui.learnOrRun("key undo", engine) { engine.undo() } }.disabled(engine.undoLabel == nil && !ui.learnMode).help(engine.undoLabel.map { "Undo: \($0) · ⌘Z" } ?? "Nothing to undo")

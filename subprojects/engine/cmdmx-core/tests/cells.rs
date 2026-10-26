@@ -5,7 +5,12 @@
 //! dimmer without cells. The merge (PRG-47, 51) and storage (PRG-52) have
 //! their own files.
 
-#![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
+#![allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::indexing_slicing
+)]
 
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::{Fixture, FixtureId};
@@ -417,7 +422,11 @@ fn prg_55_selection_and_sub_selection_are_item_lists() {
     assert_eq!(v.targets, v.selection, "no sub-selection: all items");
     e.next_fixture();
     e.next_fixture();
-    assert_eq!(e.programmer_view().targets, vec![c(902, 2)], "Fix +1 steps items");
+    assert_eq!(
+        e.programmer_view().targets,
+        vec![c(902, 2)],
+        "Fix +1 steps items"
+    );
 }
 
 #[test]
@@ -428,7 +437,11 @@ fn prg_55_in_programmer_lists_items_sorted() {
     let v = e.programmer_view();
     assert_eq!(v.in_programmer, vec![f(201), f(901), c(902, 2)]);
     let keyed: Vec<Item> = v.contents.iter().map(|x| x.fixture).collect();
-    assert_eq!(keyed, vec![f(201), f(901), c(902, 2)], "contents keyed by item");
+    assert_eq!(
+        keyed,
+        vec![f(201), f(901), c(902, 2)],
+        "contents keyed by item"
+    );
 }
 
 #[test]

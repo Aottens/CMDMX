@@ -482,16 +482,52 @@ struct CueViewValue: Decodable, Equatable {
     let palette: Int?
 }
 
-struct CueViewFixture: Decodable, Identifiable, Equatable {
+/// IPC-42: a selection item, a whole fixture (`cell == nil`, wire: an integer) or one cell of it
+/// (wire: the string `"901.2"`, cells are 1-based).
+struct Item: Hashable, Decodable {
     let fixture: Int
+    let cell: Int?
+
+    init(fixture: Int, cell: Int? = nil) {
+        self.fixture = fixture
+        self.cell = cell
+    }
+
+    /// Parses `"901"` or `"901.2"`; also the form of a `located` key.
+    init?(_ text: String) {
+        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count <= 2, let f = Int(parts[0]) else { return nil }
+        if parts.count == 2 {
+            guard let c = Int(parts[1]) else { return nil }
+            self.init(fixture: f, cell: c)
+        } else {
+            self.init(fixture: f)
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if let f = try? c.decode(Int.self) {
+            self.init(fixture: f)
+        } else if let s = try? c.decode(String.self), let item = Item(s) {
+            self = item
+        } else {
+            throw DecodingError.dataCorruptedError(in: c, debugDescription: "not an item")
+        }
+    }
+}
+
+struct CueViewFixture: Decodable, Identifiable, Equatable {
+    let item: Item
     let values: [String: CueViewValue]
-    var id: Int { fixture }
+    var id: Item { item }
+    var fixture: Int { item.fixture }
 
     private enum CodingKeys: String, CodingKey { case fixture, values }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        fixture = try c.decode(Int.self, forKey: .fixture)
+        item = try c.decode(Item.self, forKey: .fixture)
         values = ((try? c.decode([String: Tolerant<CueViewValue>].self, forKey: .values)) ?? [:]).compactMapValues(\.value)
     }
 }
@@ -552,6 +588,8 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     let universe: Int
     let address: Int
     let footprint: Int
+    /// IPC-42: the mode's cell count, 0 without cells.
+    let cells: Int
     let virtualDimmer: Bool
     let handle: Handle?
     /// Attribute name → group letter (IPC-21); places programmer values in the I/P/C/B columns.
@@ -560,7 +598,7 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     let modes: [String]
 
     private enum CodingKeys: String, CodingKey {
-        case id, number, name, profile, mode, universe, address, footprint, handle, attributes, modes
+        case id, number, name, profile, mode, universe, address, footprint, cells, handle, attributes, modes
         case virtualDimmer = "virtual_dimmer"
     }
 
@@ -574,6 +612,7 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
         universe = (try? c.decode(Int.self, forKey: .universe)) ?? 0
         address = (try? c.decode(Int.self, forKey: .address)) ?? 0
         footprint = (try? c.decode(Int.self, forKey: .footprint)) ?? 0
+        cells = (try? c.decode(Int.self, forKey: .cells)) ?? 0
         virtualDimmer = (try? c.decode(Bool.self, forKey: .virtualDimmer)) ?? false
         handle = try? c.decode(Handle.self, forKey: .handle)
         attributes = (try? c.decode([String: String].self, forKey: .attributes)) ?? [:]
@@ -744,7 +783,7 @@ private struct SnapshotUndo: Decodable { let undo: Tolerant<UndoLabels>? }
 /// One recorded group; `fixtures` are in group order (IPC-10).
 struct GroupInfo: Decodable, Identifiable, Equatable {
     let id: Int
-    let fixtures: [Int]
+    let fixtures: [Item]
 }
 
 /// One attribute-group tab I P C G B E S FX (IPC-11).
@@ -804,19 +843,20 @@ enum ProgrammerValue: Decodable, Equatable {
 
 /// The programmer values of one fixture, by attribute name (IPC-21).
 struct ProgrammerContent: Decodable, Identifiable, Equatable {
-    let fixture: Int
+    let item: Item
     let values: [String: ProgrammerValue]
     /// PAL-26: attribute name → palette id, for the values that are palette references.
     let palettes: [String: Int]
     /// PAL-26: attribute name → progress 0...1 of a palette fade still running; absent once done.
     let fading: [String: Double]
-    var id: Int { fixture }
+    var id: Item { item }
+    var fixture: Int { item.fixture }
 
     private enum CodingKeys: String, CodingKey { case fixture, values, palettes, fading }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        fixture = try c.decode(Int.self, forKey: .fixture)
+        item = try c.decode(Item.self, forKey: .fixture)
         let raw = (try? c.decode([String: Tolerant<ProgrammerValue>].self, forKey: .values)) ?? [:]
         values = raw.compactMapValues(\.value)
         palettes = (try? c.decode([String: Int].self, forKey: .palettes)) ?? [:]
@@ -945,12 +985,12 @@ struct ProgrammerSettings: Decodable, Equatable {
 /// Mirror of the engine's programmer state (IPC-11). Fields missing from a
 /// message fall back to empty so a malformed message cannot drop a snapshot.
 struct ProgrammerState: Decodable, Equatable {
-    var selection: [Int] = []
-    var targets: [Int] = []
+    var selection: [Item] = []
+    var targets: [Item] = []
     var activeGroup: String = ""
     var attributeGroups: [AttributeGroupState] = []
     var wheels: [WheelState] = []
-    var inProgrammer: [Int] = []
+    var inProgrammer: [Item] = []
     /// `Hsi`, `Rgb` or `Cmy` (IPC-11, PRG-30).
     var colourModel: String = "Hsi"
     /// IPC-21: programmer values per fixture; IPC-22: the first target's colour, nil without one.
@@ -959,7 +999,7 @@ struct ProgrammerState: Decodable, Equatable {
     /// PAL-26: palette ids referenced in the programmer, and those relevant to the selection.
     var palettes = PaletteUse()
     /// IPC-32: fixture id → attributes that Locate drives; Highlight on or off.
-    var located: [Int: [String]] = [:]
+    var located: [Item: [String]] = [:]
     var highlight = false
     /// IPC-43: the Fan curve while Fan is on (nil = off) and the last curve used.
     var fan: String?
@@ -978,18 +1018,18 @@ struct ProgrammerState: Decodable, Equatable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        selection = (try? c.decode([Int].self, forKey: .selection)) ?? []
-        targets = (try? c.decode([Int].self, forKey: .targets)) ?? []
+        selection = (try? c.decode([Item].self, forKey: .selection)) ?? []
+        targets = (try? c.decode([Item].self, forKey: .targets)) ?? []
         activeGroup = (try? c.decode(String.self, forKey: .activeGroup)) ?? ""
         attributeGroups = (try? c.decode([AttributeGroupState].self, forKey: .attributeGroups)) ?? []
         wheels = (try? c.decode([WheelState].self, forKey: .wheels)) ?? []
-        inProgrammer = (try? c.decode([Int].self, forKey: .inProgrammer)) ?? []
+        inProgrammer = (try? c.decode([Item].self, forKey: .inProgrammer)) ?? []
         colourModel = (try? c.decode(String.self, forKey: .colourModel)) ?? "Hsi"
         contents = ((try? c.decode([Tolerant<ProgrammerContent>].self, forKey: .contents)) ?? []).compactMap(\.value)
         colour = try? c.decode(TargetColour.self, forKey: .colour)
         palettes = (try? c.decode(PaletteUse.self, forKey: .palettes)) ?? PaletteUse()
         let rawLocated = (try? c.decode([String: [String]].self, forKey: .located)) ?? [:]
-        located = Dictionary(rawLocated.compactMap { key, value in Int(key).map { ($0, value) } }, uniquingKeysWith: { a, _ in a })
+        located = Dictionary(rawLocated.compactMap { key, value in Item(key).map { ($0, value) } }, uniquingKeysWith: { a, _ in a })
         highlight = (try? c.decode(Bool.self, forKey: .highlight)) ?? false
         fan = try? c.decode(String.self, forKey: .fan)
         fanCurve = (try? c.decode(String.self, forKey: .fanCurve)) ?? "Line"
@@ -1151,7 +1191,7 @@ final class EngineClient: ObservableObject {
     }()
 
     /// The protocol version this app speaks (IPC-41); the one place to bump.
-    nonisolated static let protocolVersion = 0
+    nonisolated static let protocolVersion = 1
     /// The engine's version ("v1", or "no version") while its snapshot named another; nothing
     /// from it is shown.
     @Published private(set) var protocolMismatch: String?

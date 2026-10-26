@@ -210,7 +210,7 @@ private struct ProfileDocEditor: View {
     // MARK: Test (LIB-27)
 
     private var testNumbers: [Int] {
-        let selected = Set(engine.programmer.selection)
+        let selected = Set(engine.programmer.selection.map(\.fixture))
         return engine.fixtures.filter { $0.profile == target.key && selected.contains($0.id) }.map(\.number).sorted()
     }
 

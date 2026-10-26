@@ -39,8 +39,8 @@ use cmdmx_core::playback::{
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
-    ClearLtp, ClearPrecedence, FanCurve, GroupId, ProgrammerSettingsChange, ProgrammerView,
-    Resolution,
+    serialize_wire_item, serialize_wire_items, ClearLtp, ClearPrecedence, FanCurve, GroupId, Item,
+    ProgrammerSettingsChange, ProgrammerView, Resolution,
 };
 use cmdmx_core::value::{Stored, Value};
 use cmdmx_core::CoreError;
@@ -58,7 +58,7 @@ use crate::shows::{valid_name, Opened, ShowRequest, ShowState, Shows};
 const QUEUE: usize = 64;
 
 /// The protocol version this engine speaks; a command naming another is refused (IPC-41).
-pub const PROTOCOL: u64 = 0;
+pub const PROTOCOL: u64 = 1;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
@@ -94,6 +94,8 @@ pub enum Command {
     /// IPC-13: the programmer commands map 1:1 onto engine methods.
     Select {
         fixture: FixtureId,
+        /// IPC-42: a cell of the fixture (1-based); `None` = the whole fixture.
+        cell: Option<u16>,
     },
     SelectGroup {
         group: GroupId,
@@ -848,7 +850,7 @@ pub fn ports_reply(ports: &[serialport::SerialPortInfo]) -> String {
             }),
         })
         .collect();
-    serde_json::json!({"v": 0, "type": "ports", "ports": ports}).to_string()
+    serde_json::json!({"v": PROTOCOL, "type": "ports", "ports": ports}).to_string()
 }
 
 /// CTL-40: `control.*` to a command; an unknown action or input is refused here.
@@ -990,6 +992,10 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         }),
         Some("programmer.select") => Ok(Command::Select {
             fixture: uint(&v, "fixture")?,
+            cell: match opt_uint::<u16>(&v, "cell")? {
+                Some(0) => return Err("missing or invalid \"cell\"".to_string()),
+                cell => cell,
+            },
         }),
         Some("programmer.select_group") => Ok(Command::SelectGroup {
             group: uint(&v, "group")?,
@@ -1826,6 +1832,8 @@ struct FixtureInfo<'a> {
     universe: UniverseId,
     address: u16,
     footprint: u16,
+    /// IPC-42: the mode's cell count, 0 without cells.
+    cells: usize,
     virtual_dimmer: bool,
     handle: Option<Handle>,
     /// IPC-21: attribute name to group, for placing programmer values.
@@ -1837,7 +1845,8 @@ struct FixtureInfo<'a> {
 #[derive(Serialize)]
 struct GroupInfo<'a> {
     id: GroupId,
-    fixtures: &'a [FixtureId],
+    #[serde(serialize_with = "serialize_wire_items")]
+    fixtures: &'a [Item],
 }
 
 /// PAL-25: one palette as clients draw it.
@@ -1890,7 +1899,7 @@ fn programmer_settings(engine: &Engine) -> ProgrammerSettings {
 
 #[derive(Serialize)]
 struct ProgrammerSettingsDelta {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     #[serde(flatten)]
@@ -1899,7 +1908,7 @@ struct ProgrammerSettingsDelta {
 
 #[derive(Serialize)]
 struct PaletteSettingsDelta {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     #[serde(flatten)]
@@ -1908,7 +1917,7 @@ struct PaletteSettingsDelta {
 
 #[derive(Serialize)]
 struct PalettesDelta<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     palettes: &'a [PaletteInfo],
@@ -1936,7 +1945,7 @@ fn palette_infos(engine: &Engine) -> Vec<PaletteInfo> {
 
 #[derive(Serialize)]
 struct Snapshot<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     faders_per_page: u16,
@@ -1995,7 +2004,7 @@ fn output_jsons(outputs: &[OutputStatus]) -> Vec<OutputJson> {
 
 #[derive(Serialize)]
 struct ShowDelta<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     #[serde(flatten)]
@@ -2004,7 +2013,7 @@ struct ShowDelta<'a> {
 
 #[derive(Serialize)]
 struct OutputsDelta {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     outputs: Vec<OutputJson>,
@@ -2012,7 +2021,7 @@ struct OutputsDelta {
 
 #[derive(Serialize)]
 struct ProgrammerDelta<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     #[serde(flatten)]
@@ -2021,7 +2030,7 @@ struct ProgrammerDelta<'a> {
 
 #[derive(Serialize)]
 struct GroupsDelta<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     groups: Vec<GroupInfo<'a>>,
@@ -2029,7 +2038,7 @@ struct GroupsDelta<'a> {
 
 #[derive(Serialize)]
 struct FixturesDelta<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     fixtures: Vec<FixtureInfo<'a>>,
@@ -2037,7 +2046,7 @@ struct FixturesDelta<'a> {
 
 #[derive(Serialize)]
 struct PlaybackDelta {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     id: PlaybackId,
@@ -2047,7 +2056,7 @@ struct PlaybackDelta {
 
 #[derive(Serialize)]
 struct ConnectedDelta {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     id: Option<PlaybackId>,
@@ -2055,7 +2064,7 @@ struct ConnectedDelta {
 
 #[derive(Serialize)]
 struct PlaybacksDelta<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     playbacks: Vec<PlaybackEntry<'a>>,
@@ -2063,7 +2072,7 @@ struct PlaybacksDelta<'a> {
 
 #[derive(Serialize)]
 struct PagesDelta<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     pages: &'a [PageLegendInfo],
@@ -2071,7 +2080,7 @@ struct PagesDelta<'a> {
 
 #[derive(Serialize)]
 struct DboDelta {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     on: bool,
@@ -2079,7 +2088,7 @@ struct DboDelta {
 
 #[derive(Serialize)]
 struct PlaybackSettingsDelta<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     #[serde(flatten)]
@@ -2088,7 +2097,7 @@ struct PlaybackSettingsDelta<'a> {
 
 #[derive(Serialize)]
 struct GrandMasterDelta {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     level: f32,
@@ -2096,7 +2105,7 @@ struct GrandMasterDelta {
 
 #[derive(Serialize)]
 struct PageDelta {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     #[serde(flatten)]
@@ -2105,7 +2114,7 @@ struct PageDelta {
 
 #[derive(Serialize)]
 struct Text<'a> {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     message: &'a str,
@@ -2128,7 +2137,7 @@ fn entries<'a>(stored: &'a [StoredInfo], engine: &Engine) -> Vec<PlaybackEntry<'
         .collect()
 }
 
-fn group_infos(groups: &BTreeMap<GroupId, Vec<FixtureId>>) -> Vec<GroupInfo<'_>> {
+fn group_infos(groups: &BTreeMap<GroupId, Vec<Item>>) -> Vec<GroupInfo<'_>> {
     groups
         .iter()
         .map(|(id, fixtures)| GroupInfo { id: *id, fixtures })
@@ -2150,6 +2159,7 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
                 universe: f.universe,
                 address: f.address,
                 footprint: mode.map_or(0, |m| m.footprint),
+                cells: mode.map_or(0, |m| m.cells.len()),
                 virtual_dimmer: mode.is_some_and(|m| m.has_virtual_dimmer()),
                 handle: f.handle,
                 attributes: (mode.iter())
@@ -2175,7 +2185,7 @@ pub fn snapshot(
     let stored = stored_infos(engine);
     let groups = engine.groups();
     to_json(&Snapshot {
-        v: 0,
+        v: PROTOCOL,
         kind: "snapshot",
         faders_per_page: engine.settings().faders_per_page,
         grand_master: engine.grand_master(),
@@ -2210,13 +2220,14 @@ struct CueViewValue {
 
 #[derive(Serialize)]
 struct CueViewFixture {
-    fixture: FixtureId,
+    #[serde(serialize_with = "serialize_wire_item")]
+    fixture: Item,
     values: BTreeMap<String, CueViewValue>,
 }
 
 #[derive(Serialize)]
 struct CueViewMessage {
-    v: u8,
+    v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
     playback: PlaybackId,
@@ -2227,11 +2238,9 @@ struct CueViewMessage {
 /// CUE-54, IPC-24: the answer to `cue.view`, sorted by fixture; a palette reference shows what
 /// its palette resolves (as `contents`, IPC-21) with its id.
 pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<String, CoreError> {
-    // The wire lists whole fixtures until it carries items (VS2-33).
     let fixtures = (engine.cue_view(id, cue)?.into_iter())
-        .filter(|(item, _)| item.cell.is_none())
         .map(|(item, attributes)| CueViewFixture {
-            fixture: item.fixture,
+            fixture: item,
             values: (attributes.into_iter())
                 .map(|(name, v)| {
                     let palette = match v.value {
@@ -2250,7 +2259,7 @@ pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<Strin
         })
         .collect();
     Ok(to_json(&CueViewMessage {
-        v: 0,
+        v: PROTOCOL,
         kind: "cue.view",
         playback: id,
         cue,
@@ -2260,7 +2269,7 @@ pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<Strin
 
 pub fn error(msg: &str) -> String {
     to_json(&Text {
-        v: 0,
+        v: PROTOCOL,
         kind: "error",
         message: msg,
     })
@@ -2268,7 +2277,7 @@ pub fn error(msg: &str) -> String {
 
 pub fn warning(msg: &str) -> String {
     to_json(&Text {
-        v: 0,
+        v: PROTOCOL,
         kind: "warning",
         message: msg,
     })
@@ -2285,7 +2294,7 @@ pub struct Published {
     dbo: bool,
     playback_settings: PlaybackSettingsInfo,
     programmer: ProgrammerView,
-    groups: BTreeMap<GroupId, Vec<FixtureId>>,
+    groups: BTreeMap<GroupId, Vec<Item>>,
     palettes: Vec<PaletteInfo>,
     palette_settings: PaletteSettings,
     programmer_settings: ProgrammerSettings,
@@ -2328,7 +2337,7 @@ impl Published {
         }
         self.undo = info.clone();
         Some(to_json(&serde_json::json!({
-            "v": 0,
+            "v": PROTOCOL,
             "type": "undo",
             "undo": info.undo,
             "redo": info.redo,
@@ -2347,7 +2356,7 @@ impl Published {
         let stored = stored_infos(engine);
         if stored_changed(&self.stored, &stored) {
             out.push(to_json(&PlaybacksDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "playbacks",
                 playbacks: entries(&stored, engine),
             }));
@@ -2361,7 +2370,7 @@ impl Published {
                 let now = live_info(engine, s.id);
                 if self.live.insert(s.id, now) != Some(now) {
                     out.push(to_json(&PlaybackDelta {
-                        v: 0,
+                        v: PROTOCOL,
                         kind: "playback",
                         id: s.id,
                         live: now,
@@ -2375,7 +2384,7 @@ impl Published {
         if connected != self.connected {
             self.connected = connected;
             out.push(to_json(&ConnectedDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "connected",
                 id: connected,
             }));
@@ -2384,7 +2393,7 @@ impl Published {
         if gm != self.grand_master {
             self.grand_master = gm;
             out.push(to_json(&GrandMasterDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "grand_master",
                 level: gm,
             }));
@@ -2394,7 +2403,7 @@ impl Published {
         if page != self.page {
             self.page = page.clone();
             out.push(to_json(&PageDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "page",
                 page,
             }));
@@ -2402,7 +2411,7 @@ impl Published {
         let pages = page_legends(engine);
         if pages != self.pages {
             out.push(to_json(&PagesDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "pages",
                 pages: &pages,
             }));
@@ -2411,7 +2420,7 @@ impl Published {
         if engine.dbo() != self.dbo {
             self.dbo = engine.dbo();
             out.push(to_json(&DboDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "dbo",
                 on: self.dbo,
             }));
@@ -2419,7 +2428,7 @@ impl Published {
         let settings = playback_settings(engine);
         if settings != self.playback_settings {
             out.push(to_json(&PlaybackSettingsDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "playback_settings",
                 settings: &settings,
             }));
@@ -2429,7 +2438,7 @@ impl Published {
         let view = engine.programmer_view();
         if view != self.programmer {
             out.push(to_json(&ProgrammerDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "programmer",
                 view: &view,
             }));
@@ -2439,7 +2448,7 @@ impl Published {
         if groups != self.groups {
             self.groups = groups;
             out.push(to_json(&GroupsDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "groups",
                 groups: group_infos(&self.groups),
             }));
@@ -2448,7 +2457,7 @@ impl Published {
         let palettes = palette_infos(engine);
         if palettes != self.palettes {
             out.push(to_json(&PalettesDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "palettes",
                 palettes: &palettes,
             }));
@@ -2458,7 +2467,7 @@ impl Published {
         let settings = palette_settings(engine);
         if settings != self.palette_settings {
             out.push(to_json(&PaletteSettingsDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "palette_settings",
                 settings: settings.clone(),
             }));
@@ -2468,7 +2477,7 @@ impl Published {
         let settings = programmer_settings(engine);
         if settings != self.programmer_settings {
             out.push(to_json(&ProgrammerSettingsDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "programmer_settings",
                 settings: settings.clone(),
             }));
@@ -2478,7 +2487,7 @@ impl Published {
         if !engine.fixtures().eq(self.fixtures.iter()) {
             self.fixtures = engine.fixtures().cloned().collect();
             out.push(to_json(&FixturesDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "fixtures",
                 fixtures: fixture_infos(engine),
             }));
@@ -2487,7 +2496,7 @@ impl Published {
         if outputs != self.outputs.as_slice() {
             self.outputs = outputs.to_vec();
             out.push(to_json(&OutputsDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "outputs",
                 outputs: output_jsons(outputs),
             }));
@@ -2496,7 +2505,7 @@ impl Published {
         if show != &self.show {
             self.show = show.clone();
             out.push(to_json(&ShowDelta {
-                v: 0,
+                v: PROTOCOL,
                 kind: "show",
                 state: show,
             }));
@@ -2540,7 +2549,7 @@ const LIBRARY_LOADING: &str = "library is loading; try again in a moment";
 const LIBRARY_POISONED: &str = "library is unavailable after an internal error";
 
 fn saved(manufacturer: &str, model: &str) -> serde_json::Value {
-    serde_json::json!({"v": 0, "type": "library.saved", "manufacturer": manufacturer, "model": model})
+    serde_json::json!({"v": PROTOCOL, "type": "library.saved", "manufacturer": manufacturer, "model": model})
 }
 
 fn library_reply(
@@ -2577,7 +2586,7 @@ fn library_reply(
                            "source": e.source})
                 })
                 .collect();
-            Ok(json!({"v": 0, "type": "library.results", "items": items}))
+            Ok(json!({"v": PROTOCOL, "type": "library.results", "items": items}))
         }
         LibraryRequest::Manufacturers { query } => {
             let guard = lib.read().map_err(|_| LIBRARY_POISONED)?;
@@ -2585,7 +2594,9 @@ fn library_reply(
                 .as_ref()
                 .ok_or(LIBRARY_LOADING)?
                 .manufacturers(query.as_deref().unwrap_or(""));
-            Ok(json!({"v": 0, "type": "library.manufacturers", "query": query, "items": items}))
+            Ok(
+                json!({"v": PROTOCOL, "type": "library.manufacturers", "query": query, "items": items}),
+            )
         }
         LibraryRequest::Models {
             manufacturer,
@@ -2597,7 +2608,7 @@ fn library_reply(
                 .ok_or(LIBRARY_LOADING)?
                 .models(manufacturer.as_deref(), query.as_deref().unwrap_or(""));
             Ok(
-                json!({"v": 0, "type": "library.models", "manufacturer": manufacturer,
+                json!({"v": PROTOCOL, "type": "library.models", "manufacturer": manufacturer,
                       "query": query, "items": items, "truncated": truncated}),
             )
         }
@@ -2611,7 +2622,7 @@ fn library_reply(
                 .ok_or(LIBRARY_LOADING)?
                 .import_report(&manufacturer, &model)?;
             Ok(
-                json!({"v": 0, "type": "library.import_report", "manufacturer": manufacturer,
+                json!({"v": PROTOCOL, "type": "library.import_report", "manufacturer": manufacturer,
                       "model": model, "report": report}),
             )
         }
@@ -2624,7 +2635,7 @@ fn library_reply(
                 .as_ref()
                 .ok_or(LIBRARY_LOADING)?
                 .profile(&manufacturer, &model)?;
-            Ok(json!({"v": 0, "type": "library.profile", "profile": profile}))
+            Ok(json!({"v": PROTOCOL, "type": "library.profile", "profile": profile}))
         }
     }
 }
@@ -2643,7 +2654,7 @@ pub fn patch_profile(engine: &Engine, key: &str) -> Result<String, CoreError> {
     let profile = engine
         .profile(key)
         .ok_or_else(|| CoreError::UnknownProfile(key.to_string()))?;
-    Ok(serde_json::json!({"v": 0, "type": "patch.profile", "profile_key": key, "profile": profile})
+    Ok(serde_json::json!({"v": PROTOCOL, "type": "patch.profile", "profile_key": key, "profile": profile})
         .to_string())
 }
 
@@ -2666,7 +2677,7 @@ pub fn write_user_profile(
         });
     match written {
         Ok(()) => {
-            serde_json::json!({"v": 0, "type": "library.saved", "manufacturer": profile.manufacturer,
+            serde_json::json!({"v": PROTOCOL, "type": "library.saved", "manufacturer": profile.manufacturer,
                 "model": profile.model, "fixtures": fixtures})
             .to_string()
         }
@@ -2676,7 +2687,7 @@ pub fn write_user_profile(
 
 /// SHW-15: the reply to `show.list`, to the asking client only.
 pub fn answer_show_list(shows: &Shows) -> String {
-    serde_json::json!({"v": 0, "type": "show.list", "shows": shows.list()}).to_string()
+    serde_json::json!({"v": PROTOCOL, "type": "show.list", "shows": shows.list()}).to_string()
 }
 
 /// SHW-15: what a show request becomes. Names are checked here (SHW-09) and an Open is read
@@ -2966,7 +2977,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
         ));
-        assert_eq!(v["v"], 0);
+        assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "snapshot");
         assert_eq!(v["faders_per_page"], 8);
         assert_eq!(v["grand_master"], 1.0);
@@ -3086,7 +3097,7 @@ mod tests {
         let d = published.diff(&e, &outs, &show_state());
         assert_eq!(d.len(), 1);
         let v = parse(&d[0]);
-        assert_eq!(v["v"], 0);
+        assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "outputs");
         assert_eq!(v["outputs"][0]["state"], "Stopped");
         assert_eq!(v["outputs"].as_array().unwrap().len(), 7);
@@ -3107,7 +3118,7 @@ mod tests {
         use cmdmx_core::output::NodeKind;
         let ok = |s: &str| parse_command(s).unwrap_or_else(|e| panic!("{s}: {e}"));
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"output.add","line":2,"kind":"artnet"}"#),
+            ok(r#"{"v":1,"cmd":"output.add","line":2,"kind":"artnet"}"#),
             Command::OutputAdd {
                 line: 2,
                 enabled: true,
@@ -3116,7 +3127,7 @@ mod tests {
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"output.add","line":3,"kind":"sacn","priority":150,"unicast":"10.0.0.5","enabled":false}"#
+                r#"{"v":1,"cmd":"output.add","line":3,"kind":"sacn","priority":150,"unicast":"10.0.0.5","enabled":false}"#
             ),
             Command::OutputAdd {
                 line: 3,
@@ -3130,7 +3141,7 @@ mod tests {
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"output.add","line":1,"kind":"artnet","port_address":17,"target":"2.255.255.255"}"#
+                r#"{"v":1,"cmd":"output.add","line":1,"kind":"artnet","port_address":17,"target":"2.255.255.255"}"#
             ),
             Command::OutputAdd {
                 line: 1,
@@ -3142,7 +3153,7 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"output.add","line":2,"kind":"serial"}"#),
+            ok(r#"{"v":1,"cmd":"output.add","line":2,"kind":"serial"}"#),
             Command::OutputAdd {
                 line: 2,
                 enabled: true,
@@ -3152,7 +3163,7 @@ mod tests {
             }
         );
         let Command::OutputEdit { id, change } =
-            ok(r#"{"v":0,"cmd":"output.edit","id":3,"target":"10.0.0.9","enabled":false}"#)
+            ok(r#"{"v":1,"cmd":"output.edit","id":3,"target":"10.0.0.9","enabled":false}"#)
         else {
             panic!("not an edit");
         };
@@ -3163,18 +3174,18 @@ mod tests {
             "only the fields to change; cmd, v and id are not among them"
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"output.remove","ids":[3,4]}"#),
+            ok(r#"{"v":1,"cmd":"output.remove","ids":[3,4]}"#),
             Command::OutputRemove { ids: vec![3, 4] }
         );
-        assert_eq!(ok(r#"{"v":0,"cmd":"output.ports"}"#), Command::OutputPorts);
+        assert_eq!(ok(r#"{"v":1,"cmd":"output.ports"}"#), Command::OutputPorts);
         for bad in [
-            r#"{"v":0,"cmd":"output.add","kind":"artnet"}"#,
-            r#"{"v":0,"cmd":"output.add","line":1}"#,
-            r#"{"v":0,"cmd":"output.add","line":1,"kind":"dmxking"}"#,
-            r#"{"v":0,"cmd":"output.add","line":1,"kind":"sacn","priority":"high"}"#,
-            r#"{"v":0,"cmd":"output.add","line":1,"kind":"artnet","port_address":-1}"#,
-            r#"{"v":0,"cmd":"output.edit","target":"10.0.0.9"}"#,
-            r#"{"v":0,"cmd":"output.remove","ids":3}"#,
+            r#"{"v":1,"cmd":"output.add","kind":"artnet"}"#,
+            r#"{"v":1,"cmd":"output.add","line":1}"#,
+            r#"{"v":1,"cmd":"output.add","line":1,"kind":"dmxking"}"#,
+            r#"{"v":1,"cmd":"output.add","line":1,"kind":"sacn","priority":"high"}"#,
+            r#"{"v":1,"cmd":"output.add","line":1,"kind":"artnet","port_address":-1}"#,
+            r#"{"v":1,"cmd":"output.edit","target":"10.0.0.9"}"#,
+            r#"{"v":1,"cmd":"output.remove","ids":3}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -3200,11 +3211,11 @@ mod tests {
                 "Art-Net port-address -1 is out of range (0 to 32767)",
             ),
         ] {
-            let add = format!(r#"{{"v":0,"cmd":"output.add","line":2,{fields}}}"#);
+            let add = format!(r#"{{"v":1,"cmd":"output.add","line":2,{fields}}}"#);
             assert_eq!(parse_command(&add), Err(text.to_string()), "{add}");
         }
         assert_eq!(
-            parse_command(r#"{"v":0,"cmd":"output.add","line":70000,"kind":"serial"}"#),
+            parse_command(r#"{"v":1,"cmd":"output.add","line":70000,"kind":"serial"}"#),
             Err("universe 70000 is out of range (1 to 65535)".to_string())
         );
     }
@@ -3243,7 +3254,7 @@ mod tests {
         ];
         assert_eq!(
             parse(&ports_reply(&ports)),
-            json!({"v":0,"type":"ports","ports":[
+            json!({"v":1,"type":"ports","ports":[
                 {"path":"/dev/cu.Bluetooth-Incoming-Port","product":null,"vid":null,"pid":null,
                  "enttec":false},
                 {"path":"/dev/cu.usbserial-A10KXYZ","product":"FT232R USB UART","vid":"0403",
@@ -3291,7 +3302,7 @@ mod tests {
     /// PAT-09: the test engine's one dimmer as a snapshot entry.
     fn dimmer_entry() -> Value {
         json!({"id":1,"number":1,"name":"","profile":"dimmer","mode":"default","universe":1,
-               "address":1,"footprint":1,"virtual_dimmer":false,"handle":{"page":1,"slot":1},
+               "address":1,"footprint":1,"cells":0,"virtual_dimmer":false,"handle":{"page":1,"slot":1},
                "attributes":{"Dimmer":"I"},"modes":["default"]})
     }
 
@@ -3324,7 +3335,7 @@ mod tests {
             v["fixtures"],
             json!([dimmer_entry(),
                    {"id":2,"number":221,"name":"Front left","profile":"Showtec/LED Par 56",
-                    "mode":"6 Channel","universe":1,"address":37,"footprint":6,
+                    "mode":"6 Channel","universe":1,"address":37,"footprint":6,"cells":0,
                     "virtual_dimmer":true,"handle":{"page":1,"slot":2},
                     "attributes":{"Dimmer":"I","Colour":"C","Mode":"S","Speed":"S","Strobe":"I"},
                     "modes":["6 Channel"]}])
@@ -3377,7 +3388,7 @@ mod tests {
             .filter(|m| m["type"] == "fixtures")
             .collect();
         assert_eq!(d.len(), 1);
-        assert_eq!(d[0]["v"], 0);
+        assert_eq!(d[0]["v"], 1);
         assert_eq!(d[0]["fixtures"][0]["number"], 42);
         e.tick(0.05);
         assert!(
@@ -3397,7 +3408,7 @@ mod tests {
         let ok = |s: &str| parse_command(s).unwrap();
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":6,"universe":1,"address":37,"number":221}"#
+                r#"{"v":1,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":6,"universe":1,"address":37,"number":221}"#
             ),
             Command::PatchAdd {
                 add: PatchAdd {
@@ -3414,7 +3425,7 @@ mod tests {
         // PAT-03: address and number are optional.
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1}"#
+                r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1}"#
             ),
             Command::PatchAdd {
                 add: PatchAdd {
@@ -3429,7 +3440,7 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.move","id":3,"universe":2,"address":101}"#),
+            ok(r#"{"v":1,"cmd":"patch.move","id":3,"universe":2,"address":101}"#),
             Command::PatchMove {
                 ids: vec![3],
                 universe: 2,
@@ -3437,32 +3448,32 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.remove","ids":[3,4]}"#),
+            ok(r#"{"v":1,"cmd":"patch.remove","ids":[3,4]}"#),
             Command::PatchRemove { ids: vec![3, 4] }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.renumber","id":3,"number":1201}"#),
+            ok(r#"{"v":1,"cmd":"patch.renumber","id":3,"number":1201}"#),
             Command::PatchRenumber {
                 ids: vec![3],
                 number: 1201
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.name","id":3,"name":"Front left"}"#),
+            ok(r#"{"v":1,"cmd":"patch.name","id":3,"name":"Front left"}"#),
             Command::PatchName {
                 ids: vec![3],
                 name: "Front left".into()
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.change_mode","id":3,"mode":"Big"}"#),
+            ok(r#"{"v":1,"cmd":"patch.change_mode","id":3,"mode":"Big"}"#),
             Command::PatchChangeMode {
                 ids: vec![3],
                 mode: "Big".into()
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.handle","id":3,"page":2,"slot":5}"#),
+            ok(r#"{"v":1,"cmd":"patch.handle","id":3,"page":2,"slot":5}"#),
             Command::PatchHandle {
                 id: 3,
                 handle: Handle { page: 2, slot: 5 }
@@ -3474,7 +3485,7 @@ mod tests {
     fn ipc_40_range_forms_take_ids() {
         let ok = |s: &str| parse_command(s).unwrap();
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.move","ids":[3,4,5],"universe":2,"address":101}"#),
+            ok(r#"{"v":1,"cmd":"patch.move","ids":[3,4,5],"universe":2,"address":101}"#),
             Command::PatchMove {
                 ids: vec![3, 4, 5],
                 universe: 2,
@@ -3482,21 +3493,21 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.renumber","ids":[3,4,5],"number":1301}"#),
+            ok(r#"{"v":1,"cmd":"patch.renumber","ids":[3,4,5],"number":1301}"#),
             Command::PatchRenumber {
                 ids: vec![3, 4, 5],
                 number: 1301
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.name","ids":[3,4,5],"name":"Par 1"}"#),
+            ok(r#"{"v":1,"cmd":"patch.name","ids":[3,4,5],"name":"Par 1"}"#),
             Command::PatchName {
                 ids: vec![3, 4, 5],
                 name: "Par 1".into()
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.change_mode","ids":[3,4,5],"mode":"7 Channel"}"#),
+            ok(r#"{"v":1,"cmd":"patch.change_mode","ids":[3,4,5],"mode":"7 Channel"}"#),
             Command::PatchChangeMode {
                 ids: vec![3, 4, 5],
                 mode: "7 Channel".into()
@@ -3504,7 +3515,7 @@ mod tests {
         );
         // An empty range parses; the engine refuses it with a warning (PAT-19).
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"patch.name","ids":[],"name":"Par 1"}"#),
+            ok(r#"{"v":1,"cmd":"patch.name","ids":[],"name":"Par 1"}"#),
             Command::PatchName {
                 ids: vec![],
                 name: "Par 1".into()
@@ -3515,16 +3526,16 @@ mod tests {
     #[test]
     fn ipc_40_both_or_neither_id_and_ids_is_an_error() {
         for bad in [
-            r#"{"v":0,"cmd":"patch.move","id":3,"ids":[3,4],"universe":2,"address":101}"#,
-            r#"{"v":0,"cmd":"patch.move","universe":2,"address":101}"#,
-            r#"{"v":0,"cmd":"patch.renumber","id":3,"ids":[3],"number":1301}"#,
-            r#"{"v":0,"cmd":"patch.renumber","number":1301}"#,
-            r#"{"v":0,"cmd":"patch.name","id":3,"ids":[3],"name":"Par 1"}"#,
-            r#"{"v":0,"cmd":"patch.name","name":"Par 1"}"#,
-            r#"{"v":0,"cmd":"patch.change_mode","id":3,"ids":[3],"mode":"Big"}"#,
-            r#"{"v":0,"cmd":"patch.change_mode","mode":"Big"}"#,
-            r#"{"v":0,"cmd":"patch.move","ids":3,"universe":2,"address":101}"#,
-            r#"{"v":0,"cmd":"patch.name","ids":["3"],"name":"Par 1"}"#,
+            r#"{"v":1,"cmd":"patch.move","id":3,"ids":[3,4],"universe":2,"address":101}"#,
+            r#"{"v":1,"cmd":"patch.move","universe":2,"address":101}"#,
+            r#"{"v":1,"cmd":"patch.renumber","id":3,"ids":[3],"number":1301}"#,
+            r#"{"v":1,"cmd":"patch.renumber","number":1301}"#,
+            r#"{"v":1,"cmd":"patch.name","id":3,"ids":[3],"name":"Par 1"}"#,
+            r#"{"v":1,"cmd":"patch.name","name":"Par 1"}"#,
+            r#"{"v":1,"cmd":"patch.change_mode","id":3,"ids":[3],"mode":"Big"}"#,
+            r#"{"v":1,"cmd":"patch.change_mode","mode":"Big"}"#,
+            r#"{"v":1,"cmd":"patch.move","ids":3,"universe":2,"address":101}"#,
+            r#"{"v":1,"cmd":"patch.name","ids":["3"],"name":"Par 1"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -3533,19 +3544,19 @@ mod tests {
     #[test]
     fn pat_09_bad_patch_commands_are_errors() {
         for bad in [
-            r#"{"v":0,"cmd":"patch.add","mode":"6 Channel","count":6,"universe":1}"#,
-            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","count":6,"universe":1}"#,
-            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","universe":1}"#,
-            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6}"#,
-            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6,"universe":1,"address":"37"}"#,
-            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6,"universe":1,"address":70000}"#,
-            r#"{"v":0,"cmd":"patch.move","id":3,"universe":2}"#,
-            r#"{"v":0,"cmd":"patch.remove","ids":3}"#,
-            r#"{"v":0,"cmd":"patch.remove","ids":["3"]}"#,
-            r#"{"v":0,"cmd":"patch.renumber","id":3}"#,
-            r#"{"v":0,"cmd":"patch.name","id":3,"name":7}"#,
-            r#"{"v":0,"cmd":"patch.change_mode","id":3}"#,
-            r#"{"v":0,"cmd":"patch.handle","id":3,"page":2}"#,
+            r#"{"v":1,"cmd":"patch.add","mode":"6 Channel","count":6,"universe":1}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"rgbw","count":6,"universe":1}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","universe":1}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6,"universe":1,"address":"37"}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":6,"universe":1,"address":70000}"#,
+            r#"{"v":1,"cmd":"patch.move","id":3,"universe":2}"#,
+            r#"{"v":1,"cmd":"patch.remove","ids":3}"#,
+            r#"{"v":1,"cmd":"patch.remove","ids":["3"]}"#,
+            r#"{"v":1,"cmd":"patch.renumber","id":3}"#,
+            r#"{"v":1,"cmd":"patch.name","id":3,"name":7}"#,
+            r#"{"v":1,"cmd":"patch.change_mode","id":3}"#,
+            r#"{"v":1,"cmd":"patch.handle","id":3,"page":2}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -3555,7 +3566,7 @@ mod tests {
     fn pat_09_patch_add_takes_its_profile_from_the_library() {
         let lib = library("patch");
         let cmd = parse_command(
-            r#"{"v":0,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":6,"universe":1,"address":37,"number":221}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":6,"universe":1,"address":37,"number":221}"#,
         )
         .unwrap();
         match attach_profile(&lib, cmd) {
@@ -3572,14 +3583,14 @@ mod tests {
         }
         // A key that is not in the library (a show profile such as the demo's) goes as is.
         let cmd = parse_command(
-            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":1,"universe":1}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":1,"universe":1}"#,
         )
         .unwrap();
         assert_eq!(attach_profile(&lib, cmd.clone()), cmd);
         // While the library loads, nothing is attached either.
         let loading = std::sync::RwLock::new(None);
         let cmd = parse_command(
-            r#"{"v":0,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":1,"universe":1}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":1,"universe":1}"#,
         )
         .unwrap();
         assert_eq!(attach_profile(&loading, cmd.clone()), cmd);
@@ -3640,7 +3651,7 @@ mod tests {
         let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
         let p = parse(&d[0]);
-        assert_eq!(p["v"], 0);
+        assert_eq!(p["v"], 1);
         assert_eq!(p["type"], "programmer");
         assert_eq!(p["selection"], json!([1]));
         assert_eq!(p["wheels"][0]["attribute"], "Dimmer");
@@ -3657,7 +3668,7 @@ mod tests {
         assert_eq!(d.len(), 1);
         assert_eq!(
             parse(&d[0]),
-            json!({"v":0,"type":"groups","groups":[{"id":4,"fixtures":[1]}]})
+            json!({"v":1,"type":"groups","groups":[{"id":4,"fixtures":[1]}]})
         );
     }
 
@@ -3665,42 +3676,45 @@ mod tests {
     fn ipc_13_programmer_commands_parse() {
         let ok = |s: &str| parse_command(s).unwrap();
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.select","fixture":201}"#),
-            Command::Select { fixture: 201 }
+            ok(r#"{"v":1,"cmd":"programmer.select","fixture":201}"#),
+            Command::Select {
+                fixture: 201,
+                cell: None
+            }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.select_group","group":3}"#),
+            ok(r#"{"v":1,"cmd":"programmer.select_group","group":3}"#),
             Command::SelectGroup { group: 3 }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.step","direction":-1}"#),
+            ok(r#"{"v":1,"cmd":"programmer.step","direction":-1}"#),
             Command::Step { forward: false }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.step","direction":1}"#),
+            ok(r#"{"v":1,"cmd":"programmer.step","direction":1}"#),
             Command::Step { forward: true }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.pattern","stages":2}"#),
+            ok(r#"{"v":1,"cmd":"programmer.pattern","stages":2}"#),
             Command::Pattern { stages: 2 }
         );
-        assert_eq!(ok(r#"{"v":0,"cmd":"programmer.all"}"#), Command::All);
-        assert_eq!(ok(r#"{"v":0,"cmd":"programmer.clear"}"#), Command::Clear);
+        assert_eq!(ok(r#"{"v":1,"cmd":"programmer.all"}"#), Command::All);
+        assert_eq!(ok(r#"{"v":1,"cmd":"programmer.clear"}"#), Command::Clear);
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.attribute_group","group":"P"}"#),
+            ok(r#"{"v":1,"cmd":"programmer.attribute_group","group":"P"}"#),
             Command::AttributeGroup {
                 group: AttributeGroup::P
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.attribute_group","group":"FX"}"#),
+            ok(r#"{"v":1,"cmd":"programmer.attribute_group","group":"FX"}"#),
             Command::AttributeGroup {
                 group: AttributeGroup::Fx
             }
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":-3,"resolution":"Fine"}"#
+                r#"{"v":1,"cmd":"programmer.wheel","attribute":"Pan","steps":-3,"resolution":"Fine"}"#
             ),
             Command::Wheel {
                 attribute: "Pan".into(),
@@ -3709,7 +3723,7 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":2}"#),
+            ok(r#"{"v":1,"cmd":"programmer.wheel","attribute":"Pan","steps":2}"#),
             Command::Wheel {
                 attribute: "Pan".into(),
                 steps: 2,
@@ -3717,13 +3731,13 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"programmer.command","tokens":["201","Thro","205","Enter"]}"#),
+            ok(r#"{"v":1,"cmd":"programmer.command","tokens":["201","Thro","205","Enter"]}"#),
             Command::Line {
                 tokens: vec!["201".into(), "Thro".into(), "205".into(), "Enter".into()]
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"group.record","group":3}"#),
+            ok(r#"{"v":1,"cmd":"group.record","group":3}"#),
             Command::RecordGroup { group: 3 }
         );
     }
@@ -3737,15 +3751,15 @@ mod tests {
         ] {
             assert_eq!(
                 parse_command(&format!(
-                    r#"{{"v":0,"cmd":"programmer.colour_model","model":"{name}"}}"#
+                    r#"{{"v":1,"cmd":"programmer.colour_model","model":"{name}"}}"#
                 )),
                 Ok(Command::ColourModel { model })
             );
         }
         for bad in [
-            r#"{"v":0,"cmd":"programmer.colour_model"}"#,
-            r#"{"v":0,"cmd":"programmer.colour_model","model":"Lab"}"#,
-            r#"{"v":0,"cmd":"programmer.colour_model","model":2}"#,
+            r#"{"v":1,"cmd":"programmer.colour_model"}"#,
+            r#"{"v":1,"cmd":"programmer.colour_model","model":"Lab"}"#,
+            r#"{"v":1,"cmd":"programmer.colour_model","model":2}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -3754,18 +3768,18 @@ mod tests {
     #[test]
     fn ipc_23_colour_command_parses_and_checks_its_range() {
         assert_eq!(
-            parse_command(r#"{"v":0,"cmd":"programmer.colour","hue":0.66,"saturation":1.0}"#),
+            parse_command(r#"{"v":1,"cmd":"programmer.colour","hue":0.66,"saturation":1.0}"#),
             Ok(Command::Colour {
                 hue: 0.66,
                 saturation: 1.0
             })
         );
         for bad in [
-            r#"{"v":0,"cmd":"programmer.colour","hue":0.66}"#,
-            r#"{"v":0,"cmd":"programmer.colour","saturation":1.0}"#,
-            r#"{"v":0,"cmd":"programmer.colour","hue":1.2,"saturation":1.0}"#,
-            r#"{"v":0,"cmd":"programmer.colour","hue":0.5,"saturation":-0.1}"#,
-            r#"{"v":0,"cmd":"programmer.colour","hue":"red","saturation":1.0}"#,
+            r#"{"v":1,"cmd":"programmer.colour","hue":0.66}"#,
+            r#"{"v":1,"cmd":"programmer.colour","saturation":1.0}"#,
+            r#"{"v":1,"cmd":"programmer.colour","hue":1.2,"saturation":1.0}"#,
+            r#"{"v":1,"cmd":"programmer.colour","hue":0.5,"saturation":-0.1}"#,
+            r#"{"v":1,"cmd":"programmer.colour","hue":"red","saturation":1.0}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -3805,15 +3819,15 @@ mod tests {
     #[test]
     fn lib_14_search_answers_the_asking_client() {
         let lib = library("search");
-        let v = ask(&lib, r#"{"v":0,"cmd":"library.search","query":"shehds"}"#);
+        let v = ask(&lib, r#"{"v":1,"cmd":"library.search","query":"shehds"}"#);
         assert_eq!(
             v,
-            json!({"v":0,"type":"library.results","items":[{"manufacturer":"Shehds",
+            json!({"v":1,"type":"library.results","items":[{"manufacturer":"Shehds",
                    "model":"LED Beam+Wash 19x15W RGBW Zoom Lighting",
                    "modes":["16 Channel","24 Channel"],"source":"qlcplus"}]})
         );
         let loading = std::sync::RwLock::new(None);
-        let v = ask(&loading, r#"{"v":0,"cmd":"library.search","query":"x"}"#);
+        let v = ask(&loading, r#"{"v":1,"cmd":"library.search","query":"x"}"#);
         assert_eq!(v["type"], "error");
         assert!(v["message"].as_str().unwrap().contains("loading"), "{v}");
     }
@@ -3823,19 +3837,19 @@ mod tests {
         let lib = library("manufacturers");
         let v = ask(
             &lib,
-            r#"{"v":0,"cmd":"library.manufacturers","query":"par"}"#,
+            r#"{"v":1,"cmd":"library.manufacturers","query":"par"}"#,
         );
         assert_eq!(
             v,
-            json!({"v":0,"type":"library.manufacturers","query":"par","items":[
+            json!({"v":1,"type":"library.manufacturers","query":"par","items":[
                 {"name":"Pro-Lights","models":1},{"name":"Showtec","models":1}]})
         );
-        let v = ask(&lib, r#"{"v":0,"cmd":"library.manufacturers"}"#);
+        let v = ask(&lib, r#"{"v":1,"cmd":"library.manufacturers"}"#);
         assert_eq!(v["type"], "library.manufacturers");
         assert_eq!(v["query"], Value::Null);
         assert_eq!(v["items"].as_array().unwrap().len(), 3);
         let loading = std::sync::RwLock::new(None);
-        let v = ask(&loading, r#"{"v":0,"cmd":"library.manufacturers"}"#);
+        let v = ask(&loading, r#"{"v":1,"cmd":"library.manufacturers"}"#);
         assert_eq!(v["type"], "error");
         assert!(v["message"].as_str().unwrap().contains("loading"), "{v}");
     }
@@ -3845,11 +3859,11 @@ mod tests {
         let lib = library("models");
         let v = ask(
             &lib,
-            r#"{"v":0,"cmd":"library.models","manufacturer":"Shehds","query":"19x15"}"#,
+            r#"{"v":1,"cmd":"library.models","manufacturer":"Shehds","query":"19x15"}"#,
         );
         assert_eq!(
             v,
-            json!({"v":0,"type":"library.models","manufacturer":"Shehds","query":"19x15",
+            json!({"v":1,"type":"library.models","manufacturer":"Shehds","query":"19x15",
                    "items":[{"manufacturer":"Shehds","model":"LED Beam+Wash 19x15W RGBW Zoom Lighting",
                              "modes":[{"name":"16 Channel","channels":16},{"name":"24 Channel","channels":24}],
                              "source":"qlcplus"}],
@@ -3857,28 +3871,28 @@ mod tests {
         );
         let v = ask(
             &lib,
-            r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec"}"#,
+            r#"{"v":1,"cmd":"library.models","manufacturer":"Showtec"}"#,
         );
         assert_eq!(v["query"], Value::Null);
         assert_eq!(
             v["items"][0]["modes"],
             json!([{"name":"6 Channel","channels":6}])
         );
-        let v = ask(&lib, r#"{"v":0,"cmd":"library.models","query":"par"}"#);
+        let v = ask(&lib, r#"{"v":1,"cmd":"library.models","query":"par"}"#);
         assert_eq!(v["manufacturer"], Value::Null);
         assert_eq!(v["items"].as_array().unwrap().len(), 2);
         assert_eq!(v["truncated"], false);
         let loading = std::sync::RwLock::new(None);
-        let v = ask(&loading, r#"{"v":0,"cmd":"library.models","query":"x"}"#);
+        let v = ask(&loading, r#"{"v":1,"cmd":"library.models","query":"x"}"#);
         assert!(v["message"].as_str().unwrap().contains("loading"), "{v}");
     }
 
     #[test]
     fn ipc_36_models_without_manufacturer_or_query_is_an_error() {
         for bad in [
-            r#"{"v":0,"cmd":"library.models"}"#,
-            r#"{"v":0,"cmd":"library.models","manufacturer":3}"#,
-            r#"{"v":0,"cmd":"library.manufacturers","query":3}"#,
+            r#"{"v":1,"cmd":"library.models"}"#,
+            r#"{"v":1,"cmd":"library.models","manufacturer":3}"#,
+            r#"{"v":1,"cmd":"library.manufacturers","query":3}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -3889,14 +3903,14 @@ mod tests {
         let lib = library("saves");
         let v = ask(
             &lib,
-            r#"{"v":0,"cmd":"library.import_report","manufacturer":"Showtec","model":"LED Par 56"}"#,
+            r#"{"v":1,"cmd":"library.import_report","manufacturer":"Showtec","model":"LED Par 56"}"#,
         );
         assert_eq!(v["type"], "library.import_report");
         assert_eq!(v["report"]["channels"].as_array().unwrap().len(), 6);
         assert_eq!(v["report"]["channels"][5]["source_name"], "Mode");
         let v = ask(
             &lib,
-            r#"{"v":0,"cmd":"library.profile","manufacturer":"Showtec","model":"LED Par 56"}"#,
+            r#"{"v":1,"cmd":"library.profile","manufacturer":"Showtec","model":"LED Par 56"}"#,
         );
         assert_eq!(v["type"], "library.profile");
         assert_eq!(v["profile"]["modes"][0]["name"], "6 Channel");
@@ -3904,23 +3918,23 @@ mod tests {
         profile["model"] = json!("LED Par 56 (church)");
         let v = ask(
             &lib,
-            &json!({"v":0,"cmd":"library.save_profile","profile":profile}).to_string(),
+            &json!({"v":1,"cmd":"library.save_profile","profile":profile}).to_string(),
         );
         assert_eq!(
             v,
-            json!({"v":0,"type":"library.saved","manufacturer":"Showtec","model":"LED Par 56 (church)"})
+            json!({"v":1,"type":"library.saved","manufacturer":"Showtec","model":"LED Par 56 (church)"})
         );
         let v = ask(
             &lib,
-            r#"{"v":0,"cmd":"library.save_channel_list","manufacturer":"U'King","model":"RGBL Par","mode":"4 Channel","channels":["Red","Green","Blue","Lime"]}"#,
+            r#"{"v":1,"cmd":"library.save_channel_list","manufacturer":"U'King","model":"RGBL Par","mode":"4 Channel","channels":["Red","Green","Blue","Lime"]}"#,
         );
         assert_eq!(
             v,
-            json!({"v":0,"type":"library.saved","manufacturer":"U'King","model":"RGBL Par"})
+            json!({"v":1,"type":"library.saved","manufacturer":"U'King","model":"RGBL Par"})
         );
         let v = ask(
             &lib,
-            r#"{"v":0,"cmd":"library.profile","manufacturer":"Nope","model":"Nope"}"#,
+            r#"{"v":1,"cmd":"library.profile","manufacturer":"Nope","model":"Nope"}"#,
         );
         assert_eq!(v["type"], "error");
     }
@@ -3928,11 +3942,11 @@ mod tests {
     #[test]
     fn lib_14_bad_library_requests_are_errors() {
         for bad in [
-            r#"{"v":0,"cmd":"library.search"}"#,
-            r#"{"v":0,"cmd":"library.import_report","manufacturer":"Showtec"}"#,
-            r#"{"v":0,"cmd":"library.profile","model":"LED Par 56"}"#,
-            r#"{"v":0,"cmd":"library.save_profile","profile":{"modes":"x"}}"#,
-            r#"{"v":0,"cmd":"library.save_channel_list","manufacturer":"A","model":"B","mode":"C","channels":["Plasma"]}"#,
+            r#"{"v":1,"cmd":"library.search"}"#,
+            r#"{"v":1,"cmd":"library.import_report","manufacturer":"Showtec"}"#,
+            r#"{"v":1,"cmd":"library.profile","model":"LED Par 56"}"#,
+            r#"{"v":1,"cmd":"library.save_profile","profile":{"modes":"x"}}"#,
+            r#"{"v":1,"cmd":"library.save_channel_list","manufacturer":"A","model":"B","mode":"C","channels":["Plasma"]}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -3941,17 +3955,17 @@ mod tests {
     #[test]
     fn ipc_13_bad_programmer_commands_are_errors() {
         for bad in [
-            r#"{"v":0,"cmd":"programmer.select"}"#,
-            r#"{"v":0,"cmd":"programmer.select","fixture":"201"}"#,
-            r#"{"v":0,"cmd":"programmer.step","direction":2}"#,
-            r#"{"v":0,"cmd":"programmer.pattern","stages":-1}"#,
-            r#"{"v":0,"cmd":"programmer.attribute_group","group":"Q"}"#,
-            r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":1.5}"#,
-            r#"{"v":0,"cmd":"programmer.wheel","steps":1}"#,
-            r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":1,"resolution":"Huge"}"#,
-            r#"{"v":0,"cmd":"programmer.command","tokens":"201 Enter"}"#,
-            r#"{"v":0,"cmd":"programmer.command","tokens":[201]}"#,
-            r#"{"v":0,"cmd":"group.record"}"#,
+            r#"{"v":1,"cmd":"programmer.select"}"#,
+            r#"{"v":1,"cmd":"programmer.select","fixture":"201"}"#,
+            r#"{"v":1,"cmd":"programmer.step","direction":2}"#,
+            r#"{"v":1,"cmd":"programmer.pattern","stages":-1}"#,
+            r#"{"v":1,"cmd":"programmer.attribute_group","group":"Q"}"#,
+            r#"{"v":1,"cmd":"programmer.wheel","attribute":"Pan","steps":1.5}"#,
+            r#"{"v":1,"cmd":"programmer.wheel","steps":1}"#,
+            r#"{"v":1,"cmd":"programmer.wheel","attribute":"Pan","steps":1,"resolution":"Huge"}"#,
+            r#"{"v":1,"cmd":"programmer.command","tokens":"201 Enter"}"#,
+            r#"{"v":1,"cmd":"programmer.command","tokens":[201]}"#,
+            r#"{"v":1,"cmd":"group.record"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -3960,21 +3974,21 @@ mod tests {
     #[test]
     fn ipc_04_commands_parse_and_levels_are_clamped() {
         assert_eq!(
-            parse_command(r#"{"v":0,"cmd":"fader.set","playback":2,"level":0.5}"#),
+            parse_command(r#"{"v":1,"cmd":"fader.set","playback":2,"level":0.5}"#),
             Ok(Command::FaderSet {
                 playback: 2,
                 level: 0.5
             })
         );
         assert_eq!(
-            parse_command(r#"{"v":0,"cmd":"fader.set","playback":1,"level":1.7}"#),
+            parse_command(r#"{"v":1,"cmd":"fader.set","playback":1,"level":1.7}"#),
             Ok(Command::FaderSet {
                 playback: 1,
                 level: 1.0
             })
         );
         assert_eq!(
-            parse_command(r#"{"v":0,"cmd":"grand_master.set","level":-1}"#),
+            parse_command(r#"{"v":1,"cmd":"grand_master.set","level":-1}"#),
             Ok(Command::GrandMasterSet { level: 0.0 })
         );
     }
@@ -3983,15 +3997,15 @@ mod tests {
     fn ipc_06_bad_input_is_an_error() {
         for bad in [
             "not json",
-            r#"{"v":0,"cmd":"self.destruct"}"#,
-            r#"{"v":0,"cmd":"fader.set","level":0.5}"#,
-            r#"{"v":1,"cmd":"grand_master.set","level":0.5}"#,
+            r#"{"v":1,"cmd":"self.destruct"}"#,
+            r#"{"v":1,"cmd":"fader.set","level":0.5}"#,
+            r#"{"v":2,"cmd":"grand_master.set","level":0.5}"#,
             r#"{"cmd":"grand_master.set","level":0.5}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
         let v = parse(&error("boom"));
-        assert_eq!(v, json!({"v":0,"type":"error","message":"boom"}));
+        assert_eq!(v, json!({"v":1,"type":"error","message":"boom"}));
         assert_eq!(parse(&warning("w"))["type"], "warning");
     }
 
@@ -4058,7 +4072,11 @@ mod tests {
         e.select_fixture(1).unwrap();
         e.select_item(Item::cell(9, 2)).unwrap();
         let p = &cell_snapshot(&e)["programmer"];
-        assert_eq!(p["selection"], json!([1, "9.2"]), "a whole fixture stays an integer");
+        assert_eq!(
+            p["selection"],
+            json!([1, "9.2"]),
+            "a whole fixture stays an integer"
+        );
         assert_eq!(p["targets"], json!([1, "9.2"]));
         e.next_fixture();
         e.next_fixture();
@@ -4171,7 +4189,7 @@ mod tests {
         v.as_object_mut().unwrap().remove("fired");
         assert_eq!(
             v,
-            json!({"v":0,"type":"playback","id":1,"level":0.5,"state":"active",
+            json!({"v":1,"type":"playback","id":1,"level":0.5,"state":"active",
                    "flash":false,"latched":false,"cue":null,"bpm":null,"multiplier":null})
         );
         e.tick(0.05);
@@ -4184,7 +4202,7 @@ mod tests {
         let d = published.diff(&e, &[], &show_state());
         assert_eq!(
             parse(&d[0]),
-            json!({"v":0,"type":"grand_master","level":0.25})
+            json!({"v":1,"type":"grand_master","level":0.25})
         );
     }
 
@@ -4236,7 +4254,7 @@ mod tests {
         assert_eq!(parse(msg.to_text().unwrap())["type"], "snapshot");
 
         ws.send(Message::text(
-            r#"{"v":0,"cmd":"fader.set","playback":1,"level":0.5}"#,
+            r#"{"v":1,"cmd":"fader.set","playback":1,"level":0.5}"#,
         ))
         .unwrap();
         match next_event(&rx) {
@@ -4260,7 +4278,7 @@ mod tests {
         let msg = ws.read().unwrap();
         assert_eq!(parse(msg.to_text().unwrap())["type"], "error");
         ws.send(Message::text(
-            r#"{"v":0,"cmd":"grand_master.set","level":0.5}"#,
+            r#"{"v":1,"cmd":"grand_master.set","level":0.5}"#,
         ))
         .unwrap();
         assert!(matches!(next_event(&rx), Event::Command(_)));
@@ -4330,7 +4348,7 @@ mod tests {
         assert_eq!(d.len(), 1);
         assert_eq!(
             parse(&d[0]),
-            json!({"v":0,"type":"show","name":"Kerk","saved_at":"2026-10-18T09:00:05Z","autosave_ok":false})
+            json!({"v":1,"type":"show","name":"Kerk","saved_at":"2026-10-18T09:00:05Z","autosave_ok":false})
         );
         assert!(
             published.diff(&e, &[], &state).is_empty(),
@@ -4344,21 +4362,21 @@ mod tests {
     fn shw_15_show_commands_parse() {
         use crate::shows::ShowRequest;
         let cases = [
-            (r#"{"v":0,"cmd":"show.list"}"#, ShowRequest::List),
+            (r#"{"v":1,"cmd":"show.list"}"#, ShowRequest::List),
             (
-                r#"{"v":0,"cmd":"show.new","name":"Kerst"}"#,
+                r#"{"v":1,"cmd":"show.new","name":"Kerst"}"#,
                 ShowRequest::New {
                     name: "Kerst".into(),
                 },
             ),
             (
-                r#"{"v":0,"cmd":"show.open","name":"Kerk"}"#,
+                r#"{"v":1,"cmd":"show.open","name":"Kerk"}"#,
                 ShowRequest::Open {
                     name: "Kerk".into(),
                 },
             ),
             (
-                r#"{"v":0,"cmd":"show.save_as","name":"Kerk 2"}"#,
+                r#"{"v":1,"cmd":"show.save_as","name":"Kerk 2"}"#,
                 ShowRequest::SaveAs {
                     name: "Kerk 2".into(),
                 },
@@ -4368,9 +4386,9 @@ mod tests {
             assert_eq!(parse_command(text), Ok(Command::Show(expected)), "{text}");
         }
         for bad in [
-            r#"{"v":0,"cmd":"show.new"}"#,
-            r#"{"v":0,"cmd":"show.open","name":3}"#,
-            r#"{"v":0,"cmd":"show.save_as"}"#,
+            r#"{"v":1,"cmd":"show.new"}"#,
+            r#"{"v":1,"cmd":"show.open","name":3}"#,
+            r#"{"v":1,"cmd":"show.save_as"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -4391,7 +4409,7 @@ mod tests {
             .to_json();
         crate::shows::write_atomic(&shows.path("Kerk"), &json).unwrap();
         let v = parse(&answer_show_list(&shows));
-        assert_eq!(v["v"], 0);
+        assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "show.list");
         assert_eq!(v["shows"].as_array().unwrap().len(), 1);
         assert_eq!(v["shows"][0]["name"], "Kerk");
@@ -4424,7 +4442,7 @@ mod tests {
         let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1);
         let v = parse(&d[0]);
-        assert_eq!(v["v"], 0);
+        assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "page");
         assert_eq!(v["number"], 2);
         assert_eq!(v["count"], 10);
@@ -4435,13 +4453,13 @@ mod tests {
     #[test]
     fn pbk_03_page_set_parses() {
         assert_eq!(
-            parse_command(r#"{"v":0,"cmd":"page.set","page":2}"#),
+            parse_command(r#"{"v":1,"cmd":"page.set","page":2}"#),
             Ok(Command::PageSet { page: 2 })
         );
         for bad in [
-            r#"{"v":0,"cmd":"page.set"}"#,
-            r#"{"v":0,"cmd":"page.set","page":"2"}"#,
-            r#"{"v":0,"cmd":"page.set","page":-1}"#,
+            r#"{"v":1,"cmd":"page.set"}"#,
+            r#"{"v":1,"cmd":"page.set","page":"2"}"#,
+            r#"{"v":1,"cmd":"page.set","page":-1}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -4525,7 +4543,7 @@ mod tests {
         let d = published.diff(&e, &[], &show_state());
         assert_eq!(d.len(), 1, "{d:?}");
         let v = parse(&d[0]);
-        assert_eq!(v["v"], 0);
+        assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "palettes");
         assert_eq!(v["palettes"].as_array().unwrap().len(), 2);
         assert_eq!(v["palettes"][1]["legend"], "Warm");
@@ -4566,7 +4584,7 @@ mod tests {
         assert_eq!(d.len(), 1, "{d:?}");
         assert_eq!(
             parse(&d[0]),
-            json!({"v":0,"type":"palette_settings","time":2.0,"overlap":50.0,"record_by":"Channel"})
+            json!({"v":1,"type":"palette_settings","time":2.0,"overlap":50.0,"record_by":"Channel"})
         );
         assert!(published.diff(&e, &[], &show_state()).is_empty());
     }
@@ -4612,12 +4630,12 @@ mod tests {
         use cmdmx_core::palette::{Cell, Record, RecordAs, RecordBy, RecordMode, Timing, Window};
         let ok = |s: &str| parse_command(s).unwrap();
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":4}"#),
+            ok(r#"{"v":1,"cmd":"palette.record","window":"Colours","handle":4}"#),
             Command::PaletteRecord(Record::at(Cell::new(Window::Colours, 4)))
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"palette.record","window":"Beams","handle":2,"number":12,
+                r#"{"v":1,"cmd":"palette.record","window":"Beams","handle":2,"number":12,
                   "mask":["I","B"],"record_by":"Channel","record_as":"Shared","mode":"QuickMerge"}"#
             ),
             Command::PaletteRecord(Record {
@@ -4630,14 +4648,14 @@ mod tests {
             })
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.apply","number":3}"#),
+            ok(r#"{"v":1,"cmd":"palette.apply","number":3}"#),
             Command::PaletteApply {
                 number: 3,
                 timing: Timing::default()
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.apply","number":3,"time":2.0,"overlap":50}"#),
+            ok(r#"{"v":1,"cmd":"palette.apply","number":3,"time":2.0,"overlap":50}"#),
             Command::PaletteApply {
                 number: 3,
                 timing: Timing {
@@ -4647,28 +4665,28 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.include","number":3}"#),
+            ok(r#"{"v":1,"cmd":"palette.include","number":3}"#),
             Command::PaletteInclude { number: 3 }
         );
         let to = Cell::new(Window::Colours, 5);
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.copy","number":3,"to":{"window":"Colours","handle":5}}"#),
+            ok(r#"{"v":1,"cmd":"palette.copy","number":3,"to":{"window":"Colours","handle":5}}"#),
             Command::PaletteCopy { number: 3, to }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.move","number":3,"to":{"window":"Colours","handle":5}}"#),
+            ok(r#"{"v":1,"cmd":"palette.move","number":3,"to":{"window":"Colours","handle":5}}"#),
             Command::PaletteMove { number: 3, to }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.renumber","number":3,"to":30}"#),
+            ok(r#"{"v":1,"cmd":"palette.renumber","number":3,"to":30}"#),
             Command::PaletteRenumber { number: 3, to: 30 }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.delete","number":3}"#),
+            ok(r#"{"v":1,"cmd":"palette.delete","number":3}"#),
             Command::PaletteDelete { number: 3 }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm","icon":"colour.drop"}"#),
+            ok(r#"{"v":1,"cmd":"palette.legend","number":3,"legend":"Warm","icon":"colour.drop"}"#),
             Command::PaletteLegend {
                 number: 3,
                 legend: "Warm".into(),
@@ -4676,8 +4694,8 @@ mod tests {
             }
         );
         for automatic in [
-            r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm","icon":null}"#,
-            r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm"}"#,
+            r#"{"v":1,"cmd":"palette.legend","number":3,"legend":"Warm","icon":null}"#,
+            r#"{"v":1,"cmd":"palette.legend","number":3,"legend":"Warm"}"#,
         ] {
             assert_eq!(
                 ok(automatic),
@@ -4689,7 +4707,7 @@ mod tests {
             );
         }
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"settings.palette","time":2.0}"#),
+            ok(r#"{"v":1,"cmd":"settings.palette","time":2.0}"#),
             Command::SettingsPalette {
                 time: Some(2.0),
                 overlap: None,
@@ -4697,7 +4715,7 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"settings.palette","overlap":50,"record_by":"Channel"}"#),
+            ok(r#"{"v":1,"cmd":"settings.palette","overlap":50,"record_by":"Channel"}"#),
             Command::SettingsPalette {
                 time: None,
                 overlap: Some(50.0),
@@ -4709,18 +4727,18 @@ mod tests {
     #[test]
     fn pal_27_bad_palette_commands_are_errors() {
         for bad in [
-            r#"{"v":0,"cmd":"palette.record","window":"Colours"}"#,
-            r#"{"v":0,"cmd":"palette.record","window":"Gobos","handle":1}"#,
-            r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":"1"}"#,
-            r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":1,"mode":"Overwrite"}"#,
-            r#"{"v":0,"cmd":"palette.apply"}"#,
-            r#"{"v":0,"cmd":"palette.apply","number":3,"time":"2"}"#,
-            r#"{"v":0,"cmd":"palette.copy","number":3}"#,
-            r#"{"v":0,"cmd":"palette.move","number":3,"to":{"window":"Colours"}}"#,
-            r#"{"v":0,"cmd":"palette.renumber","number":3}"#,
-            r#"{"v":0,"cmd":"palette.delete","number":-1}"#,
-            r#"{"v":0,"cmd":"palette.legend","number":3}"#,
-            r#"{"v":0,"cmd":"settings.palette","record_by":"Group"}"#,
+            r#"{"v":1,"cmd":"palette.record","window":"Colours"}"#,
+            r#"{"v":1,"cmd":"palette.record","window":"Gobos","handle":1}"#,
+            r#"{"v":1,"cmd":"palette.record","window":"Colours","handle":"1"}"#,
+            r#"{"v":1,"cmd":"palette.record","window":"Colours","handle":1,"mode":"Overwrite"}"#,
+            r#"{"v":1,"cmd":"palette.apply"}"#,
+            r#"{"v":1,"cmd":"palette.apply","number":3,"time":"2"}"#,
+            r#"{"v":1,"cmd":"palette.copy","number":3}"#,
+            r#"{"v":1,"cmd":"palette.move","number":3,"to":{"window":"Colours"}}"#,
+            r#"{"v":1,"cmd":"palette.renumber","number":3}"#,
+            r#"{"v":1,"cmd":"palette.delete","number":-1}"#,
+            r#"{"v":1,"cmd":"palette.legend","number":3}"#,
+            r#"{"v":1,"cmd":"settings.palette","record_by":"Group"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -4819,7 +4837,7 @@ mod tests {
         v.as_object_mut().unwrap().remove("fired");
         assert_eq!(
             v,
-            json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
+            json!({"v":1,"type":"playback","id":1,"level":0.0,"state":"active",
                    "flash":true,"latched":false,"cue":null,"bpm":null,"multiplier":null})
         );
         e.set_flash(1, false, 0.025).unwrap();
@@ -4830,7 +4848,7 @@ mod tests {
         v.as_object_mut().unwrap().remove("fired");
         assert_eq!(
             v,
-            json!({"v":0,"type":"playback","id":1,"level":0.0,"state":"active",
+            json!({"v":1,"type":"playback","id":1,"level":0.0,"state":"active",
                    "flash":true,"latched":true,"cue":null,"bpm":null,"multiplier":null}),
             "flash means held or latched"
         );
@@ -4991,7 +5009,7 @@ mod tests {
             of("pages")["pages"][2],
             json!({"number":3,"legend":"Video"})
         );
-        assert_eq!(of("dbo"), json!({"v":0,"type":"dbo","on":true}));
+        assert_eq!(of("dbo"), json!({"v":1,"type":"dbo","on":true}));
         assert_eq!(of("playback_settings")["release_time"], 1.0);
         e.tick(0.025);
         assert!(published.diff(&e, &[], &show_state()).is_empty());
@@ -5007,12 +5025,12 @@ mod tests {
         };
         let ok = |s: &str| parse_command(s).unwrap();
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.record","page":1,"slot":2}"#),
+            ok(r#"{"v":1,"cmd":"playback.record","page":1,"slot":2}"#),
             Command::PlaybackRecord(PlaybackRecord::at(1, 2))
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mask":["I","C"],
+                r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"mask":["I","C"],
                    "record_by":"Mixed","mode":"Update"}"#
             ),
             Command::PlaybackRecord(PlaybackRecord {
@@ -5027,7 +5045,7 @@ mod tests {
             ("Merge", RecordMode::Merge),
         ] {
             let text =
-                format!(r#"{{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"{mode}"}}"#);
+                format!(r#"{{"v":1,"cmd":"playback.record","page":1,"slot":2,"mode":"{mode}"}}"#);
             assert_eq!(
                 ok(&text),
                 Command::PlaybackRecord(PlaybackRecord {
@@ -5037,24 +5055,24 @@ mod tests {
             );
         }
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.flash","id":3,"on":true}"#),
+            ok(r#"{"v":1,"cmd":"playback.flash","id":3,"on":true}"#),
             Command::PlaybackFlash { id: 3, on: true }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.swop","id":3,"on":false}"#),
+            ok(r#"{"v":1,"cmd":"playback.swop","id":3,"on":false}"#),
             Command::PlaybackSwop { id: 3, on: false }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.latch","id":3}"#),
+            ok(r#"{"v":1,"cmd":"playback.latch","id":3}"#),
             Command::PlaybackLatch { id: 3 }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.release","id":3}"#),
+            ok(r#"{"v":1,"cmd":"playback.release","id":3}"#),
             Command::PlaybackRelease { id: 3 }
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"playback.options","id":3,"priority":"High","fader_mode":1,
+                r#"{"v":1,"cmd":"playback.options","id":3,"priority":"High","fader_mode":1,
                    "kill_point":"FaderAtZero","release_mask":["I"],"release_time":0.5,
                    "paging":"Locked","group":4}"#
             ),
@@ -5074,7 +5092,7 @@ mod tests {
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"playback.options","id":3,"release_mask":null,"release_time":null,"group":null}"#
+                r#"{"v":1,"cmd":"playback.options","id":3,"release_mask":null,"release_time":null,"group":null}"#
             ),
             Command::PlaybackChange {
                 id: 3,
@@ -5088,7 +5106,7 @@ mod tests {
             "null = back to the global setting / no group"
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.options","id":3}"#),
+            ok(r#"{"v":1,"cmd":"playback.options","id":3}"#),
             Command::PlaybackChange {
                 id: 3,
                 change: PlaybackChange::default()
@@ -5097,7 +5115,7 @@ mod tests {
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"playback.times","id":3,"delay":1.0,"fade_in":3.0,"fade_out":4.0,"overlap":50}"#
+                r#"{"v":1,"cmd":"playback.times","id":3,"delay":1.0,"fade_in":3.0,"fade_out":4.0,"overlap":50}"#
             ),
             Command::PlaybackChange {
                 id: 3,
@@ -5112,7 +5130,7 @@ mod tests {
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"Walk-in","icon":"service.walk-in",
+                r#"{"v":1,"cmd":"playback.legend","id":3,"legend":"Walk-in","icon":"service.walk-in",
                    "halo":{"r":1.0,"g":0.5,"b":0.0}}"#
             ),
             Command::PlaybackLegend {
@@ -5127,8 +5145,8 @@ mod tests {
             }
         );
         for automatic in [
-            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x","icon":null,"halo":null}"#,
-            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x"}"#,
+            r#"{"v":1,"cmd":"playback.legend","id":3,"legend":"x","icon":null,"halo":null}"#,
+            r#"{"v":1,"cmd":"playback.legend","id":3,"legend":"x"}"#,
         ] {
             assert_eq!(
                 ok(automatic),
@@ -5141,7 +5159,7 @@ mod tests {
             );
         }
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#),
+            ok(r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#),
             Command::PlaybackCopy {
                 id: 3,
                 page: 2,
@@ -5149,7 +5167,7 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#),
+            ok(r#"{"v":1,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#),
             Command::PlaybackMove {
                 id: 3,
                 page: 2,
@@ -5157,23 +5175,23 @@ mod tests {
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"playback.delete","id":3}"#),
+            ok(r#"{"v":1,"cmd":"playback.delete","id":3}"#),
             Command::PlaybackDelete { id: 3 }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"page.legend","page":2,"legend":"Service"}"#),
+            ok(r#"{"v":1,"cmd":"page.legend","page":2,"legend":"Service"}"#),
             Command::PageLegend {
                 page: 2,
                 legend: "Service".into()
             }
         );
         assert_eq!(
-            ok(r#"{"v":0,"cmd":"dbo.set","on":true}"#),
+            ok(r#"{"v":1,"cmd":"dbo.set","on":true}"#),
             Command::DboSet { on: true }
         );
         assert_eq!(
             ok(
-                r#"{"v":0,"cmd":"settings.playback","record_by":"Mixed","fade_in":2.0,
+                r#"{"v":1,"cmd":"settings.playback","record_by":"Mixed","fade_in":2.0,
                    "release_mask":["I","P"],"release_time":1.0}"#
             ),
             Command::SettingsPlayback(PlaybackSettingsChange {
@@ -5189,25 +5207,25 @@ mod tests {
     #[test]
     fn pbk_36_bad_playback_commands_are_errors() {
         for bad in [
-            r#"{"v":0,"cmd":"playback.record","page":1}"#,
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"QuickMerge"}"#,
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mask":["Q"]}"#,
-            r#"{"v":0,"cmd":"playback.flash","id":3}"#,
-            r#"{"v":0,"cmd":"playback.swop","id":3,"on":"yes"}"#,
-            r#"{"v":0,"cmd":"playback.latch"}"#,
-            r#"{"v":0,"cmd":"playback.release","id":-1}"#,
-            r#"{"v":0,"cmd":"playback.options","id":3,"fader_mode":3}"#,
-            r#"{"v":0,"cmd":"playback.options","id":3,"paging":"Sticky"}"#,
-            r#"{"v":0,"cmd":"playback.options","id":3,"priority":"Highest"}"#,
-            r#"{"v":0,"cmd":"playback.times","id":3,"fade_in":"3"}"#,
-            r#"{"v":0,"cmd":"playback.legend","id":3}"#,
-            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x","halo":"red"}"#,
-            r#"{"v":0,"cmd":"playback.copy","id":3,"to":{"page":2}}"#,
-            r#"{"v":0,"cmd":"playback.move","id":3}"#,
-            r#"{"v":0,"cmd":"playback.delete"}"#,
-            r#"{"v":0,"cmd":"page.legend","page":2}"#,
-            r#"{"v":0,"cmd":"dbo.set"}"#,
-            r#"{"v":0,"cmd":"settings.playback","record_by":"Fixture"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"mode":"QuickMerge"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"mask":["Q"]}"#,
+            r#"{"v":1,"cmd":"playback.flash","id":3}"#,
+            r#"{"v":1,"cmd":"playback.swop","id":3,"on":"yes"}"#,
+            r#"{"v":1,"cmd":"playback.latch"}"#,
+            r#"{"v":1,"cmd":"playback.release","id":-1}"#,
+            r#"{"v":1,"cmd":"playback.options","id":3,"fader_mode":3}"#,
+            r#"{"v":1,"cmd":"playback.options","id":3,"paging":"Sticky"}"#,
+            r#"{"v":1,"cmd":"playback.options","id":3,"priority":"Highest"}"#,
+            r#"{"v":1,"cmd":"playback.times","id":3,"fade_in":"3"}"#,
+            r#"{"v":1,"cmd":"playback.legend","id":3}"#,
+            r#"{"v":1,"cmd":"playback.legend","id":3,"legend":"x","halo":"red"}"#,
+            r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":2}}"#,
+            r#"{"v":1,"cmd":"playback.move","id":3}"#,
+            r#"{"v":1,"cmd":"playback.delete"}"#,
+            r#"{"v":1,"cmd":"page.legend","page":2}"#,
+            r#"{"v":1,"cmd":"dbo.set"}"#,
+            r#"{"v":1,"cmd":"settings.playback","record_by":"Fixture"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -5355,7 +5373,7 @@ mod tests {
         let d = published.diff(&e, &[], &show_state());
         assert!(
             d.iter()
-                .any(|m| parse(m) == json!({"v":0,"type":"connected","id":3})),
+                .any(|m| parse(m) == json!({"v":1,"type":"connected","id":3})),
             "{d:?}"
         );
         assert!(published.diff(&e, &[], &show_state()).is_empty());
@@ -5462,41 +5480,41 @@ mod tests {
     #[test]
     fn cue_41_commands_parse() {
         for good in [
-            r#"{"v":0,"cmd":"cuelist.go"}"#,
-            r#"{"v":0,"cmd":"cuelist.go","id":2}"#,
-            r#"{"v":0,"cmd":"cuelist.back"}"#,
-            r#"{"v":0,"cmd":"cuelist.stop","id":2}"#,
-            r#"{"v":0,"cmd":"cuelist.goto","cue":2.5}"#,
-            r#"{"v":0,"cmd":"cuelist.next","id":2,"cue":3}"#,
-            r#"{"v":0,"cmd":"cuelist.connect","id":2}"#,
-            r#"{"v":0,"cmd":"playback.release"}"#,
-            r#"{"v":0,"cmd":"playback.button","id":2,"button":"upper","on":true}"#,
-            r#"{"v":0,"cmd":"playback.tap","id":3}"#,
-            r#"{"v":0,"cmd":"playback.bpm","id":3,"bpm":128}"#,
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"Append"}"#,
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"Insert"}"#,
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"cue":4}"#,
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"cue":2,"mode":"Update",
+            r#"{"v":1,"cmd":"cuelist.go"}"#,
+            r#"{"v":1,"cmd":"cuelist.go","id":2}"#,
+            r#"{"v":1,"cmd":"cuelist.back"}"#,
+            r#"{"v":1,"cmd":"cuelist.stop","id":2}"#,
+            r#"{"v":1,"cmd":"cuelist.goto","cue":2.5}"#,
+            r#"{"v":1,"cmd":"cuelist.next","id":2,"cue":3}"#,
+            r#"{"v":1,"cmd":"cuelist.connect","id":2}"#,
+            r#"{"v":1,"cmd":"playback.release"}"#,
+            r#"{"v":1,"cmd":"playback.button","id":2,"button":"upper","on":true}"#,
+            r#"{"v":1,"cmd":"playback.tap","id":3}"#,
+            r#"{"v":1,"cmd":"playback.bpm","id":3,"bpm":128}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"mode":"Append"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"mode":"Insert"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"cue":4}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"cue":2,"mode":"Update",
                 "update_mode":"Backwards"}"#,
-            r#"{"v":0,"cmd":"playback.options","id":2,"kind":"Chase"}"#,
-            r#"{"v":0,"cmd":"playback.options","id":2,"list":{"tracking":false}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":3,"chase":{"bpm":90,"direction":"Bounce",
+            r#"{"v":1,"cmd":"playback.options","id":2,"kind":"Chase"}"#,
+            r#"{"v":1,"cmd":"playback.options","id":2,"list":{"tracking":false}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":3,"chase":{"bpm":90,"direction":"Bounce",
                 "speed_source":{"Bpm":1}}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"multiplier":2}}"#,
-            r#"{"v":0,"cmd":"cue.times","id":2,"cue":2,"fade_in":3,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"multiplier":2}}"#,
+            r#"{"v":1,"cmd":"cue.times","id":2,"cue":2,"fade_in":3,
                 "link":{"type":"After","offset":1},"group_times":{"P":{"delay":1,"fade":5}}}"#,
-            r#"{"v":0,"cmd":"cue.legend","id":2,"cue":2,"legend":"Welcome"}"#,
-            r#"{"v":0,"cmd":"cue.track","id":2,"cue":2,"track":"CueOnly"}"#,
-            r#"{"v":0,"cmd":"cue.delete","id":2,"cue":2}"#,
-            r#"{"v":0,"cmd":"cue.renumber","id":2,"cue":2,"to":2.5}"#,
-            r#"{"v":0,"cmd":"cue.renumber_all","id":2}"#,
-            r#"{"v":0,"cmd":"cue.copy","id":2,"cue":2,"to":7}"#,
-            r#"{"v":0,"cmd":"cue.view","id":2,"cue":2}"#,
-            r#"{"v":0,"cmd":"cue.remove","id":2,"cue":2,"fixture":201}"#,
-            r#"{"v":0,"cmd":"cue.remove","id":2,"cue":2,"fixture":201,"attribute":"Dimmer"}"#,
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Rate","number":2}"#,
-            r#"{"v":0,"cmd":"settings.playback","auto_connect":false,"cue_list_fader":"KillAtZero",
+            r#"{"v":1,"cmd":"cue.legend","id":2,"cue":2,"legend":"Welcome"}"#,
+            r#"{"v":1,"cmd":"cue.track","id":2,"cue":2,"track":"CueOnly"}"#,
+            r#"{"v":1,"cmd":"cue.delete","id":2,"cue":2}"#,
+            r#"{"v":1,"cmd":"cue.renumber","id":2,"cue":2,"to":2.5}"#,
+            r#"{"v":1,"cmd":"cue.renumber_all","id":2}"#,
+            r#"{"v":1,"cmd":"cue.copy","id":2,"cue":2,"to":7}"#,
+            r#"{"v":1,"cmd":"cue.view","id":2,"cue":2}"#,
+            r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":201}"#,
+            r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":201,"attribute":"Dimmer"}"#,
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":4,"kind":"Rate","number":2}"#,
+            r#"{"v":1,"cmd":"settings.playback","auto_connect":false,"cue_list_fader":"KillAtZero",
                 "update_mode":"Both","handle_buttons":{"Custom":{"CueList":["Go","Back"]}}}"#,
         ] {
             assert!(
@@ -5510,34 +5528,34 @@ mod tests {
     #[test]
     fn cue_41_bad_commands_are_errors() {
         for bad in [
-            r#"{"v":0,"cmd":"cuelist.go","id":"two"}"#,
-            r#"{"v":0,"cmd":"cuelist.goto","id":2}"#,
-            r#"{"v":0,"cmd":"cuelist.next","cue":"x"}"#,
-            r#"{"v":0,"cmd":"cuelist.goto","cue":2.0001}"#,
-            r#"{"v":0,"cmd":"cuelist.connect"}"#,
-            r#"{"v":0,"cmd":"playback.button","id":2,"button":"middle","on":true}"#,
-            r#"{"v":0,"cmd":"playback.button","id":2,"button":"upper"}"#,
-            r#"{"v":0,"cmd":"playback.tap"}"#,
-            r#"{"v":0,"cmd":"playback.bpm","id":3}"#,
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"mode":"Append","cue":3}"#,
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2,"update_mode":"Sideways"}"#,
-            r#"{"v":0,"cmd":"playback.options","id":2,"kind":"Timeline"}"#,
-            r#"{"v":0,"cmd":"playback.options","id":3,"chase":{"direction":"Sideways"}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":3,"list":"Loop"}"#,
-            r#"{"v":0,"cmd":"cue.times","id":2,"fade_in":3}"#,
-            r#"{"v":0,"cmd":"cue.times","id":2,"cue":2,"link":{"type":"Later"}}"#,
-            r#"{"v":0,"cmd":"cue.legend","id":2,"cue":2}"#,
-            r#"{"v":0,"cmd":"cue.track","id":2,"cue":2,"track":"Hold"}"#,
-            r#"{"v":0,"cmd":"cue.delete","id":2}"#,
-            r#"{"v":0,"cmd":"cue.renumber","id":2,"cue":2}"#,
-            r#"{"v":0,"cmd":"cue.renumber_all"}"#,
-            r#"{"v":0,"cmd":"cue.copy","id":2,"cue":2}"#,
-            r#"{"v":0,"cmd":"cue.view","id":2}"#,
-            r#"{"v":0,"cmd":"cue.remove","id":2,"cue":2}"#,
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Size"}"#,
-            r#"{"v":0,"cmd":"master.record","page":1,"kind":"Bpm"}"#,
-            r#"{"v":0,"cmd":"settings.playback","handle_buttons":"Avolites"}"#,
-            r#"{"v":0,"cmd":"settings.playback","update_mode":"Sideways"}"#,
+            r#"{"v":1,"cmd":"cuelist.go","id":"two"}"#,
+            r#"{"v":1,"cmd":"cuelist.goto","id":2}"#,
+            r#"{"v":1,"cmd":"cuelist.next","cue":"x"}"#,
+            r#"{"v":1,"cmd":"cuelist.goto","cue":2.0001}"#,
+            r#"{"v":1,"cmd":"cuelist.connect"}"#,
+            r#"{"v":1,"cmd":"playback.button","id":2,"button":"middle","on":true}"#,
+            r#"{"v":1,"cmd":"playback.button","id":2,"button":"upper"}"#,
+            r#"{"v":1,"cmd":"playback.tap"}"#,
+            r#"{"v":1,"cmd":"playback.bpm","id":3}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"mode":"Append","cue":3}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2,"update_mode":"Sideways"}"#,
+            r#"{"v":1,"cmd":"playback.options","id":2,"kind":"Timeline"}"#,
+            r#"{"v":1,"cmd":"playback.options","id":3,"chase":{"direction":"Sideways"}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":3,"list":"Loop"}"#,
+            r#"{"v":1,"cmd":"cue.times","id":2,"fade_in":3}"#,
+            r#"{"v":1,"cmd":"cue.times","id":2,"cue":2,"link":{"type":"Later"}}"#,
+            r#"{"v":1,"cmd":"cue.legend","id":2,"cue":2}"#,
+            r#"{"v":1,"cmd":"cue.track","id":2,"cue":2,"track":"Hold"}"#,
+            r#"{"v":1,"cmd":"cue.delete","id":2}"#,
+            r#"{"v":1,"cmd":"cue.renumber","id":2,"cue":2}"#,
+            r#"{"v":1,"cmd":"cue.renumber_all"}"#,
+            r#"{"v":1,"cmd":"cue.copy","id":2,"cue":2}"#,
+            r#"{"v":1,"cmd":"cue.view","id":2}"#,
+            r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2}"#,
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":4,"kind":"Size"}"#,
+            r#"{"v":1,"cmd":"master.record","page":1,"kind":"Bpm"}"#,
+            r#"{"v":1,"cmd":"settings.playback","handle_buttons":"Avolites"}"#,
+            r#"{"v":1,"cmd":"settings.playback","update_mode":"Sideways"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -5549,7 +5567,7 @@ mod tests {
         let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
         assert_eq!(
             v,
-            json!({"v":0,"type":"cue.view","playback":2,"cue":2.0,"fixtures":[
+            json!({"v":1,"type":"cue.view","playback":2,"cue":2.0,"fixtures":[
                 {"fixture":1,"values":{"Dimmer":{"value":1.0,"from":1.0}}},
                 {"fixture":2,"values":{"Dimmer":{"value":0.5,"from":2.0}}}]})
         );
@@ -5559,13 +5577,13 @@ mod tests {
 
     #[test]
     fn ipc_25_stamp_sets_the_receive_time_of_taps_and_buttons_only() {
-        let tap = parse_command(r#"{"v":0,"cmd":"playback.tap","id":3}"#).unwrap();
+        let tap = parse_command(r#"{"v":1,"cmd":"playback.tap","id":3}"#).unwrap();
         assert_ne!(stamp(tap.clone(), 1.5), tap, "a tap carries its time");
         let button =
-            parse_command(r#"{"v":0,"cmd":"playback.button","id":3,"button":"upper","on":true}"#)
+            parse_command(r#"{"v":1,"cmd":"playback.button","id":3,"button":"upper","on":true}"#)
                 .unwrap();
         assert_ne!(stamp(button.clone(), 1.5), button);
-        let go = parse_command(r#"{"v":0,"cmd":"cuelist.go"}"#).unwrap();
+        let go = parse_command(r#"{"v":1,"cmd":"cuelist.go"}"#).unwrap();
         assert_eq!(stamp(go.clone(), 1.5), go);
     }
 
@@ -5658,14 +5676,14 @@ mod tests {
     #[test]
     fn grm_15_group_master_commands_parse() {
         for good in [
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":6}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Htp"}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"scale":200}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"enabled":false}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"TakeOver","scale":1000,
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":6}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"mode":"Htp"}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"scale":200}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"enabled":false}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"mode":"TakeOver","scale":1000,
                 "enabled":true}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Limit"}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Scale"}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"mode":"Limit"}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"mode":"Scale"}}"#,
         ] {
             assert!(
                 parse_command(good).is_ok(),
@@ -5674,14 +5692,14 @@ mod tests {
             );
         }
         for bad in [
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":8,"kind":"Group"}"#,
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":"six"}"#,
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":6,"number":1}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Dim"}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"mode":"Unknown"}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"level":0.5}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"group":2}}"#,
-            r#"{"v":0,"cmd":"playback.options","id":4,"master":{"enabled":"no"}}"#,
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":8,"kind":"Group"}"#,
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":"six"}"#,
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":8,"kind":"Group","group":6,"number":1}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"mode":"Dim"}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"mode":"Unknown"}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"level":0.5}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"group":2}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":4,"master":{"enabled":"no"}}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
@@ -5691,8 +5709,8 @@ mod tests {
 
     #[test]
     fn ipc_30_undo_and_redo_parse() {
-        assert_eq!(parse_command(r#"{"v":0,"cmd":"undo"}"#), Ok(Command::Undo));
-        assert_eq!(parse_command(r#"{"v":0,"cmd":"redo"}"#), Ok(Command::Redo));
+        assert_eq!(parse_command(r#"{"v":1,"cmd":"undo"}"#), Ok(Command::Undo));
+        assert_eq!(parse_command(r#"{"v":1,"cmd":"redo"}"#), Ok(Command::Redo));
     }
 
     #[test]
@@ -5732,7 +5750,7 @@ mod tests {
         let d = published.undo_delta(&info).unwrap();
         assert_eq!(
             parse(&d),
-            json!({"v":0,"type":"undo","undo":"Clear","redo":null})
+            json!({"v":1,"type":"undo","undo":"Clear","redo":null})
         );
         assert_eq!(published.undo_delta(&info), None, "no change, no delta");
     }
@@ -5809,10 +5827,10 @@ mod tests {
     #[test]
     fn ipc_37_patch_profile_answers_the_shows_copy() {
         assert!(matches!(
-            parse_command(r#"{"v":0,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#),
+            parse_command(r#"{"v":1,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#),
             Ok(Command::PatchProfile { profile }) if profile == "Showtec/Phantom 25 LED Spot"
         ));
-        assert!(parse_command(r#"{"v":0,"cmd":"patch.profile"}"#).is_err());
+        assert!(parse_command(r#"{"v":1,"cmd":"patch.profile"}"#).is_err());
         let mut e = engine();
         let p = Profile::from_json(PHANTOM).unwrap();
         e.add_profile("Showtec/Phantom 25 LED Spot", p.clone())
@@ -5820,7 +5838,7 @@ mod tests {
         let v = parse(&patch_profile(&e, "Showtec/Phantom 25 LED Spot").unwrap());
         assert_eq!(
             v,
-            json!({"v":0,"type":"patch.profile","profile_key":"Showtec/Phantom 25 LED Spot",
+            json!({"v":1,"type":"patch.profile","profile_key":"Showtec/Phantom 25 LED Spot",
                    "profile":serde_json::to_value(&p).unwrap()})
         );
         assert!(patch_profile(&e, "Showtec/Nope").is_err());
@@ -5828,14 +5846,14 @@ mod tests {
 
     #[test]
     fn ipc_38_profile_save_parses_a_profile_with_a_name() {
-        let ok = format!(r#"{{"v":0,"cmd":"profile.save","profile":{PHANTOM}}}"#);
+        let ok = format!(r#"{{"v":1,"cmd":"profile.save","profile":{PHANTOM}}}"#);
         assert!(matches!(
             parse_command(&ok),
             Ok(Command::ProfileSave(p)) if p.model == "Phantom 25 LED Spot"
         ));
         for bad in [
-            r#"{"v":0,"cmd":"profile.save"}"#.to_string(),
-            r#"{"v":0,"cmd":"profile.save","profile":{"modes":"x"}}"#.to_string(),
+            r#"{"v":1,"cmd":"profile.save"}"#.to_string(),
+            r#"{"v":1,"cmd":"profile.save","profile":{"modes":"x"}}"#.to_string(),
             ok.replace(r#""manufacturer":"Showtec""#, r#""manufacturer":" ""#),
             ok.replace(r#""model":"Phantom 25 LED Spot""#, r#""model":"""#),
         ] {
@@ -5850,12 +5868,12 @@ mod tests {
         let v = parse(&write_user_profile(&lib, &p, 4));
         assert_eq!(
             v,
-            json!({"v":0,"type":"library.saved","manufacturer":"Showtec",
+            json!({"v":1,"type":"library.saved","manufacturer":"Showtec",
                    "model":"Phantom 25 LED Spot","fixtures":4})
         );
         let v = ask(
             &lib,
-            r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec","query":"phantom"}"#,
+            r#"{"v":1,"cmd":"library.models","manufacturer":"Showtec","query":"phantom"}"#,
         );
         assert_eq!(v["items"][0]["source"], "user");
         // The show was updated, the file was not: a warning that says so (LIB-25).
@@ -5872,13 +5890,13 @@ mod tests {
     #[test]
     fn ipc_39_programmer_set_parses() {
         assert!(matches!(
-            parse_command(r#"{"v":0,"cmd":"programmer.set","attribute":"Pan","value":0.5}"#),
+            parse_command(r#"{"v":1,"cmd":"programmer.set","attribute":"Pan","value":0.5}"#),
             Ok(Command::ProgrammerSet { attribute, value }) if attribute == "Pan" && value == 0.5
         ));
         for bad in [
-            r#"{"v":0,"cmd":"programmer.set","value":0.5}"#,
-            r#"{"v":0,"cmd":"programmer.set","attribute":"Pan"}"#,
-            r#"{"v":0,"cmd":"programmer.set","attribute":"Pan","value":"x"}"#,
+            r#"{"v":1,"cmd":"programmer.set","value":0.5}"#,
+            r#"{"v":1,"cmd":"programmer.set","attribute":"Pan"}"#,
+            r#"{"v":1,"cmd":"programmer.set","attribute":"Pan","value":"x"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
