@@ -249,6 +249,14 @@ values.
   tracked values magenta, references cyan; a right-click on a hard value offers Remove (two-step).
   The Cue list window gains a Track column (`·`, B, CO, S). UI-03 gains magenta = tracked value
   (research: the cross-vendor rule).
+  Amendment (VS2-37, proposed 2026-10-26, awaiting owner approval): `cue.remove`'s `fixture` is an
+  item (IPC-42): `201` for the fixture, `"901.2"` for a cell. An item is one row of the Cue view and
+  is removed alone: a cell item takes out only that cell's hard values (the fixture's own values and
+  its other cells stay), a fixture item without `attribute` only the fixture's own values (its cells'
+  values stay; remove those row by row). A cell that holds no hard value of `attribute` (or none at
+  all) is refused with a warning naming the item ("Q3 holds no 901.2 of its own", CUE-49). App: a
+  right-click on a hard value in a cell row picks it as on a fixture row; the Remove softkey names
+  the cell ("Dimmer of 901.2") and sends the cell item.
 
 ### Handle buttons (answers PBK-29)
 - **CUE-25** The two buttons of a handle follow what is on it (owner, 2026-10-21; Titan's key
