@@ -123,6 +123,13 @@ fn item(it: &mut Tokens, kind: Kind) -> Option<Item> {
 }
 
 fn selection(tokens: &[&str]) -> Option<Vec<(bool, Item)>> {
+    // PRG-48: the keypad may join digits and `.` (`901.2`); read it as its tokens.
+    let split: Vec<&str> = (tokens.iter())
+        .flat_map(|t| t.split('.').enumerate())
+        .flat_map(|(i, p)| [(i > 0).then_some("."), (!p.is_empty()).then_some(p)])
+        .flatten()
+        .collect();
+    let tokens = &split[..];
     let mut items = Vec::new();
     let mut kind = Kind::Fixture;
     let mut not = false;

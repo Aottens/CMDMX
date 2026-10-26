@@ -461,3 +461,19 @@ fn prg_55_groups_list_items() {
     e.record_group(5).unwrap();
     assert_eq!(e.groups()[&5], vec![f(201), c(901, 1), c(902, 1)]);
 }
+
+#[test]
+fn prg_48_a_dotted_number_reads_as_its_tokens() {
+    // The app's keypad joins digits and `.` into one token (`901.2`); it means `901 . 2`.
+    let mut e = rig();
+    run(&mut e, "901.2 Enter").unwrap();
+    assert_eq!(items(&e), vec![c(901, 2)]);
+    run(&mut e, "901.2 Thro 3 And 201 @ 50 Enter").unwrap();
+    assert_eq!(items(&e), vec![c(901, 2), c(901, 3), f(201)]);
+    e.clear_selection();
+    run(&mut e, "902. Enter").unwrap();
+    assert_eq!(items(&e), vec![c(902, 1), c(902, 2), c(902, 3)]);
+    run(&mut e, ".2 Enter").unwrap();
+    assert_eq!(items(&e), vec![c(902, 2)]);
+    assert!(run(&mut e, "901.2.3 Enter").is_err());
+}
