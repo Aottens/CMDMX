@@ -157,6 +157,7 @@ struct FixturesWindow: View {
     var body: some View {
         let programmer = engine.programmer
         // Display lookups only: 1-based position in the engine's selection order.
+        // PRG-55: a fixture button speaks for its whole-fixture item; cells show with VS2-34.
         let order = Dictionary(programmer.selection.enumerated().map { ($1, $0 + 1) }, uniquingKeysWith: { a, _ in a })
         // Double outline only while the engine's targets differ from its selection (sub-selection).
         let subSelection = programmer.targets != programmer.selection
@@ -185,12 +186,12 @@ struct FixturesWindow: View {
                 ForEach(visible) { fixture in
                     Cell(number: fixture.number,
                          legend: Self.legend(fixture),
-                         order: order[fixture.id],
-                         located: programmer.located[fixture.id] != nil,   // UI-26
-                         selected: order[fixture.id] != nil,
-                         current: subSelection && targets.contains(fixture.id),
-                         dimmed: subSelection && order[fixture.id] != nil && !targets.contains(fixture.id),
-                         inProgrammer: inProgrammer.contains(fixture.id),
+                         order: order[Item(fixture: fixture.id)],
+                         located: programmer.located[Item(fixture: fixture.id)] != nil,   // UI-26
+                         selected: order[Item(fixture: fixture.id)] != nil,
+                         current: subSelection && targets.contains(Item(fixture: fixture.id)),
+                         dimmed: subSelection && order[Item(fixture: fixture.id)] != nil && !targets.contains(Item(fixture: fixture.id)),
+                         inProgrammer: inProgrammer.contains(Item(fixture: fixture.id)),
                          lamp: true) { engine.selectFixture(fixture.id) }
                 }
             }

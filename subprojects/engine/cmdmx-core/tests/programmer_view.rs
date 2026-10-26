@@ -75,14 +75,14 @@ fn prg_35_view_shows_selection_targets_and_group_states() {
     e.turn_wheel("Pan", 10, cmdmx_core::programmer::Resolution::Coarse)
         .unwrap();
     let v = e.programmer_view();
-    assert_eq!(v.selection, vec![301, 101]);
-    assert_eq!(v.targets, vec![101]);
+    assert_eq!(v.selection, vec![Item::fixture(301), Item::fixture(101)]);
+    assert_eq!(v.targets, vec![Item::fixture(101)]);
     assert_eq!(v.active_group, P);
     assert!(group_state(&v, I).available);
     assert!(group_state(&v, P).available && group_state(&v, P).has_values);
     assert!(group_state(&v, B).available && !group_state(&v, B).has_values);
     assert!(!group_state(&v, C).available);
-    assert_eq!(v.in_programmer, vec![101]);
+    assert_eq!(v.in_programmer, vec![Item::fixture(101)]);
 }
 
 #[test]
@@ -111,12 +111,18 @@ fn prg_35_in_programmer_is_sorted_and_has_values_follows_the_targets() {
     e.execute_command(&["302", "And", "201", "@", "100", "Enter"])
         .unwrap();
     let v = e.programmer_view();
-    assert_eq!(v.in_programmer, vec![201, 302]);
+    assert_eq!(
+        v.in_programmer,
+        vec![Item::fixture(201), Item::fixture(302)]
+    );
     assert!(group_state(&v, I).has_values);
     e.clear(); // deselect: no targets, so no group "has values" for them
     let v = e.programmer_view();
     assert!(!group_state(&v, I).has_values);
-    assert_eq!(v.in_programmer, vec![201, 302]);
+    assert_eq!(
+        v.in_programmer,
+        vec![Item::fixture(201), Item::fixture(302)]
+    );
 }
 
 // ---- VS2-07 run findings -------------------------------------------------------

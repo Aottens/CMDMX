@@ -1,10 +1,16 @@
-//! Cell items in the programmer: `specs/modules/programmer.md` PRG-46, 48..50 (VS2-30).
+//! Cell items in the programmer: `specs/modules/programmer.md` PRG-46, 48..50 (VS2-30), and
+//! the engine state per item, PRG-55 (VS2-33).
 //!
 //! Shehds-like washes 901–904 with three RGBW cells each and a master Dimmer; 201 is a plain
-//! dimmer without cells. Cells only select here: the merge (PRG-47, 51), storage (PRG-52) and
-//! the protocol (PRG-55) are later tasks.
+//! dimmer without cells. The merge (PRG-47, 51) and storage (PRG-52) have
+//! their own files.
 
-#![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
+#![allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::indexing_slicing
+)]
 
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::patch::{Fixture, FixtureId};
@@ -403,4 +409,71 @@ fn prg_50_all_without_sub_selection_selects_the_programmer_items() {
     tap(&mut e, &[c(903, 1)]);
     e.select_all();
     assert_eq!(items(&e), vec![f(901), f(902)]);
+}
+
+// ---- PRG-55 -----------------------------------------------------------------
+
+#[test]
+fn prg_55_selection_and_sub_selection_are_item_lists() {
+    let mut e = rig();
+    tap(&mut e, &[f(901), c(902, 2), c(902, 3)]);
+    let v = e.programmer_view();
+    assert_eq!(v.selection, vec![f(901), c(902, 2), c(902, 3)]);
+    assert_eq!(v.targets, v.selection, "no sub-selection: all items");
+    e.next_fixture();
+    e.next_fixture();
+    assert_eq!(
+        e.programmer_view().targets,
+        vec![c(902, 2)],
+        "Fix +1 steps items"
+    );
+}
+
+#[test]
+fn prg_55_in_programmer_lists_items_sorted() {
+    let mut e = rig();
+    run(&mut e, "902 . 2 And 201 @ 50 Enter").unwrap();
+    run(&mut e, "901 @ 30 Enter").unwrap();
+    let v = e.programmer_view();
+    assert_eq!(v.in_programmer, vec![f(201), f(901), c(902, 2)]);
+    let keyed: Vec<Item> = v.contents.iter().map(|x| x.fixture).collect();
+    assert_eq!(
+        keyed,
+        vec![f(201), f(901), c(902, 2)],
+        "contents keyed by item"
+    );
+}
+
+#[test]
+fn prg_55_located_is_keyed_by_item() {
+    use cmdmx_core::attribute::AttributeGroup::C;
+    let mut e = rig();
+    tap(&mut e, &[c(901, 1)]);
+    e.locate(&[C]).unwrap();
+    let v = e.programmer_view();
+    assert!(v.located.contains_key(&c(901, 1)), "{:?}", v.located);
+}
+
+#[test]
+fn prg_55_groups_list_items() {
+    let mut e = rig();
+    tap(&mut e, &[f(201), c(901, 1), c(902, 1)]);
+    e.record_group(5).unwrap();
+    assert_eq!(e.groups()[&5], vec![f(201), c(901, 1), c(902, 1)]);
+}
+
+#[test]
+fn prg_48_a_dotted_number_reads_as_its_tokens() {
+    // The app's keypad joins digits and `.` into one token (`901.2`); it means `901 . 2`.
+    let mut e = rig();
+    run(&mut e, "901.2 Enter").unwrap();
+    assert_eq!(items(&e), vec![c(901, 2)]);
+    run(&mut e, "901.2 Thro 3 And 201 @ 50 Enter").unwrap();
+    assert_eq!(items(&e), vec![c(901, 2), c(901, 3), f(201)]);
+    e.clear_selection();
+    run(&mut e, "902. Enter").unwrap();
+    assert_eq!(items(&e), vec![c(902, 1), c(902, 2), c(902, 3)]);
+    run(&mut e, ".2 Enter").unwrap();
+    assert_eq!(items(&e), vec![c(902, 2)]);
+    assert!(run(&mut e, "901.2.3 Enter").is_err());
 }

@@ -4021,10 +4021,9 @@ impl Engine {
     /// PRG-35 / IPC-11: the programmer state for rendering.
     pub fn programmer_view(&self) -> ProgrammerView {
         use AttributeGroup::*;
-        // PRG-47: wheels, groups and the picker read the target items; `targets` below stays the
-        // whole fixtures of the view (cells reach the view with PRG-55).
+        // PRG-47, PRG-55: wheels, groups, the picker and `targets` read the target items.
         let items = self.programmer.target_items();
-        let targets = self.programmer.targets();
+        let targets = items.clone();
         let attribute_groups = [I, P, C, G, B, E, S, Fx]
             .into_iter()
             .map(|group| AttributeGroupState {
@@ -4091,21 +4090,16 @@ impl Engine {
         });
         let palettes = self.palette_use(&items);
         ProgrammerView {
-            selection: self.programmer.selection().to_vec(),
+            selection: self.programmer.items().to_vec(),
             targets,
             active_group: self.active_group,
             attribute_groups,
             wheels,
-            // The view lists whole fixtures; cells reach it with PRG-55 (VS2-33).
-            in_programmer: (self.programmer.values().keys())
-                .filter(|i| i.cell.is_none())
-                .map(|i| i.fixture)
-                .collect(),
+            in_programmer: self.programmer.values().keys().copied().collect(),
             colour_model: self.colour_model,
             contents: (self.programmer.values().iter())
-                .filter(|(i, _)| i.cell.is_none())
                 .map(|(&item, values)| FixtureValues {
-                    fixture: item.fixture,
+                    fixture: item,
                     values: values
                         .iter()
                         .map(|(name, stored)| {
@@ -4134,8 +4128,7 @@ impl Engine {
             colour,
             palettes,
             located: (self.programmer.located().iter())
-                .filter(|(i, _)| i.cell.is_none())
-                .map(|(&i, attrs)| (i.fixture, attrs.keys().cloned().collect()))
+                .map(|(&i, attrs)| (i, attrs.keys().cloned().collect()))
                 .collect(),
             highlight: self.highlight,
             fan: self.fan,
@@ -5123,13 +5116,9 @@ impl Engine {
             .and_then(|id| self.fixtures.get(id))
     }
 
-    /// Recorded groups, sorted by id, with their whole fixtures in group order (what the wire
-    /// shows until it carries items, VS2-33; see [`Engine::group_items`]).
-    pub fn groups(&self) -> BTreeMap<GroupId, Vec<FixtureId>> {
-        self.groups
-            .iter()
-            .map(|(&id, items)| (id, whole_fixtures(items)))
-            .collect()
+    /// Recorded groups, sorted by id, with their items in group order (IPC-42).
+    pub fn groups(&self) -> BTreeMap<GroupId, Vec<Item>> {
+        self.groups.clone()
     }
 
     pub fn group(&self, id: GroupId) -> Option<Vec<FixtureId>> {

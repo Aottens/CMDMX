@@ -16,7 +16,7 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 - **IPC-01** The daemon listens for WebSocket connections on `127.0.0.1:7319` (loopback only); `--ipc-port <n>` changes the port. Several clients may be connected at once.
 - **IPC-02** A WebSocket handshake that carries an `Origin` header is refused. Browsers always send one, so a web page on the Mac cannot drive the lights; the native app sends none. Browser remotes come with authentication later (IDEA-06).
 
-### Messages (JSON text frames, every message has `"v": 0`)
+### Messages (JSON text frames, every message has `"v"`: 0 until IPC-42, 1 since; the examples below keep the `0` they were written with)
 - **IPC-03** On connect the client first receives a snapshot:
   `{"v":0,"type":"snapshot","faders_per_page":8,"grand_master":1.0,"playbacks":[{"id":1,"level":0.0,"active":false}]}`. `playbacks` lists every playback in the engine, sorted by id; `active` means the playback is in the merge.
 - **IPC-04** Commands from a client:
@@ -134,7 +134,8 @@ the PAT-09 shape.
 - **IPC-42** Cells (P1-13, PRG-46..55; approved by owner 2026-10-25). A selection item on the wire is
   an integer for a whole fixture (`901`, as today) or a string `"<fixture>.<cell>"` for a cell
   (`"901.2"`). `selection`, `sub_selection` and group contents (IPC-11/12) are lists of items;
-  `contents` keys (already strings) may be `"901.2"`; each `fixtures` entry gains `cells` (count,
+  `contents` entries' `fixture`, `cue.view` fixtures and `located` keys may be `"901.2"` (the
+  sub-selection is the `targets` key of IPC-11); each `fixtures` entry gains `cells` (count,
   0 for none), and `in_programmer` entries become items. `programmer.select {"fixture":901,"cell":2}`
   selects a cell (`cell` optional). A list that holds a string is a type change an older app would
   misread, so `v` goes up to 1 with this criterion (IPC-41).

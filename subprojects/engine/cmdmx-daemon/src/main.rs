@@ -551,7 +551,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         FaderSet { playback, level } => engine.set_fader(playback, level, now),
         GrandMasterSet { level } => engine.set_grand_master(level),
         PageSet { page } => engine.set_page(page),
-        Select { fixture } => engine.select_fixture(fixture),
+        Select { fixture, cell } => engine.select_item(Item { fixture, cell }),
         SelectGroup { group } => engine.select_group(group),
         Step { forward: true } => {
             engine.next_fixture();
@@ -2108,42 +2108,42 @@ mod tests {
             .unwrap();
         ok(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1}"#,
         );
         let id = at(&engine, 3, 1);
         ok(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
         );
         ok(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Insert"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"mode":"Insert"}"#,
         );
         ok(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"cue":5}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"cue":5}"#,
         );
         assert_eq!(numbers(&engine, id), vec![1.0, 2.0, 3.0, 5.0]);
         ok(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"cue":2,"mode":"Merge",
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"cue":2,"mode":"Merge",
                 "update_mode":"CueOnly"}"#,
         );
         let s = format!(r#""id":{id},"cue":2"#);
         ok(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cue.legend",{s},"legend":"Welcome"}}"#),
+            &format!(r#"{{"v":1,"cmd":"cue.legend",{s},"legend":"Welcome"}}"#),
         );
         ok(
             &mut engine,
             &format!(
-                r#"{{"v":0,"cmd":"cue.times",{s},"fade_in":3,"link":{{"type":"After","offset":1}},
+                r#"{{"v":1,"cmd":"cue.times",{s},"fade_in":3,"link":{{"type":"After","offset":1}},
                     "group_times":{{"P":{{"delay":1,"fade":5}}}}}}"#
             ),
         );
         ok(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cue.track",{s},"track":"Block"}}"#),
+            &format!(r#"{{"v":1,"cmd":"cue.track",{s},"track":"Block"}}"#),
         );
         let q2 = engine.playback(id).unwrap().cues[1].clone();
         assert_eq!(q2.legend, "Welcome");
@@ -2153,24 +2153,24 @@ mod tests {
         assert_eq!(q2.group_times.len(), 1);
         ok(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cue.copy",{s},"to":7}}"#),
+            &format!(r#"{{"v":1,"cmd":"cue.copy",{s},"to":7}}"#),
         );
         ok(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cue.renumber","id":{id},"cue":7,"to":8}}"#),
+            &format!(r#"{{"v":1,"cmd":"cue.renumber","id":{id},"cue":7,"to":8}}"#),
         );
         ok(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cue.delete","id":{id},"cue":8}}"#),
+            &format!(r#"{{"v":1,"cmd":"cue.delete","id":{id},"cue":8}}"#),
         );
         ok(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cue.renumber_all","id":{id}}}"#),
+            &format!(r#"{{"v":1,"cmd":"cue.renumber_all","id":{id}}}"#),
         );
         assert_eq!(numbers(&engine, id), vec![1.0, 2.0, 3.0, 4.0]);
         ok(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cue.remove","id":{id},"cue":1,"fixture":201}}"#),
+            &format!(r#"{{"v":1,"cmd":"cue.remove","id":{id},"cue":1,"fixture":201}}"#),
         );
         assert!(engine.playback(id).unwrap().cues[0].values.is_empty());
     }
@@ -2183,38 +2183,38 @@ mod tests {
             .unwrap();
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1}"#,
         )
         .unwrap();
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
         )
         .unwrap();
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
         )
         .unwrap();
         let id = at(&engine, 3, 1);
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cuelist.connect","id":{id}}}"#),
+            &format!(r#"{{"v":1,"cmd":"cuelist.connect","id":{id}}}"#),
         )
         .unwrap();
         assert_eq!(engine.connected(), Some(id));
-        send(&mut engine, r#"{"v":0,"cmd":"cuelist.go"}"#).unwrap();
+        send(&mut engine, r#"{"v":1,"cmd":"cuelist.go"}"#).unwrap();
         engine.tick(0.0);
         let cur = |e: &Engine| e.list_live(id).unwrap().current.map(|c| c.as_f64());
         assert_eq!(cur(&engine), Some(1.0));
-        send(&mut engine, r#"{"v":0,"cmd":"cuelist.next","cue":3}"#).unwrap();
+        send(&mut engine, r#"{"v":1,"cmd":"cuelist.next","cue":3}"#).unwrap();
         assert_eq!(
             engine.list_live(id).unwrap().next.map(|c| c.as_f64()),
             Some(3.0)
         );
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"playback.button","id":{id},"button":"upper","on":true}}"#),
+            &format!(r#"{{"v":1,"cmd":"playback.button","id":{id},"button":"upper","on":true}}"#),
         )
         .unwrap();
         engine.tick(0.025);
@@ -2223,20 +2223,20 @@ mod tests {
             Some(3.0),
             "the upper button is Go on a cue list"
         );
-        send(&mut engine, r#"{"v":0,"cmd":"cuelist.back"}"#).unwrap();
+        send(&mut engine, r#"{"v":1,"cmd":"cuelist.back"}"#).unwrap();
         engine.tick(0.05);
         assert_eq!(cur(&engine), Some(2.0));
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"cuelist.goto","id":{id},"cue":1}}"#),
+            &format!(r#"{{"v":1,"cmd":"cuelist.goto","id":{id},"cue":1}}"#),
         )
         .unwrap();
         engine.tick(0.075);
         assert_eq!(cur(&engine), Some(1.0));
-        send(&mut engine, r#"{"v":0,"cmd":"playback.release"}"#).unwrap();
+        send(&mut engine, r#"{"v":1,"cmd":"playback.release"}"#).unwrap();
         engine.tick(0.1);
         assert!(!engine.playback_state(id).unwrap().is_active());
-        assert!(send(&mut engine, r#"{"v":0,"cmd":"cuelist.goto","cue":9}"#).is_err());
+        assert!(send(&mut engine, r#"{"v":1,"cmd":"cuelist.goto","cue":9}"#).is_err());
     }
 
     #[test]
@@ -2250,18 +2250,18 @@ mod tests {
             .unwrap();
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1}"#,
         )
         .unwrap();
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
         )
         .unwrap();
         let id = at(&engine, 3, 1);
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"playback.options","id":{id},"list":{{"loop":"Loop"}}}}"#),
+            &format!(r#"{{"v":1,"cmd":"playback.options","id":{id},"list":{{"loop":"Loop"}}}}"#),
         )
         .unwrap();
         let p = engine.playback(id).unwrap();
@@ -2269,7 +2269,7 @@ mod tests {
         assert!(p.list.tracking, "fields left out keep their value (IPC-27)");
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"playback.options","id":{id},"kind":"Chase","chase":{{"bpm":90,"direction":"Bounce"}}}}"#),
+            &format!(r#"{{"v":1,"cmd":"playback.options","id":{id},"kind":"Chase","chase":{{"bpm":90,"direction":"Bounce"}}}}"#),
         )
         .unwrap();
         let p = engine.playback(id).unwrap();
@@ -2279,13 +2279,13 @@ mod tests {
         assert_eq!(p.chase.crossfade, 0.0);
         assert!(send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"playback.options","id":{id},"chase":{{"bpm":900}}}}"#)
+            &format!(r#"{{"v":1,"cmd":"playback.options","id":{id},"chase":{{"bpm":900}}}}"#)
         )
         .is_err());
         assert_eq!(engine.playback(id).unwrap().chase.bpm, 90.0);
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"playback.bpm","id":{id},"bpm":100}}"#),
+            &format!(r#"{{"v":1,"cmd":"playback.bpm","id":{id},"bpm":100}}"#),
         )
         .unwrap();
         assert_eq!(engine.playback(id).unwrap().chase.bpm, 100.0);
@@ -2293,17 +2293,17 @@ mod tests {
         // IPC-26: no number → the lowest free one.
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"master.record","page":3,"slot":4,"kind":"Bpm"}"#,
+            r#"{"v":1,"cmd":"master.record","page":3,"slot":4,"kind":"Bpm"}"#,
         )
         .unwrap();
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"master.record","page":3,"slot":5,"kind":"Bpm"}"#,
+            r#"{"v":1,"cmd":"master.record","page":3,"slot":5,"kind":"Bpm"}"#,
         )
         .unwrap();
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"master.record","page":3,"slot":6,"kind":"Rate","number":3}"#,
+            r#"{"v":1,"cmd":"master.record","page":3,"slot":6,"kind":"Rate","number":3}"#,
         )
         .unwrap();
         let number = |e: &Engine, slot| {
@@ -2321,7 +2321,7 @@ mod tests {
         let m = at(&engine, 3, 4);
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"playback.options","id":{m},"master":{{"multiplier":2}}}}"#),
+            &format!(r#"{{"v":1,"cmd":"playback.options","id":{m},"master":{{"multiplier":2}}}}"#),
         )
         .unwrap();
         let Some(Master::Bpm(b)) = engine.playback(m).unwrap().master.clone() else {
@@ -2332,7 +2332,7 @@ mod tests {
         // IPC-25: taps carry their receive time.
         for t in [0.0, 0.4] {
             let tap =
-                ipc::parse_command(&format!(r#"{{"v":0,"cmd":"playback.tap","id":{m}}}"#)).unwrap();
+                ipc::parse_command(&format!(r#"{{"v":1,"cmd":"playback.tap","id":{m}}}"#)).unwrap();
             apply(&mut engine, ipc::stamp(tap, t), 9.0).unwrap();
         }
         let Some(Master::Bpm(b)) = engine.playback(m).unwrap().master.clone() else {
@@ -2342,7 +2342,7 @@ mod tests {
 
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"settings.playback","auto_connect":false,"cue_list_fader":"KillAtZero",
+            r#"{"v":1,"cmd":"settings.playback","auto_connect":false,"cue_list_fader":"KillAtZero",
                 "update_mode":"Both","handle_buttons":"Titan"}"#,
         )
         .unwrap();
@@ -2365,12 +2365,12 @@ mod tests {
         // GRM-01: the demo's group 4 holds the front spots; several masters per group.
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"master.record","page":3,"slot":8,"kind":"Group","group":4}"#,
+            r#"{"v":1,"cmd":"master.record","page":3,"slot":8,"kind":"Group","group":4}"#,
         )
         .unwrap();
         send(
             &mut engine,
-            r#"{"v":0,"cmd":"master.record","page":3,"slot":7,"kind":"Group","group":4}"#,
+            r#"{"v":1,"cmd":"master.record","page":3,"slot":7,"kind":"Group","group":4}"#,
         )
         .unwrap();
         let id = at(&engine, 3, 8);
@@ -2385,7 +2385,7 @@ mod tests {
         let options = |e: &mut Engine, master: &str| {
             send(
                 e,
-                &format!(r#"{{"v":0,"cmd":"playback.options","id":{id},"master":{master}}}"#),
+                &format!(r#"{{"v":1,"cmd":"playback.options","id":{id},"master":{master}}}"#),
             )
         };
         options(&mut engine, r#"{"mode":"Limit"}"#).unwrap();
@@ -2396,7 +2396,7 @@ mod tests {
         // GRM-05, 13: an enabled master's fader is its saved level.
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"fader.set","playback":{id},"level":0.4}}"#),
+            &format!(r#"{{"v":1,"cmd":"fader.set","playback":{id},"level":0.4}}"#),
         )
         .unwrap();
         assert_eq!(group(&engine, id).level, 0.4);
@@ -2405,7 +2405,7 @@ mod tests {
         options(&mut engine, r#"{"enabled":false}"#).unwrap();
         send(
             &mut engine,
-            &format!(r#"{{"v":0,"cmd":"fader.set","playback":{id},"level":0.9}}"#),
+            &format!(r#"{{"v":1,"cmd":"fader.set","playback":{id},"level":0.9}}"#),
         )
         .unwrap();
         let m = group(&engine, id);
@@ -2421,9 +2421,9 @@ mod tests {
         };
         let before = engine.to_show(meta.clone());
         for bad in [
-            r#"{"v":0,"cmd":"master.record","page":3,"slot":5,"kind":"Group","group":99}"#,
-            r#"{"v":0,"cmd":"master.record","page":3,"slot":8,"kind":"Group","group":4}"#,
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":1,"kind":"Group","group":4}"#,
+            r#"{"v":1,"cmd":"master.record","page":3,"slot":5,"kind":"Group","group":99}"#,
+            r#"{"v":1,"cmd":"master.record","page":3,"slot":8,"kind":"Group","group":4}"#,
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":1,"kind":"Group","group":4}"#,
         ] {
             assert!(send(&mut engine, bad).is_err(), "{bad}");
         }
@@ -2437,7 +2437,7 @@ mod tests {
         ] {
             let r = send(
                 &mut engine,
-                &format!(r#"{{"v":0,"cmd":"playback.options","id":{bpm},"master":{bad}}}"#),
+                &format!(r#"{{"v":1,"cmd":"playback.options","id":{bpm},"master":{bad}}}"#),
             );
             assert!(r.is_err(), "{bad} on a BPM master");
         }
@@ -2449,264 +2449,264 @@ mod tests {
     /// UNDO-04: one sample per command name; `class` is the table under test.
     const CLASSES: &[(&str, Class)] = &[
         (
-            r#"{"v":0,"cmd":"fader.set","playback":2,"level":0.5}"#,
+            r#"{"v":1,"cmd":"fader.set","playback":2,"level":0.5}"#,
             Class::Live,
         ),
         (
-            r#"{"v":0,"cmd":"grand_master.set","level":0.5}"#,
+            r#"{"v":1,"cmd":"grand_master.set","level":0.5}"#,
             Class::Live,
         ),
-        (r#"{"v":0,"cmd":"dbo.set","on":true}"#, Class::Live),
-        (r#"{"v":0,"cmd":"page.set","page":2}"#, Class::Live),
+        (r#"{"v":1,"cmd":"dbo.set","on":true}"#, Class::Live),
+        (r#"{"v":1,"cmd":"page.set","page":2}"#, Class::Live),
         (
-            r#"{"v":0,"cmd":"playback.button","id":2,"button":"upper","on":true}"#,
-            Class::Live,
-        ),
-        (
-            r#"{"v":0,"cmd":"playback.flash","id":3,"on":true}"#,
+            r#"{"v":1,"cmd":"playback.button","id":2,"button":"upper","on":true}"#,
             Class::Live,
         ),
         (
-            r#"{"v":0,"cmd":"playback.swop","id":3,"on":false}"#,
-            Class::Live,
-        ),
-        (r#"{"v":0,"cmd":"playback.latch","id":3}"#, Class::Live),
-        (r#"{"v":0,"cmd":"playback.release","id":3}"#, Class::Live),
-        (r#"{"v":0,"cmd":"playback.tap","id":3}"#, Class::Live),
-        (
-            r#"{"v":0,"cmd":"playback.bpm","id":3,"bpm":128}"#,
-            Class::Live,
-        ),
-        (r#"{"v":0,"cmd":"cuelist.go"}"#, Class::Live),
-        (r#"{"v":0,"cmd":"cuelist.back"}"#, Class::Live),
-        (r#"{"v":0,"cmd":"cuelist.stop","id":2}"#, Class::Live),
-        (r#"{"v":0,"cmd":"cuelist.goto","cue":2.5}"#, Class::Live),
-        (
-            r#"{"v":0,"cmd":"cuelist.next","id":2,"cue":3}"#,
-            Class::Live,
-        ),
-        (r#"{"v":0,"cmd":"cuelist.connect","id":2}"#, Class::Live),
-        (
-            r#"{"v":0,"cmd":"programmer.attribute_group","group":"P"}"#,
+            r#"{"v":1,"cmd":"playback.flash","id":3,"on":true}"#,
             Class::Live,
         ),
         (
-            r#"{"v":0,"cmd":"programmer.colour_model","model":"Rgb"}"#,
+            r#"{"v":1,"cmd":"playback.swop","id":3,"on":false}"#,
             Class::Live,
         ),
-        (r#"{"v":0,"cmd":"show.new","name":"Kerst"}"#, Class::Reset),
-        (r#"{"v":0,"cmd":"show.open","name":"Kerk"}"#, Class::Reset),
-        (r#"{"v":0,"cmd":"show.list"}"#, Class::Neutral),
+        (r#"{"v":1,"cmd":"playback.latch","id":3}"#, Class::Live),
+        (r#"{"v":1,"cmd":"playback.release","id":3}"#, Class::Live),
+        (r#"{"v":1,"cmd":"playback.tap","id":3}"#, Class::Live),
         (
-            r#"{"v":0,"cmd":"output.add","line":2,"kind":"sacn"}"#,
+            r#"{"v":1,"cmd":"playback.bpm","id":3,"bpm":128}"#,
+            Class::Live,
+        ),
+        (r#"{"v":1,"cmd":"cuelist.go"}"#, Class::Live),
+        (r#"{"v":1,"cmd":"cuelist.back"}"#, Class::Live),
+        (r#"{"v":1,"cmd":"cuelist.stop","id":2}"#, Class::Live),
+        (r#"{"v":1,"cmd":"cuelist.goto","cue":2.5}"#, Class::Live),
+        (
+            r#"{"v":1,"cmd":"cuelist.next","id":2,"cue":3}"#,
+            Class::Live,
+        ),
+        (r#"{"v":1,"cmd":"cuelist.connect","id":2}"#, Class::Live),
+        (
+            r#"{"v":1,"cmd":"programmer.attribute_group","group":"P"}"#,
+            Class::Live,
+        ),
+        (
+            r#"{"v":1,"cmd":"programmer.colour_model","model":"Rgb"}"#,
+            Class::Live,
+        ),
+        (r#"{"v":1,"cmd":"show.new","name":"Kerst"}"#, Class::Reset),
+        (r#"{"v":1,"cmd":"show.open","name":"Kerk"}"#, Class::Reset),
+        (r#"{"v":1,"cmd":"show.list"}"#, Class::Neutral),
+        (
+            r#"{"v":1,"cmd":"output.add","line":2,"kind":"sacn"}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"output.edit","id":1,"enabled":false}"#,
+            r#"{"v":1,"cmd":"output.edit","id":1,"enabled":false}"#,
             Class::Edit,
         ),
-        (r#"{"v":0,"cmd":"output.remove","ids":[1]}"#, Class::Edit),
-        (r#"{"v":0,"cmd":"output.ports"}"#, Class::Neutral),
+        (r#"{"v":1,"cmd":"output.remove","ids":[1]}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"output.ports"}"#, Class::Neutral),
         (
-            r#"{"v":0,"cmd":"show.save_as","name":"Kerk 2"}"#,
+            r#"{"v":1,"cmd":"show.save_as","name":"Kerk 2"}"#,
             Class::Neutral,
         ),
-        (r#"{"v":0,"cmd":"cue.view","id":2,"cue":2}"#, Class::Neutral),
+        (r#"{"v":1,"cmd":"cue.view","id":2,"cue":2}"#, Class::Neutral),
         (
-            r#"{"v":0,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#,
-            Class::Neutral,
-        ),
-        (
-            r#"{"v":0,"cmd":"profile.save","profile":{"manufacturer":"A","model":"B","modes":[{"name":"m","footprint":1}]}}"#,
-            Class::Edit,
-        ),
-        (
-            r#"{"v":0,"cmd":"programmer.set","attribute":"Pan","value":0.5}"#,
-            Class::Edit,
-        ),
-        (
-            r#"{"v":0,"cmd":"library.search","query":"par"}"#,
+            r#"{"v":1,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#,
             Class::Neutral,
         ),
         (
-            r#"{"v":0,"cmd":"library.manufacturers","query":"par"}"#,
+            r#"{"v":1,"cmd":"profile.save","profile":{"manufacturer":"A","model":"B","modes":[{"name":"m","footprint":1}]}}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"programmer.set","attribute":"Pan","value":0.5}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"library.search","query":"par"}"#,
             Class::Neutral,
         ),
         (
-            r#"{"v":0,"cmd":"library.models","manufacturer":"Showtec"}"#,
+            r#"{"v":1,"cmd":"library.manufacturers","query":"par"}"#,
             Class::Neutral,
         ),
         (
-            r#"{"v":0,"cmd":"programmer.select","fixture":201}"#,
+            r#"{"v":1,"cmd":"library.models","manufacturer":"Showtec"}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":1,"cmd":"programmer.select","fixture":201}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"programmer.select_group","group":3}"#,
+            r#"{"v":1,"cmd":"programmer.select_group","group":3}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"programmer.step","direction":-1}"#,
+            r#"{"v":1,"cmd":"programmer.step","direction":-1}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"programmer.pattern","stages":2}"#,
+            r#"{"v":1,"cmd":"programmer.pattern","stages":2}"#,
             Class::Edit,
         ),
-        (r#"{"v":0,"cmd":"programmer.all"}"#, Class::Edit),
-        (r#"{"v":0,"cmd":"programmer.clear"}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"programmer.all"}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"programmer.clear"}"#, Class::Edit),
         (
-            r#"{"v":0,"cmd":"programmer.clear","groups":["C"],"time":3.0}"#,
+            r#"{"v":1,"cmd":"programmer.clear","groups":["C"],"time":3.0}"#,
             Class::Edit,
         ),
-        (r#"{"v":0,"cmd":"programmer.locate"}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"programmer.locate"}"#, Class::Edit),
         (
-            r#"{"v":0,"cmd":"programmer.highlight","on":true}"#,
+            r#"{"v":1,"cmd":"programmer.highlight","on":true}"#,
             Class::Live,
         ),
-        (r#"{"v":0,"cmd":"programmer.fan"}"#, Class::Live),
+        (r#"{"v":1,"cmd":"programmer.fan"}"#, Class::Live),
         (
-            r#"{"v":0,"cmd":"programmer.off","groups":["C"]}"#,
+            r#"{"v":1,"cmd":"programmer.off","groups":["C"]}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"programmer.off","attribute":"Hue"}"#,
+            r#"{"v":1,"cmd":"programmer.off","attribute":"Hue"}"#,
             Class::Edit,
         ),
-        (r#"{"v":0,"cmd":"programmer.rem_dim"}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"programmer.rem_dim"}"#, Class::Edit),
         (
-            r#"{"v":0,"cmd":"settings.programmer","clear_ltp":"Freeze"}"#,
-            Class::Edit,
-        ),
-        (
-            r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":-3}"#,
+            r#"{"v":1,"cmd":"settings.programmer","clear_ltp":"Freeze"}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"programmer.colour","hue":0.66,"saturation":1.0}"#,
+            r#"{"v":1,"cmd":"programmer.wheel","attribute":"Pan","steps":-3}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"programmer.command","tokens":["201","Enter"]}"#,
-            Class::Edit,
-        ),
-        (r#"{"v":0,"cmd":"group.record","group":3}"#, Class::Edit),
-        (
-            r#"{"v":0,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1}"#,
+            r#"{"v":1,"cmd":"programmer.colour","hue":0.66,"saturation":1.0}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"patch.move","id":3,"universe":2,"address":101}"#,
+            r#"{"v":1,"cmd":"programmer.command","tokens":["201","Enter"]}"#,
             Class::Edit,
         ),
-        (r#"{"v":0,"cmd":"patch.remove","ids":[3,4]}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"group.record","group":3}"#, Class::Edit),
         (
-            r#"{"v":0,"cmd":"patch.renumber","id":3,"number":1201}"#,
-            Class::Edit,
-        ),
-        (
-            r#"{"v":0,"cmd":"patch.name","id":3,"name":"Front left"}"#,
+            r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"patch.change_mode","id":3,"mode":"Big"}"#,
+            r#"{"v":1,"cmd":"patch.move","id":3,"universe":2,"address":101}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":1,"cmd":"patch.remove","ids":[3,4]}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"patch.renumber","id":3,"number":1201}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"patch.handle","id":3,"page":2,"slot":5}"#,
+            r#"{"v":1,"cmd":"patch.name","id":3,"name":"Front left"}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"palette.record","window":"Colours","handle":4}"#,
-            Class::Edit,
-        ),
-        (r#"{"v":0,"cmd":"palette.apply","number":3}"#, Class::Edit),
-        (r#"{"v":0,"cmd":"palette.include","number":3}"#, Class::Edit),
-        (
-            r#"{"v":0,"cmd":"palette.copy","number":3,"to":{"window":"Colours","handle":5}}"#,
+            r#"{"v":1,"cmd":"patch.change_mode","id":3,"mode":"Big"}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"palette.move","number":3,"to":{"window":"Colours","handle":5}}"#,
+            r#"{"v":1,"cmd":"patch.handle","id":3,"page":2,"slot":5}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"palette.renumber","number":3,"to":30}"#,
+            r#"{"v":1,"cmd":"palette.record","window":"Colours","handle":4}"#,
             Class::Edit,
         ),
-        (r#"{"v":0,"cmd":"palette.delete","number":3}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"palette.apply","number":3}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"palette.include","number":3}"#, Class::Edit),
         (
-            r#"{"v":0,"cmd":"palette.legend","number":3,"legend":"Warm","icon":"colour.drop"}"#,
-            Class::Edit,
-        ),
-        (
-            r#"{"v":0,"cmd":"settings.palette","time":2.0}"#,
+            r#"{"v":1,"cmd":"palette.copy","number":3,"to":{"window":"Colours","handle":5}}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"settings.playback","record_by":"Mixed"}"#,
+            r#"{"v":1,"cmd":"palette.move","number":3,"to":{"window":"Colours","handle":5}}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"playback.record","page":1,"slot":2}"#,
+            r#"{"v":1,"cmd":"palette.renumber","number":3,"to":30}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":1,"cmd":"palette.delete","number":3}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"palette.legend","number":3,"legend":"Warm","icon":"colour.drop"}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"playback.options","id":3,"release_mask":null,"release_time":null,"group":null}"#,
+            r#"{"v":1,"cmd":"settings.palette","time":2.0}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"playback.times","id":3,"delay":1.0,"fade_in":3.0,"fade_out":4.0,"overlap":50}"#,
+            r#"{"v":1,"cmd":"settings.playback","record_by":"Mixed"}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"playback.legend","id":3,"legend":"x","icon":null,"halo":null}"#,
+            r#"{"v":1,"cmd":"playback.record","page":1,"slot":2}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#,
+            r#"{"v":1,"cmd":"playback.options","id":3,"release_mask":null,"release_time":null,"group":null}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#,
-            Class::Edit,
-        ),
-        (r#"{"v":0,"cmd":"playback.delete","id":3}"#, Class::Edit),
-        (
-            r#"{"v":0,"cmd":"page.legend","page":2,"legend":"Service"}"#,
+            r#"{"v":1,"cmd":"playback.times","id":3,"delay":1.0,"fade_in":3.0,"fade_out":4.0,"overlap":50}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"cue.times","id":2,"cue":2,"fade_in":3}"#,
+            r#"{"v":1,"cmd":"playback.legend","id":3,"legend":"x","icon":null,"halo":null}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"cue.legend","id":2,"cue":2,"legend":"Welcome"}"#,
+            r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"cue.track","id":2,"cue":2,"track":"CueOnly"}"#,
+            r#"{"v":1,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#,
             Class::Edit,
         ),
-        (r#"{"v":0,"cmd":"cue.delete","id":2,"cue":2}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"playback.delete","id":3}"#, Class::Edit),
         (
-            r#"{"v":0,"cmd":"cue.renumber","id":2,"cue":2,"to":2.5}"#,
-            Class::Edit,
-        ),
-        (r#"{"v":0,"cmd":"cue.renumber_all","id":2}"#, Class::Edit),
-        (
-            r#"{"v":0,"cmd":"cue.copy","id":2,"cue":2,"to":7}"#,
+            r#"{"v":1,"cmd":"page.legend","page":2,"legend":"Service"}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"cue.remove","id":2,"cue":2,"fixture":201}"#,
+            r#"{"v":1,"cmd":"cue.times","id":2,"cue":2,"fade_in":3}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
+            r#"{"v":1,"cmd":"cue.legend","id":2,"cue":2,"legend":"Welcome"}"#,
             Class::Edit,
         ),
         (
-            r#"{"v":0,"cmd":"control.mapping","name":"nano"}"#,
+            r#"{"v":1,"cmd":"cue.track","id":2,"cue":2,"track":"CueOnly"}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":1,"cmd":"cue.delete","id":2,"cue":2}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"cue.renumber","id":2,"cue":2,"to":2.5}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":1,"cmd":"cue.renumber_all","id":2}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"cue.copy","id":2,"cue":2,"to":7}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":201}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"control.mapping","name":"nano"}"#,
             Class::Neutral,
         ),
     ];
@@ -2757,7 +2757,7 @@ mod tests {
     }
 
     const SELECT_101: &str =
-        r#"{"v":0,"cmd":"programmer.command","tokens":["101","@","50","Enter"]}"#;
+        r#"{"v":1,"cmd":"programmer.command","tokens":["101","@","50","Enter"]}"#;
 
     #[test]
     fn undo_01_ipc_30_an_edit_is_undone_and_redone() {
@@ -2767,13 +2767,13 @@ mod tests {
         undo_run(&mut e, &mut h, SELECT_101).unwrap();
         let after = e.edit_state();
         assert_eq!(h.undo_label(), Some("101 @ 50 Enter"));
-        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
         assert_eq!(e.edit_state(), before);
         assert_eq!(
             (h.undo_label(), h.redo_label()),
             (None, Some("101 @ 50 Enter"))
         );
-        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"redo"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"redo"}"#).unwrap();
         assert_eq!(e.edit_state(), after);
     }
 
@@ -2781,9 +2781,9 @@ mod tests {
     fn ipc_30_refused_undo_and_redo_are_errors() {
         let mut e = demo_engine().unwrap();
         let mut h = History::default();
-        let undo = undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap_err();
+        let undo = undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap_err();
         assert_eq!(undo.to_string(), "Nothing to undo");
-        let redo = undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"redo"}"#).unwrap_err();
+        let redo = undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"redo"}"#).unwrap_err();
         assert_eq!(redo.to_string(), "Nothing to redo");
     }
 
@@ -2791,8 +2791,8 @@ mod tests {
     fn undo_01_refused_or_unchanged_commands_add_no_step() {
         let mut e = demo_engine().unwrap();
         let mut h = History::default();
-        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.clear"}"#).unwrap();
-        assert!(undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"playback.delete","id":99}"#).is_err());
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        assert!(undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"playback.delete","id":99}"#).is_err());
         assert!(h.is_empty());
     }
 
@@ -2803,13 +2803,13 @@ mod tests {
         undo_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"fader.set","playback":1,"level":0.5}"#,
+            r#"{"v":1,"cmd":"fader.set","playback":1,"level":0.5}"#,
         )
         .unwrap();
         undo_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.attribute_group","group":"P"}"#,
+            r#"{"v":1,"cmd":"programmer.attribute_group","group":"P"}"#,
         )
         .unwrap();
         assert!(h.is_empty());
@@ -2820,14 +2820,14 @@ mod tests {
         let mut e = demo_engine().unwrap();
         let mut h = History::default();
         undo_run(&mut e, &mut h, SELECT_101).unwrap();
-        let wheel = r#"{"v":0,"cmd":"programmer.wheel","attribute":"Pan","steps":3}"#;
+        let wheel = r#"{"v":1,"cmd":"programmer.wheel","attribute":"Pan","steps":3}"#;
         undo_run(&mut e, &mut h, wheel).unwrap();
         undo_run(&mut e, &mut h, wheel).unwrap();
         assert_eq!((h.len(), h.undo_label()), (2, Some("Wheel Pan")));
         undo_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"fader.set","playback":1,"level":0.5}"#,
+            r#"{"v":1,"cmd":"fader.set","playback":1,"level":0.5}"#,
         )
         .unwrap();
         undo_run(&mut e, &mut h, wheel).unwrap();
@@ -2839,17 +2839,17 @@ mod tests {
         let mut e = demo_engine().unwrap();
         let mut h = History::default();
         undo_run(&mut e, &mut h, SELECT_101).unwrap();
-        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.clear"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
         assert_eq!(h.undo_label(), Some("Clear"));
         undo_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.select","fixture":101}"#,
+            r#"{"v":1,"cmd":"programmer.select","fixture":101}"#,
         )
         .unwrap();
         assert_eq!(h.undo_label(), Some("Select"));
         let id = e.playbacks().next().unwrap().id;
-        let delete = format!(r#"{{"v":0,"cmd":"playback.delete","id":{id}}}"#);
+        let delete = format!(r#"{{"v":1,"cmd":"playback.delete","id":{id}}}"#);
         undo_run(&mut e, &mut h, &delete).unwrap();
         assert_eq!(
             h.undo_label(),
@@ -2859,7 +2859,7 @@ mod tests {
 
     // ---- VS2-24: IPC-38, IPC-39 ------------------------------------------------------------
 
-    const SAVE_SPOT: &str = r#"{"v":0,"cmd":"profile.save","profile":{"manufacturer":"Showtec",
+    const SAVE_SPOT: &str = r#"{"v":1,"cmd":"profile.save","profile":{"manufacturer":"Showtec",
         "model":"Phantom 25 LED Spot","source":"user","modes":[{"name":"11 Channel","footprint":11,
         "attributes":[{"name":"Pan","group":"P","kind":"Ltp","channel":1,"default":0.5}]}]}}"#;
 
@@ -2878,8 +2878,8 @@ mod tests {
         let other = SAVE_SPOT.replace(r#""default":0.5"#, r#""default":0.25"#);
         undo_run(&mut e, &mut h, &other).unwrap();
         assert_eq!(h.len(), 2, "two different saves are two steps");
-        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
-        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
         assert!(!e.has_profile("Showtec/Phantom 25 LED Spot"));
     }
 
@@ -2898,7 +2898,7 @@ mod tests {
         let mut h = History::default();
         undo_run(&mut e, &mut h, SELECT_101).unwrap();
         let set =
-            |v: f32| format!(r#"{{"v":0,"cmd":"programmer.set","attribute":"Pan","value":{v}}}"#);
+            |v: f32| format!(r#"{{"v":1,"cmd":"programmer.set","attribute":"Pan","value":{v}}}"#);
         undo_run(&mut e, &mut h, &set(0.2)).unwrap();
         undo_run(&mut e, &mut h, &set(0.4)).unwrap();
         assert_eq!((h.len(), h.undo_label()), (2, Some("Set Pan")));
@@ -2906,7 +2906,7 @@ mod tests {
             e.programmer().value(101, "Pan"),
             Some(cmdmx_core::value::Value::Level(0.4))
         );
-        undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
         assert_eq!(
             e.programmer().value(101, "Pan"),
             None,
@@ -2931,7 +2931,7 @@ mod tests {
         undo_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"output.add","line":2,"kind":"sacn","priority":120}"#,
+            r#"{"v":1,"cmd":"output.add","line":2,"kind":"sacn","priority":120}"#,
         )
         .unwrap();
         assert_eq!(h.undo_label(), Some("Add output"));
@@ -2950,7 +2950,7 @@ mod tests {
         );
 
         // Partial: only the named fields change.
-        let edit = format!(r#"{{"v":0,"cmd":"output.edit","id":{added},"unicast":"10.0.0.5"}}"#);
+        let edit = format!(r#"{{"v":1,"cmd":"output.edit","id":{added},"unicast":"10.0.0.5"}}"#);
         undo_run(&mut e, &mut h, &edit).unwrap();
         assert_eq!(h.undo_label(), Some("Edit output"));
         let edited = node(&e, added).unwrap();
@@ -2964,13 +2964,13 @@ mod tests {
         );
         assert_eq!((edited.line, edited.enabled), (2, true));
 
-        let remove = format!(r#"{{"v":0,"cmd":"output.remove","ids":[{added}]}}"#);
+        let remove = format!(r#"{{"v":1,"cmd":"output.remove","ids":[{added}]}}"#);
         undo_run(&mut e, &mut h, &remove).unwrap();
         assert_eq!(h.undo_label(), Some("Remove output"));
         assert_eq!(node(&e, added), None);
 
         for _ in 0..3 {
-            undo_run(&mut e, &mut h, r#"{"v":0,"cmd":"undo"}"#).unwrap();
+            undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
         }
         assert_eq!(e.edit_state(), before, "all three undone");
     }
@@ -2986,14 +2986,14 @@ mod tests {
             .id;
         let before = e.edit_state();
         for bad in [
-            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"kind":"sacn"}}"#),
-            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"port_address":40000}}"#),
-            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"target":"nope"}}"#),
-            format!(r#"{{"v":0,"cmd":"output.edit","id":{artnet},"line":"two"}}"#),
-            r#"{"v":0,"cmd":"output.edit","id":999,"enabled":false}"#.to_string(),
-            r#"{"v":0,"cmd":"output.remove","ids":[999]}"#.to_string(),
+            format!(r#"{{"v":1,"cmd":"output.edit","id":{artnet},"kind":"sacn"}}"#),
+            format!(r#"{{"v":1,"cmd":"output.edit","id":{artnet},"port_address":40000}}"#),
+            format!(r#"{{"v":1,"cmd":"output.edit","id":{artnet},"target":"nope"}}"#),
+            format!(r#"{{"v":1,"cmd":"output.edit","id":{artnet},"line":"two"}}"#),
+            r#"{"v":1,"cmd":"output.edit","id":999,"enabled":false}"#.to_string(),
+            r#"{"v":1,"cmd":"output.remove","ids":[999]}"#.to_string(),
             // OUT-28: line 1 already goes out on Art-Net 0:0:0 at broadcast.
-            r#"{"v":0,"cmd":"output.add","line":1,"kind":"artnet"}"#.to_string(),
+            r#"{"v":1,"cmd":"output.add","line":1,"kind":"artnet"}"#.to_string(),
         ] {
             assert!(undo_run(&mut e, &mut h, &bad).is_err(), "{bad}");
         }
@@ -3051,7 +3051,7 @@ mod tests {
                 "universe -1 does not exist (universes start at 1)",
             ),
         ] {
-            let edit = format!(r#"{{"v":0,"cmd":"output.edit","id":{id},{field}}}"#);
+            let edit = format!(r#"{{"v":1,"cmd":"output.edit","id":{id},{field}}}"#);
             let refusal = undo_run(&mut e, &mut h, &edit).unwrap_err();
             assert_eq!(refusal.to_string(), text, "{edit}");
         }
@@ -3066,15 +3066,50 @@ mod tests {
     }
 
     #[test]
+    fn ipc_42_select_with_a_cell_selects_the_cell_item() {
+        let mut e = demo_engine().unwrap();
+        let cells = r#"{ "manufacturer": "T", "model": "Cells", "source": "channel-list", "modes": [ {
+          "name": "6ch", "footprint": 6, "attributes": [],
+          "cells": [
+            { "colour": { "system": "RGB", "components": [ { "channel": 1 }, { "channel": 2 }, { "channel": 3 } ] } },
+            { "colour": { "system": "RGB", "components": [ { "channel": 4 }, { "channel": 5 }, { "channel": 6 } ] } } ] } ] }"#;
+        e.add_profile(
+            "cells",
+            cmdmx_core::profile::Profile::from_json(cells).unwrap(),
+        )
+        .unwrap();
+        e.patch(cmdmx_core::patch::Fixture {
+            id: 999,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "cells".into(),
+            mode: None,
+            universe: 9,
+            address: 1,
+        })
+        .unwrap();
+        let mut h = History::default();
+        let sel = r#"{"v":1,"cmd":"programmer.select","fixture":999,"cell":2}"#;
+        json_run(&mut e, &mut h, sel).unwrap();
+        let whole = r#"{"v":1,"cmd":"programmer.select","fixture":101}"#;
+        json_run(&mut e, &mut h, whole).unwrap();
+        assert_eq!(
+            e.programmer().items(),
+            &[Item::cell(999, 2), Item::fixture(101)]
+        );
+    }
+
+    #[test]
     fn ipc_32_locate_off_rem_dim_and_clear_reach_the_engine() {
         let mut e = demo_engine().unwrap();
         let mut h = History::default();
-        let sel = r#"{"v":0,"cmd":"programmer.select","fixture":101}"#;
+        let sel = r#"{"v":1,"cmd":"programmer.select","fixture":101}"#;
         json_run(&mut e, &mut h, sel).unwrap();
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.locate","groups":["P"]}"#,
+            r#"{"v":1,"cmd":"programmer.locate","groups":["P"]}"#,
         )
         .unwrap();
         assert!(e
@@ -3088,14 +3123,14 @@ mod tests {
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.off","attribute":"Pan"}"#,
+            r#"{"v":1,"cmd":"programmer.off","attribute":"Pan"}"#,
         )
         .unwrap();
         assert!(!e
             .located()
             .get(&Item::fixture(101))
             .is_some_and(|a| a.contains_key("Pan")));
-        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.locate"}"#).unwrap();
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.locate"}"#).unwrap();
         assert!(e
             .located()
             .get(&Item::fixture(101))
@@ -3104,20 +3139,20 @@ mod tests {
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.attribute_group","group":"I"}"#,
+            r#"{"v":1,"cmd":"programmer.attribute_group","group":"I"}"#,
         )
         .unwrap();
-        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.off"}"#).unwrap();
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.off"}"#).unwrap();
         assert!(!e
             .located()
             .get(&Item::fixture(101))
             .is_some_and(|a| a.contains_key("Dimmer")));
-        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.rem_dim"}"#).unwrap();
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.rem_dim"}"#).unwrap();
         assert!(e.programmer().in_programmer(102));
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.clear","time":2.0}"#,
+            r#"{"v":1,"cmd":"programmer.clear","time":2.0}"#,
         )
         .unwrap();
         assert!(e.programmer().is_empty() && e.located().is_empty());
@@ -3125,7 +3160,7 @@ mod tests {
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.highlight","on":true}"#,
+            r#"{"v":1,"cmd":"programmer.highlight","on":true}"#,
         )
         .unwrap();
         assert!(e.highlight());
@@ -3134,13 +3169,13 @@ mod tests {
     #[test]
     fn ipc_32_bad_fields_are_errors() {
         for json in [
-            r#"{"v":0,"cmd":"programmer.off","groups":["C"],"attribute":"Hue"}"#,
-            r#"{"v":0,"cmd":"programmer.off","groups":"C"}"#,
-            r#"{"v":0,"cmd":"programmer.highlight"}"#,
-            r#"{"v":0,"cmd":"programmer.clear","time":"3"}"#,
-            r#"{"v":0,"cmd":"programmer.locate","groups":["Q"]}"#,
-            r#"{"v":0,"cmd":"settings.programmer","clear_ltp":"Melt"}"#,
-            r#"{"v":0,"cmd":"settings.programmer","clear_precedence":"Never"}"#,
+            r#"{"v":1,"cmd":"programmer.off","groups":["C"],"attribute":"Hue"}"#,
+            r#"{"v":1,"cmd":"programmer.off","groups":"C"}"#,
+            r#"{"v":1,"cmd":"programmer.highlight"}"#,
+            r#"{"v":1,"cmd":"programmer.clear","time":"3"}"#,
+            r#"{"v":1,"cmd":"programmer.locate","groups":["Q"]}"#,
+            r#"{"v":1,"cmd":"settings.programmer","clear_ltp":"Melt"}"#,
+            r#"{"v":1,"cmd":"settings.programmer","clear_precedence":"Never"}"#,
         ] {
             assert!(ipc::parse_command(json).is_err(), "{json}");
         }
@@ -3154,11 +3189,11 @@ mod tests {
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.select","fixture":101}"#,
+            r#"{"v":1,"cmd":"programmer.select","fixture":101}"#,
         )
         .unwrap();
         let n = h.len();
-        let toggle = r#"{"v":0,"cmd":"programmer.fan"}"#;
+        let toggle = r#"{"v":1,"cmd":"programmer.fan"}"#;
         assert!(matches!(
             class(&ipc::parse_command(toggle).unwrap()),
             Class::Live
@@ -3170,14 +3205,14 @@ mod tests {
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.fan","curve":"Wings"}"#,
+            r#"{"v":1,"cmd":"programmer.fan","curve":"Wings"}"#,
         )
         .unwrap();
         assert_eq!(e.fan(), Some(FanCurve::Wings));
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.fan","curve":null}"#,
+            r#"{"v":1,"cmd":"programmer.fan","curve":null}"#,
         )
         .unwrap();
         assert_eq!(e.fan(), None);
@@ -3190,8 +3225,8 @@ mod tests {
     #[test]
     fn ipc_43_an_unknown_curve_is_an_error() {
         for json in [
-            r#"{"v":0,"cmd":"programmer.fan","curve":"Sideways"}"#,
-            r#"{"v":0,"cmd":"programmer.fan","curve":3}"#,
+            r#"{"v":1,"cmd":"programmer.fan","curve":"Sideways"}"#,
+            r#"{"v":1,"cmd":"programmer.fan","curve":3}"#,
         ] {
             assert!(ipc::parse_command(json).is_err(), "{json}");
         }
@@ -3205,14 +3240,14 @@ mod tests {
         assert!(json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"settings.programmer","clear_ltp":"Freeze","lowlight_level":2.0}"#,
+            r#"{"v":1,"cmd":"settings.programmer","clear_ltp":"Freeze","lowlight_level":2.0}"#,
         )
         .is_err());
         assert_eq!(e.settings(), &before);
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"settings.programmer","clear_precedence":"SelectionWithProgrammer","clear_ltp":"Freeze","lowlight_level":0.5}"#,
+            r#"{"v":1,"cmd":"settings.programmer","clear_precedence":"SelectionWithProgrammer","clear_ltp":"Freeze","lowlight_level":0.5}"#,
         )
         .unwrap();
         assert_eq!(
@@ -3229,46 +3264,46 @@ mod tests {
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.select","fixture":201}"#,
+            r#"{"v":1,"cmd":"programmer.select","fixture":201}"#,
         )
         .unwrap();
         let n = h.len();
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.highlight","on":true}"#,
+            r#"{"v":1,"cmd":"programmer.highlight","on":true}"#,
         )
         .unwrap();
         assert_eq!(h.len(), n);
-        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.locate"}"#).unwrap();
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.locate"}"#).unwrap();
         assert_eq!(h.undo_label(), Some("Locate"));
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.off","groups":["C"]}"#,
+            r#"{"v":1,"cmd":"programmer.off","groups":["C"]}"#,
         )
         .unwrap();
         assert_eq!(h.undo_label(), Some("Off C"));
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.off","attribute":"Dimmer"}"#,
+            r#"{"v":1,"cmd":"programmer.off","attribute":"Dimmer"}"#,
         )
         .unwrap();
         assert_eq!(h.undo_label(), Some("Off Dimmer"));
-        json_run(&mut e, &mut h, r#"{"v":0,"cmd":"programmer.rem_dim"}"#).unwrap();
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.rem_dim"}"#).unwrap();
         assert_eq!(h.undo_label(), Some("Rem Dim"));
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"programmer.clear","time":1.0}"#,
+            r#"{"v":1,"cmd":"programmer.clear","time":1.0}"#,
         )
         .unwrap();
         assert_eq!(h.undo_label(), Some("Clear"));
         json_run(
             &mut e,
             &mut h,
-            r#"{"v":0,"cmd":"settings.programmer","lowlight_level":0.3}"#,
+            r#"{"v":1,"cmd":"settings.programmer","lowlight_level":0.3}"#,
         )
         .unwrap();
         assert_eq!(h.undo_label(), Some("Settings"));

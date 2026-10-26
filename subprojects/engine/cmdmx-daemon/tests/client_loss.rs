@@ -63,7 +63,7 @@ fn recv(ws: &mut WebSocket<TcpStream>) -> Value {
 
 fn send(ws: &mut WebSocket<TcpStream>, cmd: Value) {
     let mut cmd = cmd;
-    cmd["v"] = json!(0);
+    cmd["v"] = json!(1);
     ws.send(Message::Text(cmd.to_string().into())).unwrap();
 }
 

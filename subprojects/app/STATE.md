@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-10-25 (VS2-36)_
+_Last updated: 2026-10-26 (VS2-33)_
 
 ## Current step
+VS2-33 (2026-10-26, IPC-42): `EngineClient.protocolVersion` = 1. `Item {fixture, cell?}` decodes an integer or `"901.2"` (and `Item(_:)` a `located` key); `ProgrammerState.selection`/`targets`/`inProgrammer`/`located`, `GroupInfo.fixtures`, `ProgrammerContent.item`, `CueViewFixture.item` are items; `FixtureInfo.cells`. Views render whole fixtures as before: a fixture button looks up its whole-fixture item (PRG-55), `N fx` counts distinct fixtures, the Programmer and cue-view windows skip cell rows until VS2-34. Run `tests/manual/runs/2026-10-26-VS2-33.md` (also the VS1-09 mismatch line with the main-branch app).
 VS2-36 (2026-10-25, UI-30): `ProgrammerState.fan`/`fanCurve`; `EngineClient.fanToggle`, `fan(curve:)`, `fanOff` (sends `"curve":null` as `NSNull`). The Fan function key is live (`learnOrRun("fan")`, amber while on; `FunctionKey.lit`); while Fan is on the softkeys show the Fan context (Line, Mirror, Wings, Arrow with the current one on, Fan off), after the armed/menu contexts and before Selection/Main; the attribute bar shows an amber `FAN <CURVE>` tag before the wheels. Run `tests/manual/runs/2026-10-25-VS2-36.md`.
 
 VS7-09 (2026-10-25, CTL-58a/b): a selected deck gets the left column alone (no Devices/OSC panels, keys up to 96 pt); a blue `‹ Devices` button at the left of the Control top bar and Esc (`.cancelAction`; Learn's Esc monitor wins first) deselect it. `DeckPanel.setAction` on a bound key sends `label`/`colour` null with a different action and nothing for the same one. Run `tests/hardware/runs/2026-10-25-VS7-09.md`.

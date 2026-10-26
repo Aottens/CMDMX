@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-26 — Protocol v1: items on the wire, the show keeps strings (VS2-33)
+
+**Decision:** on the IPC wire a whole-fixture item stays a JSON integer and a cell is a string `"901.2"` (IPC-42), so every whole-fixture message reads as before; the show file keeps writing every item as a string (schema 7). The core gets a serde helper for the wire form and `Item`'s own `Serialize` stays the show's. IPC-42's "sub-selection" is the existing `targets` key, not a new key; `contents` entries, `cue.view` fixtures and `located` keys carry items too. `v` goes to 1 for every message; the app's `protocolVersion` goes to 1 in the same PR.
+
+**Alternatives considered:** strings everywhere on the wire (a needless change to every whole-fixture message); a `cell` field next to each `fixture` (two keys for one item, and lists of objects instead of ids).
+
+**Reasoning:** IPC-42 asks for integer-or-string; keeping the two encodings apart lets the show schema and the protocol move independently.
+
+**Reversal trigger:** a remote client that cannot cope with mixed-type arrays.
+
 ## 2026-10-25 — Box firmware details: palette in blocks of 8, end-snap, settled position per connection (HWB-01)
 
 **Decision:** the HW-20 feedback palette has 16 colours, one per block of 8 velocities (0–7 off, 120–127 white; `wire-map.md`). A fader value within the deadband of an end stop snaps to 0 or 16383, so full travel is reachable before HW-15 calibration exists. HW-18 is read as: no value until the fader has settled, then its settled position once, again on every new USB connection, so a new host learns where the faders are. Prototypes use the pid.codes test PID `0x1209:0x0001`. The firmware workspace gets its own CI job (host tests and an RP2350 build).

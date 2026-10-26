@@ -473,7 +473,7 @@ fn fading(e: &Engine, fixture: u32) -> BTreeMap<String, f32> {
     e.programmer_view()
         .contents
         .into_iter()
-        .find(|c| c.fixture == fixture)
+        .find(|c| c.fixture == cmdmx_core::programmer::Item::fixture(fixture))
         .map(|c| c.fading)
         .unwrap_or_default()
 }

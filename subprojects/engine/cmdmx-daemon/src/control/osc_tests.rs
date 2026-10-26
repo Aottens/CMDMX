@@ -47,7 +47,7 @@ fn req(c: &mut Control, j: Value) -> Result<(), String> {
 fn on(test: &str) -> (Control, PathBuf) {
     let dir = tmp(test);
     let mut c = load(&dir);
-    req(&mut c, json!({"v":0,"cmd":"control.osc","enabled":true})).unwrap();
+    req(&mut c, json!({"v":1,"cmd":"control.osc","enabled":true})).unwrap();
     (c, dir)
 }
 
@@ -140,7 +140,7 @@ fn ctl_35_settings_are_kept_in_state_json_beside_the_devices() {
     let mut c = load(&dir);
     req(
         &mut c,
-        json!({"v":0,"cmd":"control.osc","enabled":true,"port":8001,"feedback_port":9001,
+        json!({"v":1,"cmd":"control.osc","enabled":true,"port":8001,"feedback_port":9001,
                "allow":["192.168.1.0/24","10.0.0.5"],"clients":["10.0.0.9:9100"]}),
     )
     .unwrap();
@@ -164,7 +164,7 @@ fn ctl_35_settings_are_kept_in_state_json_beside_the_devices() {
         .any(|k| k["address"] == "10.0.0.9:9100" && k["configured"] == true));
     // A partial command changes only what it names.
     let mut c = c;
-    req(&mut c, json!({"v":0,"cmd":"control.osc","enabled":false})).unwrap();
+    req(&mut c, json!({"v":1,"cmd":"control.osc","enabled":false})).unwrap();
     assert_eq!(c.osc_listen(), None);
     assert_eq!(osc_section(&c)["port"], 8001);
 }
@@ -173,13 +173,13 @@ fn ctl_35_settings_are_kept_in_state_json_beside_the_devices() {
 fn ctl_35_bad_settings_are_refused_and_change_nothing() {
     let (mut c, _) = on("bad");
     for bad in [
-        json!({"v":0,"cmd":"control.osc","port":0}),
-        json!({"v":0,"cmd":"control.osc","port":70000}),
-        json!({"v":0,"cmd":"control.osc","feedback_port":0}),
-        json!({"v":0,"cmd":"control.osc","allow":["300.1.1.1"]}),
-        json!({"v":0,"cmd":"control.osc","allow":["10.0.0.0/33"]}),
-        json!({"v":0,"cmd":"control.osc","clients":["ipad"]}),
-        json!({"v":0,"cmd":"control.osc","enabled":"yes"}),
+        json!({"v":1,"cmd":"control.osc","port":0}),
+        json!({"v":1,"cmd":"control.osc","port":70000}),
+        json!({"v":1,"cmd":"control.osc","feedback_port":0}),
+        json!({"v":1,"cmd":"control.osc","allow":["300.1.1.1"]}),
+        json!({"v":1,"cmd":"control.osc","allow":["10.0.0.0/33"]}),
+        json!({"v":1,"cmd":"control.osc","clients":["ipad"]}),
+        json!({"v":1,"cmd":"control.osc","enabled":"yes"}),
     ] {
         assert!(req(&mut c, bad.clone()).is_err(), "{bad}");
     }
@@ -196,7 +196,7 @@ fn ctl_35_senders_outside_allow_are_ignored_and_counted() {
     let (mut c, _) = on("allow");
     req(
         &mut c,
-        json!({"v":0,"cmd":"control.osc","allow":["192.168.1.0/24"]}),
+        json!({"v":1,"cmd":"control.osc","allow":["192.168.1.0/24"]}),
     )
     .unwrap();
     let e = engine();
@@ -383,7 +383,7 @@ fn ctl_37_configured_clients_get_feedback_without_being_heard() {
     let (mut c, _) = on("configured");
     req(
         &mut c,
-        json!({"v":0,"cmd":"control.osc","clients":["10.0.0.9:9100"]}),
+        json!({"v":1,"cmd":"control.osc","clients":["10.0.0.9:9100"]}),
     )
     .unwrap();
     let out = c.osc_feedback(&engine(), 0.0);
@@ -547,13 +547,13 @@ fn ctl_38_a_custom_address_acts_and_gets_feedback_at_that_address() {
     let (mut c, dir) = on("custom");
     req(
         &mut c,
-        json!({"v":0,"cmd":"control.mapping_new","name":"OSC","device":"OSC"}),
+        json!({"v":1,"cmd":"control.mapping_new","name":"OSC","device":"OSC"}),
     )
     .unwrap();
     for (input, action) in [("/1/fader1", "fader 1"), ("/2/push3", "go")] {
         req(
             &mut c,
-            json!({"v":0,"cmd":"control.binding","mapping":"OSC","input":input,"action":action}),
+            json!({"v":1,"cmd":"control.binding","mapping":"OSC","input":input,"action":action}),
         )
         .unwrap();
     }
@@ -590,7 +590,7 @@ fn ctl_38_learn_binds_the_next_address_into_the_osc_mapping() {
     let mut e = engine();
     req(
         &mut c,
-        json!({"v":0,"cmd":"control.learn","action":"fader 2"}),
+        json!({"v":1,"cmd":"control.learn","action":"fader 2"}),
     )
     .unwrap();
     let _ = c.take_messages();
@@ -647,7 +647,7 @@ fn ctl_39_the_snapshot_has_the_osc_section() {
 #[test]
 fn ctl_40_control_osc_parses_and_is_class_neutral() {
     let cmd = ipc::parse_command(
-        r#"{"v":0,"cmd":"control.osc","enabled":true,"port":8000,"clients":[]}"#,
+        r#"{"v":1,"cmd":"control.osc","enabled":true,"port":8000,"clients":[]}"#,
     )
     .unwrap();
     assert_eq!(crate::class(&cmd), crate::Class::Neutral);
@@ -680,7 +680,7 @@ fn ctl_36_37_loopback_socket_in_and_feedback_out() {
     let mut c = load(&dir);
     req(
         &mut c,
-        json!({"v":0,"cmd":"control.osc","enabled":true,"feedback_port":client_port}),
+        json!({"v":1,"cmd":"control.osc","enabled":true,"feedback_port":client_port}),
     )
     .unwrap();
     let packet = osc::encode(&msg("/cmdmx/fader/1", vec![OscArg::Float(0.5)]));
@@ -745,13 +745,13 @@ fn ctl_21_a_mapping_change_sends_every_osc_client_the_full_state() {
     let _ = c.osc_feedback(&e, 0.0);
     req(
         &mut c,
-        json!({"v":0,"cmd":"control.mapping_new","name":"OSC","device":"OSC"}),
+        json!({"v":1,"cmd":"control.mapping_new","name":"OSC","device":"OSC"}),
     )
     .unwrap();
     let _ = c.osc_feedback(&e, 0.0125);
     req(
         &mut c,
-        json!({"v":0,"cmd":"control.binding","mapping":"OSC","input":"/1/push1","action":"go"}),
+        json!({"v":1,"cmd":"control.binding","mapping":"OSC","input":"/1/push1","action":"go"}),
     )
     .unwrap();
     let out = c.osc_feedback(&e, 0.025);

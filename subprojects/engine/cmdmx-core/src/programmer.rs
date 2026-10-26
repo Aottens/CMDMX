@@ -63,6 +63,36 @@ impl Serialize for Item {
     }
 }
 
+/// IPC-42: the wire form of an item, an integer for a whole fixture, `"901.2"` for a cell.
+pub fn serialize_wire_item<S: Serializer>(item: &Item, serializer: S) -> Result<S::Ok, S::Error> {
+    match item.cell {
+        None => serializer.serialize_u32(item.fixture),
+        Some(_) => serializer.serialize_str(&item.to_string()),
+    }
+}
+
+/// IPC-42: a list of items in wire form.
+pub fn serialize_wire_items<S: Serializer>(
+    items: &[Item],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(Some(items.len()))?;
+    for item in items {
+        seq.serialize_element(&WireItem(item))?;
+    }
+    seq.end()
+}
+
+/// A [`Serialize`] wrapper over [`serialize_wire_item`].
+pub struct WireItem<'a>(pub &'a Item);
+
+impl Serialize for WireItem<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serialize_wire_item(self.0, serializer)
+    }
+}
+
 impl<'de> Deserialize<'de> for Item {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
@@ -185,7 +215,8 @@ pub struct WheelState {
 /// IPC-21: one fixture's programmer values.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FixtureValues {
-    pub fixture: FixtureId,
+    #[serde(serialize_with = "serialize_wire_item")]
+    pub fixture: Item,
     pub values: BTreeMap<String, Value>,
     /// PAL-26: the attributes among `values` that are palette references.
     pub palettes: BTreeMap<String, PaletteId>,
@@ -215,18 +246,21 @@ pub struct ColourView {
 /// PRG-35 / IPC-11: everything the UI renders of the programmer.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProgrammerView {
-    pub selection: Vec<FixtureId>,
-    pub targets: Vec<FixtureId>,
+    #[serde(serialize_with = "serialize_wire_items")]
+    pub selection: Vec<Item>,
+    #[serde(serialize_with = "serialize_wire_items")]
+    pub targets: Vec<Item>,
     pub active_group: AttributeGroup,
     pub attribute_groups: Vec<AttributeGroupState>,
     pub wheels: Vec<WheelState>,
-    pub in_programmer: Vec<FixtureId>,
+    #[serde(serialize_with = "serialize_wire_items")]
+    pub in_programmer: Vec<Item>,
     pub colour_model: ColourModel,
     pub contents: Vec<FixtureValues>,
     pub colour: Option<ColourView>,
     pub palettes: PaletteUse,
     /// PRG-23: fixture → sorted names of the located attributes (IPC-33).
-    pub located: BTreeMap<FixtureId, Vec<String>>,
+    pub located: BTreeMap<Item, Vec<String>>,
     /// PRG-26.
     pub highlight: bool,
     /// PRG-56, PRG-62: Fan mode, `None` when off.

@@ -329,7 +329,7 @@ private struct CueViewWindow: View {
                 ScrollView {
                     LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
                         Section {
-                            ForEach(reply.fixtures) { row in
+                            ForEach(reply.fixtures.filter { $0.item.cell == nil }) { row in
                                 let fixture = fixtures[row.fixture]
                                 line(number: Text(String(fixture?.number ?? row.fixture)).foregroundStyle(t.fg2),
                                      name: Text(fixture.map(Self.title) ?? "").foregroundStyle(t.fg)) { group in

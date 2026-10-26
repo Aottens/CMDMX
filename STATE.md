@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-25 (HWB-01: USB-MIDI box firmware)_
+_Last updated: 2026-10-26 (VS2-33: protocol v1 for cells)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -10,16 +10,16 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
 control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on the church iPad passed), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor, multi-select in the patch table
-(VS2-27/28) and Fan (VS2-35/36) are done.
+(VS2-27/28), Fan (VS2-35/36) and cells up to the wire (VS2-30..33, protocol v1) are done.
 
 Parallel track: phase 3, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-1. VS2-33..34 (cells: protocol v1 PRG-55, app Unfold; VS2-33 raises the protocol to v1 and its
-   run checks the VS1-09 mismatch line). Cells merge (VS2-31) and are stored by item in cues,
-   groups and palettes (VS2-32, show schema 7); the wire still shows whole fixtures only.
+1. VS2-34 (app: cell count on fixture buttons, Unfold, cell rows in the Programmer and cue-view
+   windows; owner run with the Shehds). The wire carries cell items since VS2-33 (protocol v1);
+   the app still renders whole fixtures only.
 2. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
 
