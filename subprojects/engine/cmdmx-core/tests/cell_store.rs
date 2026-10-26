@@ -372,7 +372,11 @@ fn cue_with_cell() -> (Engine, u32) {
 }
 
 fn cue_keys(e: &Engine, id: u32) -> Vec<Item> {
-    e.playback(id).unwrap().cues[0].values.keys().copied().collect()
+    e.playback(id).unwrap().cues[0]
+        .values
+        .keys()
+        .copied()
+        .collect()
 }
 
 #[test]
@@ -382,7 +386,11 @@ fn cue_54_remove_a_cell_item_takes_only_that_cell() {
     e.remove_cue_value(id, q1, c(901, 2), None).unwrap();
     assert_eq!(cue_keys(&e, id), [f(901)], "the fixture's own values stay");
     e.set_fader(id, 1.0, 0.0).unwrap();
-    assert_eq!(rgb(&mut e, 2), [255, 0, 0], "cell 2 follows the fixture again");
+    assert_eq!(
+        rgb(&mut e, 2),
+        [255, 0, 0],
+        "cell 2 follows the fixture again"
+    );
 }
 
 #[test]

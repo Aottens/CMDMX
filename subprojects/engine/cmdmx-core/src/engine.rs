@@ -2985,14 +2985,13 @@ impl Engine {
         &mut self,
         id: PlaybackId,
         cue: CueNumber,
-        fixture: FixtureId,
+        item: Item,
         attribute: Option<&str>,
     ) -> Result<(), CoreError> {
         let playback = self.playback_mut(id)?;
         let cue = (playback.cues.iter_mut())
             .find(|c| c.number == cue)
             .ok_or(CoreError::UnknownCue(cue))?;
-        let item = Item::fixture(fixture);
         let held = cue.values.get_mut(&item);
         let removed = match (held, attribute) {
             (Some(_), None) => cue.values.remove(&item).is_some(),
@@ -3006,7 +3005,11 @@ impl Engine {
             (None, _) => false,
         };
         if !removed {
-            let what = attribute.map_or(format!("fixture {fixture}"), str::to_string);
+            let what = match (attribute, item.cell) {
+                (Some(name), _) => name.to_string(),
+                (None, Some(_)) => item.to_string(),
+                (None, None) => format!("fixture {item}"),
+            };
             return Err(CoreError::InvalidCommand(format!(
                 "Q{} holds no {what} of its own",
                 cue.number

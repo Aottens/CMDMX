@@ -347,7 +347,7 @@ pub enum Command {
     CueRemove {
         id: PlaybackId,
         cue: CueNumber,
-        fixture: FixtureId,
+        item: Item,
         attribute: Option<String>,
     },
     /// IPC-26: `number` `None` is the lowest free one.
@@ -600,6 +600,14 @@ fn uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<T, String> 
         .and_then(|n| n.as_u64())
         .and_then(|n| T::try_from(n).ok())
         .ok_or_else(|| format!("missing or invalid \"{key}\""))
+}
+
+/// IPC-42: an item on the wire, an integer (whole fixture) or a `"901.2"` string (one cell).
+fn wire_item(v: &serde_json::Value, key: &str) -> Result<Item, String> {
+    match v.get(key) {
+        Some(serde_json::Value::String(s)) => s.parse(),
+        _ => uint(v, key).map(Item::fixture),
+    }
 }
 
 /// IPC-40: exactly one of `id` (one fixture) or `ids` (an array of fixture ids).
@@ -1484,7 +1492,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("cue.remove") => Ok(Command::CueRemove {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
-            fixture: uint(&v, "fixture")?,
+            item: wire_item(&v, "fixture")?,
             attribute: opt_field(&v, "attribute", "a string")?,
         }),
         Some("master.record") => {
@@ -5553,7 +5561,9 @@ mod tests {
             Ok(Item::fixture(201))
         );
         assert_eq!(
-            item(r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":"901.2","attribute":"Red"}"#),
+            item(
+                r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":"901.2","attribute":"Red"}"#
+            ),
             Ok(Item::cell(901, 2))
         );
         for bad in [

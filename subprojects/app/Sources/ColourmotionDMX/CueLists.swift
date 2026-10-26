@@ -381,11 +381,7 @@ private struct CueViewWindow: View {
         } else {
             HStack(spacing: 4) {
                 ForEach(mine, id: \.key) { name, value in
-                    if row.item.cell == nil {
-                        item(row.fixture, name, value, named: mine.count > 1).overlay { RightClickCatcher { pick(row.fixture, name, value) } }
-                    } else {
-                        item(row.fixture, name, value, named: mine.count > 1)   // cue.remove names fixtures only
-                    }
+                    item(row.fixture, name, value, named: mine.count > 1).overlay { RightClickCatcher { pick(row.item, name, value) } }
                 }
             }
         }
@@ -406,11 +402,11 @@ private struct CueViewWindow: View {
     }
 
     /// Only a value that is hard in this cue can be removed from it (CUE-54).
-    private func pick(_ fixture: Int, _ name: String, _ v: CueViewValue) {
+    private func pick(_ item: Item, _ name: String, _ v: CueViewValue) {
         guard v.from == ref.cue else {
             return engine.say("\(name) tracks from \(cueName(v.from)): remove it there.")
         }
-        ui.cueValue = CueValueRef(fixture: fixture, attribute: name)
+        ui.cueValue = CueValueRef(fixture: item.fixture, cell: item.cell, attribute: name)
         ui.cueRemoveConfirm = false
         engine.say("\(name) picked: Remove on the softkeys takes it out of \(cueName(ref.cue)).")
     }
