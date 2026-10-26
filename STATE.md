@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-26 (VS2-39: the Cue view follows Undo of a Remove)_
+_Last updated: 2026-10-26 (P1-12: GDTF importer spec proposed)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -33,6 +33,8 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
+- P1-12 GDTF importer spec (LIB-28..35, IPC-45): approve, and answer open questions 6–10 in
+  `specs/modules/fixture-library.md`. Then VS2-41 (core importer) and VS2-42 (daemon + app).
 - IDEA-30 (cross-platform UI for the Linux desk): phase 3 after the surface; toolkit open.
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
 - IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase.

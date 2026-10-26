@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14)**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14); LIB-28..35 proposed 2026-10-26 (P1-12), waiting for owner approval**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -243,8 +243,99 @@ model, and a show carries the profiles it uses.
   (IPC-39) for the selected fixtures of this profile: ordinary programmer values, which Clear
   removes. Leaving the editor does not clear them.
 
+### GDTF import (P1-12; ADR-006 import order 3; proposed, waiting for owner approval)
+GDTF (DIN SPEC 15800) is the manufacturers' own format: a `.gdtf` file is a zip archive with a
+`description.xml`. It brings brand-name fixtures the QLC+ library lacks, and it can describe the
+real colour of each emitter, which colour calibration (IDEA-03, phase 2) needs. Reference: the
+GDTF 1.2 specification (`github.com/mvrdevelopment/spec`, Annex A for attribute names).
+
+- **LIB-28** Pure import. `cmdmx-core::library::gdtf::import(bytes, source)` takes the bytes of
+  a `.gdtf` archive (no file system; the zip is read from memory) and returns a profile and an
+  import report, like the QLC+ importer. Parsing uses the `gdtf` crate (MIT, 0.3). The first
+  fixture type of the file becomes the profile: `manufacturer` from its `Manufacturer`, `model`
+  from its `LongName` (its `Name` when that is empty), `source` `gdtf:<file name>`. Every DMX mode
+  is imported with its GDTF name; its footprint is the highest channel offset it uses.
+- **LIB-29** Attribute mapping. The logical channel's attribute decides, `(n)` meaning any
+  number (Annex A):
+  - `Dimmer` → Dimmer (I, HTP).
+  - `ColorAdd_R/G/B` and `ColorRGB_Red/Green/Blue` → the RGB system; `ColorSub_C/M/Y` and
+    `ColorRGB_Cyan/Magenta/Yellow` → the CMY system, but emitters Cyan/Magenta/Yellow when the
+    mode (cell) also has red, green and blue (LIB-17). `ColorAdd_C/M/Y` are always emitters.
+  - Emitters (C, LTP, `emitter`): `ColorAdd_W` White, `ColorAdd_WW` Warm White, `ColorAdd_CW`
+    Cold White, `ColorAdd_RY` Amber, `ColorAdd_GY` Lime, `ColorAdd_UV` UV, `ColorAdd_BM` Indigo,
+    `ColorAdd_GC` Blue-Green, `ColorAdd_BC` Light Blue, `ColorAdd_RM` Pink.
+  - `CTO`, `CTC`, `CTB` → CTO / CTC / CTB (C, LTP, not emitters); `Color(n)` → Colour Wheel (C);
+    `ColorMacro(n)` → Colour Macro (C).
+  - `Pan`, `Tilt` → Pan / Tilt (P, LTP); `Shutter(n)` and `Shutter(n)Strobe` → Strobe (I, LTP);
+    `Iris` → Iris, `Zoom` → Zoom, `Focus(n)` → Focus, `Frost(n)` → Frost (B);
+    `Gobo(n)` → Gobo, `Gobo(n)Pos` → Gobo Index, `Gobo(n)PosRotate` → Gobo Rotation (G);
+    `Prism(n)` → Prism, `Prism(n)PosRotate` → Prism Rotation (E);
+    `PanTiltSpeed`, `PositionMSpeed` → Pan/Tilt Speed (S).
+    For `(n)` above 1 the number is appended ("Gobo 2", "Colour Wheel 2", "Strobe 2").
+  - Any other attribute is kept as a plain channel (LTP, named by its `Pretty` name, else its
+    `Name`), with its group from its feature group: Dimmer → I, Position → P, Color → C,
+    Gobo → G, Beam, Focus and Shapers → B, anything else (Control, Video, …) → S. The report says
+    "kept as a plain channel". LIB-18's naming rule (channel name, then ` 2`, ` 3`) settles clashes.
+- **LIB-30** Channels and values.
+  - *Fine bytes.* A DMX channel's `Offset` list gives coarse first: `1,2` → channel 1 with fine
+    channel 2. A third byte (24-bit) is not used; the report warns, and it outputs 0.
+  - *Virtual channels* (`Offset` "None") get no attribute and are listed in the report. A mode that
+    mixes colour without a Dimmer channel gets `virtual_dimmer` by LIB-08, whatever GDTF
+    relations say.
+  - *Default and Highlight.* The default is the `Default` of the channel's initial function
+    (GDTF 1.0/1.1: of the DMX channel); `Highlight` becomes `highlight`. A GDTF value `v/n`
+    becomes v / (2^(8n) − 1): `128/1` → 0.502, `32768/2` → 0.500. GDTF has no locate value.
+  - *Slots* (LIB-15, LIB-18). A channel's named channel sets become its slots; without named
+    sets, a channel with two or more channel functions gets one slot per function, named after it.
+    From and To are on the coarse byte; a range ends where the next begins. A slot on a colour
+    wheel takes the wheel slot's `Color` (CIE xyY), converted to a target colour: xy to linear
+    sRGB (D65), negative components clipped to 0, scaled so the largest is 1 (`0.3127,0.3290`
+    → (1, 1, 1)).
+  - *Physical* (LIB-16). Pan and Tilt store the span of their function's `PhysicalFrom`..`PhysicalTo`
+    (−270..270 → 540°); Zoom stores min and max. GDTF's own default 0..1 counts as unknown and is
+    not stored.
+- **LIB-31** Cells from geometry. Every DMX channel names a geometry. When a mode's colour
+  channels sit on two or more geometries (or geometry references), each of those is a cell, in
+  order of its first channel, and every channel of that geometry belongs to it (LIB-18 heads);
+  channels on any other geometry (a master dimmer on the body) belong to the mode. Channels
+  instanced through a geometry reference get its DMX offset (`Break` offset of the reference,
+  `DMXBreak="Overwrite"`). LIB-07 holds unchanged: the fixture's Colour drives every cell.
+- **LIB-32** Emitter colours (for IDEA-03). When a colour component or emitter's channel
+  function links an `Emitter` of the physical description that has a CIE `Color`, the profile
+  stores its chromaticity as `cie: [x, y]` on that component or emitter attribute. An emitter
+  with only a dominant wavelength, or no link, stores nothing (the report says so). Nothing reads
+  `cie` yet; it round-trips (LIB-01), and LIB-02 rejects `cie` on an attribute that is not an
+  emitter or with x, y outside 0..1 or x + y > 1.
+- **LIB-33** Failure. Not a zip, no `description.xml`, malformed XML, no fixture type, or no mode
+  left to import → the import fails with an error naming the file and the problem; nothing is
+  added (LIB-10). A mode whose channels use a DMX break other than 1 is skipped with a warning
+  (one fixture = one footprint, PAT). Unknown attributes are plain channels with a warning, not a
+  failure. The daemon runs the import off the tick inside `catch_unwind`: a panic in the parser
+  becomes an import error and output never waits.
+- **LIB-34** Library. `library.import_gdtf {"path":…}` (IPC-45) makes the daemon read the file
+  (at most 100 MB), import it, and save the profile as a user profile (LIB-12: atomic, in the
+  user profiles folder, listed as `"source":"user"`, hides a QLC+ entry of the same
+  manufacturer/model). An existing user profile with that manufacturer/model is replaced. The
+  show's own copies of profiles do not change (SHW-01); profile edits stay with LIB-23..25.
+- **LIB-35** App. The Add panel gets **Import GDTF…** beside New from channel list… (LIB-22). It
+  opens a file panel for `.gdtf` files and sends IPC-45. On success a sheet shows the import
+  report (mode, channel, GDTF name, what it became; then the warnings) and the new profile is
+  picked in the Add panel; on failure the error is shown and nothing changes. Verified by
+  `tests/manual/app-patch.md` (amended).
+
+Scenario tests (VS2-41): GDTF files written for this project, as `description.xml` sources in
+`tests/fixtures/gdtf/<name>/` that the test zips in memory, each with its expected profile: an
+RGBW par (a 4-channel mode with virtual dimmer and emitter colours, a 6-channel mode with Dimmer
+and a Strobe channel with three functions), a moving-head spot (16-bit Pan −270..270 and Tilt
+−135..135 with defaults `32768/2`, colour wheel with four coloured slots, gobo wheel, Zoom 10–40°,
+Highlight on the Dimmer), a four-pixel bar (geometry references, master dimmer → four cells), and
+one broken file per LIB-33 case. The `gdtf` crate's own `Generic@RGBW8@test.gdtf` (MIT) is
+imported too, as a file not written by us.
+
 ## Out of scope (this spec)
-The GDTF importer (its own spec section and task after QLC+, phase 1, ADR-006) and the OFL
+Downloading from GDTF-share inside the app (it needs an account); GDTF's 3D models, gobo images,
+DMX profiles (dimmer curves), mode masters and relations; modes over more than one DMX break
+(LIB-33). The OFL
 importer (later: QLC+ already covers most of OFL's budget fixtures); Lightkey profile import
 (checked once a file is available); per-cell selection (PRG task, LIB-07); picking a colour-wheel
 slot from a target colour (VS2-06 follow-up, LIB-15 provides the data); showing degrees on the
@@ -267,3 +358,20 @@ channel, owner 2026-10-23).
    wheel move to an absolute level, so Test is ordinary programmer content.~~ Closed 2026-10-23 (owner): `programmer.set`.
 5. ~~*(P1-14)* One mode at a time in the editor, without adding or copying modes. **Recommendation:**
    yes; a profile with a missing mode is made from a channel list (LIB-26) for now.~~ Closed 2026-10-23 (owner): one mode at a time.
+6. *(P1-12)* Where do GDTF files come in? **Recommendation:** Import GDTF… picks a file, which is
+   converted once and saved as a user profile (LIB-34), as ADR-006 says. The alternative, a GDTF
+   folder indexed like the QLC+ set and converted on pick, keeps the original file but adds a
+   third library source.
+7. *(P1-12)* Importing a model that is already a user profile (perhaps one you edited)?
+   **Recommendation:** replace it; the reply says so. Refusing would need a delete step first.
+8. *(P1-12)* Test files. **Recommendation:** files we write ourselves (no licence question) plus
+   the `gdtf` crate's MIT test file. A real manufacturer file (say a Robe or Showtec one you
+   download from GDTF-share) is checked once in a manual run, and only committed if its licence
+   allows.
+9. *(P1-12)* Store emitter colours (LIB-32) now, although only calibration (IDEA-03, phase 2)
+   uses them? **Recommendation:** yes: it is the reason GDTF is in phase 1, and an imported profile
+   that lacks them would have to be imported again.
+10. *(P1-12)* `cmdmx-core` gets bytes, not text, for GDTF (the zip is read in memory, still no file
+    system), and the `gdtf` crate brings `zip`, `uuid` and a second `quick-xml` version into core.
+    **Recommendation:** accept; writing our own GDTF parser is the larger risk. Recorded in
+    `DECISIONS.md` once you agree.

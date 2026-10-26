@@ -179,6 +179,12 @@ the PAT-09 shape.
   wheel move, PRG-19); class edit, coalesced with other `programmer.set` of the same attribute
   like a wheel (UNDO-05). A value outside 0.0–1.0, or an attribute none of the selected fixtures
   has, is a `warning`. `Colour` is refused here (`programmer.colour` sets it).
+- **IPC-45** `library.import_gdtf {"path":"/Users/…/Robe@Robin Esprite@….gdtf"}` (LIB-34; proposed
+  2026-10-26, P1-12): the daemon reads and imports the file off the tick and answers the asking
+  client only `{"v":1,"type":"library.imported","manufacturer","model","modes":[{"name","channels"}],"replaced":false,"report":{"channels":[…],"warnings":[…]}}`
+  (report as LIB-14). A missing or unreadable file, one over 100 MB, or a failed import (LIB-33)
+  → error (IPC-06), nothing saved. Class neutral (it changes the library, not the show; UNDO-04).
+  A new message type, so `v` stays 1 (IPC-41).
 
 ### Show file (SHW-b)
 The show messages (snapshot `show`, `show` delta, `show.list/new/open/save_as`) are specified in
