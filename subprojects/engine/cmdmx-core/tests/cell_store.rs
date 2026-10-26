@@ -471,7 +471,8 @@ fn cue_13_a_cell_value_removed_from_the_live_cue_follows_its_fixture() {
 
 #[test]
 fn cue_13_back_to_a_cue_without_the_cell_fades_it_to_its_fixture() {
-    // Q1 901 red; Q2 901 red and 901.2 blue at 30 %. Q1 fades in and out over 2 s.
+    // Q1 901 red; Q2 901 red and 901.2 blue at 30 %. Q1 fades in at once and out over 2 s:
+    // the colour (LTP) takes `fade_in`, the virtual cell Dimmer (HTP) `fade_out`.
     let mut e = rig();
     run(&mut e, "901 @ 100 Enter");
     e.set_colour(RED, 1.0).unwrap();
@@ -485,7 +486,7 @@ fn cue_13_back_to_a_cue_without_the_cell_fades_it_to_its_fixture() {
         id,
         q(1.0),
         &CueChange {
-            fade_in: Some(2.0),
+            fade_in: Some(0.0),
             fade_out: Some(2.0),
             ..CueChange::default()
         },
@@ -499,8 +500,8 @@ fn cue_13_back_to_a_cue_without_the_cell_fades_it_to_its_fixture() {
     go(&mut e, id, ListAction::Back, 4.0);
     let mid = rgb_t(&mut e, 2, 5.0);
     assert!(
-        mid[0] > 0 && mid[2] > 0,
-        "half-way blue to red, never dark: {mid:?}"
+        mid[2] == 0 && mid[0] > 77 && mid[0] < 255,
+        "red at once, half-way up to full over fade_out, never dark: {mid:?}"
     );
     let red = rgb_t(&mut e, 1, 6.5);
     assert_eq!(red, [255, 0, 0]);

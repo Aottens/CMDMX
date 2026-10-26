@@ -607,8 +607,8 @@ impl ListRun {
                     } else {
                         own.unwrap_or(if ltp { Stored::Value(current) } else { zero })
                     };
-                    let (delay, fade) =
-                        times(l.group, ltp || resolve(to).level() >= current.level());
+                    // Released: HTP over `fade_out`, LTP over `fade_in`.
+                    let (delay, fade) = times(l.group, ltp);
                     plans.push(Plan {
                         item,
                         name: name.clone(),
