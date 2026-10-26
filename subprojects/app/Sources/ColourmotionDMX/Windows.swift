@@ -184,31 +184,22 @@ struct FixturesWindow: View {
             }
         ) {
             CellScroll {
-                ForEach(visible) { fixture in
-                    Cell(number: fixture.number,
-                         tag: fixture.cells > 0 ? "\(fixture.cells)" : nil,
-                         legend: Self.legend(fixture),
-                         order: order[Item(fixture: fixture.id)],
-                         located: programmer.located[Item(fixture: fixture.id)] != nil,   // UI-26
-                         selected: order[Item(fixture: fixture.id)] != nil,
-                         current: subSelection && targets.contains(Item(fixture: fixture.id)),
-                         dimmed: subSelection && order[Item(fixture: fixture.id)] != nil && !targets.contains(Item(fixture: fixture.id)),
-                         inProgrammer: inProgrammer.contains(Item(fixture: fixture.id)),
-                         lamp: true) { tap(fixture) }
-                    if ui.unfolded.contains(fixture.id) {
-                        // UI-29: the cells follow their fixture, in the same button system.
-                        ForEach(Array(1..<fixture.cells + 1), id: \.self) { n in
-                            let item = Item(fixture: fixture.id, cell: n)
-                            Cell(number: nil,
-                                 legend: "\(fixture.number).\(n)",
-                                 order: order[item],
-                                 located: programmer.located[item] != nil,
-                                 selected: order[item] != nil,
-                                 current: subSelection && targets.contains(item),
-                                 dimmed: subSelection && order[item] != nil && !targets.contains(item),
-                                 inProgrammer: inProgrammer.contains(item),
-                                 lamp: true) { engine.selectCell(fixture.id, cell: n) }
-                        }
+                // UI-29: one button per item, the cells of an unfolded fixture right after it. A flat
+                // list, so the lazy grid sees every button as its own element.
+                ForEach(visible.flatMap { f in
+                    [(f, Item(fixture: f.id))] + (ui.unfolded.contains(f.id) ? (0..<f.cells).map { (f, Item(fixture: f.id, cell: $0 + 1)) } : [])
+                }, id: \.1) { fixture, item in
+                    Cell(number: item.cell == nil ? fixture.number : nil,
+                         tag: item.cell == nil && fixture.cells > 0 ? "\(fixture.cells)" : nil,
+                         legend: item.cell.map { "\(fixture.number).\($0)" } ?? Self.legend(fixture),
+                         order: order[item],
+                         located: programmer.located[item] != nil,   // UI-26
+                         selected: order[item] != nil,
+                         current: subSelection && targets.contains(item),
+                         dimmed: subSelection && order[item] != nil && !targets.contains(item),
+                         inProgrammer: inProgrammer.contains(item),
+                         lamp: true) {
+                        if let n = item.cell { engine.selectCell(fixture.id, cell: n) } else { tap(fixture) }
                     }
                 }
             }
