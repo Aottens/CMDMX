@@ -5625,6 +5625,34 @@ mod tests {
     }
 
     #[test]
+    fn cue_54_a_change_of_cue_values_alone_sends_the_whole_list() {
+        // VS2-39: Q1 of list 3 holds two dimmers, so removing one leaves the groups as they were.
+        let mut e = list_engine();
+        let mut values = dimmer(1, 1.0);
+        values.extend(dimmer(2, 0.5));
+        e.add_playback(Playback {
+            cues: vec![Cue::new(values)],
+            ..Playback::new(3, 1, 3, BTreeMap::new())
+        });
+        let mut history = cmdmx_core::undo::History::default();
+        let mut published = Published::new(&e, &[], &show_state());
+        let item = cmdmx_core::programmer::Item::fixture(2);
+        (history.edit(&mut e, "Remove cue value", None, |e| {
+            e.remove_cue_value(3, q(1.0), item, Some("Dimmer"))
+        }))
+        .unwrap();
+        e.tick(0.0);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(deltas(&d, "playbacks").len(), 1, "remove: {d:?}");
+        history.undo(&mut e).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(deltas(&d, "playbacks").len(), 1, "undo: {d:?}");
+        e.tick(0.05);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+    }
+
+    #[test]
     fn ipc_25_stamp_sets_the_receive_time_of_taps_and_buttons_only() {
         let tap = parse_command(r#"{"v":1,"cmd":"playback.tap","id":3}"#).unwrap();
         assert_ne!(stamp(tap.clone(), 1.5), tap, "a tap carries its time");
