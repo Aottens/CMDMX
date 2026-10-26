@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-26 (VS2-40: a cell value coming into a cue list starts where the cell is)_
+_Last updated: 2026-10-26 (VS2-39: the Cue view follows Undo of a Remove)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -19,7 +19,6 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 ## Next
 1. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
-2. VS2-39 (the Cue view after Undo of a Remove; found in the VS2-38 run).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
