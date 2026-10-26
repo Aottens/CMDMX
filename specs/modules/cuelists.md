@@ -141,6 +141,17 @@ values.
   - The list output it before and B's state does not hold it: HTP fades to 0 over B's
     `fade_out` after B's delay; LTP keeps its current value as the list's value (held, not
     asserted again, so it does not beat a later LTP source, ENG-02).
+  - Amendment (VS2-38, owner approved 2026-10-26): the previous rule is for
+    whole fixtures. A **cell** attribute (PRG-47) the list output before and B's state does not
+    hold is released to its fixture: after B's delay it fades over B's times (HTP `fade_out`, LTP
+    `fade_in`) from its current value to what the cell follows, then the list no longer holds it
+    for that cell, so within the list the cell shows its fixture's value (PRG-51), as it would had
+    the list never held the cell. What the cell follows: the fixture's value for that attribute in
+    B's state; without one, HTP 0 and LTP its current value. The virtual cell Dimmer has no
+    fixture value (PRG-47) and goes to full. This holds for a cell value at 0 too, and for a snap
+    (CUE-53: no delay, no fade). Two-cue list, both cues `901` and `901.2` at 30 %, fader full:
+    removing `901.2` from the live Q1 → cell 2 is lit as cells 1 and 3 are (as on a fresh load),
+    not dark; Q1 `901` red, Q2 `901` red and `901.2` blue, Go Q2 then Back → cell 2 fades to red.
 
   Service list, Q1 pars 201–208 at 45 %, Q2 only spots 301–306 at 80 % with `fade_out` 2 s:
   with tracking, Go → the spots rise and the pars stay at 45 % (tracked from Q1); with tracking

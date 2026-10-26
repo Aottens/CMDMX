@@ -18,7 +18,7 @@ use crate::playback::{
     fade_progress, CueNumber, Direction, Kind, Link, ListAction, ListLive, LoopAction, Origin,
     Origins, Playback,
 };
-use crate::profile::{Mode, Profile};
+use crate::profile::{Mode, Profile, DIMMER};
 use crate::programmer::Item;
 use crate::value::{Stored, Value};
 use crate::Timestamp;
@@ -40,6 +40,8 @@ struct ListFade {
     fade: f32,
     /// LTP order (ENG-02): the cue start that last changed it.
     order: u64,
+    /// CUE-13: a cell value the cue does not hold, fading to its fixture; gone once it is there.
+    released: bool,
 }
 
 impl ListFade {
@@ -111,6 +113,7 @@ struct Plan {
     delay: f32,
     fade: f32,
     order: u64,
+    released: bool,
     /// Takes part in the overlap stagger and the duration (not an LTP value that is only held).
     spread: bool,
 }
@@ -239,6 +242,14 @@ impl ListRun {
         self.link.is_some() || self.fades.values().flatten().any(|(_, f)| unfinished(f))
     }
 
+    /// CUE-13: a released cell value that has arrived is let go.
+    fn let_go(&mut self, now: Timestamp) {
+        let clock = self.clock(now);
+        for a in self.fades.values_mut() {
+            a.retain(|_, f| !(f.released && clock >= f.start + f64::from(f.fade) - EPSILON));
+        }
+    }
+
     fn resume(&mut self, now: Timestamp) {
         if let Some(at) = self.paused_at.take() {
             self.offset += now - at;
@@ -294,6 +305,7 @@ impl ListRun {
         if std::mem::take(&mut self.edited) {
             self.snap(cx);
         }
+        self.let_go(cx.now);
         self.progress = match self.current {
             None => 0.0,
             Some(_) if self.duration <= 0.0 => 1.0,
@@ -367,6 +379,7 @@ impl ListRun {
         if std::mem::take(&mut self.edited) {
             self.snap(cx);
         }
+        self.let_go(now);
         self.progress = match self.current {
             Some(_) => self.phase.clamp(0.0, 1.0) as f32,
             None => 0.0,
@@ -535,7 +548,7 @@ impl ListRun {
                 let old = self.fades.get(&item).and_then(|a| a.get(name));
                 // The same value as it has or fades to: nothing changes (HTP not there: 0).
                 let same = match old {
-                    Some(o) => o.to == stored,
+                    Some(o) => !o.released && o.to == stored,
                     None => l.kind == AttributeKind::Htp && stored == zero,
                 };
                 let to = resolve(stored, name);
@@ -558,11 +571,14 @@ impl ListRun {
                     delay,
                     fade,
                     order,
+                    released: false,
                     spread: true,
                 });
             }
         }
         // What the list had and the state does not hold: HTP fades out, LTP keeps its value.
+        // CUE-13 amendment: a cell value (HTP and LTP) instead fades to its fixture's value in
+        // the state and is then let go, so the merge gives the cell that value (PRG-51).
         for (&item, attributes) in &self.fades {
             let Some((fx, mode)) = env.lookup(item.fixture) else {
                 continue;
@@ -576,6 +592,40 @@ impl ListRun {
                     continue;
                 };
                 let resolve = |s: Stored| resolve_stored(env.palettes, item, fx, mode, name, s);
+                if let Some(cell) = item.cell.filter(|_| !old.released) {
+                    let ltp = l.kind == AttributeKind::Ltp;
+                    let current = if ltp {
+                        env.held(item, name).unwrap_or(l.default)
+                    } else {
+                        old.value(clock, resolve)
+                    };
+                    let own = (state.get(&Item::fixture(item.fixture)))
+                        .and_then(|a| a.get(name))
+                        .map(|&(stored, _)| stored);
+                    let to = if name == DIMMER && mode.virtual_cell_dimmer(cell) {
+                        Stored::Value(l.default)
+                    } else {
+                        own.unwrap_or(if ltp { Stored::Value(current) } else { zero })
+                    };
+                    // Released: HTP over `fade_out`, LTP over `fade_in`.
+                    let (delay, fade) = times(l.group, ltp);
+                    plans.push(Plan {
+                        item,
+                        name: name.clone(),
+                        ltp,
+                        from: current,
+                        to,
+                        delay,
+                        fade,
+                        order: old.order,
+                        released: true,
+                        spread: true,
+                    });
+                    continue;
+                }
+                if old.released {
+                    continue;
+                }
                 if l.kind == AttributeKind::Ltp {
                     let current = env.held(item, name).unwrap_or(l.default);
                     plans.push(Plan {
@@ -587,6 +637,7 @@ impl ListRun {
                         delay: 0.0,
                         fade: 0.0,
                         order: old.order,
+                        released: false,
                         spread: false,
                     });
                 } else if old.to != zero {
@@ -600,6 +651,7 @@ impl ListRun {
                         delay,
                         fade,
                         order: old.order,
+                        released: false,
                         spread: true,
                     });
                 }
@@ -645,6 +697,7 @@ impl ListRun {
                 start: clock + f64::from(p.delay + lag),
                 fade: p.fade,
                 order: p.order,
+                released: p.released,
             };
             self.fades.entry(p.item).or_default().insert(p.name, fade);
         }

@@ -276,6 +276,8 @@ Multi-Cell Fixtures and Sub-Fixtures (keypad table) and Unfold.
   In the programmer an item's entry is its value, else its located value, and the cell's entry
   beats the fixture's, so Locate on 901.2 shows on cell 2 while 901 holds red. Off and Locate act
   on the items they target only: Off on 901 leaves 901.2's own values (VS2-31, 2026-10-25).
+  A cell value a cue list stops holding is released to its fixture, not faded to 0 as the cell's
+  own value (CUE-13 amendment, VS2-38, approved 2026-10-26).
 - **PRG-52** Programmer contents, cues, groups and palettes key cell values by item
   (`"901.2"`): `contents(mask)` (PRG-15) returns them under their item, Record stores them so,
   Include (PRG-16) loads them back. A palette reference on a cell resolves as PAL-07 with the cell
