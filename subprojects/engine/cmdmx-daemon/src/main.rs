@@ -3066,6 +3066,38 @@ mod tests {
     }
 
     #[test]
+    fn ipc_42_select_with_a_cell_selects_the_cell_item() {
+        let mut e = demo_engine().unwrap();
+        let cells = r#"{ "manufacturer": "T", "model": "Cells", "source": "channel-list", "modes": [ {
+          "name": "6ch", "footprint": 6, "attributes": [],
+          "cells": [
+            { "colour": { "system": "RGB", "components": [ { "channel": 1 }, { "channel": 2 }, { "channel": 3 } ] } },
+            { "colour": { "system": "RGB", "components": [ { "channel": 4 }, { "channel": 5 }, { "channel": 6 } ] } } ] } ] }"#;
+        e.add_profile("cells", cmdmx_core::profile::Profile::from_json(cells).unwrap())
+            .unwrap();
+        e.patch(cmdmx_core::patch::Fixture {
+            id: 999,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "cells".into(),
+            mode: None,
+            universe: 9,
+            address: 1,
+        })
+        .unwrap();
+        let mut h = History::default();
+        let sel = r#"{"v":1,"cmd":"programmer.select","fixture":999,"cell":2}"#;
+        json_run(&mut e, &mut h, sel).unwrap();
+        let whole = r#"{"v":1,"cmd":"programmer.select","fixture":101}"#;
+        json_run(&mut e, &mut h, whole).unwrap();
+        assert_eq!(
+            e.programmer().items(),
+            &[Item::cell(999, 2), Item::fixture(101)]
+        );
+    }
+
+    #[test]
     fn ipc_32_locate_off_rem_dim_and_clear_reach_the_engine() {
         let mut e = demo_engine().unwrap();
         let mut h = History::default();

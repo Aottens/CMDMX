@@ -3995,6 +3995,149 @@ mod tests {
         assert_eq!(parse(&warning("w"))["type"], "warning");
     }
 
+    /// IPC-42: fixture 1 is the plain dimmer of [`engine`]; fixture 9 has a master Dimmer and
+    /// two RGB cells.
+    fn cell_engine() -> Engine {
+        let mut e = engine();
+        let cells = r#"{ "manufacturer": "T", "model": "Cells", "source": "channel-list", "modes": [ {
+          "name": "8ch", "footprint": 8,
+          "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 } ],
+          "cells": [
+            { "colour": { "system": "RGB", "components": [ { "channel": 2 }, { "channel": 3 }, { "channel": 4 } ] } },
+            { "colour": { "system": "RGB", "components": [ { "channel": 5 }, { "channel": 6 }, { "channel": 7 } ] } } ] } ] }"#;
+        e.add_profile("cells", Profile::from_json(cells).unwrap())
+            .unwrap();
+        e.patch(Fixture {
+            id: 9,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "cells".into(),
+            mode: None,
+            universe: 1,
+            address: 11,
+        })
+        .unwrap();
+        e
+    }
+
+    fn cell_snapshot(e: &Engine) -> Value {
+        parse(&snapshot(
+            e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ))
+    }
+
+    #[test]
+    fn ipc_42_cells_raise_the_protocol_to_v1() {
+        assert_eq!(PROTOCOL, 1);
+        assert_eq!(cell_snapshot(&engine())["v"], 1);
+        assert_eq!(parse(&error("boom"))["v"], 1);
+        assert_eq!(
+            parse_command(r#"{"v":0,"cmd":"grand_master.set","level":0.5}"#),
+            Err("protocol v0 not supported, this engine speaks v1".to_string())
+        );
+    }
+
+    #[test]
+    fn ipc_42_each_fixture_carries_its_cell_count() {
+        let v = cell_snapshot(&cell_engine());
+        assert_eq!(v["fixtures"][0]["id"], 1);
+        assert_eq!(v["fixtures"][0]["cells"], 0);
+        assert_eq!(v["fixtures"][1]["id"], 9);
+        assert_eq!(v["fixtures"][1]["cells"], 2);
+    }
+
+    #[test]
+    fn ipc_42_selection_targets_and_in_programmer_are_items() {
+        use cmdmx_core::programmer::Item;
+        let mut e = cell_engine();
+        e.select_fixture(1).unwrap();
+        e.select_item(Item::cell(9, 2)).unwrap();
+        let p = &cell_snapshot(&e)["programmer"];
+        assert_eq!(p["selection"], json!([1, "9.2"]), "a whole fixture stays an integer");
+        assert_eq!(p["targets"], json!([1, "9.2"]));
+        e.next_fixture();
+        e.next_fixture();
+        assert_eq!(cell_snapshot(&e)["programmer"]["targets"], json!(["9.2"]));
+
+        e.clear_selection();
+        let tokens = ["9", ".", "2", "And", "1", "@", "50", "Enter"];
+        e.execute_command(&tokens).unwrap();
+        let p = &cell_snapshot(&e)["programmer"];
+        assert_eq!(p["in_programmer"], json!([1, "9.2"]));
+        let keyed: Vec<&Value> = (p["contents"].as_array().unwrap().iter())
+            .map(|c| &c["fixture"])
+            .collect();
+        assert_eq!(keyed, [&json!(1), &json!("9.2")], "contents keyed by item");
+    }
+
+    #[test]
+    fn ipc_42_located_keys_name_cells() {
+        use cmdmx_core::programmer::Item;
+        let mut e = cell_engine();
+        e.select_item(Item::cell(9, 1)).unwrap();
+        e.locate(&[AttributeGroup::C]).unwrap();
+        let p = &cell_snapshot(&e)["programmer"];
+        assert!(p["located"]["9.1"].is_array(), "{}", p["located"]);
+    }
+
+    #[test]
+    fn ipc_42_groups_list_items_in_snapshot_and_delta() {
+        use cmdmx_core::programmer::Item;
+        let mut e = cell_engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        e.tick(0.0);
+        e.select_fixture(1).unwrap();
+        e.select_item(Item::cell(9, 2)).unwrap();
+        e.record_group(3).unwrap();
+        e.tick(0.025);
+        let groups = json!([{"id":3,"fixtures":[1,"9.2"]}]);
+        let d = published.diff(&e, &[], &show_state());
+        let delta = d.iter().map(|m| parse(m)).find(|m| m["type"] == "groups");
+        assert_eq!(delta.unwrap()["groups"], groups);
+        assert_eq!(cell_snapshot(&e)["groups"], groups);
+    }
+
+    #[test]
+    fn ipc_42_select_takes_an_optional_cell() {
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"programmer.select","fixture":9,"cell":2}"#),
+            Ok(Command::Select {
+                fixture: 9,
+                cell: Some(2)
+            })
+        );
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"programmer.select","fixture":9}"#),
+            Ok(Command::Select {
+                fixture: 9,
+                cell: None
+            })
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"programmer.select","fixture":9,"cell":0}"#,
+            r#"{"v":1,"cmd":"programmer.select","fixture":9,"cell":"2"}"#,
+            r#"{"v":1,"cmd":"programmer.select","fixture":9,"cell":-1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_42_cue_view_lists_cells() {
+        use cmdmx_core::playback::PlaybackRecord;
+        let mut e = cell_engine();
+        e.execute_command(&["9", ".", "2", "@", "50", "Enter"])
+            .unwrap();
+        let id = e.record_playback(&PlaybackRecord::at(1, 2)).unwrap();
+        let v = parse(&cue_view(&e, id, q(1.0)).unwrap());
+        assert_eq!(v["fixtures"][0]["fixture"], "9.2", "{v}");
+    }
+
     #[test]
     fn ipc_41_another_version_names_both_versions() {
         let other = PROTOCOL + 1;
