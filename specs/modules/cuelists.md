@@ -141,7 +141,7 @@ values.
   - The list output it before and B's state does not hold it: HTP fades to 0 over B's
     `fade_out` after B's delay; LTP keeps its current value as the list's value (held, not
     asserted again, so it does not beat a later LTP source, ENG-02).
-  - Amendment (VS2-38, proposed 2026-10-26, awaiting owner approval): the previous rule is for
+  - Amendment (VS2-38, owner approved 2026-10-26): the previous rule is for
     whole fixtures. A **cell** attribute (PRG-47) the list output before and B's state does not
     hold is released to its fixture: after B's delay it fades over B's times (HTP `fade_out`, LTP
     `fade_in`) from its current value to what the cell follows, then the list no longer holds it

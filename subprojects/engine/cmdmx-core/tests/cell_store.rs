@@ -15,7 +15,7 @@ use cmdmx_core::attribute::AttributeGroup::{C, I};
 use cmdmx_core::engine::{Engine, Settings, ALL_GROUPS};
 use cmdmx_core::palette::{Cell, Record, RecordAs, Window};
 use cmdmx_core::patch::{Fixture, FixtureId};
-use cmdmx_core::playback::PlaybackRecord;
+use cmdmx_core::playback::{CueChange, CueNumber, ListAction, PlaybackRecord};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::Item;
 use cmdmx_core::show::{Meta, Show};
@@ -413,4 +413,117 @@ fn cue_54_remove_refuses_a_cell_the_cue_does_not_hold_and_names_it() {
         .unwrap_err();
     assert!(err.to_string().contains("Pan"), "{err}");
     assert_eq!(e.playback(id).unwrap(), &before);
+}
+
+// ---- CUE-13 amendment (VS2-38): a released cell value follows its fixture ------------------
+
+/// Record what the programmer holds as cue `n` of playback 1, then empty the programmer.
+fn record_cue(e: &mut Engine, n: f64) -> u32 {
+    let id = e
+        .record_playback(&PlaybackRecord {
+            cue: Some(CueNumber::new(n).unwrap()),
+            ..PlaybackRecord::at(1, 1)
+        })
+        .unwrap();
+    clear_all(e);
+    id
+}
+
+fn q(n: f64) -> CueNumber {
+    CueNumber::new(n).unwrap()
+}
+
+/// R, G, B of 901's cell `n` at list time `t`.
+fn rgb_t(e: &mut Engine, n: u16, t: f64) -> [u8; 3] {
+    e.tick(t);
+    let base = 8 + (n - 1) * 4;
+    let frame = e.frame(1).unwrap();
+    [0, 1, 2].map(|i| frame.channel(base + i).unwrap())
+}
+
+fn go(e: &mut Engine, id: u32, action: ListAction, t: f64) {
+    e.cuelist(Some(id), action, t).unwrap();
+    e.tick(t);
+}
+
+#[test]
+fn cue_13_a_cell_value_removed_from_the_live_cue_follows_its_fixture() {
+    // The VS2-37 run: a two-cue list, both cues 901 and 901.2 at 30 %.
+    let mut e = rig();
+    for n in [1.0, 2.0] {
+        run(&mut e, "901 @ 30 Enter");
+        run(&mut e, "901 . 2 @ 30 Enter");
+        record_cue(&mut e, n);
+    }
+    let id = 1;
+    e.set_fader(id, 1.0, 0.0).unwrap();
+    go(&mut e, id, ListAction::Go, 0.0);
+    let lit = rgb_t(&mut e, 1, 0.0);
+    assert_ne!(lit, [0, 0, 0], "cell 1 follows the fixture");
+    assert_ne!(rgb_t(&mut e, 2, 0.0), lit, "cell 2 at its own 30 %");
+    e.remove_cue_value(id, q(1.0), c(901, 2), None).unwrap();
+    assert_eq!(
+        rgb_t(&mut e, 2, 0.0),
+        lit,
+        "cell 2 follows its fixture, not dark"
+    );
+}
+
+#[test]
+fn cue_13_back_to_a_cue_without_the_cell_fades_it_to_its_fixture() {
+    // Q1 901 red; Q2 901 red and 901.2 blue at 30 %. Q1 fades in and out over 2 s.
+    let mut e = rig();
+    run(&mut e, "901 @ 100 Enter");
+    e.set_colour(RED, 1.0).unwrap();
+    let id = record_cue(&mut e, 1.0);
+    run(&mut e, "901 @ 100 Enter");
+    e.set_colour(RED, 1.0).unwrap();
+    run(&mut e, "901 . 2 @ 30 Enter");
+    e.set_colour(BLUE, 1.0).unwrap();
+    record_cue(&mut e, 2.0);
+    e.change_cue(
+        id,
+        q(1.0),
+        &CueChange {
+            fade_in: Some(2.0),
+            fade_out: Some(2.0),
+            ..CueChange::default()
+        },
+    )
+    .unwrap();
+    e.set_fader(id, 1.0, 0.0).unwrap();
+    go(&mut e, id, ListAction::Go, 0.0);
+    go(&mut e, id, ListAction::Go, 3.0);
+    let blue = rgb_t(&mut e, 2, 3.0);
+    assert!(blue[2] > 0 && blue[0] == 0, "cell 2 blue: {blue:?}");
+    go(&mut e, id, ListAction::Back, 4.0);
+    let mid = rgb_t(&mut e, 2, 5.0);
+    assert!(
+        mid[0] > 0 && mid[2] > 0,
+        "half-way blue to red, never dark: {mid:?}"
+    );
+    let red = rgb_t(&mut e, 1, 6.5);
+    assert_eq!(red, [255, 0, 0]);
+    assert_eq!(rgb_t(&mut e, 2, 6.5), red, "cell 2 follows its fixture");
+}
+
+#[test]
+fn cue_13_a_released_cell_value_at_0_follows_its_fixture() {
+    // Q1 901 full and 901.2 at 30 %; Q2 901 full and 901.2 at 0.
+    let mut e = rig();
+    run(&mut e, "901 @ 100 Enter");
+    run(&mut e, "901 . 2 @ 30 Enter");
+    let id = record_cue(&mut e, 1.0);
+    run(&mut e, "901 @ 100 Enter");
+    run(&mut e, "901 . 2 @ 0 Enter");
+    record_cue(&mut e, 2.0);
+    e.set_fader(id, 1.0, 0.0).unwrap();
+    go(&mut e, id, ListAction::Go, 0.0);
+    go(&mut e, id, ListAction::Go, 1.0);
+    assert_eq!(rgb_t(&mut e, 2, 1.0), [0, 0, 0], "cell 2 at its own 0");
+    e.remove_cue_value(id, q(1.0), c(901, 2), None).unwrap();
+    e.remove_cue_value(id, q(2.0), c(901, 2), None).unwrap();
+    let lit = rgb_t(&mut e, 1, 1.0);
+    assert_ne!(lit, [0, 0, 0]);
+    assert_eq!(rgb_t(&mut e, 2, 1.0), lit, "cell 2 follows its fixture");
 }
