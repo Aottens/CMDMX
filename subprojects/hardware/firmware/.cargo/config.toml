@@ -1,0 +1,7 @@
+# No build.target on purpose: host `cargo test` keeps working for the logic crate.
+[target.thumbv8m.main-none-eabihf]
+runner = "picotool load -u -v -x -t elf"
+
+[alias]
+box = "build -p cmdmx-box --release --target thumbv8m.main-none-eabihf"
+flash = "run -p cmdmx-box --release --target thumbv8m.main-none-eabihf"

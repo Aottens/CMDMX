@@ -1,0 +1,12 @@
+# Firmware workspace for the hardware desk (HW-70), separate from the engine workspace.
+# `cargo test` on the host runs the pure-logic crate only (default-members);
+# the firmware binary builds for the RP2350: see README.md.
+[workspace]
+resolver = "2"
+members = ["logic", "box"]
+default-members = ["logic"]
+
+[profile.release]
+debug = 2
+lto = true
+opt-level = "s"
