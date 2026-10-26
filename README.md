@@ -35,7 +35,7 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up: selecting single cells of multi-head fixtures in the app (`901.2`, Unfold). Progress is in
+Next up: the church service run with TouchOSC (VS4-01). Progress is in
 [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in clickable sketches:
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html) and
 [`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html).
@@ -68,8 +68,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
   (`201 Thro 205 @ 50`), wheels, and the console keypad with command history. The command line
   already selects and sets single cells of multi-cell fixtures (`901 . 2 @ 50`, a colour on one
   cell over the fixture's colour), and cues, groups and palettes store those cell values
-  (`901.2`); the app and engine speak protocol v1, which carries those cells, and the app
-  shows them with Unfold next.
+  (`901.2`). In the app a fixture button shows its cell count, Unfold lays the cells out as
+  buttons right after it (`901.1`, `901.2`, …), and the Programmer and cue view list cell rows.
 - Fan: the Fan key (lit while on) makes a wheel spread its change over the selection order as a
   Line, Mirror, Wings or Arrow curve, picked on the Fan softkeys and shown as `FAN <CURVE>` next
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.
