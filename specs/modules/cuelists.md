@@ -249,7 +249,7 @@ values.
   tracked values magenta, references cyan; a right-click on a hard value offers Remove (two-step).
   The Cue list window gains a Track column (`·`, B, CO, S). UI-03 gains magenta = tracked value
   (research: the cross-vendor rule).
-  Amendment (VS2-37, proposed 2026-10-26, awaiting owner approval): `cue.remove`'s `fixture` is an
+  Amendment (VS2-37, approved by owner 2026-10-26): `cue.remove`'s `fixture` is an
   item (IPC-42): `201` for the fixture, `"901.2"` for a cell. An item is one row of the Cue view and
   is removed alone: a cell item takes out only that cell's hard values (the fixture's own values and
   its other cells stay), a fixture item without `attribute` only the fixture's own values (its cells'

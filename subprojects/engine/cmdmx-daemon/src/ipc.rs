@@ -5543,6 +5543,28 @@ mod tests {
     }
 
     #[test]
+    fn ipc_42_cue_remove_takes_an_item() {
+        let item = |json: &str| match parse_command(json) {
+            Ok(Command::CueRemove { item, .. }) => Ok(item),
+            other => Err(format!("{other:?}")),
+        };
+        assert_eq!(
+            item(r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":201}"#),
+            Ok(Item::fixture(201))
+        );
+        assert_eq!(
+            item(r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":"901.2","attribute":"Red"}"#),
+            Ok(Item::cell(901, 2))
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":"901.0"}"#,
+            r#"{"v":1,"cmd":"cue.remove","id":2,"cue":2,"fixture":"x"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
     fn cue_41_bad_commands_are_errors() {
         for bad in [
             r#"{"v":1,"cmd":"cuelist.go","id":"two"}"#,

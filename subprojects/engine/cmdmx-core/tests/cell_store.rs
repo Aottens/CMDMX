@@ -359,3 +359,50 @@ fn shw_04_the_schema_6_church_demo_migrates_to_the_schema_7_file() {
     assert_eq!(migrations.len(), 1, "{migrations:?}");
     assert_eq!(show.to_json(), v7);
 }
+
+// ---- CUE-54 amendment (VS2-37): cue.remove takes an item ---------------------
+
+/// 901 red as a fixture and cell 2 blue, recorded as Q1 of playback 1.
+fn cue_with_cell() -> (Engine, u32) {
+    let mut e = rig();
+    red_901_blue_cell_2(&mut e);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    clear_all(&mut e);
+    (e, id)
+}
+
+fn cue_keys(e: &Engine, id: u32) -> Vec<Item> {
+    e.playback(id).unwrap().cues[0].values.keys().copied().collect()
+}
+
+#[test]
+fn cue_54_remove_a_cell_item_takes_only_that_cell() {
+    let (mut e, id) = cue_with_cell();
+    let q1 = e.playback(id).unwrap().cues[0].number;
+    e.remove_cue_value(id, q1, c(901, 2), None).unwrap();
+    assert_eq!(cue_keys(&e, id), [f(901)], "the fixture's own values stay");
+    e.set_fader(id, 1.0, 0.0).unwrap();
+    assert_eq!(rgb(&mut e, 2), [255, 0, 0], "cell 2 follows the fixture again");
+}
+
+#[test]
+fn cue_54_remove_a_fixture_item_leaves_its_cells() {
+    let (mut e, id) = cue_with_cell();
+    let q1 = e.playback(id).unwrap().cues[0].number;
+    e.remove_cue_value(id, q1, f(901), None).unwrap();
+    assert_eq!(cue_keys(&e, id), [c(901, 2)]);
+}
+
+#[test]
+fn cue_54_remove_refuses_a_cell_the_cue_does_not_hold_and_names_it() {
+    let (mut e, id) = cue_with_cell();
+    let q1 = e.playback(id).unwrap().cues[0].number;
+    let before = e.playback(id).unwrap().clone();
+    let err = e.remove_cue_value(id, q1, c(901, 3), None).unwrap_err();
+    assert!(err.to_string().contains("901.3"), "{err}");
+    let err = e
+        .remove_cue_value(id, q1, c(901, 2), Some("Pan"))
+        .unwrap_err();
+    assert!(err.to_string().contains("Pan"), "{err}");
+    assert_eq!(e.playback(id).unwrap(), &before);
+}

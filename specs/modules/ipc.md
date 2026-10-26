@@ -143,7 +143,7 @@ the PAT-09 shape.
   attribute name to group over all its cells (the virtual cell Dimmer, Colour, the cells' own
   attributes), as `attributes` does for the fixture (IPC-21); absent for a fixture without cells.
   A new key, so `v` stays 1 (IPC-41).
-  Amendment (VS2-37, proposed 2026-10-26, awaiting owner approval): `cue.remove`'s `fixture` takes an
+  Amendment (VS2-37, approved by owner 2026-10-26): `cue.remove`'s `fixture` takes an
   item, `201` or `"901.2"` (CUE-54); a string that is not an item (`"901.0"`, `"x"`) → `error` to the
   sender. An integer still means the whole fixture, so `v` stays 1 (IPC-41).
 
