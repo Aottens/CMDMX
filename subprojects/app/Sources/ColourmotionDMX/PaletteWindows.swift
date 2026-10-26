@@ -148,7 +148,7 @@ struct PaletteWindow: View {
     private func perform(_ function: PaletteFunction, _ handle: Int, _ p: PaletteInfo?) {
         lastTap = nil
         switch function {
-        case .release, .options, .latch:
+        case .release, .options, .latch, .unfold:
             engine.say("\(function.rawValue) works on playback handles.")
         case .copy, .move:
             if let source = ui.source {
@@ -178,7 +178,7 @@ struct PaletteWindow: View {
                 engine.say("Delete palette \(p.number)? Confirm on softkey A.")
             case .legend:
                 ui.legendEditing = PaletteRef(number: p.number)
-            case .copy, .move, .release, .options, .latch:
+            case .copy, .move, .release, .options, .latch, .unfold:
                 break
             }
         }

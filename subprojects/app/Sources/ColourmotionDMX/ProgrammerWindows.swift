@@ -28,10 +28,10 @@ struct ProgrammerWindow: View {
     private static let columns = ["I", "P", "C", "B"]
 
     var body: some View {
-        let rows = engine.programmer.contents.filter { $0.item.cell == nil }   // cells show with VS2-34
+        let rows = cellsAfterFixtures(engine.programmer.contents, engine.fixtures) { $0.item }
         let fixtures = Dictionary(engine.fixtures.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
-        PanelWindow(title: "Programmer", info: rows.isEmpty ? "empty" : "\(rows.count) fixtures", accessory: { EmptyView() }) {
+        PanelWindow(title: "Programmer", info: rows.isEmpty ? "empty" : "\(Set(rows.map(\.fixture)).count) fixtures", accessory: { EmptyView() }) {
             if rows.isEmpty {
                 NoteText(note: "Only attributes you touch land here, in red. Values from a palette show the palette name in cyan. Locate and Highlight never land here.")
             } else {
@@ -40,8 +40,8 @@ struct ProgrammerWindow: View {
                         Section {
                             ForEach(rows) { row in
                                 let fixture = fixtures[row.fixture]
-                                line(number: Text(String(fixture?.number ?? row.fixture)).foregroundStyle(t.fg2),
-                                     name: Text(fixture.map(Self.title) ?? "").foregroundStyle(t.fg)) { group in
+                                line(number: Text(Self.number(row.item, fixture)).foregroundStyle(t.fg2),
+                                     name: Text(row.item.cell == nil ? fixture.map(Self.title) ?? "" : "").foregroundStyle(t.fg)) { group in
                                     cell(row, fixture, group)
                                 }
                                 HLine()
@@ -76,6 +76,12 @@ struct ProgrammerWindow: View {
         .padding(.horizontal, 7).padding(.vertical, 3)
     }
 
+    /// `#` of a row: the fixture number, `901.2` for a cell item.
+    static func number(_ item: Item, _ fixture: FixtureInfo?) -> String {
+        let n = String(fixture?.number ?? item.fixture)
+        return item.cell.map { "\(n).\($0)" } ?? n
+    }
+
     /// The fixture's name, else the model part of `manufacturer/model`.
     private static func title(_ f: FixtureInfo) -> String {
         if !f.name.isEmpty { return f.name }
@@ -84,7 +90,7 @@ struct ProgrammerWindow: View {
 
     /// The values of one row that the fixture's `attributes` map places in `group`; "·" if none.
     @ViewBuilder private func cell(_ row: ProgrammerContent, _ fixture: FixtureInfo?, _ group: String) -> some View {
-        let mine = row.values.filter { fixture?.attributes[$0.key] == group }.sorted { $0.key < $1.key }
+        let mine = row.values.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
         if mine.isEmpty {
             Text("·").foregroundStyle(t.fg3)
         } else {

@@ -132,6 +132,7 @@ private struct CellScroll<Content: View>: View {
 
 struct FixturesWindow: View {
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
     @State private var page = 0
 
     // ponytail: `handles_per_page` is a setting (PAT-14) that is not on the wire yet; 40 is its default.
@@ -185,6 +186,7 @@ struct FixturesWindow: View {
             CellScroll {
                 ForEach(visible) { fixture in
                     Cell(number: fixture.number,
+                         tag: fixture.cells > 0 ? "\(fixture.cells)" : nil,
                          legend: Self.legend(fixture),
                          order: order[Item(fixture: fixture.id)],
                          located: programmer.located[Item(fixture: fixture.id)] != nil,   // UI-26
@@ -192,10 +194,38 @@ struct FixturesWindow: View {
                          current: subSelection && targets.contains(Item(fixture: fixture.id)),
                          dimmed: subSelection && order[Item(fixture: fixture.id)] != nil && !targets.contains(Item(fixture: fixture.id)),
                          inProgrammer: inProgrammer.contains(Item(fixture: fixture.id)),
-                         lamp: true) { engine.selectFixture(fixture.id) }
+                         lamp: true) { tap(fixture) }
+                    if ui.unfolded.contains(fixture.id) {
+                        // UI-29: the cells follow their fixture, in the same button system.
+                        ForEach(Array(1..<fixture.cells + 1), id: \.self) { n in
+                            let item = Item(fixture: fixture.id, cell: n)
+                            Cell(number: nil,
+                                 legend: "\(fixture.number).\(n)",
+                                 order: order[item],
+                                 located: programmer.located[item] != nil,
+                                 selected: order[item] != nil,
+                                 current: subSelection && targets.contains(item),
+                                 dimmed: subSelection && order[item] != nil && !targets.contains(item),
+                                 inProgrammer: inProgrammer.contains(item),
+                                 lamp: true) { engine.selectCell(fixture.id, cell: n) }
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+extension FixturesWindow {
+    /// While Unfold is armed a tap folds or unfolds instead of selecting (UI-29), then disarms.
+    fileprivate func tap(_ fixture: FixtureInfo) {
+        guard ui.function == .unfold else { return engine.selectFixture(fixture.id) }
+        if fixture.cells == 0 {
+            engine.say("Unfold: this fixture has no cells.")
+        } else if !ui.unfolded.insert(fixture.id).inserted {
+            ui.unfolded.remove(fixture.id)
+        }
+        ui.cancelModes()
     }
 }
 

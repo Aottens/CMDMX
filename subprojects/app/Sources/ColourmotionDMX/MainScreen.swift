@@ -9,7 +9,7 @@ import SwiftUI
 /// palette or handle tap uses it. Release, Options and Latch only mean something on handles.
 enum PaletteFunction: String {
     case update = "Update", include = "Include", copy = "Copy", move = "Move", delete = "Delete", legend = "Set Legend"
-    case release = "Release", options = "Options", latch = "Latch"
+    case release = "Release", options = "Options", latch = "Latch", unfold = "Unfold"
 }
 
 /// A used handle tapped while Record is armed (PBK-38): the softkeys ask how to record onto it.
@@ -81,6 +81,8 @@ final class UIState: ObservableObject {
     @Published var maskMenu = false
     /// Update, Include, Copy, Move, Delete or Set Legend armed (PAL-29).
     @Published var function: PaletteFunction?
+    /// UI-29: fixtures (ids) whose cells show in the Fixtures window. View state only.
+    @Published var unfolded = Set<Int>()
     /// Copy / Move: the id of the source palette, after its tap.
     @Published var source: Int?
     /// Delete: the palette number waiting for the confirmation on softkey A (two-step, PAT-10).
