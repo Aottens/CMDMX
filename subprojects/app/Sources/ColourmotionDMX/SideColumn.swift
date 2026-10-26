@@ -514,7 +514,6 @@ private struct Softkeys: View {
         if ui.cueRemoveConfirm, let target {
             keys[0] = Softkey(name: "Confirm remove", sub: what ?? "") {
                 engine.removeCueValue(ref.playback, cue: ref.cue, fixture: target.fixture, cell: target.cell, attribute: target.attribute)
-                engine.viewCue(ref.playback, cue: ref.cue)
                 ui.cueValue = nil; ui.cueRemoveConfirm = false
             }
             keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cueRemoveConfirm = false })

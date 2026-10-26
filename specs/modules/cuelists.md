@@ -278,7 +278,7 @@ values.
   all) is refused with a warning naming the item ("Q3 holds no 901.2 of its own", CUE-49). App: a
   right-click on a hard value in a cell row picks it as on a fixture row; the Remove softkey names
   the cell ("Dimmer of 901.2") and sends the cell item.
-  Amendment (VS2-39, awaiting owner approval): a change of a cue's values alone is a stored
+  Amendment (VS2-39, approved by owner 2026-10-26): a change of a cue's values alone is a stored
   change, so it sends the PBK-35 `playbacks` delta even when nothing else in the list's entry
   moves (the entry carries no values). This covers Remove, Undo and Redo of it (from the app or a
   control surface) and an Update into an existing cue; the open Cue view asks again on that
