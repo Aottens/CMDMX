@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-26 (VS2-34: cells in the app)_
+_Last updated: 2026-10-26 (VS2-37: remove a cell value from a cue)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -10,7 +10,7 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
 control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on the church iPad passed), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor, multi-select in the patch table
-(VS2-27/28), Fan (VS2-35/36) and cells end to end (VS2-30..34: engine, protocol v1, Unfold and cell rows in the app) are done.
+(VS2-27/28), Fan (VS2-35/36) and cells end to end (VS2-30..34, 37: engine, protocol v1, Unfold, cell rows and Remove in the cue view) are done.
 
 Parallel track: phase 3, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
@@ -19,7 +19,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 ## Next
 1. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
-2. VS2-37 (remove a cell value from a cue in the cue view; spec first).
+2. VS2-38 (a released cell value in a cue list darkens the cell instead of following its fixture;
+   found in the VS2-37 run; spec first).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:

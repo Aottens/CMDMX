@@ -40,7 +40,7 @@
 //!   BTreeMap<FixtureId, BTreeMap<String, CueValue>>` and `CueValue { value: Stored, from:
 //!   CueNumber }` (`Debug, Clone, PartialEq`; in `playback`): the cue's state (CUE-50), `from`
 //!   the cue the value is hard in. Unknown playback or cue refused. `Engine::remove_cue_value(id,
-//!   cue, fixture, attribute: Option<&str>)` takes a hard value (or all of the fixture's) out of
+//!   cue, item: Item, attribute: Option<&str>)` takes a hard value (or all of the fixture's) out of
 //!   the cue; a value the cue does not hold is refused and changes nothing; an edit to the
 //!   current state is on stage at once (CUE-53).
 
@@ -1482,7 +1482,8 @@ fn cue_54_view_refuses_unknown_playback_or_cue() {
 #[test]
 fn cue_54_remove_takes_a_hard_value_out_so_it_tracks_again() {
     let mut e = update_list();
-    e.remove_cue_value(1, q(4.0), 201, Some("Dimmer")).unwrap();
+    e.remove_cue_value(1, q(4.0), Item::fixture(201), Some("Dimmer"))
+        .unwrap();
     assert_eq!(hard(&e, 4.0, 201, "Dimmer"), None);
     assert_eq!(viewed(&e, 4.0, 201, "Dimmer"), Some((0.5, 1.0)));
 }
@@ -1490,7 +1491,8 @@ fn cue_54_remove_takes_a_hard_value_out_so_it_tracks_again() {
 #[test]
 fn cue_54_remove_without_attribute_takes_all_of_the_fixture() {
     let mut e = update_list();
-    e.remove_cue_value(1, q(1.0), 101, None).unwrap();
+    e.remove_cue_value(1, q(1.0), Item::fixture(101), None)
+        .unwrap();
     assert_eq!(hard(&e, 1.0, 101, "Pan"), None);
     assert_eq!(
         hard(&e, 1.0, 201, "Dimmer"),
@@ -1504,18 +1506,24 @@ fn cue_54_remove_refuses_a_value_the_cue_does_not_hold() {
     let mut e = update_list();
     let before = e.playback(1).unwrap().clone();
     assert!(
-        e.remove_cue_value(1, q(3.0), 201, Some("Dimmer")).is_err(),
+        e.remove_cue_value(1, q(3.0), Item::fixture(201), Some("Dimmer"))
+            .is_err(),
         "tracked"
     );
-    assert!(e.remove_cue_value(1, q(3.0), 204, None).is_err());
-    assert!(e.remove_cue_value(1, q(9.0), 203, None).is_err());
+    assert!(e
+        .remove_cue_value(1, q(3.0), Item::fixture(204), None)
+        .is_err());
+    assert!(e
+        .remove_cue_value(1, q(9.0), Item::fixture(203), None)
+        .is_err());
     assert_eq!(e.playback(1).unwrap(), &before);
 }
 
 #[test]
 fn cue_54_remove_on_the_current_cue_is_on_stage_at_once() {
     let mut e = on_q2();
-    e.remove_cue_value(1, q(2.0), 202, None).unwrap();
+    e.remove_cue_value(1, q(2.0), Item::fixture(202), None)
+        .unwrap();
     tick(&mut e, 7.025);
     assert_eq!(dmx(&e, 22), 0);
     assert_eq!(dmx(&e, 21), 128, "Q1 still tracks");

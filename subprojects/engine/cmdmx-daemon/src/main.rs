@@ -754,9 +754,9 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         CueRemove {
             id,
             cue,
-            fixture,
+            item,
             attribute,
-        } => engine.remove_cue_value(id, cue, fixture, attribute.as_deref()),
+        } => engine.remove_cue_value(id, cue, item, attribute.as_deref()),
         // IPC-26: no number is the lowest free one.
         MasterRecord {
             page,

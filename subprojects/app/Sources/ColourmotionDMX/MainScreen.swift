@@ -54,6 +54,7 @@ struct CueRef: Equatable, Identifiable {
 /// The hard value last right-clicked in the Cue view (CUE-54): what Remove takes out.
 struct CueValueRef: Equatable {
     let fixture: Int
+    let cell: Int?   // nil = the whole fixture
     let attribute: String
 }
 

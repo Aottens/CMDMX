@@ -1551,8 +1551,9 @@ final class EngineClient: ObservableObject {
     func copyCue(_ id: Int, cue: Double, to: Double) { patch("cue.copy", ["id": id, "cue": cue, "to": to]) }
     /// CUE-54: the reply lands in `cueView`.
     func viewCue(_ id: Int, cue: Double) { sendJSON("cue.view", ["id": id, "cue": cue]) }
-    func removeCueValue(_ id: Int, cue: Double, fixture: Int, attribute: String?) {
-        var fields: [String: Any] = ["id": id, "cue": cue, "fixture": fixture]
+    func removeCueValue(_ id: Int, cue: Double, fixture: Int, cell: Int? = nil, attribute: String?) {
+        // IPC-42: an integer for the whole fixture, "<id>.<cell>" for one cell.
+        var fields: [String: Any] = ["id": id, "cue": cue, "fixture": cell.map { "\(fixture).\($0)" as Any } ?? fixture]
         if let attribute { fields["attribute"] = attribute }
         patch("cue.remove", fields)
     }

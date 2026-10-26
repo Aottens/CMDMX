@@ -143,6 +143,9 @@ the PAT-09 shape.
   attribute name to group over all its cells (the virtual cell Dimmer, Colour, the cells' own
   attributes), as `attributes` does for the fixture (IPC-21); absent for a fixture without cells.
   A new key, so `v` stays 1 (IPC-41).
+  Amendment (VS2-37, approved by owner 2026-10-26): `cue.remove`'s `fixture` takes an
+  item, `201` or `"901.2"` (CUE-54); a string that is not an item (`"901.0"`, `"x"`) → `error` to the
+  sender. An integer still means the whole fixture, so `v` stays 1 (IPC-41).
 
 - **IPC-43** Fan (P1-20, PRG-56..62; approved by owner 2026-10-25). `programmer.fan {}` toggles Fan
   (off → on with the last curve, on → off); `programmer.fan {"curve":"Wings"}` (`Line`, `Mirror`,

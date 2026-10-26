@@ -509,11 +509,11 @@ private struct Softkeys: View {
         let name = cueName(ref.cue)
         let target = ui.cueValue
         let fixture = target.flatMap { t in engine.fixtures.first { $0.id == t.fixture }?.number }
-        let what = target.map { "\($0.attribute) of \(fixture ?? $0.fixture)" }
+        let what = target.map { "\($0.attribute) of \(fixture ?? $0.fixture)\($0.cell.map { ".\($0)" } ?? "")" }
         var keys: [Softkey?] = Array(repeating: nil, count: 7)
         if ui.cueRemoveConfirm, let target {
             keys[0] = Softkey(name: "Confirm remove", sub: what ?? "") {
-                engine.removeCueValue(ref.playback, cue: ref.cue, fixture: target.fixture, attribute: target.attribute)
+                engine.removeCueValue(ref.playback, cue: ref.cue, fixture: target.fixture, cell: target.cell, attribute: target.attribute)
                 engine.viewCue(ref.playback, cue: ref.cue)
                 ui.cueValue = nil; ui.cueRemoveConfirm = false
             }
