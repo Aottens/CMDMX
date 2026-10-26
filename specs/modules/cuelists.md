@@ -152,6 +152,16 @@ values.
     (CUE-53: no delay, no fade). Two-cue list, both cues `901` and `901.2` at 30 %, fader full:
     removing `901.2` from the live Q1 → cell 2 is lit as cells 1 and 3 are (as on a fresh load),
     not dark; Q1 `901` red, Q2 `901` red and `901.2` blue, Go Q2 then Back → cell 2 fades to red.
+  - Amendment (VS2-40, owner approved 2026-10-26): the mirror case. A **cell** attribute B's state
+    holds and the list does not hold for that cell (it never did, or released it) comes in from
+    where the cell is within the list: the current value of the list's fixture value for that
+    attribute; without one, HTP 0 (LTP: its current output, as the first rule). The virtual cell
+    Dimmer comes in from full. Its fade then follows the first rule (HTP falls over `fade_out`,
+    rises over `fade_in`), and a cell value at 0 coming in is a change, not "nothing changes", so
+    the cell goes dark. A released cell value still fading to its fixture (VS2-38) comes in from
+    where that fade is. Q1 `901` full, Q2 `901` full and `901.2` at 30 % with 2 s fades: Go Q2 →
+    cell 2 falls from full to 30 % over 2 s, never dark first; Q2 `901.2` at 0 instead → cell 2
+    fades to dark.
 
   Service list, Q1 pars 201–208 at 45 %, Q2 only spots 301–306 at 80 % with `fade_out` 2 s:
   with tracking, Go → the spots rise and the pars stay at 45 % (tracked from Q1); with tracking

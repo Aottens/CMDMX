@@ -528,3 +528,52 @@ fn cue_13_a_released_cell_value_at_0_follows_its_fixture() {
     assert_ne!(lit, [0, 0, 0]);
     assert_eq!(rgb_t(&mut e, 2, 1.0), lit, "cell 2 follows its fixture");
 }
+
+// ---- CUE-13 amendment (VS2-40): a cell value coming in starts where the cell is ------------
+
+/// Q1 901 full; Q2 901 full and 901.2 at `level` %, both fades 2 s. Go Q1 at 0, Go Q2 at 1.
+fn cell_coming_in(level: u8) -> Engine {
+    let mut e = rig();
+    run(&mut e, "901 @ 100 Enter");
+    let id = record_cue(&mut e, 1.0);
+    run(&mut e, "901 @ 100 Enter");
+    run(&mut e, &format!("901 . 2 @ {level} Enter"));
+    record_cue(&mut e, 2.0);
+    e.change_cue(
+        id,
+        q(2.0),
+        &CueChange {
+            fade_in: Some(2.0),
+            fade_out: Some(2.0),
+            ..CueChange::default()
+        },
+    )
+    .unwrap();
+    e.set_fader(id, 1.0, 0.0).unwrap();
+    go(&mut e, id, ListAction::Go, 0.0);
+    assert_eq!(rgb_t(&mut e, 2, 0.5), [255, 255, 255], "cell 2 follows 901");
+    go(&mut e, id, ListAction::Go, 1.0);
+    e
+}
+
+#[test]
+fn cue_13_a_cell_value_coming_in_fades_from_full() {
+    let mut e = cell_coming_in(30);
+    assert_eq!(rgb_t(&mut e, 2, 1.0), [255, 255, 255], "not dark at the Go");
+    let mid = rgb_t(&mut e, 2, 2.0)[0];
+    assert!(
+        mid > 150 && mid < 180,
+        "half-way down from full to 30 %: {mid}"
+    );
+    assert_eq!(rgb_t(&mut e, 2, 3.5), [77, 77, 77]);
+    assert_eq!(rgb_t(&mut e, 1, 3.5), [255, 255, 255], "cell 1 follows 901");
+}
+
+#[test]
+fn cue_13_a_cell_value_at_0_coming_in_darkens_the_cell() {
+    let mut e = cell_coming_in(0);
+    let mid = rgb_t(&mut e, 2, 2.0)[0];
+    assert!(mid > 115 && mid < 140, "half-way down from full: {mid}");
+    assert_eq!(rgb_t(&mut e, 2, 3.5), [0, 0, 0], "cell 2 dark");
+    assert_eq!(rgb_t(&mut e, 1, 3.5), [255, 255, 255], "cell 1 follows 901");
+}
