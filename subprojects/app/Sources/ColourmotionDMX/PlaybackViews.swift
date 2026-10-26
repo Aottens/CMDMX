@@ -93,7 +93,7 @@ enum HandleTaps {
                 ui.openOptions(info.id)
             case .legend:
                 ui.playbackLegendEditing = PlaybackRef(id: info.id)
-            case .copy, .move, .latch, .include:
+            case .copy, .move, .latch, .include, .unfold:
                 break
             }
         }

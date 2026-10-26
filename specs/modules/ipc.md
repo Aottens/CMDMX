@@ -139,6 +139,10 @@ the PAT-09 shape.
   0 for none), and `in_programmer` entries become items. `programmer.select {"fixture":901,"cell":2}`
   selects a cell (`cell` optional). A list that holds a string is a type change an older app would
   misread, so `v` goes up to 1 with this criterion (IPC-41).
+  Amendment (VS2-34, approved by owner 2026-10-26): a `fixtures` entry with cells also carries `cell_attributes`,
+  attribute name to group over all its cells (the virtual cell Dimmer, Colour, the cells' own
+  attributes), as `attributes` does for the fixture (IPC-21); absent for a fixture without cells.
+  A new key, so `v` stays 1 (IPC-41).
 
 - **IPC-43** Fan (P1-20, PRG-56..62; approved by owner 2026-10-25). `programmer.fan {}` toggles Fan
   (off → on with the last curve, on → off); `programmer.fan {"curve":"Wings"}` (`Line`, `Mirror`,

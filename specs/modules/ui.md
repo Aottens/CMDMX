@@ -237,6 +237,14 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   in programmer per item, IPC-42), the grid flowing on after them. A tap on a cell button sends
   `programmer.select` with `cell`. Unfold + tap an unfolded fixture folds it; **Exit Unfold**
   folds all. Which fixtures are unfolded is view state in the app, not in the show.
+  Amendment (VS2-34, approved by owner 2026-10-26): the Unfold function button (UI-16) arms Unfold and opens the
+  Unfold softkeys (Selected fixtures, Exit Unfold); the next fixture tap unfolds or folds that
+  fixture and disarms, as the other functions. Unfolding changes no selection. Cell buttons stay
+  until folded, Unfold armed or not; the cell count shows as the button's tag.
+  The Programmer window (UI-14) and the cue view (CUE-54) show a row per cell item right after
+  its fixture's row (a cell row without a fixture row comes after the fixture's place), `#`
+  `901.2`; a cell's values go to the column of the group `cell_attributes` (IPC-42) gives them.
+  A cell value in the cue view is not pickable for Remove (`cue.remove` names fixtures only).
 
 - **UI-30** Fan (P1-20, PRG-56..62, IPC-43; approved by owner 2026-10-25). The Fan function button
   sends `programmer.fan {}` and is lit while `fan` is not `null`. While Fan is on, the softkeys show

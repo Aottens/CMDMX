@@ -517,6 +517,16 @@ struct Item: Hashable, Decodable {
     }
 }
 
+/// Display order of programmer / cue rows: the engine's fixture order, a fixture's cell rows right
+/// after its own row (UI-29). Rows of unknown fixtures go last.
+func cellsAfterFixtures<T>(_ rows: [T], _ fixtures: [FixtureInfo], item: (T) -> Item) -> [T] {
+    let place = Dictionary(fixtures.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a })
+    return rows.sorted {
+        let (a, b) = (item($0), item($1))
+        return (place[a.fixture] ?? .max, a.cell ?? 0) < (place[b.fixture] ?? .max, b.cell ?? 0)
+    }
+}
+
 struct CueViewFixture: Decodable, Identifiable, Equatable {
     let item: Item
     let values: [String: CueViewValue]
@@ -594,12 +604,15 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     let handle: Handle?
     /// Attribute name → group letter (IPC-21); places programmer values in the I/P/C/B columns.
     let attributes: [String: String]
+    /// IPC-42: the same for a cell item's values; empty without cells.
+    let cellAttributes: [String: String]
     /// Every mode name of the fixture's profile (PAT-09), for the Change Mode dropdown.
     let modes: [String]
 
     private enum CodingKeys: String, CodingKey {
         case id, number, name, profile, mode, universe, address, footprint, cells, handle, attributes, modes
         case virtualDimmer = "virtual_dimmer"
+        case cellAttributes = "cell_attributes"
     }
 
     init(from decoder: Decoder) throws {
@@ -616,6 +629,7 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
         virtualDimmer = (try? c.decode(Bool.self, forKey: .virtualDimmer)) ?? false
         handle = try? c.decode(Handle.self, forKey: .handle)
         attributes = (try? c.decode([String: String].self, forKey: .attributes)) ?? [:]
+        cellAttributes = (try? c.decode([String: String].self, forKey: .cellAttributes)) ?? [:]
         modes = (try? c.decode([String].self, forKey: .modes)) ?? []
     }
 }
@@ -1304,6 +1318,7 @@ final class EngineClient: ObservableObject {
     // Programmer commands (IPC-13). One-liners; the engine decides what they mean.
 
     func selectFixture(_ id: Int) { sendJSON("programmer.select", ["fixture": id]) }
+    func selectCell(_ fixture: Int, cell: Int) { sendJSON("programmer.select", ["fixture": fixture, "cell": cell]) }
     func selectGroup(_ id: Int) { sendJSON("programmer.select_group", ["group": id]) }
     func step(_ direction: Int) { sendJSON("programmer.step", ["direction": direction]) }
     func pattern(_ stages: Int) { sendJSON("programmer.pattern", ["stages": stages]) }

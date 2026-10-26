@@ -91,6 +91,7 @@ private struct FunctionButtons: View {
         "Move": "Move: tap the source palette or playback handle, then an empty cell or handle.",
         "Release": "Release: tap a running playback handle to release it.",
         "Options": "Options: tap a playback handle to open its options.",
+        "Unfold": "Unfold: tap a fixture to unfold or fold its cells.",
         "Latch": "Latch: now press Flash on a handle to latch it.",
     ]
 
@@ -98,7 +99,7 @@ private struct FunctionButtons: View {
     private static let keys: [(String, String)] = [
         ("Record", ""), ("Update", ""),
         ("Edit", "Palettes · phase 2"), ("Select If", "later"),
-        ("Delete", ""), ("Unfold", "later"),
+        ("Delete", ""), ("Unfold", ""),
         ("Copy", ""), ("Move", ""),
         ("Include", ""), ("Release", ""),
         ("Patch", ""), ("Disk", ""),
@@ -543,6 +544,15 @@ private struct Softkeys: View {
                 engine.deletePlayback(id)
                 ui.cancelModes()
             }
+        }
+        if function == .unfold {
+            // UI-29: no selection is touched; unfolding is view state.
+            keys[0] = Softkey(name: "Selected fixtures") {
+                let selected = Set(engine.programmer.selection.map(\.fixture))
+                ui.unfolded.formUnion(engine.fixtures.filter { $0.cells > 0 && selected.contains($0.id) }.map(\.id))
+                ui.cancelModes()
+            }
+            keys[1] = Softkey(name: "Exit Unfold") { ui.unfolded = []; ui.cancelModes() }
         }
         keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() })
         return (function.rawValue, keys)

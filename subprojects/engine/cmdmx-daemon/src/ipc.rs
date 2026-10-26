@@ -1838,6 +1838,9 @@ struct FixtureInfo<'a> {
     handle: Option<Handle>,
     /// IPC-21: attribute name to group, for placing programmer values.
     attributes: BTreeMap<&'a str, AttributeGroup>,
+    /// IPC-42: attribute name to group over all the mode's cells; absent without cells.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    cell_attributes: BTreeMap<&'a str, AttributeGroup>,
     /// PAT-09: every mode name of the fixture's profile, in profile order.
     modes: Vec<&'a str>,
 }
@@ -2164,6 +2167,10 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
                 handle: f.handle,
                 attributes: (mode.iter())
                     .flat_map(|m| m.logical_attributes())
+                    .map(|l| (l.name, l.group))
+                    .collect(),
+                cell_attributes: (mode.iter())
+                    .flat_map(|m| (1..=m.cells.len()).flat_map(|n| m.cell_attributes(n as u16)))
                     .map(|l| (l.name, l.group))
                     .collect(),
                 modes: (engine.profile(&f.profile).into_iter())
@@ -4063,6 +4070,16 @@ mod tests {
         assert_eq!(v["fixtures"][0]["cells"], 0);
         assert_eq!(v["fixtures"][1]["id"], 9);
         assert_eq!(v["fixtures"][1]["cells"], 2);
+    }
+
+    #[test]
+    fn ipc_42_cell_attributes_map_the_cells_groups() {
+        let v = cell_snapshot(&cell_engine());
+        assert!(v["fixtures"][0].get("cell_attributes").is_none());
+        assert_eq!(
+            v["fixtures"][1]["cell_attributes"],
+            json!({"Colour":"C","Dimmer":"I"})
+        );
     }
 
     #[test]

@@ -320,7 +320,7 @@ private struct CueViewWindow: View {
         let reply = engine.cueView.flatMap { $0.playback == ref.playback && $0.cue == ref.cue ? $0 : nil }
         let fixtures = Dictionary(engine.fixtures.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         PanelWindow(title: "Cue view · \(cueName(ref.cue, chase: list?.isChase == true))",
-                    info: "\(list?.homeHandle ?? "?") · \(reply.map { "\($0.fixtures.count) fixtures" } ?? "…")",
+                    info: "\(list?.homeHandle ?? "?") · \(reply.map { "\(Set($0.fixtures.map(\.fixture)).count) fixtures" } ?? "…")",
                     accessory: {
                         Button("Back to list") { ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false }
                             .buttonStyle(FlatButton(compact: true))
@@ -329,10 +329,10 @@ private struct CueViewWindow: View {
                 ScrollView {
                     LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
                         Section {
-                            ForEach(reply.fixtures.filter { $0.item.cell == nil }) { row in
+                            ForEach(cellsAfterFixtures(reply.fixtures, engine.fixtures) { $0.item }) { row in
                                 let fixture = fixtures[row.fixture]
-                                line(number: Text(String(fixture?.number ?? row.fixture)).foregroundStyle(t.fg2),
-                                     name: Text(fixture.map(Self.title) ?? "").foregroundStyle(t.fg)) { group in
+                                line(number: Text(ProgrammerWindow.number(row.item, fixture)).foregroundStyle(t.fg2),
+                                     name: Text(row.item.cell == nil ? fixture.map(Self.title) ?? "" : "").foregroundStyle(t.fg)) { group in
                                     cell(row, fixture, group)
                                 }
                                 HLine()
@@ -375,13 +375,17 @@ private struct CueViewWindow: View {
     }
 
     @ViewBuilder private func cell(_ row: CueViewFixture, _ fixture: FixtureInfo?, _ group: String) -> some View {
-        let mine = row.values.filter { fixture?.attributes[$0.key] == group }.sorted { $0.key < $1.key }
+        let mine = row.values.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
         if mine.isEmpty {
             Text("·").foregroundStyle(t.fg3)
         } else {
             HStack(spacing: 4) {
                 ForEach(mine, id: \.key) { name, value in
-                    item(row.fixture, name, value, named: mine.count > 1).overlay { RightClickCatcher { pick(row.fixture, name, value) } }
+                    if row.item.cell == nil {
+                        item(row.fixture, name, value, named: mine.count > 1).overlay { RightClickCatcher { pick(row.fixture, name, value) } }
+                    } else {
+                        item(row.fixture, name, value, named: mine.count > 1)   // cue.remove names fixtures only
+                    }
                 }
             }
         }
