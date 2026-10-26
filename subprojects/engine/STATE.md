@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-10-26 (VS2-40)_
+_Last updated: 2026-10-26 (VS2-39)_
 
 ## Current step
+VS2-39 (2026-10-26, CUE-54 amendment): `Published.values` keeps every cue's values; `diff` compares them without allocating and sends the PBK-35 `playbacks` delta when only they changed (Remove, Undo/Redo, Update), so the open Cue view asks again. Test `cue_54_a_change_of_cue_values_alone_sends_the_whole_list` in `ipc.rs`. Run `tests/manual/runs/2026-10-26-VS2-39.md`.
 VS2-40 (2026-10-26, CUE-13 amendment): a cell HTP value coming into a cue list that does not hold it starts from where the cell is in the list (virtual cell Dimmer: full; else the list's fixture fade for that attribute; else 0), and a cell value coming in is never skipped as unchanged, so a cell at 0 darkens. In `ListRun::transition` (`from_list`). Tests `cue_13_a_cell_value_coming_in_*` / `cue_13_a_cell_value_at_0_*` in `cmdmx-core/tests/cell_store.rs`. Run `tests/manual/runs/2026-10-26-VS2-40.md`.
 VS2-38 (2026-10-26, CUE-13 amendment): a released cell value follows its fixture. `ListFade.released`: a cell attribute the state stops holding fades (HTP `fade_out`, LTP `fade_in`) to the fixture's value in the state (virtual cell Dimmer: its default, full; no fixture value: HTP 0, LTP current) and `ListRun::let_go` drops it once it arrives (both ticks, chases too), so the merge gives the cell its fixture. Whole fixtures unchanged. Tests `cue_13_*` in `cmdmx-core/tests/cell_store.rs`. Run `tests/manual/runs/2026-10-26-VS2-38.md`.
 VS2-37 (2026-10-26, CUE-54/IPC-42 amendments): `Engine::remove_cue_value(id, cue, item: Item, attribute)`; a cell item takes out only that cell, a fixture item only the fixture's own values; the refusal names the item (`Q1 holds no 901.3 of its own`). `ipc::wire_item` reads an integer or `"901.2"`; `Command::CueRemove.item`. Tests `cue_54_*` in `cmdmx-core/tests/cell_store.rs`, `ipc_42_cue_remove_takes_an_item`.

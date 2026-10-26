@@ -89,7 +89,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 - Record the programmer onto a handle; Replace/Merge/Update, Copy/Move/Delete, Titan paging
   locks, fader modes with fades and kill point, Flash/Swop/Latch, legends with icons, and DBO.
 - Cue lists with Go, Back, Go to cue, links, loop and tracking (Block, Cue Only, Solo), times per
-  attribute group, a Go block, a Cue list window and a Cue view. The current cue reads large and
+  attribute group, a Go block, a Cue list window and a Cue view that follows every change, Undo
+  included. The current cue reads large and
   green, the next small and grey. Playback Options shows only what applies to the playback type.
 - Chases at a BPM with crossfade and direction, Tap tempo, and BPM and Rate masters that drive
   several chases at once.

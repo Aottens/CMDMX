@@ -35,7 +35,7 @@ use cmdmx_core::playback::{
     AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Link,
     ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
-    PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, PAGES,
+    PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, Values, PAGES,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
@@ -2301,6 +2301,8 @@ pub fn warning(msg: &str) -> String {
 /// What clients have last been told, to emit deltas only for changes (IPC-05, IPC-12).
 pub struct Published {
     stored: Vec<StoredInfo>,
+    /// CUE-54 (VS2-39): every cue's values; `StoredInfo` carries none, so a change shows here.
+    values: Vec<Values>,
     live: BTreeMap<PlaybackId, LiveInfo>,
     connected: Option<PlaybackId>,
     grand_master: f32,
@@ -2319,10 +2321,17 @@ pub struct Published {
     undo: UndoInfo,
 }
 
+fn cue_values(engine: &Engine) -> impl Iterator<Item = &Values> {
+    engine
+        .playbacks()
+        .flat_map(|p| p.cues.iter().map(|c| &c.values))
+}
+
 impl Published {
     pub fn new(engine: &Engine, outputs: &[OutputStatus], show: &ShowState) -> Self {
         Self {
             stored: stored_infos(engine),
+            values: cue_values(engine).cloned().collect(),
             live: engine
                 .playbacks()
                 .map(|p| (p.id, live_info(engine, p.id)))
@@ -2369,7 +2378,12 @@ impl Published {
         // PBK-35: one whole-list delta after any stored change (it carries the live values
         // too), else a small delta per playback whose live part changed.
         let stored = stored_infos(engine);
-        if stored_changed(&self.stored, &stored) {
+        // CUE-54 (VS2-39): compared without allocating; cloned only when it changed.
+        let values_changed = !self.values.iter().eq(cue_values(engine));
+        if values_changed {
+            self.values = cue_values(engine).cloned().collect();
+        }
+        if values_changed || stored_changed(&self.stored, &stored) {
             out.push(to_json(&PlaybacksDelta {
                 v: PROTOCOL,
                 kind: "playbacks",
@@ -5622,6 +5636,34 @@ mod tests {
         );
         assert!(cue_view(&e, 2, q(9.0)).is_err());
         assert!(cue_view(&e, 9, q(1.0)).is_err());
+    }
+
+    #[test]
+    fn cue_54_a_change_of_cue_values_alone_sends_the_whole_list() {
+        // VS2-39: Q1 of list 3 holds two dimmers, so removing one leaves the groups as they were.
+        let mut e = list_engine();
+        let mut values = dimmer(1, 1.0);
+        values.extend(dimmer(2, 0.5));
+        e.add_playback(Playback {
+            cues: vec![Cue::new(values)],
+            ..Playback::new(3, 1, 3, BTreeMap::new())
+        });
+        let mut history = cmdmx_core::undo::History::default();
+        let mut published = Published::new(&e, &[], &show_state());
+        let item = cmdmx_core::programmer::Item::fixture(2);
+        (history.edit(&mut e, "Remove cue value", None, |e| {
+            e.remove_cue_value(3, q(1.0), item, Some("Dimmer"))
+        }))
+        .unwrap();
+        e.tick(0.0);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(deltas(&d, "playbacks").len(), 1, "remove: {d:?}");
+        history.undo(&mut e).unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(deltas(&d, "playbacks").len(), 1, "undo: {d:?}");
+        e.tick(0.05);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
     }
 
     #[test]
