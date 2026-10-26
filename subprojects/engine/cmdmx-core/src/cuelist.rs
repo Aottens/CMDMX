@@ -546,19 +546,34 @@ impl ListRun {
                     continue;
                 };
                 let old = self.fades.get(&item).and_then(|a| a.get(name));
-                // The same value as it has or fades to: nothing changes (HTP not there: 0).
+                let ltp = l.kind == AttributeKind::Ltp;
+                // CUE-13 amendment (VS2-40): a cell HTP the list does not hold comes in from where
+                // the cell is within the list: full for the virtual Dimmer, else its fixture's fade.
+                let from_list = match item.cell {
+                    Some(cell) if old.is_none() && !ltp => {
+                        if name == DIMMER && mode.virtual_cell_dimmer(cell) {
+                            l.default
+                        } else {
+                            (self.fades.get(&Item::fixture(item.fixture)))
+                                .and_then(|a| a.get(name))
+                                .map_or(Value::Level(0.0), |o| o.value(clock, |s| resolve(s, name)))
+                        }
+                    }
+                    _ => Value::Level(0.0),
+                };
+                // The same value as it has or fades to: nothing changes (HTP not there: 0). A cell
+                // value coming in always changes something: the list holds it from now on.
                 let same = match old {
                     Some(o) => !o.released && o.to == stored,
-                    None => l.kind == AttributeKind::Htp && stored == zero,
+                    None => item.cell.is_none() && !ltp && stored == zero,
                 };
                 let to = resolve(stored, name);
                 if same || !to.same_kind(&l.default) {
                     continue;
                 }
-                let ltp = l.kind == AttributeKind::Ltp;
                 let current = match old {
                     Some(o) if !ltp => o.value(clock, |s| resolve(s, name)),
-                    _ if !ltp => Value::Level(0.0),
+                    _ if !ltp => from_list,
                     _ => env.held(item, name).unwrap_or(l.default),
                 };
                 let (delay, fade) = times(l.group, ltp || to.level() >= current.level());

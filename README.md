@@ -70,7 +70,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
   cell over the fixture's colour), and cues, groups and palettes store those cell values
   (`901.2`). In the app a fixture button shows its cell count, Unfold lays the cells out as
   buttons right after it (`901.1`, `901.2`, …), and the Programmer and cue view list cell rows; Remove in the cue view takes a single cell's
-  value out of a cue, and a cell value a cue list lets go fades back to its fixture.
+  value out of a cue, and a cell value a cue list lets go fades back to its fixture (and one coming in fades from
+  where the cell is).
 - Fan: the Fan key (lit while on) makes a wheel spread its change over the selection order as a
   Line, Mirror, Wings or Arrow curve, picked on the Fan softkeys and shown as `FAN <CURVE>` next
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.
