@@ -8,6 +8,15 @@ import SwiftUI
 private let consoleKey = "consoleMode"
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        MainActor.assumeIsolated { DaemonLauncher.shared.start() }
+    }
+
+    /// REL-13: the bundled engine stops with the app (frees the serial port for Lightkey).
+    func applicationWillTerminate(_ notification: Notification) {
+        MainActor.assumeIsolated { DaemonLauncher.shared.stop() }
+    }
+
     /// Closing the only window quits (and so asks in console mode), like Cmd+Q.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 

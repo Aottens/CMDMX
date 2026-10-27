@@ -305,6 +305,7 @@ private struct StatusBar: View {
     @AppStorage("keypadVisible") private var keypad = true
     @AppStorage("keysLive") private var keys = false
     @EnvironmentObject private var ui: UIState
+    @ObservedObject private var daemon = DaemonLauncher.shared
 
     private static let clock: DateFormatter = {
         let f = DateFormatter()
@@ -354,6 +355,7 @@ private struct StatusBar: View {
                     ?? (engine.connection == .connecting ? "Connecting to engine…" : "Engine offline — faders are not driving output"))
                     .foregroundStyle(t.amber)
             }
+            if let note = daemon.note { Text(note).foregroundStyle(t.amber) }
 
             ForEach(Self.protocols, id: \.0) { protocolDot($0.0, $0.1) }
             controlDot
