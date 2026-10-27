@@ -447,6 +447,15 @@ fn main() {
         let stop = QUIT.load(std::sync::atomic::Ordering::Relaxed);
         if stop || ticks_limit.is_some_and(|limit| tick >= limit) {
             report(&engine);
+            // REL-14: write pending show changes and wait for the saver to finish (max 3 s).
+            hand_off(
+                autosave.flush(&engine, &wall),
+                &jobs,
+                &mut autosave,
+                &mut clients,
+            );
+            drop(jobs);
+            while saved.recv_timeout(Duration::from_secs(3)).is_ok() {}
             // CTL-53: the decks are blank when the daemon is gone.
             blank_decks(deck_out.as_ref());
             let why = if stop { "signal" } else { "ticks done" };
