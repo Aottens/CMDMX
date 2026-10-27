@@ -26,8 +26,8 @@ serial `auto` #3 on universe 1.
 ## Art-Net and sACN
 - [ ] Art-Net monitor shows universe 0:0:0 (line 1) packets at ~40 Hz with the same values (OUT-03)
 - [ ] `output.edit` the Art-Net node's `target` to the monitor's IP (unicast); packets still arrive, log `art-net #1: universe 1 → 0:0:0 at <ip>` (OUT-04/30)
-- [ ] Restart with `--no-artnet`; the monitor shows no more ColourmotionDMX Art-Net packets, sACN continues (OUT-32)
-- [ ] sACN monitor shows universe 1, priority 100, source name "ColourmotionDMX" at ~40 Hz, same values as Art-Net (OUT-06/07/17)
+- [ ] Restart with `--no-artnet`; the monitor shows no more CMDMX Art-Net packets, sACN continues (OUT-32)
+- [ ] sACN monitor shows universe 1, priority 100, source name "CMDMX" at ~40 Hz, same values as Art-Net (OUT-06/07/17)
 - [ ] `output.edit` the sACN node's `priority` to 150; the monitor shows priority 150 with no gap in the sequence numbers (OUT-07/29)
 - [ ] `output.edit` the sACN node's `unicast` to `127.0.0.1`; packets go to 127.0.0.1:5568 (OUT-06)
 - [ ] Restart with `--no-sacn`; no more sACN packets, Art-Net continues (OUT-32)

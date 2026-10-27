@@ -8,7 +8,7 @@ Record softkeys, Playback Options tabs and Space of `specs/modules/cuelists.md` 
 Setup: two terminals, and a fresh shows folder so your real one stays untouched.
 - `rm -rf /tmp/cmdmx-cue`
 - Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-cue`.
-- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`.
 - Demo show: church rig (washes 101–104, pars 201–226, front spots 301–306); pages 1 and 2 hold
   the demo playbacks, page 3 is empty. Workspace 4 (Playbacks) shows the Cue list window.
 

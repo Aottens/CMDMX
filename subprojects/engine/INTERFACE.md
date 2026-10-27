@@ -17,8 +17,8 @@
 ## Consumes
 - Library requests from clients, answered to the asker (LIB-14): `library.search`, `library.import_report`, `library.profile`, `library.save_profile`, `library.save_channel_list`.
 - IPC commands from clients: `fader.set {playback, level}`, `grand_master.set {level}`, the programmer commands (IPC-13, 18, 23 `programmer.colour`, IPC-39 `programmer.set {attribute, value}`), `patch.add/move/remove/renumber/name/change_mode/handle` (PAT-09), `patch.profile {profile}` (IPC-37, answered to the asker) and `profile.save {profile}` (IPC-38, LIB-25), `library.import_gdtf {path}` (IPC-45, LIB-34; answered to the asker with `library.imported {manufacturer, model, modes, replaced, report}`), `palette.record/apply/include/copy/move/renumber/delete/legend` and `settings.palette` (PAL-27); later `record.*`.
-- MIDI in from any CoreMIDI device (raw packets → `cmdmx-control::midi::Decoder` → mapping → engine commands, VS7-02); mapping files in `~/Library/Application Support/ColourmotionDMX/control/` (or `<show-dir>/control/`), device choices in `state.json` under `control`.
-- The QLC+ fixture set in `vendor/qlcplus/fixtures` (`scripts/fetch-qlcplus.sh`, pinned commit, Apache-2.0) and user profiles in `~/Library/Application Support/ColourmotionDMX/profiles/`.
+- MIDI in from any CoreMIDI device (raw packets → `cmdmx-control::midi::Decoder` → mapping → engine commands, VS7-02); mapping files in `~/Library/Application Support/CMDMX/control/` (or `<show-dir>/control/`), device choices in `state.json` under `control`.
+- The QLC+ fixture set in `vendor/qlcplus/fixtures` (`scripts/fetch-qlcplus.sh`, pinned commit, Apache-2.0) and user profiles in `~/Library/Application Support/CMDMX/profiles/`.
 - Fixture profiles in the own model (ADR-006, `fixture-library.md`): `cmdmx_core::profile::Profile::from_json` (validated, LIB-02); importers (QLC+, channel list, GDTF) convert into it. Scenario files may use the minimal `{ "attributes": [...] }` shape (one mode "default").
 
 ## Owns

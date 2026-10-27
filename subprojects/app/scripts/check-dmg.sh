@@ -6,22 +6,22 @@ set -euo pipefail
 DMG="$1" VERSION="$2"
 fail() { echo "check-dmg: $*" >&2; exit 1; }
 [ -f "$DMG" ] || fail "no file $DMG"
-[ "$(basename "$DMG")" = "ColourmotionDMX-$VERSION.dmg" ] || fail "name is $(basename "$DMG")"
+[ "$(basename "$DMG")" = "CMDMX-$VERSION.dmg" ] || fail "name is $(basename "$DMG")"
 MNT=$(mktemp -d)
 TMP=$(mktemp -d)
 trap 'hdiutil detach -quiet "$MNT" 2>/dev/null || true; rm -rf "$MNT" "$TMP"' EXIT
 hdiutil attach -quiet -readonly -nobrowse -mountpoint "$MNT" "$DMG"
 
-[ "$(ls -A "$MNT" | grep -v '^\.' | sort | tr '\n' ' ')" = "Applications ColourmotionDMX.app " ] \
+[ "$(ls -A "$MNT" | grep -v '^\.' | sort | tr '\n' ' ')" = "Applications CMDMX.app " ] \
   || fail "DMG holds: $(ls -A "$MNT" | tr '\n' ' ')"
 [ "$(readlink "$MNT/Applications")" = "/Applications" ] || fail "Applications is not a link to /Applications"
-APP="$MNT/ColourmotionDMX.app"
+APP="$MNT/CMDMX.app"
 PLIST="$APP/Contents/Info.plist"
 short=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")
 [ "$short" = "$VERSION" ] || fail "CFBundleShortVersionString is $short"
 build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")
 [ -n "$build" ] && [ "$build" != dev ] || fail "CFBundleVersion is '$build'"
-for bin in ColourmotionDMX cmdmx-daemon; do
+for bin in CMDMX cmdmx-daemon; do
   archs=$(lipo -archs "$APP/Contents/MacOS/$bin")
   [[ " $archs " == *" arm64 "* && " $archs " == *" x86_64 "* ]] || fail "$bin is $archs, not universal"
 done

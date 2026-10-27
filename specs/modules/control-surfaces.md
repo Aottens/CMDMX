@@ -146,7 +146,7 @@ Learn, stored as readable files and travel between Macs.
   `{"name":"nanoKONTROL2","device":"nanoKONTROL2*","bindings":[{"input":{"kind":"cc","channel":1,"number":0},"action":"fader 1","pickup":true},{"input":{"kind":"note","channel":1,"number":41},"action":"go","on_value":127}]}`.
   `device` is a name or a pattern with `*`; several patterns are separated by `|` (`*BCF2000*|*X-Touch*`). A binding that does not parse is left out with one
   warning naming it; the rest loads. Unknown fields are kept on save.
-- **CTL-23** Mappings live per Mac in `~/Library/Application Support/ColourmotionDMX/control/`
+- **CTL-23** Mappings live per Mac in `~/Library/Application Support/CMDMX/control/`
   (with `--show-dir`, `<show-dir>/control/`), one file per mapping, written atomically on every
   change. They are not show data: opening another show keeps them. Which mapping each device uses,
   and whether it is enabled, is stored in the daemon's `state.json` (SHW-09). Export is the file;
@@ -260,9 +260,9 @@ Learn, stored as readable files and travel between Macs.
 
 ### The shipped TouchOSC layout (VS4-04; approved by owner 2026-10-25)
 A remote for the church iPad mini (1st gen, iOS 9.3.5, TouchOSC Mk1 1.9.8, held landscape),
-made for ColourmotionDMX on the built-in schema (CTL-36/37). It is a client like any other: no
+made for CMDMX on the built-in schema (CTL-36/37). It is a client like any other: no
 mapping, no Learn, nothing in the daemon changes.
-- **CTL-60** The repo ships `touchosc/ColourmotionDMX.touchosc`: a TouchOSC Mk1 layout (a zip
+- **CTL-60** The repo ships `touchosc/CMDMX.touchosc`: a TouchOSC Mk1 layout (a zip
   holding `index.xml`) for the iPad size (1024×768) in landscape, less a 48 px strip on the left
   for TouchOSC's own toolbar (amended 2026-10-25: the VS4-04 run found the right column cut
   off without it), one tab, every control on a
@@ -545,7 +545,7 @@ them).
 8. The church TouchOSC layout runs on a very old iPad mini; the owner does not know yet how to
    get the `.tosc` out. VS4-04 tries to export it and bind its addresses (CTL-38); if that fails,
    a new TouchOSC layout is built on the `/cmdmx` schema (CTL-36). **Amended 2026-10-24
-   (owner):** VS4-04 builds a new layout tailored to ColourmotionDMX on `/cmdmx`; the old layout
+   (owner):** VS4-04 builds a new layout tailored to CMDMX on `/cmdmx`; the old layout
    is not exported. CTL-38 stays for other people's layouts.
 9. Mackie Control defaults as in CTL-33.
 10. `midir` for CoreMIDI and an own OSC 1.0 codec in `cmdmx-control` (no `rosc`).
@@ -580,7 +580,7 @@ them).
   Learn (CTL-35..38). Needs VS7-02.
 - **VS7-04** App: Control screen, learn mode on the main screen, status-bar dot; manual run
   (CTL-41..43). Needs VS7-02.
-- **VS4-04** (re-scoped 2026-10-24) A TouchOSC layout made for ColourmotionDMX on the `/cmdmx`
+- **VS4-04** (re-scoped 2026-10-24) A TouchOSC layout made for CMDMX on the `/cmdmx`
   schema (CTL-36/37), shipped in the repo, `tests/hardware/touchosc.md` run on the church iPad
   mini (gate 3). Needs VS7-03 and VS7-04.
 - **VS7-05** `cmdmx-control`: Stream Deck model table, HID report codec, key inputs and deck

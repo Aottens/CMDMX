@@ -25,7 +25,7 @@ Method note: Reddit (r/lightingdesign, r/techtheatre) could not be fetched or in
 - **Pain points:**
   - Free-floating windows need manual sizing (corner drags, a resize grid, "Resize Neighbours"), so layout becomes a chore ([workspace windows](https://manual.avolites.com/docs/titan-basics/workspace-windows)).
   - v17 had to fix slow window opening "following feedback from users" ([v17 notes](https://www.avolites.com/Portals/0/Downloads/ReleaseNotes/TitanSuite/TitanReleaseNotesV17.0.pdf)).
-  - The PC Suite runs on Windows 10 only (same notes). Avolites does not support running it under Parallels on Apple-silicon Macs, and users report freezes and no DMX output ([Avolites forum](https://forum.avolites.com/viewtopic.php?p=25044), [Parallels forum](https://forum.parallels.com/threads/avolites-t2.359715/)). This is the gap ColourmotionDMX fills: a Titan workflow that runs natively on a Mac.
+  - The PC Suite runs on Windows 10 only (same notes). Avolites does not support running it under Parallels on Apple-silicon Macs, and users report freezes and no DMX output ([Avolites forum](https://forum.avolites.com/viewtopic.php?p=25044), [Parallels forum](https://forum.parallels.com/threads/avolites-t2.359715/)). This is the gap CMDMX fills: a Titan workflow that runs natively on a Mac.
 - **Recent Titan UI direction:**
   - v14 added on-screen Virtual Faders (15 pageable handles) and a streamlined Handle Options ([LSi](https://lsionline.com/news/avolites-releases-v14-titan-lighting-software)).
   - v17 improved the colour picker so it applies to all colour models in a selection regardless of selection order ([v17 notes](https://www.avolites.com/Portals/0/Downloads/ReleaseNotes/TitanSuite/TitanReleaseNotesV17.0.pdf)).

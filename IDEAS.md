@@ -1,4 +1,4 @@
-# ColourmotionDMX — Ideas inbox
+# CMDMX — Ideas inbox
 
 The owner drops ideas in chat, in any form. Claude records each one here, triages it and
 guards the scope. An idea is **not** a commitment and gets no acceptance criteria until its

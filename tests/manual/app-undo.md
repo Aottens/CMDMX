@@ -9,7 +9,7 @@ tick it there.
 Setup: two terminals, and a fresh shows folder so your real one stays untouched.
 - `rm -rf /tmp/cmdmx-undo`
 - Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-undo`.
-- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`
   (or the copy in `~/Applications` when Claude drives the run).
 - Demo show: church rig (washes 101–104, pars 201–226, front spots 301–306), demo playbacks on
   pages 1 and 2.

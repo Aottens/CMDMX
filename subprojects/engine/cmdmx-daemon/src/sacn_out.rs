@@ -7,7 +7,7 @@ use cmdmx_protocols::sacn;
 
 use crate::output::{open_udp, Health, OutputState};
 
-pub const SOURCE_NAME: &str = "ColourmotionDMX";
+pub const SOURCE_NAME: &str = "CMDMX";
 
 /// OUT-17: fixed CID c0105e00-d3a0-4c00-8000-000000000001 until the show
 /// file stores a generated one (SHW).

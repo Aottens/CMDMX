@@ -8,14 +8,14 @@ Setup, part A works on copies so nothing real changes:
 
 ```
 rm -rf /tmp/cmdmx-pe && mkdir -p /tmp/cmdmx-pe/shows /tmp/cmdmx-pe/profiles
-cp ~/Documents/ColourmotionDMX/Shows/Kerk.cmdmx.json /tmp/cmdmx-pe/shows/
-cp ~/Library/Application\ Support/ColourmotionDMX/profiles/*.json /tmp/cmdmx-pe/profiles/
+cp ~/Documents/CMDMX/Shows/Kerk.cmdmx.json /tmp/cmdmx-pe/shows/
+cp ~/Library/Application\ Support/CMDMX/profiles/*.json /tmp/cmdmx-pe/profiles/
 cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --no-serial \
   --show-dir /tmp/cmdmx-pe/shows --profiles-dir /tmp/cmdmx-pe/profiles
 ```
 
 Open *Kerk* on the Show screen if the Demo opens. App: `cd subprojects/app && swift build &&
-scripts/bundle-app.sh && open .build/ColourmotionDMX.app`. Art-Net listener on universe 1 for the
+scripts/bundle-app.sh && open .build/CMDMX.app`. Art-Net listener on universe 1 for the
 output steps (Phantom 25 spots 201–204 at 1.109, 1.120, 1.131, 1.142; Pan +0/+2, Tilt +1/+3, Colour
 Wheel +5, Gobo +8, so 201's Colour Wheel is channel 114).
 
@@ -90,6 +90,6 @@ Art-Net only. Have the Phantom 25 manual at hand.
 - [ ] [Jij] Colour Wheel: one slot per colour with its name and colour, from the manual's DMX table;
       check each with Test on 201–204 (lamps or Art-Net)
 - [ ] [Jij] Gobo: one slot per gobo (and shake/rotate ranges) from the manual; check with Test
-- [ ] Save: no warning; `~/Library/Application Support/ColourmotionDMX/profiles/Showtec - Phantom 25 LED Spot.json`
+- [ ] Save: no warning; `~/Library/Application Support/CMDMX/profiles/Showtec - Phantom 25 LED Spot.json`
       has the slots; the show autosaves (status bar)
 - [ ] Reopen the editor from 201's Selected panel: the slots are there

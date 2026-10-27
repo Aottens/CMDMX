@@ -1,4 +1,4 @@
-# ColourmotionDMX — State
+# CMDMX — State
 
 _Last updated: 2026-10-27 (VS4-07: the versioned DMG)_
 
@@ -56,7 +56,7 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Mac (Apple Silicon), Command Line Tools instead of Xcode.app
 
 ## Repo
-- Public: https://github.com/Aottens/ColourmotionDMX (one PR per task)
+- Public: https://github.com/Aottens/CMDMX (one PR per task)
 
 ## Working notes
 One task per PR; Sonnet subagents write the code, the main session writes spec and failing tests

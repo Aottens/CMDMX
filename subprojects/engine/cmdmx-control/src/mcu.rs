@@ -1,4 +1,4 @@
-//! Mackie Control Universal — the subset ColourmotionDMX uses.
+//! Mackie Control Universal — the subset CMDMX uses.
 //!
 //! Wire format (MCU is plain MIDI on one port):
 //! - Fader n (0..=7): pitch bend on MIDI channel n, 14-bit value, of which the

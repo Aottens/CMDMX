@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Generate the ColourmotionDMX TouchOSC Mk1 layout (CTL-60..64).
+"""Generate the CMDMX TouchOSC Mk1 layout (CTL-60..64).
 
-Writes touchosc/ColourmotionDMX.touchosc (a zip holding index.xml) and
+Writes touchosc/CMDMX.touchosc (a zip holding index.xml) and
 touchosc/addresses.txt (what the layout sends / shows; read by the Rust test
 ctl_64). `--check` fails when the checked-in files differ from a fresh run.
 
@@ -133,7 +133,7 @@ def build(n):
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<layout version="15" mode="1" orientation="horizontal">\n'
-        f'  <tabpage name="{b64("ColourmotionDMX")}" scalef="0.0" scalet="1.0">\n'
+        f'  <tabpage name="{b64("CMDMX")}" scalef="0.0" scalet="1.0">\n'
         + "\n".join(controls) + "\n  </tabpage>\n</layout>\n"
     )
     lines = [f"send {a}" for a in sends] + [f"show {a}" for a in shows]
@@ -158,7 +158,7 @@ def main():
     if a.faders < 1:
         sys.exit("--faders must be at least 1")
     xml, addresses = build(a.faders)
-    files = {HERE / "ColourmotionDMX.touchosc": make_zip(xml), HERE / "addresses.txt": addresses}
+    files = {HERE / "CMDMX.touchosc": make_zip(xml), HERE / "addresses.txt": addresses}
     if a.check:
         stale = [f.name for f, data in files.items() if not f.exists() or f.read_bytes() != data]
         if stale:

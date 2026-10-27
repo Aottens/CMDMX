@@ -16,7 +16,7 @@ so nothing has to be renamed twice, and before the website (`website.md`) is bui
   Lower case `cmdmx` stays where it is an identifier (crates `cmdmx-*`, the binary `cmdmx-daemon`,
   the OSC schema `/cmdmx`).
 - **Brand line:** `CMDMX by Colourmotion`, for the website, the About panel and the README title.
-- **Old name:** `ColourmotionDMX`, in any capitalisation.
+- **Old name:** `ColourmotionDMX`, in any capitalisation. <!-- brand: old-name -->
 - **Living file:** a file that describes the product as it is now: code, scripts, workflows,
   README, specs, checklists in `tests/hardware/` and `tests/manual/` (not their `runs/`), touchosc,
   the website. **Not** living: dated records (`tests/*/runs/`, `DECISIONS.md`, `IDEAS.md` history
@@ -27,7 +27,7 @@ so nothing has to be renamed twice, and before the website (`website.md`) is bui
 ### The rename
 - **BRD-01** No living file contains the old name, except where a criterion below keeps it on
   purpose (BRD-08 migration, BRD-10 repo redirect note). `scripts/check-brand.sh` greps the tree
-  case-insensitively for `colourmotiondmx`, skips the not-living paths of *Definitions* and the
+  case-insensitively for the old name, skips the not-living paths of *Definitions* and the
   allowlist lines marked `brand: old-name`, and fails naming each hit; it runs in CI's engine job.
 - **BRD-02** The app: SwiftPM product and target `CMDMX` (`Sources/CMDMX/`, `CMDMXApp`), window
   title `CMDMX`, `CFBundleName`/`CFBundleDisplayName`/`CFBundleExecutable` `CMDMX`, menu
@@ -54,8 +54,8 @@ so nothing has to be renamed twice, and before the website (`website.md`) is bui
   `Documents/…/Shows`, `Application Support/…/profiles`, `…/control` and `…/state.json`, when the
   new item is missing and the old one exists, the old one is renamed to the new place (one
   `rename`, same volume) and the daemon logs one line naming both paths. When both exist, nothing
-  moves, the new one is used and the snapshot carries one warning "Old ColourmotionDMX folder
-  left at <path>" (`brand: old-name`). A failed rename is a warning too and the daemon starts on
+  moves, the new one is used and the snapshot carries one warning
+  "Old ColourmotionDMX folder left at <path>" (`brand: old-name`). <!-- brand: old-name --> A failed rename is a warning too and the daemon starts on
   the new (empty) item; it never stops. Only the default paths migrate; a path given by a flag is
   used as given. Logs and the pid file are not migrated.
 - **BRD-09** Docs: `README.md` title `# CMDMX by Colourmotion`, `PROJECT.md`, `STATE.md`,

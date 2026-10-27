@@ -1,11 +1,11 @@
-# ColourmotionDMX — Product Requirements (Phase 1)
+# CMDMX — Product Requirements (Phase 1)
 
 Source: "Avolites Titan — analyse als basis voor eigen macOS DMX-console" (owner's Claude Doc, 2026-10-16), section "Eerste speclist". This file is the repo-side copy of that table, trimmed to Phase 1 and mapped to module specs.
 
 ## Goal
 Program the building blocks of any show on a Mac, the Titan way: a robust programmer, palettes on a grid, cues recorded onto playbacks and into cue lists; then run them — as a cue list, as busking pages, or both — with Art-Net/sACN/USB-DMX out. Programming is the focus; running proves what was programmed.
 
-Finish line: a real Sunday morning service in the church run on ColourmotionDMX instead of Lightkey (`PROJECT.md`, reference venue). Baseline: the church rig, ~30 fixtures on one universe. Headroom target (provisional): 16 universes, 500 fixtures, 1000 cues per show.
+Finish line: a real Sunday morning service in the church run on CMDMX instead of Lightkey (`PROJECT.md`, reference venue). Baseline: the church rig, ~30 fixtures on one universe. Headroom target (provisional): 16 universes, 500 fixtures, 1000 cues per show.
 
 ## Non-goals (phase 1)
 Shapes, pixel mapper, timelines and timecode, media, visualiser, multi-console.

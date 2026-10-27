@@ -8,7 +8,7 @@ app shows and drives it. Copy to `tests/manual/runs/<date>-VS2-05.md` and tick i
 Setup: two terminals, and a fresh shows folder so your real one stays untouched.
 - `rm -rf /tmp/cmdmx-vs205`
 - Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-vs205`.
-- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`.
 - Demo show: church rig (washes 101–104, pars 201–226, front spots 301–306), demo playbacks.
 
 Output cannot be seen without lamps: Claude listens to the daemon's Art-Net on universe 1 and

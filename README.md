@@ -1,4 +1,4 @@
-# ColourmotionDMX
+# CMDMX by Colourmotion
 
 An open-source, native macOS lighting console built on the Avolites Titan way of working:
 handles, a programmer, IPCGBES attribute groups, palettes, playbacks with fader modes. You
@@ -14,9 +14,9 @@ MIDI controller, or both.
 - **Fixtures:** the whole open QLC+ library (about 1800 fixtures), plus profiles typed from a
   plain channel list for fixtures nobody has a file for.
 
-**Download:** [the latest DMG](https://github.com/Aottens/ColourmotionDMX/releases/latest)
+**Download:** [the latest DMG](https://github.com/Aottens/CMDMX/releases/latest)
 (macOS 14+, Apple Silicon and Intel; all versions under
-[Releases](https://github.com/Aottens/ColourmotionDMX/releases)). Not notarised yet: the first
+[Releases](https://github.com/Aottens/CMDMX/releases)). Not notarised yet: the first
 open needs right-click › Open, or *Open Anyway* in Privacy & Security on macOS 15+.
 
 The goal is a well-working general DMX console. Its first proof is a real Sunday service in the
@@ -122,7 +122,7 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
   playback, Go, a page or the GM onto a key, by right-click or by Learn; a deck has its own pages.
 
 **Show, undo and app**
-- The show is one readable JSON file in `~/Documents/ColourmotionDMX/Shows/`, autosaved within
+- The show is one readable JSON file in `~/Documents/CMDMX/Shows/`, autosaved within
   5 seconds of a change, crash-safe, and opened again at start.
 - Undo and redo of every edit, 100 steps, while live playing (Go, faders, Flash) is never
   touched; ⌘Z and ⇧⌘Z.
@@ -135,8 +135,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 
 ## Build and run
 
-To use it, download `ColourmotionDMX-<version>.dmg` from the
-[releases](https://github.com/Aottens/ColourmotionDMX/releases) and follow the install steps
+To use it, download `CMDMX-<version>.dmg` from the
+[releases](https://github.com/Aottens/CMDMX/releases) and follow the install steps
 there (the first open needs right-click › Open, or *Open Anyway* on macOS 15+). To build it:
 
 Requirements: macOS 14+, Rust (stable), Xcode Command Line Tools (`xcode-select --install`).
@@ -149,7 +149,7 @@ subprojects/engine/scripts/fetch-qlcplus.sh
 cd subprojects/engine && cargo run -p cmdmx-daemon
 
 # app, in a second terminal
-cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app
+cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app
 ```
 
 Tests: `cargo test` in `subprojects/engine`.

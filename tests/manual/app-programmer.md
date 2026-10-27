@@ -4,7 +4,7 @@ No Swift test target exists (CLAUDE.md), so the app side of `specs/modules/ipc.m
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
 
 Setup: two terminals. Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn`.
-App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`.
 Optional: an Art-Net monitor (or Wireshark on `en0`, filter `artnet`) to watch universe 1.
 Church rig addresses (IPC-14): washes 101–104 at 9/18/27/36 (Dimmer, Pan coarse+fine, Tilt,
 Zoom, R G B, White), RGBW pars 201–208 at 45, 50, … 80 (Dimmer, R G B, White), RGB+Lime pars

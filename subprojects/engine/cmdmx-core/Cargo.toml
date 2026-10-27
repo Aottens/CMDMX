@@ -1,6 +1,6 @@
 [package]
 name = "cmdmx-core"
-description = "ColourmotionDMX engine core: data model, programmer, palettes, playback engine, HTP/LTP merge. Pure, deterministic, no I/O."
+description = "CMDMX engine core: data model, programmer, palettes, playback engine, HTP/LTP merge. Pure, deterministic, no I/O."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

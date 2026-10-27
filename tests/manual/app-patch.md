@@ -6,7 +6,7 @@ is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it the
 Setup: fetch the QLC+ set once (`subprojects/engine/scripts/fetch-qlcplus.sh`). Two terminals.
 Daemon: `rm -rf /tmp/cmdmx-patch && cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-patch` (a fresh Demo; wait for
 `library: … profiles`). App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open
-.build/ColourmotionDMX.app`. Optional: an Art-Net monitor on universe 1.
+.build/CMDMX.app`. Optional: an Art-Net monitor on universe 1.
 The demo show (IPC-14) uses universe 1 channels 1–150.
 
 ## Getting there (PAT-10)

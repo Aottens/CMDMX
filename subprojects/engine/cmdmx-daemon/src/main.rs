@@ -1,4 +1,4 @@
-//! cmdmx-daemon — the ColourmotionDMX engine process.
+//! cmdmx-daemon — the CMDMX engine process.
 //!
 //! Runs the deterministic core at 40 Hz with a demo patch and sends each line to the output
 //! nodes of the show (Art-Net, sACN, ENTTEC Pro serial), each node on its own thread (OUT-11,
@@ -72,6 +72,11 @@ fn main() {
         return;
     }
     let ticks_limit = cli.ticks;
+    // BRD-08: move the data folders of the old product name before anything reads them.
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    let migration_warnings = migrate::run(&home, cli.show_dir_flag, cli.profiles_dir_flag);
     // SHW-10: the last show, else Demo; a refused show is reported, never written.
     let shows = Arc::new(shows::Shows::new(
         cli.show_dir.clone(),
@@ -87,7 +92,8 @@ fn main() {
         &shows::iso_utc(SystemTime::now()),
     );
     // The first client to connect gets these right after its snapshot.
-    let mut pending = opened.warnings;
+    let mut pending = migration_warnings;
+    pending.extend(opened.warnings);
     for w in &pending {
         eprintln!("warning: {w}");
     }
@@ -1067,6 +1073,9 @@ struct Cli {
     state_file: PathBuf,
     /// Mapping files of the control layer (CTL-23); `<show-dir>/control` with `--show-dir`.
     control_dir: PathBuf,
+    /// `--show-dir` / `--profiles-dir` were given: BRD-08 leaves those paths alone.
+    show_dir_flag: bool,
+    profiles_dir_flag: bool,
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
@@ -1087,6 +1096,8 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
         show_dir: home.join("Documents/CMDMX/Shows"),
         state_file: home.join("Library/Application Support/CMDMX/state.json"),
         control_dir: home.join("Library/Application Support/CMDMX/control"),
+        show_dir_flag: false,
+        profiles_dir_flag: false,
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -1122,11 +1133,13 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
             }
             "--profiles-dir" => {
                 cli.profiles_dir = args.next().ok_or("--profiles-dir: missing path")?.into();
+                cli.profiles_dir_flag = true;
             }
             "--show-dir" => {
                 cli.show_dir = args.next().ok_or("--show-dir: missing path")?.into();
                 cli.state_file = cli.show_dir.join("state.json");
                 cli.control_dir = cli.show_dir.join("control");
+                cli.show_dir_flag = true;
             }
             other => return Err(format!("unknown argument '{other}'")),
         }

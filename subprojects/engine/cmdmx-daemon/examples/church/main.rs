@@ -430,9 +430,8 @@ fn main() {
 fn real_main() -> Result<(), String> {
     let home = std::env::var("HOME").unwrap_or_default();
     let mut dirs = Dirs {
-        show_dir: PathBuf::from(&home).join("Documents/ColourmotionDMX/Shows"),
-        profiles_dir: PathBuf::from(&home)
-            .join("Library/Application Support/ColourmotionDMX/profiles"),
+        show_dir: PathBuf::from(&home).join("Documents/CMDMX/Shows"),
+        profiles_dir: PathBuf::from(&home).join("Library/Application Support/CMDMX/profiles"),
         qlcplus_dir: PathBuf::from(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../vendor/qlcplus/fixtures"

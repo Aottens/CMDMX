@@ -6,7 +6,7 @@ model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Referen
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
 ## Purpose
-Every fixture in a show has a profile that says which channel does what. ColourmotionDMX does not
+Every fixture in a show has a profile that says which channel does what. CMDMX does not
 build its own library: it imports the open QLC+ library and lets the operator type a profile from
 a channel list for anything missing. Whatever the source, the engine only ever sees one small
 model, and a show carries the profiles it uses.
@@ -141,7 +141,7 @@ model, and a show carries the profiles it uses.
 ### Library
 - **LIB-13** The daemon serves the library: the bundled QLC+ set (fetched at build time from a
   pinned QLC+ commit, Apache-2.0 notice included) plus user profiles from
-  `~/Library/Application Support/ColourmotionDMX/profiles/`. A search by text returns
+  `~/Library/Application Support/CMDMX/profiles/`. A search by text returns
   manufacturer, model and mode names without converting every file; a profile is converted when
   it is picked.
 - **LIB-14** IPC (extends `ipc.md`): `library.search {"query":"shehds"}` → to the asking client only

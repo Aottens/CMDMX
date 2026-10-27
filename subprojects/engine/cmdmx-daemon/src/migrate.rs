@@ -1,13 +1,56 @@
 //! BRD-08: the one-time move of the data folders from the old product name to `CMDMX`.
 
+use std::fs;
 use std::path::Path;
+
+/// (old, new) relative to home. Logs and the pid file are not migrated.
+#[rustfmt::skip]
+const ITEMS: [(&str, &str, Kind); 4] = [
+    ("Documents/ColourmotionDMX/Shows", "Documents/CMDMX/Shows", Kind::Shows), // brand: old-name
+    ("Library/Application Support/ColourmotionDMX/profiles", "Library/Application Support/CMDMX/profiles", Kind::Profiles), // brand: old-name
+    ("Library/Application Support/ColourmotionDMX/control", "Library/Application Support/CMDMX/control", Kind::Shows), // brand: old-name
+    ("Library/Application Support/ColourmotionDMX/state.json", "Library/Application Support/CMDMX/state.json", Kind::Shows), // brand: old-name
+];
+
+const LEFT: &str = "Old ColourmotionDMX folder left at"; // brand: old-name
+
+#[derive(Clone, Copy, PartialEq)]
+enum Kind {
+    Shows,
+    Profiles,
+}
 
 /// Moves the default data items under `home` from the old name to the new one, once.
 /// `shows_by_flag`: `--show-dir` was given (shows, state and control are then used as given);
 /// `profiles_by_flag`: `--profiles-dir` was given. Returns the warnings for the first client.
 pub fn run(home: &Path, shows_by_flag: bool, profiles_by_flag: bool) -> Vec<String> {
-    let _ = (home, shows_by_flag, profiles_by_flag);
-    Vec::new()
+    let mut warnings = Vec::new();
+    for (old, new, kind) in ITEMS {
+        if (kind == Kind::Shows && shows_by_flag) || (kind == Kind::Profiles && profiles_by_flag) {
+            continue;
+        }
+        let (old, new) = (home.join(old), home.join(new));
+        if !old.exists() {
+            continue;
+        }
+        if new.exists() {
+            warnings.push(format!("{LEFT} {}", old.display()));
+            continue;
+        }
+        let moved = match new.parent() {
+            Some(parent) => fs::create_dir_all(parent).and_then(|()| fs::rename(&old, &new)),
+            None => fs::rename(&old, &new),
+        };
+        match moved {
+            Ok(()) => eprintln!("migrated {} to {}", old.display(), new.display()),
+            Err(e) => warnings.push(format!(
+                "Could not move {} to {}: {e}",
+                old.display(),
+                new.display()
+            )),
+        }
+    }
+    warnings
 }
 
 #[cfg(test)]

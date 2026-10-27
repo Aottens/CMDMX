@@ -8,7 +8,7 @@ The non-negotiable requirement is that DMX output keeps running during a show. U
 
 ## Decision
 - `cmdmx-daemon` is a standalone process owning the tick loop, DMX output, MIDI and the show file.
-- `ColourmotionDMX.app` is a client. It connects over a loopback-only local socket (JSON messages over WebSocket, decided 2026-10-17 so browser/iPad remotes can use the same contract later), receives state snapshots and deltas, and sends commands.
+- `CMDMX.app` is a client. It connects over a loopback-only local socket (JSON messages over WebSocket, decided 2026-10-17 so browser/iPad remotes can use the same contract later), receives state snapshots and deltas, and sends commands.
 - If the app dies, the daemon keeps outputting the current look. If the daemon dies, a supervisor (phase 1, later task) restarts it from the last autosave; until then the fixtures hold their last received DMX values by their own design.
 - The app starts the daemon if none is running and shows a clear "engine offline" state otherwise.
 

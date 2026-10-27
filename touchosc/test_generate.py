@@ -30,6 +30,11 @@ class Layout(unittest.TestCase):
         self.assertEqual(prefix.get("x"), nxt.get("x"))
         self.assertLess(int(prefix.get("y")), int(nxt.get("y")))
 
+    def test_brd_05_page_is_named_cmdmx(self):
+        xml, _ = generate.build(8)
+        page = ET.fromstring(xml).find("tabpage")
+        self.assertEqual(base64.b64decode(page.get("name")).decode(), "CMDMX")
+
 
 if __name__ == "__main__":
     unittest.main()

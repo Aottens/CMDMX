@@ -3,6 +3,6 @@ name = "cmdmx-desk-logic"
 version = "0.1.0"
 edition = "2021"
 license = "TBD"  # follows the software licence (HW-55, IDEA-21)
-description = "Pure no_std logic of the ColourmotionDMX desk firmware (HW-70), unit-tested on the host"
+description = "Pure no_std logic of the CMDMX desk firmware (HW-70), unit-tested on the host"
 
 [dependencies]

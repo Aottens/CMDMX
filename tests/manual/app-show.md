@@ -7,7 +7,7 @@ No Swift test target exists (CLAUDE.md), so the status bar and Show screen of
 Setup: two terminals, and a fresh shows folder so your real one stays untouched.
 - `rm -rf /tmp/cmdmx-shw-c`
 - Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-shw-c`.
-- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`.
 
 Optional: an Art-Net monitor on universe 1.
 
@@ -47,7 +47,7 @@ Optional: an Art-Net monitor on universe 1.
 - [ ] A show from a newer version is refused:
       - In Terminal, run `sed 's/"schema_version": 1/"schema_version": 9/' /tmp/cmdmx-shw-c/Kerk.cmdmx.json > /tmp/cmdmx-shw-c/Toekomst.cmdmx.json`.
       - Leave the Show screen and come back. The list shows Toekomst.
-      - Open it. The warning says it was made by a newer ColourmotionDMX, and Kerk stays open.
+      - Open it. The warning says it was made by a newer CMDMX, and Kerk stays open.
 
 ## Restart (SHW-10)
 - [ ] Stop the daemon (Ctrl+C) and start it again with the same command. The app reconnects, the

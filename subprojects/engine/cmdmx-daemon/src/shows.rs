@@ -207,7 +207,7 @@ impl Shows {
             cmdmx_core::CoreError::ShowTooNew {
                 found, supported, ..
             } => format!(
-                "{name} was made by a newer ColourmotionDMX (schema {found}; this one reads up to {supported})"
+                "{name} was made by a newer CMDMX (schema {found}; this one reads up to {supported})"
             ),
             e => format!("{name}: {e}"),
         })?;

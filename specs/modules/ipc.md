@@ -55,7 +55,7 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
 ### App behaviour (verified by `swift build` + `tests/manual/app-ipc.md`; no Swift test target)
 - **IPC-08** The app connects to `ws://127.0.0.1:7319` on launch. While not connected it shows the "engine offline" banner and retries every second; on (re)connect it rebuilds its state from the snapshot.
   *(Amended 2026-10-25, VS1-08, approved by owner:)* `--ipc-port <n>` on the app's command line
-  (`open ColourmotionDMX.app --args --ipc-port 7400`) points it at another port, as the daemon's
+  (`open CMDMX.app --args --ipc-port 7400`) points it at another port, as the daemon's
   IPC-01, so a test daemon runs beside the real one; default 7319. A value that is not a port
   number is ignored with a line on stderr (the app uses 7319).
 - **IPC-09** Moving an on-screen fader sends `fader.set` (slot n → playback n for now; paging is VS1-06) and the grand master sends `grand_master.set`; the displayed levels follow the deltas. To make this testable the daemon's demo show has one dimmer per fader (playback n → channel n of universe 1), and the breathing demo on playback 1 only runs with `--demo` (so it does not fight the app's fader).

@@ -162,7 +162,7 @@ async fn main(_spawner: Spawner) {
 
     // USB: pid.codes test PID until the project has its own (wire-map.md).
     let mut config = Config::new(0x1209, 0x0001);
-    config.manufacturer = Some("ColourmotionDMX");
+    config.manufacturer = Some("Colourmotion");
     config.product = Some("CMDMX Desk");
     config.max_power = 100;
     let mut config_descriptor = [0; 256];
