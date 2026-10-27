@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-27 (VS2-42: Import GDTF… in daemon and app)_
+_Last updated: 2026-10-27 (VS2-42 run: Import GDTF passed)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -10,7 +10,7 @@ built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/eng
 Phase 1: a well-working general DMX console; first proof is a Sunday service in the church
 instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe output, the MIDI + OSC
 control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on the church iPad passed), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor, multi-select in the patch table
-(VS2-27/28), Fan (VS2-35/36) and cells end to end (VS2-30..34, 37, 38, 40: engine, protocol v1, Unfold, cell rows and Remove in the cue view) are done.
+(VS2-27/28), Fan (VS2-35/36), GDTF import (VS2-41/42, a GDTF-share file imported in the owner's run) and cells end to end (VS2-30..34, 37, 38, 40: engine, protocol v1, Unfold, cell rows and Remove in the cue view) are done.
 
 Parallel track: phase 3, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
@@ -19,16 +19,12 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 ## Next
 1. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
-2. GDTF import is built end to end (VS2-41, VS2-42); the owner's run of
-   `tests/manual/app-patch.md` *Import GDTF* imports one real GDTF-share file (gate 3 below).
+2. VS2-43: GDTF report sheet polish from the VS2-42 run (Became column readable, Escape closes).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
   until the owner finds the BCF2000.
-- VS2-42 Import GDTF…, `tests/manual/app-patch.md` section *Import GDTF*: download one file from
-  GDTF-share (owner's account) and import it; the `gdtf` crate rejects an emitter without a
-  wavelength or a wheel slot without a colour, so a failure there goes under Open points.
 - HWB-01 USB-MIDI box, `tests/hardware/hw-box.md`: order the parts first (list at the top of the
   checklist), then flash, Learn on the Mac and tick.
 
