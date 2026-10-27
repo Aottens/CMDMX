@@ -3,7 +3,8 @@
 Owner: `.github/workflows/release.yml` and the bundle/DMG scripts in `subprojects/app/scripts/`
 (packaging); the daemon launcher in `subprojects/app` (starting and stopping the bundled daemon);
 `cmdmx-daemon` (flush on quit).
-Status: **draft, waiting for owner approval (gate 1)**. Written 2026-10-27 for VS4-07.
+Status: **REL-01..16 approved by owner 2026-10-27 (VS4-07)**, with the recommended answers to the
+open questions (see *Owner decisions*).
 Builds on DECISIONS 2026-10-27 (versioned DMG, not notarised), IPC-01/08 (`ipc.md`), SHW-11
 (`showfile.md`), LIB-13 (`fixture-library.md`), CTL-53 (`control-surfaces.md`).
 
@@ -50,7 +51,7 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
 - **REL-07** One script builds it: `subprojects/app/scripts/make-dmg.sh <version> <build>` runs
   the daemon and app release builds, fills the bundle (REL-04), signs it (REL-05) and writes the DMG
   (REL-06) into `subprojects/app/.build/`. It runs the same on the owner's Mac and in CI.
-- **REL-08** `scripts/check-dmg.sh <dmg> <version>` mounts the DMG read-only and fails unless:
+- **REL-08** `subprojects/app/scripts/check-dmg.sh <dmg> <version>` mounts the DMG read-only and fails unless:
   the two items of REL-06 are there; the plist versions match REL-02; both binaries are universal
   (`lipo -archs` lists `arm64` and `x86_64`); `codesign --verify --deep --strict` passes; and the
   bundled daemon, started as the app starts it (REL-10) with a temporary `--show-dir` and a free
@@ -105,8 +106,9 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
   output again. Installing a newer DMG over it keeps the shows and settings.
 
 ## Tests
-- REL-01: a step in `release.yml` with a small shell function, plus `scripts/test-release-tag.sh`
-  feeding it good and bad tags (runs in CI's engine job, no macOS needed).
+- REL-01: `subprojects/app/scripts/release-version.sh <tag>` (used by `release.yml`), and
+  `subprojects/app/scripts/test-release-tag.sh` feeding it good and bad tags (runs in CI's engine
+  job, no macOS needed).
 - REL-02..08: `check-dmg.sh` on the DMG in the release job and on `workflow_dispatch`; it fails
   today (no `make-dmg.sh`).
 - REL-14: a daemon test `rel_14_sigterm_flushes_pending_autosave` (change, signal before 5 s,
@@ -120,11 +122,7 @@ a DMG background or icon; an app icon; a launchd agent that runs the daemon with
 showing the daemon's own version; bumping the Cargo versions; distributing to anyone besides the
 owner (IDEA-20).
 
-## Open questions for the owner
-1. **Church Mac:** Apple Silicon or Intel, and which macOS version? REL-04 builds universal so it
-   works either way; if the church Mac runs macOS 13 or older the app cannot run there at all
-   (it needs 14, Package.swift) — then this task changes.
-2. **Quit stops the engine (REL-13).** Recommended, because the fallback needs the Eurolite free
-   and Titan also stops output when you shut it down. The alternative is a daemon that keeps
-   running after Quit, with a separate *Stop engine* menu item.
-3. **First tag:** `v0.1.0` once this PR is merged?
+## Owner decisions (2026-10-27)
+1. Universal build (arm64 and x86_64), so the church Mac's chip does not matter (REL-04).
+2. Quit stops the engine (REL-13): the fallback needs the Eurolite free.
+3. The first tag is `v0.1.0`, after this task is merged.
