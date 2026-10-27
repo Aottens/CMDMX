@@ -40,6 +40,8 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
+- P1-21 (rebrand and website): approve `specs/modules/brand.md` and `website.md` and answer
+  their eight open questions (in the spec PR); build tasks VS8-01..07 follow.
 - IDEA-30 (cross-platform UI for the Linux desk): phase 3 after the surface; toolkit open.
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
 - IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase.
