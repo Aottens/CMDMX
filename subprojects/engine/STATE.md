@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-10-27 (VS2-42)_
+_Last updated: 2026-10-27 (VS4-07)_
 
 ## Current step
+VS4-07 (2026-10-27, REL-14): on SIGINT/SIGTERM (and after `--ticks`) the daemon flushes the pending autosave, closes the saver's job channel and waits for the saver to finish before it exits. Test `tests/quit_flush.rs`.
 VS2-42 (2026-10-27, LIB-34, IPC-45): `library.import_gdtf {path}` is a `LibraryRequest`, answered on the client thread. `library::read_gdtf(path)` checks the size (over 100 MB → error), reads the file and runs `gdtf::import` inside `catch_unwind` with source `gdtf:<file name>`, all before the library lock; every error starts with the file name. Under the write lock `Library::has_user_profile` gives `replaced`, then `save_profile` (LIB-12). Reply `library.imported {manufacturer, model, modes, replaced, report}`. Tests in `ipc.rs` (`ipc_45_*`, `lib_34_*`).
 
 VS2-41 (2026-10-27, LIB-28..33): `library::gdtf::import(bytes, source)` reads a `.gdtf` zip in memory with the `gdtf` crate 0.3 (MIT; brings `zip`, `uuid`, a second `quick-xml`) and returns the QLC+ `Import`/`ImportReport`. It classifies each DMX channel by its logical channel's attribute (Annex A table, `(n)` > 1 appends the number, else a plain channel named by `Pretty`/`Name`, grouped by feature group) and feeds `qlcplus::build_scope` (QLC+'s scope builder, split out of `convert_scope`; `Entry` now owns name, default, highlight, slots, `cie`, report note; `Role::Plain` carries its name and warning; `mode_of_scopes` holds the LIB-08 virtual-Dimmer rule for both). Cells: colour on two or more geometries; `Overwrite` channels instanced per `GeometryReference` at offset + Break `DMXOffset` − 1. Channel name for clashes is `<geometry>_<attribute>`. Model: `cie: Option<[f32;2]>` on `Component` (loses `Eq`) and `AttributeDef`, checked by LIB-02. The crate's panicking `name()`/`initial_function()` are never called. Crate limits: an emitter without `DominantWaveLength` or a wheel slot without `Color` fails the whole file; a GDTF 1.0 `Default` on the DMX channel is not read (the function's is used). Tests `tests/gdtf.rs` (19), fixtures `tests/fixtures/gdtf/`.

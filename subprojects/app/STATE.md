@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-10-27 (VS2-43)_
+_Last updated: 2026-10-27 (VS4-07)_
 
 ## Current step
+VS4-07 (2026-10-27, REL-03, 07, 10..13): `DaemonLauncher` (owned by `AppDelegate`) starts `Contents/MacOS/cmdmx-daemon` with `--qlcplus-dir <Resources>/qlcplus/fixtures` when the bundle has one (a debug bundle and `swift run` start nothing), logs to `~/Library/Logs/ColourmotionDMX/daemon.log` (moved to `.log.1` over 10 MB), writes `daemon.pid` and adopts a live daemon of this bundle named there (`proc_pidpath`). Exit code 2 → "Another engine is running on port 7319" in the status bar, no restart; another exit → note with the code, restart after 2 s; `applicationWillTerminate` sends SIGTERM, waits 5 s, then SIGKILL. `bundle-app.sh [config] [version] [build]` (`UNIVERSAL=1`), `make-dmg.sh`, `check-dmg.sh`, `release-version.sh`, `.github/workflows/release.yml`. Checked with `swift build` and a local `make-dmg.sh 0.1.0 1` + `check-dmg.sh`; the church Mac run is `tests/hardware/release.md`.
 VS2-43 (2026-10-27, LIB-35 amendment): `GdtfReportSheet` wraps the report cells (no "…"), shows each cell's full text on hover (`.help`), and Escape closes it like Done (a zero-size `.cancelAction` button). Checked with `swift build`; the screen in `tests/manual/app-patch.md` *Import GDTF*.
 VS2-42 (2026-10-27, LIB-35): Import GDTF… in the Add panel opens an `NSOpenPanel` for `.gdtf` and sends `library.import_gdtf` (`EngineClient.importGdtf`, clears `lastMessage` so a refusal shows in the Patch screen's message line). `library.imported` decodes into `GdtfImported` (token per reply); `PatchView` shows `GdtfReportSheet` (mode, channel, GDTF name, became; warnings; Done) and picks the new model through `pendingPick`. Checked with `swift build`; the screen is checked in `tests/manual/app-patch.md` *Import GDTF* (gate 3).
 VS2-39 (2026-10-26, CUE-54 amendment): Confirm remove no longer sends its own `cue.view`; the Cue view asks again on the `playbacks` delta the daemon now sends for a change of cue values, which also covers Undo/Redo. Run `tests/manual/runs/2026-10-26-VS2-39.md`.
