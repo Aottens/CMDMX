@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-10-26 (VS2-39)_
+_Last updated: 2026-10-27 (VS2-42)_
 
 ## Current step
+VS2-42 (2026-10-27, LIB-35): Import GDTF… in the Add panel opens an `NSOpenPanel` for `.gdtf` and sends `library.import_gdtf` (`EngineClient.importGdtf`, clears `lastMessage` so a refusal shows in the Patch screen's message line). `library.imported` decodes into `GdtfImported` (token per reply); `PatchView` shows `GdtfReportSheet` (mode, channel, GDTF name, became; warnings; Done) and picks the new model through `pendingPick`. Checked with `swift build`; the screen is checked in `tests/manual/app-patch.md` *Import GDTF* (gate 3).
 VS2-39 (2026-10-26, CUE-54 amendment): Confirm remove no longer sends its own `cue.view`; the Cue view asks again on the `playbacks` delta the daemon now sends for a change of cue values, which also covers Undo/Redo. Run `tests/manual/runs/2026-10-26-VS2-39.md`.
 VS2-37 (2026-10-26, CUE-54/IPC-42 amendments): cue-view cell values are pickable; `CueValueRef.cell`, the Remove softkey reads "Dimmer of 902.1", `EngineClient.removeCueValue(cell:)` sends `"fixture":"<id>.<cell>"`. Run `tests/manual/runs/2026-10-26-VS2-37.md`.
 VS2-34 (2026-10-26, UI-29): `FixtureInfo.cellAttributes` (optional `cell_attributes`), `EngineClient.selectCell`, `cellsAfterFixtures` (row order: engine fixture order, cells after their fixture). Fixtures window: one flat `ForEach` over items (fixture, then its cells when `UIState.unfolded` holds it; a per-fixture variable `ForEach` was not re-laid by the lazy grid, found in the run), cell count as tag, cell buttons `901.2` send `programmer.select` with `cell`. The Unfold function key arms `PaletteFunction.unfold`: a fixture tap folds/unfolds and disarms; softkeys Selected fixtures and Exit Unfold. Programmer and cue view show cell rows (`#` `901.2`, placed by `cellAttributes`); cue-view cell values are not pickable. Run `tests/manual/runs/2026-10-26-VS2-34.md`.

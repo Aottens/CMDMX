@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-10-27 (VS2-41)_
+_Last updated: 2026-10-27 (VS2-42)_
 
 ## Current step
+VS2-42 (2026-10-27, LIB-34, IPC-45): `library.import_gdtf {path}` is a `LibraryRequest`, answered on the client thread. `library::read_gdtf(path)` checks the size (over 100 MB → error), reads the file and runs `gdtf::import` inside `catch_unwind` with source `gdtf:<file name>`, all before the library lock; every error starts with the file name. Under the write lock `Library::has_user_profile` gives `replaced`, then `save_profile` (LIB-12). Reply `library.imported {manufacturer, model, modes, replaced, report}`. Tests in `ipc.rs` (`ipc_45_*`, `lib_34_*`).
+
 VS2-41 (2026-10-27, LIB-28..33): `library::gdtf::import(bytes, source)` reads a `.gdtf` zip in memory with the `gdtf` crate 0.3 (MIT; brings `zip`, `uuid`, a second `quick-xml`) and returns the QLC+ `Import`/`ImportReport`. It classifies each DMX channel by its logical channel's attribute (Annex A table, `(n)` > 1 appends the number, else a plain channel named by `Pretty`/`Name`, grouped by feature group) and feeds `qlcplus::build_scope` (QLC+'s scope builder, split out of `convert_scope`; `Entry` now owns name, default, highlight, slots, `cie`, report note; `Role::Plain` carries its name and warning; `mode_of_scopes` holds the LIB-08 virtual-Dimmer rule for both). Cells: colour on two or more geometries; `Overwrite` channels instanced per `GeometryReference` at offset + Break `DMXOffset` − 1. Channel name for clashes is `<geometry>_<attribute>`. Model: `cie: Option<[f32;2]>` on `Component` (loses `Eq`) and `AttributeDef`, checked by LIB-02. The crate's panicking `name()`/`initial_function()` are never called. Crate limits: an emitter without `DominantWaveLength` or a wheel slot without `Color` fails the whole file; a GDTF 1.0 `Default` on the DMX channel is not read (the function's is used). Tests `tests/gdtf.rs` (19), fixtures `tests/fixtures/gdtf/`.
 VS2-39 (2026-10-26, CUE-54 amendment): `Published.values` keeps every cue's values; `diff` compares them without allocating and sends the PBK-35 `playbacks` delta when only they changed (Remove, Undo/Redo, Update), so the open Cue view asks again. Test `cue_54_a_change_of_cue_values_alone_sends_the_whole_list` in `ipc.rs`. Run `tests/manual/runs/2026-10-26-VS2-39.md`.
 VS2-40 (2026-10-26, CUE-13 amendment): a cell HTP value coming into a cue list that does not hold it starts from where the cell is in the list (virtual cell Dimmer: full; else the list's fixture fade for that attribute; else 0), and a cell value coming in is never skipped as unchanged, so a cell at 0 darkens. In `ListRun::transition` (`from_list`). Tests `cue_13_a_cell_value_coming_in_*` / `cue_13_a_cell_value_at_0_*` in `cmdmx-core/tests/cell_store.rs`. Run `tests/manual/runs/2026-10-26-VS2-40.md`.
@@ -102,7 +104,7 @@ VS3-06 done (#55, 2026-10-22): group masters in `cmdmx-core` (GRM-01..14, 19). V
 
 ## Known gaps (by design, each waits for its spec)
 - Effect layer ENG-14..19 (ADR-007): specified, no effect sources until phase 2; the tick already applies base → group masters → GM in the reserved order.
-- Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, output/control config in the show file, IPC (IPC-*), GDTF in the daemon and app (LIB-34/35, VS2-42).
+- Release masks/times (ENG-07..10), allocation-free tick (ENG-13), chases, masters other than GM, output/control config in the show file, IPC (IPC-*).
 
 ## Resume with
 `cargo test && cargo clippy --all-targets -- -D warnings`, then VS2-24 (profile save, LIB-25, IPC-37..39). Fetch the QLC+ set once with `scripts/fetch-qlcplus.sh`.

@@ -1,4 +1,4 @@
-# App patch checklist (PAT-09, PAT-10, PAT-25, LIB-22) — template
+# App patch checklist (PAT-09, PAT-10, PAT-25, LIB-22, LIB-35) — template
 
 No Swift test target exists (CLAUDE.md), so the Patch screen of `specs/modules/patch.md` PAT-10
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
@@ -35,6 +35,29 @@ The demo show (IPC-14) uses universe 1 channels 1–150.
       between columns, Return adds (same as clicking Add)
 - [ ] Type fast (`showtecparxx` then back to `showtec`): the lists end on the last query, no
       flicker back to an older result
+
+## Import GDTF (LIB-34, LIB-35, IPC-45)
+Before this section, download one fixture from GDTF-share (`gdtf-share.com`, needs the owner's free
+account; pick a real manufacturer file, e.g. a Robe, Martin or Chauvet fixture, not a `Generic@`
+one) into `~/Downloads`. Restart the daemon with `--profiles-dir /tmp/cmdmx-patch/profiles` added,
+so the imports stay out of the real user profiles folder.
+- [ ] The Add panel has **Import GDTF…** beside New from channel list…; it opens a file panel that
+      only lets `.gdtf` files be picked
+- [ ] Pick `tests/fixtures/gdtf/Generic@RGBW8@test.gdtf`: a sheet shows "Generic Generic RGBW
+      8-bit" with one line per channel (mode Default, channels 1–4, the GDTF name, what it became:
+      the three RGB colour channels and the White emitter) and the warnings below; Done closes it and the Add panel has Generic
+      › Generic RGBW 8-bit picked, `USER` tag, mode Default · 4 channels
+- [ ] Import the same file again: the sheet says it replaced the existing user profile; the Model
+      column still lists it once
+- [ ] Pick the GDTF-share file: the sheet lists its modes and channels; write the file name and any
+      warnings in the run file; the profile is picked, and adding one fixture of it puts a row in
+      the patch table with the expected footprint. If the import fails (the `gdtf` crate rejects an
+      emitter without `DominantWaveLength` or a wheel slot without `Color`), the error names the
+      file and the problem: note it under Open points and try a second file
+- [ ] Pick any non-GDTF file renamed to `.gdtf` (e.g. copy a `.txt`): an error naming the file is
+      shown, no sheet, the Add panel is unchanged
+- [ ] While the GDTF-share import runs, the Art-Net output (or the faders) keeps moving: output
+      never waits for an import
 
 ## Add (PAT-01..03, PAT-09)
 - [ ] Type `showtec par 56` in the Add panel's search: Showtec LED Par 56 is listed; pick it, its

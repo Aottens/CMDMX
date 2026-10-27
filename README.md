@@ -62,7 +62,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 - A profile editor for channels, defaults and wheel slots; profiles are saved into the show.
 - GDTF files (the manufacturers' own format) convert into profiles in the engine, with cells
   from the fixture's geometry and each emitter's measured colour kept for later calibration;
-  Import GDTF… in the app comes next.
+  Import GDTF… in the Patch screen's Add panel saves one as a user profile and shows what each
+  channel became.
 - The church rig (56 fixtures from the owner's Lightkey patch) is patched by a one-off into the
   show *Kerk*.
 
