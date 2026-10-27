@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-27 — GDTF import: file in, user profile out; `gdtf` crate in core, bytes in (owner, P1-12)
+
+**Decision:** a `.gdtf` file is imported once by Import GDTF… and saved as a user profile (LIB-34); importing a model that already is a user profile replaces it. `cmdmx-core::library::gdtf` parses with the `gdtf` crate (MIT) and takes the archive's bytes, read as a zip in memory, which amends ADR-006 decision 4 ("strings in") for GDTF only; core gains `gdtf`, `zip`, `uuid` and a second `quick-xml` version. Emitter chromaticity (`cie`) is stored now for IDEA-03. Tests use GDTF files written for this project plus the crate's MIT test file; a manufacturer file is committed only if its licence allows.
+
+**Alternatives considered:** a GDTF folder indexed like the QLC+ set and converted on pick (a third library source); refusing an import over an existing user profile; our own GDTF parser on `quick-xml`.
+
+**Reasoning:** ADR-006 converts every format once into the own model; the crate follows the GDTF 1.2 spec closely, which is less risk than a parser of our own; emitter colours are why GDTF is in phase 1.
+
+**Reversal trigger:** the crate fails on real manufacturer files or stops being maintained; then parse `description.xml` ourselves as the QLC+ importer does.
+
 ## 2026-10-26 — Protocol v1: items on the wire, the show keeps strings (VS2-33)
 
 **Decision:** on the IPC wire a whole-fixture item stays a JSON integer and a cell is a string `"901.2"` (IPC-42), so every whole-fixture message reads as before; the show file keeps writing every item as a string (schema 7). The core gets a serde helper for the wire form and `Item`'s own `Serialize` stays the show's. IPC-42's "sub-selection" is the existing `targets` key, not a new key; `contents` entries, `cue.view` fixtures and `located` keys carry items too. `v` goes to 1 for every message; the app's `protocolVersion` goes to 1 in the same PR.
