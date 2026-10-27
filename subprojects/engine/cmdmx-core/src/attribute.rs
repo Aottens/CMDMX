@@ -64,6 +64,9 @@ pub struct AttributeDef {
     /// An extra colour emitter (White, Amber, UV, …; LIB-17). Must be group C.
     #[serde(default, skip_serializing_if = "is_false")]
     pub emitter: bool,
+    /// CIE 1931 xy chromaticity of an emitter, if known (LIB-32).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cie: Option<[f32; 2]>,
     /// Named DMX ranges: wheel slots, macros (LIB-15).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub slots: Vec<Slot>,
@@ -91,6 +94,7 @@ impl AttributeDef {
             locate: None,
             highlight: None,
             emitter: false,
+            cie: None,
             slots: Vec::new(),
         }
     }

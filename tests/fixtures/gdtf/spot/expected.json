@@ -1,0 +1,39 @@
+{
+  "manufacturer": "Colourmotion Test",
+  "model": "Test Spot 300",
+  "source": "gdtf:spot.gdtf",
+  "modes": [
+    {
+      "name": "Standard",
+      "footprint": 10,
+      "attributes": [
+        { "name": "Pan", "group": "P", "kind": "Ltp", "channel": 1, "fine_channel": 2, "default": 0.50000763 },
+        { "name": "Tilt", "group": "P", "kind": "Ltp", "channel": 3, "fine_channel": 4, "default": 0.50000763 },
+        { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 5, "default": 0.0, "highlight": 1.0 },
+        { "name": "Colour Wheel", "group": "C", "kind": "Ltp", "channel": 6, "default": 0.0,
+          "slots": [
+            { "name": "Open", "from": 0, "to": 31, "colour": { "r": 1.0, "g": 1.0, "b": 1.0 } },
+            { "name": "Red", "from": 32, "to": 63, "colour": { "r": 1.0, "g": 0.0, "b": 0.0 } },
+            { "name": "Amber", "from": 64, "to": 95, "colour": { "r": 1.0, "g": 0.1972183, "b": 0.0 } },
+            { "name": "Blue", "from": 96, "to": 255, "colour": { "r": 0.0, "g": 0.0, "b": 1.0 } }
+          ] },
+        { "name": "Gobo", "group": "G", "kind": "Ltp", "channel": 7, "default": 0.0,
+          "slots": [
+            { "name": "Open", "from": 0, "to": 19 },
+            { "name": "Dots", "from": 20, "to": 39 },
+            { "name": "Star", "from": 40, "to": 255 }
+          ] },
+        { "name": "Zoom", "group": "B", "kind": "Ltp", "channel": 8, "default": 0.0 },
+        { "name": "Focus", "group": "B", "kind": "Ltp", "channel": 9, "default": 0.5019608 },
+        { "name": "Ctrl", "group": "S", "kind": "Ltp", "channel": 10, "default": 0.0,
+          "slots": [
+            { "name": "Idle", "from": 0, "to": 199 },
+            { "name": "Reset", "from": 200, "to": 255 }
+          ] }
+      ],
+      "pan_degrees": 540.0,
+      "tilt_degrees": 270.0,
+      "zoom_degrees": [10.0, 40.0]
+    }
+  ]
+}

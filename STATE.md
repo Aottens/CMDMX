@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-27 (P1-12: GDTF importer spec approved)_
+_Last updated: 2026-10-27 (VS2-41: GDTF importer in the core)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -19,7 +19,9 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 ## Next
 1. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
-2. GDTF import (spec approved, P1-12): VS2-41, the core importer, then VS2-42 (daemon + app).
+2. GDTF import: the core importer is done (VS2-41); next VS2-42 (daemon + app), with one real
+   GDTF-share file checked in its manual run (the `gdtf` crate rejects an emitter without a
+   wavelength or a wheel slot without a colour; see engine STATE).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:

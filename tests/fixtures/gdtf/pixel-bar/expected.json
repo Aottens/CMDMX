@@ -1,0 +1,20 @@
+{
+  "manufacturer": "Colourmotion Test",
+  "model": "PixelBar4",
+  "source": "gdtf:pixel-bar.gdtf",
+  "modes": [
+    {
+      "name": "13ch",
+      "footprint": 13,
+      "attributes": [
+        { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1, "default": 0.0, "highlight": 1.0 }
+      ],
+      "cells": [
+        { "colour": { "system": "RGB", "components": [ { "channel": 2 }, { "channel": 3 }, { "channel": 4 } ] }, "attributes": [] },
+        { "colour": { "system": "RGB", "components": [ { "channel": 5 }, { "channel": 6 }, { "channel": 7 } ] }, "attributes": [] },
+        { "colour": { "system": "RGB", "components": [ { "channel": 8 }, { "channel": 9 }, { "channel": 10 } ] }, "attributes": [] },
+        { "colour": { "system": "RGB", "components": [ { "channel": 11 }, { "channel": 12 }, { "channel": 13 } ] }, "attributes": [] }
+      ]
+    }
+  ]
+}
