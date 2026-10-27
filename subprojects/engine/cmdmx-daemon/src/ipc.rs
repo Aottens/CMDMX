@@ -561,6 +561,10 @@ pub enum LibraryRequest {
     },
     SaveProfile(Profile),
     SaveChannelList(ChannelList),
+    /// LIB-34, IPC-45
+    ImportGdtf {
+        path: String,
+    },
 }
 
 pub enum Event {
@@ -1155,6 +1159,9 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("library.save_channel_list") => Ok(Command::Library(LibraryRequest::SaveChannelList(
             serde_json::from_value(v.clone()).map_err(|e| format!("invalid channel list: {e}"))?,
         ))),
+        Some("library.import_gdtf") => Ok(Command::Library(LibraryRequest::ImportGdtf {
+            path: string(&v, "path")?,
+        })),
         Some("output.add") => parse_output_add(&v),
         Some("output.edit") => {
             let mut change = v.as_object().cloned().unwrap_or_default();
@@ -2602,6 +2609,22 @@ fn library_reply(
                 .ok_or(LIBRARY_LOADING)?
                 .save_channel_list(&list)?;
             Ok(saved(&list.manufacturer, &list.model))
+        }
+        LibraryRequest::ImportGdtf { path } => {
+            // Read and convert before taking the lock: a big file must not block other clients.
+            let import = crate::library::read_gdtf(&path)?;
+            let p = &import.profile;
+            let mut guard = lib.write().map_err(|_| LIBRARY_POISONED)?;
+            let library = guard.as_mut().ok_or(LIBRARY_LOADING)?;
+            let replaced = library.has_user_profile(&p.manufacturer, &p.model);
+            library.save_profile(p)?;
+            let modes: Vec<_> = (p.modes.iter())
+                .map(|m| json!({"name": m.name, "channels": m.footprint}))
+                .collect();
+            Ok(
+                json!({"v": PROTOCOL, "type": "library.imported", "manufacturer": p.manufacturer,
+                      "model": p.model, "modes": modes, "replaced": replaced, "report": import.report}),
+            )
         }
         LibraryRequest::Search { query } => {
             let guard = lib.read().map_err(|_| LIBRARY_POISONED)?;
