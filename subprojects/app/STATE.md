@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-10-27 (VS2-42)_
+_Last updated: 2026-10-27 (VS2-43)_
 
 ## Current step
+VS2-43 (2026-10-27, LIB-35 amendment): `GdtfReportSheet` wraps the report cells (no "…"), shows each cell's full text on hover (`.help`), and Escape closes it like Done (a zero-size `.cancelAction` button). Checked with `swift build`; the screen in `tests/manual/app-patch.md` *Import GDTF*.
 VS2-42 (2026-10-27, LIB-35): Import GDTF… in the Add panel opens an `NSOpenPanel` for `.gdtf` and sends `library.import_gdtf` (`EngineClient.importGdtf`, clears `lastMessage` so a refusal shows in the Patch screen's message line). `library.imported` decodes into `GdtfImported` (token per reply); `PatchView` shows `GdtfReportSheet` (mode, channel, GDTF name, became; warnings; Done) and picks the new model through `pendingPick`. Checked with `swift build`; the screen is checked in `tests/manual/app-patch.md` *Import GDTF* (gate 3).
 VS2-39 (2026-10-26, CUE-54 amendment): Confirm remove no longer sends its own `cue.view`; the Cue view asks again on the `playbacks` delta the daemon now sends for a change of cue values, which also covers Undo/Redo. Run `tests/manual/runs/2026-10-26-VS2-39.md`.
 VS2-37 (2026-10-26, CUE-54/IPC-42 amendments): cue-view cell values are pickable; `CueValueRef.cell`, the Remove softkey reads "Dimmer of 902.1", `EngineClient.removeCueValue(cell:)` sends `"fixture":"<id>.<cell>"`. Run `tests/manual/runs/2026-10-26-VS2-37.md`.

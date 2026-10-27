@@ -19,7 +19,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 ## Next
 1. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
-2. VS2-43: GDTF report sheet polish from the VS2-42 run (Became column readable, Escape closes).
+2. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
+   fixes (Became wraps, full text on hover, Escape closes).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
