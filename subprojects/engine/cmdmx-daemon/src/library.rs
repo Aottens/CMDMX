@@ -9,7 +9,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use cmdmx_core::library::channel_list::{self, ChannelList};
-use cmdmx_core::library::qlcplus::{self, ImportReport};
+use cmdmx_core::library::gdtf;
+use cmdmx_core::library::qlcplus::{self, Import, ImportReport};
 use cmdmx_core::library::{Entry, EntryMode, Index, Manufacturer};
 use cmdmx_core::profile::Profile;
 
@@ -25,7 +26,35 @@ pub struct Library {
     user_dir: PathBuf,
 }
 
+/// LIB-33/34: read a `.gdtf` file (at most 100 MB) and convert it. Takes no library lock; a
+/// parser panic becomes an error. The error always names the file.
+pub fn read_gdtf(path: &str) -> Result<Import, String> {
+    const MAX: u64 = 100 * 1024 * 1024;
+    let name = Path::new(path)
+        .file_name()
+        .map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
+    let size = fs::metadata(path)
+        .map_err(|e| format!("{name}: {e}"))?
+        .len();
+    if size > MAX {
+        return Err(format!("{name}: the file is over 100 MB"));
+    }
+    let bytes = fs::read(path).map_err(|e| format!("{name}: {e}"))?;
+    let source = format!("gdtf:{name}");
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        gdtf::import(&bytes, &source)
+    }))
+    .map_err(|_| format!("{name}: the GDTF importer failed on this file"))?
+    .map_err(|e| format!("{name}: {e}"))
+}
+
 impl Library {
+    /// True when the index holds a user profile for this fixture (an import replaces it).
+    pub fn has_user_profile(&self, manufacturer: &str, model: &str) -> bool {
+        self.entry(manufacturer, model)
+            .is_ok_and(|e| e.source == "user")
+    }
+
     /// Index the bundled `*.qxf` files (recursively) and the user's `*.json` profiles. Problems
     /// are warnings, one per file or folder; a missing user folder is fine and is not created.
     pub fn load(qlcplus_dir: Option<&Path>, user_dir: &Path) -> (Library, Vec<String>) {

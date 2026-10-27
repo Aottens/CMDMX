@@ -697,6 +697,29 @@ struct ProfileSaved: Equatable {
     let token: Int
 }
 
+/// LIB-35: the `library.imported` reply; `token` changes with every reply.
+struct GdtfImported: Decodable, Equatable, Identifiable {
+    struct Line: Decodable, Equatable {
+        let mode: String
+        let channel: Int
+        let sourceName: String
+        let became: String
+        private enum CodingKeys: String, CodingKey { case mode, channel, sourceName = "source_name", became }
+    }
+    struct Report: Decodable, Equatable {
+        let channels: [Line]
+        let warnings: [String]
+    }
+    let manufacturer: String
+    let model: String
+    let modes: [LibraryMode]
+    let replaced: Bool
+    let report: Report
+    var token = 0
+    var id: Int { token }
+    private enum CodingKeys: String, CodingKey { case manufacturer, model, modes, replaced, report }
+}
+
 private struct SavedReply: Decodable {
     let manufacturer: String
     let model: String
@@ -1159,6 +1182,7 @@ final class EngineClient: ObservableObject {
     /// `library.saved` reply (the token changes with every reply so repeated saves fire `onChange`).
     @Published private(set) var editorProfile: EditorProfile?
     @Published private(set) var profileSaved: ProfileSaved?
+    @Published private(set) var gdtfImported: GdtfImported?
     private var editorAsk: String?
     /// What was asked last (empty = nil); a reply that echoes something else is stale and dropped.
     private var lastManufacturersQuery: String?
@@ -1410,6 +1434,12 @@ final class EngineClient: ObservableObject {
         lastMessage = nil
         sendJSON("library.save_channel_list",
                  ["manufacturer": manufacturer, "model": model, "mode": mode, "channels": channels])
+    }
+
+    /// LIB-34: a refused file comes back as an `error`, which lands in `lastMessage`.
+    func importGdtf(path: String) {
+        lastMessage = nil
+        sendJSON("library.import_gdtf", ["path": path])
     }
 
     /// IPC-39: an ordinary programmer value for the selected fixtures that have the attribute.
@@ -1826,6 +1856,11 @@ final class EngineClient: ObservableObject {
         case "library.saved":
             if let saved = try? JSONDecoder().decode(SavedReply.self, from: data) {
                 profileSaved = ProfileSaved(manufacturer: saved.manufacturer, model: saved.model, token: (profileSaved?.token ?? 0) + 1)
+            }
+        case "library.imported":
+            if var done = try? JSONDecoder().decode(GdtfImported.self, from: data) {
+                done.token = (gdtfImported?.token ?? 0) + 1
+                gdtfImported = done
             }
         case "groups":
             if let groups = incoming.groups { self.groups = groups }

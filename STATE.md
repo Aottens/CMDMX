@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-27 (VS2-41: GDTF importer in the core)_
+_Last updated: 2026-10-27 (VS2-42: Import GDTF… in daemon and app)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -19,14 +19,16 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 ## Next
 1. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
-2. GDTF import: the core importer is done (VS2-41); next VS2-42 (daemon + app), with one real
-   GDTF-share file checked in its manual run (the `gdtf` crate rejects an emitter without a
-   wavelength or a wheel slot without a colour; see engine STATE).
+2. GDTF import is built end to end (VS2-41, VS2-42); the owner's run of
+   `tests/manual/app-patch.md` *Import GDTF* imports one real GDTF-share file (gate 3 below).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
   until the owner finds the BCF2000.
+- VS2-42 Import GDTF…, `tests/manual/app-patch.md` section *Import GDTF*: download one file from
+  GDTF-share (owner's account) and import it; the `gdtf` crate rejects an emitter without a
+  wavelength or a wheel slot without a colour, so a failure there goes under Open points.
 - HWB-01 USB-MIDI box, `tests/hardware/hw-box.md`: order the parts first (list at the top of the
   checklist), then flash, Learn on the Mac and tick.
 
