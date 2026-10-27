@@ -47,6 +47,9 @@ so the imports stay out of the real user profiles folder.
       8-bit" with one line per channel (mode Default, channels 1–4, the GDTF name, what it became:
       the three RGB colour channels and the White emitter) and the warnings below; Done closes it and the Add panel has Generic
       › Generic RGBW 8-bit picked, `USER` tag, mode Default · 4 channels
+- [ ] In the sheet, every Became cell reads in full: long text wraps onto more lines, no "…";
+      hovering a Became or GDTF name cell shows its full text. Escape closes the sheet like Done
+      (reopen it by importing again for the next check) (LIB-35 amended, VS2-43)
 - [ ] Import the same file again: the sheet says it replaced the existing user profile; the Model
       column still lists it once
 - [ ] Pick the GDTF-share file: the sheet lists its modes and channels; write the file name and any

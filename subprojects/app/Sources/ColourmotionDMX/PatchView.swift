@@ -539,10 +539,10 @@ private struct GdtfReportSheet: View {
             Text("\(report.manufacturer) \(report.model)").font(.headline)
             if report.replaced { Text("Replaced the existing user profile.").font(.caption).foregroundStyle(.secondary) }
             Table(report.report.channels.enumerated().map { Row(id: $0.offset, line: $0.element) }) {
-                TableColumn("Mode") { Text($0.line.mode) }.width(min: 60, ideal: 90)
+                TableColumn("Mode") { Text($0.line.mode).help($0.line.mode) }.width(min: 60, ideal: 90)
                 TableColumn("Ch") { Text(String($0.line.channel)).monospacedDigit() }.width(min: 30, ideal: 36, max: 50)
-                TableColumn("GDTF name") { Text($0.line.sourceName) }.width(min: 80, ideal: 140)
-                TableColumn("Became") { Text($0.line.became) }.width(min: 120, ideal: 240)
+                TableColumn("GDTF name") { Text($0.line.sourceName).help($0.line.sourceName) }.width(min: 80, ideal: 140)
+                TableColumn("Became") { Text($0.line.became).lineLimit(nil).fixedSize(horizontal: false, vertical: true).help($0.line.became) }.width(min: 120, ideal: 240)
             }
             if !report.report.warnings.isEmpty {
                 Text("Warnings").font(.subheadline)
@@ -554,6 +554,8 @@ private struct GdtfReportSheet: View {
             }
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }
         }
+        // Escape closes like Done; zero-size rather than .hidden(), which disables the shortcut.
+        .background(Button("") { dismiss() }.keyboardShortcut(.cancelAction).frame(width: 0, height: 0).opacity(0))
         .padding(16)
         .frame(width: 640, height: 420)
     }

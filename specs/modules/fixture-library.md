@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14); LIB-28..35 approved by owner 2026-10-27 (P1-12)**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14); LIB-28..35 approved by owner 2026-10-27 (P1-12); LIB-35 amendment approved by owner 2026-10-27 (VS2-43)**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -320,8 +320,10 @@ GDTF 1.2 specification (`github.com/mvrdevelopment/spec`, Annex A for attribute 
 - **LIB-35** App. The Add panel gets **Import GDTF…** beside New from channel list… (LIB-22). It
   opens a file panel for `.gdtf` files and sends IPC-45. On success a sheet shows the import
   report (mode, channel, GDTF name, what it became; then the warnings) and the new profile is
-  picked in the Add panel; on failure the error is shown and nothing changes. Verified by
-  `tests/manual/app-patch.md` (amended).
+  picked in the Add panel; on failure the error is shown and nothing changes. Every report cell
+  can be read in full: the Became text wraps onto more lines instead of being cut off with "…",
+  and hovering a cell shows its full text. Escape closes the sheet like Done (Return still does
+  too) (amended 2026-10-27, VS2-43). Verified by `tests/manual/app-patch.md` (amended).
 
 Scenario tests (VS2-41): GDTF files written for this project, as `description.xml` sources in
 `tests/fixtures/gdtf/<name>/` that the test zips in memory, each with its expected profile: an
