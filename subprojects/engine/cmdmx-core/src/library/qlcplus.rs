@@ -338,14 +338,32 @@ fn assemble(
         lines.sort_by_key(|l| l.channel);
     }
 
+    let focus = physical.and_then(|p| p.focus.as_ref());
+    let degrees = |d: Option<f32>| d.filter(|d| *d > 0.0);
+    let mut mode = mode_of_scopes(name, footprint, (colour, attributes), cells);
+    mode.pan_degrees = degrees(focus.map(|f| f.pan));
+    mode.tilt_degrees = degrees(focus.map(|f| f.tilt));
+    mode.zoom_degrees = physical
+        .and_then(|p| p.lens.as_ref())
+        .filter(|l| l.min > 0.0 || l.max > 0.0)
+        .map(|l| [l.min, l.max]);
+    mode
+}
+
+/// A mode from its loose scope and its cells, with the virtual Dimmer decided (LIB-08); no
+/// physical ranges yet. Shared with the GDTF importer.
+pub(super) fn mode_of_scopes(
+    name: &str,
+    footprint: u16,
+    (colour, attributes): (Option<ColourMixing>, Vec<AttributeDef>),
+    cells: Vec<Cell>,
+) -> Mode {
     let has_dimmer = attributes
         .iter()
         .chain(cells.iter().flat_map(|c| &c.attributes))
         .any(|a| a.name == DIMMER);
     let virtual_dimmer =
         (colour.is_some() || cells.iter().any(|c| c.colour.is_some())) && !has_dimmer;
-    let focus = physical.and_then(|p| p.focus.as_ref());
-    let degrees = |d: Option<f32>| d.filter(|d| *d > 0.0);
     Mode {
         name: name.into(),
         footprint,
@@ -353,12 +371,9 @@ fn assemble(
         colour,
         virtual_dimmer,
         cells,
-        pan_degrees: degrees(focus.map(|f| f.pan)),
-        tilt_degrees: degrees(focus.map(|f| f.tilt)),
-        zoom_degrees: physical
-            .and_then(|p| p.lens.as_ref())
-            .filter(|l| l.min > 0.0 || l.max > 0.0)
-            .map(|l| [l.min, l.max]),
+        pan_degrees: None,
+        tilt_degrees: None,
+        zoom_degrees: None,
     }
 }
 
@@ -367,11 +382,11 @@ fn assemble(
 const COMPONENTS: [&str; 6] = ["Red", "Green", "Blue", "Cyan", "Magenta", "Yellow"];
 const EMITTERS: [&str; 5] = ["White", "Amber", "UV", "Indigo", "Lime"];
 
-fn comp_name(i: usize) -> &'static str {
+pub(super) fn comp_name(i: usize) -> &'static str {
     COMPONENTS.get(i).copied().unwrap_or("Colour")
 }
 
-enum Role {
+pub(super) enum Role {
     /// Index into [`COMPONENTS`].
     Comp(usize),
     Attr {
@@ -382,8 +397,8 @@ enum Role {
     },
     /// The fine byte of the channel whose preset is this.
     Fine(String),
-    /// Kept under its own name; the preset that had no mapping, if any.
-    Plain(AttributeGroup, Option<String>),
+    /// Kept under this name; why it had no mapping, if that is worth a warning.
+    Plain(String, AttributeGroup, Option<String>),
 }
 
 /// The preset of a channel; a colour hint on an Intensity channel counts as the matching one
@@ -420,12 +435,19 @@ fn group_of(s: &str) -> AttributeGroup {
     }
 }
 
+/// The warning reason for a preset without a mapping.
+fn unmapped(preset: &str) -> String {
+    format!(
+        "preset {preset} has no mapping (unknown, or a fine channel without its coarse channel)"
+    )
+}
+
 fn classify(ch: &Chan, preset: Option<&str>) -> Role {
     use AttributeGroup::{B, C, E, G, I, P, S};
     use AttributeKind::{Htp, Ltp};
     let group = ch.group.as_deref().map(str::trim);
     let Some(p) = preset else {
-        return Role::Plain(group_of(group.unwrap_or("")), None);
+        return Role::Plain(ch.name.clone(), group_of(group.unwrap_or("")), None);
     };
     // Not a QLC+ preset: how the channel-list builder asks for an emitter of any name (LIB-11).
     if let Some(name) = p.strip_prefix("Emitter:") {
@@ -469,7 +491,10 @@ fn classify(ch: &Chan, preset: Option<&str>) -> Role {
         _ if p.starts_with("BeamFocus") => ("Focus", B, Ltp),
         _ if p.starts_with("PrismRotation") => ("Prism Rotation", E, Ltp),
         _ if p.starts_with("Speed") => ("Pan/Tilt Speed", S, Ltp),
-        _ => return Role::Plain(group_of(group.unwrap_or(p)), Some(p.into())),
+        _ => {
+            let reason = Some(unmapped(p));
+            return Role::Plain(ch.name.clone(), group_of(group.unwrap_or(p)), reason);
+        }
     };
     Role::Attr {
         name: name.into(),
@@ -479,19 +504,47 @@ fn classify(ch: &Chan, preset: Option<&str>) -> Role {
     }
 }
 
-struct Entry<'a> {
-    number: u16,
-    ch: &'a Chan,
-    preset: Option<String>,
-    role: Role,
+/// One channel of a scope, classified. The QLC+ importer builds these from [`Chan`]s, the GDTF
+/// importer from DMX channels; [`convert_scope`] turns them into a colour system and attributes.
+pub(super) struct Entry {
+    /// 0-based channel number.
+    pub(super) number: u16,
+    /// The source's name for the channel (clash naming, report).
+    pub(super) name: String,
+    pub(super) preset: Option<String>,
+    pub(super) role: Role,
     /// 1-based channel of this entry's fine byte.
-    fine: Option<u16>,
+    pub(super) fine: Option<u16>,
     /// For a fine channel: the index of its coarse entry.
-    fine_of: Option<usize>,
+    pub(super) fine_of: Option<usize>,
+    pub(super) default: f32,
+    pub(super) highlight: Option<f32>,
+    pub(super) slots: Vec<Slot>,
+    /// CIE xy of a colour component or emitter (LIB-32).
+    pub(super) cie: Option<[f32; 2]>,
+    /// Added to the report line, e.g. that a colour channel has no CIE colour.
+    pub(super) note: String,
 }
 
-impl Entry<'_> {
-    fn channel(&self) -> u16 {
+impl Entry {
+    /// An entry with nothing optional set.
+    pub(super) fn new(number: u16, name: String, role: Role) -> Self {
+        Entry {
+            number,
+            name,
+            preset: None,
+            role,
+            fine: None,
+            fine_of: None,
+            default: 0.0,
+            highlight: None,
+            slots: Vec::new(),
+            cie: None,
+            note: String::new(),
+        }
+    }
+
+    pub(super) fn channel(&self) -> u16 {
         self.number.saturating_add(1)
     }
 
@@ -510,7 +563,7 @@ impl Entry<'_> {
                 AttributeKind::Ltp,
                 true,
             )),
-            Role::Plain(g, _) => Some((self.ch.name.clone(), *g, AttributeKind::Ltp, false)),
+            Role::Plain(name, g, _) => Some((name.clone(), *g, AttributeKind::Ltp, false)),
             Role::Fine(_) => None,
         }
     }
@@ -524,21 +577,33 @@ fn convert_scope(
     mode: &str,
     rep: &mut ImportReport,
 ) -> (Option<ColourMixing>, Vec<AttributeDef>) {
-    let mut entries: Vec<Entry> = items
+    let entries = items
         .iter()
         .map(|i| {
             let preset = preset_of(i.ch);
             Entry {
-                number: i.number,
-                ch: i.ch,
-                role: classify(i.ch, preset.as_deref()),
-                preset,
-                fine: None,
-                fine_of: None,
+                preset: preset.clone(),
+                default: default_of(i.ch),
+                slots: slots_of(i.ch),
+                ..Entry::new(
+                    i.number,
+                    i.ch.name.clone(),
+                    classify(i.ch, preset.as_deref()),
+                )
             }
         })
         .collect();
+    build_scope(entries, label, mode, rep)
+}
 
+/// The classified channels of one scope (sorted by number) become its colour system and
+/// attributes (LIB-05..08, 18); `label` prefixes the report lines ("cell 2: ").
+pub(super) fn build_scope(
+    mut entries: Vec<Entry>,
+    label: &str,
+    mode: &str,
+    rep: &mut ImportReport,
+) -> (Option<ColourMixing>, Vec<AttributeDef>) {
     // Fine channels attach to the coarse channel with the same preset; the rest stay plain.
     let pairs: Vec<(usize, usize)> = entries
         .iter()
@@ -567,7 +632,7 @@ fn convert_scope(
     for e in &mut entries {
         if let (Role::Fine(_), None) = (&e.role, e.fine_of) {
             let p = e.preset.clone().unwrap_or_default();
-            e.role = Role::Plain(group_of(&p), Some(p));
+            e.role = Role::Plain(e.name.clone(), group_of(&p), Some(unmapped(&p)));
         }
     }
 
@@ -581,6 +646,7 @@ fn convert_scope(
         first(i).and_then(|k| entries.get(k)).map(|e| Component {
             channel: e.channel(),
             fine_channel: e.fine,
+            cie: e.cie,
         })
     };
     let system = [(ColourSystem::Rgb, 0), (ColourSystem::Cmy, 3)]
@@ -611,9 +677,11 @@ fn convert_scope(
                 k,
                 AttributeDef {
                     fine_channel: e.fine,
-                    default: default_of(e.ch),
+                    default: e.default,
+                    highlight: e.highlight,
                     emitter,
-                    slots: slots_of(e.ch),
+                    cie: e.cie.filter(|_| emitter),
+                    slots: e.slots.clone(),
                     ..AttributeDef::new(name, group, kind, e.channel())
                 },
             ))
@@ -625,7 +693,7 @@ fn convert_scope(
         .collect();
     for ((k, d), clashing) in defs.iter_mut().zip(clash) {
         if let (true, Some(e)) = (clashing, entries.get(*k)) {
-            d.name = e.ch.name.clone();
+            d.name = e.name.clone();
         }
     }
     let mut taken = BTreeSet::new();
@@ -658,13 +726,12 @@ fn convert_scope(
         let def = defs.iter().find(|(i, _)| *i == k).map(|(_, d)| d);
         let became = match (e.fine_of, def, &e.role) {
             (Some(c), _, _) => format!("fine channel of {}", name_of(c)),
-            (_, Some(d), Role::Plain(_, unmapped)) => {
-                if let Some(p) = unmapped {
+            (_, Some(d), Role::Plain(_, _, reason)) => {
+                if let Some(reason) = reason {
                     rep.warnings.push(format!(
-                        "mode '{mode}': {label}channel {} '{}': preset {p} has no mapping \
-                         (unknown, or a fine channel without its coarse channel)",
+                        "mode '{mode}': {label}channel {} '{}': {reason}",
                         e.channel(),
-                        e.ch.name
+                        e.name
                     ));
                 }
                 format!("kept as a plain channel ({:?}, {:?})", d.group, d.kind)
@@ -679,8 +746,8 @@ fn convert_scope(
         rep.channels.push(ReportLine {
             mode: mode.into(),
             channel: e.channel(),
-            source_name: e.ch.name.clone(),
-            became: format!("{label}{became}"),
+            source_name: e.name.clone(),
+            became: format!("{label}{became}{}", e.note),
         });
     }
     (

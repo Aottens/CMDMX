@@ -330,7 +330,10 @@ and a Strobe channel with three functions), a moving-head spot (16-bit Pan −27
 −135..135 with defaults `32768/2`, colour wheel with four coloured slots, gobo wheel, Zoom 10–40°,
 Highlight on the Dimmer), a four-pixel bar (geometry references, master dimmer → four cells), and
 one broken file per LIB-33 case. The `gdtf` crate's own `Generic@RGBW8@test.gdtf` (MIT) is
-imported too, as a file not written by us.
+imported too, as a file not written by us. Found in VS2-41: the `gdtf` crate 0.3.0 rejects a
+file with an emitter that has no `DominantWaveLength` or a wheel slot without `Color`, and does
+not read a GDTF 1.0 `Default` on the DMX channel (the channel function's is used); VS2-42's
+manual run checks a real GDTF-share file.
 
 ## Out of scope (this spec)
 Downloading from GDTF-share inside the app (it needs an account); GDTF's 3D models, gobo images,

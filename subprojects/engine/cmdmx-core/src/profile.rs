@@ -110,12 +110,15 @@ pub enum ColourSystem {
     Cmy,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Component {
     /// 1-based DMX channel offset within the mode's footprint.
     pub channel: u16,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fine_channel: Option<u16>,
+    /// CIE 1931 xy chromaticity of the emitter behind this channel, if known (LIB-32).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cie: Option<[f32; 2]>,
 }
 
 impl Component {
@@ -458,8 +461,19 @@ fn check_colour(colour: &ColourMixing, claim: &mut Claim) -> Result<(), String> 
         if let Some(fine) = c.fine_channel {
             claim("colour component fine channel", fine)?;
         }
+        check_cie("colour component", c.cie)?;
     }
     Ok(())
+}
+
+/// LIB-32: a CIE xy point has x and y in 0..=1 and x + y <= 1.
+fn check_cie(what: &str, cie: Option<[f32; 2]>) -> Result<(), String> {
+    match cie {
+        Some([x, y]) if !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) || x + y > 1.0 => {
+            Err(format!("{what}: cie [{x}, {y}] is not a chromaticity"))
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Channels, unit-range values and emitter rules for one attribute list (mode or cell).
@@ -479,6 +493,10 @@ fn check_attributes(attributes: &[AttributeDef], claim: &mut Claim) -> Result<()
             return Err(format!(
                 "{name}: default, locate and highlight must be 0.0..=1.0"
             ));
+        }
+        check_cie(name, a.cie)?;
+        if a.cie.is_some() && !a.emitter {
+            return Err(format!("{name}: cie is only for emitters"));
         }
         if a.emitter {
             if a.group != AttributeGroup::C {

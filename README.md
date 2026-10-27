@@ -60,6 +60,9 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 - Multi-select in the patch table: Shift/Cmd-click a range and move it back to back, renumber
   it, name it ("Par 1…6"), change its mode or remove it in one checked step.
 - A profile editor for channels, defaults and wheel slots; profiles are saved into the show.
+- GDTF files (the manufacturers' own format) convert into profiles in the engine, with cells
+  from the fixture's geometry and each emitter's measured colour kept for later calibration;
+  Import GDTF… in the app comes next.
 - The church rig (56 fixtures from the owner's Lightkey patch) is patched by a one-off into the
   show *Kerk*.
 

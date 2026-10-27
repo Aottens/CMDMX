@@ -1,8 +1,10 @@
 //! Fixture library: importers that turn foreign fixture files into [`crate::profile::Profile`]s
 //! (ADR-006, `specs/modules/fixture-library.md`), the channel-list builder (LIB-11) and the
-//! search [`Index`] (LIB-12..14). Pure: importers take the file's text, the index holds names.
+//! search [`Index`] (LIB-12..14). Pure: importers take the file's text (QLC+) or bytes (GDTF),
+//! the index holds names.
 
 pub mod channel_list;
+pub mod gdtf;
 pub mod qlcplus;
 
 use std::collections::BTreeMap;

@@ -149,7 +149,9 @@ const ATTRIBUTES: &[(&str, &str)] = &[
 fn gdtf(modes: &str) -> Vec<u8> {
     let attributes: String = ATTRIBUTES
         .iter()
-        .map(|(n, f)| format!(r#"<Attribute Name="{n}" Pretty="" Feature="{f}"/>"#))
+        .map(|(n, f)| {
+            format!(r#"<Attribute Name="{n}" Pretty="" Feature="{f}" PhysicalUnit="None"/>"#)
+        })
         .collect();
     let groups: String = [
         ("Dimmer", "Dimmer"),
