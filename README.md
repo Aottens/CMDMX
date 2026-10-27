@@ -35,11 +35,10 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up: a versioned DMG for the church Mac (VS4-07), then the first service run (VS4-03). Progress is in
-[`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in clickable sketches:
-[`specs/ux/main-screen.html`](specs/ux/main-screen.html) and
-[`specs/ux/library-and-profile-editor.html`](specs/ux/library-and-profile-editor.html).
-Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)); the firmware for its first proof, a USB-MIDI box on a Pico 2, is written and waits for parts.
+Next up: tag `v0.1.0`, install its DMG on the church Mac (VS4-07), then the first service run
+(VS4-03). Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in
+[`specs/ux/main-screen.html`](specs/ux/main-screen.html).
+Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
 ## What works today
 
@@ -125,8 +124,15 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four
   workspaces, Patch, Output, Control and Show screens, and a dark and a day theme.
 - App and engine check each other's protocol version and say plainly which versions differ.
+- Installs from a versioned DMG that GitHub builds from a `v*` tag (universal, not notarised):
+  the app starts its own engine and stops it on quit, so Lightkey can take the USB interface;
+  quitting writes the last changes to the show first.
 
 ## Build and run
+
+To use it, download `ColourmotionDMX-<version>.dmg` from the
+[releases](https://github.com/Aottens/ColourmotionDMX/releases) and follow the install steps
+there (the first open needs right-click › Open, or *Open Anyway* on macOS 15+). To build it:
 
 Requirements: macOS 14+, Rust (stable), Xcode Command Line Tools (`xcode-select --install`).
 

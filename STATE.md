@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-27 (VS4-01: the service checklist)_
+_Last updated: 2026-10-27 (VS4-07: the versioned DMG)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -17,8 +17,8 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-1. VS4-07: a versioned DMG built by GitHub, so ColourmotionDMX runs on the church Mac beside
-   Lightkey (not notarised yet, DECISIONS 2026-10-27). Criteria first, owner approves.
+1. VS4-07 after the merge: Actions › Release › Run workflow for a test DMG, then tag `v0.1.0`
+   and install it on the church Mac (`tests/hardware/release.md`, gate 3).
 2. At home on Art-Net: program the service in *Kerk* as `tests/hardware/church.md` asks (steady
    looks, *Front band*, *Front spreker*); the owner fills in which fresnels are band and speaker.
 3. Sunday in the church: the two TouchOSC lines in `church.md`, then *Before the service* with the
@@ -28,6 +28,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
+- VS4-07 the DMG on the church Mac, `tests/hardware/release.md`.
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
   until the owner finds the BCF2000.
 - HWB-01 USB-MIDI box, `tests/hardware/hw-box.md`: order the parts first (list at the top of the

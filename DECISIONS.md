@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-27 — The installed app starts and stops its own engine; Quit stops output (owner, VS4-07)
+
+**Decision:** the DMG's app carries the daemon and starts it at launch (REL-10); ⌘Q stops it after it has written the show (REL-13, REL-14). If the app crashes the daemon keeps output and the next launch adopts it (REL-11). Builds are universal; the version comes only from the `v*` tag (REL-01). First tag `v0.1.0`.
+
+**Alternatives considered:** a daemon that keeps running after Quit with a separate *Stop engine* item; a launchd agent; Apple Silicon-only builds.
+
+**Reasoning:** the Lightkey fallback needs the Eurolite free, and nobody at the church should need Terminal; a universal build makes the church Mac's chip irrelevant.
+
+**Reversal trigger:** an operator needs output to survive a deliberate Quit (e.g. a second UI on another Mac): then add a keep-running choice.
+
 ## 2026-10-27 — The church Mac runs ColourmotionDMX from a versioned DMG, not notarised yet (owner, VS4-01)
 
 **Decision:** on Sunday ColourmotionDMX runs on the church Mac beside Lightkey (fallback: stop the daemon, start Lightkey). It gets there as a DMG with a version number, built by GitHub (VS4-07). The DMG is not notarised for now: the first open on the church Mac is right-click › Open once.
