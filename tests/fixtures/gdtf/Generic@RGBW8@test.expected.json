@@ -1,0 +1,19 @@
+{
+  "manufacturer": "Generic",
+  "model": "Generic RGBW 8-bit",
+  "source": "gdtf:Generic@RGBW8@test.gdtf",
+  "modes": [
+    {
+      "name": "Default",
+      "footprint": 4,
+      "attributes": [
+        { "name": "White", "group": "C", "kind": "Ltp", "channel": 4, "default": 1.0, "highlight": 1.0, "emitter": true }
+      ],
+      "colour": {
+        "system": "RGB",
+        "components": [ { "channel": 1 }, { "channel": 2 }, { "channel": 3 } ]
+      },
+      "virtual_dimmer": true
+    }
+  ]
+}

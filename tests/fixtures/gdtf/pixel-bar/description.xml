@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Written for ColourmotionDMX tests (VS2-41, LIB-31). Not a real fixture. -->
+<GDTF DataVersion="1.2">
+  <FixtureType Name="PixelBar4" ShortName="PixelBar4" LongName="" Manufacturer="Colourmotion Test" Description="Four RGB pixels and a master dimmer" FixtureTypeID="0F6B6A57-7C3B-4E8B-9C1E-2D7B1A000003" RefFT="" Thumbnail="" CanHaveChildren="Yes">
+    <AttributeDefinitions>
+      <ActivationGroups/>
+      <FeatureGroups>
+        <FeatureGroup Name="Dimmer" Pretty="Dimmer"><Feature Name="Dimmer"/></FeatureGroup>
+        <FeatureGroup Name="Color" Pretty="Color"><Feature Name="RGB"/></FeatureGroup>
+      </FeatureGroups>
+      <Attributes>
+        <Attribute Name="Dimmer" Pretty="Dim" Feature="Dimmer.Dimmer" PhysicalUnit="LuminousIntensity"/>
+        <Attribute Name="ColorRGB_Red" Pretty="R" Feature="Color.RGB" PhysicalUnit="ColorComponent"/>
+        <Attribute Name="ColorRGB_Green" Pretty="G" Feature="Color.RGB" PhysicalUnit="ColorComponent"/>
+        <Attribute Name="ColorRGB_Blue" Pretty="B" Feature="Color.RGB" PhysicalUnit="ColorComponent"/>
+      </Attributes>
+    </AttributeDefinitions>
+    <Wheels/>
+    <PhysicalDescriptions>
+      <Emitters/>
+      <Filters/>
+      <ColorSpace Mode="sRGB"/>
+      <DMXProfiles/>
+      <CRIs/>
+    </PhysicalDescriptions>
+    <Models>
+      <Model Name="Body" Length="1.0" Width="0.1" Height="0.1" PrimitiveType="Cube"/>
+      <Model Name="Pixel" Length="0.2" Width="0.1" Height="0.01" PrimitiveType="Cube"/>
+    </Models>
+    <Geometries>
+      <Geometry Name="Body" Model="Body" Position="{1,0,0,0}{0,1,0,0}{0,0,1,0}{0,0,0,1}">
+        <GeometryReference Name="Pixel1" Geometry="Pixel" Position="{1,0,0,0.1}{0,1,0,0}{0,0,1,0}{0,0,0,1}"><Break DMXOffset="2" DMXBreak="1"/></GeometryReference>
+        <GeometryReference Name="Pixel2" Geometry="Pixel" Position="{1,0,0,0.2}{0,1,0,0}{0,0,1,0}{0,0,0,1}"><Break DMXOffset="5" DMXBreak="1"/></GeometryReference>
+        <GeometryReference Name="Pixel3" Geometry="Pixel" Position="{1,0,0,0.3}{0,1,0,0}{0,0,1,0}{0,0,0,1}"><Break DMXOffset="8" DMXBreak="1"/></GeometryReference>
+        <GeometryReference Name="Pixel4" Geometry="Pixel" Position="{1,0,0,0.4}{0,1,0,0}{0,0,1,0}{0,0,0,1}"><Break DMXOffset="11" DMXBreak="1"/></GeometryReference>
+      </Geometry>
+      <Geometry Name="Pixel" Model="Pixel" Position="{1,0,0,0}{0,1,0,0}{0,0,1,0}{0,0,0,1}">
+        <Beam Name="PixelBeam" Model="Pixel" Position="{1,0,0,0}{0,1,0,0}{0,0,1,0}{0,0,0,1}" LampType="LED" BeamAngle="60" FieldAngle="70" BeamType="Wash"/>
+      </Geometry>
+    </Geometries>
+    <DMXModes>
+      <DMXMode Name="13ch" Geometry="Body">
+        <DMXChannels>
+          <DMXChannel DMXBreak="1" Offset="1" InitialFunction="Body_Dimmer.Dimmer.Dimmer 1" Highlight="255/1" Geometry="Body">
+            <LogicalChannel Attribute="Dimmer" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Dimmer 1" Attribute="Dimmer" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="Overwrite" Offset="1" InitialFunction="Pixel_ColorRGB_Red.ColorRGB_Red.ColorRGB_Red 1" Highlight="255/1" Geometry="Pixel">
+            <LogicalChannel Attribute="ColorRGB_Red" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="ColorRGB_Red 1" Attribute="ColorRGB_Red" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="Overwrite" Offset="2" InitialFunction="Pixel_ColorRGB_Green.ColorRGB_Green.ColorRGB_Green 1" Highlight="255/1" Geometry="Pixel">
+            <LogicalChannel Attribute="ColorRGB_Green" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="ColorRGB_Green 1" Attribute="ColorRGB_Green" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="Overwrite" Offset="3" InitialFunction="Pixel_ColorRGB_Blue.ColorRGB_Blue.ColorRGB_Blue 1" Highlight="255/1" Geometry="Pixel">
+            <LogicalChannel Attribute="ColorRGB_Blue" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="ColorRGB_Blue 1" Attribute="ColorRGB_Blue" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+        </DMXChannels>
+        <Relations/>
+        <FTMacros/>
+      </DMXMode>
+    </DMXModes>
+    <Revisions/>
+    <FTPresets/>
+    <Protocols/>
+  </FixtureType>
+</GDTF>

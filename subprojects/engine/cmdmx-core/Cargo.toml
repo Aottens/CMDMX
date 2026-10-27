@@ -10,6 +10,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 quick-xml = { workspace = true }
+gdtf = "0.3"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+zip = { version = "8.6", default-features = false }

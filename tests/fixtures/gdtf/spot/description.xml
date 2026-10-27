@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Written for ColourmotionDMX tests (VS2-41, LIB-28..30). Not a real fixture. -->
+<GDTF DataVersion="1.2">
+  <FixtureType Name="Spot" ShortName="Spot" LongName="Test Spot 300" Manufacturer="Colourmotion Test" Description="Moving-head spot" FixtureTypeID="0F6B6A57-7C3B-4E8B-9C1E-2D7B1A000002" RefFT="" Thumbnail="" CanHaveChildren="Yes">
+    <AttributeDefinitions>
+      <ActivationGroups>
+        <ActivationGroup Name="PanTilt"/>
+      </ActivationGroups>
+      <FeatureGroups>
+        <FeatureGroup Name="Dimmer" Pretty="Dimmer"><Feature Name="Dimmer"/></FeatureGroup>
+        <FeatureGroup Name="Position" Pretty="Position"><Feature Name="PanTilt"/></FeatureGroup>
+        <FeatureGroup Name="Gobo" Pretty="Gobo"><Feature Name="Gobo"/></FeatureGroup>
+        <FeatureGroup Name="Color" Pretty="Color"><Feature Name="Color"/></FeatureGroup>
+        <FeatureGroup Name="Focus" Pretty="Focus"><Feature Name="Focus"/></FeatureGroup>
+        <FeatureGroup Name="Control" Pretty="Control"><Feature Name="Control"/></FeatureGroup>
+      </FeatureGroups>
+      <Attributes>
+        <Attribute Name="Pan" Pretty="P" ActivationGroup="PanTilt" Feature="Position.PanTilt" PhysicalUnit="Angle"/>
+        <Attribute Name="Tilt" Pretty="T" ActivationGroup="PanTilt" Feature="Position.PanTilt" PhysicalUnit="Angle"/>
+        <Attribute Name="Dimmer" Pretty="Dim" Feature="Dimmer.Dimmer" PhysicalUnit="LuminousIntensity"/>
+        <Attribute Name="Color1" Pretty="C1" Feature="Color.Color" PhysicalUnit="None"/>
+        <Attribute Name="Gobo1" Pretty="G1" Feature="Gobo.Gobo" PhysicalUnit="None"/>
+        <Attribute Name="Zoom" Pretty="Zoom" Feature="Focus.Focus" PhysicalUnit="Angle"/>
+        <Attribute Name="Focus1" Pretty="Focus1" Feature="Focus.Focus" PhysicalUnit="Length"/>
+        <Attribute Name="Control1" Pretty="Ctrl" Feature="Control.Control" PhysicalUnit="None"/>
+      </Attributes>
+    </AttributeDefinitions>
+    <Wheels>
+      <Wheel Name="ColourWheel">
+        <Slot Name="Open" Color="0.312700,0.329000,100.000000"/>
+        <Slot Name="Red" Color="0.700000,0.290000,20.000000"/>
+        <Slot Name="Amber" Color="0.570000,0.420000,60.000000"/>
+        <Slot Name="Blue" Color="0.150000,0.060000,10.000000"/>
+      </Wheel>
+      <Wheel Name="GoboWheel">
+        <Slot Name="Open" Color="0.312700,0.329000,100.000000"/>
+        <Slot Name="Dots" Color="0.312700,0.329000,100.000000"/>
+        <Slot Name="Star" Color="0.312700,0.329000,100.000000"/>
+      </Wheel>
+    </Wheels>
+    <PhysicalDescriptions>
+      <Emitters/>
+      <Filters/>
+      <ColorSpace Mode="sRGB"/>
+      <DMXProfiles/>
+      <CRIs/>
+    </PhysicalDescriptions>
+    <Models>
+      <Model Name="Base" Length="0.3" Width="0.3" Height="0.1" PrimitiveType="Base"/>
+      <Model Name="Yoke" Length="0.3" Width="0.1" Height="0.3" PrimitiveType="Yoke"/>
+      <Model Name="Head" Length="0.2" Width="0.2" Height="0.3" PrimitiveType="Head"/>
+    </Models>
+    <Geometries>
+      <Geometry Name="Base" Model="Base" Position="{1,0,0,0}{0,1,0,0}{0,0,1,0}{0,0,0,1}">
+        <Axis Name="Yoke" Model="Yoke" Position="{1,0,0,0}{0,1,0,0}{0,0,1,0.1}{0,0,0,1}">
+          <Axis Name="Head" Model="Head" Position="{1,0,0,0}{0,1,0,0}{0,0,1,0.2}{0,0,0,1}">
+            <Beam Name="Beam" Model="Head" Position="{1,0,0,0}{0,1,0,0}{0,0,1,0}{0,0,0,1}" LampType="Discharge" BeamAngle="25" FieldAngle="30" BeamType="Spot"/>
+          </Axis>
+        </Axis>
+      </Geometry>
+    </Geometries>
+    <DMXModes>
+      <DMXMode Name="Standard" Geometry="Base">
+        <DMXChannels>
+          <DMXChannel DMXBreak="1" Offset="1,2" InitialFunction="Yoke_Pan.Pan.Pan 1" Highlight="None" Geometry="Yoke">
+            <LogicalChannel Attribute="Pan" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Pan 1" Attribute="Pan" OriginalAttribute="" DMXFrom="0/2" Default="32768/2" PhysicalFrom="-270" PhysicalTo="270" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="1" Offset="3,4" InitialFunction="Head_Tilt.Tilt.Tilt 1" Highlight="None" Geometry="Head">
+            <LogicalChannel Attribute="Tilt" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Tilt 1" Attribute="Tilt" OriginalAttribute="" DMXFrom="0/2" Default="32768/2" PhysicalFrom="-135" PhysicalTo="135" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="1" Offset="5" InitialFunction="Beam_Dimmer.Dimmer.Dimmer 1" Highlight="255/1" Geometry="Beam">
+            <LogicalChannel Attribute="Dimmer" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Dimmer 1" Attribute="Dimmer" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="1" Offset="6" InitialFunction="Beam_Color1.Color1.Color1 1" Highlight="None" Geometry="Beam">
+            <LogicalChannel Attribute="Color1" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Color1 1" Attribute="Color1" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0" Wheel="ColourWheel">
+                <ChannelSet Name="Open" DMXFrom="0/1" WheelSlotIndex="1"/>
+                <ChannelSet Name="Red" DMXFrom="32/1" WheelSlotIndex="2"/>
+                <ChannelSet Name="Amber" DMXFrom="64/1" WheelSlotIndex="3"/>
+                <ChannelSet Name="Blue" DMXFrom="96/1" WheelSlotIndex="4"/>
+              </ChannelFunction>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="1" Offset="7" InitialFunction="Beam_Gobo1.Gobo1.Gobo1 1" Highlight="None" Geometry="Beam">
+            <LogicalChannel Attribute="Gobo1" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Gobo1 1" Attribute="Gobo1" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0" Wheel="GoboWheel">
+                <ChannelSet Name="Open" DMXFrom="0/1" WheelSlotIndex="1"/>
+                <ChannelSet Name="Dots" DMXFrom="20/1" WheelSlotIndex="2"/>
+                <ChannelSet Name="Star" DMXFrom="40/1" WheelSlotIndex="3"/>
+              </ChannelFunction>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="1" Offset="8" InitialFunction="Beam_Zoom.Zoom.Zoom 1" Highlight="None" Geometry="Beam">
+            <LogicalChannel Attribute="Zoom" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Zoom 1" Attribute="Zoom" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="10" PhysicalTo="40" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="1" Offset="9" InitialFunction="Beam_Focus1.Focus1.Focus1 1" Highlight="None" Geometry="Beam">
+            <LogicalChannel Attribute="Focus1" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Focus1 1" Attribute="Focus1" OriginalAttribute="" DMXFrom="0/1" Default="128/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+          <DMXChannel DMXBreak="1" Offset="10" InitialFunction="Base_Control1.Control1.Control1 1" Highlight="None" Geometry="Base">
+            <LogicalChannel Attribute="Control1" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Name="Control1 1" Attribute="Control1" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0">
+                <ChannelSet Name="Idle" DMXFrom="0/1"/>
+                <ChannelSet Name="Reset" DMXFrom="200/1"/>
+              </ChannelFunction>
+            </LogicalChannel>
+          </DMXChannel>
+        </DMXChannels>
+        <Relations/>
+        <FTMacros/>
+      </DMXMode>
+    </DMXModes>
+    <Revisions/>
+    <FTPresets/>
+    <Protocols/>
+  </FixtureType>
+</GDTF>

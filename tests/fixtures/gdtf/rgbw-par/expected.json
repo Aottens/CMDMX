@@ -1,0 +1,45 @@
+{
+  "manufacturer": "Colourmotion Test",
+  "model": "Test RGBW Par",
+  "source": "gdtf:rgbw-par.gdtf",
+  "modes": [
+    {
+      "name": "4ch",
+      "footprint": 4,
+      "attributes": [
+        { "name": "White", "group": "C", "kind": "Ltp", "channel": 4, "default": 0.0, "highlight": 1.0, "emitter": true, "cie": [0.33, 0.34] }
+      ],
+      "colour": {
+        "system": "RGB",
+        "components": [
+          { "channel": 1, "cie": [0.7, 0.29] },
+          { "channel": 2, "cie": [0.17, 0.7] },
+          { "channel": 3 }
+        ]
+      },
+      "virtual_dimmer": true
+    },
+    {
+      "name": "6ch",
+      "footprint": 6,
+      "attributes": [
+        { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1, "default": 0.0, "highlight": 1.0 },
+        { "name": "White", "group": "C", "kind": "Ltp", "channel": 5, "default": 0.0, "highlight": 1.0, "emitter": true, "cie": [0.33, 0.34] },
+        { "name": "Strobe", "group": "I", "kind": "Ltp", "channel": 6, "default": 0.0,
+          "slots": [
+            { "name": "Open", "from": 0, "to": 9 },
+            { "name": "Strobe", "from": 10, "to": 199 },
+            { "name": "Random", "from": 200, "to": 255 }
+          ] }
+      ],
+      "colour": {
+        "system": "RGB",
+        "components": [
+          { "channel": 2, "cie": [0.7, 0.29] },
+          { "channel": 3, "cie": [0.17, 0.7] },
+          { "channel": 4 }
+        ]
+      }
+    }
+  ]
+}
