@@ -8,6 +8,8 @@ the release notes: `subprojects/app/scripts/release-notes.md`.
 - [ ] GitHub › Actions › Release › Run workflow (branch `main`): the job is green and a workflow artifact `CMDMX-0.0.0.dmg` is there (REL-09)
 - [ ] Download and unzip it, open the DMG: it shows `CMDMX.app` and `Applications`, nothing else (REL-06)
 - [ ] `./subprojects/app/scripts/check-dmg.sh <path to dmg> 0.0.0` ends with `ok` (REL-08)
+- [ ] Rename (VS8-01): drag `CMDMX.app` to Applications and open it; CMDMX › About CMDMX shows `CMDMX`, the version line and `© 2026 Colourmotion`; the window title is CMDMX (BRD-02)
+- [ ] The shows from `~/Documents/ColourmotionDMX/Shows` are on the Show screen, now in `~/Documents/CMDMX/Shows`, and the old folder has no `Shows` left (BRD-07/08) <!-- brand: old-name -->
 
 ## Install on the church Mac (REL-15)
 - [ ] Open the DMG, drag CMDMX to Applications, eject the DMG

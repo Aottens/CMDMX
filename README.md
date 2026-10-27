@@ -40,8 +40,8 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up: tag `v0.1.0`, install its DMG on the church Mac (VS4-07), then the first service run
-(VS4-03). Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in
+Renamed to CMDMX by Colourmotion (VS8-01). Next up: tag `v0.1.0`, install its DMG on the church
+Mac (VS4-07), then the first service run (VS4-03). Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 

@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-27 (VS4-07: the versioned DMG)_
+_Last updated: 2026-10-27 (VS8-01: the rename to CMDMX)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -17,20 +17,22 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-1. VS4-07 after the merge: Actions › Release › Run workflow for a test DMG, then tag `v0.1.0`
-   and install it on the church Mac (`tests/hardware/release.md`, gate 3).
+1. VS8-01 after the merge: the owner renames the GitHub repo to `Aottens/CMDMX`; then Actions ›
+   Release › Run workflow for a test `CMDMX-0.0.0.dmg`, check About and that the shows came over
+   from the old folder, tag `v0.1.0` and install it on the church Mac (`tests/hardware/release.md`,
+   gate 3; not in the week of a service).
 2. At home on Art-Net: program the service in *Kerk* as `tests/hardware/church.md` asks (steady
    looks, *Front band*, *Front spreker*); the owner fills in which fresnels are band and speaker.
 3. Sunday in the church: the two TouchOSC lines in `church.md`, then *Before the service* with the
    fallback rehearsal, and the service run (VS4-03) once the DMG is on the church Mac.
-4. VS8-01, the rename to CMDMX (`specs/modules/brand.md`), then VS8-02..08 (logo, website, manual,
-   notarisation; P1-21 approved 2026-10-27).
+4. VS8-02..08 (logo, website, manual, notarisation; `specs/modules/brand.md`, `website.md`).
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
-- VS4-07 the DMG on the church Mac, `tests/hardware/release.md`.
+- VS4-07 the DMG on the church Mac, and VS8-01 the renamed DMG on the owner's Mac (About, shows moved
+  from the old folder), both in `tests/hardware/release.md`.
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
   until the owner finds the BCF2000.
 - HWB-01 USB-MIDI box, `tests/hardware/hw-box.md`: order the parts first (list at the top of the
@@ -42,6 +44,7 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
+- Rename the GitHub repo to `Aottens/CMDMX` (Settings › General › Repository name; BRD-10).
 - The website's domain name (VS8-03): register it and tell Claude the name.
 - Find the Colourmotion logo (VS8-02 builds the CMDMX concepts on it).
 - IDEA-30 (cross-platform UI for the Linux desk): phase 3 after the surface; toolkit open.

@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-10-27 (VS4-07)_
+_Last updated: 2026-10-27 (VS8-01)_
 
 ## Current step
+VS8-01 (2026-10-27, BRD-05..08): sACN source name `CMDMX`; the "newer CMDMX" refusal; default data paths under `CMDMX` (`~/Documents/CMDMX/Shows`, `~/Library/Application Support/CMDMX/`). `migrate::run(home, shows_by_flag, profiles_by_flag)` moves the old-name shows, profiles, control and `state.json` once at start (one `rename`; both exist or a failed move → a warning for the first client; flag paths untouched). Tests `brd_08_*` in `migrate.rs`, `brd_06_*` in `shows.rs`, `out_17_brd_05_*` in `sacn_out.rs`.
 VS4-07 (2026-10-27, REL-14): on SIGINT/SIGTERM (and after `--ticks`) the daemon flushes the pending autosave, closes the saver's job channel and waits for the saver to finish before it exits. Test `tests/quit_flush.rs`.
 VS2-42 (2026-10-27, LIB-34, IPC-45): `library.import_gdtf {path}` is a `LibraryRequest`, answered on the client thread. `library::read_gdtf(path)` checks the size (over 100 MB → error), reads the file and runs `gdtf::import` inside `catch_unwind` with source `gdtf:<file name>`, all before the library lock; every error starts with the file name. Under the write lock `Library::has_user_profile` gives `replaced`, then `save_profile` (LIB-12). Reply `library.imported {manufacturer, model, modes, replaced, report}`. Tests in `ipc.rs` (`ipc_45_*`, `lib_34_*`).
 
