@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-26 (P1-12: GDTF importer spec proposed)_
+_Last updated: 2026-10-27 (P1-12: GDTF importer spec approved)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -19,6 +19,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 ## Next
 1. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
    answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
+2. GDTF import (spec approved, P1-12): VS2-41, the core importer, then VS2-42 (daemon + app).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
@@ -33,8 +34,6 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
-- P1-12 GDTF importer spec (LIB-28..35, IPC-45): approve, and answer open questions 6–10 in
-  `specs/modules/fixture-library.md`. Then VS2-41 (core importer) and VS2-42 (daemon + app).
 - IDEA-30 (cross-platform UI for the Linux desk): phase 3 after the surface; toolkit open.
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
 - IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase.

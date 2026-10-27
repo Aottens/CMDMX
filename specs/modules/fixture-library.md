@@ -1,7 +1,7 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14); LIB-28..35 proposed 2026-10-26 (P1-12), waiting for owner approval**. Decisions: ADR-006 (own
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14); LIB-28..35 approved by owner 2026-10-27 (P1-12)**. Decisions: ADR-006 (own
 model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
@@ -243,7 +243,7 @@ model, and a show carries the profiles it uses.
   (IPC-39) for the selected fixtures of this profile: ordinary programmer values, which Clear
   removes. Leaving the editor does not clear them.
 
-### GDTF import (P1-12; ADR-006 import order 3; proposed, waiting for owner approval)
+### GDTF import (P1-12; ADR-006 import order 3; approved by owner 2026-10-27)
 GDTF (DIN SPEC 15800) is the manufacturers' own format: a `.gdtf` file is a zip archive with a
 `description.xml`. It brings brand-name fixtures the QLC+ library lacks, and it can describe the
 real colour of each emitter, which colour calibration (IDEA-03, phase 2) needs. Reference: the
@@ -358,20 +358,20 @@ channel, owner 2026-10-23).
    wheel move to an absolute level, so Test is ordinary programmer content.~~ Closed 2026-10-23 (owner): `programmer.set`.
 5. ~~*(P1-14)* One mode at a time in the editor, without adding or copying modes. **Recommendation:**
    yes; a profile with a missing mode is made from a channel list (LIB-26) for now.~~ Closed 2026-10-23 (owner): one mode at a time.
-6. *(P1-12)* Where do GDTF files come in? **Recommendation:** Import GDTF… picks a file, which is
+6. ~~*(P1-12)* Where do GDTF files come in? **Recommendation:** Import GDTF… picks a file, which is
    converted once and saved as a user profile (LIB-34), as ADR-006 says. The alternative, a GDTF
    folder indexed like the QLC+ set and converted on pick, keeps the original file but adds a
-   third library source.
-7. *(P1-12)* Importing a model that is already a user profile (perhaps one you edited)?
-   **Recommendation:** replace it; the reply says so. Refusing would need a delete step first.
-8. *(P1-12)* Test files. **Recommendation:** files we write ourselves (no licence question) plus
+   third library source.~~ Closed 2026-10-27 (owner): as recommended.
+7. ~~*(P1-12)* Importing a model that is already a user profile (perhaps one you edited)?
+   **Recommendation:** replace it; the reply says so. Refusing would need a delete step first.~~ Closed 2026-10-27 (owner): as recommended.
+8. ~~*(P1-12)* Test files. **Recommendation:** files we write ourselves (no licence question) plus
    the `gdtf` crate's MIT test file. A real manufacturer file (say a Robe or Showtec one you
    download from GDTF-share) is checked once in a manual run, and only committed if its licence
-   allows.
-9. *(P1-12)* Store emitter colours (LIB-32) now, although only calibration (IDEA-03, phase 2)
+   allows.~~ Closed 2026-10-27 (owner): as recommended.
+9. ~~*(P1-12)* Store emitter colours (LIB-32) now, although only calibration (IDEA-03, phase 2)
    uses them? **Recommendation:** yes: it is the reason GDTF is in phase 1, and an imported profile
-   that lacks them would have to be imported again.
-10. *(P1-12)* `cmdmx-core` gets bytes, not text, for GDTF (the zip is read in memory, still no file
+   that lacks them would have to be imported again.~~ Closed 2026-10-27 (owner): as recommended.
+10. ~~*(P1-12)* `cmdmx-core` gets bytes, not text, for GDTF (the zip is read in memory, still no file
     system), and the `gdtf` crate brings `zip`, `uuid` and a second `quick-xml` version into core.
     **Recommendation:** accept; writing our own GDTF parser is the larger risk. Recorded in
-    `DECISIONS.md` once you agree.
+    `DECISIONS.md` once you agree.~~ Closed 2026-10-27 (owner): as recommended.

@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -179,8 +179,8 @@ the PAT-09 shape.
   wheel move, PRG-19); class edit, coalesced with other `programmer.set` of the same attribute
   like a wheel (UNDO-05). A value outside 0.0–1.0, or an attribute none of the selected fixtures
   has, is a `warning`. `Colour` is refused here (`programmer.colour` sets it).
-- **IPC-45** `library.import_gdtf {"path":"/Users/…/Robe@Robin Esprite@….gdtf"}` (LIB-34; proposed
-  2026-10-26, P1-12): the daemon reads and imports the file off the tick and answers the asking
+- **IPC-45** `library.import_gdtf {"path":"/Users/…/Robe@Robin Esprite@….gdtf"}` (LIB-34; approved
+  by owner 2026-10-27, P1-12): the daemon reads and imports the file off the tick and answers the asking
   client only `{"v":1,"type":"library.imported","manufacturer","model","modes":[{"name","channels"}],"replaced":false,"report":{"channels":[…],"warnings":[…]}}`
   (report as LIB-14). A missing or unreadable file, one over 100 MB, or a failed import (LIB-33)
   → error (IPC-06), nothing saved. Class neutral (it changes the library, not the show; UNDO-04).
