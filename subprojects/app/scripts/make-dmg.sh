@@ -14,6 +14,7 @@ TARGETS=(aarch64-apple-darwin x86_64-apple-darwin)
 for t in "${TARGETS[@]}"; do
   (cd "$ENGINE" && cargo build --release -p cmdmx-daemon --target "$t")
 done
+mkdir -p .build
 DAEMON=.build/cmdmx-daemon-universal
 lipo -create -output "$DAEMON" "$ENGINE/target/${TARGETS[0]}/release/cmdmx-daemon" "$ENGINE/target/${TARGETS[1]}/release/cmdmx-daemon"
 
