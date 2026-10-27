@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn out_17_source_name_and_fixed_cid() {
+    fn out_17_brd_05_sacn_source_name_and_fixed_cid() {
         let (rx, target) = receiver();
         let mut node = SacnNode::new("sacn #2".into(), target, 1, 100);
         node.send(&[0; 512]);
@@ -181,6 +181,8 @@ mod tests {
             &p[22..38],
             &[0xc0, 0x10, 0x5e, 0x00, 0xd3, 0xa0, 0x4c, 0x00, 0x80, 0x00, 0, 0, 0, 0, 0, 1]
         );
-        assert_eq!(&p[44..60], b"ColourmotionDMX\0");
+        // BRD-05: the source name is CMDMX, zero-padded to 64 bytes.
+        assert_eq!(&p[44..49], b"CMDMX");
+        assert!(p[49..108].iter().all(|&b| b == 0));
     }
 }

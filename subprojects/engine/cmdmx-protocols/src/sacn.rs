@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn out_05_full_frame_layout_is_byte_exact() {
         let data = [0xABu8; 512];
-        let p = data_packet(&CID, "ColourmotionDMX", 100, 9, 1, &data).unwrap();
+        let p = data_packet(&CID, "CMDMX", 100, 9, 1, &data).unwrap();
         assert_eq!(p.len(), 638);
         // Root
         assert_eq!(&p[0..4], &[0x00, 0x10, 0x00, 0x00]);
@@ -118,8 +118,8 @@ mod tests {
         // Framing
         assert_eq!(&p[38..40], &[0x72, 0x58]); // 0x7000 | 600
         assert_eq!(&p[40..44], &[0, 0, 0, 2]);
-        assert_eq!(&p[44..59], b"ColourmotionDMX");
-        assert!(p[59..108].iter().all(|&b| b == 0));
+        assert_eq!(&p[44..49], b"CMDMX");
+        assert!(p[49..108].iter().all(|&b| b == 0));
         assert_eq!(p[108], 100); // priority
         assert_eq!(&p[109..111], &[0, 0]); // sync address
         assert_eq!(p[111], 9); // sequence

@@ -892,6 +892,18 @@ mod tests {
     }
 
     #[test]
+    fn brd_06_the_refusal_names_cmdmx() {
+        let s = shows("refused-brand");
+        let json = save(&s, "Kerk", &demo()).replace(
+            &format!("\"schema_version\": {SCHEMA_VERSION}"),
+            "\"schema_version\": 9",
+        );
+        fs::write(s.path("Toekomst"), json).unwrap();
+        let err = s.open("Toekomst").unwrap_err();
+        assert!(err.contains("made by a newer CMDMX"), "{err}");
+    }
+
+    #[test]
     fn shw_14_open_of_an_unknown_show_is_refused() {
         let s = shows("unknown");
         assert!(s.open("Nope").unwrap_err().contains("Nope"));

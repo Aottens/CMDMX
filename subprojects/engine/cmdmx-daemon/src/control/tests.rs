@@ -276,7 +276,7 @@ fn ctl_23_control_folder_follows_show_dir() {
     let cli = crate::parse_args(args("")).unwrap();
     assert!(cli
         .control_dir
-        .ends_with("Library/Application Support/ColourmotionDMX/control"));
+        .ends_with("Library/Application Support/CMDMX/control"));
     let cli = crate::parse_args(args("--show-dir /tmp/shows")).unwrap();
     assert_eq!(cli.control_dir, PathBuf::from("/tmp/shows/control"));
 }

@@ -17,9 +17,9 @@
 //! patch commands (PAT-09).
 //! The fixture library (LIB-12..14) is indexed on its own thread at start-up from `--qlcplus-dir`
 //! (default: the bundled `vendor/qlcplus/fixtures`) and `--profiles-dir` (default
-//! `~/Library/Application Support/ColourmotionDMX/profiles`); output never waits for it.
+//! `~/Library/Application Support/CMDMX/profiles`); output never waits for it.
 //! The daemon always runs a show (SHW-09..15): it opens the last one from `--show-dir` (default
-//! `~/Documents/ColourmotionDMX/Shows`, `state.json` beside the app support files, or inside
+//! `~/Documents/CMDMX/Shows`, `state.json` beside the app support files, or inside
 //! `--show-dir` when that is given), autosaves it on a saver thread and switches on `show.*`.
 //! Generic MIDI control (CTL-*): mapping files in `--show-dir`/control (default beside
 //! `state.json`), devices enabled over `control.*`; their commands run like the app's (CTL-06).
@@ -35,6 +35,7 @@ mod deck_io;
 mod ipc;
 mod library;
 mod midi_io;
+mod migrate;
 mod osc_io;
 mod output;
 mod sacn_out;
@@ -1041,8 +1042,8 @@ usage: cmdmx-daemon [options]
   --ipc-port <n>          WebSocket port on 127.0.0.1 (default 7319)
   --demo                  fader 1 breathes
   --qlcplus-dir <path>    QLC+ fixture files (default: bundled vendor/qlcplus/fixtures)
-  --profiles-dir <path>   saved profiles (default ~/Library/Application Support/ColourmotionDMX/profiles)
-  --show-dir <path>       shows folder (default ~/Documents/ColourmotionDMX/Shows)
+  --profiles-dir <path>   saved profiles (default ~/Library/Application Support/CMDMX/profiles)
+  --show-dir <path>       shows folder (default ~/Documents/CMDMX/Shows)
   -h, --help              print this and exit
 ";
 
@@ -1082,10 +1083,10 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
             env!("CARGO_MANIFEST_DIR"),
             "/../vendor/qlcplus/fixtures"
         )),
-        profiles_dir: home.join("Library/Application Support/ColourmotionDMX/profiles"),
-        show_dir: home.join("Documents/ColourmotionDMX/Shows"),
-        state_file: home.join("Library/Application Support/ColourmotionDMX/state.json"),
-        control_dir: home.join("Library/Application Support/ColourmotionDMX/control"),
+        profiles_dir: home.join("Library/Application Support/CMDMX/profiles"),
+        show_dir: home.join("Documents/CMDMX/Shows"),
+        state_file: home.join("Library/Application Support/CMDMX/state.json"),
+        control_dir: home.join("Library/Application Support/CMDMX/control"),
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -1347,10 +1348,10 @@ mod tests {
     #[test]
     fn shw_09_shows_folder_and_state_file() {
         let cli = parse_args(args("")).unwrap();
-        assert!(cli.show_dir.ends_with("Documents/ColourmotionDMX/Shows"));
+        assert!(cli.show_dir.ends_with("Documents/CMDMX/Shows"));
         assert!(cli
             .state_file
-            .ends_with("Library/Application Support/ColourmotionDMX/state.json"));
+            .ends_with("Library/Application Support/CMDMX/state.json"));
         let cli = parse_args(args("--show-dir /tmp/shows")).unwrap();
         assert_eq!(cli.show_dir, PathBuf::from("/tmp/shows"));
         assert_eq!(cli.state_file, PathBuf::from("/tmp/shows/state.json"));
