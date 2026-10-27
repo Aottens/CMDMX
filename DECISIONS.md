@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-27 — The church Mac runs ColourmotionDMX from a versioned DMG, not notarised yet (owner, VS4-01)
+
+**Decision:** on Sunday ColourmotionDMX runs on the church Mac beside Lightkey (fallback: stop the daemon, start Lightkey). It gets there as a DMG with a version number, built by GitHub (VS4-07). The DMG is not notarised for now: the first open on the church Mac is right-click › Open once.
+
+**Alternatives considered:** the owner's Mac with the Eurolite moved over USB on fallback; building from source on the church Mac; notarising now (Apple Developer account).
+
+**Reasoning:** the fallback is quickest when both programs sit on one Mac; the owner wants plain DMGs with versions, not a build tree on the church Mac; one right-click is acceptable until there are other users.
+
+**Reversal trigger:** the DMG goes to anyone besides the owner (website, IDEA-20) or Gatekeeper stops allowing the right-click open: then notarise.
+
 ## 2026-10-27 — GDTF import: file in, user profile out; `gdtf` crate in core, bytes in (owner, P1-12)
 
 **Decision:** a `.gdtf` file is imported once by Import GDTF… and saved as a user profile (LIB-34); importing a model that already is a user profile replaces it. `cmdmx-core::library::gdtf` parses with the `gdtf` crate (MIT) and takes the archive's bytes, read as a zip in memory, which amends ADR-006 decision 4 ("strings in") for GDTF only; core gains `gdtf`, `zip`, `uuid` and a second `quick-xml` version. Emitter chromaticity (`cie`) is stored now for IDEA-03. Tests use GDTF files written for this project plus the crate's MIT test file; a manufacturer file is committed only if its licence allows.

@@ -482,7 +482,7 @@ feedback is a **key image** instead of an LED or a motor.
   are drag sources. A drop on a bound key and a move are sent as `control.unbind` then
   `control.binding` with the whole binding, so no option of the old binding stays behind; a swap
   unbinds both keys first. The Neo touch keys and info screen and the + dials and strip are drawn
-  in VS7-08 (with CTL-55). A deck's `Busy` and `Unsupported` show as those words, amber.
+  later with CTL-55 (IDEA-31). A deck's `Busy` and `Unsupported` show as those words, amber.
   **Amended 2026-10-25 (owner, VS7-09; the VS7-07 run found the screen cramped and a label hiding
   a new action):**
   - **CTL-58a Focus.** Selecting a deck shows only what is being worked on: the Devices and OSC
@@ -591,5 +591,6 @@ them).
 - **VS7-07** App: the on-screen deck in the Control screen, drag, right-click menu, Learn, deck
   pages; owner run and `tests/hardware/streamdeck.md` on the owner's deck (gate 3) (CTL-58, 67).
   Needs VS7-06.
-- **VS7-08** Stream Deck + dials and touch strip, Neo touch keys and info screen (CTL-47 extras,
-  55). Needs VS7-06; gate 3 only on a model someone owns.
+- ~~**VS7-08**~~ Stream Deck + dials and touch strip, Neo touch keys and info screen (CTL-47 extras,
+  55): taken off the backlog 2026-10-27 (owner buys no such deck), now IDEA-31, open to a
+  volunteer who owns one.
