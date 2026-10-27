@@ -17,11 +17,11 @@ jobs:
       - name: Version (REL-01)
         id: v
         run: |
+          version=0.0.0
           if [ "$GITHUB_REF_TYPE" = tag ]; then
-            echo "version=$(bash subprojects/app/scripts/release-version.sh "$GITHUB_REF_NAME")" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=0.0.0" >> "$GITHUB_OUTPUT"
+            version=$(bash subprojects/app/scripts/release-version.sh "$GITHUB_REF_NAME")
           fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin

@@ -26,7 +26,7 @@ for bin in ColourmotionDMX cmdmx-daemon; do
   [[ " $archs " == *" arm64 "* && " $archs " == *" x86_64 "* ]] || fail "$bin is $archs, not universal"
 done
 codesign --verify --deep --strict "$APP" || fail "codesign --verify failed"
-find "$APP/Contents/Resources/qlcplus/fixtures" -name '*.qxf' | grep -q . || fail "no QLC+ fixtures"
+[ -n "$(find "$APP/Contents/Resources/qlcplus/fixtures" -name '*.qxf' -print -quit)" ] || fail "no QLC+ fixtures"
 for f in LICENSE NOTICE COMMIT; do [ -f "$APP/Contents/Resources/qlcplus/$f" ] || fail "no qlcplus/$f"; done
 
 PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')

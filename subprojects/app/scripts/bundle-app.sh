@@ -5,9 +5,17 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CONFIG="${1:-release}" VERSION="${2:-0.0.0}" BUILD="${3:-dev}"
-ARCHS=(); [ "${UNIVERSAL:-}" = 1 ] && ARCHS=(--arch arm64 --arch x86_64)
-swift build -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"}
-BIN="$(swift build -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)/ColourmotionDMX"
+if [ "${UNIVERSAL:-}" = 1 ]; then
+  # One arch per build, then lipo: a two-arch `swift build` needs Xcode's xcbuild (not in the CLT).
+  for a in arm64 x86_64; do swift build -c "$CONFIG" --arch "$a"; done
+  BIN=".build/ColourmotionDMX-universal"
+  lipo -create -output "$BIN" \
+    "$(swift build -c "$CONFIG" --arch arm64 --show-bin-path)/ColourmotionDMX" \
+    "$(swift build -c "$CONFIG" --arch x86_64 --show-bin-path)/ColourmotionDMX"
+else
+  swift build -c "$CONFIG"
+  BIN="$(swift build -c "$CONFIG" --show-bin-path)/ColourmotionDMX"
+fi
 APP=".build/ColourmotionDMX.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
