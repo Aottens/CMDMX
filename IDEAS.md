@@ -56,6 +56,7 @@ the backlog, not the whole idea.
 | IDEA-28 | Local AI assistant: a small model on the Mac, a chat window in the app that builds palettes, groups and more on request | triaged | 2, with IDEA-17 (owner 2026-10-25) | IPC, UI, new `assistant.md` |
 | IDEA-29 | Serial fade steps: check the "fraction" more steps than Lightkey with an engine cue fade; cut frames to the highest patched channel only if they remain | new | 2 (proposed) | OUT |
 | IDEA-30 | Cross-platform UI, so the reference desk runs on Linux (HW-02) | triaged | 3, after the surface (owner 2026-10-25) | UI, IPC, daemon on Linux |
+| IDEA-31 | Stream Deck + and Neo extras (dials, touch strip, touch keys, info screen; was VS7-08), for a volunteer who owns one | triaged | later (owner 2026-10-27) | CTL, app |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -610,3 +611,13 @@ the cross-platform UI."
 **What it touches now:** nothing; HW-02 keeps the Mac mini as a variant and HW-35 waits for it.
 **Open questions:** which UI toolkit (web UI in a kiosk browser, Qt, Slint, Flutter, …); does
 the Mac keep the SwiftUI app or move to the same UI?
+
+### IDEA-31 — Stream Deck + and Neo extras, for a volunteer (2026-10-27, was VS7-08)
+**Owner's intent:** the owner will not buy a Stream Deck + or Neo for this, so VS7-08 leaves the
+backlog. It stays open for a volunteer who owns one.
+**Triage:**
+- Later phase, no backlog row (owner 2026-10-27). CTL-55 and the model table rows (CTL-47) stay
+  in `control-surfaces.md` as approved; only the build is parked.
+- A volunteer needs the deck itself: the gate-3 check runs on real hardware.
+**What it touches now:** nothing; the Original keeps working (VS7-05..07, 09).
+**Open questions:** none until someone with a + or Neo offers to build it.

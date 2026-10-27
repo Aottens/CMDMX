@@ -1,13 +1,24 @@
-# Church checklist (PAT-11, VS2-13; VS4-01 grows it into the service checklist) — template
+# Church checklist (PAT-11, VS2-13, VS4-01) — template
 
-Only the owner can run this; copy it to `tests/hardware/runs/<date>-church.md` and tick it there.
+The checklist for running a Sunday service on ColourmotionDMX, with Lightkey as fallback on the
+same Mac (DECISIONS 2026-10-27). Only the owner can run it; copy it to
+`tests/hardware/runs/<date>-church.md` and tick it there. The service run itself is VS4-03.
 Never run the Demo show on the church rig (its fixtures on 9..150 light real lamps).
+
+Live on the rig (2026-10-25 run): 101..118, four of 301..308, 401..406 (1 kW fresnels on dimmers),
+501..502, 901..904 (Shehds 19x15, part of the steady look, no movement), 1001..1004. Parked in
+Lightkey: 119, 120, the other four Lumipars, 601..602, 701 hazer, 801..802, 1201. Not hung: 201..204,
+1101..1102. Steps below use only the live fixtures; ask the owner before adding others.
 
 ## Setup
 - Show *Kerk* made once by `cargo run -p cmdmx-daemon --example church -- ~/Documents/ColourmotionDMX/Lightkey/BGS_Shows.tsv`
   (PAT-15..18; writes `~/Documents/ColourmotionDMX/Shows/Kerk.cmdmx.json` and the user profiles, never overwrites)
-- Daemon with the Eurolite: `cargo run -p cmdmx-daemon -- --serial /dev/cu.usbserial-AQ01FA9F`, then open *Kerk* on the Show screen
-- Lightkey ready on the same Mac as fallback (quit it before the daemon takes the Eurolite)
+- At home (Art-Net, no lamps): daemon with `--show-dir` on a copy holding `state.json`
+  `{"last_show":"Kerk"}`, so it starts on *Kerk* and not on Demo (SHW-10)
+- At the church: ColourmotionDMX installed on the church Mac from the versioned DMG (VS4-07); the
+  Eurolite is chosen on the Output screen and stored in the show (OUT-31/37)
+- Lightkey stays installed on the same Mac as fallback (quit it before the daemon takes the Eurolite;
+  the port is exclusive)
 
 ## Patch (as written by the one-off)
 | Number | Name | Profile | Mode | Address | Footprint |
@@ -93,3 +104,51 @@ Never run the Demo show on the church rig (its fixtures on 9..150 light real lam
 - [ ] The iPad's TouchOSC drives Lightkey as before (settings restored after the VS4-04 run at home)
 - [ ] TouchOSC with the ColourmotionDMX layout on the church wifi: faders follow without the lag
       felt on the home wifi (VS4-04 run, ping 32 ms average, peaks 84 ms)
+
+## The service
+A normal Sunday: songs, a welcome by the service leader, speaker and band taking turns, now and
+then a video. No movement, no haze. The steady look ("sfeer") stays on all service; only the front
+light changes.
+
+Front fresnels (owner fills in once, then it is the same every week):
+- Band front (4): ________ (of 401..406)
+- Speaker front: ________ (of 401..406)
+
+### Programmed before Sunday (at home on Art-Net, in *Kerk*)
+- [ ] One or more steady looks on the stage: 101..118, the live Lumipars, 501..502, 901..904
+      (fixed position) and 1001..1004; one look per theme or beamer background colour, each with a
+      legend that says which (e.g. "Sfeer blauw")
+- [ ] No steady look holds any of 401..406, so front light only comes from the front playbacks
+- [ ] Playback *Front band* (the four band fresnels) and playback *Front spreker* on their own
+      faders on page 1, with legends
+- [ ] Switching from one steady look to another is one action (a Go or a fader) and fades, no snap
+- [ ] The show is saved and copied to the church Mac; it opens there with the same playbacks
+
+### Before the service (on the church Mac, ~30 min before)
+- [ ] Lightkey quit; ColourmotionDMX started; it opens *Kerk* (not Demo); the Output dot is green
+- [ ] The steady look of today up: every live fixture of it lights; nothing from 119/120 or other
+      parked fixtures
+- [ ] *Front band* up and down, *Front spreker* up and down: only their fresnels follow, smoothly
+- [ ] Fallback rehearsed: quit ColourmotionDMX, start Lightkey, it lights the rig. Time from quit to
+      light: ____ s. Then Lightkey quit and ColourmotionDMX started again, output back
+- [ ] Grand Master at full, DBO off
+
+### During the service
+- [ ] Songs: steady look on, *Front band* full
+- [ ] Welcome by the service leader: *Front band* out, *Front spreker* in; the steady look does not move
+- [ ] Back to the band: *Front spreker* out, *Front band* in
+- [ ] Speaker again: as the welcome
+- [ ] Video (if any): both front faders out, the steady look stays; front back in afterwards
+- [ ] Front-out: with both front faders at 0, all of 401..406 are dark (nothing left from a look)
+- [ ] A change of steady look (if the theme asks for it) fades without a snap or flicker
+- [ ] No flicker or steps seen all service; no warning in the message line
+- [ ] If anything fails: fallback to Lightkey, and write down when and what: ________
+
+### Not a standard Sunday: a theatre piece
+- [ ] Single fresnels on their own: `401 Enter` (or another of 401..406), Dimmer up in the
+      programmer, on top of the playbacks; Clear lets go of them
+
+### After the service
+- [ ] All faders down, ColourmotionDMX quit; Lightkey ready for whoever runs the next service
+- [ ] Anything that felt slow or awkward written under *Open points* of the run file
+

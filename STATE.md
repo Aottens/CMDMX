@@ -1,6 +1,6 @@
 # ColourmotionDMX — State
 
-_Last updated: 2026-10-27 (VS2-42 run: Import GDTF passed)_
+_Last updated: 2026-10-27 (VS4-01: the service checklist)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -17,9 +17,13 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-1. Next Sunday in the church: the two TouchOSC lines in `tests/hardware/church.md` (Lightkey
-   answers the iPad again; lag on the church wifi), and if it holds, the service run (VS4-01, VS4-03).
-2. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
+1. VS4-07: a versioned DMG built by GitHub, so ColourmotionDMX runs on the church Mac beside
+   Lightkey (not notarised yet, DECISIONS 2026-10-27). Criteria first, owner approves.
+2. At home on Art-Net: program the service in *Kerk* as `tests/hardware/church.md` asks (steady
+   looks, *Front band*, *Front spreker*); the owner fills in which fresnels are band and speaker.
+3. Sunday in the church: the two TouchOSC lines in `church.md`, then *Before the service* with the
+   fallback rehearsal, and the service run (VS4-03) once the DMG is on the church Mac.
+4. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
 
 ## Waiting for a hardware run (gate 3, owner)
