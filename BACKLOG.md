@@ -129,6 +129,21 @@ after the specs are added when each spec is approved (no sizing of code before i
 | VS4-07 | Versioned DMG: a GitHub Actions job on a `v*` tag builds `ColourmotionDMX-<version>.dmg` (app and daemon, version in the app's About and `Info.plist`), attached to a GitHub release; not notarised (DECISIONS 2026-10-27); installed and opened on the church Mac. Needs criteria first. Before VS4-03. Criteria approved by owner 2026-10-27 (`release.md`; universal build, Quit stops the engine, first tag `v0.1.0`). | REL-01..16 | M | gate3: `tests/hardware/release.md` |
 | VS4-03 | One real Sunday morning service run entirely on ColourmotionDMX, Lightkey on standby as fallback; checklist ticked. | all phase 1 | — | todo |
 
+### VS8 — CMDMX by Colourmotion: name, logo and website (IDEA-19, IDEA-20)
+Approved with P1-21 (owner, 2026-10-27). Order: VS8-01, then VS8-02, then
+VS8-03; the manual rows VS8-04..07 after VS8-03, in any order.
+
+| Id | Task (one sentence, verifiable) | Spec ids | Size | Status |
+| --- | --- | --- | --- | --- |
+| VS8-01 | Rename to CMDMX: app target, bundle, DMG and release names, sACN/Art-Net/Bonjour/TouchOSC names, messages, data folders with the daemon's one-time migration, living docs, repo links; `scripts/check-brand.sh` green in CI; the owner renames the GitHub repo; a `workflow_dispatch` DMG `CMDMX-0.0.0.dmg` opens on the owner's Mac and finds the shows from the old folder. | BRD-01..11 | M | todo |
+| VS8-02 | Logo (starts when the owner has found the Colourmotion logo; the concepts build on it): three concepts shown to the owner, the pick recorded in DECISIONS, then the SVG masters, app icon in the bundle, favicons, og and social-preview images and the README lockup. | BRD-20..25 | M | todo |
+| VS8-03 | Website: `subprojects/website/` with the landing page, `build.sh` filling the latest release, `website.yml` on GitHub Pages under the owner's own domain (push, dispatch, called by `release.yml`), PR build check; the page is live and shows the latest DMG; `tests/hardware/website.md` (gate 3). Needs VS8-01, VS8-02 and the domain name from the owner. | WEB-01..03, 10..14, 20..22 | M | todo |
+| VS8-04 | Manual skeleton: mdBook with search, print page and the mark, the release-tag checkout with the preview banner, the link check, CLAUDE.md and `check-tracking.py` manual rule; sections 1–3 and 13 written. Needs VS8-03. | WEB-23, 30..34 | M | todo |
+| VS8-05 | Manual sections 4–6 (patching, programming, palettes) with screenshots. Needs VS8-04. | WEB-31, 32 | M | todo |
+| VS8-06 | Manual sections 7–9 (playbacks and cues, cue lists, running a show) with screenshots. Needs VS8-04. | WEB-31, 32 | M | todo |
+| VS8-07 | Manual sections 10–12 (control surfaces, shows and files, reference). Needs VS8-04. | WEB-31, 32 | M | todo |
+| VS8-08 | Notarise the DMG (Developer ID signing and `notarytool` in `release.yml`, stapled ticket, install steps shrink to drag-to-Applications); needs criteria in `release.md` and the owner's Apple Developer account first; done before the site is announced. | REL (new) | M | todo |
+
 ### Supporting specs (needed by the milestones above)
 | Id | Task | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
@@ -156,6 +171,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | P1-20 | Spec Fan (IDEA-27, owner 2026-10-25: phase 1; Align stays phase 2) as PRG criteria: fan mode on the Fan key, wheels spread a change over the selection order with the curves of UI v0.1 (Line, Mirror, Wings, Arrow), fanned values as plain programmer values, the app shows FAN and the curve softkeys; build tasks after approval; owner approves. | PRG | M | done (2026-10-25, #104; PRG-56..62, UI-30, IPC-43 and CTL-59 approved, the seven questions as recommended; build tasks VS2-35..36) |
 | VS2-35 | Fan in the core programmer: Fan mode and last curve as live state (off on a new selection, kept by Fix ±1/patterns/All), fan list per attribute over items, the four curve factors, fanned wheel turns (clamp, Hue wrap, factor-0 items touched), engine state `fan`/`fan_curve`; unit tests named after the criteria (washes 101–105, pars 201–208, Shehds cells) and scenario `tests/scenarios/PRG-59-*.json`. | PRG-56..62 | M | done (2026-10-25, #123) |
 | VS2-36 | Fan over the wire and on the screen: `programmer.fan` in the daemon (class live), `fan`/`fan_curve` in snapshot and delta, the `fan` control actions with LED feedback; app: Fan button lit, the Fan softkey context (Line, Mirror, Wings, Arrow, Fan off), the `FAN <CURVE>` tag; owner run fanning Pan on the washes at home on Art-Net. Needs VS2-35. | IPC-43, UI-30, CTL-59 | M | done (2026-10-25, #124) |
+| P1-21 | Spec the rebrand (IDEA-19) and the website with the manual (IDEA-20): `brand.md` (BRD) and `website.md` (WEB), build tasks VS8-01..07; owner approves. | BRD, WEB | M | done (2026-10-27, #145; BRD-01..25 and WEB-01..34 approved, owner answers in the specs; build tasks VS8-01..08) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ## Phase 3 track — hardware (parallel to phase 1)
