@@ -23,7 +23,9 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    looks, *Front band*, *Front spreker*); the owner fills in which fresnels are band and speaker.
 3. Sunday in the church: the two TouchOSC lines in `church.md`, then *Before the service* with the
    fallback rehearsal, and the service run (VS4-03) once the DMG is on the church Mac.
-4. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
+4. VS8-01, the rename to CMDMX (`specs/modules/brand.md`), then VS8-02..08 (logo, website, manual,
+   notarisation; P1-21 approved 2026-10-27).
+5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
 
 ## Waiting for a hardware run (gate 3, owner)
@@ -40,8 +42,8 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
-- P1-21 (rebrand and website): approve `specs/modules/brand.md` and `website.md` and answer
-  their eight open questions (in the spec PR); build tasks VS8-01..07 follow.
+- The website's domain name (VS8-03): register it and tell Claude the name.
+- Find the Colourmotion logo (VS8-02 builds the CMDMX concepts on it).
 - IDEA-30 (cross-platform UI for the Linux desk): phase 3 after the surface; toolkit open.
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
 - IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase.

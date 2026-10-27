@@ -2,7 +2,7 @@
 
 Owner: `subprojects/website/` (landing page, manual, build script) and
 `.github/workflows/website.yml`.
-Status: **draft, waiting for owner approval (gate 1)** (P1-21, 2026-10-27). Takes up IDEA-20
+Status: **WEB-01..34 approved by owner 2026-10-27** (P1-21; answers under *Owner decisions*). Takes up IDEA-20
 (the place to download CMDMX). Needs the rename (`brand.md`) first. Open questions at the end.
 Builds on `release.md` (REL-06/09: the DMG on a `v*` tag, REL-15: install steps) and
 `brand.md` (BRD-21..23 assets).
@@ -48,7 +48,7 @@ nothing to run or patch on a server.
   does not fail.
 - **WEB-12** The install steps are REL-15's (drag to Applications; first open right-click › Open,
   or *Open Anyway* on macOS 15+; the Local Network and firewall prompts), as long as the DMG is
-  not notarised. When notarisation lands (question 4), they shrink to "drag to Applications".
+  not notarised. When notarisation lands (VS8-08), they shrink to "drag to Applications".
 - **WEB-13** Only `build.sh` fills the version: it reads the latest release with
   `gh release view --json tagName,publishedAt,assets,url` and replaces the `{{…}}` placeholders
   in `index.html`. It fails when any `{{` is left in the output. Nothing on the page is fetched
@@ -61,9 +61,10 @@ nothing to run or patch on a server.
 - **WEB-20** The site is served by **GitHub Pages** from the Actions artifact (no `gh-pages`
   branch): `website.yml` builds with `build.sh`, uploads `_site/` with
   `actions/upload-pages-artifact` and deploys with `actions/deploy-pages`. Permissions only
-  `contents: read`, `pages: write`, `id-token: write`. The address is
-  `https://aottens.github.io/CMDMX/` until a custom domain is chosen (question 2); then a
-  `CNAME` file in the site and the domain in the Pages settings, HTTPS enforced.
+  `contents: read`, `pages: write`, `id-token: write`. The site has its own
+  domain from the start (owner decision 2): a `CNAME` file in the site, the domain in the Pages
+  settings and the DNS records at the registrar (owner), HTTPS enforced;
+  `https://aottens.github.io/CMDMX/` redirects to it.
 - **WEB-21** The site is rebuilt and deployed: on a push to `main` that touches
   `subprojects/website/**`; on `workflow_dispatch`; and **after every release**. Because a release
   made with `GITHUB_TOKEN` does not start other workflows, `website.yml` is also a reusable workflow
@@ -128,9 +129,13 @@ nothing to run or patch on a server.
 - WEB-31, 32: reviewed by the owner per manual PR.
 
 ## Out of scope
-A purchase or licence page (IDEA-21); auto-update (Sparkle); notarisation itself (`release.md`,
-question 4); other languages (question 1); a blog or news; comments or a forum (GitHub issues
+A purchase or licence page (IDEA-21); auto-update (Sparkle); notarisation itself (VS8-08); other
+languages (owner decision 1); a blog or news; comments or a forum (GitHub issues
 are the contact); hosting the hardware build plans (IDEA-23, later, as its own section).
 
-## Open questions (owner)
-See the PR description and `STATE.md` *Owner to decide*; answers are recorded here after approval.
+## Owner decisions (P1-21, 2026-10-27)
+1. Site and manual in English; Dutch later, as an idea if wanted.
+2. An own domain now, not github.io first; the owner registers it and names it (VS8-03 needs the name).
+3. The site may go live as a *preview* with the DMG not notarised and REL-15's right-click steps
+   (WEB-12); notarisation is its own task (VS8-08), done before the site is announced anywhere.
+4. No price, no purchase page and no licence promise until IDEA-21 is decided (WEB-14).

@@ -2,7 +2,7 @@
 
 Owner: the product name wherever a user sees it (app bundle, DMG, release, sACN/MIDI names,
 data folders, docs) and the brand assets in `subprojects/website/brand/`.
-Status: **draft, waiting for owner approval (gate 1)** (P1-21, 2026-10-27). Takes up IDEA-19
+Status: **BRD-01..25 approved by owner 2026-10-27** (P1-21; answers under *Owner decisions*). Takes up IDEA-19
 (brand "CMDMX by Colourmotion", owner 2026-10-22). Open questions at the end.
 Builds on `release.md` (REL-02..09, the DMG and release job), `output-protocols.md` (sACN source
 name), `showfile.md` (show folder), `control-surfaces.md` (control folder, CTL-23).
@@ -108,5 +108,10 @@ so nothing has to be renamed twice, and before the website (`website.md`) is bui
 A trademark registration; renaming the crates or the binary (already `cmdmx-*`); a DMG background;
 a new bundle id; merch, slide templates and the like.
 
-## Open questions (owner)
-See the PR description and `STATE.md` *Owner to decide*; answers are recorded here after approval.
+## Owner decisions (P1-21, 2026-10-27)
+1. Rename the GitHub repo to `Aottens/CMDMX`; the local checkout folder keeps its name (BRD-10).
+2. Keep the bundle id `nl.colourmotion.dmx` (BRD-03).
+3. VS8-01 runs now; the migration (BRD-08) moves the *Kerk* show along. No DMG swap on the church
+   Mac in the week of a service (VS4-03).
+4. Colourmotion has a logo the owner calls timeless; it is not at hand yet. BRD-20's three concepts
+   build on it (its mark, colours or letterforms), so VS8-02 starts when the owner has found it.

@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-27 — CMDMX gets its own website and domain; it goes live as a preview before notarisation (owner, P1-21)
+
+**Decision:** the rename (`brand.md`) keeps the bundle id and moves the data folders once; the GitHub repo becomes `Aottens/CMDMX`, the local folder keeps its name. The website (`website.md`) is static on GitHub Pages under an own domain, rebuilt after every release so it always offers the latest DMG, with the manual of that release (mdBook). It may go live as a preview with the DMG not notarised; notarisation (VS8-08) comes before the site is announced. No price on the site until IDEA-21. English only for now.
+
+**Alternatives considered:** github.io address first; notarise before the site goes live; a JavaScript widget that asks GitHub for the latest release at view time; a site framework (Astro, Jekyll).
+
+**Reasoning:** baking the release in at build time needs no JavaScript and no API limits; mdBook is one binary with search and a print page; keeping the bundle id keeps the macOS permissions on the church Mac.
+
+**Reversal trigger:** the site is announced before VS8-08 is done, or the manual outgrows mdBook (versions side by side, translations).
+
 ## 2026-10-27 — The installed app starts and stops its own engine; Quit stops output (owner, VS4-07)
 
 **Decision:** the DMG's app carries the daemon and starts it at launch (REL-10); ⌘Q stops it after it has written the show (REL-13, REL-14). If the app crashes the daemon keeps output and the next launch adopts it (REL-11). Builds are universal; the version comes only from the `v*` tag (REL-01). First tag `v0.1.0`.
