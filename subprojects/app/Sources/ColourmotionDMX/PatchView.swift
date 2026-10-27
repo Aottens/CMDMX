@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // Patch screen (PAT-10): pure rendering of `engine.fixtures` plus command sending. No overlap
 // check, address or number logic lives here; the engine decides and refuses with a warning.
@@ -11,6 +12,8 @@ struct PatchView: View {
     @State private var editor: ProfileEditorTarget?
     @State private var pendingPick: SavedPick?
     @State private var clickMonitor: Any?
+    /// LIB-35: the report of the last GDTF import, shown until Done.
+    @State private var gdtfReport: GdtfImported?
 
     var body: some View {
         ZStack {
@@ -23,6 +26,12 @@ struct PatchView: View {
                 .id(editor.key + editor.mode + "\(editor.source)")
             }
         }
+        .onChange(of: engine.gdtfImported) { _, done in
+            guard let done else { return }
+            gdtfReport = done
+            pendingPick = SavedPick(manufacturer: done.manufacturer, model: done.model, mode: done.modes.first?.name ?? "")
+        }
+        .sheet(item: $gdtfReport) { GdtfReportSheet(report: $0) }
     }
 
     private var patchScreen: some View {
@@ -248,6 +257,7 @@ private struct AddPanel: View {
                     field("Number", $number, "next free")
                     Button("Edit profile…") { editPicked() }.buttonStyle(FlatButton()).disabled(picked == nil)
                     Button("New from channel list…") { edit(ProfileEditorTarget(source: .channelList)) }.buttonStyle(FlatButton())
+                    Button("Import GDTF…") { importGdtf() }.buttonStyle(FlatButton())
                     Button("Add") { add() }.buttonStyle(FlatButton(fill: .blue)).disabled(!canAdd)
                 }
             }
@@ -314,6 +324,14 @@ private struct AddPanel: View {
         let inShow = engine.fixtures.contains { $0.profile == picked.pick.key }
         edit(ProfileEditorTarget(source: inShow ? .show : .library, manufacturer: picked.manufacturer,
                                  model: picked.model, mode: mode))
+    }
+
+    private func importGdtf() {
+        let panel = NSOpenPanel()
+        if let gdtf = UTType(filenameExtension: "gdtf") { panel.allowedContentTypes = [gdtf] }
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        engine.importGdtf(path: url.path)
     }
 
     private func add() {
@@ -509,4 +527,36 @@ private struct SelectedPanel: View {
         universe = "\(f.universe)"; address = "\(f.address)"; number = "\(f.number)"
         name = f.name; mode = sharedMode; armed = nil
     }
+}
+
+/// LIB-35: what the GDTF import made of every channel, then its warnings.
+private struct GdtfReportSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let report: GdtfImported
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(report.manufacturer) \(report.model)").font(.headline)
+            if report.replaced { Text("Replaced the existing user profile.").font(.caption).foregroundStyle(.secondary) }
+            Table(report.report.channels.enumerated().map { Row(id: $0.offset, line: $0.element) }) {
+                TableColumn("Mode") { Text($0.line.mode) }.width(min: 60, ideal: 90)
+                TableColumn("Ch") { Text(String($0.line.channel)).monospacedDigit() }.width(min: 30, ideal: 36, max: 50)
+                TableColumn("GDTF name") { Text($0.line.sourceName) }.width(min: 80, ideal: 140)
+                TableColumn("Became") { Text($0.line.became) }.width(min: 120, ideal: 240)
+            }
+            if !report.report.warnings.isEmpty {
+                Text("Warnings").font(.subheadline)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(report.report.warnings.enumerated()), id: \.offset) { Text($0.element).font(.caption) }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: 90)
+            }
+            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }
+        }
+        .padding(16)
+        .frame(width: 640, height: 420)
+    }
+
+    private struct Row: Identifiable { let id: Int; let line: GdtfImported.Line }
 }
