@@ -23,6 +23,9 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+      - name: release tag check (REL-01)
+        working-directory: .
+        run: bash subprojects/app/scripts/test-release-tag.sh
       - name: TouchOSC layout is up to date
         working-directory: .
         run: python3 touchosc/generate.py --check
