@@ -14,6 +14,11 @@ MIDI controller, or both.
 - **Fixtures:** the whole open QLC+ library (about 1800 fixtures), plus profiles typed from a
   plain channel list for fixtures nobody has a file for.
 
+**Download:** [the latest DMG](https://github.com/Aottens/ColourmotionDMX/releases/latest)
+(macOS 14+, Apple Silicon and Intel; all versions under
+[Releases](https://github.com/Aottens/ColourmotionDMX/releases)). Not notarised yet: the first
+open needs right-click › Open, or *Open Anyway* in Privacy & Security on macOS 15+.
+
 The goal is a well-working general DMX console. Its first proof is a real Sunday service in the
 owner's church run on it instead of Lightkey: moving-head washes, mixed RGBW / RGB+Lime / RGB
 pars and theatre spots.
