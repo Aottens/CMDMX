@@ -4,7 +4,7 @@
 **Date:** 2026-10-16
 
 ## Context
-ColourmotionDMX must be show-proof ("may not crash during a show") and the owner will not write the code himself; an AI agent writes it under spec/test gates. The UI must feel native on macOS. Industry consoles are C++ (MagicQ, grandMA, QLC+, OLA) or C# (Titan, Onyx); newer open-source lighting tools are increasingly Rust.
+CMDMX must be show-proof ("may not crash during a show") and the owner will not write the code himself; an AI agent writes it under spec/test gates. The UI must feel native on macOS. Industry consoles are C++ (MagicQ, grandMA, QLC+, OLA) or C# (Titan, Onyx); newer open-source lighting tools are increasingly Rust.
 
 ## Decision
 - Engine, protocols and control-surface logic: **Rust** (stable, edition 2021), as a Cargo workspace.

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Written for ColourmotionDMX tests (VS2-41, LIB-28..32). Not a real fixture. -->
+<!-- Written for CMDMX tests (VS2-41, LIB-28..32). Not a real fixture. -->
 <GDTF DataVersion="1.2">
   <FixtureType Name="RGBWPar" ShortName="RGBWPar" LongName="Test RGBW Par" Manufacturer="Colourmotion Test" Description="RGBW par with a 4- and a 6-channel mode" FixtureTypeID="0F6B6A57-7C3B-4E8B-9C1E-2D7B1A000001" RefFT="" Thumbnail="" CanHaveChildren="Yes">
     <AttributeDefinitions>

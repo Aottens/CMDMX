@@ -1,10 +1,10 @@
-# ColourmotionDMX — Architecture
+# CMDMX — Architecture
 
 ## High-level data flow
 
 ```
                  ┌─────────────────────────────────────────────────────────┐
-                 │  ColourmotionDMX.app (Swift/SwiftUI, macOS)             │
+                 │  CMDMX.app (Swift/SwiftUI, macOS)             │
                  │  thin client: faders, preset grid, programmer view      │
                  └───────────────▲───────────────────────┬─────────────────┘
                  state snapshots │  local IPC (TCP/WS,   │ commands

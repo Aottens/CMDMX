@@ -7,7 +7,7 @@ No Swift test target exists (CLAUDE.md), so the palette windows, function button
 Setup: two terminals, and a fresh shows folder so your real one stays untouched.
 - `rm -rf /tmp/cmdmx-pal`
 - Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-pal`.
-- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`.
 - Workspace F1 (Groups + Palettes) shows Groups, Colours, Positions and Gobos & Beams.
 
 Optional: an Art-Net monitor on universe 1 (demo rig: washes 101–104, RGBW pars 201–208,

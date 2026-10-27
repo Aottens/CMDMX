@@ -7,7 +7,7 @@ checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
 Setup: two terminals, and a fresh shows folder so your real one stays untouched.
 - `rm -rf /tmp/cmdmx-pbk`
 - Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-pbk`.
-- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`.
 - Demo show: playbacks 1–8 on page 1 (one dimmer each, channels 1–8), page 2 slot 1 = the washes
   101–104 at full, slot 2 = the front spots 301–306 at full.
 

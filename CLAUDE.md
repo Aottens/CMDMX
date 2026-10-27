@@ -1,6 +1,6 @@
 # CLAUDE.md — how to work in this repo
 
-ColourmotionDMX is a show-proof, open-source macOS lighting console modelled on Avolites Titan.
+CMDMX is a show-proof, open-source macOS lighting console modelled on Avolites Titan.
 Read `PROJECT.md`, `STATE.md`, `ARCHITECTURE.md` and `DECISIONS.md` before doing anything.
 Talk to the owner in **Dutch**; write code, comments, specs and commits in **English**.
 
@@ -16,7 +16,7 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
    Sonnet subagent (`model: sonnet`) writes the smallest change that turns them green; the main
    session reviews the diff before it goes to the owner (owner preference, 2026-10-17). Run `cargo test` in
    `subprojects/engine` and `cargo clippy --all-targets -- -D warnings`.
-4. **Review.** One branch and one PR per task on `github.com/Aottens/ColourmotionDMX`; the owner
+4. **Review.** One branch and one PR per task on `github.com/Aottens/CMDMX`; the owner
    reviews and merges (gate 2). Hardware-touching tasks ship with
    a checklist in `tests/hardware/` that only the owner can tick (gate 3).
 5. **Close the loop.** Update the subproject `STATE.md`, root `STATE.md`, `BACKLOG.md` and

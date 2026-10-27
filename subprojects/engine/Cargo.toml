@@ -6,7 +6,7 @@ members = ["cmdmx-core", "cmdmx-protocols", "cmdmx-control", "cmdmx-daemon"]
 version = "0.1.0"
 edition = "2021"
 license = "TBD"
-repository = "https://github.com/colourmotion/ColourmotionDMX"
+repository = "https://github.com/Aottens/CMDMX"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

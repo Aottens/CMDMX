@@ -207,7 +207,7 @@ impl Shows {
             cmdmx_core::CoreError::ShowTooNew {
                 found, supported, ..
             } => format!(
-                "{name} was made by a newer ColourmotionDMX (schema {found}; this one reads up to {supported})"
+                "{name} was made by a newer CMDMX (schema {found}; this one reads up to {supported})"
             ),
             e => format!("{name}: {e}"),
         })?;
@@ -889,6 +889,18 @@ mod tests {
         let err = s.open("Toekomst").unwrap_err();
         assert!(err.contains("Toekomst") && err.contains("newer"), "{err}");
         assert!(!err.contains("Kerk"), "{err}");
+    }
+
+    #[test]
+    fn brd_06_the_refusal_names_cmdmx() {
+        let s = shows("refused-brand");
+        let json = save(&s, "Kerk", &demo()).replace(
+            &format!("\"schema_version\": {SCHEMA_VERSION}"),
+            "\"schema_version\": 9",
+        );
+        fs::write(s.path("Toekomst"), json).unwrap();
+        let err = s.open("Toekomst").unwrap_err();
+        assert!(err.contains("made by a newer CMDMX"), "{err}");
     }
 
     #[test]

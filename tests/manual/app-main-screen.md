@@ -5,7 +5,7 @@ sketch `specs/ux/main-screen.html` (open it in a browser next to the app). Copy 
 `tests/manual/runs/<date>-<task>.md` and tick it there. Sections grow with UX-02b–d.
 
 Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p cmdmx-daemon -- --no-sacn --show-dir /tmp/cmdmx-main` (a fresh Demo); app
-`cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`.
+`cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`.
 
 ## UX-02a — the shell
 

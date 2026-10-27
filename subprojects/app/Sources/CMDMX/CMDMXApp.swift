@@ -5,7 +5,7 @@ import SwiftUI
 /// and sends commands back. No lighting logic lives here (see
 /// subprojects/app/INTERFACE.md and CLAUDE.md).
 @main
-struct ColourmotionDMXApp: App {
+struct CMDMXApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var engine = EngineClient()
 
@@ -20,7 +20,7 @@ struct ColourmotionDMXApp: App {
 
     var body: some Scene {
         // One window only: the main screen.
-        Window("ColourmotionDMX", id: "main") {
+        Window("CMDMX", id: "main") {
             MainScreen()
                 .environmentObject(engine)
                 .frame(minWidth: 1280, minHeight: 800)

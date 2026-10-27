@@ -1,4 +1,4 @@
-//! ColourmotionDMX engine core.
+//! CMDMX engine core.
 //!
 //! Pure, deterministic, no I/O. Time is passed in; the caller owns the clock.
 //! Behavioural reference: Avolites Titan (see `specs/modules/*.md`).
@@ -212,7 +212,7 @@ pub enum CoreError {
     NodeKindChanged(u32),
     #[error("not a show file: {0}")]
     InvalidShow(String),
-    #[error("{name} was made by a newer ColourmotionDMX (schema {found}; this one reads up to {supported})")]
+    #[error("{name} was made by a newer CMDMX (schema {found}; this one reads up to {supported})")]
     ShowTooNew {
         name: String,
         found: u64,

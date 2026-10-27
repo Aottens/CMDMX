@@ -29,19 +29,19 @@ jobs:
       - run: swift --version
       - run: subprojects/engine/scripts/fetch-qlcplus.sh
       - run: subprojects/app/scripts/make-dmg.sh "${{ steps.v.outputs.version }}" "${{ github.run_number }}"
-      - run: subprojects/app/scripts/check-dmg.sh "subprojects/app/.build/ColourmotionDMX-${{ steps.v.outputs.version }}.dmg" "${{ steps.v.outputs.version }}"
+      - run: subprojects/app/scripts/check-dmg.sh "subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg" "${{ steps.v.outputs.version }}"
       - name: GitHub release (REL-09)
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            "subprojects/app/.build/ColourmotionDMX-${{ steps.v.outputs.version }}.dmg" \
-            --title "ColourmotionDMX ${{ steps.v.outputs.version }}" \
+            "subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg" \
+            --title "CMDMX ${{ steps.v.outputs.version }}" \
             --notes-file subprojects/app/scripts/release-notes.md
       - name: Keep the DMG as workflow artifact
         if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v4
         with:
-          name: ColourmotionDMX-${{ steps.v.outputs.version }}.dmg
-          path: subprojects/app/.build/ColourmotionDMX-${{ steps.v.outputs.version }}.dmg
+          name: CMDMX-${{ steps.v.outputs.version }}.dmg
+          path: subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg

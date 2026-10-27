@@ -1,6 +1,6 @@
 # Church checklist (PAT-11, VS2-13, VS4-01) — template
 
-The checklist for running a Sunday service on ColourmotionDMX, with Lightkey as fallback on the
+The checklist for running a Sunday service on CMDMX, with Lightkey as fallback on the
 same Mac (DECISIONS 2026-10-27). Only the owner can run it; copy it to
 `tests/hardware/runs/<date>-church.md` and tick it there. The service run itself is VS4-03.
 Never run the Demo show on the church rig (its fixtures on 9..150 light real lamps).
@@ -11,11 +11,11 @@ Lightkey: 119, 120, the other four Lumipars, 601..602, 701 hazer, 801..802, 1201
 1101..1102. Steps below use only the live fixtures; ask the owner before adding others.
 
 ## Setup
-- Show *Kerk* made once by `cargo run -p cmdmx-daemon --example church -- ~/Documents/ColourmotionDMX/Lightkey/BGS_Shows.tsv`
-  (PAT-15..18; writes `~/Documents/ColourmotionDMX/Shows/Kerk.cmdmx.json` and the user profiles, never overwrites)
+- Show *Kerk* made once by `cargo run -p cmdmx-daemon --example church -- ~/Documents/CMDMX/Lightkey/BGS_Shows.tsv`
+  (PAT-15..18; writes `~/Documents/CMDMX/Shows/Kerk.cmdmx.json` and the user profiles, never overwrites)
 - At home (Art-Net, no lamps): daemon with `--show-dir` on a copy holding `state.json`
   `{"last_show":"Kerk"}`, so it starts on *Kerk* and not on Demo (SHW-10)
-- At the church: ColourmotionDMX installed on the church Mac from the versioned DMG (VS4-07); the
+- At the church: CMDMX installed on the church Mac from the versioned DMG (VS4-07); the
   Eurolite is chosen on the Output screen and stored in the show (OUT-31/37)
 - Lightkey stays installed on the same Mac as fallback (quit it before the daemon takes the Eurolite;
   the port is exclusive)
@@ -102,7 +102,7 @@ Lightkey: 119, 120, the other four Lumipars, 601..602, 701 hazer, 801..802, 1201
 - [ ] 1201 PAR Spot (RGB)
 - [ ] Back to Lightkey works (fallback ready)
 - [ ] The iPad's TouchOSC drives Lightkey as before (settings restored after the VS4-04 run at home)
-- [ ] TouchOSC with the ColourmotionDMX layout on the church wifi: faders follow without the lag
+- [ ] TouchOSC with the CMDMX layout on the church wifi: faders follow without the lag
       felt on the home wifi (VS4-04 run, ping 32 ms average, peaks 84 ms)
 
 ## The service
@@ -125,12 +125,12 @@ Front fresnels (owner fills in once, then it is the same every week):
 - [ ] The show is saved and copied to the church Mac; it opens there with the same playbacks
 
 ### Before the service (on the church Mac, ~30 min before)
-- [ ] Lightkey quit; ColourmotionDMX started; it opens *Kerk* (not Demo); the Output dot is green
+- [ ] Lightkey quit; CMDMX started; it opens *Kerk* (not Demo); the Output dot is green
 - [ ] The steady look of today up: every live fixture of it lights; nothing from 119/120 or other
       parked fixtures
 - [ ] *Front band* up and down, *Front spreker* up and down: only their fresnels follow, smoothly
-- [ ] Fallback rehearsed: quit ColourmotionDMX, start Lightkey, it lights the rig. Time from quit to
-      light: ____ s. Then Lightkey quit and ColourmotionDMX started again, output back
+- [ ] Fallback rehearsed: quit CMDMX, start Lightkey, it lights the rig. Time from quit to
+      light: ____ s. Then Lightkey quit and CMDMX started again, output back
 - [ ] Grand Master at full, DBO off
 
 ### During the service
@@ -149,6 +149,6 @@ Front fresnels (owner fills in once, then it is the same every week):
       programmer, on top of the playbacks; Clear lets go of them
 
 ### After the service
-- [ ] All faders down, ColourmotionDMX quit; Lightkey ready for whoever runs the next service
+- [ ] All faders down, CMDMX quit; Lightkey ready for whoever runs the next service
 - [ ] Anything that felt slow or awkward written under *Open points* of the run file
 

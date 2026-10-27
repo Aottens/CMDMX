@@ -18,9 +18,9 @@ final class DaemonLauncher: ObservableObject {
     private var adopted: pid_t?
     private var stopping = false
 
-    private var logDir: URL { fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/ColourmotionDMX") }
+    private var logDir: URL { fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/CMDMX") }
     private var pidFile: URL {
-        fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/ColourmotionDMX/daemon.pid")
+        fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/CMDMX/daemon.pid")
     }
 
     /// REL-10: only a bundled daemon is started; `swift run` and a debug bundle start nothing.

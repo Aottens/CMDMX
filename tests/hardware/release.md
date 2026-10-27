@@ -5,25 +5,27 @@ installed, and the DMG of the first tag (`v0.1.0`) from the GitHub release page.
 the release notes: `subprojects/app/scripts/release-notes.md`.
 
 ## Local check before the first tag (owner's Mac)
-- [ ] GitHub › Actions › Release › Run workflow (branch `main`): the job is green and a workflow artifact `ColourmotionDMX-0.0.0.dmg` is there (REL-09)
-- [ ] Download and unzip it, open the DMG: it shows `ColourmotionDMX.app` and `Applications`, nothing else (REL-06)
+- [ ] GitHub › Actions › Release › Run workflow (branch `main`): the job is green and a workflow artifact `CMDMX-0.0.0.dmg` is there (REL-09)
+- [ ] Download and unzip it, open the DMG: it shows `CMDMX.app` and `Applications`, nothing else (REL-06)
 - [ ] `./subprojects/app/scripts/check-dmg.sh <path to dmg> 0.0.0` ends with `ok` (REL-08)
+- [ ] Rename (VS8-01): drag `CMDMX.app` to Applications and open it; CMDMX › About CMDMX shows `CMDMX`, the version line and `© 2026 Colourmotion`; the window title is CMDMX (BRD-02)
+- [ ] The shows from `~/Documents/ColourmotionDMX/Shows` are on the Show screen, now in `~/Documents/CMDMX/Shows`, and the old folder has no `Shows` left (BRD-07/08) <!-- brand: old-name -->
 
 ## Install on the church Mac (REL-15)
-- [ ] Open the DMG, drag ColourmotionDMX to Applications, eject the DMG
+- [ ] Open the DMG, drag CMDMX to Applications, eject the DMG
 - [ ] macOS 14: right-click › Open › Open. macOS 15 or later: double-click once, close the warning, System Settings › Privacy & Security › Open Anyway
 - [ ] The app opens; macOS 15+: it opens normally the second time without any warning
 - [ ] If asked: Local Network allowed, incoming connections allowed
 
 ## Run (REL-10..14, 16)
-- [ ] ColourmotionDMX › About ColourmotionDMX shows `Version 0.1.0 (<run number>)` (REL-02)
+- [ ] CMDMX › About CMDMX shows `Version 0.1.0 (<run number>)` (REL-02)
 - [ ] No Terminal is open, yet the status bar shows Engine online (REL-10)
-- [ ] Copy the *Kerk* show into `~/Documents/ColourmotionDMX/Shows` and open it on the Show screen; the Eurolite (chosen on the Output screen) gives output on the lamp (REL-16)
-- [ ] `~/Library/Logs/ColourmotionDMX/daemon.log` exists and has the daemon's lines (REL-12)
+- [ ] Copy the *Kerk* show into `~/Documents/CMDMX/Shows` and open it on the Show screen; the Eurolite (chosen on the Output screen) gives output on the lamp (REL-16)
+- [ ] `~/Library/Logs/CMDMX/daemon.log` exists and has the daemon's lines (REL-12)
 - [ ] Change something in the show, press ⌘Q at once, open the app again: the change is still there (REL-14)
-- [ ] ⌘Q: the app quits, `pgrep cmdmx-daemon` finds nothing and `~/Library/Application Support/ColourmotionDMX/daemon.pid` is gone (REL-13)
+- [ ] ⌘Q: the app quits, `pgrep cmdmx-daemon` finds nothing and `~/Library/Application Support/CMDMX/daemon.pid` is gone (REL-13)
 - [ ] Open Lightkey: it opens the Eurolite and gives output (REL-13)
-- [ ] Quit Lightkey, open ColourmotionDMX again: it gives output again (REL-16)
+- [ ] Quit Lightkey, open CMDMX again: it gives output again (REL-16)
 - [ ] Force quit the app (Activity Monitor): the lamp keeps its output; open the app again: Engine online, only one `cmdmx-daemon` in `pgrep -l cmdmx-daemon` (REL-11/14)
 - [ ] `kill -9` the daemon while the app runs: the status bar shows "Engine exited (code …)" and the engine is back after ~2 s (REL-12)
 - [ ] Start a different program on port 7319 (`nc -l 7319`), quit and open the app: the bar says "Another engine is running on port 7319" (REL-11)

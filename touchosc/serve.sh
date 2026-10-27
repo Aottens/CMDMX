@@ -15,13 +15,13 @@
 set -e
 DIR=$(cd "$(dirname "$0")" && pwd)
 PORT=9658
-dns-sd -R "ColourmotionDMX" _touchoscedit._tcp local $PORT >/dev/null &
+dns-sd -R "CMDMX" _touchoscedit._tcp local $PORT >/dev/null &
 A=$!
-dns-sd -R "ColourmotionDMX" _touchosceditor._tcp local $PORT >/dev/null &
+dns-sd -R "CMDMX" _touchosceditor._tcp local $PORT >/dev/null &
 B=$!
 trap 'kill $A $B 2>/dev/null' EXIT INT TERM
-echo "Serving ColourmotionDMX.touchosc on port $PORT (Ctrl-C to stop)"
-python3 -u - "$DIR/ColourmotionDMX.touchosc" $PORT <<'PY'
+echo "Serving CMDMX.touchosc on port $PORT (Ctrl-C to stop)"
+python3 -u - "$DIR/CMDMX.touchosc" $PORT <<'PY'
 import sys
 import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -33,7 +33,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-Type", "application/octet-stream")
-        self.send_header("Content-Disposition", 'attachment; filename="ColourmotionDMX.touchosc"')
+        self.send_header("Content-Disposition", 'attachment; filename="CMDMX.touchosc"')
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)

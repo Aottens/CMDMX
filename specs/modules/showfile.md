@@ -19,7 +19,7 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
 - **Live state:** what is happening right now and starts fresh after a restart: fader levels,
   Grand Master, programmer contents, selection, held LTP values, the wheels' attribute group.
   Never in the show file (owner decision 3).
-- **Shows folder:** `~/Documents/ColourmotionDMX/Shows/`; a show named *Kerk* is the file
+- **Shows folder:** `~/Documents/CMDMX/Shows/`; a show named *Kerk* is the file
   `Kerk.cmdmx.json` in it.
 
 ## Acceptance criteria
@@ -46,7 +46,7 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
   drops what it does not know. A file with an older version is migrated step by step and the load
   reports which migrations ran. A file with a newer version, a file that is not JSON, or one
   without `schema_version` is refused with a clear message ("Kerk was made by a newer
-  ColourmotionDMX (schema 3; this one reads up to 1)"), and nothing changes.
+  CMDMX (schema 3; this one reads up to 1)"), and nothing changes.
 - **SHW-05** The show carries exactly the profiles its fixtures use: saving drops profiles no
   fixture uses. Loading uses the embedded profile, never the library's, so a show opens unchanged
   on a Mac without the library or with a newer one (ADR-006 decision 5).
@@ -64,7 +64,7 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
 - **SHW-09** Shows live in the shows folder, created when missing (`--show-dir <path>` overrides
   it for tests). A show name is 1–64 characters, has no `/` or `:` and does not start with `.`;
   names are unique ignoring case (APFS). The daemon remembers the open show's name in
-  `~/Library/Application Support/ColourmotionDMX/state.json`; with `--show-dir` that file is
+  `~/Library/Application Support/CMDMX/state.json`; with `--show-dir` that file is
   `<show-dir>/state.json`, so a test run never changes the owner's last show (SHW-b detail).
   The list holds only `*.cmdmx.json` files, sorted by name ignoring case.
 - **SHW-10** At start the daemon opens the last show. With no last show, or when its file is gone,
@@ -160,6 +160,6 @@ on one shows folder.
 ## Owner decisions (2026-10-18)
 1. Autosave in place, as macOS and Lightkey do: the show file is always current, there is no
    Save button; New, Open and Save As remain.
-2. Shows live in `~/Documents/ColourmotionDMX/Shows/`, visible in Finder, so the owner can make it
+2. Shows live in `~/Documents/CMDMX/Shows/`, visible in Finder, so the owner can make it
    a git repository or a synced folder; the Show screen lists that folder.
 3. A daemon restart brings back the show only; live state starts fresh, as on Titan.

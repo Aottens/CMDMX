@@ -1,4 +1,4 @@
-//! cmdmx-daemon — the ColourmotionDMX engine process.
+//! cmdmx-daemon — the CMDMX engine process.
 //!
 //! Runs the deterministic core at 40 Hz with a demo patch and sends each line to the output
 //! nodes of the show (Art-Net, sACN, ENTTEC Pro serial), each node on its own thread (OUT-11,
@@ -17,9 +17,9 @@
 //! patch commands (PAT-09).
 //! The fixture library (LIB-12..14) is indexed on its own thread at start-up from `--qlcplus-dir`
 //! (default: the bundled `vendor/qlcplus/fixtures`) and `--profiles-dir` (default
-//! `~/Library/Application Support/ColourmotionDMX/profiles`); output never waits for it.
+//! `~/Library/Application Support/CMDMX/profiles`); output never waits for it.
 //! The daemon always runs a show (SHW-09..15): it opens the last one from `--show-dir` (default
-//! `~/Documents/ColourmotionDMX/Shows`, `state.json` beside the app support files, or inside
+//! `~/Documents/CMDMX/Shows`, `state.json` beside the app support files, or inside
 //! `--show-dir` when that is given), autosaves it on a saver thread and switches on `show.*`.
 //! Generic MIDI control (CTL-*): mapping files in `--show-dir`/control (default beside
 //! `state.json`), devices enabled over `control.*`; their commands run like the app's (CTL-06).
@@ -35,6 +35,7 @@ mod deck_io;
 mod ipc;
 mod library;
 mod midi_io;
+mod migrate;
 mod osc_io;
 mod output;
 mod sacn_out;
@@ -71,6 +72,11 @@ fn main() {
         return;
     }
     let ticks_limit = cli.ticks;
+    // BRD-08: move the data folders of the old product name before anything reads them.
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    let migration_warnings = migrate::run(&home, cli.show_dir_flag, cli.profiles_dir_flag);
     // SHW-10: the last show, else Demo; a refused show is reported, never written.
     let shows = Arc::new(shows::Shows::new(
         cli.show_dir.clone(),
@@ -86,7 +92,8 @@ fn main() {
         &shows::iso_utc(SystemTime::now()),
     );
     // The first client to connect gets these right after its snapshot.
-    let mut pending = opened.warnings;
+    let mut pending = migration_warnings;
+    pending.extend(opened.warnings);
     for w in &pending {
         eprintln!("warning: {w}");
     }
@@ -1041,8 +1048,8 @@ usage: cmdmx-daemon [options]
   --ipc-port <n>          WebSocket port on 127.0.0.1 (default 7319)
   --demo                  fader 1 breathes
   --qlcplus-dir <path>    QLC+ fixture files (default: bundled vendor/qlcplus/fixtures)
-  --profiles-dir <path>   saved profiles (default ~/Library/Application Support/ColourmotionDMX/profiles)
-  --show-dir <path>       shows folder (default ~/Documents/ColourmotionDMX/Shows)
+  --profiles-dir <path>   saved profiles (default ~/Library/Application Support/CMDMX/profiles)
+  --show-dir <path>       shows folder (default ~/Documents/CMDMX/Shows)
   -h, --help              print this and exit
 ";
 
@@ -1066,6 +1073,9 @@ struct Cli {
     state_file: PathBuf,
     /// Mapping files of the control layer (CTL-23); `<show-dir>/control` with `--show-dir`.
     control_dir: PathBuf,
+    /// `--show-dir` / `--profiles-dir` were given: BRD-08 leaves those paths alone.
+    show_dir_flag: bool,
+    profiles_dir_flag: bool,
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
@@ -1082,10 +1092,12 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
             env!("CARGO_MANIFEST_DIR"),
             "/../vendor/qlcplus/fixtures"
         )),
-        profiles_dir: home.join("Library/Application Support/ColourmotionDMX/profiles"),
-        show_dir: home.join("Documents/ColourmotionDMX/Shows"),
-        state_file: home.join("Library/Application Support/ColourmotionDMX/state.json"),
-        control_dir: home.join("Library/Application Support/ColourmotionDMX/control"),
+        profiles_dir: home.join("Library/Application Support/CMDMX/profiles"),
+        show_dir: home.join("Documents/CMDMX/Shows"),
+        state_file: home.join("Library/Application Support/CMDMX/state.json"),
+        control_dir: home.join("Library/Application Support/CMDMX/control"),
+        show_dir_flag: false,
+        profiles_dir_flag: false,
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -1121,11 +1133,13 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
             }
             "--profiles-dir" => {
                 cli.profiles_dir = args.next().ok_or("--profiles-dir: missing path")?.into();
+                cli.profiles_dir_flag = true;
             }
             "--show-dir" => {
                 cli.show_dir = args.next().ok_or("--show-dir: missing path")?.into();
                 cli.state_file = cli.show_dir.join("state.json");
                 cli.control_dir = cli.show_dir.join("control");
+                cli.show_dir_flag = true;
             }
             other => return Err(format!("unknown argument '{other}'")),
         }
@@ -1347,10 +1361,10 @@ mod tests {
     #[test]
     fn shw_09_shows_folder_and_state_file() {
         let cli = parse_args(args("")).unwrap();
-        assert!(cli.show_dir.ends_with("Documents/ColourmotionDMX/Shows"));
+        assert!(cli.show_dir.ends_with("Documents/CMDMX/Shows"));
         assert!(cli
             .state_file
-            .ends_with("Library/Application Support/ColourmotionDMX/state.json"));
+            .ends_with("Library/Application Support/CMDMX/state.json"));
         let cli = parse_args(args("--show-dir /tmp/shows")).unwrap();
         assert_eq!(cli.show_dir, PathBuf::from("/tmp/shows"));
         assert_eq!(cli.state_file, PathBuf::from("/tmp/shows/state.json"));

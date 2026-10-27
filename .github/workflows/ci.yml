@@ -26,6 +26,9 @@ jobs:
       - name: release tag check (REL-01)
         working-directory: .
         run: bash subprojects/app/scripts/test-release-tag.sh
+      - name: no old product name in living files (BRD-01)
+        working-directory: .
+        run: scripts/check-brand.sh
       - name: TouchOSC layout is up to date
         working-directory: .
         run: python3 touchosc/generate.py --check

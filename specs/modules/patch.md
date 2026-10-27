@@ -105,7 +105,7 @@ Titan reference (*Changing the Patch*, *Copying, moving and deleting fixtures*):
 together are repatched from one start address, get user numbers counting up from the one typed,
 can share one legend, and are deleted in one go; a clash is refused or the clashing fixtures are
 parked. Titan exchanges fixture types one fixture at a time and has no multi-fixture mode change.
-ColourmotionDMX has no parking (a removed fixture is gone, PAT-05), so every clash refuses.
+CMDMX has no parking (a removed fixture is gone, PAT-05), so every clash refuses.
 
 - **Range:** the fixtures one range command acts on, given as a list of ids (`ids`). A range is
   worked in **number order** (ascending user number), whatever order the list or the clicks came
@@ -153,8 +153,8 @@ ColourmotionDMX has no parking (a removed fixture is gone, PAT-05), so every cla
 
 The one-off is `cargo run -p cmdmx-daemon --example church -- <export.tsv>` (VS2-13, owner
 decisions 2026-10-18). It reads the owner's Lightkey patch export from disk; the export and the
-Lightkey show stay out of git. Options: `--show-dir` (default `~/Documents/ColourmotionDMX/Shows`),
-`--profiles-dir` (default `~/Library/Application Support/ColourmotionDMX/profiles`) and
+Lightkey show stay out of git. Options: `--show-dir` (default `~/Documents/CMDMX/Shows`),
+`--profiles-dir` (default `~/Library/Application Support/CMDMX/profiles`) and
 `--qlcplus-dir` (default the bundled `vendor/qlcplus/fixtures`).
 
 - **PAT-15** The export is Lightkey's tab-separated patch list with the header `Universe, Address,

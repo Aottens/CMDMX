@@ -8,7 +8,7 @@ app shows and drives it. Copy to `tests/manual/runs/<date>-<task>.md` and tick i
 Setup: two terminals, and a fresh shows folder so your real one stays untouched.
 - `rm -rf /tmp/cmdmx-output`
 - Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --show-dir /tmp/cmdmx-output`.
-- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`
   (or the copy in `~/Applications` when Claude drives the run).
 - The Eurolite USB-DMX512 PRO MK2 on USB with the LED par on its XLR (`/dev/cu.usbserial-AQ01FA9F`).
 - A new show has Art-Net #1 (0:0:0), sACN #2 (universe 1) and serial `auto` #3 on universe 1.

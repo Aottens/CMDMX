@@ -9,7 +9,7 @@ VS1-07 tests; this run checks that the app shows and drives it. Copy to
 Setup: two terminals, and a fresh shows folder so your real one stays untouched.
 - `rm -rf /tmp/cmdmx-control`
 - Daemon: `cd subprojects/engine && cargo run -p cmdmx-daemon -- --show-dir /tmp/cmdmx-control`.
-- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/ColourmotionDMX.app`
+- App: `cd subprojects/app && swift build && scripts/bundle-app.sh && open .build/CMDMX.app`
   (or the copy in `~/Applications` when Claude drives the run).
 - No hardware: Claude runs a small CoreMIDI script that makes virtual sources (`Test Pad`,
   `BCF2000`, `X-Touch-Ext`) and sends notes, CCs and pitch bends, and sends OSC from the shell to

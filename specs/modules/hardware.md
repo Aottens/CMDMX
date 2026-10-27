@@ -11,7 +11,7 @@ References: `docs/research/hardware-desk.md` (parts, prices, §5a fader strips);
 (layout reference only; names are trademarks of their owners).
 
 ## Purpose
-Open build plans for a real lighting desk that runs ColourmotionDMX: the size and feel of an
+Open build plans for a real lighting desk that runs CMDMX: the size and feel of an
 Avolites Tiger Touch II, one touch screen, motorised playback faders, four isolated DMX ports and
 Art-Net/sACN on the network, built from parts a maker can buy, in quality a professional accepts.
 The desk surface is a USB-MIDI device on the general control layer (CTL) and the DMX ports are

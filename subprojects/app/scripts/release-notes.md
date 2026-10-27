@@ -1,6 +1,6 @@
 ## Install
 
-1. Open the DMG, drag **ColourmotionDMX** onto **Applications**, then eject the DMG.
+1. Open the DMG, drag **CMDMX** onto **Applications**, then eject the DMG.
 2. The app is not notarised, so macOS blocks the first open:
    - **macOS 14:** right-click the app in Applications, choose **Open**, then **Open** again.
    - **macOS 15 or later:** double-click the app once and close the warning. Then open

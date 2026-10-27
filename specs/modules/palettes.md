@@ -178,7 +178,7 @@ lists) store, so they come first.
   - else `{"value":{"attribute":"Zoom","value":0.4}}`: the first stored attribute in I P C G B
     E S FX order, then by name.
   A palette with a picked icon still reports its automatic icon (the picker shows it as "Auto").
-- **PAL-22** Icon ids are ColourmotionDMX's own names, `category.name` (`colour.drop`,
+- **PAL-22** Icon ids are CMDMX's own names, `category.name` (`colour.drop`,
   `position.stage-left`, `beam.zoom`, `service.prayer`), lower case, `[a-z0-9.-]`, at most 48
   characters; `palette.legend` refuses any other string. The engine never needs the list; the
   app owns the built-in library: one line style (research.md: 1.25 pt, monochrome, so the only
@@ -315,7 +315,7 @@ None open; all seven answered on 2026-10-18.
    Pan/Tilt global in degrees via the physical ranges (PAL-04, PAL-07).
 4. No Edit in phase 1; Include + Record → Merge.
 5. Icons: SF Symbols in the app, plus own glyphs where the lighting world needs them; the show
-   stores only ColourmotionDMX ids (PAL-22).
+   stores only CMDMX ids (PAL-22).
 6. No number ranges per window: a palette lives where it was recorded and gets the next free
    number, as on Titan; its window never decides what it is (owner: the ONYX way, where the
    place decides, is the annoying one).

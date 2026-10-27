@@ -1,15 +1,15 @@
 // swift-tools-version:5.9
-// ColourmotionDMX macOS app — thin SwiftUI client for cmdmx-daemon.
+// CMDMX macOS app — thin SwiftUI client for cmdmx-daemon.
 // Builds with Xcode Command Line Tools only: `swift build`. No .xcodeproj (ADR-001).
 import PackageDescription
 
 let package = Package(
-    name: "ColourmotionDMX",
+    name: "CMDMX",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "ColourmotionDMX",
-            path: "Sources/ColourmotionDMX"
+            name: "CMDMX",
+            path: "Sources/CMDMX"
         ),
         // No test target: neither XCTest nor Swift Testing ships with the Command
         // Line Tools. The app is a thin client; behaviour is tested in the engine.
