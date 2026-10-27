@@ -3968,6 +3968,89 @@ mod tests {
         assert_eq!(v["type"], "error");
     }
 
+    fn gdtf_file(name: &str) -> String {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../tests/fixtures/gdtf")
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    #[test]
+    fn ipc_45_import_gdtf_parses() {
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"library.import_gdtf","path":"/tmp/a.gdtf"}"#).unwrap(),
+            Command::Library(LibraryRequest::ImportGdtf {
+                path: "/tmp/a.gdtf".into()
+            })
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"library.import_gdtf"}"#).is_err());
+    }
+
+    #[test]
+    fn lib_34_ipc_45_a_gdtf_file_becomes_a_user_profile_and_a_second_import_replaces_it() {
+        let lib = library("gdtf");
+        let req = json!({"v":1,"cmd":"library.import_gdtf",
+                         "path":gdtf_file("Generic@RGBW8@test.gdtf")})
+        .to_string();
+        let v = ask(&lib, &req);
+        assert_eq!(v["v"], 1);
+        assert_eq!(v["type"], "library.imported", "{v}");
+        assert_eq!(v["manufacturer"], "Generic");
+        assert_eq!(v["model"], "Generic RGBW 8-bit");
+        assert_eq!(v["modes"], json!([{"name":"Default","channels":4}]));
+        assert_eq!(v["replaced"], false);
+        assert!(!v["report"]["channels"].as_array().unwrap().is_empty());
+        assert_eq!(v["report"]["channels"][0]["mode"], "Default");
+        assert!(v["report"]["warnings"].is_array());
+        let found = ask(
+            &lib,
+            r#"{"v":1,"cmd":"library.models","manufacturer":"Generic"}"#,
+        );
+        assert_eq!(found["items"][0]["source"], "user");
+        let p = ask(
+            &lib,
+            r#"{"v":1,"cmd":"library.profile","manufacturer":"Generic","model":"Generic RGBW 8-bit"}"#,
+        );
+        assert_eq!(p["profile"]["source"], "gdtf:Generic@RGBW8@test.gdtf");
+        let v = ask(&lib, &req);
+        assert_eq!(v["type"], "library.imported", "{v}");
+        assert_eq!(v["replaced"], true);
+    }
+
+    #[test]
+    fn ipc_45_missing_too_big_or_broken_files_are_errors_and_save_nothing() {
+        let lib = library("gdtf-bad");
+        let dir = std::env::temp_dir().join(format!("cmdmx-gdtf-bad-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let not_zip = dir.join("not a zip.gdtf");
+        std::fs::write(&not_zip, b"hello").unwrap();
+        // Sparse: one byte over 100 MB costs no disk.
+        let big = dir.join("big.gdtf");
+        std::fs::File::create(&big)
+            .unwrap()
+            .set_len(100 * 1024 * 1024 + 1)
+            .unwrap();
+        let before = ask(&lib, r#"{"v":1,"cmd":"library.search","query":""}"#);
+        for (path, says) in [
+            (dir.join("missing.gdtf"), "missing.gdtf"),
+            (not_zip, "not a zip.gdtf"),
+            (big, "100 MB"),
+        ] {
+            let v = ask(
+                &lib,
+                &json!({"v":1,"cmd":"library.import_gdtf","path":path}).to_string(),
+            );
+            assert_eq!(v["type"], "error", "{v}");
+            let text = v["message"].as_str().unwrap();
+            assert!(text.contains(says), "{text}");
+        }
+        let after = ask(&lib, r#"{"v":1,"cmd":"library.search","query":""}"#);
+        assert_eq!(before, after);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn lib_14_bad_library_requests_are_errors() {
         for bad in [
