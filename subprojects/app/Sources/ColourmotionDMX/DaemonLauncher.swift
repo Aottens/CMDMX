@@ -49,10 +49,10 @@ final class DaemonLauncher: ObservableObject {
         p.standardOutput = log
         p.standardError = log
         let done = DispatchSemaphore(value: 0)
-        p.terminationHandler = { [weak self] proc in
+        p.terminationHandler = { proc in
             done.signal()
             let code = proc.terminationStatus
-            Task { @MainActor in self?.exited(code: code) }
+            Task { @MainActor in DaemonLauncher.shared.exited(code: code) }
         }
         do {
             try p.run()
