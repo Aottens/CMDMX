@@ -58,8 +58,8 @@ Auto-mix needs an auto-mixing type: switch it on for the RGBW Par first (`app-pr
 The shipped LEE table is empty until LEE's permission (VS2-50); until then build the daemon with
 test rows in `subprojects/engine/gels/lee.json` (the `LEE_ROWS` of `cmdmx-core/tests/gels.rs`) and
 do not commit them.
-- [ ] Select 201, `@ 100`: the colour picker's column has Mix | Gels; Mix shows the bars and CTO/CTB,
-      Gels the gel book: a LEE tab, a search field and swatches with number and name, sorted by number
+- [ ] Select 201, `@ 100`: the colour picker's column has Mix | Gels; Mix shows the field, bars and CTO/CTB,
+      Gels turns the whole picker into the gel book: a LEE tab, a search field and swatches with number and name, sorted by number
 - [ ] Search `20`: only 201–206; search `congo`: only 181; empty: all again; typing in it triggers no keys;
       Return or Esc leaves the field and `201 @ 100` with Keys reaches the command line again
 - [ ] Tap 106 Primary Red: Art-Net 46–49 about R 255, G 7, B 0 (R G B at 1.0, 0.029, 0.001); the 106

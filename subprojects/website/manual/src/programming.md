@@ -93,7 +93,7 @@ saturated blue. Each step is a fixed shift in mired, so ½ CTO takes 3200 K to a
 
 ### The gel book
 
-Switch the picker's column from **Mix** to **Gels** for the gel book: a **LEE** tab, a search
+Switch the picker from **Mix** to **Gels** and the whole window becomes the gel book: a **LEE** tab, a search
 field and a grid of swatches with each gel's number and name. Type a number to find it (`10` shows
 101, 102, 103, …) or part of a name (`congo` finds 181 Congo Blue). Return or Escape leaves the
 search field, so the keyboard drives the command line again. Tap a swatch to give the targets that gel's

@@ -351,9 +351,9 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   output read on Art-Net at home.
 
 ### Gel numbers (IDEA-02; approved by owner 2026-10-28)
-- **UI-32** The gel book in the colour picker (UI-15). A switch **Mix | Gels** heads the picker's
-  column (layout amended in the VS2-49 run, owner): Mix shows the bars and the CT rows, Gels the
-  gel book over the column's full height. The gel book: a LEE tab (the only range
+- **UI-32** The gel book in the colour picker (UI-15). A switch **Mix | Gels** (layout amended in the
+  VS2-49 run, owner): Mix shows the field, the bars and the CT rows; Gels turns the whole picker
+  into the gel book, its grid as wide as the window. The gel book: a LEE tab (the only range
   for now), a search field that filters by number prefix or by name (`10` → 101, 102, 103, …;
   `congo` → 181; Return, Esc or a swatch tap gives the keys back, VS2-49 run), and a scrolling grid of swatches with number and name, sorted by number, drawn
   from `library.gels` (IPC-47, asked once per connection). Tapping a swatch sends
