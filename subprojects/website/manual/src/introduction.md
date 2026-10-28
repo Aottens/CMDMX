@@ -40,8 +40,8 @@ state.
 - Macros, Shapes, Pixelmapper and Keystone are marked "later" in the app and are greyed out.
 - It is still in development. The first version, 0.1.0, is out, but it has not yet been used for
   a full service. Treat it accordingly and keep a fallback.
-- Releases are notarised by Apple from the next version on. Versions before it need an extra step
-  on the first launch (see [macOS will not open the app](reference.md#macos-will-not-open-the-app)).
+- The app is not notarised by Apple, so the first launch needs an extra step (see
+  [Getting started](getting-started.md)).
 
 The code lives at [github.com/Aottens/CMDMX](https://github.com/Aottens/CMDMX). Its licence is
 "all rights reserved".

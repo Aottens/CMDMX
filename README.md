@@ -16,8 +16,8 @@ MIDI controller, or both.
 
 **Download:** [the latest DMG](https://github.com/Aottens/CMDMX/releases/latest)
 (macOS 14+, Apple Silicon and Intel; all versions under
-[Releases](https://github.com/Aottens/CMDMX/releases)). Releases up to 0.1.0 are not
-notarised: their first open needs right-click › Open, or *Open Anyway* in Privacy & Security on
+[Releases](https://github.com/Aottens/CMDMX/releases)). Releases are not notarised
+yet: the first open needs right-click › Open, or *Open Anyway* in Privacy & Security on
 macOS 15+.
 
 The goal is a well-working general DMX console. Its first proof is a real Sunday service in the
@@ -42,8 +42,8 @@ the real church rig through the Eurolite interface: fades comparable with Lightk
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Renamed to CMDMX by Colourmotion (VS8-01); the website and manual are ready for GitHub Pages
-(VS8-03, 04) and notarised DMGs wait only for the Apple Developer secrets (VS8-08). Next up: tag
-`v0.1.0`, install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
+(VS8-03, 04); notarisation is built and switches on with the Apple Developer membership
+(VS8-08..10). Next up: tag `v0.1.0`, install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
 is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
 Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 

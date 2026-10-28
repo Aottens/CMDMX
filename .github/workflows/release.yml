@@ -36,10 +36,6 @@ jobs:
             [ -n "${!s}" ] || missing="$missing $s"
           done
           if [ -n "$missing" ]; then
-            if [ "$GITHUB_REF_TYPE" = tag ]; then
-              echo "::error::missing secrets:$missing: a release is never unnotarised"
-              exit 1
-            fi
             echo "::warning::built ad hoc, not notarised: missing secrets:$missing"
             echo "**Built ad hoc, not notarised:** missing secrets:$missing" >> "$GITHUB_STEP_SUMMARY"
             echo "signed=false" >> "$GITHUB_OUTPUT"
