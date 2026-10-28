@@ -83,9 +83,11 @@ white light, from 1800 K (candle) to 10000 K (blue sky), read as for example "32
 "—" while the colour is black. Extra emitters, such as White or Lime, have a wheel of their own;
 it changes only the fixtures that have that emitter.
 
-Above the gel book, the picker has a row of colour-correction steps: **⅛ ¼ ½ Full CTO** warm the
-colour like an orange correction gel, **⅛ ¼ ½ Full CTB** cool it like a blue one. They work in
-every model and keep the brightness.
+Above the gel book, the picker has two rows of colour-correction steps: **CTO** ⅛ ¼ ½ Full warm the
+colour like an orange correction gel, **CTB** ⅛ ¼ ½ Full cool it like a blue one. They move the
+colour along the line of white light, as real correction gels do: CTB makes a cooler white, not a
+saturated blue. Each step is a fixed shift in mired, so ½ CTO takes 3200 K to about 2540 K and
+6500 K to about 3800 K. They work in every model and keep the brightness.
 
 When a fixture type *auto-mixes* its emitters (switched on in the profile editor), the engine
 uses White, Warm White, Amber or Lime to make the colour you pick, so a white on an RGBW par comes

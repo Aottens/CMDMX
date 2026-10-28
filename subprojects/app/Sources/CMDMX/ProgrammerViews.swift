@@ -104,10 +104,16 @@ struct AttributeBar: View {
 
             if programmer.activeGroup == "C" {
                 // IPC-19: wire values are the engine's ColourModel names.
-                VStack(spacing: 2) {
-                    ForEach([("HSI", "Hsi"), ("RGB", "Rgb"), ("CMY", "Cmy"), ("K", "Kelvin")], id: \.1) { label, model in
-                        Button(label) { engine.setColourModel(model) }
-                            .buttonStyle(ModeButton(on: programmer.colourModel == model))
+                // Two by two: four stacked buttons do not fit the bar's height (UI-31).
+                Grid(horizontalSpacing: 2, verticalSpacing: 2) {
+                    let models = [("HSI", "Hsi"), ("RGB", "Rgb"), ("CMY", "Cmy"), ("K", "Kelvin")]
+                    ForEach([0, 2], id: \.self) { i in
+                        GridRow {
+                            ForEach(models[i...(i + 1)], id: \.1) { label, model in
+                                Button { engine.setColourModel(model) } label: { Text(label).frame(minWidth: 18) }
+                                    .buttonStyle(ModeButton(on: programmer.colourModel == model))
+                            }
+                        }
                     }
                 }
                 .fixedSize()

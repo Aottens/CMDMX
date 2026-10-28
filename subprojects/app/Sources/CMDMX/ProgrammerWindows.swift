@@ -157,15 +157,19 @@ struct ColourPickerWindow: View {
         }
     }
 
-    /// IPC-46: CTO/CTB steps on the target colour, whatever the colour model.
+    /// IPC-46: CTO/CTB steps on the target colour, whatever the colour model. One row per gel kind.
     private var ctRow: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 4), spacing: 2) {
-            ForEach([("⅛ CTO", "cto_eighth"), ("¼ CTO", "cto_quarter"), ("½ CTO", "cto_half"), ("Full CTO", "cto_full"),
-                     ("⅛ CTB", "ctb_eighth"), ("¼ CTB", "ctb_quarter"), ("½ CTB", "ctb_half"), ("Full CTB", "ctb_full")], id: \.1) { label, step in
-                Button { engine.ctStep(step) } label: {
-                    Text(label).font(Typo.mono(Typo.small)).lineLimit(1).minimumScaleFactor(0.6)
+        VStack(spacing: 3) {
+            ForEach(["cto", "ctb"], id: \.self) { kind in
+                HStack(spacing: 3) {
+                    Text(kind.uppercased()).font(Typo.mono(Typo.small)).foregroundStyle(t.fg3).fixedSize()
+                    ForEach([("⅛", "eighth"), ("¼", "quarter"), ("½", "half"), ("Full", "full")], id: \.1) { label, size in
+                        Button { engine.ctStep("\(kind)_\(size)") } label: {
+                            Text(label).font(Typo.mono(Typo.body)).lineLimit(1).fixedSize().frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(FlatButton())
+                    }
                 }
-                .buttonStyle(FlatButton(compact: true))
             }
         }
         .padding(.top, 4)

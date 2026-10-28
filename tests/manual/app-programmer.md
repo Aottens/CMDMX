@@ -42,12 +42,12 @@ Speed, Strobe), spots 301–306 at 145–150.
 
 ## Kelvin, CTO/CTB and auto-mix (IPC-46, UI-31, VS2-46)
 Auto-mix needs an auto-mixing type: switch it on for the RGBW Par first (`app-profile-editor.md` H).
-- [ ] Select 201, `@ 100`, pick C: the model switch shows HSI, RGB, CMY and K; click K: one Kelvin
+- [ ] Select 201, `@ 100`, pick C: the model switch shows HSI RGB / CMY K two by two; click K: one Kelvin
       wheel reading about "6500 K" (white); the White wheel has a "+AUTO" tag under its name
 - [ ] With auto-mix on, Art-Net 45–49: White (49) carries the white, R G B (46–48) drop to what is left
 - [ ] Turn the Kelvin wheel down towards 3200 K: the reading follows in steps of 10 K; R rises
       over B on Art-Net and White still takes the common part
-- [ ] In the colour picker, the row ⅛ ¼ ½ Full CTO / ⅛ ¼ ½ Full CTB sits above the gel book: ½ CTO
+- [ ] In the colour picker, two rows CTO and CTB (⅛ ¼ ½ Full) sit above the gel book: ½ CTO
       warms the reading (about 6500 → 3800 K); ½ CTB cools it back; works in HSI and RGB too
 - [ ] With nothing selected, ½ CTO: the message line shows the refusal; with only 301 (a dimmer): the same
 - [ ] Raise the White wheel by hand on an auto-mixing par: its value is the direct part, added on top
