@@ -78,5 +78,5 @@ and any connected controller are working with.
 The number of faders per page is a setting of the show. The default is eight. The screen and
 control surfaces follow it, so it is not fixed at eight.
 
-Next: the Patching, Programming, Palettes, and Playbacks and cues sections cover these in detail.
-They are not written yet.
+Next: [Patching](patching.md), [Programming](programming.md) and [Palettes](palettes.md) cover these
+in detail. The Playbacks and cues section is not written yet.

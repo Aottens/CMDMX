@@ -87,5 +87,6 @@ with nothing connected.
 
 You can **Undo** (Command-Z) any edit, but not live playing such as pressing Go or moving faders.
 
-More on each step will follow in the Patching, Programming, Palettes and Playbacks sections, which
-are not written yet. For the ideas behind them, read [Concepts](concepts.md).
+More on each step: [Patching](patching.md), [Programming](programming.md) and
+[Palettes](palettes.md). The Playbacks section is not written yet. For the ideas behind them, read
+[Concepts](concepts.md).
