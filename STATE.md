@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS8-04: the manual skeleton on the website)_
+_Last updated: 2026-10-28 (VS8-05: manual sections Patching, Programming and Palettes)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -27,7 +27,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    fallback rehearsal, and the service run (VS4-03) once the DMG is on the church Mac.
 4. VS8-03 after the merge: Settings › Pages › Source *GitHub Actions*, then Actions › Website › Run
    workflow and `tests/hardware/website.md` (now with the manual lines). Then the manual sections
-   VS8-05..07, in any order; VS8-02 (logo) when the
+   VS8-06 and VS8-07, in any order; VS8-02 (logo) when the
    Colourmotion logo is found; VS8-08 (notarisation) before the site is announced.
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
