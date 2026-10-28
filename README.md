@@ -40,7 +40,8 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Renamed to CMDMX by Colourmotion (VS8-01). Next up: tag `v0.1.0`, install its DMG on the church
+Renamed to CMDMX by Colourmotion (VS8-01); a website with the latest DMG is ready for GitHub
+Pages (VS8-03). Next up: tag `v0.1.0`, install its DMG on the church
 Mac (VS4-07), then the first service run (VS4-03). Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
@@ -132,6 +133,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 - Installs from a versioned DMG that GitHub builds from a `v*` tag (universal, not notarised):
   the app starts its own engine and stops it on quit, so Lightkey can take the USB interface;
   quitting writes the last changes to the show first.
+- A website ([`subprojects/website/`](subprojects/website/)) offers the latest DMG with its
+  SHA-256 and the install steps; GitHub Pages rebuilds it after every release.
 
 ## Build and run
 

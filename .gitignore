@@ -14,3 +14,5 @@ tests/hardware/runs/*.tmp
 subprojects/engine/vendor/
 # Hardware firmware
 subprojects/hardware/firmware/target/
+# Website build output
+subprojects/website/_site/

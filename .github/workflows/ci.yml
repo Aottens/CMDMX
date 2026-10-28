@@ -70,3 +70,13 @@ jobs:
       - run: swift --version
       - run: swift build
       - run: scripts/bundle-app.sh debug
+
+  website:
+    name: website
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: subprojects/website/test-build.sh
+      - run: subprojects/website/build.sh
+        env:
+          GH_TOKEN: ${{ github.token }}

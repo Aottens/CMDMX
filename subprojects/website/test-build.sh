@@ -91,7 +91,8 @@ build "$tmp/c" FAKE_GH_ERR="HTTP 401: Bad credentials" && no "WEB-13: build pass
 
 # WEB-13: a placeholder build.sh does not know fails the build.
 copy d
-echo '<p>{{NOT_A_FIELD}}</p>' >> "$tmp/d/index.html"
+# HOME is always set: only build.sh's own fields are filled, never any environment variable.
+echo '<p>{{HOME}}</p>' >> "$tmp/d/index.html"
 build "$tmp/d" FAKE_GH_JSON="$release" && no "WEB-13: build passed with '{{' left in the output"
 
 # WEB-20: the custom domain is one file; when it is there it lands in the site.
