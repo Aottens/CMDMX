@@ -370,6 +370,7 @@ pub(super) fn mode_of_scopes(
         attributes,
         colour,
         virtual_dimmer,
+        automix: false,
         cells,
         pan_degrees: None,
         tilt_degrees: None,

@@ -75,6 +75,9 @@ pub struct Mode {
     /// True when the mode mixes colour but has no dimmer channel (LIB-04).
     #[serde(default, skip_serializing_if = "crate::attribute::is_false")]
     pub virtual_dimmer: bool,
+    /// LIB-36: the frame writer fills RGB's remainder with the emitters (ENG-21).
+    #[serde(default, skip_serializing_if = "crate::attribute::is_false")]
+    pub automix: bool,
     /// Heads of a multi-head mode (LIB-07).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cells: Vec<Cell>,
@@ -187,6 +190,7 @@ impl Profile {
                 attributes,
                 colour: None,
                 virtual_dimmer: false,
+                automix: false,
                 cells: Vec::new(),
                 pan_degrees: None,
                 tilt_degrees: None,
@@ -440,6 +444,11 @@ impl Mode {
             }
         };
         check_attributes(&self.attributes, &mut claim)?;
+        let rgb =
+            |c: &Option<ColourMixing>| c.as_ref().is_some_and(|c| c.system == ColourSystem::Rgb);
+        if self.automix && !(rgb(&self.colour) || self.cells.iter().any(|c| rgb(&c.colour))) {
+            return Err("automix needs an RGB colour system on the mode or its cells".into());
+        }
         if let Some(colour) = &self.colour {
             check_colour(colour, &mut claim)?;
         }
@@ -495,6 +504,11 @@ fn check_attributes(attributes: &[AttributeDef], claim: &mut Claim) -> Result<()
             ));
         }
         check_cie(name, a.cie)?;
+        if !(0.25..=4.0).contains(&a.output) || (a.output != 1.0 && !a.emitter) {
+            return Err(format!(
+                "{name}: output is 0.25..=4.0 and only for emitters"
+            ));
+        }
         if a.cie.is_some() && !a.emitter {
             return Err(format!("{name}: cie is only for emitters"));
         }

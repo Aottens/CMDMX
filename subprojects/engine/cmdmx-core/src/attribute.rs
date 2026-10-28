@@ -67,9 +67,20 @@ pub struct AttributeDef {
     /// CIE 1931 xy chromaticity of an emitter, if known (LIB-32).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cie: Option<[f32; 2]>,
+    /// LIB-38: how many times brighter than its RGB equivalent the emitter is (auto-mix only).
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub output: f32,
     /// Named DMX ranges: wheel slots, macros (LIB-15).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub slots: Vec<Slot>,
+}
+
+fn one() -> f32 {
+    1.0
+}
+
+fn is_one(v: &f32) -> bool {
+    *v == 1.0
 }
 
 pub(crate) fn is_false(b: &bool) -> bool {
@@ -95,6 +106,7 @@ impl AttributeDef {
             highlight: None,
             emitter: false,
             cie: None,
+            output: 1.0,
             slots: Vec::new(),
         }
     }

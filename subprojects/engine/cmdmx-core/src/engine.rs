@@ -4902,6 +4902,7 @@ impl Engine {
             // The virtual Dimmer comes first, so `scale` is known for what follows.
             let virtual_dimmer = mode.has_virtual_dimmer();
             let mut scale = 1.0;
+            let mut mix = Mix::default();
             for l in mode.logical_attributes() {
                 let merged = merge_attribute(&sources, fixture, mode, &l, now, None);
                 // PRG-26 (ENG-14): Highlight replaces the merged value, never the held one.
@@ -4933,7 +4934,31 @@ impl Engine {
                 if virtual_dimmer && l.name == DIMMER {
                     scale = value.level();
                 }
+                if mode.automix {
+                    mix.record(&l, value);
+                }
                 write_value(frame, fixture.address, mode, &l, value, scale);
+            }
+            // ENG-21: the mix overwrites RGB and the mixable emitters, whatever the write order.
+            if mode.automix {
+                write_mixed(
+                    frame,
+                    fixture.address,
+                    mode.colour.as_ref(),
+                    &mode.attributes,
+                    &mix,
+                    scale,
+                );
+                for cell in &mode.cells {
+                    write_mixed(
+                        frame,
+                        fixture.address,
+                        cell.colour.as_ref(),
+                        &cell.attributes,
+                        &mix,
+                        scale,
+                    );
+                }
             }
             // PRG-51: a cell with a value, a located value or a clear fade of its own, or that
             // Highlight or an active playback speaks for, merges on its own and overwrites its
@@ -4947,6 +4972,7 @@ impl Engine {
                     continue;
                 };
                 let mut cell_scale = 1.0;
+                let mut cell_mix = Mix::default();
                 for l in mode.cell_attributes(c) {
                     let virtual_dimmer = l.name == DIMMER && mode.virtual_cell_dimmer(c);
                     let merged = merge_attribute(&sources, fixture, mode, &l, now, Some(c));
@@ -4976,7 +5002,21 @@ impl Engine {
                     if virtual_dimmer {
                         cell_scale = value.level();
                     }
+                    if mode.automix {
+                        cell_mix.record(&l, value);
+                    }
                     write_cell(frame, fixture.address, cell, &l, value, scale * cell_scale);
+                }
+                if mode.automix {
+                    let scale = scale * cell_scale;
+                    write_mixed(
+                        frame,
+                        fixture.address,
+                        cell.colour.as_ref(),
+                        &cell.attributes,
+                        &cell_mix,
+                        scale,
+                    );
                 }
             }
         }
@@ -5374,6 +5414,78 @@ fn write_value(
             }
         }
     }
+}
+
+/// Most emitters whose own level is kept for the mix; further ones are written directly.
+const MIX_EMITTERS: usize = 16;
+
+/// The merged Colour and emitter levels of one fixture or cell, kept for [`write_mixed`].
+#[derive(Default)]
+struct Mix<'a> {
+    colour: Option<TargetColour>,
+    n: usize,
+    levels: [(&'a str, f32); MIX_EMITTERS],
+}
+
+impl<'a> Mix<'a> {
+    fn record(&mut self, l: &LogicalAttribute<'a>, value: Value) {
+        match value {
+            Value::Colour(c) => self.colour = Some(c),
+            Value::Level(v) if l.emitter => {
+                if let Some(slot) = self.levels.get_mut(self.n) {
+                    *slot = (l.name, v);
+                    self.n += 1;
+                }
+            }
+            Value::Level(_) => {}
+        }
+    }
+
+    fn level(&self, name: &str) -> f32 {
+        self.levels
+            .iter()
+            .take(self.n)
+            .find(|(n, _)| *n == name)
+            .map_or(0.0, |&(_, v)| v)
+    }
+}
+
+/// ENG-21..23: take the emitters out of the target colour in attribute order and write the
+/// remainder to RGB; each mixable emitter gets its auto level plus its own value (clamped), and
+/// the virtual dimmer `scale` applies after the mix. Unmixable emitters are left as written.
+fn write_mixed(
+    frame: &mut Frame,
+    address: u16,
+    mixing: Option<&ColourMixing>,
+    attributes: &[AttributeDef],
+    mix: &Mix,
+    scale: f32,
+) {
+    let (Some(mixing), Some(target)) = (mixing, mix.colour) else {
+        return;
+    };
+    if mixing.system != ColourSystem::Rgb {
+        return;
+    }
+    let mut rem = [target.r, target.g, target.b].map(|c| c.clamp(0.0, 1.0));
+    for a in attributes.iter().filter(|a| a.emitter) {
+        let Some(eq) = a.cie.and_then(crate::colour::rgb_equivalent) else {
+            continue;
+        };
+        let k = rem
+            .iter()
+            .zip(eq)
+            .filter(|(_, e)| *e > 0.0)
+            .map(|(r, e)| r / e)
+            .fold(f32::INFINITY, f32::min);
+        let level = (k / a.output).clamp(0.0, 1.0);
+        for (r, e) in rem.iter_mut().zip(eq) {
+            *r = (*r - level * a.output * e).max(0.0);
+        }
+        frame.set_attribute(address, a, (level + mix.level(&a.name)).min(1.0) * scale);
+    }
+    let [r, g, b] = rem;
+    frame.set_mixing(address, mixing, TargetColour { r, g, b }.scaled(scale));
 }
 
 /// PRG-51: write one attribute of one cell into that cell's own slots. `scale` is the mode's
