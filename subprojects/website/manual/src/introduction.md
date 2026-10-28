@@ -42,7 +42,6 @@ state.
   a full service. Treat it accordingly and keep a fallback.
 - The app is not notarised by Apple, so the first launch needs an extra step (see
   [Getting started](getting-started.md)).
-- Only some sections of this manual are written. The sidebar shows the rest greyed out.
 
 The code lives at [github.com/Aottens/CMDMX](https://github.com/Aottens/CMDMX). Its licence is
 "all rights reserved".

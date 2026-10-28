@@ -148,5 +148,4 @@ CMDMX is built to keep the light on.
 - **Falling back to another program:** quitting CMDMX stops the engine and frees the USB
   interface, so a backup lighting program on the same Mac can take it over.
 
-Next: control surfaces, shows and files, and the reference are covered in the next sections of
-this manual, which are not written yet.
+Next: [Control surfaces](controls.md).
