@@ -49,6 +49,8 @@ nothing to run or patch on a server.
 - **WEB-12** The install steps are REL-15's (drag to Applications; first open right-click › Open,
   or *Open Anyway* on macOS 15+; the Local Network and firewall prompts), as long as the DMG is
   not notarised. When notarisation lands (VS8-08), they shrink to "drag to Applications".
+  As of REL-22 (VS8-08) the page and the manual's Install have the drag steps only; the
+  not-notarised steps live only in the manual's troubleshooting (`reference.md`).
 - **WEB-13** Only `build.sh` fills the version: it reads the latest release with
   `gh release view --json tagName,publishedAt,assets,url` and replaces the `{{…}}` placeholders
   in `index.html`. It fails when any `{{` is left in the output. Nothing on the page is fetched

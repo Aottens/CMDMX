@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS8-08 spec: notarisation criteria REL-17..23 approved)_
+_Last updated: 2026-10-28 (VS8-08: notarisation built, waits for the owner's Apple account and secrets)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -28,7 +28,9 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 4. VS8-03 after the merge: Settings › Pages › Source *GitHub Actions*, then Actions › Website › Run
    workflow and `tests/hardware/website.md` (now with the manual lines); the manual is complete
    (VS8-07). VS8-02 (logo) when the
-   Colourmotion logo is found; VS8-08 (notarisation) before the site is announced.
+   Colourmotion logo is found.
+6. VS8-08 after the merge: once the five secrets are set, Actions › Release › Run workflow must end
+   `ok (notarised)`; the next tag is the first notarised release, then the site is announced.
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
 
@@ -40,6 +42,8 @@ Rows with status `gate3` in `BACKLOG.md`:
   `tests/hardware/website.md`; its manual lines check VS8-04 on the live site.
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
   until the owner finds the BCF2000.
+- VS8-08 notarised install, `tests/hardware/release.md` *Notarised install*: needs the Apple
+  Developer account and the five repo secrets first (Owner to decide).
 - HWB-01 USB-MIDI box, `tests/hardware/hw-box.md`: order the parts first (list at the top of the
   checklist), then flash, Learn on the Mac and tick.
 
@@ -49,7 +53,7 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
-- VS8-08 notarisation (REL-17..23 approved): join the Apple Developer Program, as Colourmotion if it
+- VS8-08 notarisation (built; `make-dmg.sh` builds ad hoc until the secrets exist): join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).
 - Rename the GitHub repo to `Aottens/CMDMX` (Settings › General › Repository name; BRD-10).

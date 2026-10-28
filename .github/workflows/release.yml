@@ -22,6 +22,50 @@ jobs:
             version=$(bash subprojects/app/scripts/release-version.sh "$GITHUB_REF_NAME")
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Signing (REL-20)
+        id: sign
+        env:
+          DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          missing=
+          for s in DEVELOPER_ID_P12 DEVELOPER_ID_P12_PASSWORD NOTARY_KEY_P8 NOTARY_KEY_ID NOTARY_ISSUER_ID; do
+            [ -n "${!s}" ] || missing="$missing $s"
+          done
+          if [ -n "$missing" ]; then
+            if [ "$GITHUB_REF_TYPE" = tag ]; then
+              echo "::error::missing secrets:$missing: a release is never unnotarised"
+              exit 1
+            fi
+            echo "::warning::built ad hoc, not notarised: missing secrets:$missing"
+            echo "**Built ad hoc, not notarised:** missing secrets:$missing" >> "$GITHUB_STEP_SUMMARY"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          KC="$RUNNER_TEMP/cmdmx-signing.keychain-db"
+          kpw=$(openssl rand -base64 24)
+          security create-keychain -p "$kpw" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$kpw" "$KC"
+          echo "$DEVELOPER_ID_P12" | base64 --decode > "$RUNNER_TEMP/developer_id.p12"
+          security import "$RUNNER_TEMP/developer_id.p12" -P "$DEVELOPER_ID_P12_PASSWORD" -k "$KC" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/developer_id.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kpw" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          identity=$(security find-identity -v -p codesigning "$KC" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -n 1)
+          [ -n "$identity" ] || { echo "::error::no Developer ID Application identity in the .p12"; exit 1; }
+          (umask 077; echo "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary_key.p8")
+          chmod 600 "$RUNNER_TEMP/notary_key.p8"
+          {
+            echo "CMDMX_SIGN_IDENTITY=$identity"
+            echo "CMDMX_NOTARY_KEY=$RUNNER_TEMP/notary_key.p8"
+            echo "CMDMX_NOTARY_KEY_ID=$NOTARY_KEY_ID"
+            echo "CMDMX_NOTARY_ISSUER=$NOTARY_ISSUER_ID"
+          } >> "$GITHUB_ENV"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
@@ -29,7 +73,7 @@ jobs:
       - run: swift --version
       - run: subprojects/engine/scripts/fetch-qlcplus.sh
       - run: subprojects/app/scripts/make-dmg.sh "${{ steps.v.outputs.version }}" "${{ github.run_number }}"
-      - run: subprojects/app/scripts/check-dmg.sh "subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg" "${{ steps.v.outputs.version }}"
+      - run: subprojects/app/scripts/check-dmg.sh "subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg" "${{ steps.v.outputs.version }}" ${{ steps.sign.outputs.signed == 'true' && '--notarised' || '' }}
       - name: GitHub release (REL-09)
         if: github.ref_type == 'tag'
         env:
@@ -45,6 +89,11 @@ jobs:
         with:
           name: CMDMX-${{ steps.v.outputs.version }}.dmg
           path: subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg
+      - name: Remove signing material (REL-20)
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/cmdmx-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/notary_key.p8" "$RUNNER_TEMP/developer_id.p12"
 
   # A release made with GITHUB_TOKEN does not start other workflows, so the page is called from here.
   website:

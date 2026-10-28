@@ -11,11 +11,8 @@
 1. Download `CMDMX-<version>.dmg` from the
    [latest release](https://github.com/Aottens/CMDMX/releases/latest) on GitHub.
 2. Open the DMG, drag **CMDMX** onto **Applications**, then eject the DMG.
-3. The app is not notarised by Apple yet, so macOS blocks the first open:
-   - **macOS 14:** right-click the app in Applications, choose **Open**, then **Open** again.
-   - **macOS 15 or later:** double-click the app once and close the warning. Then open **System
-     Settings > Privacy & Security**, scroll down and click **Open Anyway**.
-4. After that it opens normally, until you install a newer version.
+3. Open CMDMX from Applications. macOS asks once to confirm an app downloaded from the internet:
+   click **Open**.
 
 The release page for v0.1.0 says "ColourmotionDMX" in its install text. That was the name before <!-- brand: old-name -->
 the rename; the app is now called CMDMX.
