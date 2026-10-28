@@ -3,7 +3,7 @@ import SwiftUI
 
 // Console mode (UI-26): native full screen with the Dock and menu bar auto-hidden, and a
 // confirmation before the app quits. The choice lives in UserDefaults ("consoleMode").
-// The engine is a separate process, so quitting the app never stops DMX output.
+// The engine is a separate process, but the app stops the one it started or adopted (REL-13).
 
 private let consoleKey = "consoleMode"
 
@@ -24,7 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard UserDefaults.standard.bool(forKey: consoleKey) else { return .terminateNow }
         let alert = NSAlert()
         alert.messageText = "Quit the app?"
-        alert.informativeText = "DMX keeps running in the engine."
+        alert.informativeText = MainActor.assumeIsolated { DaemonLauncher.shared.ownsEngine }
+            ? "The engine stops with the app: DMX output stops and the USB interface is free for another program."
+            : "This app did not start the engine, so DMX keeps running."
         alert.addButton(withTitle: "Quit")
         alert.addButton(withTitle: "Cancel")
         // Return must not quit by accident during a show: Cancel is the default button.

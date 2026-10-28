@@ -11,8 +11,9 @@ Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p c
 
 ### Console mode and frame (UI-01, UI-26)
 - [ ] The app opens full screen: no Dock, no menu bar
-- [ ] ⌘Q asks "Quit the app? DMX keeps running in the engine." — Cancel keeps the app open,
-      the Art-Net output never stops either way
+- [ ] ⌘Q asks "Quit the app? This app did not start the engine, so DMX keeps running." (this
+      checklist runs `swift run` against your own daemon; the bundled app's text is in
+      `tests/hardware/release.md`) — Cancel keeps the app open, the Art-Net output never stops either way
 - [ ] Console off (status bar): a normal window. Resizing it only grows or shrinks the window
       grid; the bars keep their size. It does not get smaller than 1280 × 800
 - [ ] Quit and reopen: the app comes back in the mode you left it in

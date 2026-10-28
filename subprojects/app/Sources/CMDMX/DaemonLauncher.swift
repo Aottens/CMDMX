@@ -17,6 +17,9 @@ final class DaemonLauncher: ObservableObject {
     private var childExited: DispatchSemaphore?
     private var adopted: pid_t?
     private var stopping = false
+    /// True while this app started or adopted the engine, so quitting the app stops it (REL-13).
+    /// A flag, not `child != nil`: during the restart window `child` is nil but the app still owns it.
+    private(set) var ownsEngine = false
 
     private var logDir: URL { fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/CMDMX") }
     private var pidFile: URL {
@@ -26,6 +29,7 @@ final class DaemonLauncher: ObservableObject {
     /// REL-10: only a bundled daemon is started; `swift run` and a debug bundle start nothing.
     func start() {
         guard fm.isExecutableFile(atPath: daemonURL.path) else { return }
+        ownsEngine = true
         if let pid = adoptablePid() { adopted = pid; return }
         launch()
     }
@@ -88,6 +92,7 @@ final class DaemonLauncher: ObservableObject {
         child = nil
         guard !stopping else { return }
         if code == 2 {
+            ownsEngine = false
             // REL-11: the port is taken by another program; the app connects to that one.
             note = "Another engine is running on port 7319"
             return

@@ -88,7 +88,8 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
 - **REL-13** Quitting the app (⌘Q, or the menu) sends SIGTERM to the daemon it started or adopted,
   waits until it has exited (at most 5 s, then SIGKILL), removes the pid file, and then quits. The
   serial port (the Eurolite) is free afterwards, so Lightkey can open it. A daemon the app did not
-  start (a developer's) is left alone.
+  start (a developer's) is left alone. The quit confirmation of console mode says which of the two
+  happens (UI-26, amended by VS4-08).
 - **REL-14** On SIGINT or SIGTERM the daemon writes pending show changes (SHW-11 autosave) before
   it exits, besides blanking the decks (CTL-53), so quitting the app never loses the last 5 s of
   programming. If the app itself crashes, the daemon keeps running and keeps output (show-proof);

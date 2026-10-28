@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS8-03 website run passed on the live site)_
+_Last updated: 2026-10-28 (VS4-08 quit alert matches REL-13)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -24,11 +24,10 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    looks, *Front band*, *Front spreker*); the owner fills in which fresnels are band and speaker.
 3. Sunday in the church: the two TouchOSC lines in `church.md`, then *Before the service* with the
    fallback rehearsal, and the service run (VS4-03) once the DMG is on the church Mac.
-4. VS4-08 (S): the Quit alert says DMX keeps running, but quitting stops the engine (REL-13).
-5. Releases build ad hoc until the owner joins the Apple Developer Program (VS8-09); then VS8-10
+4. Releases build ad hoc until the owner joins the Apple Developer Program (VS8-09); then VS8-10
    (secrets, a `workflow_dispatch` ending `ok (notarised)`, the first notarised tag, the site announced).
    VS8-02 (logo) when the Colourmotion logo is found.
-6. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
+5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
 
 ## Waiting for a hardware run (gate 3, owner)
