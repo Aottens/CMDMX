@@ -128,6 +128,9 @@ struct ProgrammerWindow: View {
 struct ColourPickerWindow: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @State private var gelQuery = ""
+    @State private var showGels = false
+    @FocusState private var gelFocus: Bool
 
     var body: some View {
         let programmer = engine.programmer
@@ -135,22 +138,47 @@ struct ColourPickerWindow: View {
                     info: programmer.colour == nil ? "select colour fixtures" : programmer.colourModel.uppercased(),
                     accessory: { EmptyView() }) {
             if let colour = programmer.colour {
-                HStack(spacing: 6) {
-                    HueSaturationField(colour: colour)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 3) {
-                            if programmer.activeGroup == "C" {
-                                ForEach(programmer.wheels) { MixBar(wheel: $0) }
-                            } else {
-                                Text("pick the C tab for the bars").font(Typo.ui(11)).foregroundStyle(t.fg3)
-                            }
-                            ctRow
-                            gelRow
+                if showGels {
+                    // UI-32: Gels takes the whole window: switch, LEE tab and search on one row, the reading, the grid.
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            modeSwitch.frame(width: 100)
+                            Text("LEE").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg)
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
+                            TextField("number or name", text: $gelQuery).textFieldStyle(.roundedBorder).font(Typo.mono(Typo.small))
+                                .focused($gelFocus)
+                                .onSubmit { gelFocus = false }      // Return and Esc leave the field, keeping the query
+                                .onExitCommand { gelFocus = false }
                         }
+                        if let gel = colour.gel { gelReading(gel) }
+                        gelGrid
                     }
-                    .frame(width: 150)
+                    .padding(6)
+                } else {
+                    HStack(spacing: 6) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            // UI-32: the gel the colour reads as, above the field.
+                            if let gel = colour.gel { gelReading(gel) }
+                            HueSaturationField(colour: colour)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            modeSwitch
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    if programmer.activeGroup == "C" {
+                                        ForEach(programmer.wheels) { MixBar(wheel: $0) }
+                                    } else {
+                                        Text("pick the C tab for the bars").font(Typo.ui(11)).foregroundStyle(t.fg3)
+                                    }
+                                    ctRow
+                                }
+                            }
+                        }
+                        .frame(width: 150)
+                    }
+                    .padding(6)
                 }
-                .padding(6)
             } else {
                 NoteText(note: "Select fixtures that mix colour. The picker sets one target colour; each fixture type maps it to its own emitters (RGBW, RGB+Lime, RGB). Gel book: LEE first.")
             }
@@ -175,24 +203,57 @@ struct ColourPickerWindow: View {
         .padding(.top, 4)
     }
 
-    /// Placeholders until the gel book (IDEA-02): 8 disabled swatches.
-    private var gelRow: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("GELS · LATER").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3)
-            gelSwatches
-        }
-        .padding(.top, 4)
-        .help("Gel book · IDEA-02")
-    }
-
-    private var gelSwatches: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 4), spacing: 2) {
-            ForEach(0..<8, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: radius).fill(t.surf)
-                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
-                    .frame(height: 28).opacity(t.disabled)
+    /// Mix | Gels (the app's own view choice); a tap also drops the search field's focus.
+    private var modeSwitch: some View {
+        HStack(spacing: 2) {
+            ForEach([("Mix", false), ("Gels", true)], id: \.0) { label, gels in
+                Button { showGels = gels; gelFocus = false } label: { Text(label).frame(maxWidth: .infinity) }
+                    .buttonStyle(ModeButton(on: showGels == gels))
             }
         }
+    }
+
+    private func gelReading(_ gel: GelRef) -> some View {
+        Text(verbatim: "\(gel.range.uppercased()) \(gel.number) \(gel.name)")
+            .font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1)
+    }
+
+    /// UI-32: the gel book's swatches (IPC-47), in the engine's order; as many per row as the width allows.
+    private var gelGrid: some View {
+        let current = engine.programmer.colour?.gel?.number
+        return Group {
+            if engine.gels.isEmpty {
+                Text("No gels in this build (LEE table pending)").font(Typo.ui(11)).foregroundStyle(t.fg3)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 3)], spacing: 3) {
+                        ForEach(filteredGels) { gel in
+                            Button { gelFocus = false; engine.gel(gel.number) } label: {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    RoundedRectangle(cornerRadius: radius).fill(Color(red: gel.r, green: gel.g, blue: gel.b)).frame(height: 16)
+                                    Text(verbatim: "\(gel.number)").font(Typo.mono(Typo.small)).foregroundStyle(t.fg)
+                                    Text(gel.name).font(Typo.ui(9)).foregroundStyle(t.fg3).lineLimit(1).truncationMode(.tail)
+                                }
+                                .padding(2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .overlay(RoundedRectangle(cornerRadius: radius)
+                                    .strokeBorder(gel.number == current ? t.blue : t.line, lineWidth: gel.number == current ? 2 : hairline))
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help("LEE \(gel.number) \(gel.name)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Number prefix or case-insensitive name substring; empty search shows all (UI-32).
+    private var filteredGels: [Gel] {
+        let q = gelQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return engine.gels }
+        return engine.gels.filter { String($0.number).hasPrefix(q) || $0.name.lowercased().contains(q) }
     }
 }
 

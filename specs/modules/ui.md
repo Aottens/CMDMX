@@ -344,16 +344,18 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 ### Colour temperature and auto-mix (IDEA-32; approved by owner 2026-10-28)
 - **UI-31** The colour-model switch (IPC-19) gets a fourth button **K**; the Kelvin wheel shows its
   value as "3200 K" ("—" for black); the four model buttons sit two by two (HSI RGB / CMY K). In the
-  colour picker (UI-15), above the gel book row, two rows CTO ⅛ ¼ ½ Full and CTB ⅛ ¼ ½ Full send
+  colour picker (UI-15), in its Mix view (UI-32), two rows CTO ⅛ ¼ ½ Full and CTB ⅛ ¼ ½ Full send
   `programmer.ct_step` (IPC-46), whatever the model (layout amended in the VS2-46 run, owner). An emitter bar or wheel whose `wheels` entry has `auto` shows a small "+AUTO" tag
   under its name: its value is the direct part, added to what the engine mixes (ENG-22). The app
   computes no colour. Verified by `tests/manual/app-programmer.md` (amended), with the auto-mixed
   output read on Art-Net at home.
 
 ### Gel numbers (IDEA-02; approved by owner 2026-10-28)
-- **UI-32** The gel book in the colour picker (UI-15), below the CT rows: a LEE tab (the only range
+- **UI-32** The gel book in the colour picker (UI-15). A switch **Mix | Gels** (layout amended in the
+  VS2-49 run, owner): Mix shows the field, the bars and the CT rows; Gels turns the whole picker
+  into the gel book, its grid as wide as the window. The gel book: a LEE tab (the only range
   for now), a search field that filters by number prefix or by name (`10` → 101, 102, 103, …;
-  `congo` → 181), and a scrolling grid of swatches with number and name, sorted by number, drawn
+  `congo` → 181; Return, Esc or a swatch tap gives the keys back, VS2-49 run), and a scrolling grid of swatches with number and name, sorted by number, drawn
   from `library.gels` (IPC-47, asked once per connection). Tapping a swatch sends
   `programmer.gel`. When the `colour` object has a `gel`, its swatch is outlined and the picker
   shows "LEE 201 Full C.T. Blue" above the field. While Keys is live, L types the `Lee` token

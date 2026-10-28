@@ -38,12 +38,14 @@ selection replaces the current one.
 - `201 Thro 208 @ 50 Enter` selects them and sets their intensity to 50 %. With fixtures selected,
   `@ 80 Enter` sets the selection to 80 %.
 - Ending the line with **Locate** instead of Enter selects and locates in one go.
+- `201 Thro 208 Lee 106 Enter` selects them and gives them LEE 106's colour (see
+  [The gel book](#the-gel-book)). With fixtures selected, `Lee 201 Enter` does the same.
 
 **Back** removes the last word, **Exit** empties the line. A line the engine cannot use is refused
 with a message next to it, and nothing changes.
 
 With **Keys** on in the status bar, the Mac keyboard types into the line as well: the digits, `-`
-for Thro, `+` for And, `@`, `f` for Fixture, `g` for Group and `p` for Palette. Return is Enter and
+for Thro, `+` for And, `@`, `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter and
 Escape is Exit.
 
 ### Stepping and patterns
@@ -83,11 +85,28 @@ white light, from 1800 K (candle) to 10000 K (blue sky), read as for example "32
 "—" while the colour is black. Extra emitters, such as White or Lime, have a wheel of their own;
 it changes only the fixtures that have that emitter.
 
-Above the gel book, the picker has two rows of colour-correction steps: **CTO** ⅛ ¼ ½ Full warm the
+In its **Mix** view, the picker has two rows of colour-correction steps: **CTO** ⅛ ¼ ½ Full warm the
 colour like an orange correction gel, **CTB** ⅛ ¼ ½ Full cool it like a blue one. They move the
 colour along the line of white light, as real correction gels do: CTB makes a cooler white, not a
 saturated blue. Each step is a fixed shift in mired, so ½ CTO takes 3200 K to about 2540 K and
 6500 K to about 3800 K. They work in every model and keep the brightness.
+
+### The gel book
+
+Switch the picker from **Mix** to **Gels** and the whole window becomes the gel book: a **LEE** tab, a search
+field and a grid of swatches with each gel's number and name. Type a number to find it (`10` shows
+101, 102, 103, …) or part of a name (`congo` finds 181 Congo Blue). Return or Escape leaves the
+search field, so the keyboard drives the command line again. Tap a swatch to give the targets that gel's
+colour, or type `Lee 201` on the command line. A gel sets the colour, not the brightness: a par
+at half level stays at half level. The colour is what the gel shows in front of a 3200 K tungsten
+lamp, so LEE 201 Full C.T. Blue makes daylight white, as it does on a theatre lamp.
+
+While the colour is exactly a gel's colour, its swatch is outlined and the picker shows its name
+above the field, for example "LEE 201 Full C.T. Blue". Turn any wheel and it is just a colour
+again. A Colours palette recorded from one gel takes its name as legend: "L201 Full C.T. Blue".
+
+The full LEE table ships once LEE Filters has given permission to use their data; until then the
+gel book is empty.
 
 When a fixture type *auto-mixes* its emitters (switched on in the profile editor), the engine
 uses White, Warm White, Amber or Lime to make the colour you pick, so a white on an RGBW par comes

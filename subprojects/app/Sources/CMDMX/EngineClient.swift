@@ -926,7 +926,28 @@ struct TargetColour: Decodable, Equatable {
     let b: Double
     /// IPC-46: correlated colour temperature in K (rounded to 10 by the engine), nil for black.
     var kelvin: Double?
+    /// IPC-47: the LEE gel the colour reads as (PRG-69), nil when it matches none.
+    var gel: GelRef?
 }
+
+/// IPC-47: a gel named by the engine, for the colour reading.
+struct GelRef: Decodable, Equatable {
+    let range: String
+    let number: Int
+    let name: String
+}
+
+/// IPC-47: one row of `library.gels`; r g b are the engine's colour (drawing only).
+struct Gel: Decodable, Equatable, Identifiable {
+    let number: Int
+    let name: String
+    let r: Double
+    let g: Double
+    let b: Double
+    var id: Int { number }
+}
+
+private struct GelsReply: Decodable { let gels: [Gel] }
 
 /// PAL-26: `in_use` = palettes the programmer references, `relevant` = palettes that resolve
 /// something for a target (all of them when nothing is selected).
@@ -1203,6 +1224,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var gdtfImported: GdtfImported?
     /// LIB-39: latest `profile.emitter` reply per emitter name.
     @Published private(set) var emitterInfo: [String: EmitterInfo] = [:]
+    /// IPC-47 / UI-32: the LEE table, asked once per connection.
+    @Published private(set) var gels: [Gel] = []
     private var editorAsk: String?
     /// What was asked last (empty = nil); a reply that echoes something else is stale and dropped.
     private var lastManufacturersQuery: String?
@@ -1390,6 +1413,8 @@ final class EngineClient: ObservableObject {
     }
     /// IPC-46: step the target colour along the colour-temperature locus (`cto_half`, `ctb_full`, …).
     func ctStep(_ step: String) { sendJSON("programmer.ct_step", ["step": step]) }
+    /// IPC-47: set the target colour to a LEE gel by number.
+    func gel(_ number: Int) { sendJSON("programmer.gel", ["range": "Lee", "number": number]) }
     func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
 
     func wheel(attribute: String, steps: Int, resolution: WheelResolution) {
@@ -1828,6 +1853,7 @@ final class EngineClient: ObservableObject {
             paletteSettings = incoming.paletteSettings?.value
             programmerSettings = incoming.programmerSettings?.value
             programmer = incoming.programmer ?? ProgrammerState()
+            sendJSON("library.gels", ["range": "Lee"])   // IPC-47
             outputs = incoming.outputs?.value ?? []
             control = incoming.control?.value ?? ControlState()
             if let name = shownMapping { sendJSON("control.mapping", ["name": name]) }
@@ -1882,6 +1908,8 @@ final class EngineClient: ObservableObject {
             acceptEditorProfile(data)
         case "library.profile":
             acceptEditorProfile(data)
+        case "library.gels":
+            if let reply = try? JSONDecoder().decode(GelsReply.self, from: data) { gels = reply.gels }
         case "profile.emitter":
             if let info = try? JSONDecoder().decode(EmitterInfo.self, from: data) { emitterInfo[info.name] = info }
         case "library.saved":

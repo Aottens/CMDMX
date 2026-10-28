@@ -221,7 +221,7 @@ private struct AttributeTab: View {
 }
 
 /// HSI / RGB / CMY switch next to the wheels.
-private struct ModeButton: ButtonStyle {
+struct ModeButton: ButtonStyle {
     @Environment(\.theme) private var t
     let on: Bool
     func makeBody(configuration: Configuration) -> some View {
