@@ -63,6 +63,43 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
 - **ENG-19** The Take Over pass of GRM-10 compares the master level with the mastered output,
   effect included (what is on stage).
 
+### Colour to channels: automatic emitter mixing (IDEA-32, ADR-010; approved by owner 2026-10-28)
+The frame writer (ENG-14) maps a fixture's merged target colour onto its channels. Without
+auto-mix that stays ADR-005's nominal mapping (RGB as is, CMY inverted). For a mode with
+`automix` (LIB-36) it first moves light from R, G, B to the mixable extra emitters. Church
+examples: 201 (RGBW) and 211 (RGB+Lime) with auto-mix on, White and Lime at their LIB-37 defaults.
+
+- **ENG-20** RGB equivalent. Per emitter with `cie: [x, y]` (LIB-32, LIB-37), computed when the
+  profile is loaded or edited, never per tick: XYZ = (x / y, 1, (1 − x − y) / y), converted to
+  linear BT.2020 RGB (ADR-005 decision 1) and scaled so its largest component is 1. A component
+  below −0.05 means the colour lies outside the reference gamut: that emitter is **not mixable**
+  (UV, deep violet). Otherwise each component below 0.05 becomes 0 (an amber or lime is mixed as
+  its two main primaries; up to 5 % of one primary at that emitter's level is lost, a known
+  ceiling of the nominal model). White (0.3127, 0.3290) → (1, 1, 1); Lime (0.41, 0.55) →
+  (0.81, 1, 0); Amber (0.5752, 0.4242) → (1, 0.36, 0); UV (0.174, 0.005) → not mixable.
+- **ENG-21** Extraction. Per tick, per fixture (or cell, LIB-07) of an `automix` mode: the
+  remainder starts as the target colour after merge, effect and clamp. For each mixable emitter in
+  profile order, with RGB equivalent *e* and output factor *o* (LIB-38): *k* = the smallest
+  remainder_c / e_c over the components where e_c > 0; level = min(1, *k* / *o*); remainder −=
+  level · *o* · *e*, each component clamped at 0. The R, G, B channels get the remainder. 201 at
+  (1, 0.5, 0.5) → White 0.5, R 0.5, G 0, B 0. 211 at (1, 0.8, 0) → Lime 0.8, R 0.35, G 0, B 0.
+  201 at (1, 1, 1) with White output 2.0 → White 0.5, RGB 0; with output 0.5 → White 1.0,
+  RGB 0.5 each. 201 at blue (0, 0, 1) → White 0, B 1.
+- **ENG-22** Direct on top. An emitter's channel gets min(1, auto level + its own merged value):
+  the direct value (PRG-34) merges as today and is added afterwards. 201 at (1, 0.5, 0.5) with
+  programmer White 0.3 → White channel 0.8. Palette zeroing (PAL-07) zeroes the direct value
+  only: applying Blue after that look gives White 0, B 1, not pastel blue. Highlight's open white
+  (PRG-39) on 201 → White 1.0, RGB 0.
+- **ENG-23** Where it does not act. A mode without `automix` writes byte-identical frames to
+  today (an existing show does not change); a non-mixable emitter or one without `cie` is direct
+  only; CMY modes and colour wheels never mix (LIB-36). The virtual dimmer (LIB-04, PRG-47)
+  scales R, G, B and every emitter after the mix, auto part included: 201 at (1, 0.5, 0.5) on a
+  virtual Dimmer of 0.5 → White 0.25, R 0.25.
+- **ENG-24** Safety. The mix is a fixed number of multiply-adds per emitter with no allocation
+  (ENG-13), no division by a zero component (skipped), and every channel stays within 0.0–1.0 for
+  any target colour in 0.0–1.0 and any profile LIB-02 accepts (a property test over a grid of
+  colours and the church profiles). Same inputs, same bytes (ENG-11).
+
 ### Determinism and safety
 - **ENG-11** Two engines fed the same scenario (same patch, same timestamped actions) produce byte-identical frames at every sampled timestamp.
 - **ENG-12** No input combination makes `tick` return an error that stops output: invalid actions are rejected with a `Warning` and the previous frame is retained.

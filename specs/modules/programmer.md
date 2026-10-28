@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22)**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -27,7 +27,7 @@ and later remotes are views and inputs of the same single programmer.
 - **Programmer contents:** per fixture, per attribute, a *touched* value: either a manual value
   or a palette reference (`palette_id`). An attribute that was never touched is absent.
 - **Located set / highlight:** output overrides that are *not* programmer contents.
-- **Active attribute group** and **colour model** (HSI / RGB / CMY): engine state shared by
+- **Active attribute group** and **colour model** (HSI / RGB / CMY / Kelvin): engine state shared by
   the screen and every control surface, so the on-screen wheels and the encoders always agree.
 - **Colour:** per fixture one colour attribute holding a device-independent target colour, plus
   direct emitter attributes (White, Lime, …) in group C. Representation and how emitters
@@ -214,6 +214,29 @@ editing the line (Back, Exit) stays in the client.
 - **PRG-34** A direct emitter wheel (White, Lime, any emitter of LIB-17) changes only fixtures that have that emitter and
   is a touched attribute of its own, separate from the target colour. Targets 201 + 221, White
   +50 % → 201 White 0.50 in the programmer, 221 unchanged and not in the programmer.
+
+### Colour temperature (IDEA-32, ADR-010; approved by owner 2026-10-28)
+Kelvin is a fourth view of the same target colour (PRG-30): it stores nothing new. Temperatures
+are points on the Planckian locus (CIE 1931 xy from the Kim et al. cubic spline, valid
+1667–25000 K), converted to linear BT.2020 (ADR-005).
+
+- **PRG-63** The colour models are HSI, RGB, CMY and **Kelvin**. Kelvin's wheels are Kelvin, then
+  the direct emitters (PRG-17). Switching to Kelvin changes no value and no output.
+- **PRG-64** The Kelvin wheel reads the temperature of the nearest locus point (in CIE 1960 uv) to
+  the target colour, clamped to 1800–10000 K and shown in K rounded to 10 K; black has no
+  temperature ("—"). White (1, 1, 1) reads 6500 K; setting 3200 K and reading it back gives
+  3200 K (round trip within 5 K). The wheel moves in mired (10⁶ / K) so warm and cool steps feel
+  even: its 0.0–1.0 value is (555.6 − mired) / 455.6, so one `Normal` step is about 1.8 mired.
+- **PRG-65** Turning Kelvin sets each target's colour to the locus point at its own new
+  temperature (relative per target, PRG-19, clamped to 1800–10000 K), scaled so max(r, g, b)
+  keeps its value (1.0 for black). A colour off the locus lands on it at the temperature it
+  reads. 201 at full white, Kelvin to 3200 K → (1.0, 0.68, 0.29); 202 at half-level red reads
+  1800 K (clamped); one step down → (0.5, 0.19, 0.02) at 1800 K.
+- **PRG-66** CTO and CTB steps shift every target's temperature by a nominal gel's mired value,
+  as that gel would on a source at that temperature: Full CTO +159, ½ CTO +81, ¼ CTO +42,
+  ⅛ CTO +20; Full CTB −137, ½ CTB −78, ¼ CTB −35, ⅛ CTB −18; then PRG-65 (clamp, keep max). They
+  work in any colour model and touch Colour. 201 at 5600 K, ½ CTO → 3850 K; 202 at 3200 K,
+  Full CTB → 5700 K; 203 at 5600 K, Full CTB → 10000 K (clamped). Gel numbers stay IDEA-02.
 
 ### Engine state and safety
 - **PRG-35** The engine exposes the programmer state for rendering: selection (ordered),

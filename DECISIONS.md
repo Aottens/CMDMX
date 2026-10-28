@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-28 — Extra emitters may be mixed automatically, opt-in per fixture type (owner, IDEA-32; ADR-010)
+
+**Decision:** automatic mixing of White, Warm White, Amber, Lime, … from the target colour comes ahead of calibration: opt-in per mode, default off; the direct emitter wheels stay live and add on top; an emitter's colour comes from GDTF `cie`, else a name-based default, editable in the profile editor. Colour temperature becomes a Kelvin view with CTO/CTB steps on the target colour; LEE numbers stay in IDEA-02. Method and criteria in ADR-010 (P1-22, approved 2026-10-28 with its four questions as proposed: direct adds on top, profile order, 1800–10000 K, Kelvin for every colour fixture).
+
+**Alternatives considered:** wait for calibration (ADR-005 as written); a full least-squares solve; maximum-brightness mixing.
+
+**Reasoning:** whites and ambers by hand cost four wheels per look; the nominal model plus an output factor per emitter is predictable and changes no stored colour.
+
+**Reversal trigger:** auto-mixed fixtures visibly mismatch the RGB-only pars and the output factor cannot fix it (pull IDEA-03 forward).
+
 ## 2026-10-28 — Notarisation waits for the Apple Developer membership; tags build ad hoc until then (owner, VS8-09)
 
 **Decision:** the owner does not join the Apple Developer Program yet (99 USD a year). A tag without the signing secrets builds an ad hoc release with a warning instead of failing (REL-20 amended); the install texts on the page, in the release notes and in the manual stay the not-notarised steps until the first notarised tag, whose PR changes them (REL-22 amended, VS8-10). The VS8-08 code stays: setting the five secrets switches notarisation on.
