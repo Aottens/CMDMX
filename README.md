@@ -86,7 +86,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
   Line, Mirror, Wings or Arrow curve, picked on the Fan softkeys and shown as `FAN <CURVE>` next
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.
 - Colour as one value per fixture: HSI, RGB, CMY or Kelvin wheels or a colour picker with
-  CTO/CTB correction steps. Extra emitters (White, Lime, …) are driven directly, or auto-mixed
+  CTO/CTB correction steps and a LEE gel book (search by number or name, `Lee 201` on the command
+  line; the full LEE table ships once LEE gives permission). Extra emitters (White, Lime, …) are driven directly, or auto-mixed
   from the picked colour on types where the profile editor switches it on (a white on an RGBW par
   comes from its White LED).
 - Locate, Highlight with lowlight, Off (per attribute group or one attribute), Rem Dim, and
