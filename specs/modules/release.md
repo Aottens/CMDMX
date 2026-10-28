@@ -6,7 +6,8 @@ Owner: `.github/workflows/release.yml` and the bundle/DMG scripts in `subproject
 Status: **REL-01..16 approved by owner 2026-10-27 (VS4-07)**, with the recommended answers to the
 open questions (see *Owner decisions*). **REL-17..23 and the amendments of REL-05, 08, 09, 15, 16
 approved by owner 2026-10-28 (VS8-08)**, with the recommended answers (see *Owner decisions
-(VS8-08)*).
+(VS8-08)*). **REL-20 and REL-22 amended by owner 2026-10-28 (VS8-09)**: notarisation waits until
+the owner joins the Apple Developer Program; until then a tag builds ad hoc.
 Builds on DECISIONS 2026-10-27 (versioned DMG, not notarised; its reversal trigger is reached by
 the website, DECISIONS 2026-10-27 *own website*), IPC-01/08 (`ipc.md`), SHW-11
 (`showfile.md`), LIB-13 (`fixture-library.md`), CTL-53 (`control-surfaces.md`).
@@ -143,17 +144,20 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
   `security set-key-partition-list`), puts it in the search list, takes the identity name from
   `security find-identity -v -p codesigning` and writes the `.p8` to `$RUNNER_TEMP` (mode 600).
   A last step with `if: always()` deletes the keychain and the `.p8`. No secret is echoed, written
-  into the repo, the DMG or a workflow artifact. On a tag, a missing secret fails the job before the
-  build with a message naming it: a release is never unnotarised. On `workflow_dispatch` with the
-  secrets missing it builds ad hoc as before and says so in the job summary; with the secrets it
-  builds notarised, so the owner can try a notarised `CMDMX-0.0.0.dmg` before tagging.
+  into the repo, the DMG or a workflow artifact. (Amended by VS8-09.) With all five secrets the job
+  builds notarised, on a tag and on `workflow_dispatch`, so the owner can try a notarised
+  `CMDMX-0.0.0.dmg` before tagging. With any secret missing it builds ad hoc as REL-05, on a tag
+  too, and says so (naming the missing secrets) as a warning and in the job summary; the release
+  notes are then the not-notarised steps of REL-15. Once the secrets are set, a missing secret on a
+  tag is a mistake again: VS8-10 restores the failure (a release is never unnotarised).
 - **REL-21** `check-dmg.sh <dmg> <version> --notarised` fails unless, besides REL-08:
   `xcrun stapler validate` passes on the DMG and on the mounted `CMDMX.app`;
   `spctl --assess --type open --context context:primary-signature -v` on the DMG and
   `spctl --assess --type execute -v` on the app both say `accepted` with
   `source=Notarized Developer ID`; and `codesign -dv` on both binaries shows the `runtime` flag and an
   `Authority=Developer ID Application` line. The release job passes `--notarised` whenever it signed.
-- **REL-22** (amends REL-15 and WEB-12) From the first notarised release the install steps in
+- **REL-22** (amends REL-15 and WEB-12; amended by VS8-09) From the first notarised release, and
+  not before (the texts change in the PR that cuts that tag, VS8-10), the install steps in
   `subprojects/app/scripts/release-notes.md`, the landing page `subprojects/website/index.html`
   and the manual (`getting-started.md`) are: open the DMG, drag **CMDMX** onto **Applications**,
   eject the DMG, open CMDMX from Applications (macOS asks once to confirm an app downloaded from the
@@ -197,6 +201,11 @@ owner (IDEA-20).
 1. Universal build (arm64 and x86_64), so the church Mac's chip does not matter (REL-04).
 2. Quit stops the engine (REL-13): the fallback needs the Eurolite free.
 3. The first tag is `v0.1.0`, after this task is merged.
+
+## Owner decisions (VS8-09, 2026-10-28)
+The owner does not join the Apple Developer Program yet (cost). Approved: a tag without the secrets
+builds an ad hoc release with a warning (REL-20); the install texts stay REL-15's until the first
+notarised tag (REL-22, VS8-10). The notarisation code stays and switches on when the secrets are set.
 
 ## Owner decisions (VS8-08, 2026-10-28)
 Approved with the recommended answers below. What the owner must provide before the build task
