@@ -40,8 +40,8 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Renamed to CMDMX by Colourmotion (VS8-01); a website with the latest DMG and the first manual
-chapters is ready for GitHub Pages (VS8-03, 04). Next up: tag `v0.1.0`, install its DMG on the church
+Renamed to CMDMX by Colourmotion (VS8-01); a website with the latest DMG and the full manual
+is ready for GitHub Pages (VS8-03, 04). Next up: tag `v0.1.0`, install its DMG on the church
 Mac (VS4-07), then the first service run (VS4-03). Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in
 [`specs/ux/main-screen.html`](specs/ux/main-screen.html).
 Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
@@ -137,7 +137,7 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
   SHA-256 and the install steps; GitHub Pages rebuilds it after every release.
 - A user manual on the website (`manual/`, mdBook with search and a print page): introduction,
   getting started, concepts, patching, programming, palettes, playbacks and cues, cue lists,
-  running a show and release notes so far, with
+  running a show, control surfaces, shows and files, a reference and release notes, with
   screenshots from the app; it is the manual of the latest release, or a
   marked preview while that release has none.
 
