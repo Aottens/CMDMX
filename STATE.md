@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS8-08: notarisation built, waits for the owner's Apple account and secrets)_
+_Last updated: 2026-10-28 (VS8-09: notarisation waits for the Apple membership; tags build ad hoc)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -29,8 +29,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    workflow and `tests/hardware/website.md` (now with the manual lines); the manual is complete
    (VS8-07). VS8-02 (logo) when the
    Colourmotion logo is found.
-6. VS8-08 after the merge: once the five secrets are set, Actions › Release › Run workflow must end
-   `ok (notarised)`; the next tag is the first notarised release, then the site is announced.
+6. Releases build ad hoc until the owner joins the Apple Developer Program (VS8-09); then VS8-10
+   (secrets, a `workflow_dispatch` ending `ok (notarised)`, the first notarised tag, the site announced).
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
 
@@ -53,7 +53,7 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
-- VS8-08 notarisation (built; `make-dmg.sh` builds ad hoc until the secrets exist): join the Apple Developer Program, as Colourmotion if it
+- When to join the Apple Developer Program (postponed for cost, VS8-09); then for VS8-08/10: join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).
 - Rename the GitHub repo to `Aottens/CMDMX` (Settings › General › Repository name; BRD-10).

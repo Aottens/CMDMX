@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-28 — Notarisation waits for the Apple Developer membership; tags build ad hoc until then (owner, VS8-09)
+
+**Decision:** the owner does not join the Apple Developer Program yet (99 USD a year). A tag without the signing secrets builds an ad hoc release with a warning instead of failing (REL-20 amended); the install texts on the page, in the release notes and in the manual stay the not-notarised steps until the first notarised tag, whose PR changes them (REL-22 amended, VS8-10). The VS8-08 code stays: setting the five secrets switches notarisation on.
+
+**Alternatives considered:** keep failing tags without secrets (no release possible until the owner joins); drop the notarisation code until then.
+
+**Reasoning:** the church Mac must keep getting new versions now; the install text must match the DMG it sits next to; the built code costs nothing while it is off.
+
+**Reversal trigger:** the owner joins and sets the secrets (VS8-10 restores the failure on a tag without secrets), or the site is to be announced (DECISIONS 2026-10-27 *own website*: notarisation comes first).
+
 ## 2026-10-28 — Notarise app and DMG with a Developer ID, no entitlements (owner, VS8-08)
 
 **Decision:** releases are signed with a Developer ID under the hardened runtime with no entitlements and outside the sandbox (REL-17/18); `make-dmg.sh` notarises and staples the app and then the DMG (REL-19); the signing secrets live in repo secrets and a tag without them fails (REL-20); `workflow_dispatch` without them still builds ad hoc with a warning. The first notarised tag is the next one after the build task; the site is announced after it. Enrol as Colourmotion if it is a registered business, else as an individual. This reverses the 2026-10-27 *not notarised* decision, whose trigger (the website) is reached.

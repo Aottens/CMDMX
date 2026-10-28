@@ -69,9 +69,10 @@ if build "$tmp/a" FAKE_GH_JSON="$release"; then
   has "$page" 'href="https://github.com/Aottens/CMDMX/releases/download/v0.2.0/CMDMX-0.2.0.dmg"' "WEB-11 button"
   has "$page" 'href="https://github.com/Aottens/CMDMX/releases/tag/v0.2.0"' "WEB-11 release notes"
   has "$page" "macOS 14 or later, Apple Silicon and Intel" "WEB-11 requirements"
-  # WEB-12 / REL-22: notarised, so the install is drag to Applications and no Open Anyway.
+  # WEB-12 / REL-22 (VS8-09): not notarised until the first notarised tag (VS8-10), so the
+  # drag step and the Open Anyway step; VS8-10 turns this back into "no Open Anyway".
   has "$page" "drag <strong>CMDMX</strong> onto <strong>Applications</strong>" "WEB-12 install steps"
-  grep -q "Open Anyway" "$page" && no "WEB-12/REL-22: the landing page still says Open Anyway"
+  has "$page" "Open Anyway" "WEB-12/REL-22 not-notarised step"
   has "$page" "CMDMX by Colourmotion" "WEB-10 footer"
   has "$page" "$(date +%Y)" "WEB-10 year"
   has "$page" 'href="https://github.com/Aottens/CMDMX/issues"' "WEB-10 issues link"
