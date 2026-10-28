@@ -14,7 +14,8 @@
 
 With --summary <base> it prints, in Markdown, what this branch changes against <base>: new and
 moved BACKLOG and IDEAS rows and the open points of the run files it touches. CI writes it to the
-job summary; paste it into the PR description under "## Tracking".
+job summary; paste it into the PR description under "## Tracking". It also warns (never fails,
+WEB-33) when subprojects/app/Sources changes without subprojects/website/manual/.
 
 Usage: scripts/check-tracking.py [--summary origin/main]  (PR_TITLE="core: … (VS2-26)" to check a title)
 """
@@ -127,6 +128,10 @@ def summary(base):
         points = open_points((ROOT / name).read_text()) if (ROOT / name).exists() else None
         out.append(f"- Run `{name}`, open points: " + ("none" if not points or points == ["none"] else ""))
         out.extend(f"  - {p}" for p in points or [] if p != "none")
+    changed = git("diff", "--name-only", base).split()
+    if any(f.startswith("subprojects/app/Sources") for f in changed) and not any(
+            f.startswith("subprojects/website/manual/") for f in changed):
+        out.append("- **Warning (WEB-33):** changes subprojects/app/Sources but not the manual (subprojects/website/manual/)")
     if len(out) == 2:
         out.append("No BACKLOG, IDEAS or run-file changes.")
     return "\n".join(out)

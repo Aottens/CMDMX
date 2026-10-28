@@ -76,6 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: subprojects/website/install-mdbook.sh
       - run: subprojects/website/test-build.sh
       - run: subprojects/website/build.sh
         env:

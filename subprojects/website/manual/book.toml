@@ -1,0 +1,14 @@
+[book]
+title = "CMDMX manual"
+language = "en"
+src = "src"
+
+[build]
+create-missing = false
+
+[output.html]
+preferred-dark-theme = "navy"
+additional-css = ["theme/header.css"]
+
+[output.html.search]
+enable = true
