@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS8-09: notarisation waits for the Apple membership; tags build ad hoc)_
+_Last updated: 2026-10-28 (VS8-03 website run passed on the live site)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -17,29 +17,24 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-1. VS8-01 after the merge: the owner renames the GitHub repo to `Aottens/CMDMX`; then Actions ›
-   Release › Run workflow for a test `CMDMX-0.0.0.dmg`, check About and that the shows came over
-   from the old folder, tag `v0.1.0` and install it on the church Mac (`tests/hardware/release.md`,
-   gate 3; not in the week of a service).
+1. VS8-01 and VS4-07: install `CMDMX-0.2.0.dmg` on the owner's Mac (About, shows came over from
+   the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
+   service). The repo is renamed and the release is out.
 2. At home on Art-Net: program the service in *Kerk* as `tests/hardware/church.md` asks (steady
    looks, *Front band*, *Front spreker*); the owner fills in which fresnels are band and speaker.
 3. Sunday in the church: the two TouchOSC lines in `church.md`, then *Before the service* with the
    fallback rehearsal, and the service run (VS4-03) once the DMG is on the church Mac.
-4. VS8-03 after the merge: Settings › Pages › Source *GitHub Actions*, then Actions › Website › Run
-   workflow and `tests/hardware/website.md` (now with the manual lines); the manual is complete
-   (VS8-07). VS8-02 (logo) when the
-   Colourmotion logo is found.
-6. Releases build ad hoc until the owner joins the Apple Developer Program (VS8-09); then VS8-10
+4. VS4-08 (S): the Quit alert says DMX keeps running, but quitting stops the engine (REL-13).
+5. Releases build ad hoc until the owner joins the Apple Developer Program (VS8-09); then VS8-10
    (secrets, a `workflow_dispatch` ending `ok (notarised)`, the first notarised tag, the site announced).
-5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
+   VS8-02 (logo) when the Colourmotion logo is found.
+6. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
 - VS4-07 the DMG on the church Mac, and VS8-01 the renamed DMG on the owner's Mac (About, shows moved
   from the old folder), both in `tests/hardware/release.md`.
-- VS8-03 the website: Pages switched to GitHub Actions, the first deploy and the page checked,
-  `tests/hardware/website.md`; its manual lines check VS8-04 on the live site.
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
   until the owner finds the BCF2000.
 - VS8-08 notarised install, `tests/hardware/release.md` *Notarised install*: needs the Apple
@@ -56,7 +51,6 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - When to join the Apple Developer Program (postponed for cost, VS8-09); then for VS8-08/10: join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).
-- Rename the GitHub repo to `Aottens/CMDMX` (Settings › General › Repository name; BRD-10).
 - The website's domain name: register it and tell Claude the name; it becomes one line in
   `subprojects/website/CNAME` (until then the site is `aottens.github.io/CMDMX`).
 - Find the Colourmotion logo (VS8-02 builds the CMDMX concepts on it).
