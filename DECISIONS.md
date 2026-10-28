@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-28 — Notarise app and DMG with a Developer ID, no entitlements (owner, VS8-08)
+
+**Decision:** releases are signed with a Developer ID under the hardened runtime with no entitlements and outside the sandbox (REL-17/18); `make-dmg.sh` notarises and staples the app and then the DMG (REL-19); the signing secrets live in repo secrets and a tag without them fails (REL-20); `workflow_dispatch` without them still builds ad hoc with a warning. The first notarised tag is the next one after the build task; the site is announced after it. Enrol as Colourmotion if it is a registered business, else as an individual. This reverses the 2026-10-27 *not notarised* decision, whose trigger (the website) is reached.
+
+**Alternatives considered:** staple only the DMG (needs internet on first open); notarise in `release.yml` steps (the app must be stapled before the DMG exists); network and serial entitlements (none exist outside the sandbox); failing `workflow_dispatch` without secrets.
+
+**Reasoning:** the church Mac must open a new version offline; one script keeps local and CI builds the same; an empty entitlement set is the smallest surface to notarise.
+
+**Reversal trigger:** a gate-3 run shows a hardened-runtime denial (then add only that entitlement), or Apple's notary service is too slow for a release on a Sunday morning.
+
 ## 2026-10-28 — The website ships before the logo and the domain: a placeholder mark and github.io first (owner, VS8-03)
 
 **Decision:** VS8-03 no longer waits for VS8-02 or the domain name. The site uses a placeholder lockup and favicon, clearly marked, in `subprojects/website/brand/` under the BRD-21/23 file names; VS8-02 replaces those files and no page changes. Until the owner names the domain the site is served at `https://aottens.github.io/CMDMX/`; the domain is then one line in `subprojects/website/CNAME` plus the Pages and DNS settings (WEB-20, `tests/hardware/website.md`).
