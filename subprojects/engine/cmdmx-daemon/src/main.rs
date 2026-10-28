@@ -3333,4 +3333,181 @@ mod tests {
         h.undo(&mut e).unwrap();
         assert_eq!(e.settings().lowlight_level, 0.25);
     }
+
+    // ---- VS2-46: IPC-46, LIB-39 --------------------------------------------------------
+
+    /// One RGBW par at 1, auto-mixing its White (D65, twice the RGB white).
+    const AUTO_RGBW: &str = r#"{"manufacturer":"Demo","model":"Auto RGBW","source":"demo","modes":[{"name":"default","footprint":5,"automix":true,"colour":{"system":"RGB","components":[{"channel":2},{"channel":3},{"channel":4}]},"attributes":[{"name":"Dimmer","group":"I","kind":"Htp","channel":1},{"name":"White","group":"C","kind":"Ltp","channel":5,"emitter":true,"cie":[0.3127,0.329],"output":2.0}]}]}"#;
+
+    fn auto_engine(json: &str) -> Engine {
+        let mut e = Engine::new(Settings::default());
+        e.add_profile("auto", Profile::from_json(json).unwrap()).unwrap();
+        e.patch(Fixture {
+            id: 1,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "auto".into(),
+            mode: None,
+            universe: 1,
+            address: 1,
+        })
+        .unwrap();
+        e
+    }
+
+    const SELECT_1: &str =
+        r#"{"v":1,"cmd":"programmer.command","tokens":["1","@","100","Enter"]}"#;
+    const GROUP_C: &str = r#"{"v":1,"cmd":"programmer.attribute_group","group":"C"}"#;
+
+    fn view(e: &Engine) -> serde_json::Value {
+        serde_json::to_value(e.programmer_view()).unwrap()
+    }
+
+    fn wheel(e: &Engine, name: &str) -> serde_json::Value {
+        view(e)["wheels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|w| w["attribute"] == name)
+            .cloned()
+            .unwrap_or_else(|| panic!("no {name} wheel"))
+    }
+
+    #[test]
+    fn ipc_46_kelvin_model_and_reading_rounded_to_10() {
+        let mut e = auto_engine(AUTO_RGBW);
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, SELECT_1).unwrap();
+        undo_run(&mut e, &mut h, GROUP_C).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.colour_model","model":"Kelvin"}"#,
+        )
+        .unwrap();
+        assert_eq!(e.colour_model(), ColourModel::Kelvin);
+        let v = view(&e);
+        assert_eq!(v["colour_model"], "Kelvin");
+        let k = v["colour"]["kelvin"].as_f64().expect("kelvin is a number");
+        assert!((1800.0..=10000.0).contains(&k), "{k}");
+        assert_eq!(k % 10.0, 0.0, "rounded to 10 K: {k}");
+        let kw = wheel(&e, "Kelvin")["value"].as_f64().unwrap();
+        assert!((0.0..=1.0).contains(&kw), "wheel value is 0..1: {kw}");
+    }
+
+    #[test]
+    fn ipc_46_ct_step_moves_the_targets_and_refuses_as_a_warning() {
+        let mut e = auto_engine(AUTO_RGBW);
+        let mut h = History::default();
+        let step = |s: &str| format!(r#"{{"v":1,"cmd":"programmer.ct_step","step":"{s}"}}"#);
+        // No targets: an engine refusal (warning), not a parse error.
+        assert!(ipc::parse_command(&step("cto_half")).is_ok());
+        assert!(undo_run(&mut e, &mut h, &step("cto_half")).is_err());
+        undo_run(&mut e, &mut h, SELECT_1).unwrap();
+        let before = view(&e)["colour"]["kelvin"].as_f64().unwrap();
+        undo_run(&mut e, &mut h, &step("cto_half")).unwrap();
+        let after = view(&e)["colour"]["kelvin"].as_f64().unwrap();
+        assert!(after < before - 500.0, "½ CTO warms: {before} -> {after}");
+        for s in [
+            "cto_full",
+            "cto_quarter",
+            "cto_eighth",
+            "ctb_full",
+            "ctb_half",
+            "ctb_quarter",
+            "ctb_eighth",
+        ] {
+            undo_run(&mut e, &mut h, &step(s)).unwrap();
+        }
+        // Another step name is a warning too (IPC-46), so it parses and the run refuses it.
+        assert!(ipc::parse_command(&step("cto_double")).is_ok());
+        assert!(undo_run(&mut e, &mut h, &step("cto_double")).is_err());
+        assert!(ipc::parse_command(r#"{"v":1,"cmd":"programmer.ct_step"}"#).is_err());
+    }
+
+    #[test]
+    fn ipc_46_ct_step_on_targets_without_colour_warns() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, SELECT_101).unwrap();
+        // 101 is a wash with Colour; dimmer 301 has none.
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.command","tokens":["301","@","100","Enter"]}"#,
+        )
+        .unwrap();
+        assert!(undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.ct_step","step":"ctb_full"}"#
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn ipc_46_auto_marks_auto_mixed_emitter_wheels_only() {
+        let mut e = auto_engine(AUTO_RGBW);
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, SELECT_1).unwrap();
+        undo_run(&mut e, &mut h, GROUP_C).unwrap();
+        assert_eq!(wheel(&e, "White")["auto"], true);
+        let direct = auto_engine(&AUTO_RGBW.replace(r#""automix":true,"#, ""));
+        let mut e = direct;
+        undo_run(&mut e, &mut h, SELECT_1).unwrap();
+        undo_run(&mut e, &mut h, GROUP_C).unwrap();
+        assert!(
+            wheel(&e, "White").get("auto").is_none(),
+            "absent when nothing auto-mixes it"
+        );
+    }
+
+    #[test]
+    fn ipc_46_profile_json_carries_automix_and_output() {
+        let e = auto_engine(AUTO_RGBW);
+        let v: serde_json::Value =
+            serde_json::from_str(&ipc::patch_profile(&e, "auto").unwrap()).unwrap();
+        let mode = &v["profile"]["modes"][0];
+        assert_eq!(mode["automix"], true);
+        let white = &mode["attributes"][1];
+        assert_eq!(white["output"], 2.0);
+        assert_eq!(white["cie"], serde_json::json!([0.3127, 0.329]));
+    }
+
+    #[test]
+    fn lib_39_profile_emitter_answers_defaults_and_status_from_the_engine() {
+        assert!(matches!(
+            ipc::parse_command(r#"{"v":1,"cmd":"profile.emitter","name":"Warm White"}"#),
+            Ok(ipc::Command::ProfileEmitter { name, cie: None }) if name == "Warm White"
+        ));
+        assert!(matches!(
+            ipc::parse_command(r#"{"v":1,"cmd":"profile.emitter","name":"W","cie":[0.3,0.3]}"#),
+            Ok(ipc::Command::ProfileEmitter { cie: Some(_), .. })
+        ));
+        assert!(ipc::parse_command(r#"{"v":1,"cmd":"profile.emitter"}"#).is_err());
+        assert!(
+            ipc::parse_command(r#"{"v":1,"cmd":"profile.emitter","name":"W","cie":[0.3]}"#)
+                .is_err(),
+            "both or neither"
+        );
+        let reply = |name: &str, cie: Option<[f32; 2]>| -> serde_json::Value {
+            serde_json::from_str(&ipc::profile_emitter(name, cie)).unwrap()
+        };
+        let ww = reply("warm white", None);
+        assert_eq!(ww["type"], "profile.emitter");
+        assert_eq!(ww["name"], "warm white");
+        assert_eq!(ww["cie"], serde_json::Value::Null);
+        let d = ww["default_cie"].as_array().expect("LIB-37 default");
+        assert!((d[0].as_f64().unwrap() - 0.4366).abs() < 1e-4);
+        assert!((d[1].as_f64().unwrap() - 0.4042).abs() < 1e-4);
+        assert_eq!(ww["status"], "no_colour");
+        let uv = reply("UV", None);
+        assert_eq!(uv["default_cie"], serde_json::Value::Null);
+        assert_eq!(reply("White", Some([0.3127, 0.329]))["status"], "auto");
+        assert_eq!(
+            reply("Deep Violet", Some([0.17, 0.005]))["status"],
+            "outside_gamut"
+        );
+    }
 }

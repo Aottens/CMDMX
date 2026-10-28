@@ -104,7 +104,12 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   `ctb_`) applies PRG-66 to the targets; another step name or no targets with Colour → `warning`.
   An emitter's `wheels` entry gains `"auto":true` when at least one target with that emitter
   auto-mixes it (ENG-21); absent otherwise. The profile JSON carries `automix` and `output` as
-  LIB-36/38 (IPC-37, 38 unchanged).
+  LIB-36/38 (IPC-37, 38 unchanged). For the profile editor (LIB-39), `profile.emitter
+  {"name":"Warm White","cie":[0.4366,0.4042]}` (`cie` optional, two numbers) answers the asking
+  client only, without the tick: `{"v":0,"type":"profile.emitter","name":"Warm White","cie":[…]|null,
+  "default_cie":[…]|null,"status":"auto"|"no_colour"|"outside_gamut"}` — `default_cie` is LIB-37's
+  default for the name, `status` whether an emitter at `cie` can auto-mix (ENG-20). So the
+  defaults and the gamut check stay in the engine (amended 2026-10-28, VS2-46).
 
 ### App programmer workspace (verified by `swift build` + `tests/manual/app-programmer.md`)
 - **IPC-15** The palette placeholder above the faders becomes two windows. Fixtures: one button per
