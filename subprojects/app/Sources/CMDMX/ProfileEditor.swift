@@ -134,6 +134,10 @@ private struct ProfileDocEditor: View {
     @State private var testOn = false
     @State private var askDiscard = false
     @State private var saving = false
+    /// LIB-39: emitter names whose default CIE is filled in when the `profile.emitter` reply arrives.
+    @State private var fillCie: Set<String> = []
+    /// LIB-39: attribute indices (of the current mode) whose CIE x/y has only one of the two filled.
+    @State private var incompleteCie: Set<Int> = []
 
     private struct Row: Identifiable {
         let id: Int
@@ -205,6 +209,48 @@ private struct ProfileDocEditor: View {
     private func attrBinding<V>(_ i: Int, _ kp: WritableKeyPath<AttributeDoc, V>, _ fallback: V) -> Binding<V> {
         Binding(get: { mode?.attributes[safe: i]?[keyPath: kp] ?? fallback },
                 set: { v in edit { m in if m.attributes.indices.contains(i) { m.attributes[i][keyPath: kp] = v } } })
+    }
+
+    // MARK: Auto-mix (LIB-39)
+
+    private var automixBinding: Binding<Bool> {
+        Binding(get: { mode?.automix ?? false },
+                set: { on in
+                    edit { $0.automix = on }
+                    guard on, let m = mode else { return }
+                    // Once: ask the engine for the default CIE of each emitter that has none.
+                    for a in m.attributes where a.emitter && a.cie == nil {
+                        fillCie.insert(a.name)
+                        engine.profileEmitter(name: a.name, cie: nil)
+                    }
+                })
+    }
+
+    private func fillDefaultCie(_ infos: [String: EmitterInfo]) {
+        for name in fillCie {
+            guard let info = infos[name], info.cie == nil else { continue }
+            fillCie.remove(name)
+            guard let d = info.defaultCie else { continue }
+            edit { m in
+                for i in m.attributes.indices where m.attributes[i].emitter && m.attributes[i].name == name && m.attributes[i].cie == nil {
+                    m.attributes[i].cie = d
+                }
+            }
+        }
+    }
+
+    /// LIB-38 / LIB-39: CIE x/y, Output and the engine's verdict for the emitter at `i`.
+    @ViewBuilder
+    private func emitterSection(_ i: Int, _ a: AttributeDoc) -> some View {
+        Divider()
+        Text("Auto-mix").font(Typo.ui(Typo.body, .semibold))
+        EmitterFields(name: a.name, cie: a.cie, output: a.output,
+                      onCie: { cie, incomplete in
+                          edit { m in if m.attributes.indices.contains(i) { m.attributes[i].cie = cie } }
+                          if incomplete { incompleteCie.insert(i) } else { incompleteCie.remove(i) }
+                      },
+                      onOutput: { o in edit { m in if m.attributes.indices.contains(i) { m.attributes[i].output = o } } })
+            .id("\(i)-\(a.name)-\(a.cie ?? [])")
     }
 
     // MARK: Test (LIB-27)
@@ -409,7 +455,9 @@ private struct ProfileDocEditor: View {
             original = p.doc
             modeName = p.doc.modes.contains { $0.name == target.mode } ? target.mode : (p.doc.modes.first?.name ?? "")
         }
-        .onChange(of: modeName) { _, _ in selCh = nil; selSlot = nil }
+        .onChange(of: modeName) { _, _ in selCh = nil; selSlot = nil; incompleteCie = [] }
+        .onChange(of: selCh) { _, _ in incompleteCie = [] }
+        .onChange(of: engine.emitterInfo) { _, infos in fillDefaultCie(infos) }
         .onChange(of: testNumbers.isEmpty) { _, empty in if empty { testOn = false } }
         .onChange(of: engine.profileSaved) { _, s in
             guard saving, let s, s.manufacturer == doc.manufacturer, s.model == doc.model else { return }
@@ -430,12 +478,17 @@ private struct ProfileDocEditor: View {
                 ForEach(doc.modes, id: \.name) { Text($0.name).tag($0.name) }
             }
             .labelsHidden().frame(width: 170).disabled(original == nil)
+            // LIB-39: only where the mode mixes RGB (on the mode or on its cells).
+            if let m = mode, m.colour?.system == "RGB" || m.cells.contains(where: { $0.colour?.system == "RGB" }) {
+                Toggle("Auto-mix emitters", isOn: automixBinding).toggleStyle(.checkbox)
+                    .font(Typo.ui(11)).help("Fill the RGB remainder with the emitters that have a CIE point (LIB-36)")
+            }
             Spacer(minLength: 8)
             Button(numbers.isEmpty ? "Test" : "Test on \(rangeText(numbers))") { testOn.toggle() }
                 .buttonStyle(FlatButton(fill: testOn ? .red : nil)).disabled(numbers.isEmpty)
             Button("Cancel") { if dirty { askDiscard = true } else { onClose(nil) } }.buttonStyle(FlatButton())
             Button("Save") { saving = true; engine.saveProfile(doc) }
-                .buttonStyle(FlatButton(fill: .blue)).disabled(original == nil)
+                .buttonStyle(FlatButton(fill: .blue)).disabled(original == nil || !incompleteCie.isEmpty)
         }
         .padding(8)
     }
@@ -548,6 +601,7 @@ private struct ProfileDocEditor: View {
             LevelRow(label: "Default", optional: false, value: defaultBinding(i))
             LevelRow(label: "Locate", optional: true, value: levelBinding(i, \.locate))
             LevelRow(label: "Highlight", optional: true, value: levelBinding(i, \.highlight))
+            if m.automix && a.emitter { emitterSection(i, a) }
         } else if let r = role(m, e) {
             Text(verbatim: "Channel \(e.channel): \(r) (colour component)").font(Typo.ui(Typo.large, .medium))
             Text("Part of the colour mixing system; the role stays as it is.").font(Typo.ui(11)).foregroundStyle(t.fg2)
@@ -833,5 +887,77 @@ private struct ChannelListEditor: View {
             }
             .padding(8)
         }
+    }
+}
+
+// MARK: - Auto-mix fields of one emitter (LIB-38, LIB-39)
+
+private struct EmitterFields: View {
+    @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
+    let name: String
+    let output: Double?
+    let onCie: ([Double]?, Bool) -> Void
+    let onOutput: (Double?) -> Void
+    @State private var x: Double?
+    @State private var y: Double?
+
+    init(name: String, cie: [Double]?, output: Double?, onCie: @escaping ([Double]?, Bool) -> Void,
+         onOutput: @escaping (Double?) -> Void) {
+        self.name = name; self.output = output; self.onCie = onCie; self.onOutput = onOutput
+        _x = State(initialValue: cie?.first)
+        _y = State(initialValue: cie.flatMap { $0.count > 1 ? $0[1] : nil })
+    }
+
+    private var complete: [Double]? { x.flatMap { x in y.map { [x, $0] } } }
+    private var incomplete: Bool { (x == nil) != (y == nil) }
+
+    private var status: String {
+        if incomplete { return "Fill both CIE x and y, or neither" }
+        // The engine decides; a reply for another CIE is not ours yet.
+        guard let info = engine.emitterInfo[name], sameCie(info.cie, complete) else { return "…" }
+        switch info.status {
+        case "auto": return "Auto-mixed"
+        case "outside_gamut": return "Direct only — outside the reference gamut"
+        default: return "Direct only — no colour"
+        }
+    }
+
+    private func sameCie(_ a: [Double]?, _ b: [Double]?) -> Bool {
+        switch (a, b) {
+        case (nil, nil): return true
+        case let (a?, b?): return a.count == b.count && zip(a, b).allSatisfy { abs($0 - $1) < 1e-4 }
+        default: return false
+        }
+    }
+
+    private func commit() {
+        onCie(complete, incomplete)
+        engine.profileEmitter(name: name, cie: complete)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("CIE x").font(Typo.ui(11)).foregroundStyle(t.fg2)
+                TextField("", value: $x, format: .number.precision(.fractionLength(0...4)))
+                    .textFieldStyle(.roundedBorder).frame(width: 70)
+                Text("CIE y").font(Typo.ui(11)).foregroundStyle(t.fg2)
+                TextField("", value: $y, format: .number.precision(.fractionLength(0...4)))
+                    .textFieldStyle(.roundedBorder).frame(width: 70)
+            }
+            HStack(spacing: 6) {
+                Text("Output").font(Typo.ui(11)).foregroundStyle(t.fg2)
+                TextField("", value: Binding(get: { (output ?? 1) * 100 },
+                                             set: { let v = min(max($0, 25), 400); onOutput(abs(v - 100) < 1e-9 ? nil : v / 100) }),
+                          format: .number.precision(.fractionLength(0...1)))
+                    .textFieldStyle(.roundedBorder).frame(width: 70)
+                Text("%").font(Typo.ui(11)).foregroundStyle(t.fg2)
+            }
+            Text(status).font(Typo.ui(11)).foregroundStyle(incomplete ? t.amber : t.fg2)
+        }
+        .onAppear { if !incomplete { engine.profileEmitter(name: name, cie: complete) } }
+        .onChange(of: x) { _, _ in commit() }
+        .onChange(of: y) { _, _ in commit() }
     }
 }

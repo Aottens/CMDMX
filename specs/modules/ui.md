@@ -343,9 +343,9 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 
 ### Colour temperature and auto-mix (IDEA-32; approved by owner 2026-10-28)
 - **UI-31** The colour-model switch (IPC-19) gets a fourth button **K**; the Kelvin wheel shows its
-  value as "3200 K" ("—" for black). In the colour picker (UI-15), above the gel book row, a row of
-  eight buttons ⅛ ¼ ½ Full CTO and ⅛ ¼ ½ Full CTB sends `programmer.ct_step` (IPC-46), whatever
-  the model. An emitter bar or wheel whose `wheels` entry has `auto` shows a small "+AUTO" tag
+  value as "3200 K" ("—" for black); the four model buttons sit two by two (HSI RGB / CMY K). In the
+  colour picker (UI-15), above the gel book row, two rows CTO ⅛ ¼ ½ Full and CTB ⅛ ¼ ½ Full send
+  `programmer.ct_step` (IPC-46), whatever the model (layout amended in the VS2-46 run, owner). An emitter bar or wheel whose `wheels` entry has `auto` shows a small "+AUTO" tag
   under its name: its value is the direct part, added to what the engine mixes (ENG-22). The app
   computes no colour. Verified by `tests/manual/app-programmer.md` (amended), with the auto-mixed
   output read on Art-Net at home.

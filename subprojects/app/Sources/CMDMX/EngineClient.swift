@@ -844,10 +844,12 @@ struct WheelState: Decodable, Identifiable, Equatable {
     let sixteenBit: Bool
     /// PAL-26: the palette the value comes from (first target), nil for a manual or output value.
     let palette: Int?
+    /// IPC-46: a target auto-mixes this emitter (LIB-36).
+    let auto: Bool
     var id: String { attribute }
 
     private enum CodingKeys: String, CodingKey {
-        case attribute, value, touched, palette
+        case attribute, value, touched, palette, auto
         case sixteenBit = "sixteen_bit"
     }
 
@@ -858,6 +860,7 @@ struct WheelState: Decodable, Identifiable, Equatable {
         touched = try c.decode(Bool.self, forKey: .touched)
         sixteenBit = (try? c.decode(Bool.self, forKey: .sixteenBit)) ?? false
         palette = try? c.decode(Int.self, forKey: .palette)
+        auto = (try? c.decode(Bool.self, forKey: .auto)) ?? false
     }
 }
 
@@ -901,6 +904,19 @@ struct ProgrammerContent: Decodable, Identifiable, Equatable {
     }
 }
 
+/// LIB-39: the `profile.emitter` reply. `status` is `auto`, `no_colour` or `outside_gamut`.
+struct EmitterInfo: Decodable, Equatable {
+    let name: String
+    let cie: [Double]?
+    let defaultCie: [Double]?
+    let status: String
+
+    private enum CodingKeys: String, CodingKey {
+        case name, cie, status
+        case defaultCie = "default_cie"
+    }
+}
+
 /// The first target's colour as HSI hue and saturation plus sRGB, all 0...1 (IPC-22).
 struct TargetColour: Decodable, Equatable {
     let hue: Double
@@ -908,6 +924,8 @@ struct TargetColour: Decodable, Equatable {
     let r: Double
     let g: Double
     let b: Double
+    /// IPC-46: correlated colour temperature in K (rounded to 10 by the engine), nil for black.
+    var kelvin: Double?
 }
 
 /// PAL-26: `in_use` = palettes the programmer references, `relevant` = palettes that resolve
@@ -1183,6 +1201,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var editorProfile: EditorProfile?
     @Published private(set) var profileSaved: ProfileSaved?
     @Published private(set) var gdtfImported: GdtfImported?
+    /// LIB-39: latest `profile.emitter` reply per emitter name.
+    @Published private(set) var emitterInfo: [String: EmitterInfo] = [:]
     private var editorAsk: String?
     /// What was asked last (empty = nil); a reply that echoes something else is stale and dropped.
     private var lastManufacturersQuery: String?
@@ -1368,6 +1388,8 @@ final class EngineClient: ObservableObject {
     func setColour(hue: Double, saturation: Double) {
         sendJSON("programmer.colour", ["hue": hue.clamped01, "saturation": saturation.clamped01])
     }
+    /// IPC-46: step the target colour along the colour-temperature locus (`cto_half`, `ctb_full`, …).
+    func ctStep(_ step: String) { sendJSON("programmer.ct_step", ["step": step]) }
     func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
 
     func wheel(attribute: String, steps: Int, resolution: WheelResolution) {
@@ -1406,6 +1428,13 @@ final class EngineClient: ObservableObject {
         if let m { fields["manufacturer"] = m }
         if let q { fields["query"] = q }
         sendJSON("library.models", fields)
+    }
+
+    /// LIB-39: ask the engine for an emitter's default CIE and whether this CIE would auto-mix.
+    func profileEmitter(name: String, cie: [Double]?) {
+        var fields: [String: Any] = ["name": name]
+        if let cie { fields["cie"] = cie }
+        sendJSON("profile.emitter", fields)
     }
 
     func requestProfile(key: String) { sendJSON("patch.profile", ["profile": key]) }
@@ -1853,6 +1882,8 @@ final class EngineClient: ObservableObject {
             acceptEditorProfile(data)
         case "library.profile":
             acceptEditorProfile(data)
+        case "profile.emitter":
+            if let info = try? JSONDecoder().decode(EmitterInfo.self, from: data) { emitterInfo[info.name] = info }
         case "library.saved":
             if let saved = try? JSONDecoder().decode(SavedReply.self, from: data) {
                 profileSaved = ProfileSaved(manufacturer: saved.manufacturer, model: saved.model, token: (profileSaved?.token ?? 0) + 1)

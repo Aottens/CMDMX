@@ -104,10 +104,16 @@ struct AttributeBar: View {
 
             if programmer.activeGroup == "C" {
                 // IPC-19: wire values are the engine's ColourModel names.
-                VStack(spacing: 2) {
-                    ForEach([("HSI", "Hsi"), ("RGB", "Rgb"), ("CMY", "Cmy")], id: \.1) { label, model in
-                        Button(label) { engine.setColourModel(model) }
-                            .buttonStyle(ModeButton(on: programmer.colourModel == model))
+                // Two by two: four stacked buttons do not fit the bar's height (UI-31).
+                Grid(horizontalSpacing: 2, verticalSpacing: 2) {
+                    let models = [("HSI", "Hsi"), ("RGB", "Rgb"), ("CMY", "Cmy"), ("K", "Kelvin")]
+                    ForEach([0, 2], id: \.self) { i in
+                        GridRow {
+                            ForEach(models[i...(i + 1)], id: \.1) { label, model in
+                                Button { engine.setColourModel(model) } label: { Text(label).frame(minWidth: 18) }
+                                    .buttonStyle(ModeButton(on: programmer.colourModel == model))
+                            }
+                        }
                     }
                 }
                 .fixedSize()
@@ -255,6 +261,8 @@ private struct WheelFace: View {
     let text: String
     let value: Double?
     let touched: Bool
+    /// IPC-46: the emitter is auto-mixed (LIB-36).
+    var auto = false
     /// The value comes from a palette: cyan (UI-03, PAL-30).
     var fromPalette = false
     let width: CGFloat
@@ -269,6 +277,11 @@ private struct WheelFace: View {
                 .onTapGesture(count: 2) { onNameDoubleClick?() }
             Text(verbatim: "enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 6).padding(.top, 4)
+            if auto {
+                Text(verbatim: "+AUTO").font(Typo.mono(8)).foregroundStyle(t.cyan)
+                    .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 6).padding(.top, 22)
+                    .help("Mixed from the RGB colour (auto-mix)")
+            }
             Text(text).font(Typo.mono(15, .medium))
                 .foregroundStyle(value == nil ? t.fg3 : fromPalette ? t.cyan : touched ? t.red : t.fg).lineLimit(1)
                 .padding(.horizontal, 6).padding(.top, 17)
@@ -310,12 +323,18 @@ private struct WheelView: View {
     /// 1 step per 4 pt of vertical movement.
     private let pointsPerStep: CGFloat = 4
 
+    /// IPC-46: the engine's reading, "3200 K"; "—" for black.
+    private var kelvinText: String {
+        engine.programmer.colour?.kelvin.map { "\(Int($0.rounded())) K" } ?? "—"
+    }
+
     var body: some View {
         WheelFace(name: wheel.attribute, slot: slot,
-                  text: wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
+                  text: wheel.attribute == "Kelvin" ? kelvinText
+                  : wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
                   : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
                   ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value),
-                  value: wheel.value, touched: wheel.touched, fromPalette: wheel.palette != nil, width: width,
+                  value: wheel.value, touched: wheel.touched, auto: wheel.auto, fromPalette: wheel.palette != nil, width: width,
                   onNameDoubleClick: { engine.programmerOff(attribute: wheel.attribute) })
         .background(ScrollCatcher { steps, flags in
             engine.wheel(attribute: wheel.attribute, steps: steps, resolution: resolution(flags))

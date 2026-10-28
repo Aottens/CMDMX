@@ -4093,7 +4093,26 @@ impl Engine {
                     Value::Level(v) => v,
                 };
                 let stored = self.programmer.stored_item(item, name);
+                // IPC-46: the frame writer mixes this emitter on some target (ENG-21).
+                let auto = l.emitter
+                    && items.iter().any(|i| {
+                        let Some(mode) = self.mode_of(i.fixture).filter(|m| m.automix) else {
+                            return false;
+                        };
+                        let defs = match i.cell {
+                            None => Some(&mode.attributes),
+                            Some(c) => mode.cell(c).map(|c| &c.attributes),
+                        };
+                        defs.is_some_and(|d| {
+                            d.iter().any(|a| {
+                                a.emitter
+                                    && a.name == name
+                                    && a.cie.and_then(colour::rgb_equivalent).is_some()
+                            })
+                        })
+                    });
                 Some(WheelState {
+                    auto,
                     value,
                     touched: stored.is_some(),
                     palette: match stored {
@@ -4118,6 +4137,7 @@ impl Engine {
                 r: c.r,
                 g: c.g,
                 b: c.b,
+                kelvin: colour::kelvin(c).map(|k| (k / 10.0).round() * 10.0),
             })
         });
         let palettes = self.palette_use(&items);

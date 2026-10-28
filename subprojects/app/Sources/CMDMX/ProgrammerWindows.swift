@@ -144,6 +144,7 @@ struct ColourPickerWindow: View {
                             } else {
                                 Text("pick the C tab for the bars").font(Typo.ui(11)).foregroundStyle(t.fg3)
                             }
+                            ctRow
                             gelRow
                         }
                     }
@@ -154,6 +155,24 @@ struct ColourPickerWindow: View {
                 NoteText(note: "Select fixtures that mix colour. The picker sets one target colour; each fixture type maps it to its own emitters (RGBW, RGB+Lime, RGB). Gel book: LEE first.")
             }
         }
+    }
+
+    /// IPC-46: CTO/CTB steps on the target colour, whatever the colour model. One row per gel kind.
+    private var ctRow: some View {
+        VStack(spacing: 3) {
+            ForEach(["cto", "ctb"], id: \.self) { kind in
+                HStack(spacing: 3) {
+                    Text(kind.uppercased()).font(Typo.mono(Typo.small)).foregroundStyle(t.fg3).fixedSize()
+                    ForEach([("⅛", "eighth"), ("¼", "quarter"), ("½", "half"), ("Full", "full")], id: \.1) { label, size in
+                        Button { engine.ctStep("\(kind)_\(size)") } label: {
+                            Text(label).font(Typo.mono(Typo.body)).lineLimit(1).fixedSize().frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(FlatButton())
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
     }
 
     /// Placeholders until the gel book (IDEA-02): 8 disabled swatches.
@@ -241,6 +260,11 @@ private struct MixBar: View {
         }
     }
 
+    /// IPC-46: the engine's reading in K, "—" for black.
+    private var kelvinText: String {
+        engine.programmer.colour?.kelvin.map { "\(Int($0.rounded()))" } ?? "—"
+    }
+
     var body: some View {
         HStack(spacing: 4) {
             Text(String(wheel.attribute.prefix(1)).uppercased()).frame(width: 14, alignment: .leading)
@@ -248,6 +272,9 @@ private struct MixBar: View {
                 ZStack(alignment: .leading) {
                     Rectangle().fill(t.surf)
                     Rectangle().fill(tint).frame(width: geo.size.width * wheel.value.clamped01)
+                    if wheel.auto {   // IPC-46
+                        Text(verbatim: "+AUTO").font(Typo.mono(8)).foregroundStyle(t.cyan).padding(.leading, 3)
+                    }
                 }
                 .overlay(Rectangle().strokeBorder(t.line, lineWidth: hairline))
                 .contentShape(Rectangle())
@@ -264,8 +291,9 @@ private struct MixBar: View {
                 )
             }
             .frame(height: 14)
-            Text(wheel.attribute == "Hue" ? String(format: "%.0f", wheel.value * 360) : "\(Int((wheel.value * 100).rounded()))")
-                .frame(width: 26, alignment: .trailing)
+            Text(wheel.attribute == "Kelvin" ? kelvinText
+                 : wheel.attribute == "Hue" ? String(format: "%.0f", wheel.value * 360) : "\(Int((wheel.value * 100).rounded()))")
+                .frame(width: wheel.attribute == "Kelvin" ? 40 : 26, alignment: .trailing)
         }
         .font(Typo.mono(Typo.small))
         .foregroundStyle(t.fg2)
