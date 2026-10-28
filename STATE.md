@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (v0.2.1 released)_
+_Last updated: 2026-10-28 (v0.2.1 released; VS2-47 Demo profiles editable in the profile editor)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,

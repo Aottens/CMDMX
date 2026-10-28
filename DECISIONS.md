@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-28 — Demo profiles are keyed `<manufacturer>/<model>` (VS2-47)
+
+**Decision:** the Demo show patches each profile under `<manufacturer>/<model>` (`Demo/RGBW Par`, `Demo/Dimmer`, …), the key `profile.save` installs under (IPC-14 amended). This replaces the short keys (`rgbw`, `dimmer`) from the VS2-07 run; fixture buttons already show only the model part.
+
+**Alternatives considered:** let the editor send the fixture's own key with `profile.save` (wire change to IPC-38 for a Demo-only problem).
+
+**Reasoning:** one rule for every key in every show; no wire change.
+
+**Reversal trigger:** shows need keys that differ from their profile's manufacturer/model (then IPC-38 takes the key).
+
 ## 2026-10-28 — The profile editor asks the engine for emitter defaults and the gamut check (VS2-46)
 
 **Decision:** LIB-37's default CIE per emitter name and whether a CIE point can auto-mix come from a stateless daemon query, `profile.emitter {name, cie?}`, answered to the asking client without the tick (IPC-46 amended). The app fills the defaults once when Auto-mix is switched on and shows the engine's status line.

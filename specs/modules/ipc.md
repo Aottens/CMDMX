@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -91,6 +91,11 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   Mode, Speed, Strobe, virtual dimmer; from 109) and front spots 301–306 as one-channel dimmers
   (145–150); and records groups 1 All church fixtures, 2 Washes, 3 Pars (201–208, 211–216,
   221–226), 4 Front spots. White and Lime are emitters (LIB-17).
+  *Amended 2026-10-28 (VS2-47):* every Demo profile is patched under its own
+  `<manufacturer>/<model>` key (`Demo/Dimmer` for 1–8 and 301–306, `Demo/Wash`, `Demo/RGBW Par`,
+  `Demo/RGB+Lime Par`, `Showtec/LED Par 56 6 Channel`), the key `profile.save` installs under
+  (IPC-38), so Patch › Edit profile… opens a Demo fixture's type (IPC-37) and its Save changes
+  every fixture of that type. A Demo show saved before this keeps its old short keys.
 
 - **IPC-18** `programmer.colour_model {"model":"Rgb"}` (`Hsi`, `Rgb`, `Cmy`) sets the colour model
   (PRG-30); the change reaches every client as a `programmer` delta (IPC-12). Another model name
