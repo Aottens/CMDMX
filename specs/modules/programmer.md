@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 proposed 2026-10-28 (P1-22)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22)**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -215,7 +215,7 @@ editing the line (Back, Exit) stays in the client.
   is a touched attribute of its own, separate from the target colour. Targets 201 + 221, White
   +50 % → 201 White 0.50 in the programmer, 221 unchanged and not in the programmer.
 
-### Colour temperature (IDEA-32, ADR-010; proposed 2026-10-28)
+### Colour temperature (IDEA-32, ADR-010; approved by owner 2026-10-28)
 Kelvin is a fourth view of the same target colour (PRG-30): it stores nothing new. Temperatures
 are points on the Planckian locus (CIE 1931 xy from the Kim et al. cubic spline, valid
 1667–25000 K), converted to linear BT.2020 (ADR-005).

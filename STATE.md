@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (P1-22 spec: automatic emitter mixing and Kelvin, for approval)_
+_Last updated: 2026-10-28 (P1-22 approved: automatic emitter mixing and Kelvin; VS2-44..46 next)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -29,6 +29,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    VS8-02 (logo) when the Colourmotion logo is found.
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
+6. VS2-44..46: automatic emitter mixing and the Kelvin view (IDEA-32, ADR-010), core first.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
@@ -47,8 +48,6 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
-- P1-22 (IDEA-32): approve ADR-010 and LIB-36..39, ENG-20..24, PRG-63..66, IPC-46, UI-31, and
-  answer ADR-010's four open questions; then VS2-44..46 get built.
 - When to join the Apple Developer Program (postponed for cost, VS8-09); then for VS8-08/10: join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).

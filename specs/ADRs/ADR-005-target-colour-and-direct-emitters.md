@@ -1,6 +1,6 @@
 # ADR-005: Colour is a device-independent target colour, extra emitters are driven directly
 
-**Status:** accepted (owner, 2026-10-17; automatic white/lime extraction stays a later opt-in). Decisions 2 and 4 amended by ADR-010 (proposed 2026-10-28): automatic emitter mixing as an opt-in per mode, ahead of calibration.
+**Status:** accepted (owner, 2026-10-17; automatic white/lime extraction stays a later opt-in). Decisions 2 and 4 amended by ADR-010 (accepted 2026-10-28): automatic emitter mixing as an opt-in per mode, ahead of calibration.
 **Date:** 2026-10-17
 
 ## Context

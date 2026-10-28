@@ -63,7 +63,7 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
 - **ENG-19** The Take Over pass of GRM-10 compares the master level with the mastered output,
   effect included (what is on stage).
 
-### Colour to channels: automatic emitter mixing (IDEA-32, ADR-010; proposed 2026-10-28)
+### Colour to channels: automatic emitter mixing (IDEA-32, ADR-010; approved by owner 2026-10-28)
 The frame writer (ENG-14) maps a fixture's merged target colour onto its channels. Without
 auto-mix that stays ADR-005's nominal mapping (RGB as is, CMY inverted). For a mode with
 `automix` (LIB-36) it first moves light from R, G, B to the mixable extra emitters. Church

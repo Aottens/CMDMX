@@ -341,7 +341,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   Playback Options screen gets a Programmer section with the three PRG-42 settings. A timed
   Clear has no app control yet (IPC only).
 
-### Colour temperature and auto-mix (IDEA-32; proposed 2026-10-28)
+### Colour temperature and auto-mix (IDEA-32; approved by owner 2026-10-28)
 - **UI-31** The colour-model switch (IPC-19) gets a fourth button **K**; the Kelvin wheel shows its
   value as "3200 K" ("—" for black). In the colour picker (UI-15), above the gel book row, a row of
   eight buttons ⅛ ¼ ½ Full CTO and ⅛ ¼ ½ Full CTB sends `programmer.ct_step` (IPC-46), whatever

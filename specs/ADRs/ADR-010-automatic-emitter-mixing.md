@@ -1,6 +1,6 @@
 # ADR-010: Extra emitters can be mixed automatically from the target colour (opt-in, nominal)
 
-**Status:** proposed (owner decisions 1–4 of IDEA-32 taken 2026-10-28; criteria wait for gate 1)
+**Status:** accepted (owner, 2026-10-28; the four open questions as proposed)
 **Date:** 2026-10-28
 **Amends:** ADR-005 decision 2 (emitters only direct) and decision 4 (extraction only with calibration).
 
@@ -74,7 +74,7 @@ On the rig the auto-mixed whites or ambers look visibly different from the RGB-o
 output factor cannot fix it (then pull IDEA-03 forward), or operators find direct-plus-auto
 confusing (then switch to HTP, the alternative above).
 
-## Open questions for the owner
+## Owner answers (2026-10-28, all as proposed)
 1. Direct on top of auto: **sum, clamped at 100 %** (proposed, ENG-22) or the highest of the two
    (HTP)?
 2. Order with two whites (Warm + Cold White): profile order (proposed), so a warm target fills the

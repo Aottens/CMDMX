@@ -5,9 +5,9 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
-## 2026-10-28 — Extra emitters may be mixed automatically, opt-in per fixture type (owner, IDEA-32; ADR-010 proposed)
+## 2026-10-28 — Extra emitters may be mixed automatically, opt-in per fixture type (owner, IDEA-32; ADR-010)
 
-**Decision:** automatic mixing of White, Warm White, Amber, Lime, … from the target colour comes ahead of calibration: opt-in per mode, default off; the direct emitter wheels stay live and add on top; an emitter's colour comes from GDTF `cie`, else a name-based default, editable in the profile editor. Colour temperature becomes a Kelvin view with CTO/CTB steps on the target colour; LEE numbers stay in IDEA-02. Method and criteria in ADR-010 (P1-22, waiting for gate 1).
+**Decision:** automatic mixing of White, Warm White, Amber, Lime, … from the target colour comes ahead of calibration: opt-in per mode, default off; the direct emitter wheels stay live and add on top; an emitter's colour comes from GDTF `cie`, else a name-based default, editable in the profile editor. Colour temperature becomes a Kelvin view with CTO/CTB steps on the target colour; LEE numbers stay in IDEA-02. Method and criteria in ADR-010 (P1-22, approved 2026-10-28 with its four questions as proposed: direct adds on top, profile order, 1800–10000 K, Kelvin for every colour fixture).
 
 **Alternatives considered:** wait for calibration (ADR-005 as written); a full least-squares solve; maximum-brightness mixing.
 

@@ -96,8 +96,8 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   (PRG-30); the change reaches every client as a `programmer` delta (IPC-12). Another model name
   or a missing field → `error` to the sender.
 
-- **IPC-46** Colour temperature and auto-mix (IDEA-32, PRG-63..66, ENG-20..23; proposed
-  2026-10-28). `programmer.colour_model` (IPC-18) also takes `Kelvin`. The `colour` object
+- **IPC-46** Colour temperature and auto-mix (IDEA-32, PRG-63..66, ENG-20..23; approved
+  by owner 2026-10-28). `programmer.colour_model` (IPC-18) also takes `Kelvin`. The `colour` object
   (IPC-22) gains `"kelvin"`: the PRG-64 reading in K (rounded to 10) or `null` for black. A Kelvin
   `wheels` entry carries that value as its 0.0–1.0 wheel value (PRG-64). `programmer.ct_step
   {"step":"cto_half"}` (`cto_full`, `cto_half`, `cto_quarter`, `cto_eighth` and the same for
