@@ -1,5 +1,19 @@
 # Release notes
 
+## 0.2.1
+
+Published 28 October 2026 as "CMDMX 0.2.1".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.2.1)
+
+- Extra emitters (White, Warm White, Amber, Lime) can be mixed automatically from the colour you
+  pick: switch **Auto-mix emitters** on for a fixture type in the profile editor, with each
+  emitter's colour and output. A white on an RGBW par then comes from its White LED; the emitter
+  wheels show **+AUTO** and what you set on them comes on top.
+- A **K** colour model: one Kelvin wheel from 1800 K to 10000 K.
+- Colour-correction steps in the colour picker: CTO and CTB in ⅛, ¼, ½ and Full, working like real
+  correction gels.
+- When the engine stops with the app, the quit question now says so.
+
 ## 0.2.0
 
 Published 28 October 2026 as "CMDMX 0.2.0".

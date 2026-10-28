@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS2-46 auto-mix and Kelvin in the app and the profile editor)_
+_Last updated: 2026-10-28 (v0.2.1 released)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -17,7 +17,7 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-1. VS8-01 and VS4-07: install `CMDMX-0.2.0.dmg` on the owner's Mac (About, shows came over from
+1. VS8-01 and VS4-07: install `CMDMX-0.2.1.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
 2. At home on Art-Net: program the service in *Kerk* as `tests/hardware/church.md` asks (steady
