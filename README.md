@@ -136,7 +136,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 - A website ([`subprojects/website/`](subprojects/website/)) offers the latest DMG with its
   SHA-256 and the install steps; GitHub Pages rebuilds it after every release.
 - A user manual on the website (`manual/`, mdBook with search and a print page): introduction,
-  getting started, concepts, patching, programming, palettes and release notes so far, with
+  getting started, concepts, patching, programming, palettes, playbacks and cues, cue lists,
+  running a show and release notes so far, with
   screenshots from the app; it is the manual of the latest release, or a
   marked preview while that release has none.
 

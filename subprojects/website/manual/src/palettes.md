@@ -140,5 +140,4 @@ Every cue and playback that uses the palette follows the change straight away, w
 
 Palettes are saved with the show. Recording, changing and deleting them can be undone.
 
-Next: playbacks and cues are covered in the next sections of this manual, which are not written
-yet.
+Next: [Playbacks and cues](playbacks.md).
