@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47)**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47); IPC-47 proposed 2026-10-28 (P1-23), awaiting owner approval**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -115,6 +115,15 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   "default_cie":[…]|null,"status":"auto"|"no_colour"|"outside_gamut"}` — `default_cie` is LIB-37's
   default for the name, `status` whether an emitter at `cie` can auto-mix (ENG-20). So the
   defaults and the gamut check stay in the engine (amended 2026-10-28, VS2-46).
+- **IPC-47** Gel numbers (IDEA-02, PRG-67..70; proposed 2026-10-28, awaiting owner approval).
+  `programmer.gel {"range":"Lee","number":201}` applies PRG-68 to the targets, with its warnings;
+  another range, or a number that is not a non-negative integer → `error` to the sender. The
+  `colour` object (IPC-22) gains `"gel":{"range":"Lee","number":201,"name":"Full C.T. Blue"}`, the
+  PRG-69 reading, or `null`. `library.gels {"range":"Lee"}` answers the asking client only,
+  without the tick: `{"v":0,"type":"library.gels","range":"Lee","gels":[{"number":201,
+  "name":"Full C.T. Blue","r":…,"g":…,"b":…}]}`, sorted by number, `r g b` the gel's colour as
+  sRGB 0.0–1.0 for drawing (as IPC-22), so the app computes no colour. The command line takes the
+  token `Lee` (PRG-68).
 
 ### App programmer workspace (verified by `swift build` + `tests/manual/app-programmer.md`)
 - **IPC-15** The palette placeholder above the faders becomes two windows. Fixtures: one button per

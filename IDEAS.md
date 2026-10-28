@@ -27,7 +27,7 @@ the backlog, not the whole idea.
 | Id | Idea | Status | Phase | Module |
 | --- | --- | --- | --- | --- |
 | IDEA-01 | More USB-DMX interfaces than the ENTTEC Pro family | triaged | 2 | OUT |
-| IDEA-02 | Colour picking in several models: RGB, CMY, HSL/HSI, gel numbers (LEE first) | triaged | 1 (basic) / 2 (gels) | PRG, PAL |
+| IDEA-02 | Colour picking in several models: RGB, CMY, HSL/HSI, gel numbers (LEE first) | basic picker done (VS2-06); gels specified 2026-10-28, awaiting approval (P1-23, PRG-67..70) | 1 (owner 2026-10-28, gels too) | PRG, PAL, IPC, UI |
 | IDEA-03 | Colour calibration so different fixtures match each other | triaged | 2 | LIB, PAT, core |
 | IDEA-04 | Phase 1 = programming the building blocks of any show (robust programmer); cue lists and busking both run on them | accepted 2026-10-17 | 1 | PRD, PRG, new `cuelists.md` |
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
@@ -74,6 +74,12 @@ the backlog, not the whole idea.
 - Gel numbers (LEE first; Rosco/GAM later) in phase 2: needs a gel library with a reliable colour per filter, and only looks right across fixture types with IDEA-03.
 - Note: K (black) has no meaning in light; fixtures mix additively (RGB/RGBW/…) or subtractively (CMY). The picker offers CMY; "CMYK" is read as CMY.
 **Open questions:** source and licence for the LEE colour data (LEE publishes transmission curves; ready-made RGB tables are often inaccurate). Which other gel ranges matter?
+**Outcome (2026-10-28):** owner picked the gel part for phase 1 now (ONYX-style), after the Kelvin/CTO/CTB view (IDEA-32). Specified as P1-23: PRG-67..70, IPC-47, UI-32, PAL-33, awaiting approval. What the research found:
+- **Data:** each filter page on leefilters.com publishes CIE x, y and transmission Y for two sources, Tungsten (3200 K) and Daylight (Source C), plus the nominal mired shift; the spectral curve is in the page as 5 nm points from 405 to 700 nm only. LEE's own x, y come from its full measurement, so CMDMX uses those instead of recomputing from the truncated curve: no spectral maths and no CIE tables in the engine. No open gel dataset with a clear licence exists (the R package photobiologyFilters has seven LEE gels, digitised from plots).
+- **Source: tungsten 3200 K.** A gel number means the colour it gives on a theatre lamp; ETC Eos (575 W HPL in a Source Four) and Hog use a tungsten reference too. On tungsten LEE 201 is a 5600 K daylight white, as lighting techs know it; on a daylight source it would be a deep blue. D65 (ADR-005's white) was the other candidate: it is "the gel on the fixture's white", but no tech knows the numbers that way.
+- **CT agreement:** with LEE's tungsten x, y, every CT gel lands within 6 mired of 3200 K plus the PRG-66 step, except 204 Full CTO (15 mired: LEE's data says 2190 K, nominal +159 says 2120 K). PRG-66's ½, ¼, ⅛ CTO values match what LEE 205, 206, 223 do on tungsten (+79, +41, +26), not the +109, +64, +26 LEE prints for daylight. PRG-66 stays as approved.
+- **Licence:** the pages say "Copyright Panavision" (LEE's owner); there is no licence for reuse, and a whole table of LEE's values is a database extraction (UK/EU database right), whatever the copyright status of single numbers. Proposed: the owner asks LEE/Panavision for written permission to ship number, name and tungsten x, y with attribution; tests use a handful of rows meanwhile; the full table lands when LEE says yes (VS2-50). If LEE says no: a user-supplied gel file instead (later idea).
+- **Palettes** store only the colour; the gel is read back from it (PRG-69), so a palette shows its gel without the show file changing.
 
 ### IDEA-03 — Fixture colour calibration and matching (2026-10-17)
 **Owner's intent:** with mixed (often Chinese) LED fixtures, one chosen colour (e.g. one LEE filter) must look the same on two different fixture types; fixtures must be calibratable against each other.

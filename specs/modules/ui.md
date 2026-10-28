@@ -137,7 +137,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Next to the field, bars for the current colour model's components plus one per emitter the
     targets have (from `wheels`). Each bar is draggable and sends `programmer.wheel` on its
     attribute.
-  - The gel book is a disabled row of swatches [with IDEA-02].
+  - The gel book (UI-32).
   - With no colour-mixing target, the window shows the sketch's note.
 
   The picker never computes a colour itself. It sends the hue and saturation under the
@@ -215,7 +215,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   While **Keys** is live (status bar toggle, off by default), the Mac keyboard drives the keypad:
   - The digits and `.`.
   - `-` = Thro, `+` = And, `@`, Return = Enter, Esc = Exit, Backspace = Back.
-  - F = Fixture, G = Group, P = Palette.
+  - F = Fixture, G = Group, P = Palette, L = Lee (UI-32).
   - F1–F4 = workspaces.
   - Up and Down = command history (UI-27).
 
@@ -349,6 +349,16 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   under its name: its value is the direct part, added to what the engine mixes (ENG-22). The app
   computes no colour. Verified by `tests/manual/app-programmer.md` (amended), with the auto-mixed
   output read on Art-Net at home.
+
+### Gel numbers (IDEA-02; proposed 2026-10-28, awaiting owner approval)
+- **UI-32** The gel book in the colour picker (UI-15), below the CT rows: a LEE tab (the only range
+  for now), a search field that filters by number prefix or by name (`10` → 101, 102, 103, …;
+  `congo` → 181), and a scrolling grid of swatches with number and name, sorted by number, drawn
+  from `library.gels` (IPC-47, asked once per connection). Tapping a swatch sends
+  `programmer.gel`. When the `colour` object has a `gel`, its swatch is outlined and the picker
+  shows "LEE 201 Full C.T. Blue" above the field. While Keys is live, L types the `Lee` token
+  (UI-19): `L 2 0 1 Return`. The app computes no colour. Verified by
+  `tests/manual/app-programmer.md` (amended), the output read on Art-Net at home.
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
