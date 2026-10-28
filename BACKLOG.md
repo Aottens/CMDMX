@@ -142,7 +142,7 @@ after VS8-03, in any order.
 | VS8-04 | Manual skeleton: mdBook with search, print page and the mark, the release-tag checkout with the preview banner, the link check, CLAUDE.md and `check-tracking.py` manual rule; sections 1–3 and 13 written. Needs VS8-03. | WEB-23, 30..34 | M | done (2026-10-28, #148; live check in `tests/hardware/website.md`) |
 | VS8-05 | Manual sections 4–6 (patching, programming, palettes) with screenshots. Needs VS8-04. | WEB-31, 32 | M | done (2026-10-28, #149) |
 | VS8-06 | Manual sections 7–9 (playbacks and cues, cue lists, running a show) with screenshots. Needs VS8-04. | WEB-31, 32 | M | done (2026-10-28, #150) |
-| VS8-07 | Manual sections 10–12 (control surfaces, shows and files, reference). Needs VS8-04. | WEB-31, 32 | M | todo |
+| VS8-07 | Manual sections 10–12 (control surfaces, shows and files, reference). Needs VS8-04. | WEB-31, 32 | M | done (2026-10-28, #151) |
 | VS8-08 | Notarise the DMG (Developer ID signing and `notarytool` in `release.yml`, stapled ticket, install steps shrink to drag-to-Applications); needs criteria in `release.md` and the owner's Apple Developer account first; done before the site is announced. | REL (new) | M | todo |
 
 ### Supporting specs (needed by the milestones above)

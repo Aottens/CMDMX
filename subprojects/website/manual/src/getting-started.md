@@ -60,8 +60,6 @@ dot for their state.
 CMDMX talks to interfaces that use the ENTTEC Pro protocol. The Eurolite USB-DMX512 PRO MK2 is the
 one it has been tested with. It does not announce itself clearly, so CMDMX cannot recognise it by
 itself: choose its port yourself in the Serial row (it appears as a `/dev/cu.usbserial-...` entry).
-You can also start the engine by hand with `--serial <path>`, but in the normal app you do not
-need to.
 
 ## Your first show in ten minutes
 
