@@ -45,3 +45,14 @@ jobs:
         with:
           name: CMDMX-${{ steps.v.outputs.version }}.dmg
           path: subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg
+
+  # A release made with GITHUB_TOKEN does not start other workflows, so the page is called from here.
+  website:
+    name: Website (WEB-21)
+    needs: dmg
+    if: github.ref_type == 'tag'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/website.yml

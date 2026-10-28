@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-28 — The website ships before the logo and the domain: a placeholder mark and github.io first (owner, VS8-03)
+
+**Decision:** VS8-03 no longer waits for VS8-02 or the domain name. The site uses a placeholder lockup and favicon, clearly marked, in `subprojects/website/brand/` under the BRD-21/23 file names; VS8-02 replaces those files and no page changes. Until the owner names the domain the site is served at `https://aottens.github.io/CMDMX/`; the domain is then one line in `subprojects/website/CNAME` plus the Pages and DNS settings (WEB-20, `tests/hardware/website.md`).
+
+**Alternatives considered:** keep VS8-03 blocked on the logo (the owner has not found it yet) and on the domain.
+
+**Reasoning:** the real Colourmotion logo comes later (owner, 2026-10-28); the build, the release hook and the download block do not depend on it, and all pages use relative links, so the move to an own domain changes no page.
+
+**Reversal trigger:** the placeholder is still there when the site is announced (VS8-08), or the own domain needs more than the CNAME line.
+
 ## 2026-10-27 — CMDMX gets its own website and domain; it goes live as a preview before notarisation (owner, P1-21)
 
 **Decision:** the rename (`brand.md`) keeps the bundle id and moves the data folders once; the GitHub repo becomes `Aottens/CMDMX`, the local folder keeps its name. The website (`website.md`) is static on GitHub Pages under an own domain, rebuilt after every release so it always offers the latest DMG, with the manual of that release (mdBook). It may go live as a preview with the DMG not notarised; notarisation (VS8-08) comes before the site is announced. No price on the site until IDEA-21. English only for now.

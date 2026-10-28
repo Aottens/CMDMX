@@ -135,7 +135,9 @@ are the contact); hosting the hardware build plans (IDEA-23, later, as its own s
 
 ## Owner decisions (P1-21, 2026-10-27)
 1. Site and manual in English; Dutch later, as an idea if wanted.
-2. An own domain now, not github.io first; the owner registers it and names it (VS8-03 needs the name).
+2. An own domain now, not github.io first; the owner registers it and names it. Amended 2026-10-28
+   (DECISIONS): VS8-03 ships on `aottens.github.io/CMDMX` with a placeholder logo; the domain is one
+   line in `subprojects/website/CNAME` once named.
 3. The site may go live as a *preview* with the DMG not notarised and REL-15's right-click steps
    (WEB-12); notarisation is its own task (VS8-08), done before the site is announced anywhere.
 4. No price, no purchase page and no licence promise until IDEA-21 is decided (WEB-14).

@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-27 (VS8-01: the rename to CMDMX)_
+_Last updated: 2026-10-28 (VS8-03: the website, placeholder logo, on github.io)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -25,7 +25,9 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    looks, *Front band*, *Front spreker*); the owner fills in which fresnels are band and speaker.
 3. Sunday in the church: the two TouchOSC lines in `church.md`, then *Before the service* with the
    fallback rehearsal, and the service run (VS4-03) once the DMG is on the church Mac.
-4. VS8-02..08 (logo, website, manual, notarisation; `specs/modules/brand.md`, `website.md`).
+4. VS8-03 after the merge: Settings › Pages › Source *GitHub Actions*, then Actions › Website › Run
+   workflow and `tests/hardware/website.md`. Then VS8-04 (manual skeleton); VS8-02 (logo) when the
+   Colourmotion logo is found; VS8-08 (notarisation) before the site is announced.
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
 
@@ -33,6 +35,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 Rows with status `gate3` in `BACKLOG.md`:
 - VS4-07 the DMG on the church Mac, and VS8-01 the renamed DMG on the owner's Mac (About, shows moved
   from the old folder), both in `tests/hardware/release.md`.
+- VS8-03 the website: Pages switched to GitHub Actions, the first deploy and the page checked,
+  `tests/hardware/website.md`.
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
   until the owner finds the BCF2000.
 - HWB-01 USB-MIDI box, `tests/hardware/hw-box.md`: order the parts first (list at the top of the
@@ -45,7 +49,8 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 
 ## Owner to decide
 - Rename the GitHub repo to `Aottens/CMDMX` (Settings › General › Repository name; BRD-10).
-- The website's domain name (VS8-03): register it and tell Claude the name.
+- The website's domain name: register it and tell Claude the name; it becomes one line in
+  `subprojects/website/CNAME` (until then the site is `aottens.github.io/CMDMX`).
 - Find the Colourmotion logo (VS8-02 builds the CMDMX concepts on it).
 - IDEA-30 (cross-platform UI for the Linux desk): phase 3 after the surface; toolkit open.
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
