@@ -1158,15 +1158,18 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Cli, String> {
 
 fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     let mut engine = Engine::new(Settings::default());
-    engine.add_profile(
-        "dimmer",
-        Profile::from_attributes(vec![AttributeDef::new(
-            "Dimmer",
-            AttributeGroup::I,
-            AttributeKind::Htp,
-            1,
-        )]),
-    )?;
+    let mut dimmer = Profile::from_attributes(vec![AttributeDef::new(
+        "Dimmer",
+        AttributeGroup::I,
+        AttributeKind::Htp,
+        1,
+    )]);
+    dimmer.manufacturer = "Demo".into();
+    dimmer.model = "Dimmer".into();
+    dimmer.source = "demo".into();
+    // IPC-14: every demo profile is patched under its own `<manufacturer>/<model>` key.
+    let dimmer_key = format!("{}/{}", dimmer.manufacturer, dimmer.model);
+    engine.add_profile(&dimmer_key, dimmer)?;
     // IPC-09: one dimmer per fader, playback n -> fixture n at address n.
     for n in 1..=u32::from(Settings::default().faders_per_page) {
         engine.patch(Fixture {
@@ -1174,7 +1177,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
             number: 0,
             name: String::new(),
             handle: None,
-            profile: "dimmer".into(),
+            profile: dimmer_key.clone(),
             mode: None,
             universe: 1,
             address: n as u16,
@@ -1192,20 +1195,21 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     }
     // IPC-14: the church rig on universe 1, each fixture right after the previous one.
     let mut address = 9;
-    for (key, ids, json) in [
-        ("wash", 101..=104, WASH),
-        ("rgbw", 201..=208, RGBW_PAR),
-        ("rgbl", 211..=216, RGBL_PAR),
-        ("rgb", 221..=226, RGB_PAR),
-        ("dimmer", 301..=306, ""),
+    for (ids, json) in [
+        (101..=104, WASH),
+        (201..=208, RGBW_PAR),
+        (211..=216, RGBL_PAR),
+        (221..=226, RGB_PAR),
+        (301..=306, ""),
     ] {
-        let footprint = if json.is_empty() {
-            1
+        let (key, footprint) = if json.is_empty() {
+            (dimmer_key.clone(), 1)
         } else {
             let profile = Profile::from_json(json)?;
+            let key = format!("{}/{}", profile.manufacturer, profile.model);
             let footprint = profile.modes.first().map_or(1, |m| m.footprint);
-            engine.add_profile(key, profile)?;
-            footprint
+            engine.add_profile(&key, profile)?;
+            (key, footprint)
         };
         for id in ids {
             engine.patch(Fixture {
@@ -1213,7 +1217,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
                 number: 0,
                 name: String::new(),
                 handle: None,
-                profile: key.into(),
+                profile: key.clone(),
                 mode: None,
                 universe: 1,
                 address,
