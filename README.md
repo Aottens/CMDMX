@@ -64,7 +64,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
   clashes are refused. Move, renumber, rename, change mode and remove.
 - Multi-select in the patch table: Shift/Cmd-click a range and move it back to back, renumber
   it, name it ("Par 1…6"), change its mode or remove it in one checked step.
-- A profile editor for channels, defaults and wheel slots; profiles are saved into the show.
+- A profile editor for channels, defaults, wheel slots and emitter auto-mix (CIE colour and
+  output per emitter); profiles are saved into the show.
 - GDTF files (the manufacturers' own format) convert into profiles in the engine, with cells
   from the fixture's geometry and each emitter's measured colour kept for later calibration;
   Import GDTF… in the Patch screen's Add panel saves one as a user profile and shows what each
@@ -84,8 +85,10 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 - Fan: the Fan key (lit while on) makes a wheel spread its change over the selection order as a
   Line, Mirror, Wings or Arrow curve, picked on the Fan softkeys and shown as `FAN <CURVE>` next
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.
-- Colour as one value per fixture: HSI, RGB or CMY wheels or a colour picker, with extra
-  emitters (White, Lime, …) driven directly.
+- Colour as one value per fixture: HSI, RGB, CMY or Kelvin wheels or a colour picker with
+  CTO/CTB correction steps. Extra emitters (White, Lime, …) are driven directly, or auto-mixed
+  from the picked colour on types where the profile editor switches it on (a white on an RGBW par
+  comes from its White LED).
 - Locate, Highlight with lowlight, Off (per attribute group or one attribute), Rem Dim, and
   Clear with a choice of what LTP attributes do.
 

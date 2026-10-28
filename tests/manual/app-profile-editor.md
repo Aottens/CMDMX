@@ -1,4 +1,4 @@
-# App profile editor checklist (LIB-23..27, IPC-37..39) — template
+# App profile editor checklist (LIB-23..27, LIB-39, IPC-37..39, IPC-46) — template
 
 No Swift test target exists (CLAUDE.md), so the profile editor of `specs/modules/fixture-library.md`
 LIB-23..27 is checked by hand. The engine side (LIB-25, IPC-37..39) is unit tested (VS2-24).
@@ -83,6 +83,21 @@ Wheel +5, Gobo +8, so 201's Colour Wheel is channel 114).
 - [ ] Click a Colour Wheel slot 32–63: Art-Net Colour Wheel of 201–204 (114 on 201) reads 47 ((32 + 63) / 2)
 - [ ] Move Gobo's Default slider: the Gobo channel (117 on 201) follows live
 - [ ] Leave the editor: the values stay in the programmer (Program shows them); Clear removes them
+
+## H. Auto-mix emitters (LIB-39, IPC-46)
+On the demo show (no `--show-dir`), Art-Net on universe 1; RGBW pars 201–208 at 45, 50, … (Dimmer, R G B, White).
+- [ ] Open the RGBW Par's editor (201's Selected panel): the mode bar has **Auto-mix emitters**, off;
+      the Phantom 25 (no colour mixing) and a CMY mode have no such switch
+- [ ] Switch it on: White gets CIE x 0.3127, y 0.3290 (LIB-37 default) and the status "Auto-mixed";
+      Output reads 100 %
+- [ ] Clear CIE y only: shown as invalid and Save is refused; fill it again
+- [ ] Type CIE x 0.17, y 0.005: the status reads "Direct only — outside the reference gamut"; put
+      0.3127 / 0.3290 back
+- [ ] On an RGB+Lime type, switching on fills Lime with 0.4100 / 0.5500; an emitter named UV gets
+      nothing and reads "Direct only — no colour"
+- [ ] Save, then on Program: 201 `@ 100` white puts the white on channel 49 and R G B low (see
+      `app-programmer.md`, Kelvin section); ⌘Z undoes "Edit profile RGBW Par"
+- [ ] Set Output 200 % and Save: White drops to half for the same white
 
 ## G. Church Phantom 25 (owner, on the real show)
 Stop the daemon, start it without `--show-dir`/`--profiles-dir` (Kerk, real profiles folder) and

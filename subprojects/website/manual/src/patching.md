@@ -67,6 +67,15 @@ for a lamp that is not in the library.
   value and a name. A colour slot can also have a colour. **+ Slot**, **Split**, **Merge with
   next** and remove work on the list; the bar under it shows the ranges, and clicking a range
   selects its row.
+- **Auto-mix emitters.** On a mode that mixes red, green and blue, the mode bar has an
+  **Auto-mix emitters** switch. Switched on, the engine makes the picked colour with the extra
+  emitters as well (White, Warm White, Amber, Lime …). Each emitter then shows its colour as CIE x
+  and y and its **Output** in percent: how bright it is at full compared with the fixture's own
+  white from red, green and blue (200 % for a White LED twice as bright). Switching on fills in
+  the usual values for White, Cold White, Warm White, Amber and Lime once; correct them from the
+  fixture's data sheet. A status line says **Auto-mixed**, or **Direct only** with the reason: no
+  colour entered, or a colour outside what the engine can mix (UV, deep indigo). A direct-only
+  emitter keeps its own wheel and is not mixed.
 - **Test.** Select fixtures on a workspace first, then switch **Test** on (it turns red). Clicking a
   slot or moving a default now sends that value to the selected fixtures, so you can check a gobo
   or colour against the lamp. The values stay in the programmer when you leave; **Clear** removes

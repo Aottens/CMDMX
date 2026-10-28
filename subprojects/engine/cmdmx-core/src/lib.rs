@@ -56,6 +56,9 @@ pub enum CoreError {
     UnknownCell { fixture: u32, cell: u16 },
     #[error("unknown playback id {0}")]
     UnknownPlayback(u32),
+    /// IPC-46: `programmer.ct_step` named a step that does not exist.
+    #[error("unknown colour temperature step \"{0}\"")]
+    UnknownCtStep(String),
     #[error("unknown profile '{0}'")]
     UnknownProfile(String),
     #[error("profile '{profile}' has no mode '{mode}'")]

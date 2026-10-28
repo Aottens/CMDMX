@@ -33,18 +33,24 @@ struct AttributeDoc: Codable, Equatable {
     var locate: Double?
     var highlight: Double?
     var emitter: Bool
+    /// LIB-32: CIE 1931 xy of an emitter, [x, y]; both or neither.
+    var cie: [Double]?
+    /// LIB-38: brightness relative to the RGB equivalent (auto-mix); nil = 1.0, which the engine omits.
+    var output: Double?
     var slots: [SlotDoc]
 
     private enum CodingKeys: String, CodingKey {
-        case name, group, kind, channel, locate, highlight, emitter, slots
+        case name, group, kind, channel, locate, highlight, emitter, cie, output, slots
         case fineChannel = "fine_channel", defaultLevel = "default"
     }
 
     init(name: String, group: String, kind: String, channel: Int, fineChannel: Int? = nil, defaultLevel: Double = 0,
-         locate: Double? = nil, highlight: Double? = nil, emitter: Bool = false, slots: [SlotDoc] = []) {
+         locate: Double? = nil, highlight: Double? = nil, emitter: Bool = false, cie: [Double]? = nil,
+         output: Double? = nil, slots: [SlotDoc] = []) {
         self.name = name; self.group = group; self.kind = kind; self.channel = channel
         self.fineChannel = fineChannel; self.defaultLevel = defaultLevel
         self.locate = locate; self.highlight = highlight; self.emitter = emitter; self.slots = slots
+        self.cie = cie; self.output = output
     }
 
     init(from decoder: Decoder) throws {
@@ -58,6 +64,8 @@ struct AttributeDoc: Codable, Equatable {
         locate = try c.decodeIfPresent(Double.self, forKey: .locate)
         highlight = try c.decodeIfPresent(Double.self, forKey: .highlight)
         emitter = try c.decodeIfPresent(Bool.self, forKey: .emitter) ?? false
+        cie = try c.decodeIfPresent([Double].self, forKey: .cie)
+        output = try c.decodeIfPresent(Double.self, forKey: .output)
         slots = try c.decodeIfPresent([SlotDoc].self, forKey: .slots) ?? []
     }
 }
@@ -96,6 +104,8 @@ struct ModeDoc: Codable, Equatable {
     var attributes: [AttributeDoc]
     var colour: ColourMixingDoc?
     var virtualDimmer: Bool
+    /// LIB-36: the frame writer fills RGB's remainder with the emitters.
+    var automix: Bool
     var cells: [CellDoc]
     var panDegrees: Double?
     var tiltDegrees: Double?
@@ -104,7 +114,7 @@ struct ModeDoc: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case name, footprint, attributes, colour, cells
         case virtualDimmer = "virtual_dimmer", panDegrees = "pan_degrees", tiltDegrees = "tilt_degrees"
-        case zoomDegrees = "zoom_degrees"
+        case zoomDegrees = "zoom_degrees", automix
     }
 
     init(from decoder: Decoder) throws {
@@ -114,6 +124,7 @@ struct ModeDoc: Codable, Equatable {
         attributes = try c.decodeIfPresent([AttributeDoc].self, forKey: .attributes) ?? []
         colour = try c.decodeIfPresent(ColourMixingDoc.self, forKey: .colour)
         virtualDimmer = try c.decodeIfPresent(Bool.self, forKey: .virtualDimmer) ?? false
+        automix = try c.decodeIfPresent(Bool.self, forKey: .automix) ?? false
         cells = try c.decodeIfPresent([CellDoc].self, forKey: .cells) ?? []
         panDegrees = try c.decodeIfPresent(Double.self, forKey: .panDegrees)
         tiltDegrees = try c.decodeIfPresent(Double.self, forKey: .tiltDegrees)

@@ -65,7 +65,11 @@ pub struct AttributeDef {
     #[serde(default, skip_serializing_if = "is_false")]
     pub emitter: bool,
     /// CIE 1931 xy chromaticity of an emitter, if known (LIB-32).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "ser_cie"
+    )]
     pub cie: Option<[f32; 2]>,
     /// LIB-38: how many times brighter than its RGB equivalent the emitter is (auto-mix only).
     #[serde(default = "one", skip_serializing_if = "is_one")]
@@ -81,6 +85,12 @@ fn one() -> f32 {
 
 fn is_one(v: &f32) -> bool {
     *v == 1.0
+}
+
+/// Writes the shortest decimal of each f32 (0.3127, not 0.3127000033855438) for the wire.
+fn ser_cie<S: serde::Serializer>(cie: &Option<[f32; 2]>, s: S) -> Result<S::Ok, S::Error> {
+    let short = |v: f32| v.to_string().parse::<f64>().unwrap_or(f64::from(v));
+    cie.map(|[x, y]| [short(x), short(y)]).serialize(s)
 }
 
 pub(crate) fn is_false(b: &bool) -> bool {

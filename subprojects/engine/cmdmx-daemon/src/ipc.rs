@@ -148,6 +148,15 @@ pub enum Command {
         hue: f32,
         saturation: f32,
     },
+    /// IPC-46: a CTO/CTB step; the name is checked in `apply` so an unknown one is a warning.
+    CtStep {
+        step: String,
+    },
+    /// LIB-39: answered in the client thread.
+    ProfileEmitter {
+        name: String,
+        cie: Option<[f32; 2]>,
+    },
     /// IPC-18
     ColourModel {
         model: ColourModel,
@@ -831,6 +840,25 @@ fn parse_output_add(v: &serde_json::Value) -> Result<Command, String> {
     })
 }
 
+/// LIB-39: the reply to `profile.emitter`: the LIB-37 default for the name and whether the
+/// given CIE point would be auto-mixed (ENG-21).
+pub fn profile_emitter(name: &str, cie: Option<[f32; 2]>) -> String {
+    let status = match cie {
+        None => "no_colour",
+        Some(c) if cmdmx_core::colour::rgb_equivalent(c).is_some() => "auto",
+        Some(_) => "outside_gamut",
+    };
+    serde_json::json!({
+        "v": PROTOCOL,
+        "type": "profile.emitter",
+        "name": name,
+        "cie": cie,
+        "default_cie": cmdmx_core::colour::default_cie(name),
+        "status": status,
+    })
+    .to_string()
+}
+
 /// OUT-35: the reply to `output.ports`: the `/dev/cu.*` serial ports by path, with what the
 /// USB descriptor says and whether OUT-09 would take it as an ENTTEC Pro.
 pub fn ports_reply(ports: &[serialport::SerialPortInfo]) -> String {
@@ -1074,7 +1102,23 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             model: v
                 .get("model")
                 .and_then(|m| serde_json::from_value(m.clone()).ok())
-                .ok_or("missing or invalid \"model\" (expected Hsi, Rgb or Cmy)")?,
+                .ok_or("missing or invalid \"model\" (expected Hsi, Rgb, Cmy or Kelvin)")?,
+        }),
+        Some("programmer.ct_step") => Ok(Command::CtStep {
+            step: string(&v, "step")?,
+        }),
+        Some("profile.emitter") => Ok(Command::ProfileEmitter {
+            name: string(&v, "name")?,
+            cie: match v.get("cie") {
+                None | Some(serde_json::Value::Null) => None,
+                Some(c) => match c.as_array().map(Vec::as_slice) {
+                    Some([x, y]) => match (x.as_f64(), y.as_f64()) {
+                        (Some(x), Some(y)) => Some([x as f32, y as f32]),
+                        _ => return Err("invalid \"cie\" (expected two numbers)".into()),
+                    },
+                    _ => return Err("invalid \"cie\" (expected [x, y])".into()),
+                },
+            },
         }),
         Some("programmer.set") => Ok(Command::ProgrammerSet {
             attribute: string(&v, "attribute")?,
@@ -2872,6 +2916,11 @@ fn serve_client(
                         .send(Message::text(answer_library(library, req)))
                         .is_err()
                     {
+                        return;
+                    }
+                }
+                Ok(Command::ProfileEmitter { name, cie }) => {
+                    if ws.send(Message::text(profile_emitter(&name, cie))).is_err() {
                         return;
                     }
                 }

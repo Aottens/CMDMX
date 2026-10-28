@@ -210,6 +210,9 @@ pub struct WheelState {
     pub sixteen_bit: bool,
     /// PAL-26: the palette the first target's value references, if any.
     pub palette: Option<PaletteId>,
+    /// IPC-46: a target auto-mixes this emitter (LIB-36); absent otherwise.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub auto: bool,
 }
 
 /// IPC-21: one fixture's programmer values.
@@ -241,6 +244,8 @@ pub struct ColourView {
     pub r: f32,
     pub g: f32,
     pub b: f32,
+    /// IPC-46: correlated colour temperature rounded to 10 K; `null` for black.
+    pub kelvin: Option<f32>,
 }
 
 /// PRG-35 / IPC-11: everything the UI renders of the programmer.

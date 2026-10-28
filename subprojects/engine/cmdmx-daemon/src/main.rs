@@ -619,6 +619,13 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             resolution,
         } => engine.turn_wheel(&attribute, steps, resolution),
         Colour { hue, saturation } => engine.set_colour(hue, saturation),
+        CtStep { step } => {
+            let parsed = serde_json::from_value(serde_json::Value::String(step.clone()))
+                .map_err(|_| CoreError::UnknownCtStep(step))?;
+            engine.ct_step(parsed)
+        }
+        // Answered in the client thread (LIB-39).
+        ProfileEmitter { .. } => Ok(()),
         ColourModel { model } => {
             engine.set_colour_model(model);
             Ok(())
@@ -838,6 +845,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | ControlMapping { .. }
         | Library(_)
         | OutputPorts
+        | ProfileEmitter { .. }
         | Undo
         | Redo => Class::Neutral,
         Select { .. }
@@ -855,6 +863,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | ProgrammerSet { .. }
         | ProfileSave(_)
         | Colour { .. }
+        | CtStep { .. }
         | Line { .. }
         | RecordGroup { .. }
         | OutputAdd { .. }
@@ -945,7 +954,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
             (format!("Set {attribute}"), Some(format!("set:{attribute}")))
         }
         ProfileSave(p) => (format!("Edit profile {}", p.model), None),
-        Colour { .. } => ("Colour".into(), Some("colour".into())),
+        Colour { .. } | CtStep { .. } => ("Colour".into(), Some("colour".into())),
         RecordGroup { group } => (format!("Record group {group}"), None),
         OutputAdd { .. } => ("Add output".into(), None),
         OutputEdit { .. } => ("Edit output".into(), None),
@@ -1272,7 +1281,12 @@ fn report(engine: &Engine) {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::panic)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::expect_used
+)]
 mod tests {
     use super::*;
     use cmdmx_core::colour::ColourModel;
@@ -2609,6 +2623,14 @@ mod tests {
             Class::Edit,
         ),
         (
+            r#"{"v":1,"cmd":"programmer.ct_step","step":"cto_half"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"profile.emitter","name":"White"}"#,
+            Class::Neutral,
+        ),
+        (
             r#"{"v":1,"cmd":"programmer.command","tokens":["201","Enter"]}"#,
             Class::Edit,
         ),
@@ -3341,7 +3363,8 @@ mod tests {
 
     fn auto_engine(json: &str) -> Engine {
         let mut e = Engine::new(Settings::default());
-        e.add_profile("auto", Profile::from_json(json).unwrap()).unwrap();
+        e.add_profile("auto", Profile::from_json(json).unwrap())
+            .unwrap();
         e.patch(Fixture {
             id: 1,
             number: 0,
@@ -3356,8 +3379,7 @@ mod tests {
         e
     }
 
-    const SELECT_1: &str =
-        r#"{"v":1,"cmd":"programmer.command","tokens":["1","@","100","Enter"]}"#;
+    const SELECT_1: &str = r#"{"v":1,"cmd":"programmer.command","tokens":["1","@","100","Enter"]}"#;
     const GROUP_C: &str = r#"{"v":1,"cmd":"programmer.attribute_group","group":"C"}"#;
 
     fn view(e: &Engine) -> serde_json::Value {
