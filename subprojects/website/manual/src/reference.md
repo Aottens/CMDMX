@@ -156,8 +156,15 @@ Work from the console to the lamp:
 
 ### macOS will not open the app
 
-The app is not notarised by Apple yet. Open it once by hand as described in
-[Install](getting-started.md#install).
+Versions before the first notarised release are not notarised by Apple, so macOS blocks the first
+open. Open it once by hand:
+
+- **macOS 14:** right-click the app in Applications, choose **Open**, then **Open** again.
+- **macOS 15 or later:** double-click the app once and close the warning. Then open **System
+  Settings > Privacy & Security**, scroll down and click **Open Anyway**.
+
+After that it opens normally, until you install a newer version. Notarised releases need none of
+this; see [Install](getting-started.md#install).
 
 ### A control surface does nothing
 

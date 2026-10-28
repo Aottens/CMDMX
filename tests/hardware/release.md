@@ -1,8 +1,9 @@
-# Release checklist (REL-01..16) — gate 3
+# Release checklist (REL-01..23) — gate 3
 
 Setup: the church Mac (macOS 14 or later), the Eurolite USB-DMX512 PRO MK2 on USB with a lamp, Lightkey
 installed, and the DMG of the first tag (`v0.1.0`) from the GitHub release page. The install steps are
-the release notes: `subprojects/app/scripts/release-notes.md`.
+the release notes: `subprojects/app/scripts/release-notes.md`. The *Notarised install* part needs the DMG of the
+first notarised tag instead; its prerequisites come first. The REL-15 part below is for versions before it.
 
 ## Local check before the first tag (owner's Mac)
 - [ ] GitHub › Actions › Release › Run workflow (branch `main`): the job is green and a workflow artifact `CMDMX-0.0.0.dmg` is there (REL-09)
@@ -30,3 +31,18 @@ the release notes: `subprojects/app/scripts/release-notes.md`.
 - [ ] `kill -9` the daemon while the app runs: the status bar shows "Engine exited (code …)" and the engine is back after ~2 s (REL-12)
 - [ ] Start a different program on port 7319 (`nc -l 7319`), quit and open the app: the bar says "Another engine is running on port 7319" (REL-11)
 - [ ] Install a newer DMG over the app: the shows and settings are still there (REL-16)
+
+## Notarised install (REL-17..23)
+- [ ] Prerequisite: Apple Developer Program membership
+- [ ] Prerequisite: a Developer ID Application certificate with its private key, exported as `.p12`
+- [ ] Prerequisite: an App Store Connect API key (`.p8`, key id and issuer id)
+- [ ] Prerequisite: repo secrets `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD`, `NOTARY_KEY_P8`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID` are set (REL-20)
+- [ ] Actions › Release › Run workflow (branch `main`) is green, the log shows `check-dmg.sh … --notarised` ending `ok (notarised)`, and the job summary has no ad hoc warning (REL-20/21)
+- [ ] On the church Mac, download the DMG of the first notarised tag in a browser (so it is quarantined) and turn Wi-Fi off before the first open (REL-23)
+- [ ] Open the DMG, drag CMDMX onto Applications, eject, double-click CMDMX
+- [ ] It opens after one standard confirmation (**Open**), no *Open Anyway* (REL-22)
+- [ ] `spctl -a -vv /Applications/CMDMX.app` says `source=Notarized Developer ID`
+- [ ] Wi-Fi on: the Local Network prompt shows "CMDMX sends DMX to Art-Net and sACN nodes on your network." (REL-18)
+- [ ] Art-Net output reaches a node
+- [ ] The Eurolite gives output (serial under the hardened runtime)
+- [ ] The rest of REL-16 as before (Run part above)

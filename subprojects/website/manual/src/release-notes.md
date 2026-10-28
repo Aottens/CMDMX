@@ -16,7 +16,8 @@ The first installable version. It contains:
 - The engine keeps output running if the app crashes.
 
 It is installed from a DMG that is not notarised, so the first open needs the extra step described
-in [Getting started](getting-started.md).
+in [macOS will not open the app](reference.md#macos-will-not-open-the-app). Releases are notarised
+from the next version on.
 
 ## Next release
 

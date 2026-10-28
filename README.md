@@ -16,8 +16,9 @@ MIDI controller, or both.
 
 **Download:** [the latest DMG](https://github.com/Aottens/CMDMX/releases/latest)
 (macOS 14+, Apple Silicon and Intel; all versions under
-[Releases](https://github.com/Aottens/CMDMX/releases)). Not notarised yet: the first
-open needs right-click › Open, or *Open Anyway* in Privacy & Security on macOS 15+.
+[Releases](https://github.com/Aottens/CMDMX/releases)). Releases up to 0.1.0 are not
+notarised: their first open needs right-click › Open, or *Open Anyway* in Privacy & Security on
+macOS 15+.
 
 The goal is a well-working general DMX console. Its first proof is a real Sunday service in the
 owner's church run on it instead of Lightkey: moving-head washes, mixed RGBW / RGB+Lime / RGB
@@ -40,10 +41,10 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Renamed to CMDMX by Colourmotion (VS8-01); a website with the latest DMG and the full manual
-is ready for GitHub Pages (VS8-03, 04). Next up: tag `v0.1.0`, install its DMG on the church
-Mac (VS4-07), then the first service run (VS4-03). Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md), the design in
-[`specs/ux/main-screen.html`](specs/ux/main-screen.html).
+Renamed to CMDMX by Colourmotion (VS8-01); the website and manual are ready for GitHub Pages
+(VS8-03, 04) and notarised DMGs wait only for the Apple Developer secrets (VS8-08). Next up: tag
+`v0.1.0`, install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
+is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
 Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
 ## What works today
@@ -130,7 +131,8 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four
   workspaces, Patch, Output, Control and Show screens, and a dark and a day theme.
 - App and engine check each other's protocol version and say plainly which versions differ.
-- Installs from a versioned DMG that GitHub builds from a `v*` tag (universal, not notarised):
+- Installs from a versioned DMG that GitHub builds from a `v*` tag (universal; signed with a
+  Developer ID and notarised by Apple once the signing secrets are set, ad hoc before that):
   the app starts its own engine and stops it on quit, so Lightkey can take the USB interface;
   quitting writes the last changes to the show first.
 - A website ([`subprojects/website/`](subprojects/website/)) offers the latest DMG with its
@@ -145,7 +147,7 @@ Beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/ha
 
 To use it, download `CMDMX-<version>.dmg` from the
 [releases](https://github.com/Aottens/CMDMX/releases) and follow the install steps
-there (the first open needs right-click › Open, or *Open Anyway* on macOS 15+). To build it:
+there. To build it:
 
 Requirements: macOS 14+, Rust (stable), Xcode Command Line Tools (`xcode-select --install`).
 
