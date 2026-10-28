@@ -2,8 +2,8 @@
 
 This manual is for {{MANUAL_VERSION}}.
 
-CMDMX is a lighting console for macOS: a free, open-source desk for churches, schools and small
-venues. This manual explains how to install it, how it thinks, and how to run a show with it.
+CMDMX is a lighting console for macOS. This manual explains how to install it, how it thinks, and
+how to run a show with it.
 
 - New here? Start with the [Introduction](introduction.md), then [Getting started](getting-started.md).
 - [Concepts](concepts.md) explains the ideas the rest of the manual builds on.
