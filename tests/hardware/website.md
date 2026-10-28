@@ -1,4 +1,4 @@
-# Website checklist (WEB-03, 10..12, 20..22) — gate 3
+# Website checklist (WEB-03, 10..12, 20..23, 30..32) — gate 3
 
 Setup: the owner's Mac and an iPhone (or Safari's responsive mode). The site is built by
 `.github/workflows/website.yml`; `subprojects/website/README.md` says how to build it locally.
@@ -19,6 +19,20 @@ Setup: the owner's Mac and an iPhone (or Safari's responsive mode). The site is 
 - [ ] Dark mode and light mode both readable; Tab shows a visible focus ring on every link (WEB-03)
 - [ ] Safari › Develop › Disable JavaScript, reload: the page looks the same (WEB-03)
 - [ ] Web Inspector › Network: every request goes to `aottens.github.io` (or the own domain) only (WEB-02)
+
+## The manual (VS8-04: WEB-23, 30, 31)
+- [ ] *Links › Read the user manual* opens `…/CMDMX/manual/`; the header shows the mark and *CMDMX*,
+  which lead back to the landing page (WEB-30)
+- [ ] While the latest release has no manual (v0.1.0): every page shows the orange *Preview: written
+  ahead of the next release* strip and the front page says it is for the next release (WEB-23)
+- [ ] Search (magnifier or `S`) finds "Art-Net"; the printer icon shows the whole manual on one page
+  and Safari › File › Export as PDF saves it (WEB-30)
+- [ ] Dark and light theme (brush icon) both readable; the sidebar shows sections 1–3 and 13, the
+  rest greyed out (WEB-30, 31)
+- [ ] Read Introduction, Getting started and Concepts: nothing described that the app cannot do
+  (WEB-32); note anything wrong under Open points
+- [ ] After the first `v*` tag that contains `subprojects/website/manual/`: the banner is gone and the
+  front page says *This manual is for CMDMX <version>* (WEB-23)
 
 ## After the next `v*` tag (WEB-21)
 - [ ] Without touching anything: a few minutes after the Release run is green, its *Website* job is
