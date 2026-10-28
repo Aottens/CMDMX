@@ -2673,6 +2673,14 @@ mod tests {
             Class::Neutral,
         ),
         (
+            r#"{"v":1,"cmd":"programmer.gel","range":"Lee","number":201}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"library.gels","range":"Lee"}"#,
+            Class::Neutral,
+        ),
+        (
             r#"{"v":1,"cmd":"programmer.command","tokens":["201","Enter"]}"#,
             Class::Edit,
         ),
@@ -3573,5 +3581,116 @@ mod tests {
             reply("Deep Violet", Some([0.17, 0.005]))["status"],
             "outside_gamut"
         );
+    }
+
+    // ---- VS2-49: IPC-47 ----------------------------------------------------------------
+
+    /// Two LEE rows (tungsten x, y), enough for the wire; the shipped table waits for VS2-50.
+    const GELS: &str = r#"[
+      { "number": 201, "name": "Full C.T. Blue", "x": 0.330, "y": 0.339 },
+      { "number": 106, "name": "Primary Red", "x": 0.693, "y": 0.305 }
+    ]"#;
+
+    fn gel_engine() -> Engine {
+        let mut e = auto_engine(AUTO_RGBW);
+        e.set_gels(cmdmx_core::gel::GelTable::from_json(GELS).unwrap());
+        e
+    }
+
+    fn gel(range: &str, number: &str) -> String {
+        format!(r#"{{"v":1,"cmd":"programmer.gel","range":"{range}","number":{number}}}"#)
+    }
+
+    #[test]
+    fn ipc_47_programmer_gel_sets_the_colour_and_the_reading() {
+        let mut e = gel_engine();
+        let mut h = History::default();
+        assert!(matches!(
+            ipc::parse_command(&gel("Lee", "201")),
+            Ok(ipc::Command::Gel { number: 201 })
+        ));
+        // No targets: an engine refusal (warning), not a parse error.
+        assert!(undo_run(&mut e, &mut h, &gel("Lee", "201")).is_err());
+        undo_run(&mut e, &mut h, SELECT_1).unwrap();
+        undo_run(&mut e, &mut h, &gel("Lee", "106")).unwrap();
+        let c = &view(&e)["colour"];
+        assert!((c["r"].as_f64().unwrap() - 1.0).abs() < 0.01, "{c}");
+        assert!((c["g"].as_f64().unwrap() - 0.029).abs() < 0.01, "{c}");
+        assert_eq!(
+            c["gel"],
+            serde_json::json!({"range": "Lee", "number": 106, "name": "Primary Red"})
+        );
+        // A number not in the table: PRG-68's warning, nothing changes.
+        let err = undo_run(&mut e, &mut h, &gel("Lee", "999")).unwrap_err();
+        assert_eq!(err.to_string(), "LEE 999 is not in the gel table");
+        assert_eq!(view(&e)["colour"]["gel"]["number"], 106);
+        // After one Hue step it reads none (PRG-69): `gel` is null, not absent.
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.colour","hue":0.5,"saturation":1.0}"#,
+        )
+        .unwrap();
+        assert_eq!(view(&e)["colour"]["gel"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn ipc_47_programmer_gel_refuses_other_ranges_and_bad_numbers() {
+        for bad in [
+            gel("Rosco", "201"),
+            gel("lee", "201"),
+            gel("Lee", "-1"),
+            gel("Lee", "20.5"),
+            gel("Lee", r#""201""#),
+            r#"{"v":1,"cmd":"programmer.gel","number":201}"#.to_string(),
+            r#"{"v":1,"cmd":"programmer.gel","range":"Lee"}"#.to_string(),
+        ] {
+            assert!(ipc::parse_command(&bad).is_err(), "{bad}");
+        }
+        assert!(ipc::parse_command(&gel("Lee", "0")).is_ok());
+    }
+
+    #[test]
+    fn ipc_47_library_gels_answers_the_table_sorted_with_its_colours() {
+        assert!(matches!(
+            ipc::parse_command(r#"{"v":1,"cmd":"library.gels","range":"Lee"}"#),
+            Ok(ipc::Command::LibraryGels)
+        ));
+        assert!(ipc::parse_command(r#"{"v":1,"cmd":"library.gels","range":"Gam"}"#).is_err());
+        assert!(ipc::parse_command(r#"{"v":1,"cmd":"library.gels"}"#).is_err());
+        let table = cmdmx_core::gel::GelTable::from_json(GELS).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&ipc::library_gels(&table)).unwrap();
+        assert_eq!(v["v"], 1);
+        assert_eq!(v["type"], "library.gels");
+        assert_eq!(v["range"], "Lee");
+        let gels = v["gels"].as_array().unwrap();
+        let numbers: Vec<u64> = gels.iter().map(|g| g["number"].as_u64().unwrap()).collect();
+        assert_eq!(numbers, [106, 201], "sorted by number");
+        let full_ctb = &gels[1];
+        assert_eq!(full_ctb["name"], "Full C.T. Blue");
+        // PRG-67: LEE 201 → (1.0, 0.920, 0.837), as the colour object carries it.
+        for (k, want) in [("r", 1.0), ("g", 0.920), ("b", 0.837)] {
+            let got = full_ctb[k].as_f64().unwrap();
+            assert!((got - want).abs() < 0.005, "{k}: {got}");
+        }
+        // The shipped table is empty until VS2-50; the reply is still well formed.
+        let empty: serde_json::Value = serde_json::from_str(&ipc::library_gels(
+            &cmdmx_core::gel::GelTable::default(),
+        ))
+        .unwrap();
+        assert_eq!(empty["gels"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn ipc_47_lee_token_on_the_command_line() {
+        let mut e = gel_engine();
+        let mut h = History::default();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.command","tokens":["1","Lee","201","Enter"]}"#,
+        )
+        .unwrap();
+        assert_eq!(view(&e)["colour"]["gel"]["number"], 201);
     }
 }
