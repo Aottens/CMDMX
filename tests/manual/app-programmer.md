@@ -1,4 +1,4 @@
-# App programmer checklist (IPC-14..19, IPC-46, UI-31, PRG via the app) — template
+# App programmer checklist (IPC-14..19, IPC-46, IPC-47, UI-31, UI-32, PRG via the app) — template
 
 No Swift test target exists (CLAUDE.md), so the app side of `specs/modules/ipc.md` IPC-15..17
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
@@ -53,6 +53,23 @@ Auto-mix needs an auto-mixing type: switch it on for the RGBW Par first (`app-pr
 - [ ] Raise the White wheel by hand on an auto-mixing par: its value is the direct part, added on top
       of the mix on channel 49 (ENG-22)
 - [ ] The RGB+Lime pars (no auto-mix) show no "+AUTO" tag on Lime
+
+## Gel book (IPC-47, UI-32, VS2-49)
+The shipped LEE table is empty until LEE's permission (VS2-50); until then build the daemon with
+test rows in `subprojects/engine/gels/lee.json` (the `LEE_ROWS` of `cmdmx-core/tests/gels.rs`) and
+do not commit them.
+- [ ] Select 201, `@ 100`: the colour picker shows the gel book under the CTO/CTB rows: a LEE tab, a
+      search field and swatches with number and name, sorted by number
+- [ ] Search `20`: only 201–206; search `congo`: only 181; empty: all again; typing in it triggers no keys
+- [ ] Tap 106 Primary Red: Art-Net 46–49 about R 255, G 7, B 0 (R G B at 1.0, 0.029, 0.001); the 106
+      swatch is outlined and the picker shows "LEE 106 Primary Red"
+- [ ] `201 @ 50`, then tap 201 Full C.T. Blue: the Dimmer stays at 50 %; the colour keeps its brightest
+      component; outline and header follow to 201
+- [ ] Turn the Hue wheel one step: the outline and header go
+- [ ] With Keys on: `L 2 0 1 Return` types `Lee 201` and applies it; `Lee 999` → the message line shows
+      "LEE 999 is not in the gel table", nothing changes
+- [ ] `201 Thro 204 Lee 106 Enter`: selects 201–204 and turns them red
+- [ ] Record a Colours palette from 201–208 at LEE 201: its legend is "L201 Full C.T. Blue" (PAL-33)
 
 ## Still works
 - [ ] On-screen faders 1–8 and GM still drive channels 1–8 (IPC-09); a programmer value on 1–8 beats its fader (PRG-13)
