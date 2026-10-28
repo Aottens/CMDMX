@@ -5,7 +5,8 @@ Owner: `.github/workflows/release.yml` and the bundle/DMG scripts in `subproject
 `cmdmx-daemon` (flush on quit).
 Status: **REL-01..16 approved by owner 2026-10-27 (VS4-07)**, with the recommended answers to the
 open questions (see *Owner decisions*). **REL-17..23 and the amendments of REL-05, 08, 09, 15, 16
-proposed 2026-10-28 (VS8-08), awaiting owner approval** (see *Open questions (VS8-08)*).
+approved by owner 2026-10-28 (VS8-08)**, with the recommended answers (see *Owner decisions
+(VS8-08)*).
 Builds on DECISIONS 2026-10-27 (versioned DMG, not notarised; its reversal trigger is reached by
 the website, DECISIONS 2026-10-27 *own website*), IPC-01/08 (`ipc.md`), SHW-11
 (`showfile.md`), LIB-13 (`fixture-library.md`), CTL-53 (`control-surfaces.md`).
@@ -197,8 +198,9 @@ owner (IDEA-20).
 2. Quit stops the engine (REL-13): the fallback needs the Eurolite free.
 3. The first tag is `v0.1.0`, after this task is merged.
 
-## Open questions (VS8-08, for the owner)
-What the owner must provide before the build task starts:
+## Owner decisions (VS8-08, 2026-10-28)
+Approved with the recommended answers below. What the owner must provide before the build task
+can notarise:
 - **Apple Developer Program** membership (99 USD a year) on the owner's Apple ID.
 - A **Developer ID Application** certificate (only the Account Holder can create it): made in
   Xcode › Settings › Accounts or on developer.apple.com, exported from Keychain Access as `.p12`
@@ -208,7 +210,7 @@ What the owner must provide before the build task starts:
 - The five repository secrets of REL-20, set by the owner in GitHub › Settings › Secrets and
   variables › Actions (Claude never sees the `.p12`, its password or the `.p8`).
 
-Questions, with the recommended answer first:
+The questions and the recommended answers the owner chose:
 1. **Enrol as an individual or as the organisation Colourmotion?** The name in the certificate is
    what macOS shows as the developer. Recommended: as Colourmotion if it is a registered business
    (needs a free D-U-N-S number, a few days to weeks); otherwise as an individual (owner's name),
