@@ -57,6 +57,7 @@ the backlog, not the whole idea.
 | IDEA-29 | Serial fade steps: check the "fraction" more steps than Lightkey with an engine cue fade; cut frames to the highest patched channel only if they remain | new | 2 (proposed) | OUT |
 | IDEA-30 | Cross-platform UI, so the reference desk runs on Linux (HW-02) | triaged | 3, after the surface (owner 2026-10-25) | UI, IPC, daemon on Linux |
 | IDEA-31 | Stream Deck + and Neo extras (dials, touch strip, touch keys, info screen; was VS7-08), for a volunteer who owns one | triaged | later (owner 2026-10-27) | CTL, app |
+| IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | triaged (spec P1-22 for owner approval) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -621,3 +622,29 @@ backlog. It stays open for a volunteer who owns one.
 - A volunteer needs the deck itself: the gate-3 check runs on real hardware.
 **What it touches now:** nothing; the Original keeps working (VS7-05..07, 09).
 **Open questions:** none until someone with a + or Neo offers to build it.
+
+### IDEA-32 — Automatic emitter mixing and a colour-temperature view (2026-10-28)
+**Owner's intent:** with the target colour as the one colour value (ADR-005), a fixture with extra
+emitters should use them by itself: a warm white on an RGBW par comes mostly from its White, an
+amber on an RGB+Lime par uses the Lime. Next to that, the operator wants to pick a white by colour
+temperature (Kelvin) and to warm or cool a colour the way a CTO or CTB gel does.
+**Owner decisions (2026-10-28):**
+1. Auto-mix is opt-in per fixture type (per mode), default off, so existing shows do not change.
+2. The direct emitter wheels stay live and add on top of the auto-mixed level, so the operator
+   keeps direct control.
+3. The colour of an emitter comes from GDTF `cie` (LIB-32), otherwise a name-based default
+   (White, Warm White, Cold White, Amber, Lime), editable in the profile editor.
+4. Colour temperature as a target colour: a Kelvin view and CTO/CTB steps. LEE gel numbers stay
+   in IDEA-02.
+**Triage:**
+- Pulls ADR-005's "automatic white/lime extraction" forward ahead of calibration (IDEA-03), on the
+  nominal model: ADR-010 amends ADR-005 decisions 2 and 4. Stored colours do not change; it is
+  output only, like the nominal mapping it extends.
+- Criteria: LIB-36..39 (opt-in, emitter colour, output factor, profile editor), ENG-20..24
+  (the mix in the frame writer), PRG-63..66 (Kelvin view, CTO/CTB steps), IPC-46, UI-31.
+  Task row P1-22; build rows after approval.
+- UV (and any emitter without a colour) is never auto-mixed; CMY fixtures and colour wheels have
+  no auto-mix.
+**What it touches now:** nothing until the spec is approved; then the frame writer (`set_mixing`
+in `cmdmx-core::engine`), the profile model and editor, the programmer's colour models.
+**Open questions:** in the P1-22 spec (`## Open questions for the owner` of ADR-010).

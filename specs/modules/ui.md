@@ -270,7 +270,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     so eight wheels fit at the 1280 pt minimum window. A wheel is never clipped or scrolled.
     Each shows the uppercase name and the value (SF Mono 15 pt, red when touched), and a roller
     strip that scrolls with the value plus a position tick.
-  - **Colour model:** on the C tab, the HSI / RGB / CMY switch sits left of the wheels (IPC-19).
+  - **Colour model:** on the C tab, the HSI / RGB / CMY / K switch sits left of the wheels (IPC-19, UI-31).
 
   Row 2 (32 pt), left to right:
   - **Command line:** the command line takes the free width, with the message zone (UI-19) on
@@ -340,6 +340,15 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   (IDEA-07). A located fixture's button shows the sketch's `LOC` tag. The show-wide part of the
   Playback Options screen gets a Programmer section with the three PRG-42 settings. A timed
   Clear has no app control yet (IPC only).
+
+### Colour temperature and auto-mix (IDEA-32; proposed 2026-10-28)
+- **UI-31** The colour-model switch (IPC-19) gets a fourth button **K**; the Kelvin wheel shows its
+  value as "3200 K" ("—" for black). In the colour picker (UI-15), above the gel book row, a row of
+  eight buttons ⅛ ¼ ½ Full CTO and ⅛ ¼ ½ Full CTB sends `programmer.ct_step` (IPC-46), whatever
+  the model. An emitter bar or wheel whose `wheels` entry has `auto` shows a small "+AUTO" tag
+  under its name: its value is the direct part, added to what the engine mixes (ENG-22). The app
+  computes no colour. Verified by `tests/manual/app-programmer.md` (amended), with the auto-mixed
+  output read on Art-Net at home.
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each

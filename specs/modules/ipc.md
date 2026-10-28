@@ -96,6 +96,16 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   (PRG-30); the change reaches every client as a `programmer` delta (IPC-12). Another model name
   or a missing field → `error` to the sender.
 
+- **IPC-46** Colour temperature and auto-mix (IDEA-32, PRG-63..66, ENG-20..23; proposed
+  2026-10-28). `programmer.colour_model` (IPC-18) also takes `Kelvin`. The `colour` object
+  (IPC-22) gains `"kelvin"`: the PRG-64 reading in K (rounded to 10) or `null` for black. A Kelvin
+  `wheels` entry carries that value as its 0.0–1.0 wheel value (PRG-64). `programmer.ct_step
+  {"step":"cto_half"}` (`cto_full`, `cto_half`, `cto_quarter`, `cto_eighth` and the same for
+  `ctb_`) applies PRG-66 to the targets; another step name or no targets with Colour → `warning`.
+  An emitter's `wheels` entry gains `"auto":true` when at least one target with that emitter
+  auto-mixes it (ENG-21); absent otherwise. The profile JSON carries `automix` and `output` as
+  LIB-36/38 (IPC-37, 38 unchanged).
+
 ### App programmer workspace (verified by `swift build` + `tests/manual/app-programmer.md`)
 - **IPC-15** The palette placeholder above the faders becomes two windows. Fixtures: one button per
   fixture (number and profile); selected = blue with its selection-order number, target = bold
@@ -113,7 +123,7 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   `"Enter"` as `programmer.command` and empties the field. Next to it a message line shows the
   latest `warning` or `error` until the next command is sent. While the field has focus, keys
   never trigger anything else.
-- **IPC-19** On the C tab the attribute bar shows three buttons HSI, RGB and CMY, the one in
+- **IPC-19** On the C tab the attribute bar shows three buttons HSI, RGB and CMY (and Kelvin, UI-31), the one in
   `colour_model` highlighted; a click sends `programmer.colour_model`. The Hue wheel shows its
   value in degrees (`value × 360`, no decimals); every other wheel stays in %.
 

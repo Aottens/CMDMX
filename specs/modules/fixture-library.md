@@ -1,8 +1,9 @@
 # Module spec: fixture-library (LIB)
 
 Owner: `cmdmx-core::library` (model, parsing, conversion; pure) and `cmdmx-daemon` (reading files,
-the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14); LIB-28..35 approved by owner 2026-10-27 (P1-12); LIB-35 amendment approved by owner 2026-10-27 (VS2-43)**. Decisions: ADR-006 (own
-model, importers, QLC+ first), ADR-005 (target colour, direct emitters). Reference: QLC+ fixture
+the bundled QLC+ library). Status: **LIB-01..16 approved by owner 2026-10-17 (P1-01); LIB-17 approved by owner 2026-10-17 (generic emitters); LIB-18 approved by owner 2026-10-17 (import conventions); LIB-14 detail and LIB-18 tolerance approved by owner 2026-10-17 (VS2-11); LIB-19..27 approved by owner 2026-10-23 (P1-14); LIB-28..35 approved by owner 2026-10-27 (P1-12); LIB-35 amendment approved by owner 2026-10-27 (VS2-43); LIB-36..39 proposed 2026-10-28 (P1-22, IDEA-32)**. Decisions: ADR-006 (own
+model, importers, QLC+ first), ADR-005 (target colour, direct emitters), ADR-010 (automatic
+emitter mixing, proposed). Reference: QLC+ fixture
 definition format (`.qxf`, `engine/src/qlcchannel.h` presets), Titan *Personality Builder*.
 
 ## Purpose
@@ -336,6 +337,33 @@ imported too, as a file not written by us. Found in VS2-41: the `gdtf` crate 0.3
 file with an emitter that has no `DominantWaveLength` or a wheel slot without `Color`, and does
 not read a GDTF 1.0 `Default` on the DMX channel (the channel function's is used); VS2-42's
 manual run checks a real GDTF-share file.
+
+### Automatic emitter mixing (IDEA-32, ADR-010; proposed 2026-10-28)
+The profile data behind ENG-20..24. Behaviour stays keyed on the `emitter` flag (LIB-17); names
+only seed editable defaults.
+
+- **LIB-36** A mode has `automix` (default false, written only when true; LIB-01 round-trips it).
+  Multi-cell modes have one flag for all their cells. LIB-02 rejects `automix: true` on a mode
+  without an RGB colour system (CMY or none). Every profile and show file without the field loads
+  as today, with auto-mix off.
+- **LIB-37** Emitter colour defaults. Switching `automix` on in the profile editor (LIB-39) gives
+  every emitter of that mode without `cie` the default for its name, if any (case-insensitive,
+  exact): White (0.3127, 0.3290, D65), Cold White (0.3135, 0.3237, 6500 K), Warm White
+  (0.4366, 0.4042, 3000 K), Amber (0.5752, 0.4242, 590 nm), Lime (0.4100, 0.5500). Others (UV,
+  Indigo, Cyan, …) get none and stay direct only until the operator enters a colour. A `cie`
+  from GDTF (LIB-32) is kept. The defaults are written into the profile, so the engine never
+  reads a name. LIB-32's "nothing reads `cie` yet" ends with ENG-20.
+- **LIB-38** An emitter has `output` (0.25–4.0, default 1.0, written only when not 1.0): how bright
+  it is at full compared with the light of its RGB equivalent (ENG-20, 21). A White LED twice as
+  bright as the par's RGB white gets 2.0. LIB-02 rejects `output` out of range or on an attribute
+  that is not an emitter.
+- **LIB-39** Profile editor (LIB-23). On a mode with an RGB system the mode bar gets an **Auto-mix
+  emitters** switch; on a CMY mode or a mode without colour it is absent. With the switch on, an
+  emitter's detail shows CIE x and y (empty when unknown; both or neither, rejected as LIB-02
+  otherwise), Output in %, and a status line: "Auto-mixed", or "Direct only" with the reason (no
+  colour, outside the reference gamut). Switching on fills the LIB-37 defaults once; they show as
+  ordinary values. Save follows LIB-23/25. Verified by `tests/manual/app-profile-editor.md`
+  (amended).
 
 ## Out of scope (this spec)
 Downloading from GDTF-share inside the app (it needs an account); GDTF's 3D models, gobo images,
