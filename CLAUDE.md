@@ -29,6 +29,9 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
    Open points found in a run go under `## Open points` in the run file, each ending in `→` its
    backlog row, IDEA or checklist, made in that PR. Root `STATE.md` is the handoff (focus, next,
    gate 3, blocked, owner decisions), not a log. `scripts/check-tracking.py` checks this in CI.
+   A PR that changes user-visible behaviour updates the manual section it touches
+   (`subprojects/website/manual/src/`) in the same PR (WEB-33); `check-tracking.py` warns when
+   `subprojects/app/Sources` changes without the manual.
    **Every PR description has a `## Tracking` section** with the output of
    `scripts/check-tracking.py --summary origin/main` (new tasks, status moves, ideas, open points),
    so the owner sees in plain lines what the PR records without reading the tables.

@@ -20,10 +20,25 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Also when release.yml calls this on a tag: the page builds from main.
+      # Also when release.yml calls this on a tag: the page builds from main, the manual from the
+      # latest release tag when that has one (WEB-23), otherwise from main as a preview.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
+      - run: subprojects/website/install-mdbook.sh
+      - name: Manual of the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          [ -n "$tag" ] || exit 0
+          git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag"
+          if git cat-file -e "$tag:subprojects/website/manual/book.toml" 2>/dev/null; then
+            rm -rf subprojects/website/manual
+            git checkout "$tag" -- subprojects/website/manual
+            echo "MANUAL_FROM_TAG=1" >> "$GITHUB_ENV"
+          fi
       - run: subprojects/website/build.sh
         env:
           GH_TOKEN: ${{ github.token }}

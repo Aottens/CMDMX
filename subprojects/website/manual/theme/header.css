@@ -1,0 +1,6 @@
+/* mdBook pulls .page up by the menu-bar height; push the header back into view. */
+.cmdmx-bar { margin-top: var(--menu-bar-height); display: flex; align-items: center; gap: .5rem; padding: .4rem 1rem; font-weight: 600; }
+.cmdmx-bar a { display: flex; color: inherit; text-decoration: none; }
+.cmdmx-bar img { height: 1.5rem; width: 1.5rem; }
+.cmdmx-preview { padding: .3rem 1rem; text-align: center; background: #b45309; color: #fff; }
+@media print { .cmdmx-preview { border: 1px solid #000; background: none; color: #000; } }
