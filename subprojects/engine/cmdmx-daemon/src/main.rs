@@ -624,8 +624,9 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
                 .map_err(|_| CoreError::UnknownCtStep(step))?;
             engine.ct_step(parsed)
         }
-        // Answered in the client thread (LIB-39).
-        ProfileEmitter { .. } => Ok(()),
+        Gel { number } => engine.gel(number),
+        // Answered in the client thread (LIB-39, IPC-47).
+        ProfileEmitter { .. } | LibraryGels => Ok(()),
         ColourModel { model } => {
             engine.set_colour_model(model);
             Ok(())
@@ -846,6 +847,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | Library(_)
         | OutputPorts
         | ProfileEmitter { .. }
+        | LibraryGels
         | Undo
         | Redo => Class::Neutral,
         Select { .. }
@@ -864,6 +866,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | ProfileSave(_)
         | Colour { .. }
         | CtStep { .. }
+        | Gel { .. }
         | Line { .. }
         | RecordGroup { .. }
         | OutputAdd { .. }
@@ -954,7 +957,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
             (format!("Set {attribute}"), Some(format!("set:{attribute}")))
         }
         ProfileSave(p) => (format!("Edit profile {}", p.model), None),
-        Colour { .. } | CtStep { .. } => ("Colour".into(), Some("colour".into())),
+        Colour { .. } | CtStep { .. } | Gel { .. } => ("Colour".into(), Some("colour".into())),
         RecordGroup { group } => (format!("Record group {group}"), None),
         OutputAdd { .. } => ("Add output".into(), None),
         OutputEdit { .. } => ("Edit output".into(), None),
@@ -3674,10 +3677,9 @@ mod tests {
             assert!((got - want).abs() < 0.005, "{k}: {got}");
         }
         // The shipped table is empty until VS2-50; the reply is still well formed.
-        let empty: serde_json::Value = serde_json::from_str(&ipc::library_gels(
-            &cmdmx_core::gel::GelTable::default(),
-        ))
-        .unwrap();
+        let empty: serde_json::Value =
+            serde_json::from_str(&ipc::library_gels(&cmdmx_core::gel::GelTable::default()))
+                .unwrap();
         assert_eq!(empty["gels"], serde_json::json!([]));
     }
 

@@ -152,6 +152,12 @@ pub enum Command {
     CtStep {
         step: String,
     },
+    /// IPC-47: a LEE gel by number; the engine refuses an unknown one (PRG-68).
+    Gel {
+        number: u32,
+    },
+    /// IPC-47: answered in the client thread.
+    LibraryGels,
     /// LIB-39: answered in the client thread.
     ProfileEmitter {
         name: String,
@@ -840,6 +846,22 @@ fn parse_output_add(v: &serde_json::Value) -> Result<Command, String> {
     })
 }
 
+/// IPC-47: the reply to `library.gels`: the LEE rows in table order with their colours.
+pub fn library_gels(table: &cmdmx_core::gel::GelTable) -> String {
+    let gels: Vec<_> = table
+        .gels()
+        .iter()
+        .filter_map(|g| {
+            let c = table.colour(g.number)?;
+            Some(serde_json::json!({
+                "number": g.number, "name": g.name, "r": c.r, "g": c.g, "b": c.b,
+            }))
+        })
+        .collect();
+    serde_json::json!({"v": PROTOCOL, "type": "library.gels", "range": "Lee", "gels": gels})
+        .to_string()
+}
+
 /// LIB-39: the reply to `profile.emitter`: the LIB-37 default for the name and whether the
 /// given CIE point would be auto-mixed (ENG-21).
 pub fn profile_emitter(name: &str, cie: Option<[f32; 2]>) -> String {
@@ -1107,6 +1129,21 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("programmer.ct_step") => Ok(Command::CtStep {
             step: string(&v, "step")?,
         }),
+        Some("programmer.gel") => {
+            if v.get("range").and_then(|r| r.as_str()) != Some("Lee") {
+                return Err("missing or invalid \"range\" (expected \"Lee\")".into());
+            }
+            let number = v
+                .get("number")
+                .and_then(|n| n.as_u64())
+                .and_then(|n| u32::try_from(n).ok())
+                .ok_or("missing or invalid \"number\" (expected a non-negative integer)")?;
+            Ok(Command::Gel { number })
+        }
+        Some("library.gels") => match v.get("range").and_then(|r| r.as_str()) {
+            Some("Lee") => Ok(Command::LibraryGels),
+            _ => Err("missing or invalid \"range\" (expected \"Lee\")".into()),
+        },
         Some("profile.emitter") => Ok(Command::ProfileEmitter {
             name: string(&v, "name")?,
             cie: match v.get("cie") {
@@ -2916,6 +2953,12 @@ fn serve_client(
                         .send(Message::text(answer_library(library, req)))
                         .is_err()
                     {
+                        return;
+                    }
+                }
+                Ok(Command::LibraryGels) => {
+                    let reply = library_gels(&cmdmx_core::gel::GelTable::lee());
+                    if ws.send(Message::text(reply)).is_err() {
                         return;
                     }
                 }

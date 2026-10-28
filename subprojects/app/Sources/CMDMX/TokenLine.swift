@@ -137,6 +137,7 @@ enum MacKeys {
             case "@": line.add("@")
             case "f": line.add("Fixture")
             case "g": line.add("Group")
+            case "l": line.add("Lee")   // UI-19, UI-32
             case "p":
                 if line.tokens.isEmpty { ui.paletteMenu = true }
                 line.add("Palette")

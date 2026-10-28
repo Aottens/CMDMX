@@ -128,6 +128,7 @@ struct ProgrammerWindow: View {
 struct ColourPickerWindow: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @State private var gelQuery = ""
 
     var body: some View {
         let programmer = engine.programmer
@@ -136,7 +137,14 @@ struct ColourPickerWindow: View {
                     accessory: { EmptyView() }) {
             if let colour = programmer.colour {
                 HStack(spacing: 6) {
-                    HueSaturationField(colour: colour)
+                    VStack(alignment: .leading, spacing: 3) {
+                        // UI-32: the gel the colour reads as, above the field.
+                        if let gel = colour.gel {
+                            Text(verbatim: "\(gel.range.uppercased()) \(gel.number) \(gel.name)")
+                                .font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1)
+                        }
+                        HueSaturationField(colour: colour)
+                    }
                     ScrollView {
                         VStack(alignment: .leading, spacing: 3) {
                             if programmer.activeGroup == "C" {
@@ -175,24 +183,51 @@ struct ColourPickerWindow: View {
         .padding(.top, 4)
     }
 
-    /// Placeholders until the gel book (IDEA-02): 8 disabled swatches.
+    /// UI-32: the gel book (IPC-47): a LEE tab, a search field and the swatches, in the engine's order.
     private var gelRow: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("GELS · LATER").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3)
-            gelSwatches
-        }
-        .padding(.top, 4)
-        .help("Gel book · IDEA-02")
-    }
-
-    private var gelSwatches: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 4), spacing: 2) {
-            ForEach(0..<8, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: radius).fill(t.surf)
-                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
-                    .frame(height: 28).opacity(t.disabled)
+        let shown = filteredGels
+        let current = engine.programmer.colour?.gel?.number
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                Text("LEE").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg)
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
+                TextField("number or name", text: $gelQuery).textFieldStyle(.roundedBorder).font(Typo.mono(Typo.small))
+            }
+            if engine.gels.isEmpty {
+                Text("No gels in this build (LEE table pending)").font(Typo.ui(11)).foregroundStyle(t.fg3)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 2), spacing: 3) {
+                        ForEach(shown) { gel in
+                            Button { engine.gel(gel.number) } label: {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    RoundedRectangle(cornerRadius: radius).fill(Color(red: gel.r, green: gel.g, blue: gel.b)).frame(height: 16)
+                                    Text(verbatim: "\(gel.number)").font(Typo.mono(Typo.small)).foregroundStyle(t.fg)
+                                    Text(gel.name).font(Typo.ui(9)).foregroundStyle(t.fg3).lineLimit(1).truncationMode(.tail)
+                                }
+                                .padding(2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .overlay(RoundedRectangle(cornerRadius: radius)
+                                    .strokeBorder(gel.number == current ? t.blue : t.line, lineWidth: gel.number == current ? 2 : hairline))
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help("LEE \(gel.number) \(gel.name)")
+                        }
+                    }
+                }
+                .frame(height: 150)
             }
         }
+        .padding(.top, 4)
+    }
+
+    /// Number prefix or case-insensitive name substring; empty search shows all (UI-32).
+    private var filteredGels: [Gel] {
+        let q = gelQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return engine.gels }
+        return engine.gels.filter { String($0.number).hasPrefix(q) || $0.name.lowercased().contains(q) }
     }
 }
 
