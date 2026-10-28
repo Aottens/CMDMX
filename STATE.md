@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS8-07: manual sections Control surfaces, Shows and files, Reference)_
+_Last updated: 2026-10-28 (VS8-08 spec: notarisation criteria REL-17..23 proposed)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -49,6 +49,9 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Nothing.
 
 ## Owner to decide
+- VS8-08 notarisation: approve REL-17..23 in `specs/modules/release.md` and answer its four open
+  questions; join the Apple Developer Program, make the Developer ID Application certificate and an
+  App Store Connect API key, and set the five repo secrets (REL-20).
 - Rename the GitHub repo to `Aottens/CMDMX` (Settings › General › Repository name; BRD-10).
 - The website's domain name: register it and tell Claude the name; it becomes one line in
   `subprojects/website/CNAME` (until then the site is `aottens.github.io/CMDMX`).
