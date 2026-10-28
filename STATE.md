@@ -29,6 +29,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    VS8-02 (logo) when the Colourmotion logo is found.
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
+6. Gel numbers (IDEA-02, P1-23 approved): VS2-48 core, then VS2-49 wire and screen; VS2-50 after
+   LEE's permission.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
@@ -47,8 +49,8 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - VS2-50 (the full LEE gel table) waits for LEE/Panavision's written permission; the owner asks.
 
 ## Owner to decide
-- P1-23 gel numbers (IDEA-02): approve PRG-67..70, IPC-47, UI-32, PAL-33 (gate 1); tungsten 3200 K
-  as the gels' source; send the permission request to LEE; a starter set before LEE answers or not.
+- Send the permission request to LEE/Panavision for the gel table (draft from the P1-23 session;
+  VS2-50 waits for it).
 - When to join the Apple Developer Program (postponed for cost, VS8-09); then for VS8-08/10: join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).

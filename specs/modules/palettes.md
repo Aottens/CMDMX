@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::palette` (pure: storage, recording, resolving, fades), `cmdmx-daemon` (IPC),
 the palette windows in `subprojects/app`.
-Status: **PAL-01..32 approved by owner 2026-10-18 (P1-03); PAL-33 proposed 2026-10-28 (P1-23), awaiting owner approval**; owner decisions at the end.
+Status: **PAL-01..32 approved by owner 2026-10-18 (P1-03); PAL-33 approved by owner 2026-10-28 (P1-23)**; owner decisions at the end.
 Behavioural reference: Avolites Titan v19 manual, *Palettes*
 (https://manual.avolites.com/docs/palettes: Creating, Using, Editing, Copying/Moving/Deleting,
 Timing with Palettes) and the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1
@@ -272,7 +272,7 @@ lists) store, so they come first.
   palette action or palette content can stop the tick or the output (ENG-12). Same patch and
   same timestamped actions → identical palettes, programmer state and frames (PRG-37, ENG-11).
 
-### Gel numbers (IDEA-02; proposed 2026-10-28, awaiting owner approval)
+### Gel numbers (IDEA-02; approved by owner 2026-10-28)
 A palette stores only the colour (ADR-005 decision 5), never a gel number: the number is read
 back from the colour (PRG-69), so it survives without being stored and the show file is unchanged.
 - **PAL-33** Recording a new Colours palette whose stored Colour values all read as the same gel

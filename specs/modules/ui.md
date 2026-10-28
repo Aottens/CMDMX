@@ -350,7 +350,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   computes no colour. Verified by `tests/manual/app-programmer.md` (amended), with the auto-mixed
   output read on Art-Net at home.
 
-### Gel numbers (IDEA-02; proposed 2026-10-28, awaiting owner approval)
+### Gel numbers (IDEA-02; approved by owner 2026-10-28)
 - **UI-32** The gel book in the colour picker (UI-15), below the CT rows: a LEE tab (the only range
   for now), a search field that filters by number prefix or by name (`10` → 101, 102, 103, …;
   `congo` → 181), and a scrolling grid of swatches with number and name, sorted by number, drawn

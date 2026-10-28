@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-28 — Gel numbers use LEE's published tungsten x, y; the full table waits for LEE's permission (P1-23)
+
+**Decision:** a gel number sets the target colour to the CIE x, y LEE publishes for the filter on a 3200 K tungsten source, converted to linear BT.2020 (PRG-67..70). Palettes store only the colour; the gel is read back from it. LEE's full table ships only with LEE/Panavision's written permission (VS2-50); until then tests use a few rows and no table ships.
+
+**Alternatives considered:** computing chromaticity from the spectral curves (only 405–700 nm on the pages, and LEE's own x, y are from its full measurement); D65 or daylight as the source (the gel on the fixture's white, but L201 then reads deep blue, not the daylight white techs know); shipping LEE's values without asking (copyright Panavision, database right); a starter set before LEE answers (owner: wait).
+
+**Reasoning:** the numbers mean the colour on a theatre lamp (ETC Eos and Hog do the same); LEE's values need no spectral maths; the CT gels then agree with PRG-66's steps.
+
+**Reversal trigger:** LEE refuses (then a user-supplied gel file), or operators expect gels as on daylight/LED white (then a source setting with LEE's Source C x, y).
+
 ## 2026-10-28 — Demo profiles are keyed `<manufacturer>/<model>` (VS2-47)
 
 **Decision:** the Demo show patches each profile under `<manufacturer>/<model>` (`Demo/RGBW Par`, `Demo/Dimmer`, …), the key `profile.save` installs under (IPC-14 amended). This replaces the short keys (`rgbw`, `dimmer`) from the VS2-07 run; fixture buttons already show only the model part.
