@@ -24,7 +24,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
-use crate::colour::{ColourModel, TargetColour};
+use crate::colour::{self, ColourModel, CtStep, TargetColour};
 use crate::command::{self, Cells, Kind};
 use crate::cuelist::{Ctx, Env, ListRun};
 use crate::output::{self, Node, NodeId, NodeKind};
@@ -3976,6 +3976,35 @@ impl Engine {
                 if let Value::Colour(c) = self.start_value(item, &l) {
                     let (_, _, v) = c.to_hsv();
                     new.push((item, TargetColour::from_hsv(hue, saturation, v)));
+                }
+            }
+        }
+        if new.is_empty() {
+            return Err(CoreError::AttributeNotInTargets(COLOUR.to_string()));
+        }
+        for (item, c) in new {
+            self.set_item_value(item, COLOUR, c)?;
+        }
+        Ok(())
+    }
+
+    /// PRG-65/66: move the target colour along the locus by a CTO/CTB step (mired), keeping its
+    /// brightest component; black starts from 6500 K at full. Result clamps to 1800..=10000 K.
+    pub fn ct_step(&mut self, step: CtStep) -> Result<(), CoreError> {
+        let targets = self.programmer.target_items();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let mut new = Vec::new();
+        for item in targets {
+            let mode = self.mode_of(item.fixture);
+            if let Some(l) = mode.and_then(|m| m.item_logical(item.cell, COLOUR)) {
+                if let Value::Colour(c) = self.start_value(item, &l) {
+                    let k = colour::kelvin(c).unwrap_or(6500.0);
+                    let k = (1e6 / (1e6 / k + step.mired())).clamp(1800.0, 10000.0);
+                    let max = c.r.max(c.g).max(c.b);
+                    let scale = if max > 0.0 { max } else { 1.0 };
+                    new.push((item, colour::planck(k).scaled(scale)));
                 }
             }
         }

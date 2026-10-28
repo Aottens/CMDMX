@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS2-44 automatic emitter mixing in the core)_
+_Last updated: 2026-10-28 (VS2-45 Kelvin view and CTO/CTB steps in the core)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -29,8 +29,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    VS8-02 (logo) when the Colourmotion logo is found.
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
-6. VS2-45 (Kelvin view and CTO/CTB steps in the core), then VS2-46 (wire, app, profile editor,
-   Art-Net run); VS2-44 (the mix in the core) is done (IDEA-32, ADR-010).
+6. VS2-46: auto-mix and Kelvin over the wire, in the app and the profile editor, with an Art-Net
+   run at home; the core parts VS2-44 and VS2-45 are done (IDEA-32, ADR-010).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
