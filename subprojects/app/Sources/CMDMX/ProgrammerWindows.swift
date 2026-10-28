@@ -129,6 +129,8 @@ struct ColourPickerWindow: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     @State private var gelQuery = ""
+    @State private var showGels = false
+    @FocusState private var gelFocus: Bool
 
     var body: some View {
         let programmer = engine.programmer
@@ -145,15 +147,27 @@ struct ColourPickerWindow: View {
                         }
                         HueSaturationField(colour: colour)
                     }
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 3) {
-                            if programmer.activeGroup == "C" {
-                                ForEach(programmer.wheels) { MixBar(wheel: $0) }
-                            } else {
-                                Text("pick the C tab for the bars").font(Typo.ui(11)).foregroundStyle(t.fg3)
+                    VStack(alignment: .leading, spacing: 3) {
+                        // Mix (bars, CT) or the gel book (UI-32); the choice is the app's own.
+                        HStack(spacing: 2) {
+                            ForEach([("Mix", false), ("Gels", true)], id: \.0) { label, gels in
+                                Button { showGels = gels; gelFocus = false } label: { Text(label).frame(maxWidth: .infinity) }
+                                    .buttonStyle(ModeButton(on: showGels == gels))
                             }
-                            ctRow
+                        }
+                        if showGels {
                             gelRow
+                        } else {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    if programmer.activeGroup == "C" {
+                                        ForEach(programmer.wheels) { MixBar(wheel: $0) }
+                                    } else {
+                                        Text("pick the C tab for the bars").font(Typo.ui(11)).foregroundStyle(t.fg3)
+                                    }
+                                    ctRow
+                                }
+                            }
                         }
                     }
                     .frame(width: 150)
@@ -193,6 +207,9 @@ struct ColourPickerWindow: View {
                     .padding(.horizontal, 5).padding(.vertical, 1)
                     .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
                 TextField("number or name", text: $gelQuery).textFieldStyle(.roundedBorder).font(Typo.mono(Typo.small))
+                    .focused($gelFocus)
+                    .onSubmit { gelFocus = false }      // Return and Esc leave the field, keeping the query
+                    .onExitCommand { gelFocus = false }
             }
             if engine.gels.isEmpty {
                 Text("No gels in this build (LEE table pending)").font(Typo.ui(11)).foregroundStyle(t.fg3)
@@ -200,7 +217,7 @@ struct ColourPickerWindow: View {
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 2), spacing: 3) {
                         ForEach(shown) { gel in
-                            Button { engine.gel(gel.number) } label: {
+                            Button { gelFocus = false; engine.gel(gel.number) } label: {
                                 VStack(alignment: .leading, spacing: 1) {
                                     RoundedRectangle(cornerRadius: radius).fill(Color(red: gel.r, green: gel.g, blue: gel.b)).frame(height: 16)
                                     Text(verbatim: "\(gel.number)").font(Typo.mono(Typo.small)).foregroundStyle(t.fg)
@@ -217,10 +234,8 @@ struct ColourPickerWindow: View {
                         }
                     }
                 }
-                .frame(height: 150)
             }
         }
-        .padding(.top, 4)
     }
 
     /// Number prefix or case-insensitive name substring; empty search shows all (UI-32).

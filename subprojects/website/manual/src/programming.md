@@ -85,7 +85,7 @@ white light, from 1800 K (candle) to 10000 K (blue sky), read as for example "32
 "—" while the colour is black. Extra emitters, such as White or Lime, have a wheel of their own;
 it changes only the fixtures that have that emitter.
 
-Above the gel book, the picker has two rows of colour-correction steps: **CTO** ⅛ ¼ ½ Full warm the
+In its **Mix** view, the picker has two rows of colour-correction steps: **CTO** ⅛ ¼ ½ Full warm the
 colour like an orange correction gel, **CTB** ⅛ ¼ ½ Full cool it like a blue one. They move the
 colour along the line of white light, as real correction gels do: CTB makes a cooler white, not a
 saturated blue. Each step is a fixed shift in mired, so ½ CTO takes 3200 K to about 2540 K and
@@ -93,9 +93,10 @@ saturated blue. Each step is a fixed shift in mired, so ½ CTO takes 3200 K to a
 
 ### The gel book
 
-Below the CTO and CTB rows sits the gel book: a **LEE** tab, a search field and a grid of
-swatches with each gel's number and name. Type a number to find it (`10` shows 101, 102, 103, …)
-or part of a name (`congo` finds 181 Congo Blue). Tap a swatch to give the targets that gel's
+Switch the picker's column from **Mix** to **Gels** for the gel book: a **LEE** tab, a search
+field and a grid of swatches with each gel's number and name. Type a number to find it (`10` shows
+101, 102, 103, …) or part of a name (`congo` finds 181 Congo Blue). Return or Escape leaves the
+search field, so the keyboard drives the command line again. Tap a swatch to give the targets that gel's
 colour, or type `Lee 201` on the command line. A gel sets the colour, not the brightness: a par
 at half level stays at half level. The colour is what the gel shows in front of a 3200 K tungsten
 lamp, so LEE 201 Full C.T. Blue makes daylight white, as it does on a theatre lamp.
