@@ -69,13 +69,14 @@ auto-mix that stays ADR-005's nominal mapping (RGB as is, CMY inverted). For a m
 `automix` (LIB-36) it first moves light from R, G, B to the mixable extra emitters. Church
 examples: 201 (RGBW) and 211 (RGB+Lime) with auto-mix on, White and Lime at their LIB-37 defaults.
 
-- **ENG-20** RGB equivalent. Per emitter with `cie: [x, y]` (LIB-32, LIB-37), computed when the
-  profile is loaded or edited, never per tick: XYZ = (x / y, 1, (1 − x − y) / y), converted to
+- **ENG-20** RGB equivalent. Per emitter with `cie: [x, y]` (LIB-32, LIB-37), a pure function of
+  the profile (a few multiply-adds, allocation-free): XYZ = (x / y, 1, (1 − x − y) / y), converted to
   linear BT.2020 RGB (ADR-005 decision 1) and scaled so its largest component is 1. A component
   below −0.05 means the colour lies outside the reference gamut: that emitter is **not mixable**
-  (UV, deep violet). Otherwise each component below 0.05 becomes 0 (an amber or lime is mixed as
-  its two main primaries; up to 5 % of one primary at that emitter's level is lost, a known
-  ceiling of the nominal model). White (0.3127, 0.3290) → (1, 1, 1); Lime (0.41, 0.55) →
+  (UV, deep violet). Otherwise each component below 0.05 becomes 0 (an amber or lime is mixed
+  as its two main primaries; up to 5 % of one primary at that emitter's level is lost, a known
+  ceiling of the nominal model) and the others are rounded to 0.001, so float noise cannot tip a
+  channel over a DMX rounding step. White (0.3127, 0.3290) → (1, 1, 1); Lime (0.41, 0.55) →
   (0.81, 1, 0); Amber (0.5752, 0.4242) → (1, 0.36, 0); UV (0.174, 0.005) → not mixable.
 - **ENG-21** Extraction. Per tick, per fixture (or cell, LIB-07) of an `automix` mode: the
   remainder starts as the target colour after merge, effect and clamp. For each mixable emitter in

@@ -62,6 +62,57 @@ impl TargetColour {
     }
 }
 
+/// ENG-20: the linear BT.2020 RGB an emitter at CIE xy `cie` adds, scaled so its largest
+/// component is 1. Components under 0.05 are 0 (an emitter that is not quite on the gamut edge
+/// still mixes); `None` when it is outside the gamut (below -0.05, e.g. UV, deep indigo) or
+/// `cie` is not a point.
+pub fn rgb_equivalent(cie: [f32; 2]) -> Option<[f32; 3]> {
+    let [x, y] = cie;
+    if y <= 0.0 || !x.is_finite() || !y.is_finite() {
+        return None;
+    }
+    let (xx, zz) = (x / y, (1.0 - x - y) / y);
+    let mut rgb = [
+        1.716_651_2 * xx - 0.355_670_8 - 0.253_366_3 * zz,
+        -0.666_684_4 * xx + 1.616_481_2 + 0.015_768_5 * zz,
+        0.017_639_9 * xx - 0.042_770_6 + 0.942_103_1 * zz,
+    ];
+    let max = rgb.iter().copied().fold(0.0_f32, f32::max);
+    if max <= 0.0 || !max.is_finite() {
+        return None;
+    }
+    for c in &mut rgb {
+        *c /= max;
+    }
+    if rgb.iter().any(|&c| c < -0.05) {
+        return None;
+    }
+    // Rounded to 0.001 so float noise cannot tip a channel across a DMX rounding step (D65 is exactly 1, 1, 1).
+    Some(rgb.map(|c| {
+        if c < 0.05 {
+            0.0
+        } else {
+            (c * 1000.0).round() / 1000.0
+        }
+    }))
+}
+
+/// LIB-37: the default chromaticity of a well-known emitter name, filled in when auto-mix is
+/// switched on in the profile editor.
+pub fn default_cie(name: &str) -> Option<[f32; 2]> {
+    const TABLE: [(&str, [f32; 2]); 5] = [
+        ("White", [0.3127, 0.3290]),
+        ("Cold White", [0.3135, 0.3237]),
+        ("Warm White", [0.4366, 0.4042]),
+        ("Amber", [0.5752, 0.4242]),
+        ("Lime", [0.4100, 0.5500]),
+    ];
+    TABLE
+        .iter()
+        .find(|(n, _)| n.eq_ignore_ascii_case(name))
+        .map(|&(_, cie)| cie)
+}
+
 /// Which wheels the Colour attribute is shown and turned as (PRG-17, PRG-30). Display only.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ColourModel {

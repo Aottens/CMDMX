@@ -139,7 +139,10 @@ fn show(e: &mut Engine, id: u32, colour: TargetColour) {
 
 fn close3(actual: [f32; 3], expected: [f32; 3]) {
     for (a, b) in actual.iter().zip(expected) {
-        assert!((a - b).abs() < 0.01, "expected {expected:?}, got {actual:?}");
+        assert!(
+            (a - b).abs() < 0.01,
+            "expected {expected:?}, got {actual:?}"
+        );
     }
 }
 
@@ -159,7 +162,7 @@ fn assert_rejected(json: &str, needle: &str) {
 fn lib_36_automix_round_trips_and_is_written_only_when_true() {
     let on = Profile::from_json(&rgbw(true, "")).unwrap();
     let json = on.to_json();
-    assert!(json.contains("\"automix\":true"), "{json}");
+    assert!(json.contains("\"automix\": true"), "{json}");
     assert_eq!(Profile::from_json(&json).unwrap(), on, "LIB-01");
 
     let off = Profile::from_json(&rgbw(false, "")).unwrap();
@@ -178,7 +181,10 @@ fn lib_36_automix_needs_an_rgb_system() {
       "name": "M", "footprint": 1, "automix": true,
       "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 } ] } ] }"#;
     assert_rejected(none, "automix");
-    assert!(Profile::from_json(CELLS).is_ok(), "an RGB system per cell counts");
+    assert!(
+        Profile::from_json(CELLS).is_ok(),
+        "an RGB system per cell counts"
+    );
 }
 
 // ---- LIB-37: name defaults ----------------------------------------------------------------
@@ -201,7 +207,7 @@ fn lib_37_default_chromaticity_by_name() {
 fn lib_38_output_round_trips_and_is_written_only_when_not_one() {
     let two = Profile::from_json(&rgbw(true, r#", "output": 2.0"#)).unwrap();
     let json = two.to_json();
-    assert!(json.contains("\"output\":2.0"), "{json}");
+    assert!(json.contains("\"output\": 2.0"), "{json}");
     assert_eq!(Profile::from_json(&json).unwrap(), two, "LIB-01");
     let one = Profile::from_json(&rgbw(true, r#", "output": 1.0"#)).unwrap();
     assert!(!one.to_json().contains("output"), "1.0 is not written");
@@ -225,7 +231,10 @@ fn eng_20_rgb_equivalent_of_the_church_emitters() {
     close3(rgb_equivalent(D65).unwrap(), [1.0, 1.0, 1.0]);
     close3(rgb_equivalent(LIME).unwrap(), [0.808, 1.0, 0.0]);
     close3(rgb_equivalent(AMBER).unwrap(), [1.0, 0.361, 0.0]);
-    close3(rgb_equivalent([0.4366, 0.4042]).unwrap(), [1.0, 0.645, 0.248]);
+    close3(
+        rgb_equivalent([0.4366, 0.4042]).unwrap(),
+        [1.0, 0.645, 0.248],
+    );
 }
 
 #[test]
@@ -270,7 +279,11 @@ fn eng_21_output_factor_scales_the_emitter_level() {
     }
     e.tick(0.0);
     assert_eq!(dmx_range(&e, 1, 5), [255, 0, 0, 0, 128], "output 2.0");
-    assert_eq!(dmx_range(&e, 6, 10), [255, 128, 128, 128, 255], "output 0.5");
+    assert_eq!(
+        dmx_range(&e, 6, 10),
+        [255, 128, 128, 128, 255],
+        "output 0.5"
+    );
 }
 
 #[test]

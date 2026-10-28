@@ -57,7 +57,7 @@ the backlog, not the whole idea.
 | IDEA-29 | Serial fade steps: check the "fraction" more steps than Lightkey with an engine cue fade; cut frames to the highest patched channel only if they remain | new | 2 (proposed) | OUT |
 | IDEA-30 | Cross-platform UI, so the reference desk runs on Linux (HW-02) | triaged | 3, after the surface (owner 2026-10-25) | UI, IPC, daemon on Linux |
 | IDEA-31 | Stream Deck + and Neo extras (dials, touch strip, touch keys, info screen; was VS7-08), for a volunteer who owns one | triaged | later (owner 2026-10-27) | CTL, app |
-| IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | specified 2026-10-28 (P1-22; VS2-44..46 todo) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
+| IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | specified 2026-10-28 (P1-22; VS2-44 done, VS2-45..46 todo) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.

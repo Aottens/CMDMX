@@ -61,8 +61,7 @@ is still far away, so the mix must work on what profiles already know: GDTF emit
 
 ## Consequences
 - The frame writer (`set_mixing` in `cmdmx-core::engine`) learns one more step for opted-in
-  modes; each emitter's RGB equivalent is computed once when the profile is loaded or edited, not
-  per tick.
+  modes; each emitter's RGB equivalent is a few multiply-adds from its `cie`, allocation-free.
 - Profiles gain `automix` per mode and `output` per emitter; both default so old profiles and shows
   load unchanged (LIB-01 round-trip).
 - The nominal model is wrong in absolute terms (a real White LED is often brighter than RGB white):
