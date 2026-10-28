@@ -2,7 +2,7 @@
 
 ## 0.1.0
 
-Published 27 October 2026 as "ColourmotionDMX 0.1.0", before the rename.
+Published 27 October 2026 as "ColourmotionDMX 0.1.0", before the rename. <!-- brand: old-name -->
 [Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.1.0)
 
 The first installable version. It contains:

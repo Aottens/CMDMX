@@ -17,7 +17,7 @@
      Settings > Privacy & Security**, scroll down and click **Open Anyway**.
 4. After that it opens normally, until you install a newer version.
 
-The release page for v0.1.0 says "ColourmotionDMX" in its install text. That was the name before
+The release page for v0.1.0 says "ColourmotionDMX" in its install text. That was the name before <!-- brand: old-name -->
 the rename; the app is now called CMDMX.
 
 ### Questions macOS may ask
