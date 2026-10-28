@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WEB-02, 03, 11, 13, 20..23, 30..34: runs build.sh against a fake `gh` and checks _site/.
+# WEB-02, 03, 11..13, 20..23, 30..34, REL-22: runs build.sh against a fake `gh` and checks _site/.
 # Usage: subprojects/website/test-build.sh   (needs jq and mdbook; CI runs it in the website job)
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -69,7 +69,9 @@ if build "$tmp/a" FAKE_GH_JSON="$release"; then
   has "$page" 'href="https://github.com/Aottens/CMDMX/releases/download/v0.2.0/CMDMX-0.2.0.dmg"' "WEB-11 button"
   has "$page" 'href="https://github.com/Aottens/CMDMX/releases/tag/v0.2.0"' "WEB-11 release notes"
   has "$page" "macOS 14 or later, Apple Silicon and Intel" "WEB-11 requirements"
-  has "$page" "Open Anyway" "WEB-12 install steps"
+  # WEB-12 / REL-22: notarised, so the install is drag to Applications and no Open Anyway.
+  has "$page" "drag <strong>CMDMX</strong> onto <strong>Applications</strong>" "WEB-12 install steps"
+  grep -q "Open Anyway" "$page" && no "WEB-12/REL-22: the landing page still says Open Anyway"
   has "$page" "CMDMX by Colourmotion" "WEB-10 footer"
   has "$page" "$(date +%Y)" "WEB-10 year"
   has "$page" 'href="https://github.com/Aottens/CMDMX/issues"' "WEB-10 issues link"
