@@ -24,7 +24,7 @@ first notarised tag instead; its prerequisites come first. The REL-15 part below
 - [ ] Copy the *Kerk* show into `~/Documents/CMDMX/Shows` and open it on the Show screen; the Eurolite (chosen on the Output screen) gives output on the lamp (REL-16)
 - [ ] `~/Library/Logs/CMDMX/daemon.log` exists and has the daemon's lines (REL-12)
 - [ ] Change something in the show, press ⌘Q at once, open the app again: the change is still there (REL-14)
-- [ ] ⌘Q: the app quits, `pgrep cmdmx-daemon` finds nothing and `~/Library/Application Support/CMDMX/daemon.pid` is gone (REL-13)
+- [ ] ⌘Q asks "Quit the app? The engine stops with the app: DMX output stops and the USB interface is free for another program." (UI-26); Quit: the app quits, `pgrep cmdmx-daemon` finds nothing and `~/Library/Application Support/CMDMX/daemon.pid` is gone (REL-13)
 - [ ] Open Lightkey: it opens the Eurolite and gives output (REL-13)
 - [ ] Quit Lightkey, open CMDMX again: it gives output again (REL-16)
 - [ ] Force quit the app (Activity Monitor): the lamp keeps its output; open the app again: Engine online, only one `cmdmx-daemon` in `pgrep -l cmdmx-daemon` (REL-11/14)

@@ -5,6 +5,7 @@ Status: **draft for owner approval (UX-02.0, 2026-10-17); open questions answere
 UI-03, 13, 18, 19, 22, 23 amended for cue lists: **approved by owner 2026-10-21 (VS3-05)**.
 UI-29 (cells, Unfold): **approved by owner 2026-10-25 (P1-13)**.
 UI-30 (Fan): **approved by owner 2026-10-25 (P1-20)**.
+UI-26 quit text amended to match REL-13 (VS4-08, 2026-10-28; for owner approval in its PR).
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -60,8 +61,12 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 
 - **UI-26 [now]** Console mode, on by default at launch, with a Console toggle in the status bar:
   - The window goes native full screen with the Dock and the menu bar hidden.
-  - ⌘Q and closing the window ask for confirmation first ("Quit the app? DMX keeps running in
-    the engine.").
+  - ⌘Q and closing the window ask for confirmation first, Cancel the default button.
+    (Amended by VS4-08, 2026-10-28, to match REL-13.) When the app started or adopted the engine
+    (REL-10, 11), the alert says "Quit the app?" / "The engine stops with the app: DMX output
+    stops and the USB interface is free for another program."; when it did not (a developer's
+    daemon, or another engine on the port), it says "Quit the app?" / "This app did not start
+    the engine, so DMX keeps running."
   - Leaving console mode gives a normal resizable window (UI-01's minimum size).
   - The choice is remembered across launches (owner, 2026-10-17: now, not later).
 

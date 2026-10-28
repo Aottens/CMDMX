@@ -40,8 +40,7 @@ seconds after each change.
 You do not start the engine yourself. The app starts it when it opens and stops it when you quit.
 
 - If the app crashes or hangs, the engine keeps sending DMX. Open the app again and it reconnects.
-- Pressing Command-Q asks first and reminds you that DMX keeps running in the engine until the app
-  is really closed.
+- Pressing Command-Q asks first, because quitting stops the engine and with it the DMX output.
 - When you quit, the engine stops and lets go of the USB interface, so another program can use it.
   Quitting also saves your last changes to the show.
 
