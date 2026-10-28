@@ -1470,13 +1470,14 @@ mod tests {
             .map(|&id| fixture(id).address)
             .collect();
         assert_eq!(addresses, [9, 36, 45, 80, 85, 105, 109, 139, 145, 150]);
-        // VS2-07 run, finding 1: short profile keys that fit a fixture button.
+        // VS2-47: each profile under its own manufacturer/model key (buttons show the model).
         for (id, profile) in [
-            (101, "wash"),
-            (201, "rgbw"),
-            (211, "rgbl"),
-            (221, "rgb"),
-            (301, "dimmer"),
+            (1, "Demo/Dimmer"),
+            (101, "Demo/Wash"),
+            (201, "Demo/RGBW Par"),
+            (211, "Demo/RGB+Lime Par"),
+            (221, "Showtec/LED Par 56 6 Channel"),
+            (301, "Demo/Dimmer"),
         ] {
             assert_eq!(fixture(id).profile, profile, "fixture {id}");
         }
@@ -1487,6 +1488,43 @@ mod tests {
         assert_eq!(engine.group(4), Some(vec![301, 302, 303, 304, 305, 306]));
         assert!(engine.programmer().selection().is_empty());
         assert!(engine.programmer().is_empty());
+    }
+
+    #[test]
+    fn ipc_14_demo_profile_save_reaches_its_fixtures() {
+        let mut e = demo_engine().unwrap();
+        // The key is what profile.save installs under (IPC-38), so an edited copy lands on it.
+        for f in e.fixtures() {
+            let p = e.profile(&f.profile).unwrap();
+            assert_eq!(
+                f.profile,
+                format!("{}/{}", p.manufacturer, p.model),
+                "fixture {}",
+                f.id
+            );
+        }
+        let key = e.fixture(201).unwrap().profile.clone();
+        let mut p = e.profile(&key).unwrap().clone();
+        for m in &mut p.modes {
+            for a in &mut m.attributes {
+                if a.name == "White" {
+                    a.default = 0.5;
+                }
+            }
+        }
+        let save = serde_json::json!({"v":1,"cmd":"profile.save","profile":p}).to_string();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, &save).unwrap();
+        for id in 201..=208 {
+            let f = e.fixture(id).unwrap();
+            let white = e.profile(&f.profile).unwrap().modes[0]
+                .attributes
+                .iter()
+                .find(|a| a.name == "White")
+                .unwrap()
+                .default;
+            assert_eq!(white, 0.5, "fixture {id}");
+        }
     }
 
     #[test]
@@ -1629,9 +1667,9 @@ mod tests {
     #[test]
     fn pat_09_patch_add_keeps_the_shows_copy_of_a_known_profile() {
         let mut engine = demo_engine().unwrap();
-        // A different profile under the demo's "rgbw" key must not replace the show's copy.
+        // A different profile under the demo's "Demo/RGBW Par" key must not replace the show's copy.
         let cmd = ipc::Command::PatchAdd {
-            add: add("rgbw", "default", 1, None, Some(2001)),
+            add: add("Demo/RGBW Par", "default", 1, None, Some(2001)),
             profile: Some(Profile::from_json(RGB_PAR).unwrap()),
         };
         apply(&mut engine, cmd, 0.0).unwrap();
@@ -1642,7 +1680,7 @@ mod tests {
             "first free run after the spots, RGBW footprint"
         );
         let next = ipc::Command::PatchAdd {
-            add: add("rgbw", "default", 1, None, None),
+            add: add("Demo/RGBW Par", "default", 1, None, None),
             profile: None,
         };
         apply(&mut engine, next, 0.0).unwrap();
@@ -1667,7 +1705,7 @@ mod tests {
         );
         // PAT-02: 2 RGBW pars at 140 would overlap 226 at 140.
         let clash = ipc::Command::PatchAdd {
-            add: add("rgbw", "default", 2, Some(140), Some(900)),
+            add: add("Demo/RGBW Par", "default", 2, Some(140), Some(900)),
             profile: None,
         };
         assert!(matches!(
