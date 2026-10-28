@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -236,7 +236,43 @@ are points on the Planckian locus (CIE 1931 xy from the Kim et al. cubic spline,
   as that gel would on a source at that temperature: Full CTO +159, ½ CTO +81, ¼ CTO +42,
   ⅛ CTO +20; Full CTB −137, ½ CTB −78, ¼ CTB −35, ⅛ CTB −18; then PRG-65 (clamp, keep max). They
   work in any colour model and touch Colour. 201 at 5600 K, ½ CTO → 3850 K; 202 at 3200 K,
-  Full CTB → 5700 K; 203 at 5600 K, Full CTB → 10000 K (clamped). Gel numbers stay IDEA-02.
+  Full CTB → 5700 K; 203 at 5600 K, Full CTB → 10000 K (clamped). Gel numbers: PRG-67..70.
+
+### Gel numbers (IDEA-02, P1-23; approved by owner 2026-10-28)
+A gel number is one more way to *set* the target colour, next to the wheels, the picker field and
+the CT steps; nothing new is stored (ADR-005 decision 5, ADR-010 decision 5). A gel's colour is
+the chromaticity its maker publishes for the filter on a **3200 K tungsten source** (LEE's
+"Tungsten" x, y), converted to linear BT.2020 (ADR-005), negative components set to 0, scaled so
+the largest component is 1: the colour the number has always meant on a theatre lamp (ETC Eos
+and Hog pick gels on a tungsten reference too). Brightness is not part of it (PRG-33): a gel's
+transmission is not applied. Phase 1 has the LEE range; Rosco and GAM follow as data allows.
+
+- **PRG-67** The engine carries a compiled-in gel table per range (LEE first:
+  `subprojects/engine/gels/lee.json`, rows `{"number":201,"name":"Full C.T. Blue","x":0.330,
+  "y":0.339}`, its source and permission in a `NOTICE` beside it). Colour filters only:
+  diffusion and neutral-density filters are not in it. A row whose x, y does not convert (y ≤ 0,
+  no positive component) or a duplicate number fails a test, never the engine. LEE 201 →
+  (1.0, 0.920, 0.837); LEE 106 Primary Red → (1.0, 0.029, 0.001); LEE 181 Congo Blue (0.187,
+  0.058) → (0.153, 0.0, 1.0) (green below 0, set to 0).
+- **PRG-68** `Lee n Enter` sets every target's Colour to LEE n's colour, scaled so max(r, g, b)
+  keeps its value (1.0 for black, as PRG-65), and touches it. It has the place of `Palette n` in
+  a line (PRG-10): `201 Thro 208 Lee 106 Enter` selects and applies. Leading zeros do not count
+  (`Lee 79` is 079 Just Blue). It works in any colour model and does not change the model; a
+  colour-wheel fixture takes the nearest slot (ADR-005 decision 3); fixtures without Colour are
+  skipped. A number not in the table → warning "LEE 999 is not in the gel table", no targets
+  with Colour → warning; nothing changes (PRG-36). 201 at full white, `Lee 106` →
+  (1.0, 0.029, 0.001); 202 at half-level red, `Lee 201` → (0.50, 0.46, 0.42).
+- **PRG-69** A colour reads as a gel when, divided by its max(r, g, b), it equals that gel's
+  colour within 0.002 per component (the lowest number when two match; black reads none). The
+  engine state (PRG-35) carries this reading for the first target with Colour, as it carries
+  Kelvin (PRG-64). 201 after `Lee 201` reads LEE 201, also at half level; after one Hue step it
+  reads none.
+- **PRG-70** CT gels and CT steps agree: picked on its own, each LEE CT gel reads (PRG-64) within
+  8 mired of 3200 K plus the matching PRG-66 step: 223/206/205 ↔ ⅛/¼/½ CTO, 218/203/202/201 ↔
+  ⅛/¼/½/Full CTB (LEE 201 reads 5600 K, 3200 K + Full CTB is 5700 K). LEE 204 ↔ Full CTO within
+  16 mired: LEE's own data puts 204 on tungsten at 2190 K, the nominal +159 at 2120 K; both kept.
+  (PRG-66's ½, ¼, ⅛ CTO values +81, +42, +20 are what LEE 205, 206, 223 measure on tungsten,
+  not the +109, +64, +26 LEE prints for them, which hold on daylight.)
 
 ### Engine state and safety
 - **PRG-35** The engine exposes the programmer state for rendering: selection (ordered),
@@ -395,7 +431,7 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 - Select If (phase 2). Cells: per-cell group masters, Titan's cell buttons in an attribute
   editor, and Shapes or pixel mapping over cells (phase 2); cells are selected by `.` and Unfold
   (PRG-46..55, UI-29).
-- Gel book / filter numbers (phase 2, IDEA-02); colour calibration (phase 2, IDEA-03).
+- Gel ranges beyond LEE (Rosco, GAM: as data allows), a daylight-source option for gels, a gel's transmission as dimming, and colour calibration (phase 2, IDEA-03).
 - Channel mode of the colour picker (one slider per raw emitter) beyond W/Lime: ADR-005 decides.
 - Shapes and effects (phase 2). Multiple programmers (multi-user, remotes): one programmer.
 - Undo: one engine-wide undo for programmer and show edits, its own item (BACKLOG P1-10, `undo.md`).
