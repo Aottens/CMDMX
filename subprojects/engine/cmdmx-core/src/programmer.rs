@@ -14,6 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
+use crate::gel::GelRef;
 use crate::palette::PaletteId;
 use crate::patch::FixtureId;
 use crate::value::{Stored, Value};
@@ -246,6 +247,8 @@ pub struct ColourView {
     pub b: f32,
     /// IPC-46: correlated colour temperature rounded to 10 K; `null` for black.
     pub kelvin: Option<f32>,
+    /// PRG-69: the gel the colour reads as, at any level.
+    pub gel: Option<GelRef>,
 }
 
 /// PRG-35 / IPC-11: everything the UI renders of the programmer.

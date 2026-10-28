@@ -25,6 +25,7 @@ pub mod colour;
 pub mod command;
 mod cuelist;
 pub mod engine;
+pub mod gel;
 pub mod library;
 pub mod output;
 pub mod palette;
@@ -121,6 +122,12 @@ pub enum CoreError {
     AttributeNotInTargets(String),
     #[error("invalid pattern of {0} stages (expected at least 2)")]
     InvalidPattern(usize),
+    /// PRG-67: a gel table row does not parse or convert.
+    #[error("invalid gel table: {0}")]
+    InvalidGel(String),
+    /// PRG-68: `Lee n` names a number that is not in the table.
+    #[error("LEE {0} is not in the gel table")]
+    UnknownGel(u32),
     #[error("unknown palette {0}")]
     UnknownPalette(u32),
     #[error("palette numbers are 1 to {max}", max = crate::palette::MAX_NUMBER)]

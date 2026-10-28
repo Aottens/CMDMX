@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (v0.2.1 released; VS2-47 Demo profiles editable in the profile editor)_
+_Last updated: 2026-10-28 (VS2-48 gel numbers in the core)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -29,8 +29,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    VS8-02 (logo) when the Colourmotion logo is found.
 5. The owner's next *Import GDTF* run in `tests/manual/app-patch.md` also checks the VS2-43 sheet
    fixes (Became wraps, full text on hover, Escape closes).
-6. Gel numbers (IDEA-02, P1-23 approved): VS2-48 core, then VS2-49 wire and screen; VS2-50 after
-   LEE's permission.
+6. Gel numbers (IDEA-02): VS2-49 over the wire and in the gel book, with an Art-Net run; the core
+   (VS2-48) is done; VS2-50 (the full LEE table) after LEE's permission.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:

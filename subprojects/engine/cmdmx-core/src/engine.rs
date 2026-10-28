@@ -27,9 +27,11 @@ use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{self, ColourModel, CtStep, TargetColour};
 use crate::command::{self, Cells, Kind};
 use crate::cuelist::{Ctx, Env, ListRun};
+use crate::gel::{GelRef, GelTable};
 use crate::output::{self, Node, NodeId, NodeKind};
 use crate::palette::{
-    self, Cell, Detected, Entry, Limit, Palette, PaletteId, Record, RecordBy, RecordMode, Timing,
+    self, Cell, Detected, Entry, GlobalValue, Limit, Palette, PaletteId, Record, RecordBy,
+    RecordMode, Timing,
 };
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
@@ -264,6 +266,8 @@ pub struct Engine {
     palettes: BTreeMap<PaletteId, Palette>,
     /// Above every palette id ever used, so ids are never reused (PAL, Definitions).
     palette_next_id: PaletteId,
+    /// PRG-67: the gel table `Lee n` reads.
+    gels: GelTable,
     /// OUT-13: where each line is sent, by id.
     nodes: BTreeMap<NodeId, Node>,
     /// Above every node id ever used, so ids are never reused (OUT-13).
@@ -346,6 +350,7 @@ impl Engine {
             groups: BTreeMap::new(),
             palettes: BTreeMap::new(),
             palette_next_id: 1,
+            gels: GelTable::lee(),
             // OUT-25: line 1 goes out on Art-Net, sACN and the first serial interface.
             nodes: [
                 NodeKind::default_artnet(1),
@@ -4017,6 +4022,54 @@ impl Engine {
         Ok(())
     }
 
+    /// PRG-67: replace the gel table (tests and the daemon; the default is LEE).
+    pub fn set_gels(&mut self, gels: GelTable) {
+        self.gels = gels;
+    }
+
+    /// PRG-68: set the target colour to gel `number`, keeping its brightest component (black
+    /// comes up at full). Fixtures without Colour are skipped.
+    pub fn gel(&mut self, number: u32) -> Result<(), CoreError> {
+        let targets = self.programmer.target_items();
+        self.apply_gel(self.gel_plan(number, &targets)?)
+    }
+
+    /// PRG-68: what `gel` would set on `targets`; refuses without changing anything.
+    fn gel_plan(
+        &self,
+        number: u32,
+        targets: &[Item],
+    ) -> Result<Vec<(Item, TargetColour)>, CoreError> {
+        let gel = self
+            .gels
+            .colour(number)
+            .ok_or(CoreError::UnknownGel(number))?;
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let mut new = Vec::new();
+        for &item in targets {
+            let mode = self.mode_of(item.fixture);
+            if let Some(l) = mode.and_then(|m| m.item_logical(item.cell, COLOUR)) {
+                if let Value::Colour(c) = self.start_value(item, &l) {
+                    let max = c.r.max(c.g).max(c.b);
+                    new.push((item, gel.scaled(if max > 0.0 { max } else { 1.0 })));
+                }
+            }
+        }
+        if new.is_empty() {
+            return Err(CoreError::AttributeNotInTargets(COLOUR.to_string()));
+        }
+        Ok(new)
+    }
+
+    fn apply_gel(&mut self, plan: Vec<(Item, TargetColour)>) -> Result<(), CoreError> {
+        for (item, c) in plan {
+            self.set_item_value(item, COLOUR, c)?;
+        }
+        Ok(())
+    }
+
     /// PRG-20: programmer value, else what is on the output, else the held value. PRG-47: a
     /// cell reads its own merged output and held value; the virtual cell Dimmer starts full.
     fn start_value(&self, item: Item, l: &LogicalAttribute) -> Value {
@@ -4138,6 +4191,11 @@ impl Engine {
                 g: c.g,
                 b: c.b,
                 kelvin: colour::kelvin(c).map(|k| (k / 10.0).round() * 10.0),
+                gel: self.gels.reading(c).map(|g| GelRef {
+                    range: "Lee",
+                    number: g.number,
+                    name: g.name.clone(),
+                }),
             })
         });
         let palettes = self.palette_use(&items);
@@ -4279,6 +4337,19 @@ impl Engine {
             }
             self.put_palette_timed(id, plan, time, overlap);
             return Ok(());
+        }
+        if let Some(number) = cmd.gel {
+            // PRG-68: plan against the typed selection first, so a refusal changes nothing.
+            let targets = typed
+                .clone()
+                .unwrap_or_else(|| self.programmer.target_items());
+            let plan = self.gel_plan(number, &targets)?;
+            if let Some(list) = typed {
+                self.fan = None; // PRG-56
+                self.programmer.replace_selection(list);
+                self.follow_active_group();
+            }
+            return self.apply_gel(plan);
         }
         if cmd.locate {
             // PRG-10: select, then Locate every group. `typed` is never empty here.
@@ -4491,24 +4562,55 @@ impl Engine {
                     shared_cells,
                     fixtures,
                 } = detected;
-                self.palettes.insert(
+                let mut palette = Palette {
                     id,
-                    Palette {
-                        id,
-                        number,
-                        window: cell.window,
-                        handle: cell.handle,
-                        legend: String::new(),
-                        icon: None,
-                        global,
-                        shared,
-                        shared_cells,
-                        fixtures,
-                    },
-                );
+                    number,
+                    window: cell.window,
+                    handle: cell.handle,
+                    legend: String::new(),
+                    icon: None,
+                    global,
+                    shared,
+                    shared_cells,
+                    fixtures,
+                };
+                palette.legend = self.gel_legend(&palette);
+                self.palettes.insert(id, palette);
                 Ok(id)
             }
         }
+    }
+
+    /// PAL-33: `L<number> <name>` (32 characters at most) when every colour in `palette` reads
+    /// as the same gel, else empty.
+    fn gel_legend(&self, palette: &Palette) -> String {
+        let global = palette.global.values().filter_map(|v| match v {
+            GlobalValue::Value(v) => Some(v),
+            GlobalValue::Degrees { .. } => None,
+        });
+        let shared = palette.shared.values().flat_map(|a| a.values());
+        let cells = palette
+            .shared_cells
+            .values()
+            .flat_map(|c| c.values().flat_map(|a| a.values()));
+        let fixtures = palette.fixtures.values().flat_map(|a| a.values());
+        let mut gel = None;
+        for value in global.chain(shared).chain(cells).chain(fixtures) {
+            let Value::Colour(c) = value else { continue };
+            match (self.gels.reading(*c), gel) {
+                (None, _) => return String::new(),
+                (Some(g), None) => gel = Some(g),
+                (Some(g), Some(first)) if g.number != first.number => return String::new(),
+                _ => {}
+            }
+        }
+        gel.map(|g| {
+            format!("L{} {}", g.number, g.name)
+                .chars()
+                .take(32)
+                .collect()
+        })
+        .unwrap_or_default()
     }
 
     /// PAL-01, 03: the programmer's values in the mask as plain values; a reference is

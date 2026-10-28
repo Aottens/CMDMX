@@ -1,5 +1,6 @@
 //! Command line parser (Titan keypad syntax): `specs/modules/programmer.md` PRG-08, 09, 11;
-//! `Palette n` is `specs/modules/palettes.md` PAL-10, a selection ending in `Locate` PRG-10.
+//! `Palette n` is `specs/modules/palettes.md` PAL-10, `Lee n` PRG-68, a selection ending in
+//! `Locate` PRG-10.
 //!
 //! Pure: tokens in, a parsed [`Command`] out. Resolving fixtures and applying
 //! the result is the engine's job.
@@ -43,6 +44,8 @@ pub struct Command {
     pub level: Option<f32>,
     /// `Palette n`: apply palette number n (PAL-10).
     pub palette: Option<u32>,
+    /// `Lee n`: apply gel number n (PRG-68).
+    pub gel: Option<u32>,
     /// A selection ended with `Locate` instead of `Enter` (PRG-10).
     pub locate: bool,
 }
@@ -182,13 +185,14 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
             selection: selection(body)?,
             level: None,
             palette: None,
+            gel: None,
             locate: true,
         });
     }
     if last != "Enter" {
         return None;
     }
-    if let Some(at) = body.iter().position(|&t| t == "Palette") {
+    if let Some(at) = body.iter().position(|&t| t == "Palette" || t == "Lee") {
         let (sel, rest) = body.split_at(at);
         let number = match rest {
             [_, n] => number(Some(n))?,
@@ -199,10 +203,12 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
         } else {
             selection(sel)?
         };
+        let lee = rest.first() == Some(&"Lee");
         return Some(Command {
             selection,
             level: None,
-            palette: Some(number),
+            palette: (!lee).then_some(number),
+            gel: lee.then_some(number),
             locate: false,
         });
     }
@@ -228,6 +234,7 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
         selection,
         level,
         palette: None,
+        gel: None,
         locate: false,
     })
 }

@@ -251,7 +251,7 @@ transmission is not applied. Phase 1 has the LEE range; Rosco and GAM follow as 
   `subprojects/engine/gels/lee.json`, rows `{"number":201,"name":"Full C.T. Blue","x":0.330,
   "y":0.339}`, its source and permission in a `NOTICE` beside it). Colour filters only:
   diffusion and neutral-density filters are not in it. A row whose x, y does not convert (y ≤ 0,
-  no positive component) or a duplicate number fails a test, never the engine. LEE 201 →
+  off the chromaticity diagram, no positive component; amended in VS2-48) or a duplicate number fails a test, never the engine. LEE 201 →
   (1.0, 0.920, 0.837); LEE 106 Primary Red → (1.0, 0.029, 0.001); LEE 181 Congo Blue (0.187,
   0.058) → (0.153, 0.0, 1.0) (green below 0, set to 0).
 - **PRG-68** `Lee n Enter` sets every target's Colour to LEE n's colour, scaled so max(r, g, b)
