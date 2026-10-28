@@ -64,7 +64,7 @@ impl TargetColour {
 
 /// CIE xy (Y = 1) as linear BT.2020 RGB scaled so its largest component is 1; negative
 /// components are kept. `None` when `cie` is not a point or has no positive component.
-fn xy_to_rgb([x, y]: [f32; 2]) -> Option<[f32; 3]> {
+pub(crate) fn xy_to_rgb([x, y]: [f32; 2]) -> Option<[f32; 3]> {
     if y <= 0.0 || !x.is_finite() || !y.is_finite() {
         return None;
     }

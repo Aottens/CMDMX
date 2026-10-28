@@ -27,7 +27,7 @@ the backlog, not the whole idea.
 | Id | Idea | Status | Phase | Module |
 | --- | --- | --- | --- | --- |
 | IDEA-01 | More USB-DMX interfaces than the ENTTEC Pro family | triaged | 2 | OUT |
-| IDEA-02 | Colour picking in several models: RGB, CMY, HSL/HSI, gel numbers (LEE first) | basic picker done (VS2-06); gels specified 2026-10-28 (P1-23, #164; VS2-48 todo, VS2-49 todo, VS2-50 blocked) | 1 (owner 2026-10-28, gels too) | PRG, PAL, IPC, UI |
+| IDEA-02 | Colour picking in several models: RGB, CMY, HSL/HSI, gel numbers (LEE first) | basic picker done (VS2-06); gels specified 2026-10-28 (P1-23, #164; VS2-48 done, VS2-49 todo, VS2-50 blocked) | 1 (owner 2026-10-28, gels too) | PRG, PAL, IPC, UI |
 | IDEA-03 | Colour calibration so different fixtures match each other | triaged | 2 | LIB, PAT, core |
 | IDEA-04 | Phase 1 = programming the building blocks of any show (robust programmer); cue lists and busking both run on them | accepted 2026-10-17 | 1 | PRD, PRG, new `cuelists.md` |
 | IDEA-05 | Timeline synced to Ableton; drag presets onto it for easy timecoded shows | triaged | 3 | new `timeline.md` |
