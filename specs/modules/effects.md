@@ -147,6 +147,10 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   Crossfade, Top, Beats, Wings on page 2, acting on the current entry; on the screen, the
   BCF2000 and OSC alike (`wheels` in engine state). A wheel turn is a relative step (PRG-21 step
   sizes: size 1 %, BPM 1, spread 15°, phase 15° per `Coarse` step).
+  *Amended after the FXB-06 run (owner 2026-10-29):* an attribute-group pick
+  (`programmer.attribute_group`, from the app, the BCF2000 or OSC) switches the effect wheels off,
+  so I, P, C … give that group's wheels in the Shapes workspace too (Titan: an attribute key takes
+  the wheels back); `effect.wheels {on: true}` brings them back.
 - **FX-18** `effect.select {entry}` makes another programmer entry current. Selecting fixtures
   that are exactly the members of one entry makes it current too.
 - **FX-19** `effect.stop` removes the targets from every programmer entry (all attributes), or
@@ -236,6 +240,9 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   (FX-31, FX-37); a palette in the snapshot's `palettes` carries `effects` `[{look, shape}]` when
   it holds entries (key absent otherwise; FX-22, FX-39). So the app dims, lists and warns without
   lighting logic.
+  *Amended after the FXB-06 run (2026-10-29), new key only:* each entry carries `dark`: true when
+  none of its attributes is in group I and its first member's intensity (its `Dimmer`, or the
+  virtual dimmer) is 0 in the base the entry starts from; false otherwise (FX-42).
 - **FX-34** Commands: `effect.apply`, `effect.set`, `effect.select`, `effect.stop`,
   `effect.restart`, `effect.tap`, `effect.wheels`; refusals come back as warnings (IPC). Each is
   in UNDO-04's table with the class of FX-20.
@@ -264,12 +271,21 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   context (an effect palette is a palette with entries, FX-22).
 - **FX-40** The encoders (IPC-16 wheels on screen, BCF2000, OSC) show the effect wheels of FX-17
   while the Shapes workspace is open, with their names and values.
+  *Amended after the FXB-06 run (owner 2026-10-29):* opening the workspace turns the effect
+  wheels on; the attribute tabs I P C … switch to that group's wheels (FX-17); in the Shapes
+  workspace the **FX** tab stands for the effect wheels: enabled while the programmer has an
+  entry, lit while the effect wheels are on, and a tap turns them on again. Tapping a look or an
+  Effects row turns them on too. (The fixtures' own FX-group attributes stay reachable outside
+  the Shapes workspace.)
 - **FX-41** The fixture tiles show output values with the effect in (as today), so the operator
   sees the chase run on the tiles; the app animates nothing itself.
 - **FX-42** Under the Spread control a strip shows one cycle of the shape with a dot per member at
   its position from `positions` (FX-33), so spread, wings, groups and blocks are visible before the
   operator looks up at the rig. A `HueShift` on a base without saturation says so under Size
   ("The base colour is white: Hue shift shows nothing").
+  *Amended after the FXB-06 run (owner 2026-10-29):* an entry without an intensity attribute
+  whose first member's intensity is 0 says so under Size too ("Intensity is 0: this effect shows
+  nothing"), from the entry's `dark` flag (FX-33).
 - **FX-43** The manual (`subprojects/website/manual/src/`) gains a *Shapes and effects* page in the
   same PR as the app (WEB-33).
 
