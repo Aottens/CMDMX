@@ -33,7 +33,7 @@ are grouped as Intensity, Position, Colour and Beam, each with a small drawing o
 | Breathe | all fixtures slowly up and down together |
 | Sparkle | random fixtures flash |
 | Comet | a flash that fades out, running across the fixtures |
-| Circle, Eight | the beams draw a circle or a figure eight around their position |
+| Circle, Eight | the beams draw a circle or a figure eight around their position (on the Demo rig the washes start pointing at the middle) |
 | Fan sweep | the beams sweep out from the middle and back |
 | Tilt wave | a wave of tilt across the fixtures |
 | Rainbow | all fixtures run through the colours together |
