@@ -252,8 +252,12 @@ fn fx_21_merge_replaces_the_effect_per_member_and_attribute() {
     e.record_playback(&merge).unwrap();
     let stored = cue_effects(&e, pb, 0);
     assert_eq!(stored.len(), 2, "{stored:?}");
-    let chase = stored.iter().find(|x| x.look.as_deref() == Some("Dimmer chase"));
-    let wave = stored.iter().find(|x| x.look.as_deref() == Some("Dimmer wave"));
+    let chase = stored
+        .iter()
+        .find(|x| x.look.as_deref() == Some("Dimmer chase"));
+    let wave = stored
+        .iter()
+        .find(|x| x.look.as_deref() == Some("Dimmer wave"));
     assert_eq!(chase.unwrap().members, items(&[201, 202]));
     assert_eq!(wave.unwrap().members, items(&[203, 204]));
 
@@ -600,8 +604,9 @@ fn list(e: &mut Engine, q1: impl FnOnce(&mut Engine), q2: impl FnOnce(&mut Engin
     pb
 }
 
-/// Go on Q1 at 0, run to 2.25 and Go on Q2.
+/// Fader up, Go on Q1 at 0, run to 2.25 and Go on Q2 (CUE-15: the list's m is its fader).
 fn go_go(e: &mut Engine, pb: u32) {
+    e.set_fader(pb, 1.0, 0.0).unwrap();
     e.cuelist(Some(pb), ListAction::Go, 0.0).unwrap();
     e.tick(0.0);
     tick_to(e, 0.0, 2.25);
@@ -703,6 +708,7 @@ fn fx_27_entries_track_and_a_block_cue_stops_them_only_where_it_holds_something(
         p.cues[3].track = Track::Block;
     });
 
+    e.set_fader(pb, 1.0, 0.0).unwrap();
     e.cuelist(Some(pb), ListAction::Go, 0.0).unwrap();
     e.tick(0.0);
     tick_to(&mut e, 0.0, 1.0);
@@ -753,7 +759,9 @@ fn fx_28_a_malformed_entry_is_refused_at_load_and_the_rest_loads() {
     let (loaded, warnings) = Engine::from_show(&show);
     let all: Vec<&String> = migrations.iter().chain(warnings.iter()).collect();
     assert_eq!(
-        all.iter().filter(|w| w.to_lowercase().contains("effect")).count(),
+        all.iter()
+            .filter(|w| w.to_lowercase().contains("effect"))
+            .count(),
         2,
         "{all:?}"
     );
@@ -801,7 +809,10 @@ fn fx_29_effects_round_trip_through_the_show() {
     let (mut loaded, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     for id in [pb, pointer] {
-        assert_eq!(loaded.playback(id).unwrap().cues, e.playback(id).unwrap().cues);
+        assert_eq!(
+            loaded.playback(id).unwrap().cues,
+            e.playback(id).unwrap().cues
+        );
     }
     assert_eq!(loaded.palette(number), e.palette(number));
     assert_eq!(loaded.to_show(meta()).to_json(), json);
@@ -822,7 +833,11 @@ fn fx_29_effects_round_trip_through_the_show() {
     // A new programmer entry gets an id above every loaded one.
     let all: Vec<EntryId> = (loaded.playbacks())
         .flat_map(|p| p.cues.iter().flat_map(|c| c.effects.iter().map(|x| x.id)))
-        .chain(loaded.palettes().flat_map(|p| p.effects.iter().map(|x| x.id)))
+        .chain(
+            loaded
+                .palettes()
+                .flat_map(|p| p.effects.iter().map(|x| x.id)),
+        )
         .collect();
     let new = look(&mut loaded, &[206], "Breathe");
     assert!(all.iter().all(|&id| id < new), "{new} vs {all:?}");

@@ -185,7 +185,8 @@ impl Show {
     }
 
     /// SHW-04: parse a show file, migrating an older schema step by step. Returns the show and
-    /// the migrations that ran, then a line for each effect entry left out (FX-28). Not JSON, no `schema_version` or a newer schema is refused.
+    /// the migrations that ran, then a line for each effect entry left out (FX-28). Not JSON, no
+    /// `schema_version` or a newer schema is refused.
     pub fn from_json(json: &str) -> Result<(Show, Vec<String>), CoreError> {
         let mut value: serde_json::Value =
             serde_json::from_str(json).map_err(|e| CoreError::InvalidShow(e.to_string()))?;
