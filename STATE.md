@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-29 (v0.2.4 released: the FX generator)_
+_Last updated: 2026-10-29 (selection orders specified, P2-02 for owner approval)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -12,15 +12,16 @@ instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe outp
 control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on the church iPad passed), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor, multi-select in the patch table
 (VS2-27/28), Fan (VS2-35/36), emitter auto-mix with the Kelvin view and CTO/CTB steps (VS2-44..46, IDEA-32), LEE gel numbers (VS2-48/49; the table waits for LEE), GDTF import (VS2-41/42, a GDTF-share file imported in the owner's run) and cells end to end (VS2-30..34, 37, 38, 40: engine, protocol v1, Unfold, cell rows and Remove in the cue view) are done.
 
-Feature work now: the FX generator (IDEA-18, phase 2 flagship, owner 2026-10-29): spec P2-01
-(`effects.md`, ADR-011) approved 2026-10-29; build FXB-01..06, one PR each, in BACKLOG order.
+Feature work now: selection orders (IDEA-15, broadened by the owner 2026-10-29): spec P2-02
+(`programmer.md` PRG-71..84, research `docs/research/selection-orders.md`) waits for the owner's
+approval; then SEL-01..07, one PR each, in BACKLOG order. The FX generator (IDEA-18) shipped in v0.2.4.
 
 Parallel track: phase 3, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-0. FX generator (phase 2): FXB-01..10 done and released in v0.2.4 (home run `tests/manual/runs/2026-10-29-FXB-06.md`).
+0. Selection orders (phase 2): the owner approves P2-02 (merging its PR), then SEL-01 (core grid and order tools).
 1. VS8-01 and VS4-07: install `CMDMX-0.2.4.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
@@ -54,6 +55,8 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
   request through leefilters.com/contact on 2026-10-28 (answer to aottens@gmail.com).
 
 ## Owner to decide
+- P2-02 (selection orders): approve the criteria and the four proposed decisions (`programmer.md`).
+- IDEA-33 (a richer FX engine, eight parts): confirm each part's phase and the order.
 - When to join the Apple Developer Program (postponed for cost, VS8-09); then for VS8-08/10: join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).

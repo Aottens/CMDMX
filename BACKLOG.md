@@ -210,6 +210,9 @@ are `HW-nn`), in the prototype order of HW-60; each ships a checklist in `tests/
 The owner picked the effect generator as the first phase-2 feature (2026-10-29). Spec P2-01
 (`effects.md`, ADR-011); build rows in order FXB-01 → FXB-02 → FXB-03 and FXB-04 (either order)
 → FXB-05 → FXB-06, one PR each, tests first.
+Next (owner 2026-10-29): selection orders (IDEA-15, broadened), spec P2-02, build rows SEL-01 →
+SEL-02 and SEL-03 (either order) → SEL-04 → SEL-05 and SEL-06 → SEL-07. The FX engine's next
+steps are IDEA-33 (phases to confirm).
 
 | Id | Task (one sentence, verifiable) | Spec ids | Size | Status |
 | --- | --- | --- | --- | --- |
@@ -224,6 +227,14 @@ The owner picked the effect generator as the first phase-2 feature (2026-10-29).
 | FXB-08 | Demo rig: the Demo Wash's Pan and Tilt default to 0.5, so a Circle or Eight after Clear runs around the centre (IPC-14). From the FXB-06 run. | IPC-14, FX-05 | S | done (2026-10-29, #176; IPC-14 amended) |
 | FXB-09 | Core: a cue's `groups` count the attributes of its effects, so a cue with only a Circle lists `P`. From the FXB-06 run. | FX-21, CUE | S | done (2026-10-29, #177; FX-21 amended) |
 | FXB-10 | App: Record ▸ BPM Master takes the next empty handle as its softkey says (or says the page is full and which page has room). From the FXB-06 run. | CUE-35, UI | S | done (2026-10-29, #178; UI-18 amended) |
+| P2-02 | Spec selection orders (IDEA-15, broadened by the owner 2026-10-29) and record the FX engine's next steps (IDEA-33): research `docs/research/selection-orders.md`, `programmer.md` PRG-71..84 (PRG-05/06 amended), IPC-48, UI-33/34, FX-45 (FX-06/07/14/38 amended), PAL-14 and PBK-15 amended, build rows SEL-01..07; owner approves. | PRG, FX, PAL, PBK, IPC, UI | M | done (2026-10-29, #180; merged = the criteria and the four decisions approved) |
+| SEL-01 | Core: the grid and positions (FX-07's function with `flip`, shared), order tools (Reverse, Shuffle with the counter, Sort, Revert, the select order), stages and Fix ±1 by position, the PRG-75 shortcuts, `pattern` as groups; unit tests `prg_71_…`..`prg_75_…`, `prg_84_…`. Needs P2-02. | PRG-71..75, 84, PRG-05/06 | M | todo |
+| SEL-02 | Core: Fan, a new effect and palette overlap read the positions (PRG-76..78), `flip` on effect entries and member Reverse/Shuffle/Sort (FX-45, FX-06/07/14); unit and scenario tests. Needs SEL-01. | PRG-76..78, FX-45 | M | todo |
+| SEL-03 | Core and show: a group stores and restores its grid, a cue stores `order` (Record, Update, Merge), cue overlap staggers by it, `cue.order`, show schema 9 with migration; tests. Needs SEL-01. | PRG-79..81, 83, PBK-15 | M | todo |
+| SEL-04 | Daemon: `grid`, `stage`, `positions`, `position_count` and a cue's `order` in snapshot and deltas, the `programmer.order`/`programmer.grid`/`cue.order` commands and the `effect.set` params, the CTL `order`/`grid` actions; IPC tests. Needs SEL-02, SEL-03. | IPC-48, PRG-82 | S | todo |
+| SEL-05 | App: the Order and Pattern softkey contexts, the GRID tag, position numbers on selected cells, Flip and Order in the Effect editor; the manual's *Selecting fixtures* and *Shapes and effects* pages. Needs SEL-04. | UI-33 | M | todo |
+| SEL-06 | App: Fixture order for a cue in Playback Options ▸ Times, with Auto increment; the manual's cue timing section. Needs SEL-04. | UI-34, PRG-81 | M | todo |
+| SEL-07 | Home run on Art-Net (`tests/manual/selection-orders.md`, Claude listens): Reverse and Shuffle on a chase, Odd/Even and 1 in 3 with Next, Outside in and Inside out on a fan and a dimmer chase, a group with its grid, a cue whose overlap replays the order, its order edited. Needs SEL-05, SEL-06. | PRG-71..83, UI-33/34 | S | todo |
 
 ## Later phases
 Ideas waiting for their phase live in `IDEAS.md`. They get backlog rows when their phase is planned.

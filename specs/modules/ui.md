@@ -8,6 +8,7 @@ UI-30 (Fan): **approved by owner 2026-10-25 (P1-20)**.
 UI-26 quit text amended to match REL-13 (VS4-08, 2026-10-28; for owner approval in its PR).
 UI-26 (VS2-05) timed Clear from the keypad amended (FXB-07, 2026-10-29; for owner approval in its PR).
 UI-18 BPM / Rate Master take the next empty handle (FXB-10, 2026-10-29; for owner approval in its PR).
+UI-33 and UI-34 (selection orders, P2-02): draft for owner approval.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -371,6 +372,29 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   shows "LEE 201 Full C.T. Blue" above the field. While Keys is live, L types the `Lee` token
   (UI-19): `L 2 0 1 Return`. The app computes no colour. Verified by
   `tests/manual/app-programmer.md` (amended), the output read on Art-Net at home.
+
+- **UI-33** Selection orders (P2-02, PRG-71..82, IPC-48; draft for owner approval). In the
+  Selection context (UI-18) two softkeys open sub-contexts, each with Back:
+  - **Order:** Reverse, Shuffle, Sort, Revert (`programmer.order`).
+  - **Pattern:** Odd/Even, 1 in *n*, *n* in *m*, Blocks *n*, Divide *n*, Outside in, Inside out,
+    Grid off (`programmer.grid` with the shortcut). A number on the command line is *n* (1 in
+    `3`; Divide `2`), `n Thro m` gives *n* in *m*; without a number 1 in *n* and Blocks *n* take 3
+    and 2, Divide 2. The current shortcut is marked.
+
+  The keypad's Odd/Even key stays (`programmer.pattern` 2). While the grid is on, the attribute bar
+  shows an amber tag next to the FAN tag (UI-30) with its name and the stage, `GRID 1 IN 3 · 2/3`
+  (`· ALL` after All), from `grid`, `stage` and `position_count`; a tap on the tag switches the grid
+  off. Selected fixture cells (UI-11, cells UI-29) show their position *k* + 1 in a corner while
+  the grid is on or the order differs from the select order. In the Shapes workspace the Effect
+  editor's *More* (FX-38) gains **Flip** next to Wings and an **Order** row: Reverse, Shuffle, Sort
+  (FX-45). The app computes no position. The manual's *Selecting fixtures* page and *Shapes and
+  effects* page grow in the same PR (WEB-33).
+- **UI-34** Cue fixture order (PRG-81; draft for owner approval). The Playback Options screen's
+  Times tab (PBK-39, CUE-46) gets **Fixture order** for the selected cue: the Fixtures window shows
+  each item's step number (`order` + 1) in its cell; a tap gives the item the next step number,
+  with **Auto increment** on (default) the number goes up after each tap, off several items share
+  it; Done sends `cue.order` (items not tapped keep their order after the tapped ones), Cancel sends
+  nothing.
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
