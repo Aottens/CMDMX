@@ -4231,7 +4231,12 @@ mod tests {
         // A virtual dimmer counts as the intensity (RGB+Lime par 211).
         undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
         undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
-        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.select","fixture":211}"#).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.select","fixture":211}"#,
+        )
+        .unwrap();
         undo_run(&mut e, &mut h, rainbow).unwrap();
         assert_eq!(dark(&e, "Rainbow"), true, "virtual dimmer at 0");
         undo_run(&mut e, &mut h, set_dimmer).unwrap();
@@ -4243,7 +4248,12 @@ mod tests {
         let mut e = demo_engine().unwrap();
         let mut h = History::default();
         undo_run(&mut e, &mut h, PARS).unwrap();
-        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.apply","look":"Dimmer chase"}"#).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Dimmer chase"}"#,
+        )
+        .unwrap();
         undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.wheels","on":true}"#).unwrap();
         assert_eq!(view(&e)["effect_wheels"], true);
         assert_eq!(wheel(&e, "Size")["attribute"], "Size");
