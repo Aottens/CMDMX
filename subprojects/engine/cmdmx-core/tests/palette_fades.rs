@@ -104,6 +104,7 @@ fn rig_with(settings: Settings) -> Engine {
             shared,
             shared_cells: BTreeMap::new(),
             fixtures: BTreeMap::new(),
+            effects: Vec::new(),
         })
         .unwrap();
     }

@@ -332,7 +332,7 @@ fn shw_04_schema_6_groups_migrate_to_items() {
     run(&mut e, "902 And 901 Enter");
     e.record_group(1).unwrap();
     let mut value: serde_json::Value = serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
-    assert_eq!(value["schema_version"], 7);
+    assert_eq!(value["schema_version"], 8);
     assert_eq!(
         value["groups"][0]["items"],
         serde_json::json!(["902", "901"])
@@ -341,7 +341,7 @@ fn shw_04_schema_6_groups_migrate_to_items() {
     value["schema_version"] = 6.into();
     value["groups"] = serde_json::json!([{ "id": 1, "fixtures": [902, 901] }]);
     let (show, migrations) = Show::from_json(&value.to_string()).unwrap();
-    assert_eq!(migrations.len(), 1);
+    assert_eq!(migrations.len(), 2);
     assert!(migrations[0].starts_with("6 -> 7"), "{migrations:?}");
     let (l, _) = Engine::from_show(&show);
     assert_eq!(l.group_items(1), Some(vec![f(902), f(901)]));
@@ -356,7 +356,7 @@ fn shw_04_the_schema_6_church_demo_migrates_to_the_schema_7_file() {
     let v6 = std::fs::read_to_string(format!("{dir}church-demo-v6.cmdmx.json")).unwrap();
     let v7 = std::fs::read_to_string(format!("{dir}church-demo.cmdmx.json")).unwrap();
     let (show, migrations) = Show::from_json(&v6).unwrap();
-    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert_eq!(migrations.len(), 2, "{migrations:?}");
     assert_eq!(show.to_json(), v7);
 }
 

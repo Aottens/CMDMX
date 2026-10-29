@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
+use crate::effect::Entry;
 use crate::output::{Node, NodeId, NodeKind};
 use crate::palette::{Palette, PaletteId, RecordBy};
 use crate::patch::{Fixture, FixtureId};
@@ -19,7 +20,7 @@ use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId, It
 use crate::{CoreError, UniverseId};
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 7;
+pub const SCHEMA_VERSION: u32 = 8;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -184,7 +185,8 @@ impl Show {
     }
 
     /// SHW-04: parse a show file, migrating an older schema step by step. Returns the show and
-    /// the migrations that ran. Not JSON, no `schema_version` or a newer schema is refused.
+    /// the migrations that ran, then a line for each effect entry left out (FX-28). Not JSON, no
+    /// `schema_version` or a newer schema is refused.
     pub fn from_json(json: &str) -> Result<(Show, Vec<String>), CoreError> {
         let mut value: serde_json::Value =
             serde_json::from_str(json).map_err(|e| CoreError::InvalidShow(e.to_string()))?;
@@ -205,7 +207,8 @@ impl Show {
                 supported: SCHEMA_VERSION,
             });
         }
-        let migrations = migrate(&mut value, version);
+        let mut migrations = migrate(&mut value, version);
+        migrations.extend(lenient_effects(&mut value));
         let show =
             serde_json::from_value(value).map_err(|e| CoreError::InvalidShow(e.to_string()))?;
         Ok((show, migrations))
@@ -254,7 +257,60 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
     if version < 7 {
         migrations.push(migrate_6_to_7(value));
     }
+    if version < 8 {
+        if let Some(show) = value.as_object_mut() {
+            show.insert("schema_version".into(), 8.into());
+        }
+        migrations.push("7 -> 8: cues and palettes may hold effects, nothing else changes".into());
+    }
     migrations
+}
+
+/// FX-28: leave out each effect entry of a cue or palette that does not read as one (an unknown
+/// shape, parameters out of range, no attributes), so the rest of the show loads. One line each.
+fn lenient_effects(value: &mut serde_json::Value) -> Vec<String> {
+    use serde_json::Value;
+    let mut lines = Vec::new();
+    let mut scrub = |owner: String, holder: &mut Value| {
+        let Some(list) = holder.get_mut("effects").and_then(Value::as_array_mut) else {
+            return;
+        };
+        let mut n = 0;
+        list.retain(|raw| {
+            n += 1;
+            let read = serde_json::from_value::<Entry>(raw.clone()).map_err(|e| e.to_string());
+            let read = read.and_then(|e| match e.attributes.is_empty() {
+                true => Err("no attributes".into()),
+                false => e.params.validate().map_err(|e| e.to_string()),
+            });
+            if let Err(why) = &read {
+                lines.push(format!("effect {n} of {owner} left out: {why}"));
+            }
+            read.is_ok()
+        });
+    };
+    let playbacks = (value.get_mut("playbacks")).and_then(|p| p.get_mut("playbacks"));
+    for playback in playbacks
+        .and_then(Value::as_array_mut)
+        .into_iter()
+        .flatten()
+    {
+        let id = playback.get("id").map(Value::to_string).unwrap_or_default();
+        let cues = playback.get_mut("cues").and_then(Value::as_array_mut);
+        for cue in cues.into_iter().flatten() {
+            let number = cue.get("number").map(Value::to_string).unwrap_or_default();
+            scrub(format!("cue {number} of playback {id}"), cue);
+        }
+    }
+    let palettes = (value.get_mut("palettes")).and_then(|p| p.get_mut("palettes"));
+    for palette in palettes.and_then(Value::as_array_mut).into_iter().flatten() {
+        let number = palette
+            .get("number")
+            .map(Value::to_string)
+            .unwrap_or_default();
+        scrub(format!("palette {number}"), palette);
+    }
+    lines
 }
 
 /// PRG-49, 52: a group holds items, not fixture ids: `[901, 902]` becomes `["901", "902"]`.

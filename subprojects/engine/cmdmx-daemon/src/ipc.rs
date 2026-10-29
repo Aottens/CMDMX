@@ -4721,6 +4721,7 @@ mod tests {
             shared: BTreeMap::new(),
             shared_cells: BTreeMap::new(),
             fixtures: BTreeMap::new(),
+            effects: Vec::new(),
         };
         e.add_palette(palette(
             8,

@@ -1,11 +1,12 @@
 //! Effects: shape functions, member positions, phase and clock (`specs/modules/effects.md`
 //! FX-01..13, FX-30; FXB-01). Pure and deterministic: time comes in as `dt`, never from a clock.
-//! The programmer and the merge use these (FXB-02); playbacks follow in FXB-03.
+//! The programmer, the playbacks and the palettes use these (FXB-02, FXB-03).
 
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::TargetColour;
+use crate::palette::PaletteId;
 use crate::programmer::Item;
 use crate::value::Value;
 use crate::CoreError;
@@ -222,8 +223,9 @@ pub fn colour_absolute(base: TargetColour, effect: TargetColour, size: f32) -> T
 /// FX-06: the values `beats` takes.
 pub const BEATS: [f32; 7] = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0];
 
-/// FX-06: the parameters of an effect entry.
+/// FX-06: the parameters of an effect entry. A saved entry may leave any out (FX-29).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Params {
     pub size: f32,
     pub top: f32,
@@ -412,24 +414,42 @@ impl Clock {
 
 pub type EntryId = u32;
 
-/// FX-14: a programmer effect entry. `attributes` is `["Pan", "Tilt"]` for a path, `["Colour"]`
-/// for a colour shape, else the wave's attribute; `positions`/`count` are FX-07's *k* per member
-/// and *N*, kept up to date by [`Entry::refresh`], never computed per tick.
-#[derive(Debug, Clone, PartialEq)]
+/// FX-14: an effect entry of the programmer, a cue or a palette. `attributes` is `["Pan", "Tilt"]`
+/// for a path, `["Colour"]` for a colour shape, else the wave's attribute; `positions`/`count` are
+/// FX-07's *k* per member and *N*, kept up to date by [`Entry::refresh`], never computed per tick.
+/// Saved without `positions`, `count` and the group: the engine recomputes them at load (FX-29).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
+    #[serde(default)]
     pub id: EntryId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub look: Option<String>,
     pub shape: Shape,
     pub attributes: Vec<String>,
+    #[serde(default)]
     pub params: Params,
+    /// Empty in a palette (FX-22).
+    #[serde(default)]
     pub members: Vec<Item>,
+    #[serde(skip)]
     pub positions: Vec<u32>,
+    #[serde(skip)]
     pub count: u32,
+    #[serde(default)]
     pub seed: u64,
     /// FX-03: the `ColourMix` list; empty for other shapes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub colours: Vec<TargetColour>,
-    /// The attribute group of `attributes`, for FX-19.
+    /// FX-23: reads the parameters of this effect palette every tick while it exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub palette: Option<PaletteId>,
+    /// The attribute group of `attributes`, for FX-19 and FX-21.
+    #[serde(skip, default = "no_group")]
     pub(crate) group: AttributeGroup,
+}
+
+fn no_group() -> AttributeGroup {
+    AttributeGroup::I
 }
 
 /// FX-14: what `effect.apply` makes an entry from.
@@ -442,6 +462,8 @@ pub enum EffectApply {
         shape: Shape,
         attribute: Option<String>,
     },
+    /// FX-22: the entries of the effect palette with this number.
+    Palette(u32),
 }
 
 /// FX-16: one parameter of the current entry.
@@ -514,11 +536,27 @@ impl Entry {
         (self.positions, self.count) = positions(self.members.len(), p.wings, p.groups, p.blocks);
     }
 
+    /// Take the members `gone` accepts out, with their positions (*N* stays: the others keep
+    /// their place in the spread). `true` when one went.
+    pub(crate) fn drop_members(&mut self, gone: impl Fn(&Item) -> bool) -> bool {
+        let before = self.members.len();
+        let keep: Vec<bool> = self.members.iter().map(|m| !gone(m)).collect();
+        let mut flags = keep.iter();
+        self.members
+            .retain(|_| flags.next().copied().unwrap_or(true));
+        let mut flags = keep.iter();
+        self.positions
+            .retain(|_| flags.next().copied().unwrap_or(true));
+        self.members.len() != before
+    }
+
     /// ENG-14..16: `base` with member `i`'s effect on `attribute` at clock `theta`, clamped;
-    /// `base` itself for an attribute the entry does not drive. `round` is FX-02's factor for
-    /// Tilt. Allocation-free (FX-13).
+    /// `base` itself for an attribute the entry does not drive. `p` is the entry's parameters as
+    /// they are now (a palette's, FX-23; faded, FX-26; scaled, FX-25). `round` is FX-02's factor
+    /// for Tilt. Allocation-free (FX-13).
     pub(crate) fn at(
         &self,
+        p: &Params,
         i: usize,
         theta: f64,
         attribute: &str,
@@ -528,7 +566,6 @@ impl Entry {
         if !self.attributes.iter().any(|a| a == attribute) {
             return base;
         }
-        let p = &self.params;
         let k = self.positions.get(i).copied().unwrap_or(0);
         let t = member_theta(
             p.direction,

@@ -1,0 +1,40 @@
+{
+  "spec": "FX-26",
+  "profiles": { "dimmer": { "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 } ] } },
+  "patch": [ { "id": 201, "profile": "dimmer", "universe": 1, "address": 1 } ],
+  "playbacks": [
+    {
+      "id": 1,
+      "cues": [
+        {
+          "number": 1,
+          "values": {},
+          "effects": [
+            { "shape": { "Wave": "RampUp" }, "attributes": ["Dimmer"], "members": ["201"],
+              "params": { "size": 1.0, "bpm": 60.0, "mode": "Absolute" } }
+          ]
+        },
+        {
+          "number": 2,
+          "fade_in": 1.0,
+          "fade_out": 1.0,
+          "values": {},
+          "effects": [
+            { "shape": { "Wave": "RampUp" }, "attributes": ["Dimmer"], "members": ["201"],
+              "params": { "size": 0.5, "bpm": 60.0, "mode": "Absolute" } }
+          ]
+        }
+      ],
+      "list": { "tracking": true, "fader": "KillWithOff", "fire_first_cue": true, "loop": "StopOnFinal" }
+    }
+  ],
+  "actions": [
+    { "t": 0.0, "fader": { "playback": 1, "level": 1.0 } },
+    { "t": 2.25, "go": { "playback": 1 } }
+  ],
+  "expect": [
+    { "t": 1.6, "universe": 1, "channels": { "1": 153 } },
+    { "t": 2.75, "universe": 1, "channels": { "1": 207 } },
+    { "t": 3.5, "universe": 1, "channels": { "1": 191 } }
+  ]
+}

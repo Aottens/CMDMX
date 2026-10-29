@@ -221,6 +221,7 @@ fn global_palette(id: PaletteId, number: u32, values: &[(&str, GlobalValue)]) ->
         shared: BTreeMap::new(),
         shared_cells: BTreeMap::new(),
         fixtures: BTreeMap::new(),
+        effects: Vec::new(),
     }
 }
 
@@ -1203,7 +1204,7 @@ fn pal_23_palettes_and_references_round_trip() {
     let show = e.to_show(meta());
     let json = show.to_json();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(v["schema_version"], serde_json::json!(7)); // GRM-13
+    assert_eq!(v["schema_version"], serde_json::json!(8)); // GRM-13
                                                            // Top-level keys in file order: lines with exactly two spaces of indent.
     let keys: Vec<&str> = json
         .lines()
@@ -1266,8 +1267,8 @@ fn pal_23_a_version_1_show_is_migrated() {
     let (show, migrations) = Show::from_json(&v1).unwrap();
     assert_eq!(
         migrations.len(),
-        6,
-        "1 -> 2, 2 -> 3, 3 -> 4, 4 -> 5, 5 -> 6 and 6 -> 7: {migrations:?}"
+        7,
+        "1 -> 2, 2 -> 3, 3 -> 4, 4 -> 5, 5 -> 6, 6 -> 7 and 7 -> 8: {migrations:?}"
     );
     let (engine, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
