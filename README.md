@@ -41,10 +41,10 @@ Phase 1, under active development, not yet trusted for a full service. On 2026-1
 the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-CMDMX v0.2.1 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
+CMDMX v0.2.4 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
 (VS8-03, 04). Next up: install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
 is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
-The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); its run leftovers are in (FXB-07..10); release v0.2.4 with it is next; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
+The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); with its run leftovers (FXB-07..10) it shipped in v0.2.4; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
 ## What works today
 
