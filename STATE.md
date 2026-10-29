@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-29 (FXB-03 effects in cues and palettes)_
+_Last updated: 2026-10-29 (FXB-04 effects over IPC)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -20,8 +20,8 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-0. FX generator: FXB-01 (core shapes), FXB-02 (programmer effects) and FXB-03 (effects in cues and
-   palettes, show schema 8) done; next FXB-04 (IPC), then FXB-05 (the Shapes workspace), tests first.
+0. FX generator: FXB-01 (core shapes), FXB-02 (programmer effects), FXB-03 (effects in cues and
+   palettes, show schema 8) and FXB-04 (effects over IPC) done; next FXB-05 (the Shapes workspace), tests first.
 1. VS8-01 and VS4-07: install `CMDMX-0.2.1.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
