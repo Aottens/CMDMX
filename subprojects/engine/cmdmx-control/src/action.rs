@@ -204,6 +204,10 @@ pub enum Action {
     Key(Key),
     Keypad(KeypadToken),
     Fan(FanArg),
+    /// FX-35: tap the current effect's tempo, restart the effect clocks, stop the effects.
+    EffectTap,
+    EffectRestart,
+    EffectStop,
     Wheel(u8),
     AttributeGroup(AttrGroup),
     Group(u32),
@@ -257,6 +261,9 @@ fn parse_action(s: &str) -> Option<Action> {
         ["dbo"] => Action::Dbo,
         ["key", k] => Action::Key(Key::from_name(k)?),
         ["keypad", t] => Action::Keypad(KeypadToken::from_name(t)?),
+        ["effect", "tap"] => Action::EffectTap,
+        ["effect", "restart"] => Action::EffectRestart,
+        ["effect", "stop"] => Action::EffectStop,
         ["fan"] => Action::Fan(FanArg::Toggle),
         ["fan", a] => Action::Fan(FAN_ARGS.iter().find(|(n, _)| n == a).map(|(_, f)| *f)?),
         ["wheel", n] => Action::Wheel(num(n)?),
@@ -342,6 +349,9 @@ impl fmt::Display for Action {
             Action::Dbo => f.write_str("dbo"),
             Action::Key(k) => write!(f, "key {k}"),
             Action::Keypad(t) => write!(f, "keypad {t}"),
+            Action::EffectTap => f.write_str("effect tap"),
+            Action::EffectRestart => f.write_str("effect restart"),
+            Action::EffectStop => f.write_str("effect stop"),
             Action::Fan(FanArg::Toggle) => f.write_str("fan"),
             Action::Fan(a) => {
                 let name = FAN_ARGS.iter().find(|(_, x)| x == a).map_or("", |(n, _)| n);

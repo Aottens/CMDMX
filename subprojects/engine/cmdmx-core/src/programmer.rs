@@ -14,7 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
-use crate::effect::{Entry, EntryId};
+use crate::effect::{Entry, EntryId, Params, Shape};
 use crate::gel::GelRef;
 use crate::palette::PaletteId;
 use crate::patch::FixtureId;
@@ -276,6 +276,27 @@ pub struct ProgrammerView {
     pub fan: Option<FanCurve>,
     /// PRG-56: the curve the Fan key turns on.
     pub fan_curve: FanCurve,
+    /// FX-33: the programmer's effect entries, in order. Never the clock.
+    pub effects: Vec<EffectView>,
+    /// FX-17: the wheels are the effect wheels.
+    pub effect_wheels: bool,
+}
+
+/// FX-33: one programmer effect entry as the UI renders it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct EffectView {
+    pub id: EntryId,
+    pub look: Option<String>,
+    pub shape: Shape,
+    pub attributes: Vec<String>,
+    #[serde(serialize_with = "serialize_wire_items")]
+    pub members: Vec<Item>,
+    /// FX-07: k/N per member.
+    pub positions: Vec<f32>,
+    /// FX-23: the pointed palette's parameters while it exists.
+    pub params: Params,
+    pub palette: Option<PaletteId>,
+    pub current: bool,
 }
 
 /// PRG-56: the shape of a fan.

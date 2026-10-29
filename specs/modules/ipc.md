@@ -322,3 +322,6 @@ IPC-30 (`undo` / `redo` commands) and IPC-31 (`undo` snapshot field and delta) a
 OUT-33 (IPC-20 amended: one `outputs` entry per node with its config and state), OUT-34
 (`output.add/edit/remove`, edits) and OUT-35 (`output.ports`, neutral) are specified in
 `output-protocols.md`.
+
+### Effects (FXB-04; behaviour in `effects.md`)
+FX-32 (`effect_catalogue` in the snapshot), FX-33 (programmer `effects`, `effect_wheels` and the effect wheels in `wheels`), FX-34 (the `effect.*` commands and their classes) and FX-35 (control actions) are specified in `effects.md`.

@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::colour::TargetColour;
+use cmdmx_core::effect::{self, EffectApply};
 use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
 use cmdmx_core::library::channel_list::ChannelList;
 use cmdmx_core::output::{Node, NodeId, NodeKind};
@@ -122,6 +123,23 @@ pub enum Command {
     /// IPC-43: absent toggles, `Some(None)` turns Fan off, `Some(Some(c))` turns it on with `c`.
     Fan {
         curve: Option<Option<FanCurve>>,
+    },
+    /// FX-34: the effect commands, one per `Engine::effect_*`.
+    EffectApply(cmdmx_core::effect::EffectApply),
+    EffectSet(cmdmx_core::effect::EffectSet),
+    EffectSelect {
+        entry: cmdmx_core::effect::EntryId,
+    },
+    EffectStop {
+        group: Option<AttributeGroup>,
+    },
+    EffectRestart,
+    /// `at` is the receive time, set by `stamp`.
+    EffectTap {
+        at: f64,
+    },
+    EffectWheels {
+        on: bool,
     },
     /// `groups` and `attribute` are never both set; neither means the active group.
     Off {
@@ -693,6 +711,19 @@ fn field<T: serde::de::DeserializeOwned>(
         .ok_or_else(|| format!("missing or invalid \"{key}\" (expected {expected})"))
 }
 
+/// FX-34: exactly one of `look`, `shape` (with an optional `attribute`) or `palette`.
+fn effect_apply(v: &serde_json::Value) -> Result<EffectApply, String> {
+    match (v.get("look"), v.get("shape"), v.get("palette")) {
+        (Some(_), None, None) => string(v, "look").map(EffectApply::Look),
+        (None, Some(_), None) => Ok(EffectApply::Shape {
+            shape: field(v, "shape", "a shape such as {\"Wave\": \"Sine\"}")?,
+            attribute: opt_string(v, "attribute")?,
+        }),
+        (None, None, Some(_)) => uint(v, "palette").map(EffectApply::Palette),
+        _ => Err("effect.apply needs exactly one of \"look\", \"shape\" or \"palette\"".into()),
+    }
+}
+
 /// A number field (any f32).
 fn number(v: &serde_json::Value, key: &str) -> Result<f32, String> {
     opt_f32(v, key)?.ok_or_else(|| format!("missing \"{key}\""))
@@ -1007,6 +1038,7 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
 pub fn stamp(cmd: Command, at: f64) -> Command {
     match cmd {
         Command::PlaybackTap { id, .. } => Command::PlaybackTap { id, at },
+        Command::EffectTap { .. } => Command::EffectTap { at },
         Command::PlaybackButton { id, button, on, .. } => {
             Command::PlaybackButton { id, button, on, at }
         }
@@ -1087,6 +1119,25 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             groups: opt_field(&v, "groups", "an array of attribute groups")?,
         }),
         Some("programmer.highlight") => Ok(Command::Highlight {
+            on: boolean(&v, "on")?,
+        }),
+        Some("effect.apply") => effect_apply(&v).map(Command::EffectApply),
+        Some("effect.set") => {
+            let param = string(&v, "param")?;
+            let value = (v.get("value")).ok_or_else(|| "missing \"value\"".to_string())?;
+            serde_json::from_value(serde_json::json!({ param.as_str(): value }))
+                .map(Command::EffectSet)
+                .map_err(|e| format!("invalid effect.set \"{param}\": {e}"))
+        }
+        Some("effect.select") => Ok(Command::EffectSelect {
+            entry: uint(&v, "entry")?,
+        }),
+        Some("effect.stop") => Ok(Command::EffectStop {
+            group: opt_field(&v, "group", "an attribute group (I, P, C, G, B, E, S)")?,
+        }),
+        Some("effect.restart") => Ok(Command::EffectRestart),
+        Some("effect.tap") => Ok(Command::EffectTap { at: 0.0 }),
+        Some("effect.wheels") => Ok(Command::EffectWheels {
             on: boolean(&v, "on")?,
         }),
         Some("programmer.fan") => Ok(Command::Fan {
@@ -2062,6 +2113,8 @@ struct Snapshot<'a> {
     palette_settings: PaletteSettings,
     programmer_settings: ProgrammerSettings,
     programmer: &'a ProgrammerView,
+    /// FX-32: the look gallery and the shapes; constant, so never in a delta.
+    effect_catalogue: EffectCatalogue,
     outputs: Vec<OutputJson>,
     show: &'a ShowState,
     undo: &'a UndoInfo,
@@ -2304,11 +2357,69 @@ pub fn snapshot(
         palette_settings: palette_settings(engine),
         programmer_settings: programmer_settings(engine),
         programmer: &engine.programmer_view(),
+        effect_catalogue: effect_catalogue(),
         outputs: output_jsons(outputs),
         show,
         undo,
         control,
     })
+}
+
+/// FX-32: one look of the gallery.
+#[derive(Serialize)]
+struct LookInfo {
+    id: usize,
+    name: &'static str,
+    group: AttributeGroup,
+    shape: effect::Shape,
+    attribute: Option<&'static str>,
+}
+
+#[derive(Serialize)]
+struct EffectShapes {
+    wave: [effect::Wave; 6],
+    path: [effect::Path; 6],
+    colour: [effect::ColourShape; 3],
+}
+
+#[derive(Serialize)]
+struct EffectCatalogue {
+    looks: Vec<LookInfo>,
+    shapes: EffectShapes,
+}
+
+fn effect_catalogue() -> EffectCatalogue {
+    use effect::{ColourShape as C, Path as P, Wave as W};
+    EffectCatalogue {
+        looks: (effect::LOOKS.iter().enumerate())
+            .map(|(i, l)| LookInfo {
+                id: i + 1,
+                name: l.name,
+                group: l.group,
+                shape: l.shape,
+                attribute: l.attribute,
+            })
+            .collect(),
+        shapes: EffectShapes {
+            wave: [
+                W::Sine,
+                W::Triangle,
+                W::RampUp,
+                W::RampDown,
+                W::Square,
+                W::Random,
+            ],
+            path: [
+                P::Circle,
+                P::Eight,
+                P::Square,
+                P::Triangle,
+                P::LinePan,
+                P::LineTilt,
+            ],
+            colour: [C::Rainbow, C::HueShift, C::ColourMix],
+        },
+    }
 }
 
 /// IPC-24: one value of a cue's state.

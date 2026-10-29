@@ -743,6 +743,19 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         CuelistConnect { id } => engine.connect_list(id),
         PlaybackButton { id, button, on, at } => engine.press_button(id, button, on, at),
         PlaybackTap { id, at } => engine.tap(id, at),
+        EffectApply(a) => engine.effect_apply(&a).map(|_| ()),
+        EffectSet(set) => engine.effect_set(set),
+        EffectSelect { entry } => engine.effect_select(entry),
+        EffectStop { group } => engine.effect_stop(group),
+        EffectRestart => {
+            engine.effect_restart();
+            Ok(())
+        }
+        EffectTap { at } => engine.effect_tap(at),
+        EffectWheels { on } => {
+            engine.set_effect_wheels(on);
+            Ok(())
+        }
         PlaybackBpm { id, bpm } => engine.set_bpm(id, bpm),
         // IPC-27: merge the partial objects into the stored ones; the engine checks the whole.
         PlaybackOptions {
@@ -831,6 +844,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | PlaybackLatch { .. }
         | PlaybackRelease { .. }
         | PlaybackTap { .. }
+        | EffectTap { .. }
+        | EffectWheels { .. }
         | PlaybackBpm { .. }
         | CuelistAction { .. }
         | CuelistConnect { .. }
@@ -862,6 +877,11 @@ fn class(cmd: &ipc::Command) -> Class {
         | RemDim
         | SettingsProgrammer(_)
         | Wheel { .. }
+        | EffectApply(_)
+        | EffectSet(_)
+        | EffectSelect { .. }
+        | EffectStop { .. }
+        | EffectRestart
         | ProgrammerSet { .. }
         | ProfileSave(_)
         | Colour { .. }
@@ -956,6 +976,28 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         ProgrammerSet { attribute, .. } => {
             (format!("Set {attribute}"), Some(format!("set:{attribute}")))
         }
+        EffectApply(a) => (
+            match a {
+                cmdmx_core::effect::EffectApply::Look(name) => format!("Effect {name}"),
+                cmdmx_core::effect::EffectApply::Shape { shape, .. } => {
+                    use cmdmx_core::effect::Shape;
+                    match shape {
+                        Shape::Wave(w) => format!("Effect {w:?}"),
+                        Shape::Path(p) => format!("Effect {p:?}"),
+                        Shape::Colour(c) => format!("Effect {c:?}"),
+                    }
+                }
+                cmdmx_core::effect::EffectApply::Palette(n) => format!("Effect palette {n}"),
+            },
+            None,
+        ),
+        EffectSet(set) => (
+            format!("Effect {}", set.name()),
+            Some(format!("effect:{}", set.name())),
+        ),
+        EffectSelect { .. } => ("Select effect".into(), None),
+        EffectStop { .. } => ("Stop effect".into(), None),
+        EffectRestart => ("Restart effects".into(), None),
         ProfileSave(p) => (format!("Edit profile {}", p.model), None),
         Colour { .. } | CtStep { .. } | Gel { .. } => ("Colour".into(), Some("colour".into())),
         RecordGroup { group } => (format!("Record group {group}"), None),
