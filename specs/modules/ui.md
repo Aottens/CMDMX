@@ -6,6 +6,7 @@ UI-03, 13, 18, 19, 22, 23 amended for cue lists: **approved by owner 2026-10-21 
 UI-29 (cells, Unfold): **approved by owner 2026-10-25 (P1-13)**.
 UI-30 (Fan): **approved by owner 2026-10-25 (P1-20)**.
 UI-26 quit text amended to match REL-13 (VS4-08, 2026-10-28; for owner approval in its PR).
+UI-26 (VS2-05) timed Clear from the keypad amended (FXB-07, 2026-10-29; for owner approval in its PR).
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -338,8 +339,10 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   column's Off sends `programmer.off` for the active group. Rem Dim is softkey E of the Selection context (it needs a selection; Set Legend stays on the Set key and in Main; owner run 2026-10-22).
   Double-clicking a wheel's **name** (never the wheel) sends `programmer.off {attribute}`
   (IDEA-07). A located fixture's button shows the sketch's `LOC` tag. The show-wide part of the
-  Playback Options screen gets a Programmer section with the three PRG-42 settings. A timed
-  Clear has no app control yet (IPC only).
+  Playback Options screen gets a Programmer section with the three PRG-42 settings.
+  (Amended by FXB-07, 2026-10-29.) A number alone on the command line followed by Clear (keypad
+  or attribute bar) is a timed Clear: `3` then Clear sends `programmer.clear {"time":3}` (ENG-10)
+  and empties the line; Clear on any other line sends the plain `programmer.clear` (PRG-29).
 
 ### Colour temperature and auto-mix (IDEA-32; approved by owner 2026-10-28)
 - **UI-31** The colour-model switch (IPC-19) gets a fourth button **K**; the Kelvin wheel shows its

@@ -243,7 +243,7 @@ private struct Keypad: View {
             if line.tokens.isEmpty { engine.locate() } else { line.send(engine, end: "Locate") }
             ui.paletteMenu = false
         case "Highlight": engine.setHighlight(!engine.programmer.highlight)
-        case "Clear": engine.clearProgrammer(); ui.cancelModes(); ui.pendingOverlap = nil
+        case "Clear": line.clearProgrammer(engine); ui.cancelModes(); ui.pendingOverlap = nil
         case "Set": ui.arm(.legend)   // Set Legend, as the softkey
         case "Fix -1": engine.step(-1)
         case "Fix +1": engine.step(1)

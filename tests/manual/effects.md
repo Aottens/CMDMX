@@ -72,7 +72,6 @@ Setup: two terminals and a fresh shows folder so the real one stays untouched.
 
 ## Stop, Clear, Undo (FX-19, 20)
 - [ ] **Stop FX** on the selected fixtures stops their effect; Undo brings it back.
-- [ ] Clear with a time (`3` then Clear once FXB-07 is in; until then `programmer.clear {time: 3}`
-      over IPC): the effects shrink to nothing over 3 s, no jump.
+- [ ] Clear with a time (`3` then Clear on the keypad): the effects shrink to nothing over 3 s, no jump.
 
 ## Open points

@@ -115,8 +115,8 @@ In the Shapes workspace the softkeys are:
 - **Tap**: taps the tempo of the current effect. On a BPM master it taps the master.
 - **Record**: as in the Main softkeys.
 
-**Clear** empties the programmer, effects included. A timed Clear (over IPC only for now; the
-keypad gets a Clear time later) shrinks the effects to nothing over that time instead of
+**Clear** empties the programmer, effects included. A timed Clear (type the time, then Clear:
+`3` Clear) shrinks the effects to nothing over that time instead of
 stopping with a jump. **Undo** takes back every effect change.
 
 ## Effects in cues

@@ -49,6 +49,13 @@ final class TokenLine: ObservableObject {
         }
     }
 
+    /// Clear key (UI-26): a number alone on the line is the Clear time, and the line empties.
+    func clearProgrammer(_ engine: EngineClient) {
+        let time = onlyNumber
+        engine.clearProgrammer(time: time)
+        if time != nil { clear() }
+    }
+
     func clear() {
         recall = nil
         tokens = []
