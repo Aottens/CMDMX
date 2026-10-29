@@ -43,7 +43,7 @@ the backlog, not the whole idea.
 | IDEA-15 | More selection orders and patterns: random, 1 in 3, … | triaged | 2 | PRG |
 | IDEA-16 | BPM masters follow Ableton (Link or MIDI clock), with subdivisions and multiples | triaged | 2 | CUE, CTL |
 | IDEA-17 | MCP server: build shows with an AI assistant | triaged | 2 | IPC |
-| IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | specified 2026-10-29 (P2-01, `effects.md` FX-01..44, ADR-011; FXB-01 done, FXB-02..06 todo) | 2 (flagship), now (owner 2026-10-29) | `effects.md`, ENG, PRG, CUE, PAL, IPC, UI |
+| IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | specified 2026-10-29 (P2-01, `effects.md` FX-01..44, ADR-011; FXB-01 and FXB-02 done, FXB-03..06 todo) | 2 (flagship), now (owner 2026-10-29) | `effects.md`, ENG, PRG, CUE, PAL, IPC, UI |
 | IDEA-19 | Rebrand to CMDMX by Colourmotion | specified 2026-10-27 (P1-21, `brand.md` BRD-01..25; VS8-01 gate3, VS8-02 todo) | 1 (after VS6) | docs, app, README |
 | IDEA-20 | Website: the place to download CMDMX | specified 2026-10-27 (P1-21, `website.md` WEB-01..34; VS8-03 done) | 1 (owner 2026-10-27) | `website.md`, `release.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
