@@ -109,10 +109,7 @@ fn prg_76_outside_in_fans_both_ends_alike() {
     e.select_all(); // ends the stage, keeps the grid
     e.set_fan(Some(FanCurve::Line));
     e.turn_wheel("Pan", 10, Coarse).unwrap(); // +0.40
-    assert_close(
-        &levels(&e, &WASHES, "Pan"),
-        &[0.1, 0.5, 0.9, 0.9, 0.5, 0.1],
-    );
+    assert_close(&levels(&e, &WASHES, "Pan"), &[0.1, 0.5, 0.9, 0.9, 0.5, 0.1]);
 }
 
 #[test]
@@ -212,13 +209,12 @@ fn prg_77_a_new_entry_takes_the_grid() {
         (x.positions.clone(), x.count),
         (vec![0, 1, 2, 3, 3, 2, 1, 0], 4)
     );
-    assert!((p.width - 0.25).abs() < 1e-6, "FX-30: 100 % / N after the grid");
-    e.tick(0.0);
-    assert_eq!(
-        pars_dmx(&e),
-        [255, 0, 0, 0, 0, 0, 0, 255],
-        "from both ends"
+    assert!(
+        (p.width - 0.25).abs() < 1e-6,
+        "FX-30: 100 % / N after the grid"
     );
+    e.tick(0.0);
+    assert_eq!(pars_dmx(&e), [255, 0, 0, 0, 0, 0, 0, 255], "from both ends");
 }
 
 #[test]
@@ -232,7 +228,11 @@ fn prg_77_inside_out_takes_flip() {
     assert!(x.params.flip);
     assert_eq!(x.positions, [3, 2, 1, 0, 0, 1, 2, 3]);
     e.tick(0.0);
-    assert_eq!(pars_dmx(&e), [0, 0, 0, 255, 255, 0, 0, 0], "from the middle");
+    assert_eq!(
+        pars_dmx(&e),
+        [0, 0, 0, 255, 255, 0, 0, 0],
+        "from the middle"
+    );
 }
 
 #[test]
@@ -295,7 +295,7 @@ fn prg_77_grid_off_keeps_the_look_defaults() {
 
 #[test]
 fn fx_06_flip_defaults_to_false_and_is_saved_only_when_on() {
-    assert!(!Params::DEFAULT.flip);
+    assert!(!Params::default().flip);
     let off = serde_json::to_value(Params::DEFAULT).unwrap();
     assert!(off.get("flip").is_none(), "absent when false: {off}");
     let on = serde_json::to_value(Params {
@@ -335,10 +335,7 @@ fn with_full(e: &mut Engine) {
         handle: 1,
         legend: String::new(),
         icon: None,
-        global: BTreeMap::from([(
-            "Dimmer".to_string(),
-            GlobalValue::Value(Value::Level(1.0)),
-        )]),
+        global: BTreeMap::from([("Dimmer".to_string(), GlobalValue::Value(Value::Level(1.0)))]),
         shared: BTreeMap::new(),
         shared_cells: BTreeMap::new(),
         fixtures: BTreeMap::new(),
@@ -369,15 +366,24 @@ fn prg_78_palette_overlap_runs_on_positions() {
     e.tick(0.0);
     e.tick(1.0);
     let d = pars_dmx(&e);
-    assert!(near(d[0], 128) && near(d[7], 128), "201 and 208 start at 0 s: {d:?}");
+    assert!(
+        near(d[0], 128) && near(d[7], 128),
+        "201 and 208 start at 0 s: {d:?}"
+    );
     assert_eq!(&d[1..7], &[0; 6]);
     e.tick(3.0);
     let d = pars_dmx(&e);
-    assert!(near(d[1], 128) && near(d[6], 128), "202 and 207 at 2 s: {d:?}");
+    assert!(
+        near(d[1], 128) && near(d[6], 128),
+        "202 and 207 at 2 s: {d:?}"
+    );
     assert_eq!(&d[2..6], &[0; 4]);
     e.tick(7.0);
     let d = pars_dmx(&e);
-    assert!(near(d[3], 128) && near(d[4], 128), "204 and 205 at 6 s: {d:?}");
+    assert!(
+        near(d[3], 128) && near(d[4], 128),
+        "204 and 205 at 6 s: {d:?}"
+    );
     e.tick(8.0);
     assert_eq!(pars_dmx(&e), [255; 8], "all done at 8 s");
 }
