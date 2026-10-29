@@ -37,7 +37,7 @@ state.
 ## What it does not do yet
 
 - A timeline and synchronising to music software are not built.
-- Macros, Shapes, Pixelmapper and Keystone are marked "later" in the app and are greyed out.
+- Macros, Pixelmapper and Keystone are marked "later" in the app and are greyed out.
 - It is still in development. The first version, 0.1.0, is out, but it has not yet been used for
   a full service. Treat it accordingly and keep a fallback.
 - The app is not notarised by Apple, so the first launch needs an extra step (see

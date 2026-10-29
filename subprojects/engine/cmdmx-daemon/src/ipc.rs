@@ -2011,6 +2011,15 @@ struct PaletteInfo {
     auto_icon: Option<AutoIcon>,
     kind: PaletteKind,
     groups: Vec<AttributeGroup>,
+    /// FX-39: the effect entries the palette holds.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    effects: Vec<PaletteEffectInfo>,
+}
+
+#[derive(Serialize, Clone, PartialEq)]
+struct PaletteEffectInfo {
+    look: Option<String>,
+    shape: cmdmx_core::effect::Shape,
 }
 
 /// PAL-25: the master time (s) and overlap (%) and the default Record By, as clients show them.
@@ -2087,6 +2096,12 @@ fn palette_infos(engine: &Engine) -> Vec<PaletteInfo> {
             auto_icon: engine.palette_auto_icon(p.number),
             kind: p.kind(),
             groups: engine.palette_groups(p.number),
+            effects: (p.effects.iter())
+                .map(|e| PaletteEffectInfo {
+                    look: e.look.clone(),
+                    shape: e.shape,
+                })
+                .collect(),
         })
         .collect();
     list.sort_by_key(|p| p.number);
@@ -3551,7 +3566,7 @@ mod tests {
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
                    "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]},
                    "located":{},"highlight":false,"fan":null,"fan_curve":"Line",
-                   "effects":[],"effect_wheels":false})
+                   "effects":[],"effect_wheels":false,"runnable_looks":[]})
         );
     }
 
@@ -3963,7 +3978,7 @@ mod tests {
                    "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null,
                    "palettes":{"in_use":[],"relevant":[]},
                    "located":{},"highlight":false,"fan":null,"fan_curve":"Line",
-                   "effects":[],"effect_wheels":false})
+                   "effects":[],"effect_wheels":false,"runnable_looks":[1,2,3,4,5]})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(

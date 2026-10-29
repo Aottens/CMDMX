@@ -4119,7 +4119,6 @@ impl Engine {
     /// target order; a palette makes one per stored entry and returns the last. Refusals change
     /// nothing.
     pub fn effect_apply(&mut self, apply: &EffectApply) -> Result<EntryId, CoreError> {
-        use effect::Shape;
         if let EffectApply::Palette(number) = apply {
             let palette = (self.palette(*number)).ok_or(CoreError::UnknownPalette(*number))?;
             let (pid, stored) = (palette.id, palette.effects.clone());
@@ -4161,11 +4160,7 @@ impl Engine {
             }
             EffectApply::Palette(_) => return Err(Self::no_current_effect()),
         };
-        let attributes: Vec<String> = match shape {
-            Shape::Path(_) => vec!["Pan".into(), "Tilt".into()],
-            Shape::Colour(_) => vec![COLOUR.into()],
-            Shape::Wave(_) => vec![attribute.unwrap_or(DIMMER).into()],
-        };
+        let attributes = Self::shape_attributes(shape, attribute);
         self.effect_make(EntrySpec {
             look,
             shape,
@@ -4175,6 +4170,50 @@ impl Engine {
             colours: Vec::new(),
             palette: None,
         })
+    }
+
+    /// FX-14: the attributes a shape drives (a wave: `attribute`, else Dimmer).
+    fn shape_attributes(shape: effect::Shape, attribute: Option<&str>) -> Vec<String> {
+        use effect::Shape;
+        match shape {
+            Shape::Path(_) => vec!["Pan".into(), "Tilt".into()],
+            Shape::Colour(_) => vec![COLOUR.into()],
+            Shape::Wave(_) => vec![attribute.unwrap_or(DIMMER).into()],
+        }
+    }
+
+    /// FX-37: 1-based ids of the looks at least one target has the attribute(s) for (the FX-14
+    /// test of `effect_make`), in catalogue order.
+    fn runnable_looks(&self, targets: &[Item]) -> Vec<usize> {
+        (effect::LOOKS.iter().enumerate())
+            .filter(|(_, l)| {
+                let attrs = Self::shape_attributes(l.shape, l.attribute);
+                targets.iter().any(|i| {
+                    self.mode_of(i.fixture)
+                        .is_some_and(|m| attrs.iter().any(|a| m.item_logical(i.cell, a).is_some()))
+                })
+            })
+            .map(|(n, _)| n + 1)
+            .collect()
+    }
+
+    /// FX-42: a Hue shift whose first member's base colour is white (saturation ~0) shows nothing.
+    fn white_base(&self, e: &effect::Entry) -> bool {
+        use effect::{ColourShape, Shape};
+        if e.shape != Shape::Colour(ColourShape::HueShift) {
+            return false;
+        }
+        let Some(item) = e.members.first().copied() else {
+            return false;
+        };
+        let Some(l) = (self.mode_of(item.fixture)).and_then(|m| m.item_logical(item.cell, COLOUR))
+        else {
+            return false;
+        };
+        match self.start_value(item, &l) {
+            Value::Colour(c) => c.to_hsv().1 < 0.01,
+            Value::Level(_) => false,
+        }
     }
 
     /// FX-14: the entry of `spec` on the targets that have its attributes.
@@ -5013,9 +5052,12 @@ impl Engine {
                     params: pointed(&self.palettes, e),
                     palette: e.palette,
                     current: self.programmer.current == Some(e.id),
+                    colours: e.colours.clone(),
+                    white_base: self.white_base(e),
                 })
                 .collect(),
             effect_wheels: self.effect_wheels,
+            runnable_looks: self.runnable_looks(&items),
         }
     }
 

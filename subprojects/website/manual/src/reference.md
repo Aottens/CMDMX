@@ -10,7 +10,7 @@ These always work:
 
 | Keys | What it does |
 | --- | --- |
-| ⌘1 to ⌘4 | the workspaces Groups + Palettes, Fixtures + Groups, Colour, Playbacks |
+| ⌘1 to ⌘5 | the workspaces Groups + Palettes, Fixtures + Groups, Colour, Playbacks, Shapes |
 | ⌘Z | undo the last edit (not while typing in a text field) |
 | ⇧⌘Z | redo |
 | Esc | ends Learn mode (see [Learn](controls.md#learn)) |
@@ -21,7 +21,7 @@ These work while **Keys** is on in the status bar, and never while you are typin
 
 | Key | What it does |
 | --- | --- |
-| F1 to F4 | the four workspaces |
+| F1 to F5 | the five workspaces |
 | Space | Go on the connected cue list (holding it down goes once) |
 | Shift+Space | Back on the connected cue list |
 | 0 to 9, `.` | into the command line |

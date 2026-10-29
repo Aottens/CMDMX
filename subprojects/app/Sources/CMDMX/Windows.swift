@@ -273,6 +273,8 @@ struct GroupsWindow: View {
 
 enum WindowKind {
     case groups, fixtures, colours, positions, beams, programmer, picker, cues, active
+    /// FX-36: the Shapes workspace.
+    case looks, effect, effects
 
     /// The palette window this is, if it is one.
     var paletteKind: PaletteWindowKind? {
@@ -295,6 +297,9 @@ enum WindowKind {
         case .picker: ColourPickerWindow()
         case .cues: CueWindow()
         case .active: ActivePlaybacksWindow()
+        case .looks: LooksWindow()
+        case .effect: EffectWindow()
+        case .effects: EffectsWindow()
         }
     }
 }
@@ -308,7 +313,10 @@ struct Workspace {
         Workspace(name: "Fixtures + Groups", windows: [.fixtures, .groups, .colours, .programmer]),
         Workspace(name: "Colour", windows: [.fixtures, .picker, .colours, .programmer]),
         Workspace(name: "Playbacks", windows: [.cues, .active, .fixtures, .programmer]),
+        Workspace(name: "Shapes", windows: [.looks, .effect, .fixtures, .effects]),
     ]
+    /// FX-36: its index (F5); the effect wheels are on while it shows.
+    static let shapes = 4
 }
 
 /// The fixed 2x2 grid of one workspace, separated by 1 px hairlines.

@@ -175,7 +175,7 @@ final class UIState: ObservableObject {
         recordMask.map { mask in attributeGroupOrder.filter(mask.contains) }
     }
 
-    /// Rail entries and the workspace keys (F1–F4, ⌘1–⌘4) all come here.
+    /// Rail entries and the workspace keys (F1–F5, ⌘1–⌘5) all come here.
     func show(workspace index: Int) {
         workspace = index
         screen = nil
@@ -242,6 +242,8 @@ private struct Frame: View {
         }
         .background(t.bg)
         .foregroundStyle(t.fg)
+        // FX-17, FX-36: the effect wheels are on exactly while the Shapes workspace shows.
+        .onChange(of: ui.screen == nil && ui.workspace == Workspace.shapes) { _, on in engine.setEffectWheels(on) }
         .overlay { if ui.learnMode { Rectangle().strokeBorder(t.amber, lineWidth: 2).allowsHitTesting(false) } }   // CTL-42
         .sheet(item: $ui.legendEditing, onDismiss: { ui.cancelModes() }) { ref in
             LegendEditor(number: ref.number)
@@ -277,7 +279,7 @@ private struct Frame: View {
     }
 }
 
-/// All four workspaces stay alive, only one is visible: switching never rebuilds a window, so each
+/// All five workspaces stay alive, only one is visible: switching never rebuilds a window, so each
 /// keeps its scroll position (UI-08).
 private struct Workspaces: View {
     @EnvironmentObject private var ui: UIState
@@ -377,7 +379,7 @@ private struct StatusBar: View {
             BarToggle(title: "Console", on: console) { console.toggle() }
                 .help("Full screen, Dock and menu bar hidden, asks before quitting")
             BarToggle(title: "Keys", on: keys) { keys.toggle() }
-                .help("Mac keyboard drives the keypad and the command line · ⌘1–⌘4 always switch workspaces")
+                .help("Mac keyboard drives the keypad and the command line · ⌘1–⌘5 always switch workspaces")
             BarToggle(title: "Keypad", on: keypad) { keypad.toggle() }
                 .help("Hidden automatically on windows narrower than 1440 pt")
             BarToggle(title: day ? "Night" : "Day", on: false) { day.toggle() }
@@ -461,7 +463,7 @@ private struct Rail: View {
                 RailItem(title: workspace.name, small: "F\(index + 1)", on: ui.screen == nil && ui.workspace == index) {
                     ui.show(workspace: index)
                 }
-                // F1–F4 follow the Keys toggle (MacKeys); ⌘1–⌘4 always work (UI-19).
+                // F1–F5 follow the Keys toggle (MacKeys); ⌘1–⌘5 always work (UI-19).
                 .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
             }
             divider
@@ -471,7 +473,6 @@ private struct Rail: View {
             RailItem(title: "Macros", small: "later")
             RailItem(title: "Show", small: "screen", on: ui.screen == .show) { ui.screen = ui.screen == .show ? nil : .show }
             divider
-            RailItem(title: "Shapes", small: "later")
             RailItem(title: "Pixelmapper", small: "later")
             RailItem(title: "Keystone", small: "later")
             Spacer(minLength: 0)

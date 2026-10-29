@@ -8,6 +8,7 @@
 - [Patching](patching.md)
 - [Programming](programming.md)
 - [Palettes](palettes.md)
+- [Shapes and effects](effects.md)
 - [Playbacks and cues](playbacks.md)
 - [Cue lists](cuelists.md)
 - [Running a show](running.md)

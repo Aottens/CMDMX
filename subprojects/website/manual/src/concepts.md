@@ -31,7 +31,8 @@ you switch between them.
 - **B** is beam: focus, zoom, iris and the like.
 - **E** is for effect-like optics, such as a prism.
 - **S** is for control channels: speed, built-in effects and maintenance.
-- **FX** is for the effects generator, which is not built yet.
+- **FX** is reserved for the effects generator. An effect itself counts in the group of the
+  attribute it moves: a dimmer chase is I, a circle P (see [Shapes and effects](effects.md)).
 
 Which group an attribute belongs to is set in the fixture's profile.
 
