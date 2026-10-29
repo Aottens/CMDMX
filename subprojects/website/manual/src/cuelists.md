@@ -76,7 +76,7 @@ its handle and how many cues it has. Each row is a cue:
 - **Link**: `·` waits for Go, `follow +1s` and `with +2s` start by themselves (see
   [Links](#links)).
 - **Track**: `·`, or B, CO or S for a Block, Cue Only or Solo cue.
-- **Groups**: the attribute groups the cue holds.
+- **Groups**: the attribute groups the cue holds, its effects included (a cue with only a circle shows P).
 
 The current cue is green, the next one has an outline, and a fading cue shows its progress along
 the bottom of its row.

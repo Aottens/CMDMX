@@ -167,6 +167,8 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   attributes are in the mask, members cut to the recorded fixtures; an entry with no members or
   attributes left is not stored. A palette-pointing entry stays a pointer (PBK-11). Update and
   Merge replace a cue's effect per member and attribute as they replace values.
+  *Amended 2026-10-29 (FXB-09):* a cue's `groups` (CUE-40) and its playback's (PBK-35) count the
+  attributes of its effect entries as they count its values, so a cue holding only a `Circle` lists `P`.
 - **FX-22** **Effect palette.** Recording into a palette stores, next to the values as today, the
   programmer entries in the palette's groups **without members**: shape, attributes, parameters
   (and `palette` pointers resolved to parameters). Applying such a palette to the targets

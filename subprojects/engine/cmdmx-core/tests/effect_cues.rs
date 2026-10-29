@@ -239,6 +239,17 @@ fn fx_21_nothing_in_the_mask_is_refused() {
 }
 
 #[test]
+fn fx_21_a_cues_groups_count_its_effects() {
+    // FXB-09: a cue holding only a Circle lists P (CUE-40, PBK-35), not nothing.
+    let mut e = rig();
+    look(&mut e, &[101, 102, 103, 104], "Circle");
+    let pb = record(&mut e, 1, 1);
+    let number = e.playback(pb).unwrap().cues[0].number;
+    assert_eq!(e.cue_groups(pb, number), vec![AttributeGroup::P]);
+    assert_eq!(e.playback_groups(pb), vec![AttributeGroup::P]);
+}
+
+#[test]
 fn fx_21_merge_replaces_the_effect_per_member_and_attribute() {
     let mut e = rig();
     look(&mut e, &[201, 202, 203, 204], "Dimmer chase");
