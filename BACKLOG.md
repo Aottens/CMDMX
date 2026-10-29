@@ -206,6 +206,21 @@ are `HW-nn`), in the prototype order of HW-60; each ships a checklist in `tests/
 | HWB-08 | Flight case drawings (outer dimensions, foam plan, standard hardware). Needs HWB-07. | HW-52 | S | todo |
 | HWB-09 | Build guide, BOM with dated prices, licence files (CERN-OHL-S v2, CC BY-SA 4.0). | HW-02, 03, 35, 55 | M | todo |
 
+## Phase 2 — the FX generator (IDEA-18, flagship)
+The owner picked the effect generator as the first phase-2 feature (2026-10-29). Spec P2-01
+(`effects.md`, ADR-011); build rows in order FXB-01 → FXB-02 → FXB-03 and FXB-04 (either order)
+→ FXB-05 → FXB-06, one PR each, tests first.
+
+| Id | Task (one sentence, verifiable) | Spec ids | Size | Status |
+| --- | --- | --- | --- | --- |
+| P2-01 | Spec the FX generator (IDEA-18, owner 2026-10-29): ADR-011 (effect entries on a built-in shape library), `effects.md` FX-01..44, ENG-17 reworded, build rows FXB-01..06; owner approves. | FX, ENG, PAL, CUE, IPC, UI | M | done (2026-10-29, #168; ADR-011 and FX-01..44 approved, the four decisions as proposed) |
+| FXB-01 | Core `cmdmx-core::effect`: the shape functions, member positions (spread, wings, groups, blocks, direction), the effect clock with speed sources and Tap sync, the look table; unit tests `fx_nn_…` and the allocation and benchmark tests. Needs P2-01. | FX-01..13, 30 | M | todo |
+| FXB-02 | Core: programmer entries in the merge (ENG-14..19 tests land here), apply / set / select / stop / restart / tap, effect wheels, Clear fade, undo classes; scenario tests `FX-nn-*.json`. Needs FXB-01. | FX-14..20, 31, ENG-14..19 | L | todo |
+| FXB-03 | Core and show: entries in cues and palettes (Record, Update, effect palettes, palette pointers), playback *m* scaling, cue-list continuation and crossfade, tracking, show schema 8 with migration. Needs FXB-02. | FX-21..29 | L | todo |
+| FXB-04 | Daemon: `effect_catalogue` in the snapshot, `effects` and `wheels` in engine state and deltas, the `effect.*` commands with warnings, the CTL actions; IPC tests. Needs FXB-02. | FX-32..35 | M | todo |
+| FXB-05 | App: the Shapes workspace (Looks, Effect editor with the spread strip, Fixtures, Effects and effect palettes), F5 and the softkey, effect wheels on the encoders; the manual's *Shapes and effects* page. Needs FXB-03, FXB-04. | FX-36..43 | L | todo |
+| FXB-06 | Home run on Art-Net (`tests/manual/effects.md`, Claude listens): chase, circle on a palette, rainbow wave, BPM master with Tap, a timed Go between effects, an effect palette recalled on another selection. Needs FXB-05. | FX-44 | S | todo |
+
 ## Later phases
 Ideas waiting for their phase live in `IDEAS.md`. They get backlog rows when their phase is planned.
 

@@ -40,10 +40,10 @@ lists) store, so they come first.
 - **Reference:** a stored value `{"palette": <id>, "value": <level or colour>}` in place of a
   level or colour. `value` is the **fallback**: the value the palette gave when the reference
   was made (applied in the programmer, recorded into a playback or cue).
-- **Effect reference in a palette:** next to a value on any level, a palette may hold an optional
-  effect reference (ADR-007, `engine-merge.md` ENG-14..19), so a look such as "circle around the
-  pulpit" can be one palette. The field is absent until effects exist (phase 2, `effects.md`);
-  a show without effects keeps its schema.
+- **Effects in a palette:** next to its values a palette may hold effect entries **without
+  members** (shape and parameters; ADR-007, ADR-011, approved 2026-10-29, `effects.md` FX-22),
+  applied to the targets, so a look such as "circle around the pulpit" can be one palette. The
+  list is absent until used; a show without effects keeps its contents.
 - **Resolve:** turn a reference for one fixture and attribute into a value (PAL-07).
 - Church examples use the demo rig of `programmer.md`: washes 101–104, RGBW pars 201–208,
   RGB+Lime pars 211–216, RGB pars 221–226 (virtual dimmer), front spots 301–306.

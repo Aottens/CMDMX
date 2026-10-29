@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-28 (VS2-49 gel book)_
+_Last updated: 2026-10-29 (P2-01 FX generator spec)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -12,11 +12,16 @@ instead of Lightkey (owner, 2026-10-22). Undo, Locate/Clear, multi-universe outp
 control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on the church iPad passed), the app-crash check (VS1-08: output holds through `kill -9` of the app), library browsing, the profile editor, multi-select in the patch table
 (VS2-27/28), Fan (VS2-35/36), emitter auto-mix with the Kelvin view and CTO/CTB steps (VS2-44..46, IDEA-32), LEE gel numbers (VS2-48/49; the table waits for LEE), GDTF import (VS2-41/42, a GDTF-share file imported in the owner's run) and cells end to end (VS2-30..34, 37, 38, 40: engine, protocol v1, Unfold, cell rows and Remove in the cue view) are done.
 
+Feature work now: the FX generator (IDEA-18, phase 2 flagship, owner 2026-10-29): spec P2-01
+(`effects.md`, ADR-011) approved 2026-10-29; build FXB-01..06, one PR each, in BACKLOG order.
+
 Parallel track: phase 3, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
+0. FX generator: FXB-01 (core shapes, member positions, effect clock, looks), tests first; then
+   FXB-02 (programmer entries in the merge).
 1. VS8-01 and VS4-07: install `CMDMX-0.2.1.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.

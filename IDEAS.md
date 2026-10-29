@@ -43,7 +43,7 @@ the backlog, not the whole idea.
 | IDEA-15 | More selection orders and patterns: random, 1 in 3, … | triaged | 2 | PRG |
 | IDEA-16 | BPM masters follow Ableton (Link or MIDI clock), with subdivisions and multiples | triaged | 2 | CUE, CTL |
 | IDEA-17 | MCP server: build shows with an AI assistant | triaged | 2 | IPC |
-| IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | triaged | 2 (flagship) | new `effects.md`, ENG, PRG, CUE, PAL |
+| IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | specified 2026-10-29 (P2-01, `effects.md` FX-01..44, ADR-011; FXB-01..06 todo) | 2 (flagship), now (owner 2026-10-29) | `effects.md`, ENG, PRG, CUE, PAL, IPC, UI |
 | IDEA-19 | Rebrand to CMDMX by Colourmotion | specified 2026-10-27 (P1-21, `brand.md` BRD-01..25; VS8-01 gate3, VS8-02 todo) | 1 (after VS6) | docs, app, README |
 | IDEA-20 | Website: the place to download CMDMX | specified 2026-10-27 (P1-21, `website.md` WEB-01..34; VS8-03 done) | 1 (owner 2026-10-27) | `website.md`, `release.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
@@ -325,6 +325,28 @@ was already built by then, so the ADR also checks it against the relative layer.
 The phase and a possible small first version in phase 1 are still open.
 ADR-007 approved (owner, 2026-10-22): `engine-merge.md` ENG-14..19 and an optional effect reference in cue
 and palette contents.
+**Outcome (2026-10-29):** owner picked the FX generator as the next feature (phase 2 starts
+here). Specified as P2-01: ADR-011 (an effect is an *entry*: shape + parameters + ordered members,
+owned by the programmer, a cue or a palette; it amends where ADR-007's effect reference lives)
+and `effects.md` FX-01..44, with build rows FXB-01..06. What the design study settled:
+- **Start from a result.** A gallery of fourteen looks (Dimmer chase, Circle, Rainbow wave, …)
+  with good defaults runs at once on the selection; Size, Speed and Spread are the three big
+  controls on screen and encoders (Titan's speed); raw shapes are behind a *Looks | Shapes*
+  switch. ONYX's page of parameters before anything moves is what to avoid.
+- **Relative by default** (a circle around the cue's position, Titan), **absolute for dimmer
+  waves and colour shapes** (a dimmer chase on a dark rig still runs: Titan's beginner trap).
+- **One effect per attribute** (ENG-15); a Path covers Pan + Tilt together.
+- **Spread over the selection order** with grandMA3's wings, groups and blocks; "1 in 3" from
+  IDEA-15 is groups 3. Random member order stays with IDEA-15.
+- **Tempo** from the chase speed sources (Free, BPM masters with Tap, Rate masters); Ableton
+  Link / MIDI clock (IDEA-16) later as a BPM master source.
+- **Colour** on the one target colour (ADR-005): Rainbow, Hue shift, Colour mix over 2–8
+  colours; auto-mix (ADR-010) runs after the effect, so it needs nothing new.
+- **Later:** user key-frame shapes, layered effects, size masters, the pixel mapper.
+
+Approved by the owner 2026-10-29 with the four decisions as proposed. The owner: "not like ONYX,
+which I find not user-friendly"; which ONYX pain mattered most is still to hear, and each FXB
+run checks the result against it.
 
 ### IDEA-19 — Rebrand to CMDMX (2026-10-22)
 **Owner's intent:** rename the product to CMDMX, written in all caps.

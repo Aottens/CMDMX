@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-29 — Effects are entries (shape + parameters + members) on a built-in shape library (P2-01)
+
+**Decision:** an effect is an entry owned by the programmer, a cue or a palette: a built-in shape (waves, Pan/Tilt paths, colour shapes), its parameters and its ordered members; effect palettes hold entries without members and are applied to the selection. Relative by default, absolute for dimmer waves and colour shapes; one effect per attribute; the playback's *m* scales the size; an effect clock advanced from tick timestamps with the chase speed sources. See ADR-011 (amends ADR-007 decision 2), `effects.md` FX-01..44.
+
+**Alternatives considered:** per-fixture inline copies (ADR-007's field); one global FX table (ONYX); layered effects (Titan, grandMA3 phasers); user key-frame shapes now; multiplicative dimmer effects.
+
+**Reasoning:** start from a result with good defaults and three big controls (Titan's speed, not ONYX's parameter page); spread needs the member order in one place; sharing only where the operator asks for it (effect palettes).
+
+**Reversal trigger:** operators in the owner's runs keep wanting two effects on one attribute, or their own waveforms.
+
 ## 2026-10-28 — Gel numbers use LEE's published tungsten x, y; the full table waits for LEE's permission (P1-23)
 
 **Decision:** a gel number sets the target colour to the CIE x, y LEE publishes for the filter on a 3200 K tungsten source, converted to linear BT.2020 (PRG-67..70). Palettes store only the colour; the gel is read back from it. LEE's full table ships only with LEE/Panavision's written permission (VS2-50); until then tests use a few rows and no table ships.
