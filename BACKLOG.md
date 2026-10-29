@@ -222,7 +222,7 @@ The owner picked the effect generator as the first phase-2 feature (2026-10-29).
 | FXB-06 | Home run on Art-Net (`tests/manual/effects.md`, Claude listens): chase, circle on a palette, rainbow wave, BPM master with Tap, a timed Go between effects, an effect palette recalled on another selection. Needs FXB-05. Run fixes: attribute keys take the effect wheels back in Shapes, the FX tab brings them back, a `dark` warning (owner 2026-10-29). | FX-44; FX-17, 33, 40, 42 amended | S | done (2026-10-29, #174) |
 | FXB-07 | App: a timed Clear from the keypad (`3` then Clear sends `programmer.clear {time: 3}`), UI-26 amended; the run's step 21 ticked again. From the FXB-06 run. | UI-26, PRG-29, FX-20 | S | done (2026-10-29, #175; UI-26 amended) |
 | FXB-08 | Demo rig: the Demo Wash's Pan and Tilt default to 0.5, so a Circle or Eight after Clear runs around the centre (IPC-14). From the FXB-06 run. | IPC-14, FX-05 | S | done (2026-10-29, #176; IPC-14 amended) |
-| FXB-09 | Core: a cue's `groups` count the attributes of its effects, so a cue with only a Circle lists `P`. From the FXB-06 run. | FX-21, CUE | S | done (2026-10-29, #PR; FX-21 amended) |
+| FXB-09 | Core: a cue's `groups` count the attributes of its effects, so a cue with only a Circle lists `P`. From the FXB-06 run. | FX-21, CUE | S | done (2026-10-29, #177; FX-21 amended) |
 | FXB-10 | App: Record ▸ BPM Master takes the next empty handle as its softkey says (or says the page is full and which page has room). From the FXB-06 run. | CUE-35, UI | S | todo |
 
 ## Later phases
