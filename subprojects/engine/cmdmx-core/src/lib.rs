@@ -122,8 +122,17 @@ pub enum CoreError {
     FixtureLacksMode { fixture: u32, mode: String },
     #[error("no selected fixture has attribute '{0}'")]
     AttributeNotInTargets(String),
-    #[error("invalid pattern of {0} stages (expected at least 2)")]
+    #[error("invalid pattern of {0} stages (expected 2 to 32)")]
     InvalidPattern(usize),
+    /// PRG-73: a grid field is out of range.
+    #[error("{0}")]
+    InvalidGrid(String),
+    /// PRG-71: an order tool needs two items.
+    #[error("Order: select at least two fixtures")]
+    OrderTooShort,
+    /// PRG-75: a grid shortcut needs a selection.
+    #[error("Select fixtures first")]
+    SelectFirst,
     /// PRG-67: a gel table row does not parse or convert.
     #[error("invalid gel table: {0}")]
     InvalidGel(String),

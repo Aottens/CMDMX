@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-10-29 (FXB-09)_
+_Last updated: 2026-10-29 (SEL-01)_
 
 ## Current step
+SEL-01 (2026-10-29, PRG-71..75, 84; PRG-05/06 amended; FX-07 step 4): `effect::positions` takes `flip` and is the one position function (FX entries pass `false`). The programmer keeps a `Grid` (`grid()`, `None` when off), a `stage` (replaces `Sub`; grid off a stage is one item), the `select_order` and cached `positions`/`position_count`, recomputed on every selection or grid change. `Engine::order` (Reverse, Sort by user number then cell, Revert, Shuffle: Fisher–Yates on SplitMix64 seeded by the live `shuffle_seq`, starts at 1, skips seeds that give back the order), `set_grid`, `grid_shortcut` (PRG-75), `select_pattern(n)` = groups n (2–32). All ends the stage, keeps the grid; a new selection (PRG-03, typed, All-programmer, Clear, a tap into an empty selection) ends it. Select order, grid and stage are in `EditPart`; the counter is not. Errors `InvalidGrid`, `OrderTooShort`, `SelectFirst`. Tests `tests/selection_orders.rs`. Not yet over IPC (SEL-04).
 FXB-09 (2026-10-29, FX-21 amended): `groups_of` (behind `cue_groups` and `playback_groups`, CUE-40/PBK-35) counts the attributes of a cue's effect entries as well as its values, so a cue holding only a Circle lists `P`. Test `fx_21_a_cues_groups_count_its_effects`.
 FXB-08 (2026-10-29, IPC-14 amended): the daemon's `Demo/Wash` profile gives Pan and Tilt `default` 0.5, so the demo washes start at the centre and a Circle or Eight after Clear runs around it (FX-05). A Demo show saved before keeps its embedded profile (SHW-05). Test `ipc_14_demo_wash_pan_and_tilt_start_at_the_centre`.
 FXB-06 (2026-10-29, FX-44 run; FX-17, 33, 40, 42 amended): `set_active_group` switches the effect wheels off (an attribute-group pick takes the wheels back; `effect.wheels {on: true}` returns them); `EffectView` gains `dark` (`Engine::dark`: none of the entry's attributes in group I and its first member's Dimmer/virtual dimmer is 0 in the base). Tests `fx_17_an_attribute_group_pick_switches_the_effect_wheels_off`, `fx_42_a_colour_effect_on_a_dark_base_says_so` in the daemon.
