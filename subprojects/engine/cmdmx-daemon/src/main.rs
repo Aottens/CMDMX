@@ -2531,6 +2531,19 @@ mod tests {
     /// UNDO-04: one sample per command name; `class` is the table under test.
     const CLASSES: &[(&str, Class)] = &[
         (
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"effect.set","param":"size","value":0.5}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":1,"cmd":"effect.select","entry":1}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"effect.stop"}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"effect.restart"}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"effect.tap"}"#, Class::Live),
+        (r#"{"v":1,"cmd":"effect.wheels","on":true}"#, Class::Live),
+        (
             r#"{"v":1,"cmd":"fader.set","playback":2,"level":0.5}"#,
             Class::Live,
         ),
@@ -3694,5 +3707,338 @@ mod tests {
         )
         .unwrap();
         assert_eq!(view(&e)["colour"]["gel"]["number"], 201);
+    }
+
+    // ---- FXB-04: effects over IPC (FX-33, FX-34) ----------------------------------------
+
+    const WASHES: &str = r#"{"v":1,"cmd":"programmer.select_group","group":2}"#;
+
+    #[test]
+    fn fx_33_engine_state_carries_the_programmer_effects() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        assert_eq!(view(&e)["effects"], serde_json::json!([]));
+        assert_eq!(view(&e)["effect_wheels"], false);
+        undo_run(&mut e, &mut h, WASHES).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Dimmer chase"}"#,
+        )
+        .unwrap();
+        let fx = &view(&e)["effects"];
+        assert_eq!(fx.as_array().map(Vec::len), Some(1), "{fx}");
+        let entry = &fx[0];
+        assert!(entry["id"].as_u64().is_some());
+        assert_eq!(entry["look"], "Dimmer chase");
+        assert_eq!(entry["shape"], serde_json::json!({"Wave": "Square"}));
+        assert_eq!(entry["attributes"], serde_json::json!(["Dimmer"]));
+        assert_eq!(entry["members"], serde_json::json!([101, 102, 103, 104]));
+        assert_eq!(
+            entry["positions"],
+            serde_json::json!([0.0, 0.25, 0.5, 0.75]),
+            "k/N per member (FX-07)"
+        );
+        assert_eq!(entry["params"]["size"], 1.0);
+        assert_eq!(entry["params"]["bpm"], 120.0);
+        assert_eq!(entry["params"]["spread"], 360.0);
+        assert_eq!(entry["palette"], serde_json::Value::Null);
+        assert_eq!(entry["current"], true);
+        assert!(entry.get("theta").is_none() && entry.get("clock").is_none());
+
+        // A second entry: only the current one says so.
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#,
+        )
+        .unwrap();
+        let fx = &view(&e)["effects"];
+        assert_eq!(fx.as_array().map(Vec::len), Some(2));
+        assert_eq!(
+            (fx[0]["current"].clone(), fx[1]["current"].clone()),
+            (false.into(), true.into())
+        );
+        assert_eq!(fx[1]["attributes"], serde_json::json!(["Pan", "Tilt"]));
+        assert_eq!(fx[1]["members"], serde_json::json!([101, 102, 103, 104]));
+    }
+
+    #[test]
+    fn fx_33_a_delta_follows_every_change_and_the_clock_is_never_sent() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, WASHES).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#,
+        )
+        .unwrap();
+        let show = shows::ShowState {
+            name: "Kerk".into(),
+            saved_at: None,
+            autosave_ok: true,
+        };
+        let mut published = ipc::Published::new(&e, &[], &show);
+        e.tick(0.0);
+        let _ = published.diff(&e, &[], &show);
+        // Running effects change no state the app is sent: no delta from ticks alone.
+        for n in 1..=40 {
+            e.tick(f64::from(n) * 0.025);
+            assert!(published.diff(&e, &[], &show).is_empty(), "tick {n}");
+        }
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.set","param":"size","value":0.4}"#,
+        )
+        .unwrap();
+        let out = published.diff(&e, &[], &show);
+        let delta: Vec<serde_json::Value> = out
+            .iter()
+            .map(|m| serde_json::from_str(m).unwrap())
+            .filter(|m: &serde_json::Value| m["type"] == "programmer")
+            .collect();
+        assert_eq!(delta.len(), 1, "{out:?}");
+        let size = delta[0]["effects"][0]["params"]["size"].as_f64().unwrap();
+        assert!((size - 0.4).abs() < 1e-6, "{size}");
+    }
+
+    #[test]
+    fn fx_33_wheels_show_the_effect_wheels_of_the_current_entry() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, WASHES).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#,
+        )
+        .unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.wheels","on":true}"#).unwrap();
+        assert_eq!(view(&e)["effect_wheels"], true);
+        let names: Vec<String> = view(&e)["wheels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|w| w["attribute"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            names,
+            ["Size", "Speed", "Spread", "Phase", "Width", "Top", "Beats", "Wings"]
+        );
+        // Each wheel's value is its parameter as a fraction of the FX-06 range.
+        let value = |e: &Engine, name: &str| wheel(e, name)["value"].as_f64().unwrap();
+        assert!((value(&e, "Size") - 0.2).abs() < 1e-6);
+        assert!((value(&e, "Speed") - 20.0 / 600.0).abs() < 1e-6);
+        assert!((value(&e, "Spread") - 0.0).abs() < 1e-6);
+        assert!(
+            (value(&e, "Beats") - 2.0 / 6.0).abs() < 1e-6,
+            "beats 1 is the third of seven"
+        );
+        assert_eq!(wheel(&e, "Size")["touched"], true);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.wheel","attribute":"Size","steps":10}"#,
+        )
+        .unwrap();
+        assert!((value(&e, "Size") - 0.3).abs() < 1e-5);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.wheels","on":false}"#,
+        )
+        .unwrap();
+        assert_eq!(view(&e)["effect_wheels"], false);
+        assert!(view(&e)["wheels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|w| w["attribute"] != "Size"));
+    }
+
+    #[test]
+    fn fx_34_effect_commands_reach_the_engine() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, WASHES).unwrap();
+        // The three apply forms.
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#,
+        )
+        .unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","shape":{"Wave":"Sine"},"attribute":"Zoom"}"#,
+        )
+        .unwrap();
+        assert_eq!(e.effects().len(), 2);
+        let circle = e.effects()[0].id;
+        let zoom = e.effects()[1].id;
+        assert_eq!(e.current_effect(), Some(zoom));
+        // set, with every value type.
+        for (param, value) in [
+            ("size", "0.25"),
+            ("bpm", "90"),
+            ("beats", "2"),
+            ("spread", "180"),
+            ("direction", r#""Bounce""#),
+            ("mode", r#""Absolute""#),
+            ("speed_source", r#"{"Bpm":1}"#),
+            ("wings", "2"),
+        ] {
+            let json = format!(r#"{{"v":1,"cmd":"effect.set","param":"{param}","value":{value}}}"#);
+            undo_run(&mut e, &mut h, &json).unwrap_or_else(|err| panic!("{json}: {err}"));
+        }
+        let p = e.effects()[1].params;
+        assert_eq!(
+            (p.size, p.bpm, p.beats, p.spread, p.wings),
+            (0.25, 90.0, 2.0, 180.0, 2)
+        );
+        assert_eq!(p.direction, cmdmx_core::effect::Direction::Bounce);
+        assert_eq!(p.speed_source, cmdmx_core::effect::SpeedSource::Bpm(1));
+        // select, restart, tap, stop.
+        undo_run(
+            &mut e,
+            &mut h,
+            &format!(r#"{{"v":1,"cmd":"effect.select","entry":{circle}}}"#),
+        )
+        .unwrap();
+        assert_eq!(e.current_effect(), Some(circle));
+        e.tick(0.0);
+        e.tick(1.0);
+        assert!(e.effect_theta(circle).unwrap() > 0.0);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.restart"}"#).unwrap();
+        assert_eq!(e.effect_theta(circle), Some(0.0));
+        for t in [10.0, 10.5, 11.0] {
+            let tap = ipc::parse_command(r#"{"v":1,"cmd":"effect.tap"}"#).unwrap();
+            run(&mut e, &mut h, ipc::stamp(tap, t), t).unwrap();
+        }
+        assert!(
+            (e.effects()[0].params.bpm - 120.0).abs() < 0.05,
+            "taps 0.5 s apart"
+        );
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.stop","group":"B"}"#).unwrap();
+        assert_eq!(e.effects().len(), 1, "only the Zoom (B) entry stops");
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.stop"}"#).unwrap();
+        assert!(e.effects().is_empty());
+    }
+
+    #[test]
+    fn fx_34_refusals_are_errors_that_change_nothing() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        // Nothing selected, no current entry, unknown look, out of range.
+        assert!(undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#
+        )
+        .is_err());
+        assert!(undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.set","param":"size","value":0.5}"#
+        )
+        .is_err());
+        assert!(undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.select","entry":7}"#).is_err());
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.select","fixture":201}"#,
+        )
+        .unwrap();
+        assert!(
+            undo_run(
+                &mut e,
+                &mut h,
+                r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#
+            )
+            .is_err(),
+            "a par has no Pan/Tilt"
+        );
+        assert!(undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Nope"}"#
+        )
+        .is_err());
+        assert!(undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","palette":99}"#
+        )
+        .is_err());
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Breathe"}"#,
+        )
+        .unwrap();
+        assert!(undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.set","param":"size","value":1.5}"#
+        )
+        .is_err());
+        assert!(undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.set","param":"beats","value":3}"#
+        )
+        .is_err());
+        assert_eq!(e.effects()[0].params.size, 0.5);
+        assert!(h.len() >= 2);
+    }
+
+    #[test]
+    fn fx_34_bad_effect_commands_do_not_parse() {
+        for bad in [
+            r#"{"v":1,"cmd":"effect.apply"}"#,
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle","palette":1}"#,
+            r#"{"v":1,"cmd":"effect.apply","shape":"Sine"}"#,
+            r#"{"v":1,"cmd":"effect.set","param":"size"}"#,
+            r#"{"v":1,"cmd":"effect.set","param":"colour","value":1}"#,
+            r#"{"v":1,"cmd":"effect.set","param":"size","value":"big"}"#,
+            r#"{"v":1,"cmd":"effect.select"}"#,
+            r#"{"v":1,"cmd":"effect.stop","group":"Q"}"#,
+            r#"{"v":1,"cmd":"effect.wheels"}"#,
+        ] {
+            assert!(ipc::parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn fx_34_effect_set_coalesces_per_parameter_and_undo_takes_the_run_back() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, WASHES).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Effect Circle"));
+        let n = h.len();
+        let set = |v: f32| format!(r#"{{"v":1,"cmd":"effect.set","param":"size","value":{v}}}"#);
+        undo_run(&mut e, &mut h, &set(0.3)).unwrap();
+        undo_run(&mut e, &mut h, &set(0.4)).unwrap();
+        assert_eq!((h.len(), h.undo_label()), (n + 1, Some("Effect size")));
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert!(
+            (e.effects()[0].params.size - 0.2).abs() < 1e-6,
+            "back to the look's size"
+        );
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert!(e.effects().is_empty(), "the apply is one step");
+        // Tap and the wheels switch are live: never in the history.
+        let n = h.len();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.wheels","on":true}"#).unwrap();
+        assert_eq!(h.len(), n);
     }
 }

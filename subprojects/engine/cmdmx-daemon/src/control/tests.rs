@@ -1472,3 +1472,67 @@ fn ctl_59_fan_buttons_toggle_set_and_turn_off_with_led_feedback() {
     );
     assert_eq!(h.len(), n, "Fan is live, never in the history");
 }
+
+// --- FX-35 effect actions -----------------------------------------------------
+
+const EFFECT: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"note","channel":1,"number":90},"action":"effect tap"},
+  {"input":{"kind":"note","channel":1,"number":91},"action":"effect restart"},
+  {"input":{"kind":"note","channel":1,"number":92},"action":"effect stop"},
+  {"input":{"kind":"cc","channel":1,"number":16},"action":"wheel 1","encoding":"sign_magnitude"}
+]}"#;
+
+#[test]
+fn fx_35_effect_tap_restart_stop_and_the_effect_wheels_from_a_device() {
+    use cmdmx_control::action::Action;
+    for name in ["effect tap", "effect restart", "effect stop"] {
+        let a: Action = name.parse().unwrap();
+        assert_eq!(a.to_string(), name, "the catalogue line round-trips");
+    }
+    let dir = tmp("effect");
+    fs::write(dir.join("control/nano.json"), EFFECT).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    let mut e = engine();
+    let mut h = History::default();
+    for f in 101..=104 {
+        e.select_fixture(f).unwrap();
+    }
+    e.effect_apply(&cmdmx_core::effect::EffectApply::Look("Circle".into()))
+        .unwrap();
+    e.set_effect_wheels(true);
+    let _ = c.feedback(&e);
+
+    // Taps 0.5 s apart set the entry's tempo to 120 BPM.
+    for t in [1.0, 1.5, 2.0] {
+        press(&mut c, "nano", 90);
+        let cmds = c.commands(&e, t);
+        assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    }
+    assert!((e.effects()[0].params.bpm - 120.0).abs() < 0.05);
+
+    e.tick(0.0);
+    e.tick(3.0);
+    press(&mut c, "nano", 91);
+    let cmds = c.commands(&e, 3.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert_eq!(e.effect_theta(e.effects()[0].id), Some(0.0));
+
+    // Wheel 1 of the effect layout is Size: through FX-17, nothing new on the device side.
+    let before = e.effects()[0].params.size;
+    packet(&mut c, "nano", &[0xB0, 16, 5]);
+    let cmds = c.commands(&e, 3.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(e.effects()[0].params.size > before);
+
+    press(&mut c, "nano", 92);
+    let cmds = c.commands(&e, 3.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(e.effects().is_empty());
+}

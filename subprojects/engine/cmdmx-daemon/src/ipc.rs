@@ -3439,7 +3439,8 @@ mod tests {
             json!({"selection":[],"targets":[],"active_group":"I",
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
                    "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]},
-                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line"})
+                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line",
+                   "effects":[],"effect_wheels":false})
         );
     }
 
@@ -3743,6 +3744,96 @@ mod tests {
     }
 
     #[test]
+    fn fx_32_snapshot_carries_the_effect_catalogue() {
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
+        let c = &v["effect_catalogue"];
+        let looks = c["looks"].as_array().unwrap();
+        assert_eq!(looks.len(), cmdmx_core::effect::LOOKS.len());
+        assert_eq!(
+            looks[0],
+            json!({"id":1,"name":"Dimmer chase","group":"I","shape":{"Wave":"Square"},"attribute":"Dimmer"})
+        );
+        assert_eq!(
+            looks[5],
+            json!({"id":6,"name":"Circle","group":"P","shape":{"Path":"Circle"},"attribute":null})
+        );
+        assert_eq!(looks[13]["name"], "Zoom pulse");
+        assert_eq!(looks[13]["attribute"], "Zoom");
+        assert_eq!(
+            c["shapes"],
+            json!({
+                "wave":["Sine","Triangle","RampUp","RampDown","Square","Random"],
+                "path":["Circle","Eight","Square","Triangle","LinePan","LineTilt"],
+                "colour":["Rainbow","HueShift","ColourMix"]
+            })
+        );
+    }
+
+    #[test]
+    fn fx_34_effect_commands_parse() {
+        use cmdmx_core::effect::{EffectApply, EffectSet, Path, Shape, Wave};
+        let ok = |s: &str| parse_command(s).unwrap_or_else(|e| panic!("{s}: {e}"));
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#),
+            Command::EffectApply(EffectApply::Look("Circle".into()))
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.apply","shape":{"Path":"Eight"}}"#),
+            Command::EffectApply(EffectApply::Shape {
+                shape: Shape::Path(Path::Eight),
+                attribute: None
+            })
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.apply","shape":{"Wave":"Sine"},"attribute":"Zoom"}"#),
+            Command::EffectApply(EffectApply::Shape {
+                shape: Shape::Wave(Wave::Sine),
+                attribute: Some("Zoom".into())
+            })
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.apply","palette":4}"#),
+            Command::EffectApply(EffectApply::Palette(4))
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.set","param":"spread","value":720}"#),
+            Command::EffectSet(EffectSet::Spread(720.0))
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.select","entry":3}"#),
+            Command::EffectSelect { entry: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.stop"}"#),
+            Command::EffectStop { group: None }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.stop","group":"P"}"#),
+            Command::EffectStop {
+                group: Some(AttributeGroup::P)
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.restart"}"#),
+            Command::EffectRestart
+        );
+        assert_eq!(
+            stamp(ok(r#"{"v":1,"cmd":"effect.tap"}"#), 2.5),
+            Command::EffectTap { at: 2.5 }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.wheels","on":true}"#),
+            Command::EffectWheels { on: true }
+        );
+    }
+
+    #[test]
     fn ipc_11_programmer_state_object() {
         let mut e = engine();
         e.select_fixture(1).unwrap();
@@ -3760,7 +3851,8 @@ mod tests {
                    "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false,"palette":null}],
                    "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null,
                    "palettes":{"in_use":[],"relevant":[]},
-                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line"})
+                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line",
+                   "effects":[],"effect_wheels":false})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(
