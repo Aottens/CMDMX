@@ -1311,7 +1311,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
 }
 
 /// IPC-14: Dimmer, 16-bit Pan, Tilt, Zoom, RGB mixing and a White emitter on nine channels.
-const WASH: &str = r#"{"manufacturer":"Demo","model":"Wash","source":"demo","modes":[{"name":"default","footprint":9,"colour":{"system":"RGB","components":[{"channel":6},{"channel":7},{"channel":8}]},"attributes":[{"name":"Dimmer","group":"I","kind":"Htp","channel":1},{"name":"Pan","group":"P","kind":"Ltp","channel":2,"fine_channel":3},{"name":"Tilt","group":"P","kind":"Ltp","channel":4},{"name":"Zoom","group":"B","kind":"Ltp","channel":5},{"name":"White","group":"C","kind":"Ltp","channel":9,"emitter":true}]}]}"#;
+const WASH: &str = r#"{"manufacturer":"Demo","model":"Wash","source":"demo","modes":[{"name":"default","footprint":9,"colour":{"system":"RGB","components":[{"channel":6},{"channel":7},{"channel":8}]},"attributes":[{"name":"Dimmer","group":"I","kind":"Htp","channel":1},{"name":"Pan","group":"P","kind":"Ltp","channel":2,"fine_channel":3,"default":0.5},{"name":"Tilt","group":"P","kind":"Ltp","channel":4,"default":0.5},{"name":"Zoom","group":"B","kind":"Ltp","channel":5},{"name":"White","group":"C","kind":"Ltp","channel":9,"emitter":true}]}]}"#;
 
 /// IPC-14: Dimmer, RGB mixing and a White emitter on five channels.
 const RGBW_PAR: &str = r#"{"manufacturer":"Demo","model":"RGBW Par","source":"demo","modes":[{"name":"default","footprint":5,"colour":{"system":"RGB","components":[{"channel":2},{"channel":3},{"channel":4}]},"attributes":[{"name":"Dimmer","group":"I","kind":"Htp","channel":1},{"name":"White","group":"C","kind":"Ltp","channel":5,"emitter":true}]}]}"#;
@@ -1623,9 +1623,20 @@ mod tests {
             .unwrap();
         engine.tick(0.0);
         let frame = engine.frame(1).unwrap();
-        // Dimmer 9, Pan 10/11, Tilt 12, Zoom 13, R G B 14–16, White 17.
+        // Dimmer 9, Pan 10/11 (centre), Tilt 12 (centre), Zoom 13, R G B 14–16, White 17.
         let slots: Vec<u8> = (9..=17).map(|a| frame.channel(a).unwrap()).collect();
-        assert_eq!(slots, [255, 0, 0, 0, 0, 255, 255, 255, 0]);
+        assert_eq!(slots, [255, 0x80, 0, 0x80, 0, 255, 255, 255, 0]);
+    }
+
+    #[test]
+    fn ipc_14_demo_wash_pan_and_tilt_start_at_the_centre() {
+        // FXB-08: a Circle after Clear runs around the centre, not (0, 0).
+        let mut engine = demo_engine().unwrap();
+        engine.tick(0.0);
+        let frame = engine.frame(1).unwrap();
+        // Pan 10/11 (16-bit) and Tilt 12 of the wash at address 9.
+        let slots: Vec<u8> = (10..=12).map(|a| frame.channel(a).unwrap()).collect();
+        assert_eq!(slots, [0x80, 0x00, 0x80]);
     }
 
     #[test]

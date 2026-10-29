@@ -59,7 +59,7 @@ Setup: two terminals and a fresh shows folder so the real one stays untouched.
 - [ ] The **Tap** softkey on a Free effect sets its BPM; **Restart** starts all effects in step.
 
 ## A timed Go from a circle to an eight (FX-44 e, FX-26)
-- [ ] Clear. Group 2, Pan/Tilt 50 % (until FXB-08 the Demo Wash rests at 0), Circle; record cue 1 on a cue list. Clear, group 2 **Eight**; record cue 2.
+- [ ] Clear. Group 2 (the Demo Wash rests at Pan/Tilt 50 %), Circle; record cue 1 on a cue list. Clear, group 2 **Eight**; record cue 2.
       Give cue 2 a 3 s fade. Go cue 1, then Go cue 2: the movement crossfades over 3 s without a
       jump (Claude: no Pan/Tilt step between frames over the fade).
 - [ ] Pull the cue list's fader to half: the eight gets smaller.
