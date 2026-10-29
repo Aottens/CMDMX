@@ -18,6 +18,17 @@ enum HandleTaps {
         return !(info.stored.options.paging == "TransparentLock" && info.stored.page != page)
     }
 
+    /// UI-18, FXB-10: the lowest slot (1...fadersPerPage) of `page` that no playback fills (PBK-07):
+    /// one stored there, or a `Locked` one of another page with that slot. nil: the page is full.
+    // ponytail: display copy of the engine's handle rule, like `isUsed`; the engine still decides on record.
+    static func lowestEmptySlot(page: Int, engine: EngineClient) -> Int? {
+        (1...max(engine.fadersPerPage, 1)).first { slot in
+            !engine.playbacks.contains {
+                $0.stored.slot == slot && ($0.stored.page == page || $0.stored.options.paging == "Locked")
+            }
+        }
+    }
+
     /// A tap on the legend area of the strip for `slot` (1-based) on the current page.
     static func tap(slot: Int, info: PlaybackInfo?, engine: EngineClient, ui: UIState, line: TokenLine) {
         let page = engine.page.number

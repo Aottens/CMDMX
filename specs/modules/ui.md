@@ -7,6 +7,7 @@ UI-29 (cells, Unfold): **approved by owner 2026-10-25 (P1-13)**.
 UI-30 (Fan): **approved by owner 2026-10-25 (P1-20)**.
 UI-26 quit text amended to match REL-13 (VS4-08, 2026-10-28; for owner approval in its PR).
 UI-26 (VS2-05) timed Clear from the keypad amended (FXB-07, 2026-10-29; for owner approval in its PR).
+UI-18 BPM / Rate Master take the next empty handle (FXB-10, 2026-10-29; for owner approval in its PR).
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -192,6 +193,12 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
       empties the line.
     - Record context, also: **BPM Master** and **Rate Master** arm a master; the next tap on an
       empty handle sends `master.record` without a number (IPC-26).
+      *Amended 2026-10-29 (FXB-10):* as their softkey says ("next empty handle"), BPM Master and
+      Rate Master no longer arm: the press sends `master.record` at once for the lowest empty slot
+      of the current page (empty as PBK-07: a `Locked` playback from another page fills its slot,
+      a `TransparentLock` one does not) and Record ends. On a full page nothing is sent, Record
+      stays armed, and the app says "Page 2 is full: page 4 has room." (the lowest other page
+      with an empty slot) or "Every page is full."
     - Record context, also (amended 2026-10-22, VS3-07; `group-masters.md` GRM-01, 16, 17):
       **Group Master** arms a group master; the next tap on a group cell picks the group, the
       tap after that on an empty handle sends `master.record {kind: "Group", group}`. Its strip

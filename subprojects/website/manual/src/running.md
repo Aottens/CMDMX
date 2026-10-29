@@ -86,7 +86,8 @@ released or stopped, and have no priority or release options.
 ## Speed masters
 
 A speed master sets the tempo of the chases that follow it. Press **Record**, then the **BPM
-Master** or **Rate Master** softkey, then tap an empty handle. Masters are numbered: BPM 1 to 8
+Master** or **Rate Master** softkey: the master goes on the first empty handle of the current page.
+When the page is full, the app says which page has room; change page and press the softkey again. Masters are numbered: BPM 1 to 8
 and Rate 1 to 4. A chase follows one through its **Speed source** on the Chase tab (see
 [Chases](playbacks.md#chases)).
 
