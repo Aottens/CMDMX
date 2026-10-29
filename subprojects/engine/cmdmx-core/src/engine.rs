@@ -4216,6 +4216,21 @@ impl Engine {
         }
     }
 
+    /// FX-42: a non-intensity effect whose first member's intensity in its base is 0 shows nothing.
+    fn dark(&self, e: &effect::Entry) -> bool {
+        if e.group == AttributeGroup::I {
+            return false;
+        }
+        let Some(item) = e.members.first().copied() else {
+            return false;
+        };
+        let Some(l) = (self.mode_of(item.fixture)).and_then(|m| m.item_logical(item.cell, DIMMER))
+        else {
+            return false;
+        };
+        matches!(self.start_value(item, &l), Value::Level(v) if v < 0.001)
+    }
+
     /// FX-14: the entry of `spec` on the targets that have its attributes.
     fn effect_make(&mut self, spec: EntrySpec) -> Result<EntryId, CoreError> {
         use effect::{ColourShape, Shape};
@@ -4564,6 +4579,7 @@ impl Engine {
 
     pub fn set_active_group(&mut self, group: AttributeGroup) {
         self.active_group = group;
+        self.effect_wheels = false; // FX-17: an attribute-group pick takes the wheels back
     }
 
     /// PRG-18: after a selection change, leave a group no target has for the
@@ -5054,6 +5070,7 @@ impl Engine {
                     current: self.programmer.current == Some(e.id),
                     colours: e.colours.clone(),
                     white_base: self.white_base(e),
+                    dark: self.dark(e),
                 })
                 .collect(),
             effect_wheels: self.effect_wheels,

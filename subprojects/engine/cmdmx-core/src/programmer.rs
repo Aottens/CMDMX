@@ -303,6 +303,8 @@ pub struct EffectView {
     pub colours: Vec<crate::colour::TargetColour>,
     /// FX-42: a Hue shift on a white base shows nothing.
     pub white_base: bool,
+    /// FX-42: a colour effect on a base with intensity 0 shows nothing.
+    pub dark: bool,
 }
 
 /// PRG-56: the shape of a fan.

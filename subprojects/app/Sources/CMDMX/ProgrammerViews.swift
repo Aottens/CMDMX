@@ -94,9 +94,15 @@ struct AttributeBar: View {
     private func wheelsRow(_ programmer: ProgrammerState) -> some View {
         HStack(spacing: 10) {
             HStack(spacing: 2) {
+                // FX-17: in the Shapes workspace the FX tab stands for the effect wheels.
+                let shapes = ui.screen == nil && ui.workspace == Workspace.shapes
                 ForEach(programmer.attributeGroups) { tab in
-                    AttributeTab(tab: tab, active: tab.group == programmer.activeGroup) {
-                        engine.setAttributeGroup(tab.group)
+                    let fx = shapes && tab.group == "FX"
+                    AttributeTab(tab: tab,
+                                 active: fx ? programmer.effectWheels
+                                     : tab.group == programmer.activeGroup && !(shapes && programmer.effectWheels),
+                                 enabled: fx ? !programmer.effects.isEmpty : tab.available) {
+                        if fx { engine.setEffectWheels(true) } else { engine.setAttributeGroup(tab.group) }
                     }
                 }
             }
@@ -197,12 +203,13 @@ private struct AttributeTab: View {
     @Environment(\.theme) private var t
     let tab: AttributeGroupState
     let active: Bool
+    let enabled: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Text(tab.group).font(Typo.legend(13, .semibold))
-                .foregroundStyle(active ? t.bg : tab.available ? t.fg : t.fg2)
+                .foregroundStyle(active ? t.bg : enabled ? t.fg : t.fg2)
                 .frame(width: 30, height: 34)
                 .background(RoundedRectangle(cornerRadius: radius).fill(active ? t.fg : t.surf))
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
@@ -212,11 +219,11 @@ private struct AttributeTab: View {
                 .overlay(alignment: .topTrailing) {
                     if tab.hasValues { Circle().fill(t.red).frame(width: 5, height: 5).padding(3) }
                 }
-                .opacity(tab.available ? 1 : t.disabled)
+                .opacity(enabled ? 1 : t.disabled)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!tab.available)
+        .disabled(!enabled)
     }
 }
 
