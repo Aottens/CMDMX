@@ -87,7 +87,7 @@ final class TokenLine: ObservableObject {
 
 /// The Mac keyboard as keypad (UI-19). Called from a key-down monitor; true = key consumed.
 enum MacKeys {
-    private static let workspaceKeys: [UInt16] = [122, 120, 99, 118]   // F1 F2 F3 F4
+    private static let workspaceKeys: [UInt16] = [122, 120, 99, 118, 96]   // F1 F2 F3 F4 F5
 
     @MainActor
     static func handle(_ event: NSEvent, ui: UIState, line: TokenLine, engine: EngineClient) -> Bool {

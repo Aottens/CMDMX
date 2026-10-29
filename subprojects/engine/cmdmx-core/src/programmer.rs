@@ -280,6 +280,8 @@ pub struct ProgrammerView {
     pub effects: Vec<EffectView>,
     /// FX-17: the wheels are the effect wheels.
     pub effect_wheels: bool,
+    /// FX-37: 1-based catalogue ids of the looks at least one target can run.
+    pub runnable_looks: Vec<usize>,
 }
 
 /// FX-33: one programmer effect entry as the UI renders it.
@@ -297,6 +299,10 @@ pub struct EffectView {
     pub params: Params,
     pub palette: Option<PaletteId>,
     pub current: bool,
+    /// FX-38: the `ColourMix` list; empty for other shapes.
+    pub colours: Vec<crate::colour::TargetColour>,
+    /// FX-42: a Hue shift on a white base shows nothing.
+    pub white_base: bool,
 }
 
 /// PRG-56: the shape of a fan.

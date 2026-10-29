@@ -328,12 +328,29 @@ private struct WheelView: View {
         engine.programmer.colour?.kelvin.map { "\(Int($0.rounded())) K" } ?? "—"
     }
 
+    /// FX-40: while the effect wheels are on, the real parameter of the current entry; nil elsewhere.
+    private var effectText: String? {
+        guard engine.programmer.effectWheels, let p = engine.programmer.currentEffect?.params else { return nil }
+        switch wheel.attribute {
+        case "Size": return percent(p.size)
+        case "Top": return percent(p.top)
+        case "Width": return percent(p.width)
+        case "Crossfade": return percent(p.crossfade)
+        case "Speed": return speedLabel(p)
+        case "Spread": return "\(Int(p.spread.rounded()))°"
+        case "Phase": return "\(Int(p.phase.rounded()))°"
+        case "Beats": return beatsLabel(p.beats)
+        case "Wings": return String(p.wings)
+        default: return nil
+        }
+    }
+
     var body: some View {
         WheelFace(name: wheel.attribute, slot: slot,
-                  text: wheel.attribute == "Kelvin" ? kelvinText
+                  text: effectText ?? (wheel.attribute == "Kelvin" ? kelvinText
                   : wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
                   : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
-                  ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value),
+                  ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value)),
                   value: wheel.value, touched: wheel.touched, auto: wheel.auto, fromPalette: wheel.palette != nil, width: width,
                   onNameDoubleClick: { engine.programmerOff(attribute: wheel.attribute) })
         .background(ScrollCatcher { steps, flags in

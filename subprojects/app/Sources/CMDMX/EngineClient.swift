@@ -1015,9 +1015,11 @@ struct PaletteInfo: Decodable, Identifiable, Equatable {
     let kind: String
     /// Attribute groups the palette holds, in I P C G B E S FX order.
     let groups: [String]
+    /// FX-39: the effect entries the palette holds (key absent when none).
+    let effects: [PaletteEffect]
 
     private enum CodingKeys: String, CodingKey {
-        case id, number, window, handle, legend, icon, kind, groups
+        case id, number, window, handle, legend, icon, kind, groups, effects
         case autoIcon = "auto_icon"
     }
 
@@ -1032,6 +1034,7 @@ struct PaletteInfo: Decodable, Identifiable, Equatable {
         autoIcon = try? c.decode(AutoIcon.self, forKey: .autoIcon)
         kind = (try? c.decode(String.self, forKey: .kind)) ?? "N"
         groups = (try? c.decode([String].self, forKey: .groups)) ?? []
+        effects = ((try? c.decode([Tolerant<PaletteEffect>].self, forKey: .effects)) ?? []).compactMap(\.value)
     }
 }
 
@@ -1080,11 +1083,18 @@ struct ProgrammerState: Decodable, Equatable {
     /// IPC-43: the Fan curve while Fan is on (nil = off) and the last curve used.
     var fan: String?
     var fanCurve = "Line"
+    /// FX-33: the programmer's effect entries; FX-17: the wheels are the effect wheels; FX-37: the
+    /// 1-based catalogue ids of the looks some target can run.
+    var effects: [EffectEntry] = []
+    var effectWheels = false
+    var runnableLooks: [Int] = []
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case selection, targets, wheels, contents, colour, palettes, located, highlight, fan
+        case selection, targets, wheels, contents, colour, palettes, located, highlight, fan, effects
+        case effectWheels = "effect_wheels"
+        case runnableLooks = "runnable_looks"
         case activeGroup = "active_group"
         case attributeGroups = "attribute_groups"
         case inProgrammer = "in_programmer"
@@ -1109,7 +1119,13 @@ struct ProgrammerState: Decodable, Equatable {
         highlight = (try? c.decode(Bool.self, forKey: .highlight)) ?? false
         fan = try? c.decode(String.self, forKey: .fan)
         fanCurve = (try? c.decode(String.self, forKey: .fanCurve)) ?? "Line"
+        effects = ((try? c.decode([Tolerant<EffectEntry>].self, forKey: .effects)) ?? []).compactMap(\.value)
+        effectWheels = (try? c.decode(Bool.self, forKey: .effectWheels)) ?? false
+        runnableLooks = (try? c.decode([Int].self, forKey: .runnableLooks)) ?? []
     }
+
+    /// FX-18: the entry the editor shows.
+    var currentEffect: EffectEntry? { effects.first(where: \.current) }
 }
 
 /// `programmer.wheel` resolution (IPC-13); raw values are the wire strings.
@@ -1207,6 +1223,10 @@ final class EngineClient: ObservableObject {
     @Published private(set) var groups: [GroupInfo] = []
     /// PAL-25: all palettes, sorted by number.
     @Published private(set) var palettes: [PaletteInfo] = []
+    /// FX-32: the look gallery and raw shapes; snapshot only.
+    @Published private(set) var effectCatalogue = EffectCatalogue()
+    /// FX-17: the Shapes workspace is on show; sent again after a reconnect.
+    private var effectWheelsWanted = false
     /// PAL-25: the engine's master time, overlap and default Record By; nil until the snapshot.
     @Published private(set) var paletteSettings: PaletteSettings?
     /// PRG-43: Clear order, LTP on Clear and the Rem Dim level; nil until the snapshot.
@@ -1416,6 +1436,21 @@ final class EngineClient: ObservableObject {
     /// IPC-47: set the target colour to a LEE gel by number.
     func gel(_ number: Int) { sendJSON("programmer.gel", ["range": "Lee", "number": number]) }
     func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
+
+    // Effect commands (FX-34). The engine validates ranges and refuses with a warning.
+
+    func applyLook(_ name: String) { sendJSON("effect.apply", ["look": name]) }
+    func applyShape(_ shape: EffectShape) { sendJSON("effect.apply", ["shape": shape.json]) }
+    func applyEffectPalette(_ number: Int) { sendJSON("effect.apply", ["palette": number]) }
+    func setEffect(_ param: String, _ value: Any) { sendJSON("effect.set", ["param": param, "value": value]) }
+    func selectEffect(_ entry: Int) { sendJSON("effect.select", ["entry": entry]) }
+    func stopEffects() { sendJSON("effect.stop") }
+    func restartEffects() { sendJSON("effect.restart") }
+    func tapEffect() { sendJSON("effect.tap") }
+    func setEffectWheels(_ on: Bool) {
+        effectWheelsWanted = on
+        sendJSON("effect.wheels", ["on": on])
+    }
 
     func wheel(attribute: String, steps: Int, resolution: WheelResolution) {
         guard steps != 0 else { return }
@@ -1800,6 +1835,7 @@ final class EngineClient: ObservableObject {
         fileprivate let paletteSettings: Tolerant<PaletteSettings>?
         fileprivate let programmerSettings: Tolerant<ProgrammerSettings>?
         let programmer: ProgrammerState?
+        fileprivate let effectCatalogue: Tolerant<EffectCatalogue>?
         fileprivate let outputs: Tolerant<[OutputNode]>?
         fileprivate let control: Tolerant<ControlState>?
         fileprivate let ports: Tolerant<[Tolerant<SerialPort>]>?
@@ -1813,6 +1849,7 @@ final class EngineClient: ObservableObject {
             case paletteSettings = "palette_settings"
             case programmerSettings = "programmer_settings"
             case playbackSettings = "playback_settings"
+            case effectCatalogue = "effect_catalogue"
         }
     }
 
@@ -1853,6 +1890,8 @@ final class EngineClient: ObservableObject {
             paletteSettings = incoming.paletteSettings?.value
             programmerSettings = incoming.programmerSettings?.value
             programmer = incoming.programmer ?? ProgrammerState()
+            effectCatalogue = incoming.effectCatalogue?.value ?? EffectCatalogue()
+            if effectWheelsWanted { sendJSON("effect.wheels", ["on": true]) }   // FX-17: a new daemon starts with them off
             sendJSON("library.gels", ["range": "Lee"])   // IPC-47
             outputs = incoming.outputs?.value ?? []
             control = incoming.control?.value ?? ControlState()

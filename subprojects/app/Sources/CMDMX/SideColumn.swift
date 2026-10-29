@@ -301,6 +301,7 @@ private struct Softkeys: View {
         if let function = ui.function { return functionContext(function) }
         if ui.paletteMenu { return paletteContext }
         if let current = engine.programmer.fan { return fanContext(current) }
+        if ui.screen == nil, ui.workspace == Workspace.shapes { return shapesContext }   // FX-39
         if !engine.programmer.selection.isEmpty {
             return ("Selection", [
                 Softkey(name: "Next", sub: "Fix +1", action: { ui.learnOrRun("key step_next", engine) { engine.step(1) } }),
@@ -316,7 +317,7 @@ private struct Softkeys: View {
             Softkey(name: "Edit Times", sub: "last tapped handle", action: { openLastHandle(.times) }),
             optionsKey,
             setLegendKey,
-            Softkey(name: "Shapes & Effects", sub: "phase 2", spec: "Shapes · phase 2"),
+            Softkey(name: "Shapes & Effects", sub: "looks and effects", action: { ui.show(workspace: Workspace.shapes) }),   // FX-36
             Softkey(name: "Timecode", sub: "phase 3", spec: "Timecode · phase 3"),
             Softkey(name: "Lock", sub: "venue mode", spec: "later"),
             undoKey,
@@ -331,6 +332,18 @@ private struct Softkeys: View {
         }
         keys.append(Softkey(name: "Fan off", action: { ui.learnOrRun("fan off", engine) { engine.fanOff() } }))
         return ("Fan", keys)
+    }
+
+    /// FX-39: the Shapes workspace. Record arms as the Record key does (an effect palette is a palette
+    /// with entries, FX-22); the next palette tap in a palette window records it.
+    private var shapesContext: (name: String, keys: [Softkey?]) {
+        ("Shapes", [
+            Softkey(name: "Stop FX", sub: "the selection", action: { ui.learnOrRun("effect stop", engine) { engine.stopEffects() } }),
+            Softkey(name: "Restart", sub: "from the top", action: { ui.learnOrRun("effect restart", engine) { engine.restartEffects() } }),
+            Softkey(name: "Tap", sub: "tempo", action: { ui.learnOrRun("effect tap", engine) { engine.tapEffect() } }),
+            Softkey(name: "Record", sub: "then tap a palette", action: { ui.cancelModes(); ui.recordArmed = true }),
+            undoKey,
+        ])
     }
 
     /// UNDO-18: the IPC-31 label as the second line; no action while there is nothing to undo.

@@ -4083,4 +4083,186 @@ mod tests {
         undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.wheels","on":true}"#).unwrap();
         assert_eq!(h.len(), n);
     }
+
+    // ---- FXB-05: what the Shapes workspace reads (FX-33 amended, FX-37, 38, 42) ----------
+
+    const PARS: &str = r#"{"v":1,"cmd":"programmer.select_group","group":3}"#;
+
+    fn looks(e: &Engine) -> Vec<u64> {
+        view(e)["runnable_looks"]
+            .as_array()
+            .unwrap_or_else(|| panic!("no runnable_looks: {}", view(e)))
+            .iter()
+            .map(|l| l.as_u64().unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn fx_37_runnable_looks_follow_the_targets() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        assert!(looks(&e).is_empty(), "no targets, nothing runs");
+        undo_run(&mut e, &mut h, WASHES).unwrap();
+        // Catalogue ids (FX-32): 1 Dimmer chase, 6 Circle, 10 Rainbow, 14 Zoom pulse.
+        let washes = looks(&e);
+        for id in [1, 6, 10, 14] {
+            assert!(washes.contains(&id), "washes run look {id}: {washes:?}");
+        }
+        assert!(washes.windows(2).all(|w| w[0] < w[1]), "in catalogue order");
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        undo_run(&mut e, &mut h, PARS).unwrap();
+        let pars = looks(&e);
+        assert!(pars.contains(&10), "pars have Colour: {pars:?}");
+        assert!(
+            !pars.contains(&6) && !pars.contains(&14),
+            "no Pan/Tilt, no Zoom: {pars:?}"
+        );
+    }
+
+    #[test]
+    fn fx_38_colour_mix_entries_carry_their_colours() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, PARS).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Colour chase"}"#,
+        )
+        .unwrap();
+        let colours = &view(&e)["effects"][0]["colours"];
+        let list = colours.as_array().unwrap_or_else(|| panic!("{colours}"));
+        assert_eq!(list.len(), 2, "base and its complement (FX-30)");
+        assert!(list
+            .iter()
+            .all(|c| c["r"].is_number() && c["g"].is_number() && c["b"].is_number()));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.set","param":"colours","value":[{"r":1,"g":0,"b":0},{"r":0,"g":0,"b":1},{"r":0,"g":1,"b":0}]}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            view(&e)["effects"][0]["colours"].as_array().map(Vec::len),
+            Some(3)
+        );
+        // Other shapes carry an empty list.
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Dimmer chase"}"#,
+        )
+        .unwrap();
+        assert_eq!(view(&e)["effects"][1]["colours"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn fx_42_hue_shift_on_a_white_base_says_so() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, PARS).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","shape":{"Colour":"HueShift"}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            view(&e)["effects"][0]["white_base"],
+            true,
+            "open white base"
+        );
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.colour","hue":0.66,"saturation":1.0}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            view(&e)["effects"][0]["white_base"],
+            false,
+            "a blue base shifts"
+        );
+        // Only Hue shift asks.
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Rainbow"}"#,
+        )
+        .unwrap();
+        let fx = view(&e)["effects"].clone();
+        let rainbow = fx
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|x| x["look"] == "Rainbow")
+            .cloned()
+            .unwrap();
+        assert_eq!(rainbow["white_base"], false);
+    }
+
+    #[test]
+    fn fx_39_effect_palettes_show_their_entries_in_the_pool() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let show = shows::ShowState {
+            name: "Kerk".into(),
+            saved_at: None,
+            autosave_ok: true,
+        };
+        let palettes = |e: &Engine| -> serde_json::Value {
+            let s = ipc::snapshot(
+                e,
+                &[],
+                &show,
+                &ipc::UndoInfo::default(),
+                &serde_json::Value::Null,
+            );
+            serde_json::from_str::<serde_json::Value>(&s).unwrap()["palettes"].clone()
+        };
+        undo_run(&mut e, &mut h, WASHES).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.colour","hue":0.0,"saturation":1.0}"#,
+        )
+        .unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"palette.record","window":"Colours","handle":1}"#,
+        )
+        .unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        undo_run(&mut e, &mut h, WASHES).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#,
+        )
+        .unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"palette.record","window":"Positions","handle":1}"#,
+        )
+        .unwrap();
+        let list = palettes(&e);
+        let by_window = |w: &str| {
+            list.as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["window"] == w)
+                .cloned()
+                .unwrap_or_else(|| panic!("{list}"))
+        };
+        assert!(
+            by_window("Colours").get("effects").is_none(),
+            "no entries, no key"
+        );
+        assert_eq!(
+            by_window("Positions")["effects"],
+            serde_json::json!([{"look": "Circle", "shape": {"Path": "Circle"}}])
+        );
+    }
 }

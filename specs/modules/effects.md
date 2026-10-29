@@ -229,6 +229,13 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   shape, attributes, members, positions, params, palette, current}`, with `positions` the *k*/*N*
   of FX-07 per member (for the spread strip, FX-42), and `wheels` (FX-17). A delta follows every
   change; the clock is never sent (the stage, and the fixture tiles, show it).
+  *Amended with FXB-05 (2026-10-29), new keys only:* each entry also carries `colours` (the
+  `ColourMix` list as `{r, g, b}`, empty for other shapes; FX-38) and `white_base` (true for a
+  `HueShift` whose first member's base has saturation below 1 %; FX-42); the programmer view
+  carries `runnable_looks`, the catalogue ids of the looks some target can run, in catalogue order
+  (FX-31, FX-37); a palette in the snapshot's `palettes` carries `effects` `[{look, shape}]` when
+  it holds entries (key absent otherwise; FX-22, FX-39). So the app dims, lists and warns without
+  lighting logic.
 - **FX-34** Commands: `effect.apply`, `effect.set`, `effect.select`, `effect.stop`,
   `effect.restart`, `effect.tap`, `effect.wheels`; refusals come back as warnings (IPC). Each is
   in UNDO-04's table with the class of FX-20.

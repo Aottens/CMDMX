@@ -193,6 +193,9 @@ struct PaletteIconView: View {
     var body: some View {
         if !forceAuto, let id = palette.icon, let entry = PaletteIcons.entry(id) {
             IconGlyph(entry: entry).foregroundStyle(t.fg).frame(maxWidth: .infinity, alignment: .leading)
+        } else if !forceAuto, palette.autoIcon == nil, let fx = palette.effects.first {
+            // FX-22: a palette with only effect entries shows its effect's still.
+            ShapeIcon(shape: fx.shape).frame(maxWidth: .infinity)
         } else {
             AutoIconView(icon: palette.autoIcon)
         }

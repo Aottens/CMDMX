@@ -44,7 +44,7 @@ interface needs no restart, and killing the app with `kill -9` mid-show dropped 
 CMDMX v0.2.1 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
 (VS8-03, 04). Next up: install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
 is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
-The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) is being built (programmer, cue and palette effects run in the engine and reach the app over IPC; the Shapes workspace is next); beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
+The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace; its home run on Art-Net (FXB-06) is next; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
 ## What works today
 
@@ -97,6 +97,14 @@ The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) is being bu
 - Colours, positions and beams recorded as on Titan (Global/Shared/Normal decided
   automatically), applied by tap or `Palette 3 Enter`, snapping or fading with fixture overlap.
 - Cues and playbacks keep a reference, so changing a palette changes every place that uses it.
+
+**Effects**
+- The Shapes workspace (F5): select fixtures, tap a look (dimmer chase, circle, rainbow wave,
+  …) and it runs at once around the current look; Size, Speed (BPM, Tap, BPM and Rate masters)
+  and Spread on the screen and the encoders, a strip with a dot per fixture, wings, groups,
+  blocks, direction and a colour list under More.
+- Effects record into cues (a timed Go carries a circle on or crossfades to the next effect, the
+  fader scales them) and into palettes ("circle around the pulpit" on any selection).
 
 **Playbacks, cue lists and chases**
 - Record the programmer onto a handle; Replace/Merge/Update, Copy/Move/Delete, Titan paging
