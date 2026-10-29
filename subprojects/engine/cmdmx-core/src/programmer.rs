@@ -14,12 +14,12 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
-use crate::effect::{Entry, EntryId, Params, Shape};
+use crate::effect::{positions, Entry, EntryId, Params, Shape};
 use crate::gel::GelRef;
 use crate::palette::PaletteId;
 use crate::patch::FixtureId;
 use crate::value::{Stored, Value};
-use crate::Timestamp;
+use crate::{CoreError, Timestamp};
 
 pub type GroupId = u32;
 
@@ -144,16 +144,68 @@ pub enum Resolution {
     Coarse,
 }
 
-/// Narrowing of the selection for stepping (PRG-04) and patterns (PRG-05).
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-enum Sub {
-    #[default]
-    None,
-    Step(usize),
-    Pattern {
-        stages: usize,
-        stage: usize,
-    },
+/// PRG-73: gives the selection's items shared positions (FX-07's steps, then `flip`).
+/// `Grid::default()` is *off*.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Grid {
+    pub wings: u8,
+    pub groups: u8,
+    pub blocks: u8,
+    pub flip: bool,
+}
+
+impl Default for Grid {
+    fn default() -> Self {
+        Grid {
+            wings: 1,
+            groups: 0,
+            blocks: 1,
+            flip: false,
+        }
+    }
+}
+
+impl Grid {
+    /// PRG-73: refuse anything outside FX-06's ranges (`groups` 0 = off or 2 to 32).
+    pub fn validate(&self) -> Result<(), CoreError> {
+        let check = |name: &str, v: u8, lo: u8, hi: u8| {
+            if (lo..=hi).contains(&v) {
+                Ok(())
+            } else {
+                Err(CoreError::InvalidGrid(format!(
+                    "grid: {name} {v} out of range ({lo} to {hi})"
+                )))
+            }
+        };
+        check("wings", self.wings, 1, 8)?;
+        if self.groups != 0 {
+            check("groups", self.groups, 2, 32)?;
+        }
+        check("blocks", self.blocks, 1, 32)
+    }
+}
+
+/// PRG-71: the order tools.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Order {
+    Reverse,
+    Shuffle,
+    Sort,
+    Revert,
+}
+
+/// PRG-75: the grid shortcuts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridShortcut {
+    OddEven,
+    OneIn(u8),
+    /// `n` in `m`: groups `m`, blocks `n`.
+    NInM(u8, u8),
+    Blocks(u8),
+    Divide(u8),
+    OutsideIn,
+    InsideOut,
+    Off,
 }
 
 /// PRG-29 / PRG-42: what Clear does first.
@@ -384,7 +436,9 @@ impl Fade {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct EditPart {
     selection: Vec<Item>,
-    sub: Sub,
+    select_order: Vec<Item>,
+    grid: Grid,
+    stage: Option<usize>,
     changed: bool,
     values: BTreeMap<Item, Attrs<Stored>>,
     located: BTreeMap<Item, Attrs<Value>>,
@@ -395,7 +449,15 @@ pub(crate) struct EditPart {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Programmer {
     selection: Vec<Item>,
-    sub: Sub,
+    /// PRG-71: the selection in the order its items were selected; a permutation of `selection`.
+    select_order: Vec<Item>,
+    grid: Grid,
+    /// PRG-74: the position whose items are the targets; `None` = the whole selection.
+    stage: Option<usize>,
+    /// PRG-73, 84: each selection item's position and *N*, recomputed when the selection or the
+    /// grid changes.
+    positions: Vec<u32>,
+    position_count: u32,
     /// Set by a value change; the next select starts a new selection (PRG-03).
     changed: bool,
     values: BTreeMap<Item, Attrs<Stored>>,
@@ -427,7 +489,9 @@ impl Programmer {
     pub(crate) fn edit_part(&self) -> EditPart {
         EditPart {
             selection: self.selection.clone(),
-            sub: self.sub,
+            select_order: self.select_order.clone(),
+            grid: self.grid,
+            stage: self.stage,
             changed: self.changed,
             values: self.values.clone(),
             located: self.located.clone(),
@@ -441,7 +505,10 @@ impl Programmer {
     pub(crate) fn restore_edit_part(&mut self, part: EditPart) {
         let old = std::mem::replace(&mut self.values, part.values);
         self.selection = part.selection;
-        self.sub = part.sub;
+        self.select_order = part.select_order;
+        self.grid = part.grid;
+        self.stage = part.stage;
+        self.recompute();
         self.changed = part.changed;
         self.located = part.located;
         self.effects = part.effects;
@@ -468,19 +535,47 @@ impl Programmer {
         whole(&self.selection)
     }
 
-    /// PRG-04/05/50: the items that receive the next change: the sub-selection, else all.
+    /// PRG-71: the select order, for Revert.
+    pub fn select_order(&self) -> &[Item] {
+        &self.select_order
+    }
+
+    /// PRG-73: the grid, `None` when off.
+    pub fn grid(&self) -> Option<Grid> {
+        (self.grid != Grid::default()).then_some(self.grid)
+    }
+
+    /// PRG-74: the selected stage, `None` = the whole selection.
+    pub fn stage(&self) -> Option<usize> {
+        self.stage
+    }
+
+    /// PRG-73: each selection item's position, in selection order.
+    pub fn positions(&self) -> &[u32] {
+        &self.positions
+    }
+
+    /// PRG-73: the number of positions *N*.
+    pub fn position_count(&self) -> u32 {
+        self.position_count
+    }
+
+    /// PRG-84: refresh the cached positions after the selection or the grid changed.
+    fn recompute(&mut self) {
+        let g = self.grid;
+        (self.positions, self.position_count) =
+            positions(self.selection.len(), g.wings, g.groups, g.blocks, g.flip);
+    }
+
+    /// PRG-04/05/50/74: the items that receive the next change: the stage, else all.
     pub fn target_items(&self) -> Vec<Item> {
-        match self.sub {
-            Sub::None => self.selection.clone(),
-            Sub::Step(i) => self.selection.get(i).copied().into_iter().collect(),
-            Sub::Pattern { stages, stage } => self
-                .selection
-                .iter()
-                .enumerate()
-                .filter(|(i, _)| i.checked_rem(stages) == Some(stage))
-                .map(|(_, f)| *f)
-                .collect(),
-        }
+        let Some(stage) = self.stage else {
+            return self.selection.clone();
+        };
+        (self.selection.iter().zip(&self.positions))
+            .filter(|(_, &k)| k as usize == stage)
+            .map(|(i, _)| *i)
+            .collect()
     }
 
     /// The whole-fixture items of [`Programmer::target_items`].
@@ -628,23 +723,30 @@ impl Programmer {
         self.values.contains_key(&Item::fixture(fixture))
     }
 
-    /// PRG-03: the first select after a change starts a new selection.
+    /// PRG-03: the first select after a change starts a new selection; PRG-73: so does a select
+    /// into an empty selection, and it ends the grid. Tapping into a selection ends the stage.
     fn begin_select(&mut self) {
         if self.changed {
             self.selection.clear();
+            self.select_order.clear();
             self.changed = false;
         }
-        self.sub = Sub::None;
+        if self.selection.is_empty() {
+            self.grid = Grid::default();
+        }
+        self.stage = None;
     }
 
     pub(crate) fn toggle(&mut self, item: Item) {
         self.begin_select();
-        match self.selection.iter().position(|&f| f == item) {
-            Some(i) => {
-                self.selection.remove(i);
-            }
-            None => self.selection.push(item),
+        if self.selection.contains(&item) {
+            self.selection.retain(|&f| f != item);
+            self.select_order.retain(|&f| f != item);
+        } else {
+            self.selection.push(item);
+            self.select_order.push(item);
         }
+        self.recompute();
     }
 
     /// PRG-02 (IDEA-11): append the group's fixtures; if all of them are already selected
@@ -653,23 +755,34 @@ impl Programmer {
         self.begin_select();
         if !members.is_empty() && members.iter().all(|f| self.selection.contains(f)) {
             self.selection.retain(|f| !members.contains(f));
-            return;
-        }
-        for &f in members {
-            if !self.selection.contains(&f) {
-                self.selection.push(f);
+            self.select_order.retain(|f| !members.contains(f));
+        } else {
+            for &f in members {
+                if !self.selection.contains(&f) {
+                    self.selection.push(f);
+                    self.select_order.push(f);
+                }
             }
         }
+        self.recompute();
     }
 
-    /// PRG-08: a typed selection replaces the selection and ends any sub-selection.
-    pub(crate) fn replace_selection(&mut self, selection: Vec<Item>) {
+    /// A new selection: its own select order, no grid, no stage.
+    fn start_selection(&mut self, selection: Vec<Item>) {
+        self.select_order = selection.clone();
         self.selection = selection;
-        self.sub = Sub::None;
+        self.grid = Grid::default();
+        self.stage = None;
         self.changed = false;
+        self.recompute();
     }
 
-    /// PAT-05: the fixture is gone; drop it from the selection (ending any sub-selection) and the values.
+    /// PRG-08: a typed selection replaces the selection and ends the stage and the grid.
+    pub(crate) fn replace_selection(&mut self, selection: Vec<Item>) {
+        self.start_selection(selection);
+    }
+
+    /// PAT-05: the fixture is gone; drop it from the selection (ending any stage) and the values.
     pub(crate) fn remove_fixture(&mut self, fixture: FixtureId) {
         self.values.retain(|i, _| i.fixture != fixture);
         self.fades.retain(|i, _| i.fixture != fixture);
@@ -689,7 +802,9 @@ impl Programmer {
         let before = self.selection.len();
         self.selection.retain(|i| i.fixture != fixture);
         if self.selection.len() != before {
-            self.sub = Sub::None;
+            self.select_order.retain(|i| i.fixture != fixture);
+            self.stage = None;
+            self.recompute();
         }
     }
 
@@ -707,15 +822,27 @@ impl Programmer {
     }
 
     pub(crate) fn clear_selection(&mut self) {
-        self.selection.clear();
-        self.sub = Sub::None;
-        self.changed = false;
+        self.start_selection(Vec::new());
     }
 
-    /// PRG-04: step one fixture, or one pattern stage, forward or back, wrapping.
+    /// PRG-71: the order tools put the selection in a new order; the grid and the stage stay.
+    /// No programmer change for PRG-03.
+    pub(crate) fn set_order(&mut self, selection: Vec<Item>) {
+        self.selection = selection;
+        self.recompute();
+    }
+
+    /// PRG-73/74: set the whole grid (validated by the caller); a grid that is on selects stage 0.
+    pub(crate) fn set_grid(&mut self, grid: Grid) {
+        self.grid = grid;
+        self.stage = self.grid().map(|_| 0);
+        self.recompute();
+    }
+
+    /// PRG-04/74: step one stage (grid off: one item), forward or back, wrapping.
     pub(crate) fn step(&mut self, forward: bool) {
-        let len = self.selection.len();
-        if len == 0 {
+        let len = self.position_count as usize;
+        if self.selection.is_empty() || len == 0 {
             return;
         }
         let bump = |i: usize, n: usize| {
@@ -725,28 +852,20 @@ impl Programmer {
                 i.checked_sub(1).unwrap_or(n.saturating_sub(1))
             }
         };
-        self.sub = match self.sub {
-            Sub::None => Sub::Step(if forward { 0 } else { len.saturating_sub(1) }),
-            Sub::Step(i) => Sub::Step(bump(i, len)),
-            Sub::Pattern { stages, stage } => Sub::Pattern {
-                stages,
-                stage: bump(stage, stages),
-            },
-        };
+        self.stage = Some(match self.stage {
+            None if forward => 0,
+            None => len.saturating_sub(1),
+            Some(s) => bump(s, len),
+        });
     }
 
-    pub(crate) fn set_pattern(&mut self, stages: usize) {
-        self.sub = Sub::Pattern { stages, stage: 0 };
-    }
-
-    /// PRG-06: end the sub-selection, or else select every fixture in the programmer.
+    /// PRG-06/74: end the stage (the grid stays), or else select every item in the programmer.
     pub(crate) fn select_all(&mut self) {
-        if self.sub != Sub::None {
-            self.sub = Sub::None;
+        if self.stage.is_some() {
+            self.stage = None;
         } else {
             // PRG-50: every item in the programmer, a whole fixture before its cells.
-            self.selection = self.values.keys().copied().collect();
-            self.changed = false;
+            self.start_selection(self.values.keys().copied().collect());
         }
     }
 

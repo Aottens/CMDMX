@@ -313,8 +313,9 @@ impl Default for Params {
 
 /// FX-07: position `k` per member (in order) and the number of positions `N`.
 /// Wings mirror every odd part, groups repeat every `groups`-th member, blocks merge
-/// neighbours. Computed when the entry or its members change, never per tick.
-pub fn positions(n: usize, wings: u8, groups: u8, blocks: u8) -> (Vec<u32>, u32) {
+/// neighbours; with `flip` (PRG-73) *k* ← *N* − 1 − *k*. Computed when the entry or its members
+/// change, never per tick.
+pub fn positions(n: usize, wings: u8, groups: u8, blocks: u8, flip: bool) -> (Vec<u32>, u32) {
     if n == 0 {
         return (Vec::new(), 0);
     }
@@ -337,6 +338,13 @@ pub fn positions(n: usize, wings: u8, groups: u8, blocks: u8) -> (Vec<u32>, u32)
                 j %= g;
             }
             (j / b) as u32
+        })
+        .map(|k| {
+            if flip {
+                (total as u32).saturating_sub(1 + k)
+            } else {
+                k
+            }
         })
         .collect();
     (ks, total as u32)
@@ -533,7 +541,8 @@ impl Entry {
     /// FX-07: recompute *k* and *N* after the members or the parameters changed.
     pub(crate) fn refresh(&mut self) {
         let p = &self.params;
-        (self.positions, self.count) = positions(self.members.len(), p.wings, p.groups, p.blocks);
+        (self.positions, self.count) =
+            positions(self.members.len(), p.wings, p.groups, p.blocks, false);
     }
 
     /// Take the members `gone` accepts out, with their positions (*N* stays: the others keep

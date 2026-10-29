@@ -14,7 +14,12 @@
 //!   `select_order() -> &[Item]`.
 //! - `effect::positions(n, wings, groups, blocks, flip)`.
 
-#![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
+#![allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::indexing_slicing
+)]
 
 mod common;
 
@@ -37,7 +42,11 @@ fn targets(e: &Engine) -> Vec<FixtureId> {
 }
 
 fn select_order(e: &Engine) -> Vec<FixtureId> {
-    e.programmer().select_order().iter().map(|i| i.fixture).collect()
+    e.programmer()
+        .select_order()
+        .iter()
+        .map(|i| i.fixture)
+        .collect()
 }
 
 fn grid(wings: u8, groups: u8, blocks: u8, flip: bool) -> Grid {
@@ -162,10 +171,8 @@ fn prg_71_order_and_grid_are_undone_with_the_selection() {
     .unwrap();
     h.edit(&mut e, "Select", None, |e| e.order(Order::Reverse))
         .unwrap();
-    h.edit(&mut e, "Select", None, |e| {
-        e.set_grid(grid(2, 0, 1, false))
-    })
-    .unwrap();
+    h.edit(&mut e, "Select", None, |e| e.set_grid(grid(2, 0, 1, false)))
+        .unwrap();
     assert_eq!(e.programmer().stage(), Some(0));
     h.undo(&mut e).unwrap();
     assert_eq!(e.programmer().grid(), None);
@@ -225,13 +232,17 @@ fn prg_72_a_seed_that_gives_back_the_current_order_is_skipped() {
 fn prg_72_the_counter_is_live_state_and_not_undone() {
     let mut e = pars();
     let mut h = History::default();
-    h.edit(&mut e, "Select", Some("select"), |e| e.order(Order::Shuffle))
-        .unwrap();
+    h.edit(&mut e, "Select", Some("select"), |e| {
+        e.order(Order::Shuffle)
+    })
+    .unwrap();
     assert_eq!(selection(&e), vec![205, 204, 203, 208, 206, 207, 201, 202]);
     h.undo(&mut e).unwrap();
     assert_eq!(selection(&e), PARS.to_vec());
-    h.edit(&mut e, "Select", Some("select"), |e| e.order(Order::Shuffle))
-        .unwrap();
+    h.edit(&mut e, "Select", Some("select"), |e| {
+        e.order(Order::Shuffle)
+    })
+    .unwrap();
     // Seed 2 on the original order.
     assert_eq!(selection(&e), vec![206, 203, 208, 205, 202, 204, 201, 207]);
 }
@@ -273,11 +284,17 @@ fn prg_73_grid_off_gives_each_item_its_own_position() {
 
 #[test]
 fn prg_73_flip_reverses_the_fx_07_positions() {
-    assert_eq!(positions(8, 2, 0, 1, true), (vec![3, 2, 1, 0, 0, 1, 2, 3], 4));
+    assert_eq!(
+        positions(8, 2, 0, 1, true),
+        (vec![3, 2, 1, 0, 0, 1, 2, 3], 4)
+    );
     assert_eq!(positions(4, 1, 0, 1, true), (vec![3, 2, 1, 0], 4));
     assert_eq!(positions(1, 1, 0, 1, true), (vec![0], 1));
     assert_eq!(positions(0, 1, 0, 1, true), (vec![], 0));
-    assert_eq!(positions(8, 2, 0, 1, false), (vec![0, 1, 2, 3, 3, 2, 1, 0], 4));
+    assert_eq!(
+        positions(8, 2, 0, 1, false),
+        (vec![0, 1, 2, 3, 3, 2, 1, 0], 4)
+    );
 }
 
 #[test]
@@ -587,7 +604,11 @@ fn prg_84_positions_never_panic_and_stay_in_range() {
 #[test]
 fn prg_84_stages_over_small_and_odd_selections_never_panic() {
     let mut e = church();
-    for g in [grid(8, 32, 32, true), grid(3, 2, 5, false), grid(2, 0, 1, true)] {
+    for g in [
+        grid(8, 32, 32, true),
+        grid(3, 2, 5, false),
+        grid(2, 0, 1, true),
+    ] {
         for n in 0..=PARS.len() {
             e.clear_selection();
             select(&mut e, &PARS[..n]);

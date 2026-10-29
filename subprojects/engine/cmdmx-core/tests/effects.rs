@@ -351,9 +351,15 @@ fn fx_07_plain_spread_over_the_order() {
 
 #[test]
 fn fx_07_wings_mirror_every_odd_part() {
-    assert_eq!(positions(8, 2, 0, 1, false), (vec![0, 1, 2, 3, 3, 2, 1, 0], 4));
+    assert_eq!(
+        positions(8, 2, 0, 1, false),
+        (vec![0, 1, 2, 3, 3, 2, 1, 0], 4)
+    );
     assert_eq!(positions(5, 2, 0, 1, false), (vec![0, 1, 2, 2, 1], 3));
-    assert_eq!(positions(9, 3, 0, 1, false), (vec![0, 1, 2, 2, 1, 0, 0, 1, 2], 3));
+    assert_eq!(
+        positions(9, 3, 0, 1, false),
+        (vec![0, 1, 2, 2, 1, 0, 0, 1, 2], 3)
+    );
 }
 
 #[test]
@@ -361,7 +367,10 @@ fn fx_07_groups_and_blocks() {
     assert_eq!(positions(6, 1, 3, 1, false), (vec![0, 1, 2, 0, 1, 2], 3));
     assert_eq!(positions(4, 1, 8, 1, false), (vec![0, 1, 2, 3], 4));
     assert_eq!(positions(6, 1, 0, 2, false), (vec![0, 0, 1, 1, 2, 2], 3));
-    assert_eq!(positions(8, 2, 0, 2, false), (vec![0, 0, 1, 1, 1, 1, 0, 0], 2));
+    assert_eq!(
+        positions(8, 2, 0, 2, false),
+        (vec![0, 0, 1, 1, 1, 1, 0, 0], 2)
+    );
 }
 
 #[test]

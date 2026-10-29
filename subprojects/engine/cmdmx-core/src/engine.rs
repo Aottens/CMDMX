@@ -46,8 +46,8 @@ use crate::playback::{
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
     default_lowlight, fan_factors, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView,
-    EditPart, EffectView, Fade, FanCurve, FixtureValues, GroupId, Item, PaletteUse, Programmer,
-    ProgrammerSettingsChange, ProgrammerView, Resolution, WheelState,
+    EditPart, EffectView, Fade, FanCurve, FixtureValues, Grid, GridShortcut, GroupId, Item, Order,
+    PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView, Resolution, WheelState,
 };
 use crate::show::{
     Meta, Show, ShowGroup, ShowNode, ShowOutput, ShowPage, ShowPalette, ShowPalettes, ShowPatch,
@@ -258,6 +258,8 @@ pub struct Engine {
     /// Current page of playbacks, 1..=PAGES (PBK-02). Live state, not in the show.
     page: u16,
     activation_seq: u64,
+    /// PRG-72: seeds the next Shuffle. Live state: not saved, not undone.
+    shuffle_seq: u64,
     frames: BTreeMap<UniverseId, Frame>,
     warnings: Vec<Warning>,
     last_tick: Option<Timestamp>,
@@ -532,6 +534,7 @@ impl Engine {
             swop_owner: None,
             page: 1,
             activation_seq: 0,
+            shuffle_seq: 1,
             frames: BTreeMap::new(),
             warnings: Vec::new(),
             last_tick: None,
@@ -4007,14 +4010,100 @@ impl Engine {
         self.follow_active_group();
     }
 
-    /// PRG-05: split the selection into `n` interleaved stages.
+    /// PRG-05: a pattern of `n` stages is the grid `{groups: n}`.
     pub fn select_pattern(&mut self, n: usize) -> Result<(), CoreError> {
-        if n < 2 {
-            return Err(CoreError::InvalidPattern(n));
+        match u8::try_from(n) {
+            Ok(groups) if (2..=32).contains(&groups) => self.set_grid(Grid {
+                groups,
+                ..Grid::default()
+            }),
+            _ => Err(CoreError::InvalidPattern(n)),
         }
-        self.programmer.set_pattern(n);
+    }
+
+    /// PRG-73/74: set the whole grid and select stage 0; out of range changes nothing.
+    pub fn set_grid(&mut self, grid: Grid) -> Result<(), CoreError> {
+        grid.validate()?;
+        self.programmer.set_grid(grid);
         self.follow_active_group();
         Ok(())
+    }
+
+    /// PRG-75: a grid shortcut; each replaces the whole grid.
+    pub fn grid_shortcut(&mut self, shortcut: GridShortcut) -> Result<(), CoreError> {
+        let len = self.programmer.items().len();
+        if len == 0 {
+            return Err(CoreError::SelectFirst);
+        }
+        let off = Grid::default();
+        let bad = |what: String| CoreError::InvalidGrid(format!("grid: {what}"));
+        let grid = match shortcut {
+            GridShortcut::OddEven => Grid { groups: 2, ..off },
+            GridShortcut::OneIn(groups) => Grid { groups, ..off },
+            GridShortcut::NInM(n, m) if n < m => Grid {
+                groups: m,
+                blocks: n,
+                ..off
+            },
+            GridShortcut::NInM(n, m) => return Err(bad(format!("{n} in {m} needs n below m"))),
+            GridShortcut::Blocks(blocks) => Grid { blocks, ..off },
+            GridShortcut::Divide(d) if (2..=32).contains(&d) => Grid {
+                // Too long a selection lands out of range and is refused by `validate`.
+                blocks: u8::try_from(len.div_ceil(usize::from(d))).unwrap_or(u8::MAX),
+                ..off
+            },
+            GridShortcut::Divide(d) => {
+                return Err(bad(format!("divide {d} out of range (2 to 32)")))
+            }
+            GridShortcut::OutsideIn => Grid { wings: 2, ..off },
+            GridShortcut::InsideOut => Grid {
+                wings: 2,
+                flip: true,
+                ..off
+            },
+            GridShortcut::Off => off,
+        };
+        self.set_grid(grid)
+    }
+
+    /// PRG-71/72: reorder the selection; the grid and the stage number stay.
+    pub fn order(&mut self, tool: Order) -> Result<(), CoreError> {
+        let mut items = self.programmer.items().to_vec();
+        if items.len() < 2 {
+            return Err(CoreError::OrderTooShort);
+        }
+        match tool {
+            Order::Reverse => items.reverse(),
+            Order::Sort => items.sort_by_key(|i| {
+                let number = self.fixtures.get(&i.fixture).map_or(0, |f| f.number);
+                (number, i.cell)
+            }),
+            Order::Revert => items = self.programmer.select_order().to_vec(),
+            Order::Shuffle => items = self.shuffled(items),
+        }
+        self.programmer.set_order(items);
+        self.follow_active_group();
+        Ok(())
+    }
+
+    /// PRG-72: Fisher–Yates seeded by the shuffle counter; a seed that gives back `current` is
+    /// skipped, and after 64 of them two items swap by a rotation.
+    fn shuffled(&mut self, current: Vec<Item>) -> Vec<Item> {
+        for _ in 0..64 {
+            let mut state = self.shuffle_seq;
+            self.shuffle_seq = self.shuffle_seq.wrapping_add(1);
+            let mut candidate = current.clone();
+            for i in (1..candidate.len()).rev() {
+                let j = (splitmix64(&mut state) % (i as u64 + 1)) as usize;
+                candidate.swap(i, j);
+            }
+            if candidate != current {
+                return candidate;
+            }
+        }
+        let mut rotated = current;
+        rotated.rotate_left(1);
+        rotated
     }
 
     /// PRG-06.
@@ -7178,6 +7267,15 @@ fn pick(kind: AttributeKind, current: Candidate, candidate: Candidate) -> Candid
             }
         }
     }
+}
+
+/// PRG-72: SplitMix64, the fixed generator behind Shuffle.
+fn splitmix64(state: &mut u64) -> u64 {
+    *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    let mut z = *state;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
 }
 
 #[cfg(test)]
