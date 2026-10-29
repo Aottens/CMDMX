@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-10-29 (FXB-08)_
+_Last updated: 2026-10-29 (FXB-09)_
 
 ## Current step
+FXB-09 (2026-10-29, FX-21 amended): `groups_of` (behind `cue_groups` and `playback_groups`, CUE-40/PBK-35) counts the attributes of a cue's effect entries as well as its values, so a cue holding only a Circle lists `P`. Test `fx_21_a_cues_groups_count_its_effects`.
 FXB-08 (2026-10-29, IPC-14 amended): the daemon's `Demo/Wash` profile gives Pan and Tilt `default` 0.5, so the demo washes start at the centre and a Circle or Eight after Clear runs around it (FX-05). A Demo show saved before keeps its embedded profile (SHW-05). Test `ipc_14_demo_wash_pan_and_tilt_start_at_the_centre`.
 FXB-06 (2026-10-29, FX-44 run; FX-17, 33, 40, 42 amended): `set_active_group` switches the effect wheels off (an attribute-group pick takes the wheels back; `effect.wheels {on: true}` returns them); `EffectView` gains `dark` (`Engine::dark`: none of the entry's attributes in group I and its first member's Dimmer/virtual dimmer is 0 in the base). Tests `fx_17_an_attribute_group_pick_switches_the_effect_wheels_off`, `fx_42_a_colour_effect_on_a_dark_base_says_so` in the daemon.
 FXB-05 (2026-10-29, FX-33 amended for FX-37/38/39/42): `EffectView` gains `colours` (the ColourMix list) and `white_base` (Hue shift whose first member's base, `start_value` of Colour, has saturation < 1 %); `ProgrammerView` gains `runnable_looks` (1-based catalogue ids some target can run, via `shape_attributes` now shared with `effect_apply`); the snapshot's `PaletteInfo` gains `effects [{look, shape}]` (absent when empty). Tests `fx_37/38/39/42_…` in the daemon.

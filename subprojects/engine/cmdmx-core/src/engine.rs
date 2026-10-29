@@ -5894,23 +5894,27 @@ impl Engine {
         groups.into_iter().collect()
     }
 
-    /// PBK-35, CUE-40: the attribute groups all the playback's cues hold values in, in
-    /// I P C G B E S FX order.
+    /// PBK-35, CUE-40: the attribute groups all the playback's cues hold values or effects in,
+    /// in I P C G B E S FX order.
     pub fn playback_groups(&self, id: PlaybackId) -> Vec<AttributeGroup> {
         let cues = self.playback(id).map(|p| p.cues.as_slice()).unwrap_or(&[]);
         self.groups_of(cues.iter())
     }
 
-    /// CUE-40: the attribute groups one cue holds values in (empty for an unknown cue).
+    /// CUE-40: the attribute groups one cue holds values or effects in (empty for an unknown cue).
     pub fn cue_groups(&self, id: PlaybackId, cue: CueNumber) -> Vec<AttributeGroup> {
         let cues = self.playback(id).map(|p| p.cues.as_slice()).unwrap_or(&[]);
         self.groups_of(cues.iter().filter(|c| c.number == cue))
     }
 
     fn groups_of<'a>(&self, cues: impl Iterator<Item = &'a Cue>) -> Vec<AttributeGroup> {
+        // FXB-09: the attributes of a cue's effects count as its values do.
         let groups: BTreeSet<AttributeGroup> = cues
-            .flat_map(|c| c.values.values())
-            .flat_map(|attrs| attrs.keys())
+            .flat_map(|c| {
+                let values = c.values.values().flat_map(|attrs| attrs.keys());
+                let effects = c.effects.iter().flat_map(|e| e.attributes.iter());
+                values.chain(effects)
+            })
             .map(|name| self.attribute_group(name))
             .collect();
         groups.into_iter().collect()
