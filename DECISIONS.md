@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-29 — A timed Clear fades an effect's part, not only its size (FXB-02)
+
+**Decision:** FX-19's "fades every entry's size to 0" is built as: the effect's contribution fades linearly, output = base + (effect − base) · (1 − p), then the entry goes. For relative and colour effects this is exactly size → 0; for an absolute dimmer effect size → 0 would jump to `top` first.
+
+**Alternatives considered:** literal size → 0 (an absolute Dimmer chase would go to full, then drop).
+
+**Reasoning:** FX-19's intent: an effect never stops with a jump from Clear.
+
+**Reversal trigger:** the owner wants the literal size fade.
+
 ## 2026-10-29 — Effects are entries (shape + parameters + members) on a built-in shape library (P2-01)
 
 **Decision:** an effect is an entry owned by the programmer, a cue or a palette: a built-in shape (waves, Pan/Tilt paths, colour shapes), its parameters and its ordered members; effect palettes hold entries without members and are applied to the selection. Relative by default, absolute for dimmer waves and colour shapes; one effect per attribute; the playback's *m* scales the size; an effect clock advanced from tick timestamps with the chase speed sources. See ADR-011 (amends ADR-007 decision 2), `effects.md` FX-01..44.
