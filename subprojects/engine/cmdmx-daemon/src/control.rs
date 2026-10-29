@@ -466,6 +466,9 @@ impl Tick<'_> {
             Action::Page(n) => page(self, Some(n)),
             // The deck page belongs to the deck device (VS7-06), not to the engine.
             Action::DeckPageNext | Action::DeckPagePrev | Action::DeckPage(_) => None,
+            Action::EffectTap => Some(Command::EffectTap { at: self.now }),
+            Action::EffectRestart => Some(Command::EffectRestart),
+            Action::EffectStop => Some(Command::EffectStop { group: None }),
             Action::Fan(a) => Some(Command::Fan {
                 curve: match a {
                     FanArg::Toggle => None,

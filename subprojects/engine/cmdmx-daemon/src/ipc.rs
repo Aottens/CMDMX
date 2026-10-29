@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::colour::TargetColour;
+use cmdmx_core::effect::{self, EffectApply};
 use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
 use cmdmx_core::library::channel_list::ChannelList;
 use cmdmx_core::output::{Node, NodeId, NodeKind};
@@ -122,6 +123,23 @@ pub enum Command {
     /// IPC-43: absent toggles, `Some(None)` turns Fan off, `Some(Some(c))` turns it on with `c`.
     Fan {
         curve: Option<Option<FanCurve>>,
+    },
+    /// FX-34: the effect commands, one per `Engine::effect_*`.
+    EffectApply(cmdmx_core::effect::EffectApply),
+    EffectSet(cmdmx_core::effect::EffectSet),
+    EffectSelect {
+        entry: cmdmx_core::effect::EntryId,
+    },
+    EffectStop {
+        group: Option<AttributeGroup>,
+    },
+    EffectRestart,
+    /// `at` is the receive time, set by `stamp`.
+    EffectTap {
+        at: f64,
+    },
+    EffectWheels {
+        on: bool,
     },
     /// `groups` and `attribute` are never both set; neither means the active group.
     Off {
@@ -693,6 +711,19 @@ fn field<T: serde::de::DeserializeOwned>(
         .ok_or_else(|| format!("missing or invalid \"{key}\" (expected {expected})"))
 }
 
+/// FX-34: exactly one of `look`, `shape` (with an optional `attribute`) or `palette`.
+fn effect_apply(v: &serde_json::Value) -> Result<EffectApply, String> {
+    match (v.get("look"), v.get("shape"), v.get("palette")) {
+        (Some(_), None, None) => string(v, "look").map(EffectApply::Look),
+        (None, Some(_), None) => Ok(EffectApply::Shape {
+            shape: field(v, "shape", "a shape such as {\"Wave\": \"Sine\"}")?,
+            attribute: opt_string(v, "attribute")?,
+        }),
+        (None, None, Some(_)) => uint(v, "palette").map(EffectApply::Palette),
+        _ => Err("effect.apply needs exactly one of \"look\", \"shape\" or \"palette\"".into()),
+    }
+}
+
 /// A number field (any f32).
 fn number(v: &serde_json::Value, key: &str) -> Result<f32, String> {
     opt_f32(v, key)?.ok_or_else(|| format!("missing \"{key}\""))
@@ -1007,6 +1038,7 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
 pub fn stamp(cmd: Command, at: f64) -> Command {
     match cmd {
         Command::PlaybackTap { id, .. } => Command::PlaybackTap { id, at },
+        Command::EffectTap { .. } => Command::EffectTap { at },
         Command::PlaybackButton { id, button, on, .. } => {
             Command::PlaybackButton { id, button, on, at }
         }
@@ -1087,6 +1119,25 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             groups: opt_field(&v, "groups", "an array of attribute groups")?,
         }),
         Some("programmer.highlight") => Ok(Command::Highlight {
+            on: boolean(&v, "on")?,
+        }),
+        Some("effect.apply") => effect_apply(&v).map(Command::EffectApply),
+        Some("effect.set") => {
+            let param = string(&v, "param")?;
+            let value = (v.get("value")).ok_or_else(|| "missing \"value\"".to_string())?;
+            serde_json::from_value(serde_json::json!({ param.as_str(): value }))
+                .map(Command::EffectSet)
+                .map_err(|e| format!("invalid effect.set \"{param}\": {e}"))
+        }
+        Some("effect.select") => Ok(Command::EffectSelect {
+            entry: uint(&v, "entry")?,
+        }),
+        Some("effect.stop") => Ok(Command::EffectStop {
+            group: opt_field(&v, "group", "an attribute group (I, P, C, G, B, E, S)")?,
+        }),
+        Some("effect.restart") => Ok(Command::EffectRestart),
+        Some("effect.tap") => Ok(Command::EffectTap { at: 0.0 }),
+        Some("effect.wheels") => Ok(Command::EffectWheels {
             on: boolean(&v, "on")?,
         }),
         Some("programmer.fan") => Ok(Command::Fan {
@@ -2062,6 +2113,8 @@ struct Snapshot<'a> {
     palette_settings: PaletteSettings,
     programmer_settings: ProgrammerSettings,
     programmer: &'a ProgrammerView,
+    /// FX-32: the look gallery and the shapes; constant, so never in a delta.
+    effect_catalogue: EffectCatalogue,
     outputs: Vec<OutputJson>,
     show: &'a ShowState,
     undo: &'a UndoInfo,
@@ -2304,11 +2357,69 @@ pub fn snapshot(
         palette_settings: palette_settings(engine),
         programmer_settings: programmer_settings(engine),
         programmer: &engine.programmer_view(),
+        effect_catalogue: effect_catalogue(),
         outputs: output_jsons(outputs),
         show,
         undo,
         control,
     })
+}
+
+/// FX-32: one look of the gallery.
+#[derive(Serialize)]
+struct LookInfo {
+    id: usize,
+    name: &'static str,
+    group: AttributeGroup,
+    shape: effect::Shape,
+    attribute: Option<&'static str>,
+}
+
+#[derive(Serialize)]
+struct EffectShapes {
+    wave: [effect::Wave; 6],
+    path: [effect::Path; 6],
+    colour: [effect::ColourShape; 3],
+}
+
+#[derive(Serialize)]
+struct EffectCatalogue {
+    looks: Vec<LookInfo>,
+    shapes: EffectShapes,
+}
+
+fn effect_catalogue() -> EffectCatalogue {
+    use effect::{ColourShape as C, Path as P, Wave as W};
+    EffectCatalogue {
+        looks: (effect::LOOKS.iter().enumerate())
+            .map(|(i, l)| LookInfo {
+                id: i + 1,
+                name: l.name,
+                group: l.group,
+                shape: l.shape,
+                attribute: l.attribute,
+            })
+            .collect(),
+        shapes: EffectShapes {
+            wave: [
+                W::Sine,
+                W::Triangle,
+                W::RampUp,
+                W::RampDown,
+                W::Square,
+                W::Random,
+            ],
+            path: [
+                P::Circle,
+                P::Eight,
+                P::Square,
+                P::Triangle,
+                P::LinePan,
+                P::LineTilt,
+            ],
+            colour: [C::Rainbow, C::HueShift, C::ColourMix],
+        },
+    }
 }
 
 /// IPC-24: one value of a cue's state.
@@ -3439,7 +3550,8 @@ mod tests {
             json!({"selection":[],"targets":[],"active_group":"I",
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
                    "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]},
-                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line"})
+                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line",
+                   "effects":[],"effect_wheels":false})
         );
     }
 
@@ -3743,6 +3855,96 @@ mod tests {
     }
 
     #[test]
+    fn fx_32_snapshot_carries_the_effect_catalogue() {
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+        ));
+        let c = &v["effect_catalogue"];
+        let looks = c["looks"].as_array().unwrap();
+        assert_eq!(looks.len(), cmdmx_core::effect::LOOKS.len());
+        assert_eq!(
+            looks[0],
+            json!({"id":1,"name":"Dimmer chase","group":"I","shape":{"Wave":"Square"},"attribute":"Dimmer"})
+        );
+        assert_eq!(
+            looks[5],
+            json!({"id":6,"name":"Circle","group":"P","shape":{"Path":"Circle"},"attribute":null})
+        );
+        assert_eq!(looks[13]["name"], "Zoom pulse");
+        assert_eq!(looks[13]["attribute"], "Zoom");
+        assert_eq!(
+            c["shapes"],
+            json!({
+                "wave":["Sine","Triangle","RampUp","RampDown","Square","Random"],
+                "path":["Circle","Eight","Square","Triangle","LinePan","LineTilt"],
+                "colour":["Rainbow","HueShift","ColourMix"]
+            })
+        );
+    }
+
+    #[test]
+    fn fx_34_effect_commands_parse() {
+        use cmdmx_core::effect::{EffectApply, EffectSet, Path, Shape, Wave};
+        let ok = |s: &str| parse_command(s).unwrap_or_else(|e| panic!("{s}: {e}"));
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.apply","look":"Circle"}"#),
+            Command::EffectApply(EffectApply::Look("Circle".into()))
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.apply","shape":{"Path":"Eight"}}"#),
+            Command::EffectApply(EffectApply::Shape {
+                shape: Shape::Path(Path::Eight),
+                attribute: None
+            })
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.apply","shape":{"Wave":"Sine"},"attribute":"Zoom"}"#),
+            Command::EffectApply(EffectApply::Shape {
+                shape: Shape::Wave(Wave::Sine),
+                attribute: Some("Zoom".into())
+            })
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.apply","palette":4}"#),
+            Command::EffectApply(EffectApply::Palette(4))
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.set","param":"spread","value":720}"#),
+            Command::EffectSet(EffectSet::Spread(720.0))
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.select","entry":3}"#),
+            Command::EffectSelect { entry: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.stop"}"#),
+            Command::EffectStop { group: None }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.stop","group":"P"}"#),
+            Command::EffectStop {
+                group: Some(AttributeGroup::P)
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.restart"}"#),
+            Command::EffectRestart
+        );
+        assert_eq!(
+            stamp(ok(r#"{"v":1,"cmd":"effect.tap"}"#), 2.5),
+            Command::EffectTap { at: 2.5 }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.wheels","on":true}"#),
+            Command::EffectWheels { on: true }
+        );
+    }
+
+    #[test]
     fn ipc_11_programmer_state_object() {
         let mut e = engine();
         e.select_fixture(1).unwrap();
@@ -3760,7 +3962,8 @@ mod tests {
                    "wheels":[{"attribute":"Dimmer","value":0.0,"touched":false,"sixteen_bit":false,"palette":null}],
                    "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null,
                    "palettes":{"in_use":[],"relevant":[]},
-                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line"})
+                   "located":{},"highlight":false,"fan":null,"fan_curve":"Line",
+                   "effects":[],"effect_wheels":false})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
         let v = parse(&snapshot(

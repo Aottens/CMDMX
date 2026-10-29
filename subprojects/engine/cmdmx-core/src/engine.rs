@@ -46,7 +46,7 @@ use crate::playback::{
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
     default_lowlight, fan_factors, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView,
-    EditPart, Fade, FanCurve, FixtureValues, GroupId, Item, PaletteUse, Programmer,
+    EditPart, EffectView, Fade, FanCurve, FixtureValues, GroupId, Item, PaletteUse, Programmer,
     ProgrammerSettingsChange, ProgrammerView, Resolution, WheelState,
 };
 use crate::show::{
@@ -4852,10 +4852,36 @@ impl Engine {
             })
             .collect();
         // Per wheel: the first target that has the attribute speaks for all.
+        let current = self.current_entry().filter(|_| self.effect_wheels);
         let wheels = self
             .wheel_layout()
             .into_iter()
             .filter_map(|attribute| {
+                // FX-33: an effect wheel shows its parameter as a fraction of the FX-06 range.
+                if let Some(e) = current {
+                    let p = pointed(&self.palettes, e);
+                    let beats = effect::BEATS.iter().position(|b| *b == p.beats);
+                    let value = match attribute.as_str() {
+                        "Size" => p.size,
+                        "Top" => p.top,
+                        "Width" => p.width,
+                        "Crossfade" => p.crossfade,
+                        "Speed" => p.bpm / 600.0,
+                        "Spread" => p.spread / 1440.0,
+                        "Phase" => p.phase / 360.0,
+                        "Beats" => beats.unwrap_or(2) as f32 / 6.0,
+                        "Wings" => f32::from(p.wings.saturating_sub(1)) / 7.0,
+                        _ => 0.0,
+                    };
+                    return Some(WheelState {
+                        attribute,
+                        value,
+                        touched: true,
+                        sixteen_bit: false,
+                        palette: None,
+                        auto: false,
+                    });
+                }
                 let colour_wheel = self.colour_model.wheels().contains(&attribute.as_str());
                 let name = if colour_wheel {
                     COLOUR
@@ -4968,6 +4994,28 @@ impl Engine {
             highlight: self.highlight,
             fan: self.fan,
             fan_curve: self.fan_curve,
+            effects: (self.programmer.effects.iter())
+                .map(|e| EffectView {
+                    id: e.id,
+                    look: e.look.clone(),
+                    shape: e.shape,
+                    attributes: e.attributes.clone(),
+                    members: e.members.clone(),
+                    positions: (e.positions.iter())
+                        .map(|&k| {
+                            if e.count == 0 {
+                                0.0
+                            } else {
+                                k as f32 / e.count as f32
+                            }
+                        })
+                        .collect(),
+                    params: pointed(&self.palettes, e),
+                    palette: e.palette,
+                    current: self.programmer.current == Some(e.id),
+                })
+                .collect(),
+            effect_wheels: self.effect_wheels,
         }
     }
 
