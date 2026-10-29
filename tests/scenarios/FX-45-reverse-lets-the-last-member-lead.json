@@ -1,0 +1,25 @@
+{
+  "spec": "FX-45",
+  "profiles": { "dimmer": { "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 } ] } },
+  "patch": [
+    { "id": 201, "profile": "dimmer", "universe": 1, "address": 1 },
+    { "id": 202, "profile": "dimmer", "universe": 1, "address": 2 },
+    { "id": 203, "profile": "dimmer", "universe": 1, "address": 3 },
+    { "id": 204, "profile": "dimmer", "universe": 1, "address": 4 }
+  ],
+  "playbacks": [],
+  "actions": [
+    { "t": 0.0, "prg": { "select": [201, 202, 203, 204] } },
+    { "t": 0.0, "effect": { "apply": { "look": "Dimmer chase" } } },
+    { "t": 0.0, "effect": { "set": { "order": "Reverse" } } },
+    { "t": 0.5, "effect": { "set": { "wings": 2 } } },
+    { "t": 0.5, "effect": { "set": { "flip": true } } }
+  ],
+  "expect": [
+    { "t": 0.1, "universe": 1, "channels": { "1": 0, "2": 0, "3": 0, "4": 255 } },
+    { "t": 0.1, "history": { "undo": "Effect order", "redo": null } },
+    { "t": 0.2, "universe": 1, "channels": { "1": 0, "2": 0, "3": 255, "4": 0 } },
+    { "t": 0.6, "universe": 1, "channels": { "1": 0, "2": 255, "3": 255, "4": 0 } },
+    { "t": 0.6, "history": { "undo": "Effect flip", "redo": null } }
+  ]
+}
