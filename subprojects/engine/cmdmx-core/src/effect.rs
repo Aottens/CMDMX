@@ -1,11 +1,13 @@
 //! Effects: shape functions, member positions, phase and clock (`specs/modules/effects.md`
 //! FX-01..13, FX-30; FXB-01). Pure and deterministic: time comes in as `dt`, never from a clock.
-//! The programmer, the merge and playbacks use these in FXB-02/03.
+//! The programmer and the merge use these (FXB-02); playbacks follow in FXB-03.
 
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::TargetColour;
+use crate::programmer::Item;
+use crate::value::Value;
 use crate::CoreError;
 
 use std::f64::consts::TAU;
@@ -217,6 +219,9 @@ pub fn colour_absolute(base: TargetColour, effect: TargetColour, size: f32) -> T
     lerp_colour(base, effect, size)
 }
 
+/// FX-06: the values `beats` takes.
+pub const BEATS: [f32; 7] = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0];
+
 /// FX-06: the parameters of an effect entry.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Params {
@@ -278,7 +283,7 @@ impl Params {
         float("size", self.size, 0.0, 1.0)?;
         float("top", self.top, 0.0, 1.0)?;
         float("bpm", self.bpm, 0.0, 600.0)?;
-        if ![0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0].contains(&self.beats) {
+        if !BEATS.contains(&self.beats) {
             return Err(bad("beats", self.beats, "1/4, 1/2, 1, 2, 4, 8 or 16"));
         }
         match self.speed_source {
@@ -402,6 +407,163 @@ impl Clock {
     /// FX-11.
     pub fn restart(&mut self) {
         self.theta = 0.0;
+    }
+}
+
+pub type EntryId = u32;
+
+/// FX-14: a programmer effect entry. `attributes` is `["Pan", "Tilt"]` for a path, `["Colour"]`
+/// for a colour shape, else the wave's attribute; `positions`/`count` are FX-07's *k* per member
+/// and *N*, kept up to date by [`Entry::refresh`], never computed per tick.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Entry {
+    pub id: EntryId,
+    pub look: Option<String>,
+    pub shape: Shape,
+    pub attributes: Vec<String>,
+    pub params: Params,
+    pub members: Vec<Item>,
+    pub positions: Vec<u32>,
+    pub count: u32,
+    pub seed: u64,
+    /// FX-03: the `ColourMix` list; empty for other shapes.
+    pub colours: Vec<TargetColour>,
+    /// The attribute group of `attributes`, for FX-19.
+    pub(crate) group: AttributeGroup,
+}
+
+/// FX-14: what `effect.apply` makes an entry from.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EffectApply {
+    Look(String),
+    /// A wave without an attribute means Dimmer.
+    Shape {
+        shape: Shape,
+        attribute: Option<String>,
+    },
+}
+
+/// FX-16: one parameter of the current entry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EffectSet {
+    Size(f32),
+    Top(f32),
+    Bpm(f32),
+    Beats(f32),
+    Spread(f32),
+    Phase(f32),
+    Width(f32),
+    Crossfade(f32),
+    SpeedSource(SpeedSource),
+    Direction(Direction),
+    Mode(Mode),
+    Wings(u8),
+    Groups(u8),
+    Blocks(u8),
+    Colours(Vec<TargetColour>),
+}
+
+impl EffectSet {
+    /// The parameter's name, for undo labels and coalescing keys (FX-20).
+    pub fn name(&self) -> &'static str {
+        match self {
+            EffectSet::Size(_) => "size",
+            EffectSet::Top(_) => "top",
+            EffectSet::Bpm(_) => "bpm",
+            EffectSet::Beats(_) => "beats",
+            EffectSet::Spread(_) => "spread",
+            EffectSet::Phase(_) => "phase",
+            EffectSet::Width(_) => "width",
+            EffectSet::Crossfade(_) => "crossfade",
+            EffectSet::SpeedSource(_) => "speed_source",
+            EffectSet::Direction(_) => "direction",
+            EffectSet::Mode(_) => "mode",
+            EffectSet::Wings(_) => "wings",
+            EffectSet::Groups(_) => "groups",
+            EffectSet::Blocks(_) => "blocks",
+            EffectSet::Colours(_) => "colours",
+        }
+    }
+}
+
+/// ENG-16: each component into 0..=1 (a NaN becomes 0).
+fn clamp01(v: Value) -> Value {
+    let c = |x: f32| {
+        if x.is_finite() {
+            x.clamp(0.0, 1.0)
+        } else {
+            0.0
+        }
+    };
+    match v {
+        Value::Level(l) => Value::Level(c(l)),
+        Value::Colour(t) => Value::Colour(TargetColour {
+            r: c(t.r),
+            g: c(t.g),
+            b: c(t.b),
+        }),
+    }
+}
+
+impl Entry {
+    /// FX-07: recompute *k* and *N* after the members or the parameters changed.
+    pub(crate) fn refresh(&mut self) {
+        let p = &self.params;
+        (self.positions, self.count) = positions(self.members.len(), p.wings, p.groups, p.blocks);
+    }
+
+    /// ENG-14..16: `base` with member `i`'s effect on `attribute` at clock `theta`, clamped;
+    /// `base` itself for an attribute the entry does not drive. `round` is FX-02's factor for
+    /// Tilt. Allocation-free (FX-13).
+    pub(crate) fn at(
+        &self,
+        i: usize,
+        theta: f64,
+        attribute: &str,
+        base: Value,
+        round: f32,
+    ) -> Value {
+        if !self.attributes.iter().any(|a| a == attribute) {
+            return base;
+        }
+        let p = &self.params;
+        let k = self.positions.get(i).copied().unwrap_or(0);
+        let t = member_theta(
+            p.direction,
+            theta,
+            p.phase,
+            phase_offset(p.spread, k, self.count),
+        );
+        let v = match (self.shape, base) {
+            (Shape::Wave(w), Value::Level(b)) => Value::Level(scalar(
+                p.mode,
+                b,
+                p.size,
+                p.top,
+                wave(w, t, p.width, self.seed, k),
+            )),
+            // ponytail: an Absolute path acts as Relative; absolute positions come with a need.
+            (Shape::Path(shape), Value::Level(b)) => {
+                let (x, y) = path(shape, t);
+                if attribute == "Pan" {
+                    Value::Level(b + p.size * x)
+                } else {
+                    Value::Level(b + p.size * y * round)
+                }
+            }
+            (Shape::Colour(shape), Value::Colour(b)) => Value::Colour(match shape {
+                ColourShape::Rainbow => colour_absolute(b, rainbow(t), p.size),
+                ColourShape::ColourMix => colour_mix(&self.colours, t, p.crossfade)
+                    .map_or(b, |m| colour_absolute(b, m, p.size)),
+                ColourShape::HueShift => {
+                    hue_shift(b, p.size * (wave(Wave::Sine, t, 0.5, 0, 0) - 0.5))
+                }
+            }),
+            _ => return base,
+        };
+        clamp01(v)
     }
 }
 

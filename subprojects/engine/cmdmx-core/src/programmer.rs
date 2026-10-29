@@ -14,6 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::ColourModel;
+use crate::effect::{Entry, EntryId};
 use crate::gel::GelRef;
 use crate::palette::PaletteId;
 use crate::patch::FixtureId;
@@ -358,6 +359,8 @@ pub(crate) struct EditPart {
     changed: bool,
     values: BTreeMap<Item, Attrs<Stored>>,
     located: BTreeMap<Item, Attrs<Value>>,
+    effects: Vec<Entry>,
+    current: Option<EntryId>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -377,6 +380,10 @@ pub struct Programmer {
     /// Engine activation counter at the last value change: orders the
     /// programmer against other sources in LTP ties (ENG-04).
     activated: u64,
+    /// FX-14: the programmer's effect entries and the current one (FX-18). Undoable (FX-20);
+    /// their clocks are live state of the engine.
+    pub(crate) effects: Vec<Entry>,
+    pub(crate) current: Option<EntryId>,
 }
 
 fn whole(items: &[Item]) -> Vec<FixtureId> {
@@ -395,6 +402,8 @@ impl Programmer {
             changed: self.changed,
             values: self.values.clone(),
             located: self.located.clone(),
+            effects: self.effects.clone(),
+            current: self.current,
         }
     }
 
@@ -406,6 +415,8 @@ impl Programmer {
         self.sub = part.sub;
         self.changed = part.changed;
         self.located = part.located;
+        self.effects = part.effects;
+        self.current = part.current;
         self.clearing.clear(); // ENG-10: undo during a timed Clear puts the programmer back at once
         let values = &self.values;
         for (item, attrs) in &mut self.fades {
@@ -635,6 +646,17 @@ impl Programmer {
         self.fades.retain(|i, _| i.fixture != fixture);
         self.located.retain(|i, _| i.fixture != fixture);
         self.clearing.retain(|i, _| i.fixture != fixture);
+        for e in &mut self.effects {
+            e.members.retain(|i| i.fixture != fixture);
+            e.refresh();
+        }
+        self.effects.retain(|e| !e.members.is_empty());
+        if self
+            .current
+            .is_some_and(|c| self.effects.iter().all(|e| e.id != c))
+        {
+            self.current = None;
+        }
         let before = self.selection.len();
         self.selection.retain(|i| i.fixture != fixture);
         if self.selection.len() != before {

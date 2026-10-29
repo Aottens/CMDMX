@@ -27,6 +27,7 @@ use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{self, ColourModel, CtStep, TargetColour};
 use crate::command::{self, Cells, Kind};
 use crate::cuelist::{Ctx, Env, ListRun};
+use crate::effect::{self, Clock, EffectApply, EffectSet, EntryId};
 use crate::gel::{GelRef, GelTable};
 use crate::output::{self, Node, NodeId, NodeKind};
 use crate::palette::{
@@ -288,6 +289,25 @@ pub struct Engine {
     /// PRG-56: Fan mode and the last curve; live state, not undoable, not saved.
     fan: Option<FanCurve>,
     fan_curve: FanCurve,
+    /// Above every programmer effect entry id ever made, so ids and seeds are never reused
+    /// (FX-01, FX-14). Not in the edit state.
+    effect_next_id: EntryId,
+    /// FX-09: the clocks of the programmer entries. Live state: undo does not rewind them (FX-20).
+    effect_live: BTreeMap<EntryId, EffectLive>,
+    /// FX-17: the wheels act on the current effect entry. Live state.
+    effect_wheels: bool,
+}
+
+/// FX-09, 10, 19: what runs for a programmer entry besides its parameters.
+#[derive(Debug, Default)]
+struct EffectLive {
+    clock: Clock,
+    /// The tick that last advanced the clock; `None` before the entry's first tick.
+    last: Option<Timestamp>,
+    /// FX-10: the current tap series.
+    taps: Vec<Timestamp>,
+    /// FX-19: a timed Clear fades the entry out; at the end the entry goes.
+    fade: Option<Fade>,
 }
 
 /// UNDO (ADR-008): everything an edit command changes, as one snapshot. Not in it, so live or
@@ -379,6 +399,9 @@ impl Engine {
             highlight: false,
             fan: None,
             fan_curve: FanCurve::default(),
+            effect_next_id: 1,
+            effect_live: BTreeMap::new(),
+            effect_wheels: false,
         }
     }
 
@@ -2053,25 +2076,10 @@ impl Engine {
             )));
         }
         let state = self.live_state(id)?;
-        let series = &mut state.taps;
-        if series
-            .last()
-            .is_some_and(|&last| !(0.0..=2.0).contains(&(at - last)))
-        {
-            series.clear();
-        }
-        series.push(at);
-        series.drain(..series.len().saturating_sub(4));
-        let (Some(&first), Some(&last)) = (series.first(), series.last()) else {
+        let Some(bpm) = tap_bpm(&mut state.taps, at) else {
             return Ok(());
         };
-        let intervals = series.len().saturating_sub(1);
-        if intervals == 0 {
-            return Ok(());
-        }
-        let mean = (last - first) / intervals as f64;
-        let bpm = ((60.0 / mean) as f32).clamp(1.0, 600.0);
-        self.set_tempo(id, (bpm * 10.0).round() / 10.0, Some(at))
+        self.set_tempo(id, bpm, Some(at))
     }
 
     /// CUE-34: type a tempo (1–600) for a chase or a BPM master. It changes no running step.
@@ -2118,6 +2126,14 @@ impl Engine {
                         state.run.sync = Some(at);
                     }
                 }
+                // FX-10: so do the programmer entries that follow this master.
+                for e in &self.programmer.effects {
+                    if e.params.speed_source == effect::SpeedSource::Bpm(number) {
+                        if let Some(live) = self.effect_live.get_mut(&e.id) {
+                            live.clock.beat_sync(e.params.beats);
+                        }
+                    }
+                }
             }
         } else {
             self.playback_mut(id)?.chase.bpm = bpm;
@@ -2150,18 +2166,28 @@ impl Engine {
 
     /// CUE-29: a source whose master does not exist runs as `Free`.
     fn chase_bpm(&self, chase: &ChaseOptions) -> f32 {
-        let (kind, number) = match chase.speed_source {
-            SpeedSource::Free => return chase.bpm,
-            SpeedSource::Bpm(n) => (MasterKind::Bpm, n),
-            SpeedSource::Rate(n) => (MasterKind::Rate, n),
+        self.speed(
+            chase.bpm,
+            match chase.speed_source {
+                SpeedSource::Free => None,
+                SpeedSource::Bpm(n) => Some((MasterKind::Bpm, n)),
+                SpeedSource::Rate(n) => Some((MasterKind::Rate, n)),
+            },
+        )
+    }
+
+    /// CUE-29, FX-09: `bpm` after its speed master; a missing master runs as `Free`.
+    fn speed(&self, bpm: f32, source: Option<(MasterKind, u8)>) -> f32 {
+        let Some((kind, number)) = source else {
+            return bpm;
         };
         match self.find_master(kind, number) {
             Some((id, Master::Bpm(m))) => self.master_tempo(id, m),
             Some((id, Master::Rate(m))) => {
                 let level = self.states.get(&id).map_or(0.0, |s| s.level);
-                chase.bpm * (level * f32::from(m.rate_scale) / 100.0) // CUE-36
+                bpm * (level * f32::from(m.rate_scale) / 100.0) // CUE-36
             }
-            None | Some((_, Master::Group(_))) => chase.bpm,
+            None | Some((_, Master::Group(_))) => bpm,
         }
     }
 
@@ -3357,6 +3383,7 @@ impl Engine {
         self.fan = None; // PRG-56
         self.programmer.toggle(item);
         self.follow_active_group();
+        self.select_entry_of_selection();
         Ok(())
     }
 
@@ -3367,7 +3394,16 @@ impl Engine {
         self.fan = None; // PRG-56
         self.programmer.add_group(&members);
         self.follow_active_group();
+        self.select_entry_of_selection();
         Ok(())
+    }
+
+    /// PRG-08: a typed selection.
+    fn replace_selection(&mut self, list: Vec<Item>) {
+        self.fan = None; // PRG-56
+        self.programmer.replace_selection(list);
+        self.follow_active_group();
+        self.select_entry_of_selection();
     }
 
     fn cell_count(&self, id: FixtureId) -> usize {
@@ -3406,7 +3442,9 @@ impl Engine {
     /// empties the programmer and the located set).
     pub fn clear(&mut self) {
         let selected = !self.programmer.items().is_empty();
-        let has_content = !self.programmer.is_empty() || self.programmer.has_located();
+        let has_content = !self.programmer.is_empty()
+            || self.programmer.has_located()
+            || !self.programmer.effects.is_empty();
         match self.settings.clear_precedence {
             ClearPrecedence::SelectionThenProgrammer => {
                 if selected {
@@ -3456,6 +3494,21 @@ impl Engine {
             self.programmer.clear_values(); // also what no mode can name any more
         }
         self.give_up(gone, time);
+        // FX-19: the entries in `mask` go, at once or fading out over `time`.
+        let hit = |e: &effect::Entry| mask.is_none_or(|m| m.contains(&e.group));
+        if time > 0.0 {
+            for e in self.programmer.effects.iter().filter(|e| hit(e)) {
+                let fade = Fade {
+                    from: Value::Level(0.0),
+                    delay: 0.0,
+                    duration: time,
+                    start: None,
+                };
+                self.effect_live.entry(e.id).or_default().fade = Some(fade);
+            }
+        } else {
+            self.effects_leave(|e, _| hit(e));
+        }
     }
 
     /// Remove the programmer values and located values of `items` (each one's own, PRG-51) whose
@@ -3690,11 +3743,26 @@ impl Engine {
         if targets.is_empty() {
             return Err(CoreError::EmptySelection);
         }
-        let gone = self.take_out(&targets, keep);
-        if gone.is_empty() {
+        let gone = self.take_out(&targets, &keep);
+        // FX-19: Off on an attribute takes its effect off too; a path is one effect on Pan and
+        // Tilt, so Off on either takes the member out.
+        let mut hits: Vec<(EntryId, Item)> = Vec::new();
+        for e in &self.programmer.effects {
+            for m in e.members.iter().filter(|m| targets.contains(m)) {
+                let mode = self.mode_of(m.fixture);
+                let off = e.attributes.iter().any(|a| {
+                    (mode.and_then(|mode| mode.item_logical(m.cell, a))).is_some_and(|l| keep(&l))
+                });
+                if off {
+                    hits.push((e.id, *m));
+                }
+            }
+        }
+        if gone.is_empty() && hits.is_empty() {
             return Err(CoreError::NothingToOff);
         }
         self.give_up(gone, 0.0);
+        self.effects_leave(|e, m| hits.contains(&(e.id, *m)));
         Ok(())
     }
 
@@ -3808,6 +3876,335 @@ impl Engine {
         Ok(())
     }
 
+    // ---- programmer effects (FX-09..11, 14..20, 31; ENG-14..19) -----------
+
+    pub fn effects(&self) -> &[effect::Entry] {
+        &self.programmer.effects
+    }
+
+    pub fn current_effect(&self) -> Option<EntryId> {
+        self.programmer.current
+    }
+
+    fn current_entry(&self) -> Option<&effect::Entry> {
+        let id = self.programmer.current?;
+        self.programmer.effects.iter().find(|e| e.id == id)
+    }
+
+    /// FX-17.
+    pub fn effect_wheels(&self) -> bool {
+        self.effect_wheels
+    }
+
+    pub fn set_effect_wheels(&mut self, on: bool) {
+        self.effect_wheels = on;
+    }
+
+    /// An entry's clock θ_total in cycles (FX-09); live state, 0 until its first tick.
+    pub fn effect_theta(&self, id: EntryId) -> Option<f64> {
+        self.programmer.effects.iter().find(|e| e.id == id)?;
+        Some(self.effect_live.get(&id).map_or(0.0, |l| l.clock.theta()))
+    }
+
+    fn no_current_effect() -> CoreError {
+        CoreError::InvalidCommand("no current effect".into())
+    }
+
+    /// FX-14, 31: make an entry from the targets that have the shape's attribute(s), in target
+    /// order. Refusals change nothing.
+    pub fn effect_apply(&mut self, apply: &EffectApply) -> Result<EntryId, CoreError> {
+        use effect::{ColourShape, Shape};
+        let (look, shape, attribute, params, one_per_position) = match apply {
+            EffectApply::Look(name) => {
+                let l = (effect::LOOKS.iter().find(|l| l.name == name))
+                    .ok_or_else(|| CoreError::InvalidOption(format!("look '{name}'")))?;
+                (
+                    Some(l.name),
+                    l.shape,
+                    l.attribute,
+                    Some(l.params),
+                    l.width_one_per_position,
+                )
+            }
+            EffectApply::Shape { shape, attribute } => {
+                (None, *shape, attribute.as_deref(), None, false)
+            }
+        };
+        let (attributes, label): (Vec<&str>, &str) = match shape {
+            Shape::Path(_) => (vec!["Pan", "Tilt"], "Pan/Tilt"),
+            Shape::Colour(_) => (vec![COLOUR], COLOUR),
+            Shape::Wave(_) => {
+                let name = attribute.unwrap_or(DIMMER);
+                (vec![name], name)
+            }
+        };
+        let targets = self.programmer.target_items();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let logical = |item: &Item| {
+            let mode = self.mode_of(item.fixture)?;
+            attributes
+                .iter()
+                .find_map(|a| mode.item_logical(item.cell, a))
+        };
+        let members: Vec<Item> = targets
+            .iter()
+            .filter(|i| logical(i).is_some())
+            .copied()
+            .collect();
+        let Some((first_item, first)) = members.first().and_then(|i| Some((*i, logical(i)?)))
+        else {
+            return Err(CoreError::AttributeNotInTargets(label.to_string()));
+        };
+        let mut params = params.unwrap_or(effect::Params {
+            mode: effect::default_mode(shape, first.kind == AttributeKind::Htp),
+            ..effect::Params::DEFAULT
+        });
+        // FX-14: a ColourMix runs the first member's colour and its complement.
+        let mut colours = Vec::new();
+        if shape == Shape::Colour(ColourShape::ColourMix) {
+            let base = match self.start_value(first_item, &first) {
+                Value::Colour(c) => c,
+                Value::Level(_) => TargetColour::WHITE,
+            };
+            colours = vec![base, effect::hue_shift(base, 0.5)];
+        }
+        let group = first.group;
+        let attributes: Vec<String> = attributes.iter().map(|a| a.to_string()).collect();
+        let id = self.effect_next_id;
+        let mut entry = effect::Entry {
+            id,
+            look: look.map(str::to_string),
+            shape,
+            attributes,
+            params,
+            members,
+            positions: Vec::new(),
+            count: 0,
+            seed: u64::from(id),
+            colours,
+            group,
+        };
+        entry.refresh();
+        if one_per_position && entry.count > 0 {
+            params.width = 1.0 / entry.count as f32; // FX-30
+            entry.params = params;
+        }
+        self.effect_next_id = id.saturating_add(1);
+        // One programmer effect per fixture and attribute: the members leave their other entries.
+        let (members, names) = (entry.members.clone(), entry.attributes.clone());
+        self.effects_leave(|e, m| {
+            e.attributes.iter().any(|a| names.contains(a)) && members.contains(m)
+        });
+        self.programmer.effects.push(entry);
+        self.programmer.current = Some(id);
+        self.programmer.mark_changed(); // PRG-03
+        Ok(id)
+    }
+
+    /// Take the members `hit` accepts out of their entries; an entry left empty goes. `true`
+    /// when a member went.
+    fn effects_leave(&mut self, hit: impl Fn(&effect::Entry, &Item) -> bool) -> bool {
+        let mut any = false;
+        for e in &mut self.programmer.effects {
+            let mut members = std::mem::take(&mut e.members);
+            let before = members.len();
+            members.retain(|m| !hit(e, m));
+            any |= members.len() != before;
+            e.members = members;
+            e.refresh();
+        }
+        let p = &mut self.programmer;
+        p.effects.retain(|e| !e.members.is_empty());
+        if p.current
+            .is_some_and(|c| p.effects.iter().all(|e| e.id != c))
+        {
+            p.current = None;
+        }
+        any
+    }
+
+    /// FX-16: change a parameter of the current entry from the next tick. Out of range is
+    /// refused and changes nothing; positions follow.
+    pub fn effect_set(&mut self, set: EffectSet) -> Result<(), CoreError> {
+        let id = self
+            .programmer
+            .current
+            .ok_or_else(Self::no_current_effect)?;
+        let entry = (self.programmer.effects.iter_mut().find(|e| e.id == id))
+            .ok_or_else(Self::no_current_effect)?;
+        let mut p = entry.params;
+        match set {
+            EffectSet::Size(v) => p.size = v,
+            EffectSet::Top(v) => p.top = v,
+            EffectSet::Bpm(v) => p.bpm = v,
+            EffectSet::Beats(v) => p.beats = v,
+            EffectSet::Spread(v) => p.spread = v,
+            EffectSet::Phase(v) => p.phase = v,
+            EffectSet::Width(v) => p.width = v,
+            EffectSet::Crossfade(v) => p.crossfade = v,
+            EffectSet::SpeedSource(v) => p.speed_source = v,
+            EffectSet::Direction(v) => p.direction = v,
+            EffectSet::Mode(v) => p.mode = v,
+            EffectSet::Wings(v) => p.wings = v,
+            EffectSet::Groups(v) => p.groups = v,
+            EffectSet::Blocks(v) => p.blocks = v,
+            EffectSet::Colours(list) => {
+                let mix = entry.shape == effect::Shape::Colour(effect::ColourShape::ColourMix);
+                let ok = |c: &TargetColour| [c.r, c.g, c.b].iter().all(|v| (0.0..=1.0).contains(v));
+                if !mix || !(2..=8).contains(&list.len()) || !list.iter().all(ok) {
+                    return Err(CoreError::InvalidOption(format!(
+                        "colours (expected 2 to 8 colours on a colour mix, got {})",
+                        list.len()
+                    )));
+                }
+                entry.colours = list;
+                return Ok(());
+            }
+        }
+        p.validate()?;
+        entry.params = p;
+        entry.refresh();
+        Ok(())
+    }
+
+    /// FX-18: make another entry current.
+    pub fn effect_select(&mut self, id: EntryId) -> Result<(), CoreError> {
+        if self.programmer.effects.iter().all(|e| e.id != id) {
+            return Err(CoreError::InvalidCommand(format!("no effect {id}")));
+        }
+        self.programmer.current = Some(id);
+        Ok(())
+    }
+
+    /// FX-18: selecting exactly the members of one entry makes it current.
+    fn select_entry_of_selection(&mut self) {
+        let items = self.programmer.items();
+        if let Some(e) = self.programmer.effects.iter().find(|e| e.members == items) {
+            self.programmer.current = Some(e.id);
+        }
+    }
+
+    /// FX-19: take the targets out of every entry, or only those in `group`.
+    pub fn effect_stop(&mut self, group: Option<AttributeGroup>) -> Result<(), CoreError> {
+        let targets = self.programmer.target_items();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let hit =
+            |e: &effect::Entry, m: &Item| group.is_none_or(|g| e.group == g) && targets.contains(m);
+        if !self.effects_leave(hit) {
+            return Err(CoreError::InvalidCommand(
+                "no effect on the selection".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// FX-11: every programmer clock to 0.
+    pub fn effect_restart(&mut self) {
+        for live in self.effect_live.values_mut() {
+            live.clock.restart();
+        }
+    }
+
+    /// FX-10: tap the current entry's tempo. `Free` times the taps (CUE-33) and sets the entry's
+    /// `bpm`, beat-syncing from the second tap; `Bpm n` taps that master.
+    pub fn effect_tap(&mut self, at: Timestamp) -> Result<(), CoreError> {
+        if !at.is_finite() {
+            return Err(CoreError::InvalidCommand(format!("tap time {at}")));
+        }
+        let (id, params) = self
+            .current_entry()
+            .map(|e| (e.id, e.params))
+            .ok_or_else(Self::no_current_effect)?;
+        if let effect::SpeedSource::Bpm(n) = params.speed_source {
+            if let Some((master, _)) = self.find_master(MasterKind::Bpm, n) {
+                return self.tap(master, at);
+            }
+        }
+        let live = self.effect_live.entry(id).or_default();
+        let Some(bpm) = tap_bpm(&mut live.taps, at) else {
+            return Ok(());
+        };
+        live.clock.beat_sync(params.beats);
+        if let Some(e) = self.programmer.effects.iter_mut().find(|e| e.id == id) {
+            e.params.bpm = bpm;
+        }
+        Ok(())
+    }
+
+    /// FX-17: a wheel of the effect layout acts on the current entry; `None` when the wheels are
+    /// off, no entry is current or `name` is not one of them.
+    fn turn_effect_wheel(&mut self, name: &str, steps: i32) -> Option<Result<(), CoreError>> {
+        if !self.effect_wheels {
+            return None;
+        }
+        let p = self.current_entry()?.params;
+        let n = steps as f32;
+        let set = match name {
+            "Size" => EffectSet::Size((p.size + n * 0.01).clamp(0.0, 1.0)),
+            "Top" => EffectSet::Top((p.top + n * 0.01).clamp(0.0, 1.0)),
+            "Width" => EffectSet::Width((p.width + n * 0.01).clamp(0.01, 1.0)),
+            "Crossfade" => EffectSet::Crossfade((p.crossfade + n * 0.01).clamp(0.0, 1.0)),
+            "Speed" => EffectSet::Bpm((p.bpm + n).clamp(0.0, 600.0)),
+            "Spread" => EffectSet::Spread((p.spread + n * 15.0).clamp(0.0, 1440.0)),
+            "Phase" => EffectSet::Phase((p.phase + n * 15.0).clamp(0.0, 360.0)),
+            "Wings" => EffectSet::Wings((i32::from(p.wings) + steps).clamp(1, 8) as u8),
+            "Beats" => {
+                let at = effect::BEATS
+                    .iter()
+                    .position(|b| *b == p.beats)
+                    .unwrap_or(2);
+                let to = (at as i64 + i64::from(steps)).clamp(0, effect::BEATS.len() as i64 - 1);
+                EffectSet::Beats(effect::BEATS.get(to as usize).copied().unwrap_or(p.beats))
+            }
+            _ => return None,
+        };
+        Some(self.effect_set(set))
+    }
+
+    /// FX-09, 19: before the merge, advance every entry's clock by Δt · rate (an entry's first
+    /// tick does not advance it), start the fades of a timed Clear and drop the finished ones.
+    /// Allocates only when an entry gets its first clock.
+    fn tick_effects(&mut self, now: Timestamp) {
+        for i in 0..self.programmer.effects.len() {
+            let Some(e) = self.programmer.effects.get(i) else {
+                continue;
+            };
+            let (id, params) = (e.id, e.params);
+            let source = match params.speed_source {
+                effect::SpeedSource::Free => None,
+                effect::SpeedSource::Bpm(n) => Some((MasterKind::Bpm, n)),
+                effect::SpeedSource::Rate(n) => Some((MasterKind::Rate, n)),
+            };
+            let rate = effect::rate(self.speed(params.bpm, source), params.beats);
+            let live = self.effect_live.entry(id).or_default();
+            if let Some(last) = live.last {
+                live.clock.advance(now - last, rate);
+            }
+            live.last = Some(now);
+            if let Some(fade) = &mut live.fade {
+                fade.start.get_or_insert(now);
+            }
+        }
+        let live = &self.effect_live;
+        let done = |e: &effect::Entry| {
+            (live.get(&e.id).and_then(|l| l.fade.as_ref())).is_some_and(|f| f.progress(now) >= 1.0)
+        };
+        let p = &mut self.programmer;
+        p.effects.retain(|e| !done(e));
+        if p.current
+            .is_some_and(|c| p.effects.iter().all(|e| e.id != c))
+        {
+            p.current = None;
+        }
+        let effects = &p.effects;
+        self.effect_live
+            .retain(|id, _| effects.iter().any(|e| e.id == *id));
+    }
+
     /// PRG-18: the attribute group the wheels show; always accepted.
     pub fn active_group(&self) -> AttributeGroup {
         self.active_group
@@ -3850,6 +4247,18 @@ impl Engine {
     /// target has, in target order then profile order. Colour is shown as the
     /// colour model's wheels, ahead of the group's other attributes.
     pub fn wheel_layout(&self) -> Vec<String> {
+        // FX-17: while the effect wheels are on and an entry is current, they are the layout.
+        if let Some(e) = self.current_entry().filter(|_| self.effect_wheels) {
+            let width = if e.shape == effect::Shape::Colour(effect::ColourShape::ColourMix) {
+                "Crossfade"
+            } else {
+                "Width"
+            };
+            let names = [
+                "Size", "Speed", "Spread", "Phase", width, "Top", "Beats", "Wings",
+            ];
+            return names.iter().map(|n| n.to_string()).collect();
+        }
         let mut names: Vec<String> = Vec::new();
         let mut colour = false;
         for item in self.programmer.target_items() {
@@ -3882,6 +4291,9 @@ impl Engine {
         steps: i32,
         resolution: Resolution,
     ) -> Result<(), CoreError> {
+        if let Some(turned) = self.turn_effect_wheel(attribute, steps) {
+            return turned;
+        }
         let targets = self.programmer.target_items();
         if targets.is_empty() {
             return Err(CoreError::EmptySelection);
@@ -4331,9 +4743,7 @@ impl Engine {
                 .unwrap_or_else(|| self.programmer.target_items());
             let (id, plan) = self.palette_plan(number, &targets)?;
             if let Some(list) = typed {
-                self.fan = None; // PRG-56
-                self.programmer.replace_selection(list);
-                self.follow_active_group();
+                self.replace_selection(list);
             }
             self.put_palette_timed(id, plan, time, overlap);
             return Ok(());
@@ -4345,18 +4755,14 @@ impl Engine {
                 .unwrap_or_else(|| self.programmer.target_items());
             let plan = self.gel_plan(number, &targets)?;
             if let Some(list) = typed {
-                self.fan = None; // PRG-56
-                self.programmer.replace_selection(list);
-                self.follow_active_group();
+                self.replace_selection(list);
             }
             return self.apply_gel(plan);
         }
         if cmd.locate {
             // PRG-10: select, then Locate every group. `typed` is never empty here.
             if let Some(list) = typed {
-                self.fan = None; // PRG-56
-                self.programmer.replace_selection(list);
-                self.follow_active_group();
+                self.replace_selection(list);
             }
             return self.locate(&ALL_GROUPS);
         }
@@ -4380,9 +4786,7 @@ impl Engine {
             }
         }
         if let Some(list) = typed {
-            self.fan = None; // PRG-56
-            self.programmer.replace_selection(list);
-            self.follow_active_group();
+            self.replace_selection(list);
         }
         if let Some(level) = level {
             for (item, name) in touched {
@@ -5010,6 +5414,7 @@ impl Engine {
         self.last_tick = Some(now);
         self.programmer.start_fades(now);
         self.update_playbacks(now);
+        self.tick_effects(now);
         // PBK-30: DBO is a Grand Master of 0 for the HTP output, whoever proposes it.
         let grand_master = if self.dbo { 0.0 } else { self.grand_master };
         let sources = MergeSources {
@@ -5033,6 +5438,7 @@ impl Engine {
             self.settings.lowlight_level,
         );
         let cells = self.cells_in_play(&highlight);
+        let (entries, live) = (&self.programmer.effects, &self.effect_live);
         // GRM-10: (Take Over master, fixture, level) of the passes this tick.
         let mut pickups: Vec<(PlaybackId, FixtureId, f32)> = Vec::new();
         for (fixture_id, fixture) in &self.fixtures {
@@ -5050,6 +5456,7 @@ impl Engine {
                 continue;
             };
             let held = self.held.entry(Item::fixture(*fixture_id)).or_default();
+            let round = effect::round_factor(mode.pan_degrees, mode.tilt_degrees);
             // The virtual Dimmer comes first, so `scale` is known for what follows.
             let virtual_dimmer = mode.has_virtual_dimmer();
             let mut scale = 1.0;
@@ -5058,6 +5465,11 @@ impl Engine {
                 let merged = merge_attribute(&sources, fixture, mode, &l, now, None);
                 // PRG-26 (ENG-14): Highlight replaces the merged value, never the held one.
                 let lit = highlight.value(Item::fixture(*fixture_id), mode, &l);
+                // ENG-14: the programmer effect sits on the base value, before the masters.
+                let fx = |base: Value| {
+                    let item = Item::fixture(*fixture_id);
+                    with_effect(entries, live, item, l.name, base, round, now)
+                };
                 // ENG-07: an HTP attribute nobody proposes is 0; LTP holds its last value (LIB-03).
                 let value = match (merged, l.kind) {
                     (Some(v), AttributeKind::Ltp) => {
@@ -5067,20 +5479,21 @@ impl Engine {
                                 held.insert(l.name.to_string(), v);
                             }
                         }
-                        lit.unwrap_or(v)
+                        // ENG-18: `held` keeps the base, not base + offset.
+                        lit.unwrap_or_else(|| fx(v))
                     }
                     (merged, AttributeKind::Htp) => {
                         // ENG-07: nobody proposing is 0. GRM-06: the group masters, then the GM.
-                        let base = lit.or(merged).unwrap_or(Value::Level(0.0));
+                        let base = lit.unwrap_or_else(|| fx(merged.unwrap_or(Value::Level(0.0))));
                         let v = masters.apply(*fixture_id, base);
                         if l.name == DIMMER {
                             masters.pickups(*fixture_id, v.level(), &mut pickups);
                         }
                         v.scaled(grand_master)
                     }
-                    (None, AttributeKind::Ltp) => lit
-                        .or_else(|| held.get(l.name).copied())
-                        .unwrap_or(l.default),
+                    (None, AttributeKind::Ltp) => {
+                        lit.unwrap_or_else(|| fx(held.get(l.name).copied().unwrap_or(l.default)))
+                    }
                 };
                 if virtual_dimmer && l.name == DIMMER {
                     scale = value.level();
@@ -5111,6 +5524,8 @@ impl Engine {
                     );
                 }
             }
+            // ponytail: effects play on whole fixtures only; an entry on a cell item waits for a
+            // need (the cell loop below has no effect step).
             // PRG-51: a cell with a value, a located value or a clear fade of its own, or that
             // Highlight or an active playback speaks for, merges on its own and overwrites its
             // slots; the other cells keep the fixture's output. PRG-53: a cell the mode lacks
@@ -5344,6 +5759,28 @@ fn whole_fixtures(items: &[Item]) -> Vec<FixtureId> {
 /// CUE-26: a cue list or a chase.
 fn is_list(playback: &Playback) -> bool {
     playback.is_cue_list() || playback.kind == PlaybackKind::Chase
+}
+
+/// CUE-33: add a tap to the series and give the BPM it implies; `None` for the first tap of a
+/// series (more than 2 s after the last starts a new one). The mean of the last three intervals,
+/// 1–600, rounded to 0.1. Shared by playbacks (CUE-33) and programmer entries (FX-10).
+fn tap_bpm(series: &mut Vec<Timestamp>, at: Timestamp) -> Option<f32> {
+    if series
+        .last()
+        .is_some_and(|&last| !(0.0..=2.0).contains(&(at - last)))
+    {
+        series.clear();
+    }
+    series.push(at);
+    series.drain(..series.len().saturating_sub(4));
+    let (first, last) = (*series.first()?, *series.last()?);
+    let intervals = series.len().saturating_sub(1);
+    if intervals == 0 {
+        return None;
+    }
+    let mean = (last - first) / intervals as f64;
+    let bpm = ((60.0 / mean) as f32).clamp(1.0, 600.0);
+    Some((bpm * 10.0).round() / 10.0)
 }
 
 /// CUE-33, 34: a chase or a BPM master has a tempo to tap or type.
@@ -5768,6 +6205,35 @@ impl GroupMasters<'_> {
                 out.push((id, fixture, g));
             }
         }
+    }
+}
+
+/// ENG-14..16: `base` with the programmer effect on `item`'s `attribute`, if any, faded out while
+/// a timed Clear runs (FX-19). ponytail: O(entries × members) per attribute and tick, no
+/// allocation; index the members per tick if 500 members ever show it (FX-13).
+fn with_effect(
+    entries: &[effect::Entry],
+    live: &BTreeMap<EntryId, EffectLive>,
+    item: Item,
+    attribute: &str,
+    base: Value,
+    round: f32,
+    now: Timestamp,
+) -> Value {
+    let found = entries.iter().find_map(|e| {
+        e.attributes.iter().any(|a| a == attribute).then_some(())?;
+        Some((e, e.members.iter().position(|m| *m == item)?))
+    });
+    let Some((entry, i)) = found else {
+        return base;
+    };
+    let Some(live) = live.get(&entry.id) else {
+        return base;
+    };
+    let v = entry.at(i, live.clock.theta(), attribute, base, round);
+    match &live.fade {
+        Some(fade) => base.lerp(v, 1.0 - fade.progress(now)),
+        None => v,
     }
 }
 

@@ -257,7 +257,11 @@ fn fx_15_eng_15_a_programmer_circle_runs_around_the_cue_position() {
     e.tick(0.75); // θ = ¼: (½, 0)
     assert!((pan16(&e, 1) - 0.6).abs() < 0.002, "{}", pan16(&e, 1));
     assert_dmx(&e, 4, 128);
-    assert_eq!(e.programmer().value(101, "Pan"), None, "no value of its own");
+    assert_eq!(
+        e.programmer().value(101, "Pan"),
+        None,
+        "no value of its own"
+    );
 }
 
 #[test]
@@ -317,7 +321,11 @@ fn eng_18_when_the_effect_stops_the_attribute_returns_to_its_base() {
     e.effect_stop(None).unwrap();
     assert!(e.effects().is_empty());
     e.tick(1.0);
-    assert!(pan16(&e, 1) < 0.002, "held base 0, not 0.1: {}", pan16(&e, 1));
+    assert!(
+        pan16(&e, 1) < 0.002,
+        "held base 0, not 0.1: {}",
+        pan16(&e, 1)
+    );
 }
 
 #[test]
@@ -387,7 +395,11 @@ fn eng_17_fx_12_same_actions_same_bytes() {
 #[test]
 fn fx_16_set_changes_a_parameter_and_recomputes_positions() {
     let mut e = rig();
-    let id = apply(&mut e, &[201, 202, 203, 204, 205, 206, 207, 208], "Dimmer chase");
+    let id = apply(
+        &mut e,
+        &[201, 202, 203, 204, 205, 206, 207, 208],
+        "Dimmer chase",
+    );
     assert_eq!(entry(&e, id).positions, [0, 1, 2, 3, 4, 5, 6, 7]);
     e.effect_set(EffectSet::Wings(2)).unwrap();
     assert_eq!(
@@ -403,7 +415,10 @@ fn fx_16_set_changes_a_parameter_and_recomputes_positions() {
         .unwrap();
     e.effect_set(EffectSet::Spread(180.0)).unwrap();
     let p = entry(&e, id).params;
-    assert_eq!((p.wings, p.groups, p.direction), (2, 2, Direction::Backward));
+    assert_eq!(
+        (p.wings, p.groups, p.direction),
+        (2, 2, Direction::Backward)
+    );
     assert!((p.spread - 180.0).abs() < 1e-6);
 }
 
@@ -467,7 +482,16 @@ fn fx_17_the_effect_wheels() {
     apply(&mut e, &[251, 252], "Colour chase");
     assert_eq!(
         e.wheel_layout(),
-        ["Size", "Speed", "Spread", "Phase", "Crossfade", "Top", "Beats", "Wings"]
+        [
+            "Size",
+            "Speed",
+            "Spread",
+            "Phase",
+            "Crossfade",
+            "Top",
+            "Beats",
+            "Wings"
+        ]
     );
     e.set_effect_wheels(false);
     assert!(!e.wheel_layout().iter().any(|w| w == "Size"));
@@ -489,7 +513,11 @@ fn fx_18_select_an_entry_or_its_members() {
     select(&mut e, &[101]);
     assert_eq!(e.current_effect(), Some(b), "exactly b's members");
     select(&mut e, &[201]);
-    assert_eq!(e.current_effect(), Some(b), "101 + 201 are no entry's members");
+    assert_eq!(
+        e.current_effect(),
+        Some(b),
+        "101 + 201 are no entry's members"
+    );
     e.clear_selection();
     select(&mut e, &[201, 202]);
     assert_eq!(e.current_effect(), Some(a));
@@ -627,7 +655,10 @@ fn fx_10_tap_sets_the_bpm_and_beat_syncs() {
     e.tick(1.0); // θ = ⅓
     e.effect_tap(1.0).unwrap();
     assert!((entry(&e, id).params.bpm - 20.0).abs() < 1e-6, "one tap");
-    assert!(close(theta(&e, id), 1.0 / 3.0), "the first tap does not sync");
+    assert!(
+        close(theta(&e, id), 1.0 / 3.0),
+        "the first tap does not sync"
+    );
     e.effect_tap(1.5).unwrap();
     assert!((entry(&e, id).params.bpm - 120.0).abs() < 1e-4);
     assert!(close(theta(&e, id), 0.0), "to the nearest whole beat");
@@ -653,7 +684,10 @@ fn fx_10_a_tap_on_a_bpm_master_syncs_the_entries_that_follow_it() {
     e.effect_tap(1.0).unwrap();
     e.effect_tap(1.25).unwrap(); // taps the master
     assert!((e.effective_bpm(master).unwrap() - 240.0).abs() < 1e-3);
-    assert!((entry(&e, id).params.bpm - 20.0).abs() < 1e-6, "own bpm kept");
+    assert!(
+        (entry(&e, id).params.bpm - 20.0).abs() < 1e-6,
+        "own bpm kept"
+    );
     assert!(close(theta(&e, id), 2.0));
     e.tick(1.35); // 240 BPM: + 0.45 · 4
     assert!(close(theta(&e, id), 3.8), "{}", theta(&e, id));

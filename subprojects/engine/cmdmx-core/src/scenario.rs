@@ -14,6 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::attribute::AttributeGroup;
 use crate::colour::TargetColour;
+use crate::effect::{EffectApply, EffectSet, EntryId};
 use crate::engine::{Engine, Settings};
 use crate::palette::{Palette, Record, Timing};
 use crate::patch::{Fixture, FixtureId};
@@ -216,9 +217,25 @@ pub enum ActionKind {
     GrandMaster(f32),
     Prg(PrgAction),
     Pal(PalAction),
+    Effect(EffectAction),
     /// UNDO: `{"undo": {}}`.
     Undo {},
     Redo {},
+}
+
+/// Programmer effect actions in a scenario (FX-14..20); a tap is live, the rest are edit steps.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EffectAction {
+    Apply(EffectApply),
+    Set(EffectSet),
+    Select(EntryId),
+    Stop(Option<AttributeGroup>),
+    Restart,
+    /// FX-10: `at` is the time the tap was received.
+    Tap {
+        at: Timestamp,
+    },
 }
 
 /// Palette actions in a scenario (`specs/modules/palettes.md`, "Scenario test format").
@@ -396,7 +413,8 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
             if !matches!(
                 action.kind,
                 ActionKind::Prg(_) | ActionKind::Pal(_) | ActionKind::Undo {} | ActionKind::Redo {}
-            ) {
+            ) && !matches!(&action.kind, ActionKind::Effect(e) if !matches!(e, EffectAction::Tap { .. }))
+            {
                 history.live();
             }
             match &action.kind {
@@ -500,6 +518,32 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                     None,
                     |e| e.delete_palette(*number),
                 )?,
+                ActionKind::Effect(EffectAction::Apply(apply)) => {
+                    history.edit(&mut engine, "Effect", None, |e| {
+                        e.effect_apply(apply).map(drop)
+                    })?;
+                }
+                ActionKind::Effect(EffectAction::Set(set)) => {
+                    let current = engine.current_effect().unwrap_or_default();
+                    let key = format!("effect:{current}:{}", set.name());
+                    let label = format!("Effect {}", set.name());
+                    history.edit(&mut engine, &label, Some(&key), |e| {
+                        e.effect_set(set.clone())
+                    })?;
+                }
+                ActionKind::Effect(EffectAction::Select(id)) => {
+                    history.edit(&mut engine, "Select effect", None, |e| e.effect_select(*id))?;
+                }
+                ActionKind::Effect(EffectAction::Stop(group)) => {
+                    history.edit(&mut engine, "Stop effect", None, |e| e.effect_stop(*group))?;
+                }
+                ActionKind::Effect(EffectAction::Restart) => {
+                    history.edit(&mut engine, "Restart effects", None, |e| {
+                        e.effect_restart();
+                        Ok(())
+                    })?;
+                }
+                ActionKind::Effect(EffectAction::Tap { at }) => engine.effect_tap(*at)?,
                 ActionKind::Undo {} => {
                     history.undo(&mut engine)?;
                 }
