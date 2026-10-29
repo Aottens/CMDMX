@@ -13,10 +13,10 @@ Main softkeys. It has four windows:
 
 - **Looks**, the gallery you start effects from;
 - **Effect**, the editor of the current effect;
-- **Fixtures**, so you see the effect run on the fixture tiles;
+- **Fixtures**, to select what the effect runs on (the tiles do not show output yet);
 - **Effects**, the effects in the programmer, with a tab for the effect palettes.
 
-While the workspace is open, the encoders are the **effect wheels** (see below).
+When the workspace opens, the encoders are the **effect wheels** (see below).
 
 ## Starting an effect: Looks
 
@@ -85,12 +85,14 @@ in the cycle, so you see what spread, wings and groups do before you look up at 
   much it fades between them. Add the current colour, move colours left or right, or remove them.
 
 Only the controls the shape uses are shown. A hue shift on a white base shows nothing, and the
-window says so under Size.
+window says so under Size. So does a colour or position effect on fixtures at intensity 0
+("Intensity is 0: this effect shows nothing"): give them some intensity, for example `@100`.
 
 ## The effect wheels
 
-While the Shapes workspace is open, the encoders on the screen, on the BCF2000 and in TouchOSC act
-on the current effect:
+When the Shapes workspace opens, the encoders on the screen, on the BCF2000 and in TouchOSC act
+on the current effect. Tap an attribute tab (I, P, C …) to get that group's wheels, for example the
+Dimmer under I; the **FX** tab, a look or a row in the Effects window brings the effect wheels back:
 
 | Page | Wheels |
 | --- | --- |
@@ -113,8 +115,9 @@ In the Shapes workspace the softkeys are:
 - **Tap**: taps the tempo of the current effect. On a BPM master it taps the master.
 - **Record**: as in the Main softkeys.
 
-**Clear** empties the programmer, effects included. With a Clear time the effects shrink to
-nothing over that time instead of stopping with a jump. **Undo** takes back every effect change.
+**Clear** empties the programmer, effects included. A timed Clear (over IPC only for now; the
+keypad gets a Clear time later) shrinks the effects to nothing over that time instead of
+stopping with a jump. **Undo** takes back every effect change.
 
 ## Effects in cues
 

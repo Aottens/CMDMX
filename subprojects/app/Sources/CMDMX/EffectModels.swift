@@ -151,9 +151,11 @@ struct EffectEntry: Decodable, Identifiable, Equatable {
     let colours: [EffectColour]
     /// FX-42: a Hue shift on a white base shows nothing.
     let whiteBase: Bool
+    /// FX-42: a colour effect on a base with intensity 0 shows nothing.
+    let dark: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case id, look, shape, attributes, members, positions, params, palette, current, colours
+        case id, look, shape, attributes, members, positions, params, palette, current, colours, dark
         case whiteBase = "white_base"
     }
 
@@ -170,6 +172,7 @@ struct EffectEntry: Decodable, Identifiable, Equatable {
         current = (try? c.decode(Bool.self, forKey: .current)) ?? false
         colours = (try? c.decode([EffectColour].self, forKey: .colours)) ?? []
         whiteBase = (try? c.decode(Bool.self, forKey: .whiteBase)) ?? false
+        dark = (try? c.decode(Bool.self, forKey: .dark)) ?? false
     }
 }
 

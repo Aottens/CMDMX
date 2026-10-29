@@ -164,7 +164,7 @@ struct LooksWindow: View {
                         ForEach(attributeGroupOrder.filter { g in catalogue.looks.contains { $0.group == g } }, id: \.self) { group in
                             section(groupNames[group] ?? group, group) {
                                 ForEach(catalogue.looks.filter { $0.group == group }) { look in
-                                    tile(look.name, look.shape, group, dimmed: !runnable.contains(look.id)) { engine.applyLook(look.name) }
+                                    tile(look.name, look.shape, group, dimmed: !runnable.contains(look.id)) { engine.applyLook(look.name); engine.setEffectWheels(true) }
                                 }
                             }
                         }
@@ -351,6 +351,9 @@ struct EffectWindow: View {
             FxSlider(title: "Size", value: p.size, range: 0...1, readout: percent) { engine.setEffect("size", $0) }
             if e.whiteBase {   // FX-42
                 Text("The base colour is white: Hue shift shows nothing").font(Typo.ui(Typo.body)).foregroundStyle(t.amber)
+            }
+            if e.dark {   // FX-42
+                Text("Intensity is 0: this effect shows nothing").font(Typo.ui(Typo.body)).foregroundStyle(t.amber)
             }
 
             VStack(alignment: .leading, spacing: 4) {   // Speed
@@ -597,6 +600,6 @@ struct EffectsWindow: View {
         .overlay(Rectangle().strokeBorder(e.current ? t.blue : t.line, lineWidth: e.current ? 2 : 1))
         .clipShape(RoundedRectangle(cornerRadius: radius))
         .contentShape(Rectangle())
-        .onTapGesture { engine.selectEffect(e.id) }   // FX-18
+        .onTapGesture { engine.selectEffect(e.id); engine.setEffectWheels(true) }   // FX-18, FX-17
     }
 }

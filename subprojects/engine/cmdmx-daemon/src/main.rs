@@ -4202,6 +4202,69 @@ mod tests {
     }
 
     #[test]
+    fn fx_42_a_colour_effect_on_a_dark_base_says_so() {
+        let dark = |e: &Engine, look: &str| {
+            view(e)["effects"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|x| x["look"] == look)
+                .unwrap_or_else(|| panic!("no {look}: {}", view(e)))["dark"]
+                .clone()
+        };
+        let set_dimmer = r#"{"v":1,"cmd":"programmer.set","attribute":"Dimmer","value":1}"#;
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, PARS).unwrap();
+        let rainbow = r#"{"v":1,"cmd":"effect.apply","look":"Rainbow"}"#;
+        undo_run(&mut e, &mut h, rainbow).unwrap();
+        assert_eq!(dark(&e, "Rainbow"), true, "pars at 0 after Clear");
+        undo_run(&mut e, &mut h, set_dimmer).unwrap();
+        assert_eq!(dark(&e, "Rainbow"), false, "@100 lights it");
+        // An intensity effect is the intensity: never dark.
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        undo_run(&mut e, &mut h, PARS).unwrap();
+        let chase = r#"{"v":1,"cmd":"effect.apply","look":"Dimmer chase"}"#;
+        undo_run(&mut e, &mut h, chase).unwrap();
+        assert_eq!(dark(&e, "Dimmer chase"), false);
+        // A virtual dimmer counts as the intensity (RGB+Lime par 211).
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.select","fixture":211}"#,
+        )
+        .unwrap();
+        undo_run(&mut e, &mut h, rainbow).unwrap();
+        assert_eq!(dark(&e, "Rainbow"), true, "virtual dimmer at 0");
+        undo_run(&mut e, &mut h, set_dimmer).unwrap();
+        assert_eq!(dark(&e, "Rainbow"), false, "virtual dimmer at 100");
+    }
+
+    #[test]
+    fn fx_17_an_attribute_group_pick_switches_the_effect_wheels_off() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, PARS).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"effect.apply","look":"Dimmer chase"}"#,
+        )
+        .unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.wheels","on":true}"#).unwrap();
+        assert_eq!(view(&e)["effect_wheels"], true);
+        assert_eq!(wheel(&e, "Size")["attribute"], "Size");
+        undo_run(&mut e, &mut h, GROUP_C).unwrap();
+        assert_eq!(view(&e)["effect_wheels"], false, "C takes the wheels back");
+        assert_eq!(view(&e)["active_group"], "C");
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"effect.wheels","on":true}"#).unwrap();
+        assert_eq!(view(&e)["effect_wheels"], true, "and FX brings them back");
+    }
+
+    #[test]
     fn fx_39_effect_palettes_show_their_entries_in_the_pool() {
         let mut e = demo_engine().unwrap();
         let mut h = History::default();

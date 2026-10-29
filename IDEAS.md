@@ -164,6 +164,8 @@ outputs right now (intensity × colour), so the screen shows the stage at a glan
   and intensity, sent a few times a second (not every tick) and only for changed fixtures, so the
   tick stays cheap.
 - Touches now: only a disabled stripe on the fixture cells (UI-11).
+- FXB-06 run (2026-10-29): FX-41 (the fixture tiles show a chase run) waits for this; the run
+  judged effects on a stage view Claude drew from the Art-Net frames.
 **Open questions:** the owner confirms the phase.
 
 ### IDEA-11 — Tap a selected group again to deselect it (2026-10-17, UX-02a run)
