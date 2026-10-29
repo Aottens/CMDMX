@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-29 (FXB-05 Shapes workspace)_
+_Last updated: 2026-10-29 (FXB-06 effects home run)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -20,8 +20,9 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-0. FX generator: FXB-01..05 done (engine, IPC and the app's Shapes workspace); next FXB-06, the home
-   run on Art-Net (`tests/manual/effects.md`, Claude listens, the owner judges by eye).
+0. FX generator: FXB-01..06 done (the home run passed, `tests/manual/runs/2026-10-29-FXB-06.md`); next the
+   run's small leftovers in BACKLOG order: FXB-07 (timed Clear from the keypad), FXB-08 (Demo Wash
+   Pan/Tilt at 0.5), FXB-09 (cue groups count effects), FXB-10 (BPM Master takes the next empty handle).
 1. VS8-01 and VS4-07: install `CMDMX-0.2.1.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
@@ -63,7 +64,8 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - Find the Colourmotion logo (VS8-02 builds the CMDMX concepts on it).
 - IDEA-30 (cross-platform UI for the Linux desk): phase 3 after the surface; toolkit open.
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
-- IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase.
+- IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase. IDEA-10 now also carries FX-41
+  (the fixture tiles showing a chase run): the FXB-06 run had to use a stage view of the Art-Net frames.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
 
 ## Hardware available for testing

@@ -27,12 +27,15 @@ Setup: two terminals and a fresh shows folder so the real one stays untouched.
 
 ## A dimmer chase (FX-44 a, FX-38, 41, 42)
 - [ ] Select group 3, tap **Dimmer chase**: on the tiles and in the frames the pars run one after
-      the other at 120 BPM (Claude: each par at full about 1/14 of a 0.5 s cycle in turn).
+      the other at 120 BPM (Claude: each of the 20 pars at full about 1/20 of a 0.5 s cycle in turn). The tiles show no
+      output yet (IDEA-10): judge on a stage view of the frames.
 - [ ] The Effect window shows Size, Speed (120, Free, beats 1), Spread 360° and the strip with a
       dot per par spread over one cycle. Spread chip 0°: all dots together, the pars flash
       together; 720°: two runs. *Every n* 3: every third par together.
 - [ ] More: Direction ← runs the chase the other way; Wings 2 runs it in from both ends (the
       strip's dots mirror). Width is shown (square wave), Crossfade is not.
+- [ ] In Shapes, tap I: the encoders show Dimmer; tap FX (or a look, or an Effects row): the
+      effect wheels are back (FX-17, FX-40 amended).
 - [ ] The encoders show Size, Speed, Spread, Phase with "100 %", "120 BPM", "360°", "0°"; turning
       Speed changes the tempo without a jump in the frames.
 
@@ -56,7 +59,7 @@ Setup: two terminals and a fresh shows folder so the real one stays untouched.
 - [ ] The **Tap** softkey on a Free effect sets its BPM; **Restart** starts all effects in step.
 
 ## A timed Go from a circle to an eight (FX-44 e, FX-26)
-- [ ] Clear. Group 2 Circle; record cue 1 on a cue list. Clear, group 2 **Eight**; record cue 2.
+- [ ] Clear. Group 2, Pan/Tilt 50 % (until FXB-08 the Demo Wash rests at 0), Circle; record cue 1 on a cue list. Clear, group 2 **Eight**; record cue 2.
       Give cue 2 a 3 s fade. Go cue 1, then Go cue 2: the movement crossfades over 3 s without a
       jump (Claude: no Pan/Tilt step between frames over the fade).
 - [ ] Pull the cue list's fader to half: the eight gets smaller.
@@ -64,11 +67,12 @@ Setup: two terminals and a fresh shows folder so the real one stays untouched.
 ## An effect palette on another selection (FX-44 f, FX-22, 39)
 - [ ] Group 3 Rainbow wave; Record, tap an empty Colours cell: the palette shows the rainbow's
       drawing. The Effects window's **Palettes** tab lists it.
-- [ ] Clear, select 211–216 only, tap the palette in the Palettes tab: the rainbow runs on those
-      six pars only.
+- [ ] Clear, select 211–216 only, tap the palette in the Palettes tab: the Effect window says
+      "Intensity is 0: this effect shows nothing"; `@100`: the rainbow runs on those six pars only.
 
 ## Stop, Clear, Undo (FX-19, 20)
 - [ ] **Stop FX** on the selected fixtures stops their effect; Undo brings it back.
-- [ ] Clear with a time (`3` then Clear): the effects shrink to nothing over 3 s, no jump.
+- [ ] Clear with a time (`3` then Clear once FXB-07 is in; until then `programmer.clear {time: 3}`
+      over IPC): the effects shrink to nothing over 3 s, no jump.
 
 ## Open points
