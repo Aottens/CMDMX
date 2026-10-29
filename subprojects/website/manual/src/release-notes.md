@@ -1,5 +1,46 @@
 # Release notes
 
+## 0.2.4
+
+Published 29 October 2026 as "CMDMX 0.2.4".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.2.4)
+
+The FX generator: fixtures that move by themselves (see [Shapes and effects](effects.md)).
+
+- A **Shapes** workspace (F5): select fixtures, tap a look such as a dimmer chase, a circle or a
+  rainbow wave, and it runs at once around what the fixtures are already doing. **Size**, **Speed**
+  and **Spread** shape it, on the screen or on the encoders.
+- An effect's tempo can come from its own BPM, Tap, or a BPM or Rate master.
+- Effects record into cues and into palettes. A timed Go between two circles carries on smoothly;
+  the playback fader makes the effect smaller. An effect palette ("circle around the pulpit")
+  runs on whatever is selected.
+- A number then **Clear** (`3` Clear) clears the programmer over that time; effects shrink to
+  nothing instead of stopping with a jump.
+- Record ▸ **BPM Master** and **Rate Master** put the master on the first empty handle of the
+  page, or say which page has room.
+- The washes of the Demo show start pointing at the middle, so a circle runs around the centre.
+- A cue that holds only an effect lists its attribute group in the Cue list window.
+
+## 0.2.3
+
+Published 29 October 2026 as "CMDMX 0.2.3".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.2.3)
+
+- Groundwork for the FX generator: the engine runs effects in the programmer, cues and palettes,
+  and the app can talk to it about them. There are no controls for effects in the app yet; they
+  come in 0.2.4.
+
+## 0.2.2
+
+Published 29 October 2026 as "CMDMX 0.2.2".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.2.2)
+
+- Gel numbers: the colour picker has a **Gels** side with the LEE gel book. Search by number or
+  name and tap a swatch, or type `Lee 201` on the command line (see
+  [The gel book](programming.md#the-gel-book)).
+- The fixture types of the Demo show can be opened in the profile editor (Patch ›
+  **Edit profile…**), and a change there reaches every fixture of that type.
+
 ## 0.2.1
 
 Published 28 October 2026 as "CMDMX 0.2.1".
