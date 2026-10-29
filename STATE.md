@@ -46,11 +46,10 @@ Rows with status `gate3` in `BACKLOG.md`:
 Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.
 
 ## Blocked
-- VS2-50 (the full LEE gel table) waits for LEE/Panavision's written permission; the owner asks.
+- VS2-50 (the full LEE gel table) waits for LEE/Panavision's written permission; the owner sent the
+  request through leefilters.com/contact on 2026-10-28 (answer to aottens@gmail.com).
 
 ## Owner to decide
-- Send the permission request to LEE/Panavision for the gel table (draft from the P1-23 session;
-  VS2-50 waits for it).
 - When to join the Apple Developer Program (postponed for cost, VS8-09); then for VS8-08/10: join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).
