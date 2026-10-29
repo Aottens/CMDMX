@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::attribute::{AttributeGroup, AttributeKind};
 use crate::colour::TargetColour;
+use crate::effect::{self, Shape};
 use crate::patch::Fixture;
 use crate::profile::{Mode, COLOUR};
 use crate::programmer::Item;
@@ -170,6 +171,9 @@ pub struct Palette {
     pub shared_cells: BTreeMap<String, BTreeMap<u16, BTreeMap<String, Value>>>,
     /// Per item: a whole fixture (`"901"`) or one cell of it (`"901.2"`).
     pub fixtures: BTreeMap<Item, BTreeMap<String, Value>>,
+    /// FX-22: effect entries without members; applying the palette makes them on the targets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<effect::Entry>,
 }
 
 /// PAL-21: what a client draws for a palette without a picked icon.
@@ -178,7 +182,15 @@ pub struct Palette {
 pub enum AutoIcon {
     Colours(Vec<TargetColour>),
     Position(Vec<[f32; 2]>),
-    Value { attribute: String, value: f32 },
+    Value {
+        attribute: String,
+        value: f32,
+    },
+    /// FX-22: a palette with entries and no values, from its first entry.
+    Effect {
+        look: Option<String>,
+        shape: Shape,
+    },
 }
 
 impl Palette {
@@ -328,7 +340,13 @@ impl Palette {
             )
             .chain(self.fixtures.values().map(as_set))
             .collect();
-        auto_icon_of(&sets, group_of)
+        auto_icon_of(&sets, group_of).or_else(|| {
+            let e = self.effects.first()?;
+            Some(AutoIcon::Effect {
+                look: e.look.clone(),
+                shape: e.shape,
+            })
+        })
     }
 }
 

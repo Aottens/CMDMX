@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::attribute::AttributeGroup;
 use crate::colour::TargetColour;
 use crate::cuelist::ListRun;
+use crate::effect::Entry;
 use crate::palette::{RecordBy, RecordMode};
 use crate::patch::FixtureId;
 use crate::programmer::{GroupId, Item};
@@ -219,6 +220,9 @@ pub struct Cue {
     #[serde(default)]
     pub group_times: BTreeMap<AttributeGroup, GroupTime>,
     pub values: Values,
+    /// FX-21: the effect entries the cue starts.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<Entry>,
 }
 
 fn full_overlap() -> f32 {
@@ -239,6 +243,7 @@ impl Cue {
             track: Track::Track,
             group_times: BTreeMap::new(),
             values,
+            effects: Vec::new(),
         }
     }
 }
@@ -764,6 +769,44 @@ impl Playback {
             }
         }
         state
+    }
+
+    /// FX-27: the effect entries running in the cue at `at`, per member and attribute. With
+    /// tracking each cue's entries replace the earlier ones where they overlap; a Block cue
+    /// stops a tracked entry only where it holds a value or an entry of its own.
+    pub(crate) fn effect_state(&self, at: usize) -> Vec<Entry> {
+        let mut out: Vec<Entry> = Vec::new();
+        let Some(cue) = self.cues.get(at) else {
+            return out;
+        };
+        let tracks = self.list.tracking && self.kind != Kind::Chase && cue.track != Track::Solo;
+        let first = if tracks { 0 } else { at };
+        for (i, c) in self.cues.iter().enumerate().take(at + 1).skip(first) {
+            if i < at && matches!(c.track, Track::CueOnly | Track::Solo) {
+                continue;
+            }
+            if matches!(c.track, Track::Block | Track::Solo) {
+                for o in &mut out {
+                    let names = o.attributes.clone();
+                    o.drop_members(|m| {
+                        let holds = |a: &String| c.values.get(m).is_some_and(|v| v.contains_key(a));
+                        names.iter().any(holds)
+                    });
+                }
+            }
+            for e in &c.effects {
+                for o in &mut out {
+                    let shared = o.attributes.iter().any(|a| e.attributes.contains(a));
+                    if shared {
+                        o.drop_members(|m| e.members.contains(m));
+                    }
+                }
+                out.retain(|o| !o.members.is_empty());
+                out.push(e.clone());
+            }
+            out.retain(|o| !o.members.is_empty());
+        }
+        out
     }
 
     /// CUE-21: the cue after `number` in number order, the first one after the last with `Loop`.
