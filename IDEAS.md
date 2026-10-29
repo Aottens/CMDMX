@@ -40,7 +40,7 @@ the backlog, not the whole idea.
 | IDEA-12 | Command history with the arrow keys | done (UX-02c, #33) | 1 | UI |
 | IDEA-13 | Easy editing of wheel and slot names, and attribute defaults | done (P1-14; VS2-24 #87, VS2-26 #91) | 1 | LIB, app |
 | IDEA-14 | Icon library for legends, plus a user folder with own drawings | done for phase 1 (library + picker, VS2-19/VS2-22); user folder triaged | 1 / 2 (user folder) | PAL, PBK, app |
-| IDEA-15 | More selection orders and patterns: random, 1 in 3, …, broadened (owner 2026-10-29) | specified 2026-10-29, for owner approval (P2-02, `programmer.md` PRG-71..84, IPC-48, UI-33/34, FX-45; SEL-01..07 todo) | 2 (next, owner 2026-10-29) | PRG, FX, PAL, PBK, IPC, UI |
+| IDEA-15 | More selection orders and patterns: random, 1 in 3, …, broadened (owner 2026-10-29) | specified 2026-10-29 (P2-02, approved as proposed; `programmer.md` PRG-71..84, IPC-48, UI-33/34, FX-45; SEL-01..07 todo) | 2 (next, owner 2026-10-29) | PRG, FX, PAL, PBK, IPC, UI |
 | IDEA-16 | BPM masters follow Ableton (Link or MIDI clock), with subdivisions and multiples | triaged | 2 | CUE, CTL |
 | IDEA-17 | MCP server: build shows with an AI assistant | triaged | 2 | IPC |
 | IDEA-18 | FX/shape generator as the best on the market: intuitive, fast, professional results | specified 2026-10-29 (P2-01, `effects.md` FX-01..44, ADR-011; FXB-01..04 done, FXB-05..06 todo) | 2 (flagship), now (owner 2026-10-29) | `effects.md`, ENG, PRG, CUE, PAL, IPC, UI |
@@ -58,7 +58,7 @@ the backlog, not the whole idea.
 | IDEA-30 | Cross-platform UI, so the reference desk runs on Linux (HW-02) | triaged | 3, after the surface (owner 2026-10-25) | UI, IPC, daemon on Linux |
 | IDEA-31 | Stream Deck + and Neo extras (dials, touch strip, touch keys, info screen; was VS7-08), for a volunteer who owns one | triaged | later (owner 2026-10-27) | CTL, app |
 | IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | done (2026-10-28, VS2-44..46: #159, #160, #161) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
-| IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged (owner to confirm the phases) | 2, in parts (proposed) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
+| IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -252,7 +252,7 @@ third fixture ("1 in 3"), and further options; ONYX has this, as far as the owne
 (each press takes a new seed, so the same actions still give the same result, ENG-11).
 **Outcome (2026-10-29):** owner picked selection orders as the next feature after the FX generator,
 "but more than I had in the idea". Researched in `docs/research/selection-orders.md` (Titan, grandMA3
-MAtricks, Onyx grouping tools) and specified as P2-02, for owner approval:
+MAtricks, Onyx grouping tools) and specified as P2-02 (approved by the owner 2026-10-29, the four decisions as proposed):
 - **Order and grid are two things.** Order tools permute the selection: Reverse, Shuffle (a seeded
   permutation, new every press), Sort, Revert (Onyx, Titan's Random Order). The grid gives items
   shared positions with the FX generator's own function (FX-07): wings, groups, blocks, plus a flip
@@ -709,27 +709,29 @@ shape library), so none has to be redone first.
 1. **More forms and looks** — waves (Saw, Pulse, half-sine, Flicker/Candle, Lightning, Strobe burst),
    paths (Ballyhoo, Spiral, Star, Random position, Fly in/out), colour (Two-colour bounce, Fire,
    Water); more looks in the gallery (FX-30). Each form is one row and one test (ADR-011). *Phase 2,
-   right after IDEA-15 (proposed).*
+   right after IDEA-15.*
 2. **Speed, Size and Rate masters on playbacks** — a fader that sets an effect's size or speed (Titan
    shape size/speed on a playback, MA3 speed/rate masters, Onyx FX masters), *Speed on fader*, size
-   masters per group. *Phase 2, after part 1 (proposed).*
+   masters per group. *Phase 2, after part 1.*
 3. **Cycles and one-shots** — an effect that stops after *n* cycles (Titan Cycles, part cycles
-   allowed), a one-shot chase on Go, effects on chase steps. *Phase 2 (proposed).*
+   allowed), a one-shot chase on Go, effects on chase steps. *Phase 2.*
 4. **Layered effects per attribute** — several entries on one attribute adding up or overriding, with
    Titan's Overlay/LTP choice per playback; lifts ENG-15's one-effect rule (ADR-011 amendment).
-   *Phase 2, later (proposed).*
+   *Phase 2, later.*
 5. **Step / key-frame FX** — user effects made of steps (values or palettes per step, fade or snap,
    per-step time and acceleration): Titan Key Frame Shapes, MA3 phasers, Onyx step FX. Also user
-   shape files. *Phase 2, later (proposed); the biggest part.*
+   shape files. *Phase 2, later; the biggest part.*
 6. **Spread layers over the grid** — MA3's From/To for phase, size, speed and fade over the selection
    positions (PRG-73), Titan's Offset between shapes and *Match to Spread*; buddying is already
-   blocks. *Phase 2, with or after part 4 (proposed).*
+   blocks. *Phase 2, with or after part 4.*
 7. **Pixel / matrix effects** — images, gradients and text over a 2D layout of fixtures and cells
    (Titan Pixel Mapper, MA3 bitmap fixtures, Onyx Matrix FX). Needs the rig overview (IDEA-25).
-   *Phase 2 late, after IDEA-25 (proposed), else phase 3.*
+   *Phase 2 late, after IDEA-25, else phase 3.*
 8. **Tempo from outside** — Ableton Link / MIDI clock (IDEA-16) and audio beat detection as BPM master
    sources. *With IDEA-16 (phase 2).*
 **What it touches now:** nothing; IDEA-15 (P2-02) keeps FX-07 as the one position function, which
 parts 6 and 7 build on.
-**Open questions:** confirm the phase of each part and the order; which part matters most for the
-church (the owner's playground, not its limit); which ONYX pain from IDEA-18 each part must avoid.
+**Open questions:** which part matters most for the church (the owner's playground, not its limit);
+which ONYX pain from IDEA-18 each part must avoid.
+**Outcome (2026-10-29):** owner confirmed the phases and the order as proposed (parts 1–6 phase 2 in
+this order after IDEA-15, part 7 after IDEA-25, part 8 with IDEA-16). No criteria until each part is planned.

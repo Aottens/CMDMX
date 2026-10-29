@@ -662,3 +662,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 **Reasoning:** Contributors and fixture-library ecosystem are international.
 
 **Reversal trigger:** project stays private indefinitely.
+
+## 2026-10-29 — Selection orders: order and grid, one set of positions (P2-02)
+
+**Decision:** Order tools (Reverse, Shuffle, Sort, Revert) permute the selection; a grid (wings,
+groups, blocks, flip) gives shared positions with the FX generator's own function (FX-07). Next/Prev,
+Fan, new effects and palette and cue overlap read the same positions. All ends a stage and keeps the
+grid; a group stores its grid; a cue stores each item's position (`programmer.md` PRG-71..84).
+
+**Alternatives considered:** Onyx-style stepping modes only (no stored order); a separate Fan/FX
+toggle (Onyx); a MAtricks pool (grandMA3, later).
+
+**Reasoning:** Titan keeps the recorded order in groups and cues; one position function means a stage,
+a fan and an effect over the same selection always agree, and costs one function in core.
+
+**Reversal trigger:** operators find All keeping the grid surprising in the home run (SEL-07).

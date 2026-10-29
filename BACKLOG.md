@@ -212,7 +212,7 @@ The owner picked the effect generator as the first phase-2 feature (2026-10-29).
 → FXB-05 → FXB-06, one PR each, tests first.
 Next (owner 2026-10-29): selection orders (IDEA-15, broadened), spec P2-02, build rows SEL-01 →
 SEL-02 and SEL-03 (either order) → SEL-04 → SEL-05 and SEL-06 → SEL-07. The FX engine's next
-steps are IDEA-33 (phases to confirm).
+steps are IDEA-33 (phases confirmed 2026-10-29).
 
 | Id | Task (one sentence, verifiable) | Spec ids | Size | Status |
 | --- | --- | --- | --- | --- |

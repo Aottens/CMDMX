@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments: draft for owner approval**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -68,11 +68,11 @@ and later remotes are views and inputs of the same single programmer.
   positions `i` with `i mod n = k`); the sub-selection is stage 0, Fix ±1 moves between stages.
   Odd/Even is `n = 2`. Selection 201–206: Odd/Even → `[201, 203, 205]`, Fix +1 →
   `[202, 204, 206]`.
-  *Amended (P2-02, for owner approval):* a pattern of `n` stages is the grid `{groups: n}`
+  *Amended (P2-02, approved by owner 2026-10-29):* a pattern of `n` stages is the grid `{groups: n}`
   (PRG-73, 74); the behaviour above is unchanged.
 - **PRG-06** All ends the sub-selection or pattern (targets = whole selection again). With no
   sub-selection active, All selects every fixture in the programmer, in user-number order.
-  *Amended (P2-02, for owner approval):* All ends the sub-selection but keeps the grid (PRG-74), so
+  *Amended (P2-02, approved by owner 2026-10-29):* All ends the sub-selection but keeps the grid (PRG-74), so
   Fan, effects and overlap then run across the stages; `programmer.grid {}` switches the grid off.
 - **PRG-07** Recording a group stores the current selection in its order; recording with an
   empty selection is refused with a warning and leaves the group unchanged. Recording onto a
@@ -421,7 +421,7 @@ screen wheels and every control surface fan alike; the client only says "fan on,
 - **PRG-62** Engine state (PRG-35) carries `fan` (`null` or the curve) and `fan_curve` (the last
   curve).
 
-### Selection orders and the grid (P2-02, IDEA-15; draft for owner approval)
+### Selection orders and the grid (P2-02, IDEA-15; approved by owner 2026-10-29)
 Titan reference: *Controlling Fixtures* (Fix ±1, pattern select from All, custom patterns, Random
 Order on a held group key), *Fixture Groups* (a group stores its order) and *Cue Timing* (fixture
 overlap follows the order the cue was recorded in; Fixture Order with shared step numbers). The
@@ -591,7 +591,7 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
    (CTL-59).
 7. An item with factor 0 still becomes a touched value, so Record stores the whole fan (PRG-59).
 
-## Owner decisions (P2-02, proposed 2026-10-29)
+## Owner decisions (P2-02, approved 2026-10-29 as proposed)
 1. Order and grid are separate: order tools permute the selection, the grid gives shared positions
    with the FX-07 function; all spreading features read the same positions (PRG-71..78).
 2. All ends a stage but keeps the grid, so Fan and effects run across the stages after All

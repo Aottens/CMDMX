@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47); IPC-47 approved by owner 2026-10-28 (P1-23); IPC-14 amended 2026-10-29 (FXB-08)**; **IPC-48 (selection orders, P2-02): draft for owner approval**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47); IPC-47 approved by owner 2026-10-28 (P1-23); IPC-14 amended 2026-10-29 (FXB-08)**; **IPC-48 (selection orders, P2-02) approved by owner 2026-10-29**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -330,7 +330,7 @@ OUT-33 (IPC-20 amended: one `outputs` entry per node with its config and state),
 ### Effects (FXB-04; behaviour in `effects.md`)
 FX-32 (`effect_catalogue` in the snapshot), FX-33 (programmer `effects`, `effect_wheels` and the effect wheels in `wheels`), FX-34 (the `effect.*` commands and their classes) and FX-35 (control actions) are specified in `effects.md`.
 
-### Selection orders (P2-02; behaviour in `programmer.md` PRG-71..84; draft for owner approval)
+### Selection orders (P2-02; behaviour in `programmer.md` PRG-71..84; approved by owner 2026-10-29)
 - **IPC-48** Commands: `programmer.order {"op":"Reverse"}` (`Reverse`, `Shuffle`, `Sort`, `Revert`;
   PRG-71, 72) · `programmer.grid {"wings":2,"groups":0,"blocks":1,"flip":false}` (every field
   optional, left-out fields take their defaults, `{}` = grid off; PRG-73) ·

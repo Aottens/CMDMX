@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (pure: storage, recording, fader modes, release, flash/swop),
 `cmdmx-daemon` (IPC), the playback area and Playback Options in `subprojects/app`.
 Status: **PBK-01..05 approved by owner 2026-10-18 (VS1-06 subset); PBK-06..45 approved by owner
-2026-10-18 (P1-04), owner decisions at the end.** PBK-15 amended for P2-02 (cue `order`, draft for owner approval).
+2026-10-18 (P1-04), owner decisions at the end.** PBK-15 amended for P2-02 (cue `order`, approved by owner 2026-10-29).
 Behavioural reference: Avolites Titan v19 manual, *Cues* (https://manual.avolites.com/docs/cues:
 Creating a Cue, Cue Playback, Cue Timing, Playback Options, Copying/Moving/Linking/Deleting) and
 the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1 (`specs/ux/main-screen.html`:
@@ -132,7 +132,7 @@ playback unless it says "per cue".
   that is *m* = *f* · *p*, *p* going from 0 to 1 over `fade_in` once `delay` has passed;
   a falling level lowers *m* at once (Titan: fade out is ignored). On trigger, the LTP values
   fade from their current output to the cue's values over `fade_in` after `delay`, staggered by
-  `overlap` as PAL-14 (fixtures in user-number order; *amended, P2-02, for owner approval:* in the
+  `overlap` as PAL-14 (fixtures in user-number order; *amended, P2-02, approved by owner 2026-10-29:* in the
   cue's recorded `order` when it has one, PRG-80), `Colour` in linear target RGB; with
   `fade_in` 0 they snap (ENG-05). They are not scaled by the fader. Washes on 1.1, `fade_in` 3 s,
   fader pushed to full at t = 0 → Dimmer 50 % at 1.5 s, full at 3 s; pulled to 0 → out at once.
