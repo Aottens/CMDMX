@@ -20,8 +20,8 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-0. FX generator: FXB-01 (core shapes, member positions, effect clock, looks), tests first; then
-   FXB-02 (programmer entries in the merge).
+0. FX generator: FXB-01 (core shapes, positions, clock, looks) done; next FXB-02 (programmer
+   entries in the merge, the ENG-14..19 tests), tests first.
 1. VS8-01 and VS4-07: install `CMDMX-0.2.1.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.

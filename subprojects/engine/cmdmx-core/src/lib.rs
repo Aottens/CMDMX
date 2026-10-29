@@ -17,6 +17,7 @@
 //! - [`programmer`] selection, sub-selection and manual values (`specs/modules/programmer.md`)
 //! - [`command`]    command line parser (`specs/modules/programmer.md` PRG-08..11)
 //! - [`show`]       the show file: schema, (de)serialisation, migrations (`specs/modules/showfile.md`)
+//! - [`effect`]     effects: shapes, member positions, phase, clock, looks (`specs/modules/effects.md`)
 //! - [`engine`]     the merge (`specs/modules/engine-merge.md`)
 //! - [`scenario`]   JSON scenario format used by `tests/scenarios/*.json`
 
@@ -24,6 +25,7 @@ pub mod attribute;
 pub mod colour;
 pub mod command;
 mod cuelist;
+pub mod effect;
 pub mod engine;
 pub mod gel;
 pub mod library;

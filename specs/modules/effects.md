@@ -47,8 +47,9 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   gives the same sparkle (ENG-11). The entry seed is set from a counter when the entry is made
   and saved with it.
 - **FX-02** Paths, (*x*, *y*)(θ): `Circle` (½ sin 2πθ, ½ cos 2πθ); `Eight` (½ sin 2πθ,
-  ½ sin 4πθ); `Square` and `Triangle` run their outline at constant speed with corners at
-  (±½, ±½), respectively (0, ½), (½, −½), (−½, −½), starting at the first corner; `LinePan`
+  ½ sin 4πθ); `Square` and `Triangle` run their outline at constant speed through their corners
+  at equal parts of the cycle, starting at the first: `Square` (−½, −½), (½, −½), (½, ½), (−½, ½)
+  at θ = 0, ¼, ½, ¾; `Triangle` (0, ½), (½, −½), (−½, −½) at θ = 0, ⅓, ⅔; `LinePan`
   (½ sin 2πθ, 0); `LineTilt` (0, ½ sin 2πθ). When the fixture's profile has both `pan_degrees`
   and `tilt_degrees` (LIB), *y* is multiplied by `pan_degrees / tilt_degrees` so a circle is
   round on stage, not an ellipse (spot with 540°/270° → *y* doubled).
@@ -57,8 +58,9 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   360° (*w* from a `Sine`), saturation and intensity kept: on a white base it shows nothing (the
   operator sees why in the editor, FX-42); `ColourMix` runs through its list of 2–8 colours
   *c*₀…*c*ₖ₋₁ (values or colour-palette references, resolved every tick): step *s* = ⌊θ·*k*⌋,
-  and within the step the colour fades from *c*ₛ to *c*ₛ₊₁ (wrapping) over the step's last
-  `crossfade` part (0 % snaps, 100 % blends all the time), linearly in linear target RGB as
+  *f* = frac(θ·*k*), and the colour fades from *c*ₛ to *c*ₛ₊₁ (wrapping) by
+  *t* = clamp((*f* − (1 − `crossfade`)) / `crossfade`, 0, 1) — over the step's last `crossfade`
+  part (0 % snaps, 100 % blends all the time), linearly in linear target RGB as
   cue fades are (PBK-15). The colour entry list is the one thing a key frame was needed for.
 - **FX-04** Every shape function is total: any finite θ gives a finite value in its range; a
   non-finite θ gives the value at θ = 0 and logs once (show-proof rules).
