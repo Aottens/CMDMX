@@ -12,7 +12,7 @@
 //!   `colour_absolute(base, effect, size)` (FX-05; no clamp here, ENG-16 clamps in the merge).
 //! - `Params` with `Default` and `validate() -> Result<(), CoreError>`; `Direction`,
 //!   `SpeedSource` (FX-06).
-//! - `positions(n, wings, groups, blocks) -> (Vec<u32>, u32)`, `phase_offset(spread_deg, k, n)`
+//! - `positions(n, wings, groups, blocks, flip) -> (Vec<u32>, u32)`, `phase_offset(spread_deg, k, n)`
 //!   (FX-07); `member_theta(direction, theta_total, phase_deg, offset) -> f64` (FX-08).
 //! - `rate(bpm, beats) -> f64`, `Clock` with `new`, `theta`, `advance(dt, rate)`,
 //!   `beat_sync(beats)`, `restart` (FX-09..11).
@@ -344,24 +344,24 @@ fn fx_06_out_of_range_is_refused() {
 
 #[test]
 fn fx_07_plain_spread_over_the_order() {
-    assert_eq!(positions(4, 1, 0, 1), (vec![0, 1, 2, 3], 4));
-    assert_eq!(positions(1, 1, 0, 1), (vec![0], 1));
-    assert_eq!(positions(0, 1, 0, 1), (vec![], 0));
+    assert_eq!(positions(4, 1, 0, 1, false), (vec![0, 1, 2, 3], 4));
+    assert_eq!(positions(1, 1, 0, 1, false), (vec![0], 1));
+    assert_eq!(positions(0, 1, 0, 1, false), (vec![], 0));
 }
 
 #[test]
 fn fx_07_wings_mirror_every_odd_part() {
-    assert_eq!(positions(8, 2, 0, 1), (vec![0, 1, 2, 3, 3, 2, 1, 0], 4));
-    assert_eq!(positions(5, 2, 0, 1), (vec![0, 1, 2, 2, 1], 3));
-    assert_eq!(positions(9, 3, 0, 1), (vec![0, 1, 2, 2, 1, 0, 0, 1, 2], 3));
+    assert_eq!(positions(8, 2, 0, 1, false), (vec![0, 1, 2, 3, 3, 2, 1, 0], 4));
+    assert_eq!(positions(5, 2, 0, 1, false), (vec![0, 1, 2, 2, 1], 3));
+    assert_eq!(positions(9, 3, 0, 1, false), (vec![0, 1, 2, 2, 1, 0, 0, 1, 2], 3));
 }
 
 #[test]
 fn fx_07_groups_and_blocks() {
-    assert_eq!(positions(6, 1, 3, 1), (vec![0, 1, 2, 0, 1, 2], 3));
-    assert_eq!(positions(4, 1, 8, 1), (vec![0, 1, 2, 3], 4));
-    assert_eq!(positions(6, 1, 0, 2), (vec![0, 0, 1, 1, 2, 2], 3));
-    assert_eq!(positions(8, 2, 0, 2), (vec![0, 0, 1, 1, 1, 1, 0, 0], 2));
+    assert_eq!(positions(6, 1, 3, 1, false), (vec![0, 1, 2, 0, 1, 2], 3));
+    assert_eq!(positions(4, 1, 8, 1, false), (vec![0, 1, 2, 3], 4));
+    assert_eq!(positions(6, 1, 0, 2, false), (vec![0, 0, 1, 1, 2, 2], 3));
+    assert_eq!(positions(8, 2, 0, 2, false), (vec![0, 0, 1, 1, 1, 1, 0, 0], 2));
 }
 
 #[test]
@@ -458,7 +458,7 @@ fn fx_12_same_inputs_same_bits() {
     let run = || {
         let mut c = Clock::new();
         let mut out = Vec::new();
-        let (k, n) = positions(12, 2, 0, 1);
+        let (k, n) = positions(12, 2, 0, 1, false);
         for tick in 0..2000u16 {
             c.advance(0.025, rate(97.3 + f32::from(tick % 7), 2.0));
             for (i, kk) in k.iter().enumerate() {
@@ -481,7 +481,7 @@ fn fx_12_same_inputs_same_bits() {
 #[test]
 #[ignore = "benchmark (FX-13), run with --ignored --release"]
 fn fx_13_five_hundred_members_fit_a_tick() {
-    let (k, n) = positions(500, 1, 0, 1);
+    let (k, n) = positions(500, 1, 0, 1, false);
     let offsets: Vec<f64> = k.iter().map(|kk| phase_offset(360.0, *kk, n)).collect();
     let mut c = Clock::new();
     let start = std::time::Instant::now();
