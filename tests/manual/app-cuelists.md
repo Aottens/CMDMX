@@ -91,10 +91,10 @@ universe 1 during the run and reports the measured values and times.
       FLASH and its legend "1/3 · 120". Raise the fader: it steps (Claude reads 2 steps/s).
 - [ ] Connect it: the Go block shows "120 BPM · xfade 0 %", Tap and the BPM field. Tap four times
       about 0.5 s apart: ~120 BPM; type 90 in the field; scroll it. Crossfade 50 %, Bounce.
-- [ ] Record → BPM Master, tap 3.4: "BPM 1 · 120 ×1". Chase speed source BPM 1; tap the master's
+- [ ] On page 3 (3.1–3.3 used), Record → BPM Master: it lands on 3.4 at once, "BPM 1 · 120 ×1". Chase speed source BPM 1; tap the master's
       lower button: the chase follows. Master tab: fader Bpm (fader sets the tempo up to 240),
       then Multiplier (zones /4 … ×4), then None.
-- [ ] Record → Rate Master, tap 3.5: "RATE 1 · ×1.0" at fader 50 %. Chase speed source Rate 1:
+- [ ] Record → Rate Master: it lands on 3.5, "RATE 1 · ×1.0" at fader 50 %. Chase speed source Rate 1:
       fader full doubles the chase speed.
 
 ## Only what applies (CUE-44, 46; VS3-08)

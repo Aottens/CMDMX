@@ -441,14 +441,27 @@ private struct Softkeys: View {
                 ui.recordArmed = false
             }
         }
-        // CUE-45, GRM-15: with nothing tapped yet, A and B arm a speed master for the next empty handle,
-        // C a group master (a group, then a handle).
+        // UI-18, FXB-10, GRM-15: with nothing tapped yet, A and B record a speed master on the lowest empty
+        // handle of this page at once (and end Record); C arms a group master (a group, then a handle).
         let master = { (name: String, kind: String) -> Softkey in
             let group = kind == "Group"
-            return Softkey(name: name, sub: group ? "group, then handle" : "next empty handle", on: ui.recordMaster == kind) {
-                ui.recordMaster = ui.recordMaster == kind ? nil : kind
-                ui.recordMasterGroup = nil
-                if ui.recordMaster != nil { engine.say("\(name): tap \(group ? "a group" : "an empty handle").") }
+            return Softkey(name: name, sub: group ? "group, then handle" : "next empty handle", on: group && ui.recordMaster == kind) {
+                if group {
+                    ui.recordMaster = ui.recordMaster == kind ? nil : kind
+                    ui.recordMasterGroup = nil
+                    if ui.recordMaster != nil { engine.say("\(name): tap a group.") }
+                    return
+                }
+                let page = engine.page.number
+                if let slot = HandleTaps.lowestEmptySlot(page: page, engine: engine) {
+                    engine.recordMaster(page: page, slot: slot, kind: kind)
+                    ui.recordArmed = false
+                    ui.recordMaster = nil
+                } else if let other = engine.pages.map(\.number).sorted().first(where: { $0 != page && HandleTaps.lowestEmptySlot(page: $0, engine: engine) != nil }) {
+                    engine.say("Page \(page) is full: page \(other) has room.")
+                } else {
+                    engine.say("Every page is full.")
+                }
             }
         }
         return (used.map { "Record · \($0.number)" } ?? "Record", [

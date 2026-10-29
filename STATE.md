@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-29 (FXB-09 cue groups count effects)_
+_Last updated: 2026-10-29 (FXB-10 BPM Master on the next empty handle)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -21,8 +21,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 
 ## Next
 0. FX generator: FXB-01..06 done (the home run passed, `tests/manual/runs/2026-10-29-FXB-06.md`); FXB-07 (timed
-   Clear from the keypad), FXB-08 (Demo Wash Pan/Tilt at 0.5) and FXB-09 (cue groups count effects) done; next
-   the run's last leftover: FXB-10 (BPM Master takes the next empty handle), then release v0.2.4.
+   Clear from the keypad), FXB-08 (Demo Wash Pan/Tilt at 0.5), FXB-09 (cue groups count effects) and FXB-10 (BPM
+   Master on the next empty handle) done; next the release notes for 0.2.2..0.2.4, then tag v0.2.4.
 1. VS8-01 and VS4-07: install `CMDMX-0.2.1.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
