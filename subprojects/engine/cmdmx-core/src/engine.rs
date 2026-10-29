@@ -4984,7 +4984,12 @@ impl Engine {
         in_use.sort_unstable();
         in_use.dedup();
         let relevant = (self.palettes.values())
-            .filter(|p| targets.is_empty() || self.palette_plan(p.number, targets).is_ok())
+            .filter(|p| {
+                // FX-22: an effect palette counts; FX-31 refuses it on apply when nobody fits.
+                targets.is_empty()
+                    || !p.effects.is_empty()
+                    || self.palette_plan(p.number, targets).is_ok()
+            })
             .map(|p| p.id)
             .collect();
         PaletteUse { in_use, relevant }
@@ -5054,11 +5059,25 @@ impl Engine {
             let targets = typed
                 .clone()
                 .unwrap_or_else(|| self.programmer.target_items());
-            let (id, plan) = self.palette_plan(number, &targets)?;
+            // FX-22: an effect-only palette resolves no value and is no misfit.
+            let effects = self.palette(number).is_some_and(|p| !p.effects.is_empty());
+            let plan = match self.palette_plan(number, &targets) {
+                Err(CoreError::PaletteDoesNotFit(_)) if effects => None,
+                plan => Some(plan?),
+            };
             if let Some(list) = typed {
                 self.replace_selection(list);
             }
-            self.put_palette_timed(id, plan, time, overlap);
+            let values = plan.is_some();
+            if let Some((id, plan)) = plan {
+                self.put_palette_timed(id, plan, time, overlap);
+            }
+            if effects {
+                let made = self.effect_apply(&EffectApply::Palette(number));
+                if !values {
+                    made?;
+                }
+            }
             return Ok(());
         }
         if let Some(number) = cmd.gel {

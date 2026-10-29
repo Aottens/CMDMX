@@ -44,7 +44,7 @@ interface needs no restart, and killing the app with `kill -9` mid-show dropped 
 CMDMX v0.2.1 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
 (VS8-03, 04). Next up: install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
 is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
-The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) is being built (programmer effects run in the engine); beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
+The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) is being built (programmer, cue and palette effects run in the engine; show schema 8); beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
 ## What works today
 

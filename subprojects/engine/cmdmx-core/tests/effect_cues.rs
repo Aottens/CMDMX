@@ -351,6 +351,19 @@ fn fx_22_effect_apply_palette() {
 }
 
 #[test]
+fn fx_22_the_command_line_applies_an_effect_palette() {
+    let mut e = rig();
+    let (number, _) = circle_palette(&mut e);
+    let n = number.to_string();
+    e.execute_command(&["311", "Palette", &n, "Enter"]).unwrap();
+    assert_eq!(e.effects().len(), 1);
+    assert_eq!(e.effects()[0].members, items(&[311]));
+    // The palette counts as relevant for the selection.
+    let pid = e.palette(number).unwrap().id;
+    assert!(e.programmer_view().palettes.relevant.contains(&pid));
+}
+
+#[test]
 fn fx_22_effect_apply_palette_serde() {
     let apply: EffectApply = serde_json::from_str(r#"{"palette": 3}"#).unwrap();
     assert_eq!(apply, EffectApply::Palette(3));
