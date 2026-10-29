@@ -44,9 +44,10 @@ values.
   with tracking, its own (**hard**) values plus the values **tracked** from the cues before it;
   without tracking, its own values only.
 - **Cue contents:** per fixture, per attribute, a value or palette reference (PBK-10, touched
-  attributes only), and optionally an **effect reference** next to it (ADR-007, `engine-merge.md`
-  ENG-14..19): a field that is absent until effects exist (phase 2, `effects.md`), so a show
-  without effects keeps its schema. Tracking (CUE-50) will treat an effect reference like a value.
+  attributes only), and optionally a list of **effect entries** (shape, parameters, members;
+  ADR-007, ADR-011, approved 2026-10-29, `effects.md` FX-21..27), absent until used, so a show
+  without effects keeps its contents. Tracking (CUE-50) treats an entry per member and attribute
+  like a value (FX-27).
 - **Transition:** what starting a cue does to the output (CUE-13). Its **duration** is the
   longest delay + fade (overlap and group times included) over the attributes the transition
   fades, HTP fading out included (owner, 2026-10-21: a cue that changes nothing is complete at

@@ -55,8 +55,10 @@ Turn the set of active sources (programmer, playbacks, masters) into one DMX fra
   Either way the result is clamped to 0.0–1.0 (each component for a colour) before the group
   masters, so a Limit master stays a hard limit and the Grand Master scales a dimmer effect like
   any other intensity.
-- **ENG-17** An effect is evaluated from the tick's timestamp and its own start time only (ENG-11),
-  never from the system clock; two engines fed the same scenario produce the same effect output.
+- **ENG-17** An effect is evaluated from tick timestamps only (ENG-11): its clock advances by Δt
+  per tick as a chase's does (CUE-28), never from the system clock; two engines fed the same
+  scenario produce the same effect output. Reworded by ADR-011 (approved by owner 2026-10-29, `effects.md`
+  FX-09): "its own start time only" would make a tempo change jump the phase.
 - **ENG-18** The held `Ltp` value (ENG-07) is the base value, never base + offset: when the effect
   stops (its source released or killed, the reference removed), the attribute returns to its base
   value in the next tick, or fades to it as `effects.md` will define.
