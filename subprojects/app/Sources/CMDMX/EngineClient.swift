@@ -1410,7 +1410,8 @@ final class EngineClient: ObservableObject {
     func step(_ direction: Int) { sendJSON("programmer.step", ["direction": direction]) }
     func pattern(_ stages: Int) { sendJSON("programmer.pattern", ["stages": stages]) }
     func selectAll() { sendJSON("programmer.all") }
-    func clearProgrammer() { sendJSON("programmer.clear") }
+    /// A time fades the Clear out (ENG-10, IPC-32); nil = the plain Clear (PRG-29).
+    func clearProgrammer(time: Double? = nil) { sendJSON("programmer.clear", time.map { ["time": $0] } ?? [:]) }
     /// UI-26: Locate (no groups = all), Highlight, Off (no field = the active group; or one attribute)
     /// and Rem Dim; the `programmer` delta shows the result.
     func locate() { sendJSON("programmer.locate") }

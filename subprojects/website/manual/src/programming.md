@@ -159,6 +159,9 @@ values: record them like any other.
 - The first press deselects.
 - The second press empties the programmer, and the playbacks show through again.
 
+Type a time first to fade it out: `3` then **Clear** empties the programmer over 3 seconds and
+keeps the selection.
+
 What happens to colour, position and other LTP values when they leave the programmer is a setting:
 **Release** (they go back to what the playbacks or their defaults give) or **Freeze** (they stay
 where they are). The Clear order (selection first, both at once, or programmer first), this setting and the Rem Dim low level

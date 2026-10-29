@@ -178,7 +178,7 @@ struct AttributeBar: View {
                     .lineLimit(1).padding(.horizontal, 8).frame(minWidth: 90, alignment: .leading)
                 Button("Undo") { ui.learnOrRun("key undo", engine) { engine.undo() } }.disabled(engine.undoLabel == nil && !ui.learnMode).help(engine.undoLabel.map { "Undo: \($0) · ⌘Z" } ?? "Nothing to undo")
                 Button("Redo") { ui.learnOrRun("key redo", engine) { engine.redo() } }.disabled(engine.redoLabel == nil && !ui.learnMode).help(engine.redoLabel.map { "Redo: \($0) · ⇧⌘Z" } ?? "Nothing to redo")
-                Button("Clear") { ui.learnOrRun("key clear", engine) { engine.clearProgrammer(); ui.cancelModes(); ui.pendingOverlap = nil } }.buttonStyle(ZoneKeyStyle(ring: dirty))
+                Button("Clear") { ui.learnOrRun("key clear", engine) { line.clearProgrammer(engine); ui.cancelModes(); ui.pendingOverlap = nil } }.buttonStyle(ZoneKeyStyle(ring: dirty))
             }
             .buttonStyle(ZoneKeyStyle(ring: false))
             .fixedSize()

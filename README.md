@@ -44,7 +44,7 @@ interface needs no restart, and killing the app with `kill -9` mid-show dropped 
 CMDMX v0.2.1 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
 (VS8-03, 04). Next up: install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
 is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
-The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); four small leftovers (FXB-07..10) are next; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
+The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); a timed Clear from the keypad is in (FXB-07); three small leftovers (FXB-08..10) are next; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
 ## What works today
 
@@ -91,7 +91,7 @@ The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the
   from the picked colour on types where the profile editor switches it on (a white on an RGBW par
   comes from its White LED).
 - Locate, Highlight with lowlight, Off (per attribute group or one attribute), Rem Dim, and
-  Clear with a choice of what LTP attributes do.
+  Clear with a choice of what LTP attributes do; `3` then Clear fades the programmer out over 3 s.
 
 **Palettes**
 - Colours, positions and beams recorded as on Titan (Global/Shared/Normal decided
