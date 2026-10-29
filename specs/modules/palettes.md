@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::palette` (pure: storage, recording, resolving, fades), `cmdmx-daemon` (IPC),
 the palette windows in `subprojects/app`.
-Status: **PAL-01..32 approved by owner 2026-10-18 (P1-03); PAL-33 approved by owner 2026-10-28 (P1-23)**; owner decisions at the end.
+Status: **PAL-01..32 approved by owner 2026-10-18 (P1-03); PAL-33 approved by owner 2026-10-28 (P1-23)**; PAL-14 amended for P2-02 (approved by owner 2026-10-29); owner decisions at the end.
 Behavioural reference: Avolites Titan v19 manual, *Palettes*
 (https://manual.avolites.com/docs/palettes: Creating, Using, Editing, Copying/Moving/Deleting,
 Timing with Palettes) and the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1
@@ -138,6 +138,8 @@ lists) store, so they come first.
   fading over *t*. 100 % = all together. Washes 101–104, *t* = 2 s, *o* = 50 % → they start at
   0, 1, 2 and 3 s, so the run takes 5 s. The typed time is per fixture, as Titan's fixture
   overlap (owner decision 7). Without a fade time overlap has no effect.
+  *Amended (P2-02, approved by owner 2026-10-29):* *i* is the target's position over the targets the palette
+  touches (PRG-78), so items with the same position start together; grid off → as above.
 - **PAL-15** Master time and master overlap: the settings `palette_time` (default 0 s) and
   `palette_overlap` (default 100 %) apply when an apply carries no time or overlap; a typed time
   or overlap overrides them for that apply only. Times outside 0–600 s and overlaps outside

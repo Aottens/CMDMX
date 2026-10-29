@@ -5,6 +5,21 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-29 — Selection orders: order and grid, one set of positions (P2-02)
+
+**Decision:** Order tools (Reverse, Shuffle, Sort, Revert) permute the selection; a grid (wings,
+groups, blocks, flip) gives shared positions with the FX generator's own function (FX-07). Next/Prev,
+Fan, new effects and palette and cue overlap read the same positions. All ends a stage and keeps the
+grid; a group stores its grid; a cue stores each item's position (`programmer.md` PRG-71..84).
+
+**Alternatives considered:** Onyx-style stepping modes only (no stored order); a separate Fan/FX
+toggle (Onyx); a MAtricks pool (grandMA3, later).
+
+**Reasoning:** Titan keeps the recorded order in groups and cues; one position function means a stage,
+a fan and an effect over the same selection always agree, and costs one function in core.
+
+**Reversal trigger:** operators find All keeping the grid surprising in the home run (SEL-07).
+
 ## 2026-10-29 — A timed Clear fades an effect's part, not only its size (FXB-02)
 
 **Decision:** FX-19's "fades every entry's size to 0" is built as: the effect's contribution fades linearly, output = base + (effect − base) · (1 − p), then the entry goes. For relative and colour effects this is exactly size → 0; for an absolute dimmer effect size → 0 would jump to `top` first.

@@ -2,7 +2,8 @@
 
 Owner: `cmdmx-core::effect` (shapes, entries, clocks; pure), the merge in `cmdmx-core::engine`,
 `cmdmx-daemon` (IPC) and `subprojects/app` (Shapes workspace).
-Status: **FX-01..44 approved by owner 2026-10-29 (P2-01, IDEA-18), the four owner decisions as proposed**.
+Status: **FX-01..44 approved by owner 2026-10-29 (P2-01, IDEA-18), the four owner decisions as proposed**;
+**FX-45 and the FX-06, 07, 14, 38 amendments (selection orders, P2-02) approved by owner 2026-10-29**.
 Structural choices: ADR-011 (on top of ADR-007). Merge order: `engine-merge.md` ENG-14..19.
 Behavioural reference: Avolites Titan v19 manual, *Shapes and Effects* — Shape Generator
 (https://manual.avolites.com/docs/effects/shape-generator) and Key Frame Shapes
@@ -84,6 +85,7 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   `speed_source` `Free` | `Bpm n` | `Rate n` (as CUE-29); `spread` 0–1440°; `phase` 0–360°;
   `width` 1–100 % (`Square`); `crossfade` 0–100 % (`ColourMix`); `direction` `Forward` |
   `Backward` | `Bounce`; `wings` 1–8; `groups` 0 (off) or 2–32; `blocks` 1–32; `mode`.
+  *Amended (P2-02, approved by owner 2026-10-29):* `flip` true | false (default false; FX-07 step 4).
 - **FX-07** Member positions. Members are numbered *i* = 0…*n*−1 in their order (the selection
   order when applied, PRG-57's list: members without the entry's attributes take no position).
   Each member gets a position *k* of *N*, in this order:
@@ -92,6 +94,11 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   2. **Groups** *G* (when on): *j* = *j* mod *G*, *N* = min(*G*, *N*) — every *G*-th member
      moves together ("1 in 3" is groups 3).
   3. **Blocks** *B*: *k* = ⌊*j*/*B*⌋, *N* = ⌈*N*/*B*⌉ — *B* neighbours move as one.
+  4. **Flip** (*amended, P2-02, approved by owner 2026-10-29*): when `flip` is on, *k* ← *N* − 1 − *k*, so
+     wings 2 with flip starts in the middle (Inside out) while `direction` keeps the way a path turns.
+
+  This is the one position function of core: the programmer's grid uses it too (`programmer.md`
+  *Positions of a list*, PRG-73), so a stage, a fan and an effect over the same selection agree.
 
   The member's phase offset is φ = (`spread` / 360°) · *k*/*N*. Spread 0 → all together;
   360° → one wave over the members, a chase of 4 is offsets 0, ¼, ½, ¾; 720° → two waves. 8
@@ -134,6 +141,9 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   the current entry and runs at once. Each target that already has a programmer effect on one of
   those attributes leaves that entry first (an entry with no members left goes away): one
   programmer effect per fixture and attribute.
+  *Amended (P2-02, approved by owner 2026-10-29):* with no stage selected and the programmer's grid on, the
+  entry takes `wings`, `groups`, `blocks` and `flip` from the grid instead of the look's defaults
+  (PRG-77); the members' order is the target order, reordered or shuffled included.
 - **FX-15** The entry's attributes are touched in the programmer (PRG-15 `contents()` lists them
   with the entry), at programmer priority (ENG-04). An attribute with an effect and no value of
   its own keeps showing the base from the playbacks underneath (ENG-15): a programmer circle on
@@ -161,6 +171,14 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
 - **FX-20** Undo (`undo.md`): apply, stop, select, restart and every `effect.set` are edit steps;
   wheel turns and repeated `effect.set` of the same parameter on the same entry coalesce (UNDO-05).
   The clock is live state: undo does not rewind it.
+
+- **FX-45** Member order of an entry (P2-02, approved by owner 2026-10-29). `effect.set {param: "order",
+  value}` with `Reverse`, `Shuffle` or `Sort` reorders the current entry's members as PRG-71/72
+  reorder a selection (Shuffle takes the programmer's shuffle counter, so it is deterministic and
+  never gives back the same order), recomputes positions (FX-07) and leaves the clock running. It is
+  an `effect.set` for undo (FX-20). Recording keeps the members in this order (FX-21), so a cue
+  replays a shuffled chase in the same order every time. Dimmer chase on 201–204, Reverse → 204
+  leads.
 
 ### Recording and palettes
 - **FX-21** Recording a cue (PBK-09..13, Record By, masks) stores the programmer entries whose
@@ -267,6 +285,8 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   *More* with Direction (→ ← ↔), Phase, Wings, Groups, Blocks, Mode (Rel/Abs), Top, Width or
   Crossfade, and for `ColourMix` the colour list (add from the colour picker or a Colours palette,
   reorder, remove). No control the shape does not use is shown.
+  *Amended (P2-02, approved by owner 2026-10-29):* *More* also has Flip and an Order row (Reverse, Shuffle,
+  Sort; FX-45), UI-33.
 - **FX-39** Effects window: one row per programmer entry (look icon, look name, attribute group
   hue, member count, BPM); a tap makes it current (FX-18); a swipe or the *Stop* button stops it
   (FX-19). Softkeys in the Shapes workspace: Stop FX, Restart, Tap, and Record as in the main
@@ -307,8 +327,8 @@ given tick timestamps. Shape functions and positions (FX-01..08) are unit tests 
 - User key-frame shapes (Titan Key Frame Shapes, grandMA3 phaser steps) and user shape files.
 - Several effects adding up on one attribute (ENG-15), Titan's Overlay/LTP shape behaviour choice.
 - Size masters, *Speed on fader*, effects on chase steps.
-- Effect direction from a 2D layout (needs IDEA-25), random member order (IDEA-15), the pixel
-  mapper over cells (phase 2, own spec).
+- Effect direction from a 2D layout (needs IDEA-25), the pixel mapper over cells (phase 2, own
+  spec). Random member order is FX-45 and PRG-72 (IDEA-15). The FX engine's next steps: IDEA-33.
 - Ableton Link / MIDI clock as tempo source (IDEA-16); it plugs in as a BPM master source.
 - Gobo / prism / shutter "effects": these are fixture macros on FX-group channels (ordinary values).
 - Cycle counts (Titan *Cycles*) and one-shot effects.

@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -24,6 +24,15 @@ and later remotes are views and inputs of the same single programmer.
 - **Sub-selection:** the part of the selection the wheels act on while stepping (Fix ±1) or in a
   pattern (Odd/Even). No sub-selection = the whole selection.
 - **Targets:** the sub-selection if there is one, otherwise the selection.
+- **Select order:** the order in which the selection's items were selected, kept beside the
+  selection for Revert (PRG-71).
+- **Grid:** engine state `{wings, groups, blocks, flip}` that gives items shared positions
+  (PRG-73); `{1, 0, 1, false}` is *off*.
+- **Positions of a list:** for *n* items in order and a grid, each item's position *k* of *N*:
+  FX-07's steps 1–3 (wings, groups, blocks), then with `flip` *k* ← *N* − 1 − *k*. Grid off →
+  *k* = *i*, *N* = *n*. One function in core, shared with the FX generator.
+- **Target positions:** with a sub-selection active, the targets in order with *k* = *i* (the grid
+  is not applied inside a stage); otherwise the positions of the list under the grid.
 - **Programmer contents:** per fixture, per attribute, a *touched* value: either a manual value
   or a palette reference (`palette_id`). An attribute that was never touched is absent.
 - **Located set / highlight:** output overrides that are *not* programmer contents.
@@ -59,8 +68,12 @@ and later remotes are views and inputs of the same single programmer.
   positions `i` with `i mod n = k`); the sub-selection is stage 0, Fix ±1 moves between stages.
   Odd/Even is `n = 2`. Selection 201–206: Odd/Even → `[201, 203, 205]`, Fix +1 →
   `[202, 204, 206]`.
+  *Amended (P2-02, approved by owner 2026-10-29):* a pattern of `n` stages is the grid `{groups: n}`
+  (PRG-73, 74); the behaviour above is unchanged.
 - **PRG-06** All ends the sub-selection or pattern (targets = whole selection again). With no
   sub-selection active, All selects every fixture in the programmer, in user-number order.
+  *Amended (P2-02, approved by owner 2026-10-29):* All ends the sub-selection but keeps the grid (PRG-74), so
+  Fan, effects and overlap then run across the stages; `programmer.grid {}` switches the grid off.
 - **PRG-07** Recording a group stores the current selection in its order; recording with an
   empty selection is refused with a warning and leaves the group unchanged. Recording onto a
   used group replaces its contents.
@@ -408,6 +421,112 @@ screen wheels and every control surface fan alike; the client only says "fan on,
 - **PRG-62** Engine state (PRG-35) carries `fan` (`null` or the curve) and `fan_curve` (the last
   curve).
 
+### Selection orders and the grid (P2-02, IDEA-15; approved by owner 2026-10-29)
+Titan reference: *Controlling Fixtures* (Fix ±1, pattern select from All, custom patterns, Random
+Order on a held group key), *Fixture Groups* (a group stores its order) and *Cue Timing* (fixture
+overlap follows the order the cue was recorded in; Fixture Order with shared step numbers). The
+grid is grandMA3's MAtricks (wings, groups, blocks, a shuffle seed); Onyx's grouping tools (Every,
+Block, Divide, Mirror; Random, Reverse, Sort, Revert) map onto it. Research and comparison:
+`docs/research/selection-orders.md`.
+
+Two separate things: the **order** says which item comes first (a permutation of the selection);
+the **grid** says which items count as the same position. Everything that spreads over a
+selection reads the same positions (Definitions): Next/Previous, Fan, a new effect, palette
+overlap and cue overlap. Examples use RGBW pars 201–208 and spots 301–306; positions are written
+in selection order.
+
+- **PRG-71** Order tools. `Reverse`, `Shuffle` (PRG-72), `Sort` and `Revert` reorder the selection
+  and change nothing else: not the programmer contents, not the grid, not Fan. They are no
+  programmer change for PRG-03 (the next tap still adds). Selection `[203, 201, 202]`: Reverse →
+  `[202, 201, 203]`; Sort → `[201, 202, 203]` (user number, a whole fixture before its cells, cells
+  in cell order, as PRG-50); Revert → the select order `[203, 201, 202]`. An item selected after a
+  reorder goes to the end of the selection and of the select order. With a stage selected
+  (PRG-74) the stage keeps its number and is recomputed on the new order. Fewer than two items →
+  refused ("Order: select at least two fixtures"). Undo: edit commands that coalesce with the
+  selection commands (UNDO-04, 05).
+- **PRG-72** Shuffle gives a new order from a fixed permutation (Fisher–Yates driven by SplitMix64)
+  seeded by the engine's shuffle counter, which is 1 when the engine starts and goes up by one per
+  Shuffle; same actions → same order (PRG-37, ENG-11). Every press gives a new order (owner
+  2026-10-18): a seed that gives back the current order is skipped for the next one, so two items
+  always swap. The counter is live state: not saved, not undone. Shuffle twice, Revert → the select
+  order again.
+- **PRG-73** The grid. `programmer.grid` sets the whole grid: fields left out take their defaults
+  (`wings` 1–8, `groups` 0 = off or 2–32, `blocks` 1–32, `flip`; FX-06's ranges), out of range is
+  refused and changes nothing. 201–208:
+
+  | Grid | Positions | *N* | Name (PRG-75) |
+  | --- | --- | --- | --- |
+  | groups 2 | 0 1 0 1 0 1 0 1 | 2 | Odd/Even, 1 in 2 |
+  | groups 3 | 0 1 2 0 1 2 0 1 | 3 | 1 in 3 |
+  | blocks 2 | 0 0 1 1 2 2 3 3 | 4 | Blocks 2 |
+  | blocks 4 | 0 0 0 0 1 1 1 1 | 2 | Halves |
+  | wings 2 | 0 1 2 3 3 2 1 0 | 4 | Outside in |
+  | wings 2, flip | 3 2 1 0 0 1 2 3 | 4 | Inside out |
+  | groups 4, blocks 2 | 0 0 1 1 0 0 1 1 | 2 | 2 in 4 |
+
+  The grid stays while items are tapped in or out (positions are recomputed) and through order
+  tools, Fix ±1 and All; it ends with `programmer.grid {}` and when a new selection starts (PRG-03,
+  a typed selection PRG-08, All selecting the programmer PRG-06, Clear of the selection), unless a
+  group brings its own (PRG-79). Undo as PRG-71; not saved in the show except with a group.
+- **PRG-74** Stepping by position. With the grid on, the sub-selection is a **stage**: the items at
+  position *s*. Setting a grid selects stage 0 (as PRG-05 did); Fix +1 / Fix −1 (Next / Previous)
+  move *s* through 0…*N* − 1, wrapping. All ends the stage and keeps the grid; the next Fix +1
+  selects stage 0 (Fix −1 stage *N* − 1). Highlight follows the stage (PRG-39). Grid off: PRG-04
+  unchanged. 201–208, Outside in → `[201, 208]`, Fix +1 → `[202, 207]`; Inside out →
+  `[204, 205]`; 2 in 4 → `[201, 202, 205, 206]`, Fix +1 → `[203, 204, 207, 208]`.
+- **PRG-75** Shortcuts, in the engine so every surface gives the same grid; each replaces the whole
+  grid and selects stage 0: **Odd/Even** = groups 2 · **1 in n** = groups *n* (2–32) · **n in m** =
+  groups *m*, blocks *n* (1 ≤ *n* < *m* ≤ 32; Titan's `2 In 6`) · **Blocks n** = blocks *n* ·
+  **Divide d** (2–32: halves, thirds, quarters …) = blocks ⌈*len*/*d*⌉ for the selection's length at
+  that moment · **Outside in** = wings 2 · **Inside out** = wings 2, flip · **Grid off**. With an
+  empty selection each is refused ("Select fixtures first"); a grid on one item is allowed
+  (*N* = 1). Twelve pars `2 in 6` → 0 0 1 1 2 2 0 0 1 1 2 2.
+- **PRG-76** Fan on positions. PRG-57's fan list keeps its rule (the targets that have attribute
+  *a*, in target order); each item takes its target position over that list, and
+  *x* = *k* / (*N* − 1); with *N* < 2 the wheel acts as without Fan. Grid off → PRG-57 unchanged.
+  201–208 at red, Odd/Even, All, Fan Line on Hue +0.25 → odd pars 270°, even pars 90° (odd against
+  even). Spots 301–306 at Pan 0.5, Outside in, All, Fan Line +0.40 → 0.10, 0.50, 0.90, 0.90, 0.50,
+  0.10. With a stage selected the fan runs over the stage's items plainly.
+- **PRG-77** Effects take the order. FX-14's members are the targets in target order, so a reversed
+  or shuffled selection runs in that order (a shuffled Dimmer chase is Titan's random chase). With
+  no stage selected and the grid on, a new entry takes `wings`, `groups`, `blocks` and `flip` from
+  the grid instead of the look's defaults; the look's other defaults (spread too) stay. 201–208,
+  Outside in, All, *Dimmer chase* → the chase runs from both ends to the middle; 1 in 3, All,
+  *Rainbow wave* → three colours repeating over the pars. Reordering a running entry: FX-45.
+- **PRG-78** Palette overlap on positions. PAL-14's *i* is the target's position *k* over the
+  targets the palette touches; items with the same position start together. 201–208, Outside in,
+  All, a colour palette with *t* = 2 s, overlap 0 % → 201 and 208 start at 0 s, 202 and 207 at 2 s,
+  …, all done at 8 s. Grid off, and a quick palette (user-number order), → PAL-14 unchanged.
+- **PRG-79** Groups keep the order and the grid. PRG-07 already stores the selection in its order,
+  so a reversed or shuffled order recorded into a group comes back. Recording a group while the
+  grid is on also stores the grid (group `grid`, absent when off). Selecting that group when it
+  starts a new selection (PRG-03, a typed `Group n`, an empty selection) restores its grid with no
+  stage selected (as after All), so Fan, effects and overlap use it at once and Fix +1 starts at
+  stage 0; selected into an existing selection, the group appends its items and leaves the grid.
+  Group "Pars outside in" (201–208, wings 2) → `Group 5 Enter`, *Dimmer chase* runs inwards.
+- **PRG-80** Cues keep the order. Recording a cue (PBK-09..13, CUE-43..46: Record, Update, Merge)
+  stores per recorded item its position, `order` (`{"201":0,"208":0,"202":1,…}`): the selected
+  items their positions under the grid over the whole selection (a selected stage does not
+  matter), then recorded items outside the selection in user-number order at *N*, *N* + 1, …. On a
+  timed Go, `overlap` (PBK-15) staggers by `order` as PRG-78 does; a cue without `order` (older
+  shows, a cue made without a selection such as the PBK-45 migration) keeps user-number order.
+  Update and Merge keep the positions of items already in the cue and add new items after the
+  cue's highest position, in their recorded order. 201–208 Outside in, Record cue 2 with fade 2 s,
+  overlap 0 % → on Go 201 and 208 first, 204 and 205 last.
+- **PRG-81** A cue's fixture order can be edited afterwards (Titan *Fixture Order*):
+  `cue.order {"list":1,"cue":2,"order":{"205":0,"204":0,"206":1,…}}` replaces it (an edit step,
+  UNDO-04); items of the cue left out of the message follow after the given ones in their old
+  order; an item not in the cue, or a negative position, is refused. The app's editor: UI-34.
+- **PRG-82** Engine state (PRG-35) carries `grid` (`null` when off, else `{wings, groups, blocks,
+  flip}`), `stage` (*s* or `null`), `positions` (per selection item its *k*, in selection order)
+  and `position_count` (*N*); a cue in the cue view carries its `order` (absent when none).
+- **PRG-83** Show schema 9 (SHW-04): groups gain the optional `grid`, cues the optional `order`,
+  effect parameters the optional `flip` (FX-06, absent when false). Schema 8 shows load unchanged;
+  a show without them saves byte-identical apart from the version number.
+- **PRG-84** Positions are computed when the selection, the grid or an entry's members change,
+  never per tick (ENG-13, FX-13); no selection length, grid or order makes the engine panic (0, 1
+  or more items than positions included), and refused actions change nothing (PRG-36).
+
 ## Scenario test format
 Scenario files (`tests/scenarios/PRG-nn-*.json`, format of `engine-merge.md`) gain a `prg` action
 and a `programmer` expectation:
@@ -426,9 +545,12 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 ## Out of scope (phase 1 unless noted)
 - Fan beyond PRG-56..62 (phase 2): Titan's Pull Middle, Pull Ends and Pull End curves, Fan parts
   (hold Fan + a number), the group options Fan Within Group and Fan Group as Fixture, press-and-hold
-  Fan as a setting, and a keypad fan (`@ 0 Thro 100`); the extra orders of IDEA-15. Align
+  Fan as a setting, and a keypad fan (`@ 0 Thro 100`). Align
   (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
-- Select If (phase 2). Cells: per-cell group masters, Titan's cell buttons in an attribute
+- Selection orders beyond PRG-71..84 (later): grandMA3's Width (several positions per step), Shift
+  and X/Y/Z axes, From/To layers of fade, delay and phase over the grid, a MAtricks pool; Titan's
+  2D Direction from a layout (needs IDEA-25); a keypad syntax for patterns (`2 In 6`), Invert
+  (swap selected and deselected). Select If (phase 2). Cells: per-cell group masters, Titan's cell buttons in an attribute
   editor, and Shapes or pixel mapping over cells (phase 2); cells are selected by `.` and Unfold
   (PRG-46..55, UI-29).
 - Gel ranges beyond LEE (Rosco, GAM: as data allows), a daylight-source option for gels, a gel's transmission as dimming, and colour calibration (phase 2, IDEA-03).
@@ -468,3 +590,12 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 6. The encoders fan through the engine state; a `fan` control action for a button is phase 1
    (CTL-59).
 7. An item with factor 0 still becomes a touched value, so Record stores the whole fan (PRG-59).
+
+## Owner decisions (P2-02, approved 2026-10-29 as proposed)
+1. Order and grid are separate: order tools permute the selection, the grid gives shared positions
+   with the FX-07 function; all spreading features read the same positions (PRG-71..78).
+2. All ends a stage but keeps the grid, so Fan and effects run across the stages after All
+   (Onyx's Fan/FX toggle, MA3's MAtricks); `Grid off` or a new selection ends it (PRG-06, 73, 74).
+3. A group stores its grid next to its order and restores it when it starts a selection (PRG-79).
+4. Cues store each item's position, so overlap replays the recorded order (Titan); older cues keep
+   user-number order (PRG-80); a fixture-order editor follows in its own slice (PRG-81, UI-34).
