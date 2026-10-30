@@ -547,14 +547,18 @@ struct CueViewReply: Decodable, Equatable {
     let playback: Int
     let cue: Double
     let fixtures: [CueViewFixture]
+    /// UI-34: item → 0-based position in the cue's fixture order; empty when the cue has none.
+    let order: [Item: Int]
 
-    private enum CodingKeys: String, CodingKey { case playback, cue, fixtures }
+    private enum CodingKeys: String, CodingKey { case playback, cue, fixtures, order }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         playback = try c.decode(Int.self, forKey: .playback)
         cue = try c.decode(Double.self, forKey: .cue)
         fixtures = ((try? c.decode([Tolerant<CueViewFixture>].self, forKey: .fixtures)) ?? []).compactMap(\.value)
+        let wire = (try? c.decode([String: Tolerant<Int>].self, forKey: .order)) ?? [:]
+        order = Dictionary(wire.compactMap { key, step in Item(key).flatMap { item in step.value.map { (item, $0) } } }, uniquingKeysWith: { a, _ in a })
     }
 }
 
@@ -1722,6 +1726,13 @@ final class EngineClient: ObservableObject {
     /// `fields` as `cue.times`: delay, fade_in, fade_out, overlap, link, group_times (CUE-07, 14, 20).
     func setCueTimes(_ id: Int, cue: Double, _ fields: [String: Any]) {
         patch("cue.times", fields.merging(["id": id, "cue": cue]) { a, _ in a })
+    }
+    /// UI-34, PRG-81: item → 0-based step; items left out follow after the given ones (the engine does that).
+    func setCueOrder(_ id: Int, cue: Double, order: [Item: Int]) {
+        let wire = Dictionary(uniqueKeysWithValues: order.map { item, step in
+            (item.cell.map { "\(item.fixture).\($0)" } ?? "\(item.fixture)", step)
+        })
+        patch("cue.order", ["list": id, "cue": cue, "order": wire])
     }
     func setCueLegend(_ id: Int, cue: Double, legend: String) { patch("cue.legend", ["id": id, "cue": cue, "legend": legend]) }
     func setCueTrack(_ id: Int, cue: Double, track: String) { patch("cue.track", ["id": id, "cue": cue, "track": track]) }

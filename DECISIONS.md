@@ -5,6 +5,20 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-30 — Cue fixture order is tapped in a grid inside the Times tab (SEL-06)
+
+**Decision:** UI-34's "the Fixtures window shows each item's step number" is built as a grid of the
+cue's own items, drawn with the Fixtures window's cells, inside Playback Options ▸ Times. Besides
+Auto increment there is a **Next step** button, so with Auto increment off the shared step can move on.
+
+**Alternatives considered:** close the Options screen and put the real Fixtures window in an
+order mode (it is hidden behind the screen, and may not be in the current workspace).
+
+**Reasoning:** the screen replaces the window grid; the cue's items only (hard in the cue) are
+exactly what `cue.order` accepts, so nothing can be tapped that the engine would refuse.
+
+**Reversal trigger:** the owner wants it in the Fixtures window itself (SEL-07 run).
+
 ## 2026-10-29 — Selection orders: order and grid, one set of positions (P2-02)
 
 **Decision:** Order tools (Reverse, Shuffle, Sort, Revert) permute the selection; a grid (wings,

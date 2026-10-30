@@ -2,8 +2,8 @@ import SwiftUI
 
 // Playback Options screen (UI-10, PBK-39, CUE-46): the options and times of one playback. Every
 // control shows the engine's value and sends its change at once (`playback.options`, `cue.times`,
-// `settings.playback`); nothing is computed here, and a refused value simply stays as it was (the
-// warning shows below). The tabs follow the kind: a master has Handle and Master only.
+// `cue.order`, `settings.playback`); nothing is computed here, and a refused value simply stays as
+// it was (the warning shows below). The tabs follow the kind: a master has Handle and Master only.
 
 enum PlaybackOptionsTab: String, CaseIterable {
     case fader = "Fader", times = "Times", release = "Release", playback = "Playback", handle = "Handle"
@@ -176,8 +176,9 @@ private struct FaderTab: View {
     }
 }
 
-/// The times, link and track of one cue, and its group times (CUE-07, 14, 20, 51, 46). The cue is
-/// picked here; it starts on the one Edit Times was opened for, else the current, else the first.
+/// The times, link and track of one cue, its group times and its fixture order (CUE-07, 14, 20, 51,
+/// 46, UI-34, PRG-81). The cue is picked here; it starts on the one Edit Times was opened for,
+/// else the current, else the first.
 private struct TimesTab: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
@@ -197,6 +198,7 @@ private struct TimesTab: View {
             times(cue)
             linkAndTrack(cue)
             groupTimes(cue)
+            FixtureOrder(playback: playback, cue: cue.number).id(cue.number)   // a new cue starts a fresh draft
         } else {
             Text("This playback holds no cues.").font(Typo.ui(11)).foregroundStyle(t.fg2)
         }
@@ -283,6 +285,81 @@ private struct TimesTab: View {
         var map = cue.groupTimes.mapValues { ["delay": $0.delay, "fade": $0.fade] }
         map[group] = time.map { ["delay": $0.delay, "fade": $0.fade] }
         engine.setCueTimes(playback.id, cue: cue.number, ["group_times": map])
+    }
+}
+
+/// UI-34, PRG-81: the order a timed Go with overlap runs the fixtures in. The cue's hard items are
+/// drawn as Fixtures window cells; Edit lets the operator tap them into steps, Done sends `cue.order`
+/// (the engine puts untapped items after the tapped ones). The new order comes back through the cue view.
+private struct FixtureOrder: View {
+    @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
+    let playback: PlaybackInfo
+    let cue: Double
+    @State private var editing = false
+    @State private var draft: [Item: Int] = [:]
+    @State private var next = 0
+    @State private var autoIncrement = true
+
+    var body: some View {
+        let reply = engine.cueView.flatMap { $0.playback == playback.id && $0.cue == cue ? $0 : nil }
+        // Only hard items can be ordered; tracked rows of the view belong to an earlier cue.
+        let rows = cellsAfterFixtures(reply?.fixtures.filter { $0.values.values.contains { $0.from == cue } } ?? [], engine.fixtures) { $0.item }
+        OptionRow(label: "Fixture order", note: "The order a timed Go with overlap runs the fixtures in (step 1 first). Without an order: by fixture number.") {
+            if reply == nil {
+                Text("Asking the engine for this cue…").font(Typo.ui(11)).foregroundStyle(t.fg2)
+            } else if rows.isEmpty {
+                Text("This cue holds no fixtures.").font(Typo.ui(11)).foregroundStyle(t.fg2)
+            } else {
+                grid(rows.map(\.item), steps: editing ? draft : reply?.order ?? [:])
+                controls
+            }
+        }
+        .task(id: "\(playback.id)-\(cue)-\(engine.storedRevision)") { engine.viewCue(playback.id, cue: cue) }
+    }
+
+    private func grid(_ items: [Item], steps: [Item: Int]) -> some View {
+        let fixtures = Dictionary(engine.fixtures.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 6), spacing: 2) {
+            ForEach(items, id: \.self) { item in
+                let fixture = fixtures[item.fixture]
+                Cell(number: item.cell == nil ? fixture?.number : nil,
+                     legend: item.cell.map { "\(fixture?.number ?? item.fixture).\($0)" } ?? fixture.map(FixturesWindow.legend) ?? "",
+                     order: steps[item].map { $0 + 1 },
+                     selected: steps[item] != nil,
+                     action: editing ? { tap(item) } : nil)
+            }
+        }
+    }
+
+    @ViewBuilder private var controls: some View {
+        if editing {
+            HStack(spacing: 6) {
+                Button("Auto increment") { autoIncrement.toggle() }.buttonStyle(FlatButton(fill: autoIncrement ? .blue : nil))
+                Button("Next step") { next += 1 }.buttonStyle(FlatButton())
+                Text("Next tap: step \(next + 1)").font(Typo.ui(11)).foregroundStyle(t.fg2)
+                Spacer(minLength: 0)
+                Button("Done") {
+                    if !draft.isEmpty { engine.setCueOrder(playback.id, cue: cue, order: draft) }
+                    stop()
+                }.buttonStyle(FlatButton(fill: .blue))
+                Button("Cancel") { stop() }.buttonStyle(FlatButton())
+            }
+            Text("Untapped fixtures follow after the tapped ones, in their old order.").font(Typo.ui(11)).foregroundStyle(t.fg2)
+        } else {
+            Button("Edit") { editing = true }.buttonStyle(FlatButton())
+        }
+    }
+
+    private func tap(_ item: Item) {
+        draft[item] = next
+        if autoIncrement { next += 1 }
+    }
+
+    private func stop() {
+        editing = false
+        draft = [:]
+        next = 0
     }
 }
 
