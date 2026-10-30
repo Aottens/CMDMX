@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-30 (SEL-04: selection orders over IPC)_
+_Last updated: 2026-10-30 (SEL-05: selection orders in the app)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -21,9 +21,8 @@ sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touch
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-0. Selection orders (phase 2): SEL-01..04 (core grid and order tools; Fan, effects, overlap on positions; groups and
-   cues keep order and grid, schema 9; all of it over IPC and control) are done; next SEL-05 and SEL-06 (app, either
-   order), then SEL-07 (home run).
+0. Selection orders (phase 2): SEL-01..05 (core, IPC and control, and the app's Order and Pattern softkeys, GRID
+   tag and Effect editor Flip/Order) are done; next SEL-06 (cue fixture order in the app), then SEL-07 (home run).
 1. VS8-01 and VS4-07: install `CMDMX-0.2.4.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.

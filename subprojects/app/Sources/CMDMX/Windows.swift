@@ -159,7 +159,8 @@ struct FixturesWindow: View {
         let programmer = engine.programmer
         // Display lookups only: 1-based position in the engine's selection order.
         // PRG-55: a fixture button speaks for its whole-fixture item; cells show with VS2-34.
-        let order = Dictionary(programmer.selection.enumerated().map { ($1, $0 + 1) }, uniquingKeysWith: { a, _ in a })
+        // UI-33: the grid position the engine reports (0-based), else the index.
+        let order = Dictionary(programmer.selection.enumerated().map { ($1, (programmer.positions[safe: $0] ?? $0) + 1) }, uniquingKeysWith: { a, _ in a })
         // Double outline only while the engine's targets differ from its selection (sub-selection).
         let subSelection = programmer.targets != programmer.selection
         let targets = Set(programmer.targets)

@@ -44,7 +44,7 @@ interface needs no restart, and killing the app with `kill -9` mid-show dropped 
 CMDMX v0.2.4 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
 (VS8-03, 04). Next up: install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
 is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
-The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); with its run leftovers (FXB-07..10) it shipped in v0.2.4. Next feature: selection orders (IDEA-15, spec P2-02); beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
+The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); with its run leftovers (FXB-07..10) it shipped in v0.2.4. Selection orders (IDEA-15, spec P2-02) work in engine and app; their home run (SEL-07) and the cue fixture order (SEL-06) are next; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
 ## What works today
 
@@ -85,6 +85,10 @@ The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the
 - Fan: the Fan key (lit while on) makes a wheel spread its change over the selection order as a
   Line, Mirror, Wings or Arrow curve, picked on the Fan softkeys and shown as `FAN <CURVE>` next
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.
+- Selection orders: the Order softkeys Reverse, Shuffle, Sort and Revert the selection; the
+  Pattern softkeys lay Odd/Even, 1 in *n*, *n* in *m*, Blocks, Divide, Outside in or Inside out
+  over it (an amber `GRID 1 IN 3 · 2/3` tag, Fix ±1 steps through it). Fan, effects, palette
+  overlap, groups and cues follow; the Effect editor has Flip and Reverse/Shuffle/Sort.
 - Colour as one value per fixture: HSI, RGB, CMY or Kelvin wheels or a colour picker with
   CTO/CTB correction steps and a LEE gel book (search by number or name, `Lee 201` on the command
   line; the full LEE table ships once LEE gives permission). Extra emitters (White, Lime, …) are driven directly, or auto-mixed

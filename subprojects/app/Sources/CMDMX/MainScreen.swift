@@ -126,6 +126,8 @@ final class UIState: ObservableObject {
     /// The Palette softkeys (PAL-29): opened by the Palette key on an empty line, they stay open
     /// until Cancel, Exit or another context is chosen.
     @Published var paletteMenu = false
+    /// UI-33: the Selection sub-context on show, "Order" or "Pattern"; nil = Selection itself.
+    @Published var selectionMenu: String?
 
     /// Wraps a control's click: in Learn mode it arms Learn for `action` (nil: this control has none, so
     /// it runs), else it runs. The mode stays on after `Learned: …`.
@@ -152,6 +154,7 @@ final class UIState: ObservableObject {
         handleSource = nil; deletePlayback = nil
         cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
         paletteMenu = false
+        selectionMenu = nil
     }
 
     /// PBK-39: open the Playback Options screen on a playback.

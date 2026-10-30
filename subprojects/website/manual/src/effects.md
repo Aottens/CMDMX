@@ -77,7 +77,12 @@ in the cycle, so you see what spread, wings and groups do before you look up at 
 - **Direction**: → forward, ← backward, ↔ there and back.
 - **Phase**: shifts the whole effect in its cycle.
 - **Wings**: splits the fixtures in mirrored parts, so a chase runs in from both ends.
+- **Flip**: turns the wings, groups and blocks around, so a chase on wings runs from the middle
+  out instead of in.
 - **Groups** and **Blocks**: every n-th fixture together, or n neighbours as one.
+- **Order**: **Reverse**, **Shuffle** or **Sort** the fixtures of the running effect without
+  restarting it. A shuffled dimmer chase is a random chase, and it replays in the same order from
+  a cue.
 - **Mode**: **Rel** moves around the current value, **Abs** sets the value itself; with Abs,
   **Top** is the highest value.
 - **Width** (square waves only): how long each fixture is on.

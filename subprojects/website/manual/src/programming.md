@@ -60,7 +60,47 @@ the wheels change only the targets.
 - **All** (a softkey) ends the stepping, so the whole selection is the target again. With nothing
   stepped it selects every fixture that is in the programmer.
 
-The same keys are on the *Selection* softkeys at the right, together with **Rem Dim**.
+Fix ±1 and All are also on the *Selection* softkeys at the right, together with **Rem Dim**;
+Odd/Even sits there under **Pattern**.
+
+### Order
+
+The **Order** softkey reorders the selection without changing anything else; **Back** returns to
+the Selection softkeys.
+
+- **Reverse** turns the order around.
+- **Shuffle** gives a random order, a new one every press. It is the same every time you repeat
+  the same steps, so a shuffled chase in a cue replays as you recorded it.
+- **Sort** puts the fixtures in number order.
+- **Revert** goes back to the order in which you selected them.
+
+The numbers on the buttons follow the new order, and so do Fix ±1, Fan, effects and palette
+overlap. A dimmer chase on a reversed selection runs the other way; on a shuffled one it is a
+random chase.
+
+### Patterns
+
+The **Pattern** softkey lays a pattern over the selection: fixtures that share a number in the
+pattern go together. Fix +1 and Fix −1 step through the numbers, so you can set the odd and the
+even pars apart, or work from the outside in.
+
+- **Odd/Even**: every other fixture.
+- **1 in n**: every n-th fixture; type the number first (`3`, then 1 in n), else 3.
+- **n in m**: n neighbours out of every m; type `2 Thro 6` first for Titan's "2 in 6" (a lone
+  number is m, with n = 1).
+- **Blocks n**: n neighbours together (else 2).
+- **Divide n**: halves, thirds, quarters: `3`, then Divide (else halves).
+- **Outside in**: the two ends first, then towards the middle. **Inside out** the other way.
+- **Grid off** ends the pattern.
+
+While a pattern is on, the attribute bar shows an amber tag such as `GRID 1 IN 3 · 2/3` (the
+second of three steps) or `· ALL` after **All**; tap the tag to end the pattern. The buttons show
+each fixture's number in the pattern. The pattern stays while you tap fixtures in or out and
+through Order and All, and ends when a new selection starts. Fan, a new effect and palette overlap
+use it: with Outside in and All, a Fan Line is mirrored around the middle and a dimmer chase runs from
+both ends inwards. Record a group while a pattern is on and the group brings it back.
+
+The keypad's **Odd/Even** key stays as it was.
 
 ## The attribute bar and the wheels
 

@@ -107,13 +107,14 @@ struct EffectParams: Decodable, Equatable {
     /// `Forward`, `Backward` or `Bounce`.
     var direction = "Forward"
     var wings = 1, groups = 0, blocks = 1
+    var flip = false
     /// `Relative` or `Absolute`.
     var mode = "Relative"
 
     init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case size, top, bpm, beats, spread, phase, width, crossfade, direction, wings, groups, blocks, mode
+        case size, top, bpm, beats, spread, phase, width, crossfade, direction, wings, groups, blocks, mode, flip
         case speedSource = "speed_source"
     }
 
@@ -126,6 +127,7 @@ struct EffectParams: Decodable, Equatable {
         crossfade = num(.crossfade, crossfade)
         direction = (try? c.decode(String.self, forKey: .direction)) ?? direction
         mode = (try? c.decode(String.self, forKey: .mode)) ?? mode
+        flip = (try? c.decode(Bool.self, forKey: .flip)) ?? false
         wings = int(.wings, wings); groups = int(.groups, groups); blocks = int(.blocks, blocks)
         if let text = try? c.decode(String.self, forKey: .speedSource), text == "Free" {
             speedSource = .free
