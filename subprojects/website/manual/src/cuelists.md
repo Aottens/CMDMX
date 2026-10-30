@@ -118,6 +118,25 @@ cue. For that cue you set:
 
 A change to the times of a cue that is fading now is used from the next Go on.
 
+### Fixture order
+
+With an overlap below 100 %, a cue does not fade all fixtures at once: it starts them one after
+the other, in the cue's **fixture order**. Recording a cue stores the order of the selection, so
+a selection you reversed, shuffled or laid out Outside in (see
+[Order](programming.md#order)) plays back that way. A cue recorded without a selection
+goes by fixture number.
+
+The **Fixture order** part of the Times tab shows the cue's fixtures with their step number
+(step 1 starts first). To change it, press **Edit** and tap the fixtures in the order you want:
+
+- With **Auto increment** on (the default), every tap gives the next step: tap 205, 204, 206,
+  203 … to go from the middle out.
+- With **Auto increment** off, the taps share one step, so several fixtures start together;
+  **Next step** moves on to the next one. Tap 204 and 205, Next step, 203 and 206, and so on.
+
+**Done** stores the new order (Undo takes it back); fixtures you did not tap follow after the
+tapped ones, in their old order. **Cancel** leaves the order as it was.
+
 ### Links
 
 A cue's link decides how it starts:

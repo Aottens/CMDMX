@@ -149,7 +149,7 @@ struct FixturesWindow: View {
     }
 
     /// The legend is the fixture's name, else the model part of `manufacturer/model`.
-    private static func legend(_ f: FixtureInfo) -> String {
+    static func legend(_ f: FixtureInfo) -> String {
         if !f.name.isEmpty { return f.name }
         guard let slash = f.profile.firstIndex(of: "/") else { return f.profile }
         return String(f.profile[f.profile.index(after: slash)...])
