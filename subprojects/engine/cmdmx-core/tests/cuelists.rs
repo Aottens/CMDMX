@@ -1096,11 +1096,11 @@ fn styled() -> Engine {
 
 #[test]
 fn cue_38_schema_4_shape() {
-    assert_eq!(SCHEMA_VERSION, 8); // PRG-52 groups store items; GRM-13 adds only the GroupMaster kind, OUT-13 the output key
+    assert_eq!(SCHEMA_VERSION, 9); // PRG-52 groups store items; GRM-13 adds only the GroupMaster kind, OUT-13 the output key
     let e = styled();
     let text = e.to_show(meta()).to_json();
     let v: Json = serde_json::from_str(&text).unwrap();
-    assert_eq!(v["schema_version"], json!(8));
+    assert_eq!(v["schema_version"], json!(9));
     keys_in_order(
         &text,
         "\"playbacks\": [",
@@ -1214,7 +1214,7 @@ fn cue_38_a_schema_3_show_is_migrated() {
         .unwrap()
         .push(second);
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 5, "{migrations:?}");
+    assert_eq!(migrations.len(), 6, "{migrations:?}");
     assert!(migrations[0].starts_with("3 -> 4"), "{migrations:?}");
     assert!(migrations[1].starts_with("4 -> 5"), "{migrations:?}"); // GRM-13
     assert!(migrations[2].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27

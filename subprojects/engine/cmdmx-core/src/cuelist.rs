@@ -15,8 +15,8 @@ use crate::engine::{resolve_mode, resolve_stored};
 use crate::palette::{Palette, PaletteId};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{
-    fade_progress, CueNumber, Direction, Kind, Link, ListAction, ListLive, LoopAction, Origin,
-    Origins, Playback,
+    fade_progress, stagger_ranks, CueNumber, Direction, Kind, Link, ListAction, ListLive,
+    LoopAction, Origin, Origins, Playback,
 };
 use crate::profile::{Mode, Profile, DIMMER};
 use crate::programmer::Item;
@@ -672,15 +672,13 @@ impl ListRun {
                 }
             }
         }
-        // PBK-15: the fixtures that fade start one after the other in user-number order.
-        let mut ranked: Vec<(u32, FixtureId)> = (plans.iter().filter(|p| p.spread))
-            .filter_map(|p| Some((env.fixtures.get(&p.item.fixture)?.number, p.item.fixture)))
-            .collect();
-        ranked.sort_unstable();
-        ranked.dedup();
-        let rank_of: BTreeMap<FixtureId, usize> = (ranked.iter().enumerate())
-            .map(|(i, &(_, f))| (f, i))
-            .collect();
+        // PBK-15: the fixtures that fade start one after the other in user-number order, or by
+        // the cue's order (PRG-80).
+        let rank_of = stagger_ranks(
+            &cue.order,
+            (plans.iter().filter(|p| p.spread))
+                .filter_map(|p| Some((env.fixtures.get(&p.item.fixture)?.number, p.item))),
+        );
         let stagger = if chase_fade.is_some() {
             0.0
         } else {
@@ -688,7 +686,7 @@ impl ListRun {
         };
         let mut duration = 0.0_f32;
         for p in plans {
-            let rank = rank_of.get(&p.item.fixture).copied().unwrap_or(0);
+            let rank = rank_of.get(&p.item).copied().unwrap_or(0);
             let lag = if p.spread {
                 rank as f32 * p.fade * stagger
             } else {

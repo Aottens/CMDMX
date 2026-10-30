@@ -26,10 +26,10 @@ use std::collections::BTreeMap;
 use cmdmx_core::effect::{EffectApply, EffectSet};
 use cmdmx_core::engine::Engine;
 use cmdmx_core::palette::RecordMode;
+use cmdmx_core::patch::FixtureId;
 use cmdmx_core::playback::{
     Cue, CueChange, CueNumber, ListAction, Playback, PlaybackRecord, Values,
 };
-use cmdmx_core::patch::FixtureId;
 use cmdmx_core::programmer::{Grid, GridShortcut, Item};
 use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
 use cmdmx_core::undo::History;
@@ -110,7 +110,11 @@ fn prg_79_a_group_stores_the_grid_and_a_new_selection_restores_it() {
     let mut e = church();
     pars_outside_in(&mut e);
     assert_eq!(e.group_grid(5), Some(outside_in()));
-    assert_eq!(e.programmer().grid(), None, "Clear of the selection ends it");
+    assert_eq!(
+        e.programmer().grid(),
+        None,
+        "Clear of the selection ends it"
+    );
 
     e.select_group(5).unwrap();
     assert_eq!(e.programmer().items(), items(&PARS).as_slice());
@@ -183,7 +187,11 @@ fn prg_79_into_an_existing_selection_the_group_appends_and_leaves_the_grid() {
         groups: 2,
         ..Grid::default()
     };
-    assert_eq!(e.programmer().grid(), Some(odd_even), "a grid that is on stays");
+    assert_eq!(
+        e.programmer().grid(),
+        Some(odd_even),
+        "a grid that is on stays"
+    );
 }
 
 #[test]
@@ -364,15 +372,24 @@ fn prg_80_overlap_on_go_staggers_by_the_order() {
     go(&mut e, pb, 10.0); // Q2
     e.tick(11.0);
     let d = pars_dmx(&e);
-    assert!(near(d[0], 128) && near(d[7], 128), "201 and 208 first: {d:?}");
+    assert!(
+        near(d[0], 128) && near(d[7], 128),
+        "201 and 208 first: {d:?}"
+    );
     assert_eq!(&d[1..7], &[0; 6]);
     e.tick(13.0);
     let d = pars_dmx(&e);
-    assert!(near(d[1], 128) && near(d[6], 128), "202 and 207 at 2 s: {d:?}");
+    assert!(
+        near(d[1], 128) && near(d[6], 128),
+        "202 and 207 at 2 s: {d:?}"
+    );
     assert_eq!(&d[2..6], &[0; 4]);
     e.tick(17.0);
     let d = pars_dmx(&e);
-    assert!(near(d[3], 128) && near(d[4], 128), "204 and 205 last: {d:?}");
+    assert!(
+        near(d[3], 128) && near(d[4], 128),
+        "204 and 205 last: {d:?}"
+    );
     e.tick(18.0);
     assert_eq!(pars_dmx(&e), [255; 8]);
 }
@@ -482,9 +499,7 @@ fn prg_81_an_item_not_in_the_cue_or_a_negative_position_is_refused() {
     assert!(e
         .set_cue_order(pb, q(1.0), &edit(&[(205, 0), (301, 1)]))
         .is_err());
-    assert!(e
-        .set_cue_order(pb, q(1.0), &edit(&[(205, -1)]))
-        .is_err());
+    assert!(e.set_cue_order(pb, q(1.0), &edit(&[(205, -1)])).is_err());
     assert!(e.set_cue_order(pb, q(9.0), &edit(&[(205, 0)])).is_err());
     assert_eq!(cue_order(&e, pb, 0), before);
 }
@@ -573,7 +588,10 @@ fn prg_83_a_show_without_them_saves_as_schema_8_did() {
 
 #[test]
 fn prg_83_the_schema_8_church_show_loads_unchanged() {
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../tests/fixtures/shows/");
+    let dir = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../tests/fixtures/shows/"
+    );
     let v8 = std::fs::read_to_string(format!("{dir}church-demo-v8.cmdmx.json")).unwrap();
     let v9 = std::fs::read_to_string(format!("{dir}church-demo.cmdmx.json")).unwrap();
     assert_eq!(

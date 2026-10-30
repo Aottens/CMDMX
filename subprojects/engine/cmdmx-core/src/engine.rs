@@ -36,12 +36,12 @@ use crate::palette::{
 };
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
-    check_bpm, fade_progress, AddCue, BpmFader, BpmMaster, Button, ButtonKind, ChaseOptions, Cue,
-    CueChange, CueNumber, CueValue, CueView, FaderMode, GroupMaster, GroupMode, GroupTime,
-    HandleButton, HandleButtons, KillPoint, Kind as PlaybackKind, Link, ListAction, ListFader,
-    ListLive, Master, MasterKind, Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId,
-    PlaybackRecord, PlaybackState, Priority, Release, SpeedSource, UpdateMode, Values,
-    GROUP_SCALES, PAGES,
+    check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BpmFader, BpmMaster, Button,
+    ButtonKind, ChaseOptions, Cue, CueChange, CueNumber, CueValue, CueView, FaderMode, GroupMaster,
+    GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind as PlaybackKind, Link,
+    ListAction, ListFader, ListLive, Master, MasterKind, Origin, Origins, Paging, Playback,
+    PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority, Release, SpeedSource,
+    UpdateMode, Values, GROUP_SCALES, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -266,6 +266,8 @@ pub struct Engine {
     programmer: Programmer,
     /// PRG-49: a group holds items, whole fixtures and cells.
     groups: BTreeMap<GroupId, Vec<Item>>,
+    /// PRG-79: the grid a group was recorded with; absent = grid off.
+    group_grids: BTreeMap<GroupId, Grid>,
     palettes: BTreeMap<PaletteId, Palette>,
     /// Above every palette id ever used, so ids are never reused (PAL, Definitions).
     palette_next_id: PaletteId,
@@ -493,6 +495,7 @@ pub struct EditState {
     playbacks: BTreeMap<PlaybackId, Playback>,
     page_legends: Vec<String>,
     groups: BTreeMap<GroupId, Vec<Item>>,
+    group_grids: BTreeMap<GroupId, Grid>,
     palettes: BTreeMap<PaletteId, Palette>,
     nodes: BTreeMap<NodeId, Node>,
     programmer: EditPart,
@@ -540,6 +543,7 @@ impl Engine {
             last_tick: None,
             programmer: Programmer::default(),
             groups: BTreeMap::new(),
+            group_grids: BTreeMap::new(),
             palettes: BTreeMap::new(),
             palette_next_id: 1,
             gels: GelTable::lee(),
@@ -942,6 +946,7 @@ impl Engine {
             }
             for cue in self.playbacks.values_mut().flat_map(|pb| &mut pb.cues) {
                 cue.values.retain(|i, _| i.fixture != id); // PBK-14
+                cue.order.retain(|i, _| i.fixture != id);
             }
         }
         self.follow_active_group();
@@ -1441,6 +1446,7 @@ impl Engine {
             playbacks: self.playbacks.clone(),
             page_legends: self.page_legends.clone(),
             groups: self.groups.clone(),
+            group_grids: self.group_grids.clone(),
             palettes: self.palettes.clone(),
             nodes: self.nodes.clone(),
             programmer: self.programmer.edit_part(),
@@ -1469,6 +1475,7 @@ impl Engine {
         self.numbers = s.numbers;
         self.page_legends = s.page_legends;
         self.groups = s.groups;
+        self.group_grids = s.group_grids;
         self.palettes = s.palettes;
         self.nodes = s.nodes;
         let old_fixtures = std::mem::replace(&mut self.fixtures, s.fixtures);
@@ -1594,6 +1601,7 @@ impl Engine {
                 .map(|(&id, items)| ShowGroup {
                     id,
                     items: items.clone(),
+                    grid: self.group_grids.get(&id).copied(),
                 })
                 .collect(),
             palettes: ShowPalettes {
@@ -1726,6 +1734,13 @@ impl Engine {
                 }
             }
             engine.groups.insert(group.id, members);
+            match group.grid.map(|g| g.validate().map(|()| g)) {
+                Some(Ok(grid)) => {
+                    engine.group_grids.insert(group.id, grid);
+                }
+                Some(Err(e)) => warnings.push(format!("group {}: grid left out, {e}", group.id)),
+                None => {}
+            }
         }
         for entry in &show.palettes.palettes {
             let mut palette = match entry {
@@ -2941,11 +2956,13 @@ impl Engine {
         if values.is_empty() && effects.is_empty() {
             return Err(CoreError::NothingToRecordPlayback);
         }
+        let order = self.recorded_order(&values);
         let Some(id) = existing else {
             let number = record.cue.unwrap_or_default();
             let mut playback = Playback::new(self.playback_next_id, page, slot, Values::new());
             playback.cues = vec![Cue {
                 effects,
+                order,
                 ..self.new_cue(values, number)
             }];
             let id = playback.id;
@@ -2957,6 +2974,7 @@ impl Engine {
             let fader = self.settings.cue_list_fader;
             let cue = Cue {
                 effects,
+                order,
                 ..self.new_cue(values, number)
             };
             if let Some(playback) = self.playbacks.get_mut(&id) {
@@ -2969,6 +2987,35 @@ impl Engine {
         } else if let Some(playback) = self.playbacks.get_mut(&id) {
             if playback.cues.is_empty() {
                 playback.cues.push(Cue::new(Values::new()));
+            }
+            let merging = matches!(
+                record.mode,
+                Some(RecordMode::Merge | RecordMode::QuickMerge)
+            );
+            if let Some(cue) = target.and_then(|at| playback.cues.get_mut(at)) {
+                // PRG-80: Replace records a fresh order, Merge and Update extend the cue's.
+                cue.order = if merging {
+                    let numbered = |i: &Item| Some((self.fixtures.get(&i.fixture)?.number, *i));
+                    let selected = !self.programmer.items().is_empty();
+                    let base = match (cue.order.is_empty(), selected) {
+                        (false, _) => cue.order.clone(),
+                        (true, true) => {
+                            stagger_ranks(&cue.order, cue.values.keys().filter_map(numbered))
+                        }
+                        (true, false) => BTreeMap::new(),
+                    };
+                    if base.is_empty() && !selected {
+                        BTreeMap::new()
+                    } else if selected {
+                        merge_order(base, &order)
+                    } else {
+                        let rest =
+                            stagger_ranks(&BTreeMap::new(), values.keys().filter_map(numbered));
+                        merge_order(base, &rest)
+                    }
+                } else {
+                    order
+                };
             }
             let tracked = tracking && !matches!(record.mode, Some(RecordMode::Replace) | None);
             if let (true, Some(at)) = (tracked, target) {
@@ -3319,6 +3366,89 @@ impl Engine {
         Ok(())
     }
 
+    /// PRG-81: the positions of the cue's items; its order, or the user-number order if it has none.
+    fn cue_ranks(&self, cue: &Cue) -> BTreeMap<Item, u32> {
+        stagger_ranks(
+            &cue.order,
+            (cue.values.keys()).filter_map(|i| Some((self.fixtures.get(&i.fixture)?.number, *i))),
+        )
+    }
+
+    /// PRG-80: the order a record stores for `values`: the selection's positions under its grid,
+    /// then the recorded items outside it in user-number order. No selection, no order.
+    fn recorded_order(&self, values: &Values) -> BTreeMap<Item, u32> {
+        let selection = self.programmer.items();
+        if selection.is_empty() {
+            return BTreeMap::new();
+        }
+        let mut order: BTreeMap<Item, u32> = (selection.iter().zip(self.programmer.positions()))
+            .filter(|(i, _)| values.contains_key(i))
+            .map(|(&i, &k)| (i, k))
+            .collect();
+        let mut rest: Vec<(u32, Item)> = (values.keys())
+            .filter(|i| !order.contains_key(i))
+            .filter_map(|i| Some((self.fixtures.get(&i.fixture)?.number, *i)))
+            .collect();
+        rest.sort_unstable();
+        let n = self.programmer.position_count();
+        for (k, (_, item)) in (n..).zip(rest) {
+            order.insert(item, k);
+        }
+        order
+    }
+
+    /// PRG-81: put the cue's items in a new order. The given items take their positions, the
+    /// others follow in their old order. An item the cue lacks or a negative position is refused.
+    pub fn set_cue_order(
+        &mut self,
+        id: PlaybackId,
+        cue: CueNumber,
+        order: &BTreeMap<Item, i64>,
+    ) -> Result<(), CoreError> {
+        let found = (self.playbacks.get(&id))
+            .ok_or(CoreError::UnknownPlayback(id))?
+            .cues
+            .iter()
+            .find(|c| c.number == cue)
+            .ok_or(CoreError::UnknownCue(cue))?;
+        let mut new = BTreeMap::new();
+        for (&item, &k) in order {
+            if !found.values.contains_key(&item) {
+                return Err(CoreError::InvalidCommand(format!(
+                    "{item} is not in cue {cue}"
+                )));
+            }
+            let k = u32::try_from(k).map_err(|_| {
+                CoreError::InvalidCommand(format!("{item}: position {k} is out of range"))
+            })?;
+            new.insert(item, k);
+        }
+        let old = self.cue_ranks(found);
+        let ranks: BTreeSet<u32> = (old.iter())
+            .filter(|(i, _)| !new.contains_key(i))
+            .map(|(_, &k)| k)
+            .collect();
+        let first = new.values().max().map_or(0, |m| m.saturating_add(1));
+        for (&item, k) in &old {
+            if let (false, Some(rank)) =
+                (new.contains_key(&item), ranks.iter().position(|r| r == k))
+            {
+                new.insert(
+                    item,
+                    first.saturating_add(u32::try_from(rank).unwrap_or(u32::MAX)),
+                );
+            }
+        }
+        let target = (self.playback_mut(id)?.cues.iter_mut())
+            .find(|c| c.number == cue)
+            .ok_or(CoreError::UnknownCue(cue))?;
+        target.order = new;
+        if let Some(state) = self.states.get_mut(&id) {
+            state.run.edited = true;
+        }
+        Ok(())
+    }
+
     /// PBK-14, CUE-23, CUE-37: a new playback (new id) on an empty handle with the same cues,
     /// legend, icon, halo and options. A master gets the next free number of its kind.
     pub fn copy_playback(
@@ -3600,7 +3730,8 @@ impl Engine {
     pub fn select_group(&mut self, id: GroupId) -> Result<(), CoreError> {
         let members = self.group_members(id).ok_or(CoreError::UnknownGroup(id))?;
         self.fan = None; // PRG-56
-        self.programmer.add_group(&members);
+        self.programmer
+            .add_group(&members, self.group_grids.get(&id).copied());
         self.follow_active_group();
         self.select_entry_of_selection();
         Ok(())
@@ -3612,6 +3743,14 @@ impl Engine {
         self.programmer.replace_selection(list);
         self.follow_active_group();
         self.select_entry_of_selection();
+    }
+
+    /// PRG-79: a typed selection, with the grid of the one group it names.
+    fn replace_typed(&mut self, list: Vec<Item>, grid: Option<Grid>) {
+        self.replace_selection(list);
+        if let Some(grid) = grid {
+            self.programmer.restore_grid(grid);
+        }
     }
 
     fn cell_count(&self, id: FixtureId) -> usize {
@@ -4119,7 +4258,16 @@ impl Engine {
             return Err(CoreError::EmptySelection);
         }
         self.groups.insert(id, items);
+        match self.programmer.grid() {
+            Some(grid) => self.group_grids.insert(id, grid),
+            None => self.group_grids.remove(&id),
+        };
         Ok(())
+    }
+
+    /// PRG-79: the grid a group was recorded with, `None` when it was recorded with the grid off.
+    pub fn group_grid(&self, id: GroupId) -> Option<Grid> {
+        self.group_grids.get(&id).copied()
     }
 
     /// Set a manual value; it joins the merge at `Priority::Programmer` (PRG-12/13).
@@ -5290,6 +5438,15 @@ impl Engine {
             }
             Some(list)
         };
+        // PRG-79: `Group n` alone brings the group's grid back.
+        let typed_grid = match cmd.selection.as_slice() {
+            [(false, i)]
+                if i.kind == command::Kind::Group && i.from == i.to && i.cells.is_none() =>
+            {
+                self.group_grids.get(&i.from).copied()
+            }
+            _ => None,
+        };
         if let Some(number) = cmd.palette {
             // PAL-10: plan against the typed selection first, so a refusal changes nothing.
             let (time, overlap) = self.palette_timing(Timing::default())?;
@@ -5303,7 +5460,7 @@ impl Engine {
                 plan => Some(plan?),
             };
             if let Some(list) = typed {
-                self.replace_selection(list);
+                self.replace_typed(list, typed_grid);
             }
             let values = plan.is_some();
             if let Some((id, plan)) = plan {
@@ -5324,14 +5481,14 @@ impl Engine {
                 .unwrap_or_else(|| self.programmer.target_items());
             let plan = self.gel_plan(number, &targets)?;
             if let Some(list) = typed {
-                self.replace_selection(list);
+                self.replace_typed(list, typed_grid);
             }
             return self.apply_gel(plan);
         }
         if cmd.locate {
             // PRG-10: select, then Locate every group. `typed` is never empty here.
             if let Some(list) = typed {
-                self.replace_selection(list);
+                self.replace_typed(list, typed_grid);
             }
             return self.locate(&ALL_GROUPS);
         }
@@ -5355,7 +5512,7 @@ impl Engine {
             }
         }
         if let Some(list) = typed {
-            self.replace_selection(list);
+            self.replace_typed(list, typed_grid);
         }
         if let Some(level) = level {
             for (item, name) in touched {
@@ -7025,19 +7182,15 @@ fn origins(
     let Some(values) = playback.values() else {
         return out;
     };
-    // The stagger runs over the fixtures; a fixture's cells start with it (items sort by fixture).
-    let mut order: Vec<(u32, Item)> = values
-        .keys()
-        .filter_map(|item| Some((fixtures.get(&item.fixture)?.number, *item)))
-        .collect();
-    order.sort_unstable();
+    // The stagger runs over the fixtures, a fixture's cells start with it, or by the cue's order.
+    let ranks = stagger_ranks(
+        playback.cues.first().map_or(&BTreeMap::new(), |c| &c.order),
+        values
+            .keys()
+            .filter_map(|item| Some((fixtures.get(&item.fixture)?.number, *item))),
+    );
     let overlap = playback.times().overlap;
-    let (mut rank, mut last) = (0_usize, None);
-    for (_, id) in order {
-        if last.is_some_and(|f| f != id.fixture) {
-            rank += 1;
-        }
-        last = Some(id.fixture);
+    for (&id, &rank) in &ranks {
         let (Some(fixture), Some(attributes)) = (fixtures.get(&id.fixture), values.get(&id)) else {
             continue;
         };

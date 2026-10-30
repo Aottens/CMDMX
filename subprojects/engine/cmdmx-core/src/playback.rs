@@ -223,6 +223,9 @@ pub struct Cue {
     /// FX-21: the effect entries the cue starts.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<Entry>,
+    /// PRG-80: each item's position in the recorded selection order; empty = no order.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub order: BTreeMap<Item, u32>,
 }
 
 fn full_overlap() -> f32 {
@@ -244,8 +247,60 @@ impl Cue {
             group_times: BTreeMap::new(),
             values,
             effects: Vec::new(),
+            order: BTreeMap::new(),
         }
     }
+}
+
+/// PRG-80, PBK-15: the start rank of each item, `(user number, item)` in. An item takes its
+/// position in `order` (or its fixture's); the others follow after the highest, one rank per
+/// fixture in user-number order. An empty `order` is the plain user-number order.
+pub(crate) fn stagger_ranks(
+    order: &BTreeMap<Item, u32>,
+    items: impl IntoIterator<Item = (u32, Item)>,
+) -> BTreeMap<Item, u32> {
+    let mut items: Vec<(u32, Item)> = items.into_iter().collect();
+    items.sort_unstable();
+    items.dedup();
+    let first = order.values().max().map_or(0, |m| m.saturating_add(1));
+    let mut tail: Option<(FixtureId, u32)> = None;
+    let mut out = BTreeMap::new();
+    for (_, item) in items {
+        let given = (order.get(&item))
+            .or_else(|| order.get(&Item::fixture(item.fixture)))
+            .copied();
+        let k = given.unwrap_or_else(|| {
+            let k = match tail {
+                Some((f, k)) if f == item.fixture => k,
+                Some((_, k)) => k.saturating_add(1),
+                None => first,
+            };
+            tail = Some((item.fixture, k));
+            k
+        });
+        out.insert(item, k);
+    }
+    out
+}
+
+/// PRG-80: Merge and Update keep the positions the cue has; the items it lacks follow after its
+/// highest, in the order of `fresh` with ties kept.
+pub(crate) fn merge_order(
+    mut base: BTreeMap<Item, u32>,
+    fresh: &BTreeMap<Item, u32>,
+) -> BTreeMap<Item, u32> {
+    let top = base.values().max().map_or(0, |m| m.saturating_add(1));
+    let new: BTreeSet<u32> = (fresh.iter())
+        .filter(|(i, _)| !base.contains_key(i))
+        .map(|(_, &k)| k)
+        .collect();
+    for (&item, k) in fresh {
+        if let Some(rank) = new.iter().position(|n| n == k) {
+            base.entry(item)
+                .or_insert(top.saturating_add(u32::try_from(rank).unwrap_or(u32::MAX)));
+        }
+    }
+    base
 }
 
 /// CUE-01: what a playback is.
