@@ -578,6 +578,10 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             Ok(())
         }
         Pattern { stages } => engine.select_pattern(stages),
+        Order(tool) => engine.order(tool),
+        Grid(grid) => engine.set_grid(grid),
+        GridShortcut(shortcut) => engine.grid_shortcut(shortcut),
+        CueOrder { list, cue, order } => engine.set_cue_order(list, cue, &order),
         All => {
             engine.select_all();
             Ok(())
@@ -869,6 +873,10 @@ fn class(cmd: &ipc::Command) -> Class {
         | SelectGroup { .. }
         | Step { .. }
         | Pattern { .. }
+        | Order(_)
+        | Grid(_)
+        | GridShortcut(_)
+        | CueOrder { .. }
         | All
         | Clear
         | ClearWith { .. }
@@ -966,9 +974,15 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         Off { .. } => ("Off".into(), None),
         RemDim => ("Rem Dim".into(), None),
         SettingsProgrammer(_) => ("Settings".into(), None),
-        Select { .. } | SelectGroup { .. } | Step { .. } | Pattern { .. } | All => {
-            ("Select".into(), Some("select".into()))
-        }
+        Select { .. }
+        | SelectGroup { .. }
+        | Step { .. }
+        | Pattern { .. }
+        | Order(_)
+        | Grid(_)
+        | GridShortcut(_)
+        | All => ("Select".into(), Some("select".into())),
+        CueOrder { list, cue, .. } => (format!("Fixture order {list}/{cue}"), None),
         Wheel { attribute, .. } => (
             format!("Wheel {attribute}"),
             Some(format!("wheel:{attribute}")),
@@ -2698,6 +2712,15 @@ mod tests {
         ),
         (
             r#"{"v":1,"cmd":"programmer.pattern","stages":2}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"programmer.order","op":"Reverse"}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":1,"cmd":"programmer.grid","wings":2}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"cue.order","list":1,"cue":1,"order":{"1":0}}"#,
             Class::Edit,
         ),
         (r#"{"v":1,"cmd":"programmer.all"}"#, Class::Edit),

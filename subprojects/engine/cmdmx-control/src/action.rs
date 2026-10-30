@@ -84,6 +84,35 @@ const FAN_ARGS: [(&str, FanArg); 5] = [
     ("off", FanArg::Off),
 ];
 
+/// What an `order` action does to the selection (PRG-71).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OrderArg {
+    Reverse,
+    Shuffle,
+    Sort,
+    Revert,
+}
+
+const ORDER_ARGS: [(&str, OrderArg); 4] = [
+    ("reverse", OrderArg::Reverse),
+    ("shuffle", OrderArg::Shuffle),
+    ("sort", OrderArg::Sort),
+    ("revert", OrderArg::Revert),
+];
+
+/// What a `grid` action does (PRG-75): one of the grid shortcuts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridArg {
+    OddEven,
+    OneIn(u8),
+    NInM(u8, u8),
+    Blocks(u8),
+    Divide(u8),
+    OutsideIn,
+    InsideOut,
+    Off,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeypadToken {
     Digit(u8),
@@ -204,6 +233,9 @@ pub enum Action {
     Key(Key),
     Keypad(KeypadToken),
     Fan(FanArg),
+    /// IPC-48: the selection order tools and grid shortcuts.
+    Order(OrderArg),
+    Grid(GridArg),
     /// FX-35: tap the current effect's tempo, restart the effect clocks, stop the effects.
     EffectTap,
     EffectRestart,
@@ -266,6 +298,15 @@ fn parse_action(s: &str) -> Option<Action> {
         ["effect", "stop"] => Action::EffectStop,
         ["fan"] => Action::Fan(FanArg::Toggle),
         ["fan", a] => Action::Fan(FAN_ARGS.iter().find(|(n, _)| n == a).map(|(_, f)| *f)?),
+        ["order", a] => Action::Order(ORDER_ARGS.iter().find(|(n, _)| n == a).map(|(_, o)| *o)?),
+        ["grid", "odd_even"] => Action::Grid(GridArg::OddEven),
+        ["grid", "one_in", n] => Action::Grid(GridArg::OneIn(num(n)?)),
+        ["grid", "n_in", n, m] => Action::Grid(GridArg::NInM(num(n)?, num(m)?)),
+        ["grid", "blocks", n] => Action::Grid(GridArg::Blocks(num(n)?)),
+        ["grid", "divide", n] => Action::Grid(GridArg::Divide(num(n)?)),
+        ["grid", "outside_in"] => Action::Grid(GridArg::OutsideIn),
+        ["grid", "inside_out"] => Action::Grid(GridArg::InsideOut),
+        ["grid", "off"] => Action::Grid(GridArg::Off),
         ["wheel", n] => Action::Wheel(num(n)?),
         ["attribute_group", g] => Action::AttributeGroup(AttrGroup::from_name(g)?),
         ["group", id] => Action::Group(num(id)?),
@@ -357,6 +398,20 @@ impl fmt::Display for Action {
                 let name = FAN_ARGS.iter().find(|(_, x)| x == a).map_or("", |(n, _)| n);
                 write!(f, "fan {name}")
             }
+            Action::Order(a) => {
+                let name = (ORDER_ARGS.iter().find(|(_, x)| x == a)).map_or("", |(n, _)| n);
+                write!(f, "order {name}")
+            }
+            Action::Grid(g) => match g {
+                GridArg::OddEven => f.write_str("grid odd_even"),
+                GridArg::OneIn(n) => write!(f, "grid one_in {n}"),
+                GridArg::NInM(n, m) => write!(f, "grid n_in {n} {m}"),
+                GridArg::Blocks(n) => write!(f, "grid blocks {n}"),
+                GridArg::Divide(n) => write!(f, "grid divide {n}"),
+                GridArg::OutsideIn => f.write_str("grid outside_in"),
+                GridArg::InsideOut => f.write_str("grid inside_out"),
+                GridArg::Off => f.write_str("grid off"),
+            },
             Action::Wheel(n) => write!(f, "wheel {n}"),
             Action::AttributeGroup(g) => write!(f, "attribute_group {g}"),
             Action::Group(id) => write!(f, "group {id}"),

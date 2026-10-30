@@ -107,6 +107,16 @@ pub enum Command {
     Pattern {
         stages: usize,
     },
+    /// IPC-48: the order tools, the grid (`Grid::default()` = off) and its shortcuts.
+    Order(cmdmx_core::programmer::Order),
+    Grid(cmdmx_core::programmer::Grid),
+    GridShortcut(cmdmx_core::programmer::GridShortcut),
+    /// IPC-48, PRG-81: put a cue's items in a new order.
+    CueOrder {
+        list: PlaybackId,
+        cue: CueNumber,
+        order: BTreeMap<Item, i64>,
+    },
     All,
     Clear,
     /// IPC-32: a masked and/or timed Clear.
@@ -639,6 +649,35 @@ fn uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<T, String> 
         .ok_or_else(|| format!("missing or invalid \"{key}\""))
 }
 
+/// IPC-48: `programmer.grid` with a `shortcut` or the grid's own fields (absent = default).
+fn grid_command(v: &serde_json::Value) -> Result<Command, String> {
+    use cmdmx_core::programmer::{Grid, GridShortcut as S};
+    let Some(shortcut) = opt_string(v, "shortcut")? else {
+        let d = Grid::default();
+        return Ok(Command::Grid(Grid {
+            wings: opt_uint(v, "wings")?.unwrap_or(d.wings),
+            groups: opt_uint(v, "groups")?.unwrap_or(d.groups),
+            blocks: opt_uint(v, "blocks")?.unwrap_or(d.blocks),
+            flip: if v.get("flip").is_some() {
+                boolean(v, "flip")?
+            } else {
+                d.flip
+            },
+        }));
+    };
+    Ok(Command::GridShortcut(match shortcut.as_str() {
+        "OddEven" => S::OddEven,
+        "OneIn" => S::OneIn(uint(v, "n")?),
+        "NIn" => S::NInM(uint(v, "n")?, uint(v, "m")?),
+        "Blocks" => S::Blocks(uint(v, "n")?),
+        "Divide" => S::Divide(uint(v, "n")?),
+        "OutsideIn" => S::OutsideIn,
+        "InsideOut" => S::InsideOut,
+        "Off" => S::Off,
+        other => return Err(format!("unknown grid shortcut {other:?}")),
+    }))
+}
+
 /// IPC-42: an item on the wire, an integer (whole fixture) or a `"901.2"` string (one cell).
 fn wire_item(v: &serde_json::Value, key: &str) -> Result<Item, String> {
     match v.get(key) {
@@ -1103,6 +1142,17 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         }),
         Some("programmer.pattern") => Ok(Command::Pattern {
             stages: uint(&v, "stages")?,
+        }),
+        Some("programmer.order") => Ok(Command::Order(field(
+            &v,
+            "op",
+            "Reverse, Shuffle, Sort or Revert",
+        )?)),
+        Some("programmer.grid") => grid_command(&v),
+        Some("cue.order") => Ok(Command::CueOrder {
+            list: uint(&v, "list")?,
+            cue: cue_number(&v, "cue")?,
+            order: field(&v, "order", "an object of item to position")?,
         }),
         Some("undo") => Ok(Command::Undo),
         Some("redo") => Ok(Command::Redo),
@@ -2462,6 +2512,9 @@ struct CueViewMessage {
     playback: PlaybackId,
     cue: CueNumber,
     fixtures: Vec<CueViewFixture>,
+    /// PRG-80: each item's position in the recorded order; absent when the cue has none.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    order: BTreeMap<Item, u32>,
 }
 
 /// CUE-54, IPC-24: the answer to `cue.view`, sorted by fixture; a palette reference shows what
@@ -2493,6 +2546,11 @@ pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<Strin
         playback: id,
         cue,
         fixtures,
+        order: (engine
+            .playback(id)
+            .and_then(|p| p.cues.iter().find(|c| c.number == cue)))
+        .map(|c| c.order.clone())
+        .unwrap_or_default(),
     }))
 }
 
@@ -3566,6 +3624,7 @@ mod tests {
                    "attribute_groups": no_values(false),"wheels":[],"in_programmer":[],"colour_model":"Hsi",
                    "contents":[],"colour":null,"palettes":{"in_use":[],"relevant":[]},
                    "located":{},"highlight":false,"fan":null,"fan_curve":"Line",
+                   "grid":null,"stage":null,"positions":[],"position_count":0,
                    "effects":[],"effect_wheels":false,"runnable_looks":[]})
         );
     }
@@ -3978,6 +4037,7 @@ mod tests {
                    "in_programmer":[],"colour_model":"Hsi","contents":[],"colour":null,
                    "palettes":{"in_use":[],"relevant":[]},
                    "located":{},"highlight":false,"fan":null,"fan_curve":"Line",
+                   "grid":null,"stage":null,"positions":[0],"position_count":1,
                    "effects":[],"effect_wheels":false,"runnable_looks":[1,2,3,4,5]})
         );
         e.turn_wheel("Dimmer", 255, Resolution::Normal).unwrap();
