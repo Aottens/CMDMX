@@ -5327,6 +5327,10 @@ impl Engine {
             highlight: self.highlight,
             fan: self.fan,
             fan_curve: self.fan_curve,
+            grid: self.programmer.grid(),
+            stage: self.programmer.stage(),
+            positions: self.programmer.positions().to_vec(),
+            position_count: self.programmer.position_count(),
             effects: (self.programmer.effects.iter())
                 .map(|e| EffectView {
                     id: e.id,

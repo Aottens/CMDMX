@@ -12,7 +12,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::PathBuf;
 
-use cmdmx_control::action::{Action, AttrGroup, FanArg, Key, KeypadToken, Target, ValueKind};
+use cmdmx_control::action::{
+    Action, AttrGroup, FanArg, GridArg, Key, KeypadToken, OrderArg, Target, ValueKind,
+};
 use cmdmx_control::convert::{ActionValue, BindingState, Reading, Resolution};
 use cmdmx_control::deck::{self, DeckInput, DeckKind, DeckReader, Model};
 use cmdmx_control::deck_image::{key_look, KeyLook, KeyState, PlaybackView, Subject};
@@ -25,6 +27,7 @@ use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::palette::Timing;
 use cmdmx_core::playback::{Button, HandleButton, ListAction, PlaybackId, PAGES};
+use cmdmx_core::programmer::{Grid, GridShortcut, Order};
 use serde_json::{json, Value};
 
 use crate::deck_io::{DeckCmd, DeckEvent, DeckState};
@@ -318,6 +321,42 @@ fn cc14_pairs(m: &Mapping) -> Vec<(u8, u8)> {
         .collect()
 }
 
+fn grid_shortcut(g: GridArg) -> GridShortcut {
+    match g {
+        GridArg::OddEven => GridShortcut::OddEven,
+        GridArg::OneIn(n) => GridShortcut::OneIn(n),
+        GridArg::NInM(n, m) => GridShortcut::NInM(n, m),
+        GridArg::Blocks(n) => GridShortcut::Blocks(n),
+        GridArg::Divide(n) => GridShortcut::Divide(n),
+        GridArg::OutsideIn => GridShortcut::OutsideIn,
+        GridArg::InsideOut => GridShortcut::InsideOut,
+        GridArg::Off => GridShortcut::Off,
+    }
+}
+
+/// The grid a shortcut sets (PRG-75), for LED feedback. `divide` depends on the selection's
+/// length, so its button is never lit.
+fn shortcut_grid(g: GridArg) -> Option<Grid> {
+    let d = Grid::default();
+    Some(match g {
+        GridArg::OddEven => Grid { groups: 2, ..d },
+        GridArg::OneIn(n) => Grid { groups: n, ..d },
+        GridArg::NInM(n, m) => Grid {
+            groups: m,
+            blocks: n,
+            ..d
+        },
+        GridArg::Blocks(n) => Grid { blocks: n, ..d },
+        GridArg::OutsideIn => Grid { wings: 2, ..d },
+        GridArg::InsideOut => Grid {
+            wings: 2,
+            flip: true,
+            ..d
+        },
+        GridArg::Divide(_) | GridArg::Off => return None,
+    })
+}
+
 fn fan_curve(a: FanArg) -> Option<cmdmx_core::programmer::FanCurve> {
     use cmdmx_core::programmer::FanCurve as C;
     match a {
@@ -476,6 +515,13 @@ impl Tick<'_> {
                     c => Some(fan_curve(c)),
                 },
             }),
+            Action::Order(a) => Some(Command::Order(match a {
+                OrderArg::Reverse => Order::Reverse,
+                OrderArg::Shuffle => Order::Shuffle,
+                OrderArg::Sort => Order::Sort,
+                OrderArg::Revert => Order::Revert,
+            })),
+            Action::Grid(g) => Some(Command::GridShortcut(grid_shortcut(g))),
             Action::Key(k) => Some(match k {
                 Key::Clear => Command::Clear,
                 Key::Locate => Command::Locate { groups: None },
@@ -547,6 +593,11 @@ fn state_of(engine: &Engine, action: Action, wheels: &mut Option<Vec<f32>>) -> S
         // `fan off` is lit while Fan is on, so the button shows there is something to turn off.
         Action::Fan(FanArg::Toggle | FanArg::Off) => Shown::On(engine.fan().is_some()),
         Action::Fan(c) => Shown::On(engine.fan() == fan_curve(c)),
+        // IPC-48: `grid off` is lit while any grid is on; a shortcut while exactly its grid is.
+        Action::Grid(GridArg::Off) => Shown::On(engine.programmer().grid().is_some()),
+        Action::Grid(g) => {
+            Shown::On(shortcut_grid(g).is_some_and(|x| engine.programmer().grid() == Some(x)))
+        }
         Action::AttributeGroup(g) => Shown::On(engine.active_group() == core_group(g)),
         Action::Wheel(n) => {
             let all = wheels.get_or_insert_with(|| {

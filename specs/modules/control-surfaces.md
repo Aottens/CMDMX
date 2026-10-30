@@ -63,6 +63,8 @@ Learn, stored as readable files and travel between Macs.
   | `wheel <n>` | relative | `programmer.wheel` on the n-th wheel of the active attribute group (`wheels`, IPC-11) |
   | `attribute_group <I\|P\|C\|G\|B\|E\|S\|FX>` | button | `programmer.attribute_group` |
   | `fan`, `fan <line\|mirror\|wings\|arrow>`, `fan off` (CTL-59) | button | `programmer.fan` |
+  | `order <reverse\|shuffle\|sort\|revert>` (IPC-48) | button | `programmer.order` |
+  | `grid <odd_even\|one_in <n>\|n_in <n> <m>\|blocks <n>\|divide <n>\|outside_in\|inside_out\|off>` (IPC-48) | button, lit while that grid is on (`grid off`: while any grid is on) | `programmer.grid` |
   | `group <id>`, `palette <id>` | button | select the group / apply the palette as its window button does |
 
   New actions are added to this table by later criteria, never as free-form commands.
