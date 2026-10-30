@@ -4339,4 +4339,129 @@ mod tests {
             serde_json::json!([{"look": "Circle", "shape": {"Path": "Circle"}}])
         );
     }
+
+    // ---- SEL-04: IPC-48 ----------------------------------------------------------------
+
+    #[test]
+    fn ipc_48_order_and_grid_run_as_selection_edits() {
+        use cmdmx_core::programmer::{Grid, Item};
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        for n in 1..=4 {
+            json_run(
+                &mut e,
+                &mut h,
+                &format!(r#"{{"v":1,"cmd":"programmer.select","fixture":{n}}}"#),
+            )
+            .unwrap();
+        }
+        for (json, kind) in [
+            (
+                r#"{"v":1,"cmd":"programmer.order","op":"Reverse"}"#,
+                "order",
+            ),
+            (r#"{"v":1,"cmd":"programmer.grid","wings":2}"#, "grid"),
+            (
+                r#"{"v":1,"cmd":"programmer.grid","shortcut":"OddEven"}"#,
+                "shortcut",
+            ),
+            (
+                r#"{"v":1,"cmd":"cue.order","list":1,"cue":1,"order":{"1":0}}"#,
+                "cue",
+            ),
+        ] {
+            assert!(
+                matches!(class(&ipc::parse_command(json).unwrap()), Class::Edit),
+                "{kind} is an edit step"
+            );
+        }
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.order","op":"Reverse"}"#,
+        )
+        .unwrap();
+        let fixtures =
+            |e: &Engine| -> Vec<u32> { e.programmer().items().iter().map(|i| i.fixture).collect() };
+        assert_eq!(fixtures(&e), [4, 3, 2, 1]);
+
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.grid","shortcut":"OutsideIn"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            e.programmer().grid(),
+            Some(Grid {
+                wings: 2,
+                ..Grid::default()
+            })
+        );
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.grid","groups":3}"#,
+        )
+        .unwrap();
+        assert_eq!(e.programmer().positions(), [0, 1, 2, 0]);
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.grid"}"#).unwrap();
+        assert_eq!(e.programmer().grid(), None, "{{}} turns the grid off");
+
+        // Refusals change nothing.
+        for refused in [
+            r#"{"v":1,"cmd":"programmer.grid","wings":9}"#,
+            r#"{"v":1,"cmd":"programmer.grid","shortcut":"NIn","n":6,"m":2}"#,
+        ] {
+            assert!(json_run(&mut e, &mut h, refused).is_err(), "{refused}");
+            assert_eq!(e.programmer().grid(), None, "{refused}");
+        }
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        e.select_item(Item::fixture(1)).unwrap();
+        assert!(json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.order","op":"Sort"}"#
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn ipc_48_cue_order_is_an_undoable_edit() {
+        use cmdmx_core::programmer::Item;
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let order = |e: &Engine| {
+            (e.playbacks().find(|p| p.id == 1).unwrap().cues)
+                .first()
+                .unwrap()
+                .order
+                .clone()
+        };
+        let cue = e.playbacks().find(|p| p.id == 1).unwrap().cues[0].number;
+        assert_eq!(cue.as_f64(), 1.0);
+        let before = order(&e);
+        let n = h.len();
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"cue.order","list":1,"cue":1,"order":{"1":3}}"#,
+        )
+        .unwrap();
+        assert_eq!(h.len(), n + 1, "an edit step");
+        assert!(order(&e).contains_key(&Item::fixture(1)));
+        assert_ne!(order(&e), before);
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(order(&e), before);
+
+        // An item not in the cue or a negative position is refused and changes nothing.
+        for refused in [
+            r#"{"v":1,"cmd":"cue.order","list":1,"cue":1,"order":{"5":0}}"#,
+            r#"{"v":1,"cmd":"cue.order","list":1,"cue":1,"order":{"1":-1}}"#,
+            r#"{"v":1,"cmd":"cue.order","list":99,"cue":1,"order":{"1":0}}"#,
+        ] {
+            assert!(json_run(&mut e, &mut h, refused).is_err(), "{refused}");
+            assert_eq!(order(&e), before, "{refused}");
+        }
+    }
 }

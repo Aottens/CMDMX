@@ -1536,3 +1536,104 @@ fn fx_35_effect_tap_restart_stop_and_the_effect_wheels_from_a_device() {
     assert!(run_all(&mut e, &mut h, cmds).is_empty());
     assert!(e.effects().is_empty());
 }
+
+// --- IPC-48 order and grid actions ---------------------------------------------
+
+#[test]
+fn ipc_48_order_and_grid_actions_are_in_the_catalogue() {
+    use cmdmx_control::action::Action;
+    for name in [
+        "order reverse",
+        "order shuffle",
+        "order sort",
+        "order revert",
+        "grid odd_even",
+        "grid one_in 3",
+        "grid n_in 2 6",
+        "grid blocks 2",
+        "grid divide 3",
+        "grid outside_in",
+        "grid inside_out",
+        "grid off",
+    ] {
+        let a: Action = name.parse().unwrap_or_else(|_| panic!("{name}"));
+        assert_eq!(a.to_string(), name, "the catalogue line round-trips");
+    }
+    for bad in [
+        "order",
+        "order spin",
+        "grid",
+        "grid one_in",
+        "grid one_in x",
+        "grid n_in 2",
+        "grid outside_in 2",
+        "grid twirl",
+    ] {
+        assert!(bad.parse::<Action>().is_err(), "{bad}");
+    }
+}
+
+const GRID: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"note","channel":1,"number":70},"action":"order reverse"},
+  {"input":{"kind":"note","channel":1,"number":71},"action":"grid outside_in"},
+  {"input":{"kind":"note","channel":1,"number":72},"action":"grid one_in 3"},
+  {"input":{"kind":"note","channel":1,"number":73},"action":"grid off"}
+]}"#;
+
+#[test]
+fn ipc_48_order_and_grid_buttons_with_led_feedback() {
+    use cmdmx_core::programmer::{Grid, Item};
+    let dir = tmp("grid");
+    fs::write(dir.join("control/nano.json"), GRID).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    let mut e = engine();
+    let mut h = History::default();
+    for n in 1..=4 {
+        e.select_item(Item::fixture(n)).unwrap();
+    }
+    let _ = c.feedback(&e);
+
+    let mut push = |c: &mut Control, e: &mut Engine, key: u8| {
+        press(c, "nano", key);
+        let cmds = c.commands(e, 0.0);
+        assert!(run_all(e, &mut h, cmds).is_empty());
+        e.tick(0.025);
+        c.feedback(e)
+    };
+    let fixtures =
+        |e: &Engine| -> Vec<u32> { e.programmer().items().iter().map(|i| i.fixture).collect() };
+
+    push(&mut c, &mut e, 70);
+    assert_eq!(fixtures(&e), [4, 3, 2, 1]);
+
+    let out = push(&mut c, &mut e, 71);
+    assert_eq!(
+        e.programmer().grid(),
+        Some(Grid {
+            wings: 2,
+            ..Grid::default()
+        })
+    );
+    assert!(out.contains(&note_out(71, 127)), "outside in lit: {out:?}");
+    assert!(
+        out.contains(&note_out(73, 127)),
+        "grid off lit while a grid is on: {out:?}"
+    );
+
+    let out = push(&mut c, &mut e, 72);
+    assert_eq!(e.programmer().position_count(), 3);
+    assert!(out.contains(&note_out(72, 127)), "1 in 3 lit: {out:?}");
+    assert!(out.contains(&note_out(71, 0)), "outside in dark: {out:?}");
+
+    let out = push(&mut c, &mut e, 73);
+    assert_eq!(e.programmer().grid(), None);
+    assert!(out.contains(&note_out(72, 0)), "1 in 3 dark: {out:?}");
+    assert!(out.contains(&note_out(73, 0)), "grid off dark: {out:?}");
+}

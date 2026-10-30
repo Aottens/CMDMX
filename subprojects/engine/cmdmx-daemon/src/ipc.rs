@@ -6409,4 +6409,185 @@ mod tests {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
     }
+
+    // ---- SEL-04: IPC-48, PRG-82 --------------------------------------------------------
+
+    #[test]
+    fn ipc_48_order_grid_and_cue_order_commands_parse() {
+        use cmdmx_core::effect::EffectSet;
+        use cmdmx_core::programmer::{Grid, GridShortcut, Item, Order};
+        let ok = |s: &str| parse_command(s).unwrap();
+        for (op, tool) in [
+            ("Reverse", Order::Reverse),
+            ("Shuffle", Order::Shuffle),
+            ("Sort", Order::Sort),
+            ("Revert", Order::Revert),
+        ] {
+            assert_eq!(
+                ok(&format!(
+                    r#"{{"v":1,"cmd":"programmer.order","op":"{op}"}}"#
+                )),
+                Command::Order(tool)
+            );
+        }
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"programmer.grid","wings":2,"groups":0,"blocks":1,"flip":false}"#),
+            Command::Grid(Grid {
+                wings: 2,
+                ..Grid::default()
+            })
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"programmer.grid"}"#),
+            Command::Grid(Grid::default()),
+            "{{}} = grid off"
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"programmer.grid","groups":4,"blocks":2}"#),
+            Command::Grid(Grid {
+                groups: 4,
+                blocks: 2,
+                ..Grid::default()
+            })
+        );
+        for (json, shortcut) in [
+            (r#""shortcut":"OddEven""#, GridShortcut::OddEven),
+            (r#""shortcut":"OneIn","n":3"#, GridShortcut::OneIn(3)),
+            (r#""shortcut":"NIn","n":2,"m":6"#, GridShortcut::NInM(2, 6)),
+            (r#""shortcut":"Blocks","n":2"#, GridShortcut::Blocks(2)),
+            (r#""shortcut":"Divide","n":3"#, GridShortcut::Divide(3)),
+            (r#""shortcut":"OutsideIn""#, GridShortcut::OutsideIn),
+            (r#""shortcut":"InsideOut""#, GridShortcut::InsideOut),
+            (r#""shortcut":"Off""#, GridShortcut::Off),
+        ] {
+            assert_eq!(
+                ok(&format!(r#"{{"v":1,"cmd":"programmer.grid",{json}}}"#)),
+                Command::GridShortcut(shortcut),
+                "{json}"
+            );
+        }
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"cue.order","list":1,"cue":2,"order":{"205":0,"204":0,"206":1,"3.2":2}}"#
+            ),
+            Command::CueOrder {
+                list: 1,
+                cue: q(2.0),
+                order: BTreeMap::from([
+                    (Item::fixture(205), 0),
+                    (Item::fixture(204), 0),
+                    (Item::fixture(206), 1),
+                    (
+                        Item {
+                            fixture: 3,
+                            cell: Some(2)
+                        },
+                        2
+                    ),
+                ]),
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"cue.order","list":1,"cue":2,"order":{"201":-1}}"#),
+            Command::CueOrder {
+                list: 1,
+                cue: q(2.0),
+                order: BTreeMap::from([(Item::fixture(201), -1)]),
+            },
+            "a negative position is the engine's refusal, not a parse error"
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.set","param":"order","value":"Shuffle"}"#),
+            Command::EffectSet(EffectSet::Order(Order::Shuffle))
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"effect.set","param":"flip","value":true}"#),
+            Command::EffectSet(EffectSet::Flip(true))
+        );
+    }
+
+    #[test]
+    fn ipc_48_bad_order_grid_and_cue_order_commands_are_errors() {
+        for bad in [
+            r#"{"v":1,"cmd":"programmer.order"}"#,
+            r#"{"v":1,"cmd":"programmer.order","op":"Spin"}"#,
+            r#"{"v":1,"cmd":"programmer.order","op":1}"#,
+            r#"{"v":1,"cmd":"programmer.grid","wings":"two"}"#,
+            r#"{"v":1,"cmd":"programmer.grid","flip":1}"#,
+            r#"{"v":1,"cmd":"programmer.grid","groups":-1}"#,
+            r#"{"v":1,"cmd":"programmer.grid","shortcut":"Twirl"}"#,
+            r#"{"v":1,"cmd":"programmer.grid","shortcut":"OneIn"}"#,
+            r#"{"v":1,"cmd":"programmer.grid","shortcut":"NIn","n":2}"#,
+            r#"{"v":1,"cmd":"programmer.grid","shortcut":"Blocks","n":"x"}"#,
+            r#"{"v":1,"cmd":"cue.order","list":1,"cue":2}"#,
+            r#"{"v":1,"cmd":"cue.order","cue":2,"order":{}}"#,
+            r#"{"v":1,"cmd":"cue.order","list":1,"cue":2,"order":{"abc":0}}"#,
+            r#"{"v":1,"cmd":"cue.order","list":1,"cue":2,"order":{"201":"first"}}"#,
+            r#"{"v":1,"cmd":"effect.set","param":"order","value":"Spin"}"#,
+            r#"{"v":1,"cmd":"effect.set","param":"flip","value":"yes"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_48_programmer_state_carries_grid_stage_and_positions() {
+        use cmdmx_core::programmer::{Grid, Item};
+        let mut e = crate::demo_engine().unwrap();
+        for n in 1..=4 {
+            e.select_item(Item::fixture(n)).unwrap();
+        }
+        let prog = |e: &Engine| {
+            parse(&snapshot(
+                e,
+                &[],
+                &show_state(),
+                &UndoInfo::default(),
+                &serde_json::Value::Null,
+            ))["programmer"]
+                .clone()
+        };
+        let p = prog(&e);
+        assert_eq!(p["grid"], json!(null), "grid off is null");
+        assert_eq!(p["stage"], json!(null));
+        assert_eq!(p["positions"], json!([0, 1, 2, 3]));
+        assert_eq!(p["position_count"], json!(4));
+
+        let mut published = Published::new(&e, &[], &show_state());
+        e.set_grid(Grid {
+            wings: 2,
+            ..Grid::default()
+        })
+        .unwrap();
+        e.tick(0.025);
+        let d: Vec<Value> = (published.diff(&e, &[], &show_state()).iter())
+            .map(|m| parse(m))
+            .collect();
+        let delta = d.iter().find(|m| m["type"] == "programmer").unwrap();
+        for p in [delta.clone(), prog(&e)] {
+            assert_eq!(
+                p["grid"],
+                json!({"wings":2,"groups":0,"blocks":1,"flip":false})
+            );
+            assert_eq!(p["stage"], json!(0), "setting a grid selects stage 0");
+            assert_eq!(p["positions"], json!([0, 1, 1, 0]), "outside in");
+            assert_eq!(p["position_count"], json!(2));
+        }
+    }
+
+    #[test]
+    fn ipc_48_cue_view_carries_the_cue_order_when_it_has_one() {
+        use cmdmx_core::programmer::Item;
+        let mut e = list_engine();
+        let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
+        assert!(v.get("order").is_none(), "no order, no key: {v}");
+        e.set_cue_order(
+            2,
+            q(2.0),
+            &BTreeMap::from([(Item::fixture(2), 0), (Item::fixture(1), 1)]),
+        )
+        .unwrap();
+        let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
+        assert_eq!(v["order"], json!({"1":1,"2":0}));
+    }
 }
