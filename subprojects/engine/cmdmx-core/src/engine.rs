@@ -4380,6 +4380,14 @@ impl Engine {
             palette,
             group,
         };
+        // PRG-77: a look or shape (no effect palette) over a grid spreads by the grid's positions.
+        if entry.palette.is_none() && self.programmer.stage().is_none() {
+            if let Some(g) = self.programmer.grid() {
+                let p = &mut entry.params;
+                (p.wings, p.groups, p.blocks, p.flip) = (g.wings, g.groups, g.blocks, g.flip);
+                params = *p;
+            }
+        }
         entry.refresh();
         if one_per_position && entry.count > 0 {
             params.width = 1.0 / entry.count as f32; // FX-30
@@ -4445,6 +4453,32 @@ impl Engine {
             EffectSet::Wings(v) => p.wings = v,
             EffectSet::Groups(v) => p.groups = v,
             EffectSet::Blocks(v) => p.blocks = v,
+            EffectSet::Flip(v) => p.flip = v,
+            EffectSet::Order(tool) => {
+                // FX-45: reorder the members; the parameters, palette and clock stay.
+                let mut members = entry.members.clone();
+                if tool == Order::Revert {
+                    return Err(CoreError::InvalidOption(
+                        "order Revert (expected Reverse, Shuffle or Sort)".into(),
+                    ));
+                }
+                if members.len() < 2 {
+                    return Err(CoreError::OrderTooShort);
+                }
+                match tool {
+                    Order::Sort => members.sort_by_key(|i| {
+                        let number = self.fixtures.get(&i.fixture).map_or(0, |f| f.number);
+                        (number, i.cell)
+                    }),
+                    Order::Shuffle => members = self.shuffled(members),
+                    Order::Reverse | Order::Revert => members.reverse(),
+                }
+                if let Some(entry) = self.programmer.effects.iter_mut().find(|e| e.id == id) {
+                    entry.members = members;
+                    entry.refresh();
+                }
+                return Ok(());
+            }
             EffectSet::Colours(list) => {
                 let mix = entry.shape == effect::Shape::Colour(effect::ColourShape::ColourMix);
                 let ok = |c: &TargetColour| [c.r, c.g, c.b].iter().all(|v| (0.0..=1.0).contains(v));
@@ -4765,11 +4799,18 @@ impl Engine {
         let name = if colour_wheel { COLOUR } else { attribute };
         // PRG-59: with Fan on and two or more items, each moves by its own share of `delta`.
         let list = self.fan_list(attribute);
+        // PRG-76: the share follows the item's position k in the list, over N positions.
+        let (ks, n) = self.programmer.list_positions(list.len());
         let shares: Vec<(Item, f32)> = match self.fan {
-            Some(curve) if list.len() >= 2 => (list.iter())
-                .zip(fan_factors(curve, list.len()))
-                .map(|(item, k)| (*item, delta * k))
-                .collect(),
+            Some(curve) if n >= 2 => {
+                let factors = fan_factors(curve, n as usize);
+                (list.iter().zip(&ks))
+                    .map(|(item, &k)| {
+                        let share = factors.get(k as usize).copied().unwrap_or(0.0);
+                        (*item, delta * share)
+                    })
+                    .collect()
+            }
             _ => targets.into_iter().map(|item| (item, delta)).collect(),
         };
         let mut new = Vec::new();
@@ -5761,13 +5802,26 @@ impl Engine {
         let mut fades = Vec::new();
         if time > 0.0 {
             let step = time * (1.0 - overlap / 100.0);
-            let mut index = 0.0_f32;
+            let mut distinct: Vec<Item> = Vec::new();
+            for (item, _, _) in &plan {
+                if distinct.last() != Some(item) {
+                    distinct.push(*item);
+                }
+            }
+            // PRG-78: a selection's positions order the fade; a quick palette keeps k = i.
+            let ks = if self.programmer.items().is_empty() {
+                (0..distinct.len() as u32).collect()
+            } else {
+                self.programmer.list_positions(distinct.len()).0
+            };
+            let mut index = 0;
             let mut previous = None;
             for (item, name, _) in &plan {
                 if previous.is_some_and(|p| p != *item) {
-                    index += 1.0;
+                    index += 1;
                 }
                 previous = Some(*item);
+                let k = ks.get(index).copied().unwrap_or(0) as f32;
                 let mode = self.mode_of(item.fixture);
                 let Some(l) = mode.and_then(|m| m.item_logical(item.cell, name)) else {
                     continue;
@@ -5777,7 +5831,7 @@ impl Engine {
                     name.clone(),
                     Fade {
                         from: self.start_value(*item, &l),
-                        delay: index * step,
+                        delay: k * step,
                         duration: time,
                         start: None,
                     },

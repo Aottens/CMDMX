@@ -186,7 +186,7 @@ impl Grid {
 }
 
 /// PRG-71: the order tools.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Order {
     Reverse,
     Shuffle,
@@ -565,6 +565,17 @@ impl Programmer {
         let g = self.grid;
         (self.positions, self.position_count) =
             positions(self.selection.len(), g.wings, g.groups, g.blocks, g.flip);
+    }
+
+    /// Target positions over a list of `n` items: with a stage selected *k* = *i* and *N* = `n`,
+    /// else the grid's (grid off: *k* = *i*). PRG-76..78.
+    pub fn list_positions(&self, n: usize) -> (Vec<u32>, u32) {
+        let g = if self.stage.is_some() {
+            Grid::default()
+        } else {
+            self.grid
+        };
+        positions(n, g.wings, g.groups, g.blocks, g.flip)
     }
 
     /// PRG-04/05/50/74: the items that receive the next change: the stage, else all.

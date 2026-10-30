@@ -242,6 +242,9 @@ pub struct Params {
     pub wings: u8,
     pub groups: u8,
     pub blocks: u8,
+    /// FX-06, FX-07 step 4: *k* ← *N* − 1 − *k*; absent from a saved show while false.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub flip: bool,
     pub mode: Mode,
 }
 
@@ -260,6 +263,7 @@ impl Params {
         wings: 1,
         groups: 0,
         blocks: 1,
+        flip: false,
         mode: Mode::Relative,
     };
 
@@ -492,6 +496,10 @@ pub enum EffectSet {
     Wings(u8),
     Groups(u8),
     Blocks(u8),
+    /// FX-06: flip the positions.
+    Flip(bool),
+    /// FX-45: reorder the members.
+    Order(crate::programmer::Order),
     Colours(Vec<TargetColour>),
 }
 
@@ -513,6 +521,8 @@ impl EffectSet {
             EffectSet::Wings(_) => "wings",
             EffectSet::Groups(_) => "groups",
             EffectSet::Blocks(_) => "blocks",
+            EffectSet::Flip(_) => "flip",
+            EffectSet::Order(_) => "order",
             EffectSet::Colours(_) => "colours",
         }
     }
@@ -542,7 +552,7 @@ impl Entry {
     pub(crate) fn refresh(&mut self) {
         let p = &self.params;
         (self.positions, self.count) =
-            positions(self.members.len(), p.wings, p.groups, p.blocks, false);
+            positions(self.members.len(), p.wings, p.groups, p.blocks, p.flip);
     }
 
     /// Take the members `gone` accepts out, with their positions (*N* stays: the others keep
