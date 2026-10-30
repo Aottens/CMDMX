@@ -126,8 +126,8 @@ fn out_13_output_is_the_last_key_with_nodes_sorted_by_id() {
     e.output_add(2, false, sacn(2)).unwrap();
     let text = e.to_show(meta()).to_json();
     let v: Json = serde_json::from_str(&text).unwrap();
-    assert_eq!(SCHEMA_VERSION, 8);
-    assert_eq!(v["schema_version"], json!(8));
+    assert_eq!(SCHEMA_VERSION, 9);
+    assert_eq!(v["schema_version"], json!(9));
     let last_key = text
         .lines()
         .rfind(|l| l.starts_with("  \"") && !l.starts_with("   "))
@@ -283,10 +283,10 @@ fn out_26_undo_takes_the_patch_add_and_its_nodes_back_in_one_step() {
 fn out_27_a_schema_5_show_gets_default_nodes_for_every_patched_universe() {
     let file = std::fs::read_to_string(V5_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 3, "{migrations:?}");
+    assert_eq!(migrations.len(), 4, "{migrations:?}");
     assert!(migrations[0].starts_with("5 -> 6"), "{migrations:?}");
     assert!(migrations[1].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
-    assert_eq!(show.schema_version, 8);
+    assert_eq!(show.schema_version, 9);
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     // The church rig patches universes 1 and 2.

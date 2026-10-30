@@ -613,7 +613,7 @@ mod tests {
         let s = shows("start-refused");
         let json = save(&s, "Kerk", &demo()).replace(
             &format!("\"schema_version\": {SCHEMA_VERSION}"),
-            "\"schema_version\": 9",
+            "\"schema_version\": 10",
         );
         fs::write(s.path("Kerk"), &json).unwrap();
         s.remember("Kerk").unwrap();
@@ -854,7 +854,7 @@ mod tests {
         let s = shows("start-refused-demo");
         let json = save(&s, "Demo", &demo()).replace(
             &format!("\"schema_version\": {SCHEMA_VERSION}"),
-            "\"schema_version\": 9",
+            "\"schema_version\": 10",
         );
         fs::write(s.path("Demo"), &json).unwrap();
         let opened = s.start(demo, WALL);
@@ -883,7 +883,7 @@ mod tests {
         let s = shows("refused-copy");
         let json = save(&s, "Kerk", &demo()).replace(
             &format!("\"schema_version\": {SCHEMA_VERSION}"),
-            "\"schema_version\": 9",
+            "\"schema_version\": 10",
         );
         fs::write(s.path("Toekomst"), json).unwrap();
         let err = s.open("Toekomst").unwrap_err();
@@ -896,7 +896,7 @@ mod tests {
         let s = shows("refused-brand");
         let json = save(&s, "Kerk", &demo()).replace(
             &format!("\"schema_version\": {SCHEMA_VERSION}"),
-            "\"schema_version\": 9",
+            "\"schema_version\": 10",
         );
         fs::write(s.path("Toekomst"), json).unwrap();
         let err = s.open("Toekomst").unwrap_err();

@@ -146,7 +146,7 @@ pub enum Resolution {
 
 /// PRG-73: gives the selection's items shared positions (FX-07's steps, then `flip`).
 /// `Grid::default()` is *off*.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Grid {
     pub wings: u8,
     pub groups: u8,
@@ -762,8 +762,12 @@ impl Programmer {
 
     /// PRG-02 (IDEA-11): append the group's fixtures; if all of them are already selected
     /// (after PRG-03's new-selection check) remove them instead, like `toggle` for one fixture.
-    pub(crate) fn add_group(&mut self, members: &[Item]) {
+    /// PRG-79: into a new selection the group's own grid comes back, with no stage.
+    pub(crate) fn add_group(&mut self, members: &[Item], grid: Option<Grid>) {
         self.begin_select();
+        if let (true, Some(grid)) = (self.selection.is_empty(), grid) {
+            self.grid = grid;
+        }
         if !members.is_empty() && members.iter().all(|f| self.selection.contains(f)) {
             self.selection.retain(|f| !members.contains(f));
             self.select_order.retain(|f| !members.contains(f));
@@ -847,6 +851,12 @@ impl Programmer {
     pub(crate) fn set_grid(&mut self, grid: Grid) {
         self.grid = grid;
         self.stage = self.grid().map(|_| 0);
+        self.recompute();
+    }
+
+    /// PRG-79: a group's grid back, with no stage.
+    pub(crate) fn restore_grid(&mut self, grid: Grid) {
+        self.grid = grid;
         self.recompute();
     }
 

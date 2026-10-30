@@ -1,0 +1,704 @@
+{
+  "schema_version": 8,
+  "meta": {
+    "name": "Church demo",
+    "created": "2026-10-18T09:00:00Z",
+    "modified": "2026-10-18T09:00:00Z",
+    "app_version": "0.1.0"
+  },
+  "settings": {
+    "faders_per_page": 8,
+    "handles_per_page": 40,
+    "ltp_trigger_level": 0.02,
+    "wheel_step_normal": 0.003921569,
+    "wheel_step_fine": 0.000015259022,
+    "wheel_step_coarse": 0.04,
+    "colour_model": "Rgb",
+    "palette_time": 0.0,
+    "palette_overlap": 100.0,
+    "record_by": "Mixed",
+    "cue_record_by": "Channel",
+    "cue_delay": 0.0,
+    "cue_fade_in": 0.0,
+    "cue_fade_out": 0.0,
+    "cue_overlap": 100.0,
+    "release_mask": [],
+    "release_time": 2.0,
+    "auto_connect": true,
+    "cue_list_fader": "KillWithOff",
+    "update_mode": "Forwards",
+    "handle_buttons": "BestPractice"
+  },
+  "profiles": {
+    "Showtec/LED Par 56": {
+      "manufacturer": "Showtec",
+      "model": "LED Par 56",
+      "source": "qlcplus:Showtec/Showtec-LED-Par-56.qxf",
+      "modes": [
+        {
+          "name": "6 Channel",
+          "footprint": 6,
+          "attributes": [
+            {
+              "name": "Colour Macro",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 4,
+              "default": 0.0
+            },
+            {
+              "name": "Strobe and Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 5,
+              "default": 0.0
+            },
+            {
+              "name": "Mode",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 6,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "RGB Control",
+                  "from": 0,
+                  "to": 63
+                },
+                {
+                  "name": "7 Color Fade",
+                  "from": 64,
+                  "to": 127
+                },
+                {
+                  "name": "7 color change",
+                  "from": 128,
+                  "to": 191
+                },
+                {
+                  "name": "music controlled",
+                  "from": 192,
+                  "to": 255
+                }
+              ]
+            }
+          ],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          },
+          "virtual_dimmer": true
+        }
+      ]
+    },
+    "dimmer": {
+      "manufacturer": "",
+      "model": "",
+      "source": "",
+      "modes": [
+        {
+          "name": "default",
+          "footprint": 1,
+          "attributes": [
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 1,
+              "default": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    "wash": {
+      "manufacturer": "",
+      "model": "",
+      "source": "",
+      "modes": [
+        {
+          "name": "default",
+          "footprint": 5,
+          "attributes": [
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 1,
+              "default": 0.0
+            },
+            {
+              "name": "Pan",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 2,
+              "fine_channel": 3,
+              "default": 0.0
+            },
+            {
+              "name": "Tilt",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 4,
+              "default": 0.0
+            },
+            {
+              "name": "Zoom",
+              "group": "B",
+              "kind": "Ltp",
+              "channel": 5,
+              "default": 0.0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "patch": {
+    "next_id": 402,
+    "fixtures": [
+      {
+        "id": 101,
+        "number": 101,
+        "name": "",
+        "profile": "wash",
+        "mode": null,
+        "universe": 1,
+        "address": 1,
+        "handle": {
+          "page": 1,
+          "slot": 1
+        }
+      },
+      {
+        "id": 102,
+        "number": 102,
+        "name": "",
+        "profile": "wash",
+        "mode": null,
+        "universe": 1,
+        "address": 6,
+        "handle": {
+          "page": 1,
+          "slot": 2
+        }
+      },
+      {
+        "id": 103,
+        "number": 103,
+        "name": "",
+        "profile": "wash",
+        "mode": null,
+        "universe": 1,
+        "address": 11,
+        "handle": {
+          "page": 1,
+          "slot": 3
+        }
+      },
+      {
+        "id": 104,
+        "number": 104,
+        "name": "",
+        "profile": "wash",
+        "mode": null,
+        "universe": 1,
+        "address": 16,
+        "handle": {
+          "page": 1,
+          "slot": 4
+        }
+      },
+      {
+        "id": 201,
+        "number": 201,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 21,
+        "handle": {
+          "page": 1,
+          "slot": 5
+        }
+      },
+      {
+        "id": 202,
+        "number": 202,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 22,
+        "handle": {
+          "page": 1,
+          "slot": 6
+        }
+      },
+      {
+        "id": 203,
+        "number": 203,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 23,
+        "handle": {
+          "page": 1,
+          "slot": 7
+        }
+      },
+      {
+        "id": 204,
+        "number": 204,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 24,
+        "handle": {
+          "page": 1,
+          "slot": 8
+        }
+      },
+      {
+        "id": 205,
+        "number": 205,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 25,
+        "handle": {
+          "page": 1,
+          "slot": 9
+        }
+      },
+      {
+        "id": 206,
+        "number": 206,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 26,
+        "handle": {
+          "page": 1,
+          "slot": 10
+        }
+      },
+      {
+        "id": 207,
+        "number": 207,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 27,
+        "handle": {
+          "page": 1,
+          "slot": 11
+        }
+      },
+      {
+        "id": 208,
+        "number": 208,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 28,
+        "handle": {
+          "page": 1,
+          "slot": 12
+        }
+      },
+      {
+        "id": 221,
+        "number": 221,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 29,
+        "handle": {
+          "page": 1,
+          "slot": 13
+        }
+      },
+      {
+        "id": 222,
+        "number": 222,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 30,
+        "handle": {
+          "page": 1,
+          "slot": 14
+        }
+      },
+      {
+        "id": 223,
+        "number": 223,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 31,
+        "handle": {
+          "page": 1,
+          "slot": 15
+        }
+      },
+      {
+        "id": 224,
+        "number": 224,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 32,
+        "handle": {
+          "page": 1,
+          "slot": 16
+        }
+      },
+      {
+        "id": 225,
+        "number": 225,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 33,
+        "handle": {
+          "page": 1,
+          "slot": 17
+        }
+      },
+      {
+        "id": 226,
+        "number": 226,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 34,
+        "handle": {
+          "page": 1,
+          "slot": 18
+        }
+      },
+      {
+        "id": 301,
+        "number": 301,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 35,
+        "handle": {
+          "page": 1,
+          "slot": 19
+        }
+      },
+      {
+        "id": 302,
+        "number": 302,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 36,
+        "handle": {
+          "page": 1,
+          "slot": 20
+        }
+      },
+      {
+        "id": 303,
+        "number": 303,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 37,
+        "handle": {
+          "page": 1,
+          "slot": 21
+        }
+      },
+      {
+        "id": 304,
+        "number": 304,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 38,
+        "handle": {
+          "page": 1,
+          "slot": 22
+        }
+      },
+      {
+        "id": 305,
+        "number": 305,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 39,
+        "handle": {
+          "page": 1,
+          "slot": 23
+        }
+      },
+      {
+        "id": 306,
+        "number": 306,
+        "name": "",
+        "profile": "dimmer",
+        "mode": null,
+        "universe": 1,
+        "address": 40,
+        "handle": {
+          "page": 1,
+          "slot": 24
+        }
+      },
+      {
+        "id": 401,
+        "number": 401,
+        "name": "Organ par",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 2,
+        "address": 1,
+        "handle": {
+          "page": 1,
+          "slot": 25
+        }
+      }
+    ]
+  },
+  "groups": [
+    {
+      "id": 1,
+      "items": [
+        "101",
+        "102",
+        "103",
+        "104",
+        "201",
+        "202",
+        "203",
+        "204",
+        "205",
+        "206",
+        "207",
+        "208",
+        "221",
+        "222",
+        "223",
+        "224",
+        "225",
+        "226",
+        "301",
+        "302",
+        "303",
+        "304",
+        "305",
+        "306",
+        "401"
+      ]
+    },
+    {
+      "id": 4,
+      "items": [
+        "306",
+        "305",
+        "304",
+        "303",
+        "302",
+        "301"
+      ]
+    }
+  ],
+  "palettes": {
+    "next_id": 1,
+    "palettes": []
+  },
+  "pages": [],
+  "playbacks": {
+    "next_id": 3,
+    "playbacks": [
+      {
+        "id": 1,
+        "page": 1,
+        "slot": 1,
+        "legend": "",
+        "icon": null,
+        "halo": null,
+        "priority": "Normal",
+        "fader_mode": 0,
+        "kill_point": "FadeOutComplete",
+        "release_mask": null,
+        "release_time": null,
+        "paging": "Unlocked",
+        "group": null,
+        "kind": "Cues",
+        "list": {
+          "tracking": true,
+          "fader": "KillWithOff",
+          "fire_first_cue": true,
+          "loop": "StopOnFinal"
+        },
+        "chase": {
+          "bpm": 120.0,
+          "crossfade": 0.0,
+          "direction": "Forward",
+          "loop": "Loop",
+          "speed_source": "Free"
+        },
+        "cues": [
+          {
+            "delay": 0.0,
+            "fade_in": 0.0,
+            "fade_out": 0.0,
+            "overlap": 100.0,
+            "number": 1.0,
+            "legend": "",
+            "link": {
+              "type": "Wait"
+            },
+            "track": "Track",
+            "group_times": {},
+            "values": {
+              "101": {
+                "Dimmer": 1.0,
+                "Pan": 0.5
+              },
+              "102": {
+                "Dimmer": 1.0
+              },
+              "103": {
+                "Dimmer": 1.0
+              },
+              "104": {
+                "Dimmer": 1.0
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "page": 1,
+        "slot": 2,
+        "legend": "",
+        "icon": null,
+        "halo": null,
+        "priority": "High",
+        "fader_mode": 2,
+        "kill_point": "FadeOutComplete",
+        "release_mask": null,
+        "release_time": null,
+        "paging": "Unlocked",
+        "group": null,
+        "kind": "Cues",
+        "list": {
+          "tracking": true,
+          "fader": "KillWithOff",
+          "fire_first_cue": true,
+          "loop": "StopOnFinal"
+        },
+        "chase": {
+          "bpm": 120.0,
+          "crossfade": 0.0,
+          "direction": "Forward",
+          "loop": "Loop",
+          "speed_source": "Free"
+        },
+        "cues": [
+          {
+            "delay": 0.0,
+            "fade_in": 0.0,
+            "fade_out": 0.0,
+            "overlap": 100.0,
+            "number": 1.0,
+            "legend": "",
+            "link": {
+              "type": "Wait"
+            },
+            "track": "Track",
+            "group_times": {},
+            "values": {
+              "301": {
+                "Dimmer": 0.8
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "next_node_id": 6,
+    "nodes": [
+      {
+        "id": 1,
+        "line": 1,
+        "enabled": true,
+        "kind": "artnet",
+        "port_address": 0,
+        "target": "255.255.255.255"
+      },
+      {
+        "id": 2,
+        "line": 1,
+        "enabled": true,
+        "kind": "sacn",
+        "universe": 1,
+        "priority": 100,
+        "unicast": null
+      },
+      {
+        "id": 3,
+        "line": 1,
+        "enabled": true,
+        "kind": "serial",
+        "port": "auto"
+      },
+      {
+        "id": 4,
+        "line": 2,
+        "enabled": true,
+        "kind": "artnet",
+        "port_address": 1,
+        "target": "255.255.255.255"
+      },
+      {
+        "id": 5,
+        "line": 2,
+        "enabled": true,
+        "kind": "sacn",
+        "universe": 2,
+        "priority": 100,
+        "unicast": null
+      }
+    ]
+  }
+}
