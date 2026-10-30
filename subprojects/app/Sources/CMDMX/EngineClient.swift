@@ -1061,6 +1061,45 @@ struct ProgrammerSettings: Decodable, Equatable {
     }
 }
 
+/// UI-33: the selection grid of IPC-48. The name is derived for display only, from the PRG-75 mapping.
+struct GridState: Decodable, Equatable {
+    var wings = 1, groups = 0, blocks = 1
+    var flip = false
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        wings = (try? c.decode(Int.self, forKey: .wings)) ?? 1
+        groups = (try? c.decode(Int.self, forKey: .groups)) ?? 0
+        blocks = (try? c.decode(Int.self, forKey: .blocks)) ?? 1
+        flip = (try? c.decode(Bool.self, forKey: .flip)) ?? false
+    }
+    private enum CodingKeys: String, CodingKey { case wings, groups, blocks, flip }
+
+    /// The shortcut this grid matches (`Divide` shows as `Blocks`); nil = none.
+    var shortcut: String? {
+        if wings == 2 && groups == 0 && blocks == 1 { return flip ? "InsideOut" : "OutsideIn" }
+        guard wings == 1, !flip else { return nil }
+        if groups == 0 && blocks > 1 { return "Blocks" }
+        if groups == 2 && blocks == 1 { return "OddEven" }
+        if groups >= 2 && blocks == 1 { return "OneIn" }
+        if groups >= 2 && blocks > 1 { return "NIn" }
+        return nil
+    }
+
+    /// The tag text: `1 IN 3`, `ODD/EVEN`, `2 IN 4`, `BLOCKS 2`, `OUTSIDE IN`, `INSIDE OUT`, else `W2 G3 B1`.
+    var name: String {
+        switch shortcut {
+        case "InsideOut": return "INSIDE OUT"
+        case "OutsideIn": return "OUTSIDE IN"
+        case "Blocks": return "BLOCKS \(blocks)"
+        case "OddEven": return "ODD/EVEN"
+        case "OneIn": return "1 IN \(groups)"
+        case "NIn": return "\(blocks) IN \(groups)"
+        default: return "W\(wings) G\(groups) B\(blocks)"
+        }
+    }
+}
+
 /// Mirror of the engine's programmer state (IPC-11). Fields missing from a
 /// message fall back to empty so a malformed message cannot drop a snapshot.
 struct ProgrammerState: Decodable, Equatable {
@@ -1088,11 +1127,18 @@ struct ProgrammerState: Decodable, Equatable {
     var effects: [EffectEntry] = []
     var effectWheels = false
     var runnableLooks: [Int] = []
+    /// IPC-48: the selection grid (nil = off), the stage (nil = all), each selection item's grid position
+    /// (0-based, in selection order) and the number of positions.
+    var grid: GridState?
+    var stage: Int?
+    var positions: [Int] = []
+    var positionCount = 0
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case selection, targets, wheels, contents, colour, palettes, located, highlight, fan, effects
+        case selection, targets, wheels, contents, colour, palettes, located, highlight, fan, effects, grid, stage, positions
+        case positionCount = "position_count"
         case effectWheels = "effect_wheels"
         case runnableLooks = "runnable_looks"
         case activeGroup = "active_group"
@@ -1122,6 +1168,10 @@ struct ProgrammerState: Decodable, Equatable {
         effects = ((try? c.decode([Tolerant<EffectEntry>].self, forKey: .effects)) ?? []).compactMap(\.value)
         effectWheels = (try? c.decode(Bool.self, forKey: .effectWheels)) ?? false
         runnableLooks = (try? c.decode([Int].self, forKey: .runnableLooks)) ?? []
+        grid = try? c.decode(GridState.self, forKey: .grid)
+        stage = try? c.decode(Int.self, forKey: .stage)
+        positions = (try? c.decode([Int].self, forKey: .positions)) ?? []
+        positionCount = (try? c.decode(Int.self, forKey: .positionCount)) ?? 0
     }
 
     /// FX-18: the entry the editor shows.
@@ -1410,6 +1460,16 @@ final class EngineClient: ObservableObject {
     func step(_ direction: Int) { sendJSON("programmer.step", ["direction": direction]) }
     func pattern(_ stages: Int) { sendJSON("programmer.pattern", ["stages": stages]) }
     func selectAll() { sendJSON("programmer.all") }
+    /// IPC-48: `Reverse`, `Shuffle`, `Sort` or `Revert`.
+    func order(_ op: String) { sendJSON("programmer.order", ["op": op]) }
+    /// IPC-48: a grid shortcut with its numbers; no shortcut = grid off.
+    func grid(shortcut: String? = nil, n: Int? = nil, m: Int? = nil) {
+        var f: [String: Any] = [:]
+        if let shortcut { f["shortcut"] = shortcut }
+        if let n { f["n"] = n }
+        if let m { f["m"] = m }
+        sendJSON("programmer.grid", f)
+    }
     /// A time fades the Clear out (ENG-10, IPC-32); nil = the plain Clear (PRG-29).
     func clearProgrammer(time: Double? = nil) { sendJSON("programmer.clear", time.map { ["time": $0] } ?? [:]) }
     /// UI-26: Locate (no groups = all), Highlight, Off (no field = the active group; or one attribute)

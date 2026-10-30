@@ -303,11 +303,14 @@ private struct Softkeys: View {
         if let current = engine.programmer.fan { return fanContext(current) }
         if ui.screen == nil, ui.workspace == Workspace.shapes { return shapesContext }   // FX-39
         if !engine.programmer.selection.isEmpty {
+            if ui.selectionMenu == "Order" { return orderContext }
+            if ui.selectionMenu == "Pattern" { return patternContext }
             return ("Selection", [
                 Softkey(name: "Next", sub: "Fix +1", action: { ui.learnOrRun("key step_next", engine) { engine.step(1) } }),
                 Softkey(name: "Previous", sub: "Fix −1", action: { ui.learnOrRun("key step_prev", engine) { engine.step(-1) } }),
                 Softkey(name: "All", sub: "whole selection", action: { ui.learnOrRun("key all", engine) { engine.selectAll() } }),
-                Softkey(name: "Odd/Even", action: { engine.pattern(2) }),
+                Softkey(name: "Order", sub: "reverse, shuffle", action: { ui.selectionMenu = "Order" }),
+                Softkey(name: "Pattern", sub: "grid, odd/even", action: { ui.selectionMenu = "Pattern" }),
                 Softkey(name: "Rem Dim", sub: "the rest to 0", action: { ui.learnOrRun("key rem_dim", engine) { engine.remDim() } }),   // UI-26
                 optionsKey,
                 undoKey,
@@ -321,6 +324,45 @@ private struct Softkeys: View {
             Softkey(name: "Timecode", sub: "phase 3", spec: "Timecode · phase 3"),
             Softkey(name: "Lock", sub: "venue mode", spec: "later"),
             undoKey,
+        ])
+    }
+
+    /// UI-33: Order sub-context.
+    private var orderContext: (name: String, keys: [Softkey?]) {
+        var keys: [Softkey?] = ["Reverse", "Shuffle", "Sort", "Revert"].map { op in
+            Softkey(name: op, action: { ui.learnOrRun("order \(op.lowercased())", engine) { engine.order(op) } })
+        }
+        keys.append(Softkey(name: "Back", action: { ui.selectionMenu = nil }))
+        return ("Order", keys)
+    }
+
+    /// UI-33: Pattern sub-context. A number on the line is n; `n Thro m` gives n in m.
+    private var patternContext: (name: String, keys: [Softkey?]) {
+        let current = engine.programmer.grid?.shortcut
+        let tk = line.tokens
+        let thro: (Int, Int)? = tk.count == 3 && tk[1] == "Thro" ? Int(tk[0]).flatMap { n in Int(tk[2]).map { (n, $0) } } : nil
+        let number: Int? = line.onlyNumber.map { Int($0) }
+        let key = { (name: String, shortcut: String, learn: String, send: @escaping (Int) -> Void, def: Int) -> Softkey in
+            Softkey(name: name, on: current == shortcut) {
+                let n = number ?? def
+                ui.learnOrRun("grid \(learn) \(n)", engine) { send(n); if number != nil { line.clear() } }
+            }
+        }
+        let nIn = Softkey(name: "n in m", on: current == "NIn") {
+            // ponytail: without `n Thro m` a lone number is m and n is 1.
+            let (n, m) = thro ?? (1, number ?? 3)
+            ui.learnOrRun("grid n_in \(n) \(m)", engine) { engine.grid(shortcut: "NIn", n: n, m: m); if thro != nil || number != nil { line.clear() } }
+        }
+        return ("Pattern", [
+            Softkey(name: "Odd/Even", on: current == "OddEven", action: { ui.learnOrRun("grid odd_even", engine) { engine.grid(shortcut: "OddEven") } }),
+            key("1 in n", "OneIn", "one_in", { engine.grid(shortcut: "OneIn", n: $0) }, 3),
+            nIn,
+            key("Blocks n", "Blocks", "blocks", { engine.grid(shortcut: "Blocks", n: $0) }, 2),
+            key("Divide n", "Divide", "divide", { engine.grid(shortcut: "Divide", n: $0) }, 2),
+            Softkey(name: "Outside in", on: current == "OutsideIn", action: { ui.learnOrRun("grid outside_in", engine) { engine.grid(shortcut: "OutsideIn") } }),
+            Softkey(name: "Inside out", on: current == "InsideOut", action: { ui.learnOrRun("grid inside_out", engine) { engine.grid(shortcut: "InsideOut") } }),
+            Softkey(name: "Grid off", action: { ui.learnOrRun("grid off", engine) { engine.grid() } }),
+            Softkey(name: "Back", action: { ui.selectionMenu = nil }),
         ])
     }
 
@@ -647,5 +689,6 @@ private struct Softkeys: View {
         .padding(4)
         .frame(width: 120)
         .background(t.panel)
+        .onChange(of: engine.programmer.selection.isEmpty) { _, empty in if empty { ui.selectionMenu = nil } }
     }
 }

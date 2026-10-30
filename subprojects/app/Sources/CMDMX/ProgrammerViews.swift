@@ -132,6 +132,16 @@ struct AttributeBar: View {
                     .fixedSize()
             }
 
+            if let grid = programmer.grid {   // UI-33: a tap turns the grid off
+                Button { engine.grid() } label: {
+                    Text("GRID \(grid.name) · " + (programmer.stage.map { "\($0 + 1)/\(programmer.positionCount)" } ?? "ALL"))
+                        .font(Typo.mono(11)).foregroundStyle(t.bg)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(RoundedRectangle(cornerRadius: 3).fill(t.amber))
+                }
+                .buttonStyle(.plain).fixedSize()
+            }
+
             GeometryReader { geo in
                 // At least three slots like the encoders.
                 let slots = max(3, programmer.wheels.count)

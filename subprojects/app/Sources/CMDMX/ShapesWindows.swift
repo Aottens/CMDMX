@@ -414,11 +414,23 @@ struct EffectWindow: View {
             FxSlider(title: "Phase", value: p.phase, range: 0...360, readout: { "\(Int($0.rounded()))°" }) { engine.setEffect("phase", $0) }
             StepRow(title: "Wings", text: String(p.wings), dec: { engine.setEffect("wings", max(1, p.wings - 1)) },
                     inc: { engine.setEffect("wings", min(8, p.wings + 1)) })
+            HStack {
+                Text("Flip").font(Typo.legend(Typo.body, .semibold)).foregroundStyle(t.fg2)
+                Spacer()
+                Button(p.flip ? "On" : "Off") { engine.setEffect("flip", !p.flip) }.buttonStyle(ChipStyle(on: p.flip))
+            }
             StepRow(title: "Groups", text: p.groups == 0 ? "off" : String(p.groups),
                     dec: { engine.setEffect("groups", p.groups <= 2 ? 0 : p.groups - 1) },
                     inc: { engine.setEffect("groups", p.groups == 0 ? 2 : min(32, p.groups + 1)) })
             StepRow(title: "Blocks", text: String(p.blocks), dec: { engine.setEffect("blocks", max(1, p.blocks - 1)) },
                     inc: { engine.setEffect("blocks", min(32, p.blocks + 1)) })
+            HStack {
+                Text("Order").font(Typo.legend(Typo.body, .semibold)).foregroundStyle(t.fg2)
+                Spacer()
+                ForEach(["Reverse", "Shuffle", "Sort"], id: \.self) { op in
+                    Button(op) { engine.setEffect("order", op) }.buttonStyle(ChipStyle(on: false))
+                }
+            }
             HStack {
                 Text("Mode").font(Typo.legend(Typo.body, .semibold)).foregroundStyle(t.fg2)
                 Spacer()
