@@ -332,7 +332,7 @@ pub struct ProgrammerView {
     pub grid: Option<Grid>,
     /// PRG-74: the selected stage, if any.
     pub stage: Option<usize>,
-    /// PRG-72: each selected item's position, and how many positions there are.
+    /// PRG-73, PRG-82: each selected item's position, and how many positions there are.
     pub positions: Vec<u32>,
     pub position_count: u32,
     /// FX-33: the programmer's effect entries, in order. Never the clock.

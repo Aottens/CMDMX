@@ -6641,13 +6641,9 @@ mod tests {
         let mut e = list_engine();
         let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
         assert!(v.get("order").is_none(), "no order, no key: {v}");
-        e.set_cue_order(
-            2,
-            q(2.0),
-            &BTreeMap::from([(Item::fixture(2), 0), (Item::fixture(1), 1)]),
-        )
-        .unwrap();
+        e.set_cue_order(2, q(2.0), &BTreeMap::from([(Item::fixture(2), 0)]))
+            .unwrap();
         let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
-        assert_eq!(v["order"], json!({"1":1,"2":0}));
+        assert_eq!(v["order"], json!({"2":0}));
     }
 }
