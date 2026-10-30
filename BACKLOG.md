@@ -233,7 +233,7 @@ steps are IDEA-33 (phases confirmed 2026-10-29).
 | SEL-03 | Core and show: a group stores and restores its grid, a cue stores `order` (Record, Update, Merge), cue overlap staggers by it, `cue.order`, show schema 9 with migration; tests. Needs SEL-01. | PRG-79..81, 83, PBK-15 | M | done (2026-10-30, #183) |
 | SEL-04 | Daemon: `grid`, `stage`, `positions`, `position_count` and a cue's `order` in snapshot and deltas, the `programmer.order`/`programmer.grid`/`cue.order` commands and the `effect.set` params, the CTL `order`/`grid` actions; IPC tests. Needs SEL-02, SEL-03. | IPC-48, PRG-82 | S | done (2026-10-30, #184) |
 | SEL-05 | App: the Order and Pattern softkey contexts, the GRID tag, position numbers on selected cells, Flip and Order in the Effect editor; the manual's *Selecting fixtures* and *Shapes and effects* pages. Needs SEL-04. | UI-33 | M | done (2026-10-30, #185) |
-| SEL-06 | App: Fixture order for a cue in Playback Options ▸ Times, with Auto increment; the manual's cue timing section. Needs SEL-04. | UI-34, PRG-81 | M | done (2026-10-30, #PR) |
+| SEL-06 | App: Fixture order for a cue in Playback Options ▸ Times, with Auto increment; the manual's cue timing section. Needs SEL-04. | UI-34, PRG-81 | M | done (2026-10-30, #186) |
 | SEL-07 | Home run on Art-Net (`tests/manual/selection-orders.md`, Claude listens): Reverse and Shuffle on a chase, Odd/Even and 1 in 3 with Next, Outside in and Inside out on a fan and a dimmer chase, a group with its grid, a cue whose overlap replays the order, its order edited. Needs SEL-05, SEL-06. | PRG-71..83, UI-33/34 | S | todo |
 
 ## Later phases
