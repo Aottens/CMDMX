@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-30 (SEL-06: cue fixture order in the app)_
+_Last updated: 2026-10-31 (SEL-07: selection orders home run passed)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -14,16 +14,16 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 
 Feature work now: selection orders (IDEA-15, broadened by the owner 2026-10-29): spec P2-02
 (`programmer.md` PRG-71..84, research `docs/research/selection-orders.md`) approved by the owner
-2026-10-29; build SEL-01..07, one PR each, in BACKLOG order. The FX generator (IDEA-18) shipped in v0.2.4.
+2026-10-29; SEL-01..07 done, the home run on Art-Net passed (2026-10-31). Its two app leftovers are
+SEL-08 (Fixture order editing shows what is saved) and SEL-09 (All/Next reachable while Fan is on).
 
 Parallel track: phase 3, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
 
 ## Next
-0. Selection orders (phase 2): SEL-01..06 (core, IPC and control, and the app's Order and Pattern softkeys, GRID
-   tag, Effect editor Flip/Order and the cue fixture order in Playback Options ▸ Times) are done; next SEL-07, the
-   home run on Art-Net (`tests/manual/selection-orders.md`).
+0. Selection orders (phase 2): done and run on Art-Net (SEL-07, `tests/manual/runs/2026-10-31-SEL-07.md`);
+   next the run leftovers SEL-08 and SEL-09, then tag v0.2.5.
 1. VS8-01 and VS4-07: install `CMDMX-0.2.4.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
