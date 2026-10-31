@@ -154,6 +154,7 @@ after VS8-03, in any order.
 | VS8-08 | Notarise the DMG (Developer ID signing and `notarytool` in `make-dmg.sh`, signing secrets in `release.yml`, stapled ticket, install steps shrink to drag-to-Applications); needs criteria in `release.md` and the owner's Apple Developer account first; done before the site is announced. | REL-17..23 (approved 2026-10-28, #152), REL-05, 08, 09, 15, 16 amended | M | gate3: `tests/hardware/release.md` (*Notarised install*; the owner sets the five secrets and runs a `workflow_dispatch` first) |
 | VS8-09 | Notarisation later: a tag without the signing secrets builds an ad hoc release with a warning (REL-20 amended), and the install texts on the page, release notes and manual go back to the not-notarised steps until the first notarised tag (REL-22 amended). | REL-20, 22 (amended 2026-10-28) | S | done (2026-10-28, #154) |
 | VS8-10 | First notarised release: when the owner has joined the Apple Developer Program and set the five secrets, a tag without them fails again (REL-20), the install texts shrink to drag to Applications (REL-22) and that PR cuts the tag; then the site is announced. Needs the owner's membership. | REL-20, 22 | S | todo |
+| VS8-11 | CI and release on a supported macOS runner: `ci.yml` (app job) and `release.yml` (DMG job) move from `macos-14` (retired 2026-11-02, brownouts before) to `macos-15`; the app job and a `workflow_dispatch` DMG build are green there. | REL-09 | S | done (2026-10-31, #188) |
 
 ### Supporting specs (needed by the milestones above)
 | Id | Task | Spec | Size | Status |

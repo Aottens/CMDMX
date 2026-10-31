@@ -5,6 +5,22 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-10-31 — macOS CI and release jobs run on `macos-15` (VS8-11)
+
+**Decision:** the `app` CI job and the release DMG job move from `macos-14` (retired by GitHub on
+2026-11-02, with brownouts before) to `macos-15`, on its default Xcode (16.4, Swift 6.1.2). No
+toolchain or Xcode is pinned: `Package.swift` stays at tools-version 5.9, so the app still compiles
+in the Swift 5 language mode; the lowest Swift that must build the app moves from 5.10 to 6.1.
+
+**Alternatives considered:** `macos-latest` (moves under us without a PR); pinning an Xcode with
+`xcode-select` (nothing needs it yet).
+
+**Reasoning:** the smallest change that keeps every PR and release building after 2026-11-02.
+
+**Reversal trigger:** `macos-15` is announced for retirement, or the app needs a newer Swift than its default.
+
+---
+
 ## 2026-10-30 — Cue fixture order is tapped in a grid inside the Times tab (SEL-06)
 
 **Decision:** UI-34's "the Fixtures window shows each item's step number" is built as a grid of the

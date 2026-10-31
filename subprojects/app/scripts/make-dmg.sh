@@ -65,7 +65,12 @@ cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 DMG=".build/CMDMX-$VERSION.dmg"
 rm -f "$DMG"
-hdiutil create -quiet -volname "CMDMX $VERSION" -srcfolder "$STAGE" -format UDZO "$DMG"
+# GitHub's macOS runners sometimes fail `hdiutil create` with "Resource busy"; try again.
+for try in 1 2 3 4 5; do
+  hdiutil create -volname "CMDMX $VERSION" -srcfolder "$STAGE" -format UDZO "$DMG" && break
+  [ "$try" = 5 ] && exit 1
+  rm -f "$DMG"; sleep 5
+done
 if [ -n "$IDENTITY" ]; then
   codesign --timestamp --sign "$IDENTITY" "$DMG"
   codesign --verify "$DMG"
