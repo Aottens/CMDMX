@@ -215,13 +215,27 @@ are in the show-wide part of the *Playback Options* screen, under *Programmer*.
 
 ## Groups
 
-A group is a saved selection, with its order. The Groups window shows each group with its number
-of fixtures.
+A group is a saved selection, with its order. The Groups window shows each group with its legend
+("Group 5" when it has none) and its number of fixtures.
 
 - **Record a group:** select fixtures in the order you want, press **Record**, then tap a group
-  cell. An empty cell gets a new group; a used one is replaced. With nothing selected the record
-  is refused.
-- **Use a group:** tap it, or type `Group 3 Enter`.
+  cell. An empty cell gets a new group; a used one is replaced and keeps its legend. With nothing
+  selected the record is refused.
+- **Use a group:** tap it, or type `Group 3 Enter`. A tap shows the group on the message line
+  ("Group 5 Pars outside in").
+- **Set Legend:** press **Set Legend**, tap a group, type up to 32 characters and press Set. An
+  empty field clears the legend. A group master's strip shows the legend too.
+- **Copy:** press **Copy**, tap the group, then tap an empty cell. The copy has the same fixtures,
+  order and legend. A group master stays on the original.
+- **Move:** press **Move**, tap the group, then tap an empty cell. Its group masters follow it to
+  the new number, so nothing changes on stage. There is no separate renumber: Move is the renumber.
+- **Delete:** press **Delete**, tap the group, then confirm on softkey A. Cues, palettes and the
+  selection hold fixtures rather than groups, so they do not change. A group that a group master
+  uses is not deleted: the message line names the handle, and you delete the master first.
+
+While one of these is armed a tap on a group does not select it. **Clear** disarms. A refusal, such
+as a Copy onto a used cell, shows its warning on the message line and changes nothing. Each action
+is one Undo step.
 
 ## Undo
 

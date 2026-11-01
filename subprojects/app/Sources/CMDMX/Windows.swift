@@ -241,13 +241,15 @@ struct GroupsWindow: View {
             CellScroll {
                 ForEach(1...cells, id: \.self) { id in
                     if let group = byId[id] {
-                        Cell(number: id, tag: "\(group.fixtures.count)", legend: "Group \(id)",
-                             selected: !group.fixtures.isEmpty && group.fixtures.allSatisfy(selection.contains),
-                             mask: true) { tap(id, exists: true) }
+                        Cell(number: id, tag: "\(group.fixtures.count)", legend: group.shownLegend,
+                             selected: !group.fixtures.isEmpty && group.fixtures.allSatisfy(selection.contains)
+                                 || ui.groupSource == id || ui.deleteGroup == id,
+                             mask: true) { tap(id, group) }
                     } else {
-                        // Empty cells only react while Record is armed.
-                        Cell(number: id, empty: true, armed: ui.recordArmed,
-                             action: ui.recordArmed ? { tap(id, exists: false) } : nil)
+                        // Empty cells only react while Record or a group function is armed.
+                        let reacts = ui.recordArmed || ui.groupFunctionArmed
+                        Cell(number: id, empty: true, armed: reacts,
+                             action: reacts ? { tap(id, nil) } : nil)
                     }
                 }
             }
@@ -255,17 +257,49 @@ struct GroupsWindow: View {
     }
 
     /// While armed, the next group tap records instead of selecting.
-    private func tap(_ id: Int, exists: Bool) {
+    private func tap(_ id: Int, _ group: GroupInfo?) {
         if ui.recordArmed, ui.recordMaster == "Group" {
             // GRM-15: this tap picks the group of a group master; the handle tap records it.
-            guard exists else { return engine.say("Group Master: tap an existing group.") }
+            guard group != nil else { return engine.say("Group Master: tap an existing group.") }
             ui.recordMasterGroup = id
             engine.say("Group Master: tap an empty handle.")
         } else if ui.recordArmed {
             engine.recordGroup(id)
             ui.recordArmed = false
-        } else if exists {
+        } else if let function = ui.function, ui.groupFunctionArmed {
+            perform(function, id, group)
+        } else if let group {
             engine.selectGroup(id)
+            engine.say(group.title)
+        }
+    }
+
+    /// PRG-94: Copy, Move, Delete and Set Legend on a group; the engine refuses a bad target (PRG-89).
+    private func perform(_ function: PaletteFunction, _ id: Int, _ group: GroupInfo?) {
+        switch function {
+        case .copy, .move:
+            if let source = ui.groupSource {
+                function == .copy ? engine.copyGroup(source, to: id) : engine.moveGroup(source, to: id)
+                ui.cancelModes()
+            } else if group != nil {
+                ui.groupSource = id
+                ui.source = nil
+                ui.handleSource = nil
+                engine.say("\(function.rawValue) group \(id): tap an empty cell.")
+            } else {
+                engine.say("Tap a recorded group as the source.")
+            }
+        case .delete:
+            guard let group else { return engine.say("Group \(id) is empty") }
+            ui.deleteGroup = id
+            ui.deleteTarget = nil
+            ui.deletePlayback = nil
+            engine.say("Delete \(group.title)? Confirm on softkey A.")
+        case .legend:
+            guard group != nil else { return engine.say("Group \(id) is empty") }
+            ui.groupLegendEditing = GroupRef(number: id)
+        default:
+            break
         }
     }
 }

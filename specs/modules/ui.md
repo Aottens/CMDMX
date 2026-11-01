@@ -116,9 +116,11 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - A tap sends `programmer.select`.
   - The output lamp strip along the bottom edge is a disabled stripe [with IDEA-10].
 - **UI-12 [now]** Groups: one cell per group with its number, its fixture count as the tag, and a
-  legend ("Group n" until groups have names [with Set Legend]). There are 24 cells, and empty
-  ones show only a number.
-  - A tap selects the group.
+  legend ("Group n" while its legend is empty, PRG-90). There are 24 cells, and empty ones show
+  only a number.
+  - A tap selects the group; the message line shows "Group 5 Pars outside in" ("Group 5" without
+    a legend, PRG-90).
+  - Delete, Copy, Move and Set Legend work on groups as PRG-94 describes.
   - Recording a group moves from the window's Record button to the Record function button
     (UI-16).
   - The IPCGBES mask strip is drawn empty [later; it needs the groups' attribute groups over
@@ -155,6 +157,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     and Clear disarms it. **Patch** opens the Patch screen. **Disk** opens the Show screen
     (SHW-17; owner, 2026-10-18).
   - Update, Delete, Copy, Move and Include work on palettes as PAL-29 describes (VS2-19).
+  - Delete, Copy, Move and Set Legend work on groups as PRG-94 describes (GRP-03): while one is
+    armed a group tap does not select, and Clear disarms it, as for Record.
   - Record, Update, Copy, Move, Delete, Release, Options, Latch and Set Legend work on playback
     handles as PBK-38/39 describe (VS2-22).
   - Every other button is disabled with its spec in the tooltip: Edit "phase 2" (palettes
@@ -204,7 +208,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     - Record context, also (amended 2026-10-22, VS3-07; `group-masters.md` GRM-01, 16, 17):
       **Group Master** arms a group master; the next tap on a group cell picks the group, the
       tap after that on an empty handle sends `master.record {kind: "Group", group}`. Its strip
-      shows "Group n" and the meta line of GRM-16 (amber level per GRM-16; while disabled the bar
+      shows the group's legend ("Group n" when it has none, PRG-90) and the meta line of GRM-16 (amber level per GRM-16; while disabled the bar
       follows the fader and the meta line reads "LOCKED 50%", IPC-29), and Playback Options shows Handle and Master
       tabs: mode, a scale picker only in Scale, and a Disabled toggle (GRM-17).
     - Cue context (a right-click on a Cue list row): Go to Cue, View Cue, Edit Times, Set Legend,

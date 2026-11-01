@@ -825,6 +825,12 @@ private struct SnapshotUndo: Decodable { let undo: Tolerant<UndoLabels>? }
 struct GroupInfo: Decodable, Identifiable, Equatable {
     let id: Int
     let fixtures: [Item]
+    /// PRG-90: absent when empty.
+    let legend: String?
+    /// UI-12: the legend, else "Group 5".
+    var shownLegend: String { legend.flatMap { $0.isEmpty ? nil : $0 } ?? "Group \(id)" }
+    /// PRG-90: "Group 5 Pars outside in", or "Group 5" without a legend.
+    var title: String { legend.flatMap { $0.isEmpty ? nil : "Group \(id) \($0)" } ?? "Group \(id)" }
 }
 
 /// One attribute-group tab I P C G B E S FX (IPC-11).
@@ -1501,6 +1507,16 @@ final class EngineClient: ObservableObject {
     /// IPC-47: set the target colour to a LEE gel by number.
     func gel(_ number: Int) { sendJSON("programmer.gel", ["range": "Lee", "number": number]) }
     func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
+    func deleteGroup(_ id: Int) { patch("group.delete", ["group": id]) }
+    func copyGroup(_ id: Int, to: Int) { patch("group.copy", ["group": id, "to": to]) }
+    func moveGroup(_ id: Int, to: Int) { patch("group.move", ["group": id, "to": to]) }
+    func setGroupLegend(_ id: Int, legend: String) { patch("group.legend", ["group": id, "legend": legend]) }
+    /// GRM-16, PRG-90: a group master without its own legend shows its group's.
+    func shownLegend(_ p: PlaybackInfo) -> String {
+        if p.stored.legend.isEmpty, p.stored.isGroupMaster, let g = p.stored.master?.group,
+           let group = groups.first(where: { $0.id == g }) { return group.shownLegend }
+        return p.shownLegend
+    }
 
     // Effect commands (FX-34). The engine validates ranges and refuses with a warning.
 

@@ -568,7 +568,7 @@ private struct MasterTab: View {
         if let m = playback.stored.master, playback.stored.isGroupMaster {
             let mode = m.mode ?? "Scale"
             OptionRow(label: "Master") {
-                Text(verbatim: "Group \(m.group ?? 0)").font(Typo.mono())
+                Text(verbatim: engine.groups.first { $0.id == m.group }?.title ?? "Group \(m.group ?? 0)").font(Typo.mono())
             }
             OptionRow(label: "Mode", note: "Scale: the fader scales the group's intensity. HTP: it is a floor. Limit: it is a ceiling. Take Over: it puts a fixture in the programmer once the level reaches its intensity.") {
                 Choice(options: [("Scale", "Scale"), ("HTP", "Htp"), ("Limit", "Limit"), ("Take Over", "TakeOver")], selected: mode) {

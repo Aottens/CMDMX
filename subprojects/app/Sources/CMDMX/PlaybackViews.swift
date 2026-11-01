@@ -78,6 +78,7 @@ enum HandleTaps {
                 ui.cancelModes()
             } else if let info, used {
                 ui.source = nil
+                ui.groupSource = nil
                 ui.handleSource = info.id
                 engine.say("\(name) playback \(info.homeHandle): tap an empty handle.")
             } else {
@@ -95,6 +96,7 @@ enum HandleTaps {
                 ui.cancelModes()
             case .delete:
                 ui.deleteTarget = nil
+                ui.deleteGroup = nil
                 ui.deletePlayback = info.id
                 engine.say("Delete playback \(info.homeHandle)? Confirm on softkey A.")
             case .release:
@@ -131,7 +133,7 @@ enum HandleTaps {
     }
 }
 
-// MARK: - Legend editors (PAL-29, PBK-38)
+// MARK: - Legend editors (PAL-29, PBK-38, PRG-94)
 
 /// sRGB 0...1 of a SwiftUI colour, for the halo picker.
 private func srgb(_ color: Color) -> AutoIcon.RGB {
@@ -287,6 +289,53 @@ struct PageLegendEditor: View {
     }
 }
 
+/// The legend of one group (PRG-94), 0–32 characters.
+struct GroupLegendEditor: View {
+    @Environment(\.theme) private var t
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
+    let group: Int
+    @State private var legend = ""
+    @State private var loaded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(verbatim: "SET LEGEND · GROUP \(group)").font(Typo.legend(Typo.body, .semibold)).tracking(0.7)
+            HStack(spacing: 8) {
+                TextField("Legend", text: $legend).textFieldStyle(.roundedBorder).onSubmit(apply)
+                    .onChange(of: legend) { _, new in if new.count > 32 { legend = String(new.prefix(32)) } }
+                Text(verbatim: "\(legend.count)/32").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { close() }.keyboardShortcut(.cancelAction)
+                Button("Set") { apply() }.keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(14)
+        .frame(width: 360)
+        .background(t.bg)
+        .foregroundStyle(t.fg)
+        .onAppear {
+            guard !loaded else { return }
+            loaded = true
+            legend = engine.groups.first { $0.id == group }?.legend ?? ""
+        }
+    }
+
+    private func apply() {
+        engine.setGroupLegend(group, legend: legend)
+        close()
+    }
+
+    private func close() {
+        ui.cancelModes()
+        ui.groupLegendEditing = nil
+        dismiss()
+    }
+}
+
 // MARK: - Active playbacks (UI-13, PBK-40)
 
 /// Every playback that is active or releasing, in fire order (PBK-40); a tap on a row releases it.
@@ -329,7 +378,7 @@ struct ActivePlaybacksWindow: View {
         return Button { engine.releasePlayback(p.id) } label: {
             HStack(spacing: 0) {
                 Text(p.homeHandle).font(Typo.mono(Typo.body)).foregroundStyle(t.fg2).frame(width: Self.widths[0], alignment: .leading)
-                Text(p.shownLegend).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                Text(engine.shownLegend(p)).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                 Text(percent(p.live.level)).font(Typo.mono(Typo.body)).foregroundStyle(t.fg).frame(width: Self.widths[2], alignment: .leading)
                 Text(releasing ? "releasing" : "active").font(Typo.mono(Typo.small))
                     .foregroundStyle(releasing ? t.amber : t.green).frame(width: Self.widths[3], alignment: .leading)

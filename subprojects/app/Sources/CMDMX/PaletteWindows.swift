@@ -160,6 +160,7 @@ struct PaletteWindow: View {
             } else if let p {
                 ui.source = p.id
                 ui.handleSource = nil
+                ui.groupSource = nil
                 engine.say("\(function.rawValue) palette \(p.number): tap an empty cell.")
             } else {
                 engine.say("Tap a recorded palette as the source.")
@@ -175,6 +176,7 @@ struct PaletteWindow: View {
                 ui.cancelModes()
             case .delete:
                 ui.deleteTarget = p.number
+                ui.deleteGroup = nil
                 engine.say("Delete palette \(p.number)? Confirm on softkey A.")
             case .legend:
                 ui.legendEditing = PaletteRef(number: p.number)

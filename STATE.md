@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-01 (GRP-02: group handle actions over IPC)_
+_Last updated: 2026-11-01 (GRP-03: group handle actions in the app)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -26,7 +26,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    SEL-08 and SEL-09 done; released as v0.2.5 (2026-11-01).
 1. Groups (owner, 2026-11-01: the first church try with v0.2.5 showed a group cannot be deleted):
    spec P1-24 (`programmer.md` PRG-85..95: Delete, Copy, Move, Set Legend) approved by the
-   owner 2026-11-01; GRP-01 (core, schema 10) and GRP-02 (IPC) done; next GRP-03 and a home run, before the church service (about a week out).
+   owner 2026-11-01; GRP-01 (core, schema 10), GRP-02 (IPC) and GRP-03 (app) built; next the owner's home run (`tests/manual/app-groups.md`, gate 3) and a release tag, before the church service (about a week out). GRP-04 (the message for a typed `Group n`) is small and can wait.
 2. VS8-01 and VS4-07: install `CMDMX-0.2.5.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
@@ -44,6 +44,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
+- GRP-03 group Delete, Copy, Move and Set Legend, `tests/manual/app-groups.md`: at home on Art-Net, before the church service.
 - VS4-07 the DMG on the church Mac, and VS8-01 the renamed DMG on the owner's Mac (About, shows moved
   from the old folder), both in `tests/hardware/release.md`.
 - VS1-07 BCF2000, `tests/hardware/bcf2000.md` (virtual BCF2000 passed in the VS7-04 run); postponed
