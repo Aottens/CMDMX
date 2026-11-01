@@ -60,7 +60,7 @@ the backlog, not the whole idea.
 | IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | done (2026-10-28, VS2-44..46: #159, #160, #161) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
-| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | triaged (owner to confirm the phases) | 1 (proposed, in batches) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
+| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | triaged; phase and order confirmed 2026-11-01 | 1, batches A to G in order (owner 2026-11-01) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -765,6 +765,6 @@ the app."
 **Triage:**
 - `docs/research/everyday-gaps.md` lists about 40 candidates in batches A to G, found by reading code,
   specs and the Titan manual. Ordered by what a general console needs, not by church dates.
-- Proposed phase 1, batch by batch; each batch gets its own spec with criteria, checked against Titan.
+- Phase 1, batch by batch; each batch gets its own spec with criteria, checked against Titan.
 **What it touches now:** nothing until a batch is specified.
-**Open questions:** which batch first; which points move to a later phase.
+**Outcome (2026-11-01):** owner: all of it in phase 1, worked through in order, A to G.
