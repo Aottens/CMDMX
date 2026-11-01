@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-01 (GRP-01: group handle actions in the core)_
+_Last updated: 2026-11-01 (GRP-02: group handle actions over IPC)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -26,7 +26,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    SEL-08 and SEL-09 done; released as v0.2.5 (2026-11-01).
 1. Groups (owner, 2026-11-01: the first church try with v0.2.5 showed a group cannot be deleted):
    spec P1-24 (`programmer.md` PRG-85..95: Delete, Copy, Move, Set Legend) approved by the
-   owner 2026-11-01; GRP-01 (core, schema 10) done; next GRP-02, GRP-03 and a home run, before the church service (about a week out).
+   owner 2026-11-01; GRP-01 (core, schema 10) and GRP-02 (IPC) done; next GRP-03 and a home run, before the church service (about a week out).
 2. VS8-01 and VS4-07: install `CMDMX-0.2.5.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.

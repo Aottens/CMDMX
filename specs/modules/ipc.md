@@ -82,7 +82,8 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   `programmer.wheel {"attribute":"Pan","steps":-3,"resolution":"Fine"}` (PRG-19..21; integer
   steps, `resolution` Normal/Fine/Coarse, default Normal) ·
   `programmer.command {"tokens":["201","Thro","205","Enter"]}` (PRG-08..11) ·
-  `group.record {"group":3}` (PRG-07). Missing or ill-typed fields → `error` to the sender.
+  `group.record {"group":3}` (PRG-07) · `group.delete`, `group.copy`, `group.move`, `group.legend`
+  (PRG-93). Missing or ill-typed fields → `error` to the sender.
 - **IPC-14** Demo show: after the eight demo dimmers (fixtures 1–8 on channels 1–8, IPC-09 unchanged)
   the daemon patches the church rig on universe 1, each fixture right after the previous one:
   washes 101–104 (Dimmer, Pan 16-bit, Tilt, Zoom, R, G, B, White; 9 channels from 9), RGBW pars

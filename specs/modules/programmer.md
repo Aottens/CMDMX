@@ -567,7 +567,7 @@ The selection and the programmer hold items too and are not changed either.
 - **PRG-92** Show schema 10 (SHW-04): a group gains the optional `legend` (absent when empty).
   Schema 9 shows load unchanged; a show without legends saves byte-identical apart from the
   version number. The snapshot and the `groups` delta (IPC-10) carry each group's `legend`
-  (absent when empty) next to `fixtures` and `grid`.
+  (absent when empty) next to `fixtures`. The group's grid stays in the show and is not sent.
 - **PRG-93** IPC (extends `ipc.md`, all class edit, UNDO-04): `group.delete {"group":5}` ·
   `group.copy {"group":5,"to":9}` · `group.move {"group":6,"to":12}` ·
   `group.legend {"group":5,"legend":"Pars outside in"}` (`""` clears it). `to` takes any number
