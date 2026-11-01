@@ -2,6 +2,8 @@
 
 Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; OUT-09/20..22 approved 2026-10-17; OUT-09/20 amended and OUT-23/24 added 2026-10-18 (owner, Eurolite MK2 on the Mac); OUT-24 amended 2026-10-21 (owner, VS4-05: own 30 ms timer); OUT-13 rewritten, OUT-23 amended and OUT-25..37 added and **approved by owner 2026-10-22** (P1-18, multi-universe output; the six questions as proposed); rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
 
+OUT-38..41: for owner approval (IDEA-35 batch A, P1-25, 2026-11-01).
+
 ## Purpose
 Deliver each universe's frame to one or more *nodes* (Titan's model: lines → nodes). Framing is pure and byte-exact tested; I/O lives in the daemon and must never block the tick.
 
@@ -41,6 +43,34 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
   - `{"kind": "serial", "port": "auto" | "/dev/cu.…"}` (ENTTEC Pro label 6, the only serial protocol; `auto` = detection, OUT-09)
 
   Nodes are saved sorted by `id`. SHW-08 is amended: `output` is the grouped key it foresaw; a serial port path is the one machine-specific value, and on a Mac without that port the node is `Degraded` "port not found" (OUT-31), never an error on load.
+
+### Staying awake and late ticks (IDEA-35 A1; for owner approval (IDEA-35 batch A, P1-25, 2026-11-01))
+What is known: macOS freezes every process during system sleep, so a sleeping Mac sends no frame.
+Nothing in CMDMX prevents that. It went unseen at the desk because other programs hold the Mac awake
+(`pmset -g` on 2026-11-01: `sleep 1, prevented by coreaudiod, sharingd, bluetoothd, powerd, Claude,
+Lightkey`; Lightkey holds an assertion named "DMX Output"). A real sleep has not been tried: OUT-41's run
+does that.
+- **OUT-38** On macOS the daemon holds a `PreventUserIdleSystemSleep` assertion (IOKit
+  `IOPMAssertionCreateWithName`) named `CMDMX DMX output` from before its first tick until it exits,
+  whichever nodes are enabled. It lives in the daemon, not the app, because the daemon is what sends and
+  it outlives an app crash (REL-14, VS1-08). macOS drops the assertion when the process dies, so `kill -9`
+  leaves nothing behind. Test (macOS only, so run locally: Rust CI is on Linux): `pmset -g assertions`
+  lists the name under the daemon's pid while it runs and not after it exits.
+- **OUT-39** An assertion that cannot be created is one `warning` (IPC-06) and one log line. The daemon
+  keeps ticking. Other platforms do nothing here (the Linux desk, IDEA-30, decides when it exists).
+- **OUT-40** A late tick does not catch up. When the tick loop wakes more than one `TICK` after its
+  deadline, the next deadline is now + `TICK` instead of the old deadline + `TICK`. Measured on
+  2026-11-01: after a `SIGSTOP` of 3 s the daemon sent 145 sACN packets in the first 250 ms (10 is normal),
+  every missed tick at once. Fade time is not touched: `now` stays the time since start, so a fade is where
+  it should be on the first tick after the stall. Tests: a pure deadline function (`out_40_…`), and the
+  `SIGSTOP` measurement on loopback in `tests/`, at most 20 packets per 250 ms after `SIGCONT`.
+- **OUT-41** The assertion does not cover a closed lid without external display, Sleep from the Apple
+  menu, the power button or an empty battery. After such a sleep, output returns on wake without any action:
+  Art-Net and sACN sockets as OUT-12, the serial port as OUT-21. The fade clock is expected to stand still
+  during sleep (Rust's `Instant` does not count it on macOS), so a fade continues where it stopped; the
+  run confirms this or this criterion is amended. Gate 3: `tests/hardware/sleep.md` (created by SPF-03)
+  puts the Mac to sleep during a running fade, and records what the Eurolite and the lamps do during
+  sleep and on wake, and the gap in the Art-Net frames.
 
 ### Lines and nodes (P1-18)
 - **OUT-25** Default nodes of line *n*: Art-Net `port_address` *n*−1 (net 0, subnet 0, universe *n*−1), target `255.255.255.255`, **enabled**; sACN universe *n*, multicast, priority 100, **enabled**. *(Q1: Titan ships Art-Net disabled; enabled keeps today's behaviour and the owner's Art-Net monitor at home.)* `show.new` and the Demo show get line 1's default nodes plus one serial node `port: "auto"` on line 1, enabled — the same three nodes the daemon sends today.

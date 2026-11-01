@@ -766,5 +766,5 @@ the app."
 - `docs/research/everyday-gaps.md` lists about 40 candidates in batches A to G, found by reading code,
   specs and the Titan manual. Ordered by what a general console needs, not by church dates.
 - Proposed phase 1, batch by batch; each batch gets its own spec with criteria, checked against Titan.
-**What it touches now:** nothing until a batch is specified.
-**Open questions:** which batch first; which points move to a later phase.
+**What it touches now:** batch A is specified (P1-25, SPF-01..11); the other batches nothing until specified.
+**Open questions:** which batch next; which points move to a later phase.

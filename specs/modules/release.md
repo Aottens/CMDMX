@@ -12,6 +12,8 @@ Builds on DECISIONS 2026-10-27 (versioned DMG, not notarised; its reversal trigg
 the website, DECISIONS 2026-10-27 *own website*), IPC-01/08 (`ipc.md`), SHW-11
 (`showfile.md`), LIB-13 (`fixture-library.md`), CTL-53 (`control-surfaces.md`).
 
+REL-24, REL-25 and the amendment of REL-13: for owner approval (IDEA-35 batch A, P1-25, 2026-11-01).
+
 ## Purpose
 The church Mac runs CMDMX from a DMG that GitHub builds from a version tag: drag the app
 to Applications, open it, and the engine runs. No Rust, no Swift, no build tree, no Terminal on
@@ -88,12 +90,22 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
 - **REL-13** Quitting the app (⌘Q, or the menu) sends SIGTERM to the daemon it started or adopted,
   waits until it has exited (at most 5 s, then SIGKILL), removes the pid file, and then quits. The
   serial port (the Eurolite) is free afterwards, so Lightkey can open it. A daemon the app did not
-  start (a developer's) is left alone. The quit confirmation of console mode says which of the two
-  happens (UI-26, amended by VS4-08).
+  start (a developer's) is left alone. The quit confirmation (UI-36: in every mode) says which of the
+  two happens (UI-26, amended by VS4-08).
 - **REL-14** On SIGINT or SIGTERM the daemon writes pending show changes (SHW-11 autosave) before
   it exits, besides blanking the decks (CTL-53), so quitting the app never loses the last 5 s of
   programming. If the app itself crashes, the daemon keeps running and keeps output (show-proof);
   the next app launch adopts it (REL-11).
+
+- **REL-24** (for owner approval (IDEA-35 batch A, P1-25, 2026-11-01)) An adopted engine (REL-11) that dies is restarted like a child (REL-12): the app
+  watches its pid (`DispatchSource.makeProcessSource`, `.exit`), shows "Engine exited, restarting" (the exit
+  code of a process that is not its child is unknown), and starts it after 2 s. A daemon that already died
+  between the adopt check and the watch is handled the same way. Not while stopping (REL-13). Today this
+  case stays offline until the app is restarted. Manual run: `kill -9` the app, reopen it (adopts),
+  `kill -9` the engine; the banner shows, and the engine is back and connected within 5 s.
+- **REL-25** (for owner approval (IDEA-35 batch A, P1-25, 2026-11-01)) After any restart of a daemon the app owns, the amber line and the Messages sheet
+  (UI-39) say "Engine restarted: the show is back, nothing is running". A restart brings back the saved show
+  and live state starts fresh (`showfile.md`, owner decision 3): the operator must know the stage changed.
 
 ### First launch on a Mac
 - **REL-15** (amended by REL-22) The release notes and `tests/hardware/release.md` give the install steps for an

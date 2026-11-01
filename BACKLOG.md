@@ -142,6 +142,23 @@ after the specs are added when each spec is approved (no sizing of code before i
 | GRP-05 | App: a strip with a legend and no icon of its own shows the legend in full width, so "Front spots" fits a group master's 92 pt strip instead of "Front sp…" (GRP-03 run). | GRM-16, PBK-37 | S | done (2026-11-01, #200) |
 | VS4-03 | One real Sunday morning service run entirely on CMDMX, Lightkey on standby as fallback; checklist ticked. | all phase 1 | — | todo |
 
+### Show-proof (IDEA-35 batch A, spec P1-25)
+Proposed order: what can darken a show first, each task on its own PR.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+| --- | --- | --- | --- | --- |
+| SPF-04 | App: quitting asks in every mode and closing the window goes through it, so Cancel keeps the window; manual `running.md`; run in `tests/manual/app-main-screen.md`. | UI-36, REL-13 | S | todo |
+| SPF-01 | Daemon: the power assertion from before the first tick to exit, a failure is one warning; macOS test on `pmset -g assertions` (`out_38_…`, `out_39_…`). | OUT-38, 39 | S | todo |
+| SPF-02 | Daemon: a late tick does not catch up; `out_40_…` on a pure deadline function and the `SIGSTOP` test on loopback. | OUT-40 | S | todo |
+| SPF-03 | App keeps the display awake in console mode; `tests/hardware/sleep.md` with a real sleep during a fade on the Eurolite and Art-Net; the manual says what does not keep the Mac awake (lid, Sleep). Needs SPF-01, 02. | UI-35, OUT-41 | S | todo |
+| SPF-05 | App: an adopted engine that dies is restarted, the restart message; run with `kill -9` as REL-24. | REL-24, 25 | S | todo |
+| SPF-06 | App: level bars never jump (strips, group masters, GM); manual and `tests/manual/app-main-screen.md`. | UI-37 | S | todo |
+| SPF-07 | App and engine test: *New cue times* in the Settings tab; `pbk_46_…`; manual. | PBK-46 | S | todo |
+| SPF-08 | Daemon: message history in the snapshot, `at` on messages, node state changes as messages; `ipc_51_…`, `ipc_52_…`. | IPC-51, 52 | S | todo |
+| SPF-09 | App: Messages sheet with count, the app's own lines, dots that open their screen; manual. Needs SPF-05, SPF-08. | UI-39, 40 | M | todo |
+| SPF-10 | Daemon: `lock.set`, refusals, surfaces dropped, playbacks running on; `ipc_50_…`. | IPC-50 | M | todo |
+| SPF-11 | App: Lock softkey, cover, keypad, refused quit; manual and manual run. Needs SPF-04, SPF-10. | UI-38 | S | todo |
+
 ### VS8 — CMDMX by Colourmotion: name, logo and website (IDEA-19, IDEA-20)
 Approved with P1-21 (owner, 2026-10-27). Order: VS8-01, then VS8-03 with a placeholder logo
 (DECISIONS 2026-10-28), VS8-02 when the owner has the Colourmotion logo; the manual rows VS8-04..07
@@ -192,6 +209,7 @@ after VS8-03, in any order.
 | P1-22 | Spec automatic emitter mixing and the colour-temperature view (IDEA-32, owner decisions 2026-10-28): ADR-010 amends ADR-005, LIB/ENG/PRG/IPC/UI criteria, build tasks VS2-44..46; owner approves. | LIB, ENG, PRG, IPC, UI | M | done (2026-10-28, #158; ADR-010 and the criteria approved, the four questions as proposed) |
 | P1-23 | Spec gel numbers, LEE first (IDEA-02, owner 2026-10-28): data source and licence, the reference source, PRG-67..70, IPC-47, UI-32, PAL-33, build tasks VS2-48..50; owner approves. | PRG, IPC, UI, PAL | M | done (2026-10-28, #164; the criteria approved, the four questions as proposed: tungsten 3200 K, owner asks LEE, test rows only until LEE answers, `Lee n` and the gel legend) |
 | P1-24 | Spec the handle actions on groups (owner, 2026-11-01: a group could not be deleted in the first church try with v0.2.5): Delete, Copy, Move and Set Legend as PRG-85..95, what happens to group masters, undo, IPC and the Groups window; build tasks GRP-01..03; owner approves. | PRG | S | done (2026-11-01, #195; merged = PRG-85..95 and the three owner questions approved) |
+| P1-25 | Spec IDEA-35 batch A, show-proof (owner, 2026-11-01): keep the Mac awake, quit always asks, faders that do not jump, Lock, message history, restarting an adopted engine, default cue times, as OUT-38..41, UI-35..40, IPC-50..52, REL-24, 25, PBK-46; build tasks SPF-01..11; owner approves. | OUT, UI, IPC, REL, PBK | S | done (2026-11-01, #PRNUM; merged = criteria and the owner questions approved) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ## Phase 10 track — hardware (parallel to phase 1)

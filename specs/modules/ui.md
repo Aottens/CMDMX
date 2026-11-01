@@ -10,6 +10,8 @@ UI-26 (VS2-05) timed Clear from the keypad amended (FXB-07, 2026-10-29; for owne
 UI-18 BPM / Rate Master take the next empty handle (FXB-10, 2026-10-29; for owner approval in its PR).
 UI-33 and UI-34 (selection orders, P2-02): **approved by owner 2026-10-29**.
 UI-33a, UI-33b (Fan and Pattern keep the selection keys, SEL-09): **approved by owner 2026-11-01**.
+UI-26 (console mode) quit, UI-19 message zone, UI-22 level bars, Lock in the Main context, and UI-35..40:
+for owner approval (IDEA-35 batch A, P1-25, 2026-11-01).
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -65,7 +67,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 
 - **UI-26 [now]** Console mode, on by default at launch, with a Console toggle in the status bar:
   - The window goes native full screen with the Dock and the menu bar hidden.
-  - ⌘Q and closing the window ask for confirmation first, Cancel the default button.
+  - (Amended by UI-36: quitting asks in every mode, not only in console mode.) ⌘Q and closing the
+    window ask for confirmation first, Cancel the default button.
     (Amended by VS4-08, 2026-10-28, to match REL-13.) When the app started or adopted the engine
     (REL-10, 11), the alert says "Quit the app?" / "The engine stops with the app: DMX output
     stops and the USB interface is free for another program."; when it did not (a developer's
@@ -183,7 +186,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   header.
   - Main context: Set Legend works on palettes and handles (PAL-29, PBK-38); Playback Options
     and Edit Times open the Playback Options screen for the last tapped handle (PBK-39);
-    Shapes & Effects (phase 2), Timecode (phase 3) and Lock (later) are disabled; Undo
+    Shapes & Effects (phase 2) and Timecode (phase 3) are disabled; Lock works (UI-38); Undo
     (G, also in the Selection context) undoes the newest step, its label under the name, disabled
     while there is none (amended 2026-10-22, VS5-03; `undo.md` UNDO-18).
   - Selection context (when something is selected): Next and Previous (Fix ±1), All
@@ -225,7 +228,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 ### Command line and Mac keys (UX-02c; the field itself in UX-02b)
 - **UI-19 [now]** The command line in the attribute bar shows tokens, not a free text field: the
   prompt `›`, the tokens and a blinking cursor (no blinking under Reduce Motion). The message
-  zone below it shows the latest warning, error or notice in amber (IPC-17, 49), cleared by the next command.
+  zone below it shows the latest warning, error or notice in amber (IPC-17, 49), cleared by the next command; a click on it opens the Messages sheet (UI-39).
   While **Keys** is live (status bar toggle, off by default), the Mac keyboard drives the keypad:
   - The digits and `.`.
   - `-` = Thro, `+` = And, `@`, Return = Enter, Esc = Exit, Backspace = Back.
@@ -302,7 +305,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   "per page" read-out of `faders_per_page`. Paging itself comes with VS1-06 in the same task.
 - **UI-22 [now]** `faders_per_page` playback strips, each 92 pt wide:
   - From top to bottom: a legend (PBK-37: halo bar, icon, legend or `page.slot`, lock mark), a
-    level bar with its % in SF Mono and a draggable cap (`fader.set`), then the two handle
+    level bar with its % in SF Mono, moved by dragging as UI-37 says (`fader.set`), then the two handle
     buttons, live while held (PBK-37, VS2-22). They are labelled and act as `handle_buttons`
     assigns (GO, TAP, FLASH, …), the legend shows the cue, step or tempo, the connected list
     has a blue frame and a plain tap on a list's legend connects it (CUE-44; amended
@@ -415,6 +418,38 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     the order the engine stored (the cue view after the change).
   - **UI-34c** The Auto increment button reads **Auto increment: On** or **Auto increment: Off**,
     and every Edit starts with it On (Done and Cancel do not carry it over).
+
+### Show-proof (IDEA-35 batch A; for owner approval (IDEA-35 batch A, P1-25, 2026-11-01))
+- **UI-35** While console mode is on, the app keeps the display awake
+  (`ProcessInfo.beginActivity` with `.idleDisplaySleepDisabled`); leaving console mode ends that. System
+  sleep is the engine's (OUT-38). An operator must not lose the screen in a quiet part of a show.
+- **UI-36** Quitting always asks, in and out of console mode: ⌘Q, the app menu, closing the main window,
+  and a quit from another program or from a logout or shutdown (Cancel cancels that too). Same alert as
+  UI-26: Cancel the default button, the same two texts. Closing the window goes through the quit path in both
+  modes, so Cancel leaves the window open; today, outside console mode, it would close first and leave an
+  app without a window. Force Quit does not ask, and the engine keeps running (REL-14). The manual's
+  *Getting started* already says this; `running.md` says what Force Quit does.
+- **UI-37** A level bar (strip, group master, GM) never jumps. A press changes no level. A drag moves the
+  level by the distance dragged, 1:1 with the bar's height, from the level at the press, clamped to 0–100 %.
+  The press still counts as a touch (UI-22) and still arms Learn (CTL-42). Scroll (UI-22) is unchanged. So a
+  stray click on the Grand Master at a live moment does nothing, as a physical fader does nothing until it
+  is moved. Amends UI-22 and UI-24.
+- **UI-38** Lock, softkey in the Main context (Titan's Avo+Lock, *Useful functions*): a prompt for a code
+  (the keypad's digits; empty allowed), Enter sends `lock.set` (IPC-50). While locked:
+  - a full-window cover hides workspace, softkeys and playback area, with "Locked", the show name, the
+    clock and a keypad for the code. The status bar stays, so output state is readable;
+  - keypad Enter sends the code; a wrong one shows "Wrong code" and stays locked;
+  - quitting does not ask but refuses: "The console is locked. Unlock it to quit." (UI-36's alert after unlock).
+  The lock is an operational control and does not protect the show file (as Titan); the manual says so.
+- **UI-39** Messages sheet. A click on the message zone, or on a count next to it, opens a sheet with
+  the history (IPC-51), newest first: local time `hh:mm:ss`, level, full wrapped selectable text. Close with
+  Done or Escape. The count shows the warnings and errors that arrived since the sheet was last open, in
+  amber, and stays when the next command clears the line. The app adds its own lines to the list, not
+  to the engine's: engine offline, engine connected, the launcher's notes (REL-12, REL-24, REL-25) and `error`
+  replies. `say` hints (UI-19) stay out. An `error` the app keeps is gone after an app restart.
+- **UI-40** Output detail needs no hover: a click on a protocol dot (OUT-36) opens the Output screen
+  (OUT-37, which shows state and detail per node), a click on the Control dot (CTL-43) the Control screen.
+  The hover text stays.
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
