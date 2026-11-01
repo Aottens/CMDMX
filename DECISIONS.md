@@ -5,6 +5,22 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-01 — Group handle actions: a mastered group is not deleted, Move takes masters along (P1-24)
+
+**Decision:** Delete of a group that a group master uses is refused with a warning naming the
+master (PRG-86); Move takes the group masters to the new number (PRG-88); Copy keeps the legend
+(PRG-87). A group's number stays its cell, so Move is the renumber.
+
+**Alternatives considered:** delete the group and leave the master mastering nothing (GRM-02; a
+Scale master below full would let its fixtures jump up); delete the master with the group;
+Titan's unassigned groups in a show library.
+
+**Reasoning:** show-proof: no group action changes the stage; the same reference rules as palettes.
+
+**Reversal trigger:** the owner wants to delete mastered groups in one step often enough to need it.
+
+---
+
 ## 2026-10-31 — macOS CI and release jobs run on `macos-15` (VS8-11)
 
 **Decision:** the `app` CI job and the release DMG job move from `macos-14` (retired by GitHub on

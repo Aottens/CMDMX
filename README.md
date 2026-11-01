@@ -42,7 +42,8 @@ the real church rig through the Eurolite interface: fades comparable with Lightk
 interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 CMDMX v0.2.5 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
-(VS8-03, 04). Next up: install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
+(VS8-03, 04). Next up: Delete, Copy, Move and legends for groups (spec P1-24, found in the first church
+try), then the church Mac (VS4-07) and the first service run (VS4-03). Progress
 is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
 The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); with its run leftovers (FXB-07..10) it shipped in v0.2.4. Selection orders (IDEA-15, spec P2-02) work in engine and app and passed their home run on Art-Net (SEL-07); they shipped in v0.2.5; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
