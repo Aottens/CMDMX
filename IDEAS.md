@@ -768,3 +768,4 @@ the app."
 - Phase 1, batch by batch; each batch gets its own spec with criteria, checked against Titan.
 **What it touches now:** batch A is specified (P1-25, SPF-01..11); the other batches nothing until specified.
 **Outcome (2026-11-01):** owner: all of it in phase 1, worked through in order, A to G.
+**Owner's answer (2026-11-01):** when batch A is done, the version goes straight to 0.3.0, followed by a new gap review.
