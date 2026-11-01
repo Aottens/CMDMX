@@ -236,7 +236,7 @@ steps are IDEA-33 (phases confirmed 2026-10-29).
 | SEL-05 | App: the Order and Pattern softkey contexts, the GRID tag, position numbers on selected cells, Flip and Order in the Effect editor; the manual's *Selecting fixtures* and *Shapes and effects* pages. Needs SEL-04. | UI-33 | M | done (2026-10-30, #185) |
 | SEL-06 | App: Fixture order for a cue in Playback Options ▸ Times, with Auto increment; the manual's cue timing section. Needs SEL-04. | UI-34, PRG-81 | M | done (2026-10-30, #186) |
 | SEL-07 | Home run on Art-Net (`tests/manual/selection-orders.md`, Claude listens): Reverse and Shuffle on a chase, Odd/Even and 1 in 3 with Next, Outside in and Inside out on a fan and a dimmer chase, a group with its grid, a cue whose overlap replays the order, its order edited. Needs SEL-05, SEL-06. | PRG-71..83, UI-33/34 | S | done (2026-10-31, #187) |
-| SEL-08 | App: Fixture order Edit starts from the cue's current steps (taps overwrite them), Done shows the stored order with a short "Saved" note, Auto increment reads On/Off and is on at every Edit. From the SEL-07 run. | UI-34 | S | todo |
+| SEL-08 | App: Fixture order Edit starts from the cue's current steps (taps overwrite them), Done shows the stored order with a short "Saved" note, Auto increment reads On/Off and is on at every Edit. From the SEL-07 run. | UI-34 | S | done (2026-11-01, #PR) |
 | SEL-09 | App: All, Next and Order reachable while Fan is on (Fan context keeps them or gets Back), and Next in the Pattern sub-context. From the SEL-07 run. | UI-33, PRG-76 | S | todo |
 
 ## Later phases
