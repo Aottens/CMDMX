@@ -41,7 +41,8 @@ on the current page.
 ## Grand Master and DBO
 
 The **GM** fader on the far right scales the intensity of everything: every playback, the
-programmer and the group masters. It turns amber below 100 %, so a dim stage is explained.
+programmer and the group masters. It turns amber below 100 %, so a dim stage is explained. Like
+every level bar it only moves when you drag it, so a stray click at a live moment does nothing.
 
 **DBO** (dead black out) under it is a toggle. While it is on, all intensity is 0, the button is
 amber and the status bar shows **DBO**. Colour, position and the rest do not change, so the rig
