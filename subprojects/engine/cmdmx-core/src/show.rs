@@ -21,7 +21,7 @@ use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId, It
 use crate::{CoreError, UniverseId};
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 9;
+pub const SCHEMA_VERSION: u32 = 10;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -96,6 +96,9 @@ pub struct ShowGroup {
     /// PRG-79: the grid the group was recorded with.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grid: Option<Grid>,
+    /// PRG-90: the group's legend; empty = none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub legend: String,
 }
 
 /// PAL-23: above every palette id ever used, so ids are never reused across a save and load.
@@ -273,6 +276,12 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
         }
         migrations
             .push("8 -> 9: groups may store a grid, cues an order, nothing else changes".into());
+    }
+    if version < 10 {
+        if let Some(show) = value.as_object_mut() {
+            show.insert("schema_version".into(), 10.into());
+        }
+        migrations.push("9 -> 10: groups may store a legend, nothing else changes".into());
     }
     migrations
 }

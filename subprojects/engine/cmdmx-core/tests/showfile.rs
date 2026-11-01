@@ -306,12 +306,12 @@ fn shw_03_fixture_show_is_the_church_rig() {
 #[test]
 fn shw_04_newer_schema_is_refused_with_a_clear_message() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["schema_version"] = json!(10);
+    v["schema_version"] = json!(11);
     let err = Show::from_json(&v.to_string()).unwrap_err().to_string();
     assert!(err.contains("Church demo"), "{err}");
     assert!(err.contains("newer"), "{err}");
-    assert!(err.contains("schema 10"), "{err}");
-    assert!(err.contains("up to 9"), "{err}");
+    assert!(err.contains("schema 11"), "{err}");
+    assert!(err.contains("up to 10"), "{err}");
 }
 
 #[test]

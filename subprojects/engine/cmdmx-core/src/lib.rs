@@ -106,6 +106,14 @@ pub enum CoreError {
     WrongValueKind { fixture: u32, attribute: String },
     #[error("unknown group id {0}")]
     UnknownGroup(u32),
+    #[error("Group {0} is empty")]
+    GroupEmpty(u32),
+    #[error("Group {0} is used")]
+    GroupUsed(u32),
+    #[error("Group {0} cannot go onto itself")]
+    GroupOntoItself(u32),
+    #[error("Group {group} is mastered by handle {page}.{slot}: delete the master first")]
+    GroupMastered { group: u32, page: u16, slot: u16 },
     #[error("fixture {fixture} has no attribute '{attribute}'")]
     UnknownAttribute { fixture: u32, attribute: String },
     #[error("Nothing to undo")]
