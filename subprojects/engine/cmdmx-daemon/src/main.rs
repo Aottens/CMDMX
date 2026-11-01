@@ -3104,6 +3104,45 @@ mod tests {
         ),
     ];
 
+    /// IPC-49, PRG-96: through `run`, as the tick does for a tap, a line and a surface (CTL Group).
+    #[test]
+    fn ipc_49_a_group_select_leaves_a_notice_and_undo_none() {
+        let (mut e, mut h) = group_engine();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"group.legend","group":50,"legend":"Pars"}"#,
+        )
+        .unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"programmer.clear"}"#).unwrap();
+        e.drain_notices();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.select_group","group":50}"#,
+        )
+        .unwrap();
+        assert_eq!(e.drain_notices(), ["Group 50 Pars"]);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.command","tokens":["Group","50","Enter"]}"#,
+        )
+        .unwrap();
+        assert_eq!(e.drain_notices(), ["Group 50 Pars"]);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.drain_notices(), Vec::<String>::new());
+        assert_eq!(
+            undo_run(
+                &mut e,
+                &mut h,
+                r#"{"v":1,"cmd":"programmer.select_group","group":77}"#,
+            )
+            .map_err(|err| err.to_string()),
+            Err("Group 77 is empty".to_string())
+        );
+    }
+
     #[test]
     fn prg_91_each_group_action_is_one_labelled_undo_step() {
         for (json, label) in GROUP_ACTIONS {

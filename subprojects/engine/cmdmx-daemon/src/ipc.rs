@@ -4626,6 +4626,14 @@ mod tests {
         assert_eq!(parse(&warning("w"))["type"], "warning");
     }
 
+    #[test]
+    fn ipc_49_a_notice_is_its_own_type() {
+        assert_eq!(
+            parse(&notice("Group 5 Pars outside in")),
+            json!({"v":1,"type":"notice","message":"Group 5 Pars outside in"})
+        );
+    }
+
     /// IPC-42: fixture 1 is the plain dimmer of [`engine`]; fixture 9 has a master Dimmer and
     /// two RGB cells.
     fn cell_engine() -> Engine {
