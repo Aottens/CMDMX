@@ -30,6 +30,12 @@ struct PageRef: Identifiable {
     var id: Int { number }
 }
 
+/// The group whose legend editor is open (PRG-94).
+struct GroupRef: Identifiable {
+    let number: Int
+    var id: Int { number }
+}
+
 /// A used cell tapped while Record is armed (PAL-29): the softkeys ask how to record onto it.
 struct UsedCell: Equatable {
     let window: String
@@ -95,6 +101,11 @@ final class UIState: ObservableObject {
     @Published var deletePlayback: Int?
     @Published var playbackLegendEditing: PlaybackRef?
     @Published var pageLegendEditing: PageRef?
+    /// Copy / Move on groups: the source group's number (PRG-94).
+    @Published var groupSource: Int?
+    /// Delete on groups: the group waiting for the confirmation on softkey A.
+    @Published var deleteGroup: Int?
+    @Published var groupLegendEditing: GroupRef?
     /// The handle last tapped (a playback id): the Playback Options and Edit Times softkeys open it.
     @Published var lastHandle: Int?
     /// The playback shown on the Playback Options screen and its tab (PBK-39).
@@ -147,11 +158,17 @@ final class UIState: ObservableObject {
         usedCue = nil; updateMode = nil; recordMaster = nil; recordMasterGroup = nil
     }
 
+    /// PRG-94: a function the Groups window answers to.
+    var groupFunctionArmed: Bool {
+        function == .delete || function == .copy || function == .move || function == .legend
+    }
+
     /// Disarms Record and every palette function.
     func cancelModes() {
         recordArmed = false
         function = nil; source = nil; deleteTarget = nil
         handleSource = nil; deletePlayback = nil
+        groupSource = nil; deleteGroup = nil
         cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
         paletteMenu = false
         selectionMenu = nil
@@ -263,6 +280,12 @@ private struct Frame: View {
         }
         .sheet(item: $ui.pageLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
             PageLegendEditor(page: ref.number)
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
+        .sheet(item: $ui.groupLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
+            GroupLegendEditor(group: ref.number)
                 .environmentObject(engine).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)

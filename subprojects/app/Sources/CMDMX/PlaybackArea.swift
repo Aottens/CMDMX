@@ -210,6 +210,7 @@ private struct FaderStrip: View {
 /// and the lock mark with the home page when a lock shows the playback away from home.
 private struct StripLegend: View {
     @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
     let info: PlaybackInfo?
     let page: Int
 
@@ -221,7 +222,7 @@ private struct StripLegend: View {
                 // The meta line takes the full width under the icon (VS3-05 run: "BPM 1 · 120 ×1" was cut off).
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(alignment: .top, spacing: 3) {
-                        Text(info.shownLegend).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1)
+                        Text(engine.shownLegend(info)).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         icon(info).frame(width: 26, height: 22)
                     }
