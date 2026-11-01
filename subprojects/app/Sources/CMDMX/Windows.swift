@@ -268,9 +268,8 @@ struct GroupsWindow: View {
             ui.recordArmed = false
         } else if let function = ui.function, ui.groupFunctionArmed {
             perform(function, id, group)
-        } else if let group {
+        } else if group != nil {
             engine.selectGroup(id)
-            engine.say(group.title)
         }
     }
 

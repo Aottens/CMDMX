@@ -25,7 +25,8 @@ Claude reading Art-Net. Every step message shows done/total ("Stap 3/8", the [Ji
 - [ ] [Jij] Set Legend, tap group 5: the editor opens with the text field only (no icon library,
       no number). Type "Pars outside in", Set. The cell reads "Pars outside in".
 - [ ] [Claude] Tap group 5: it selects, the message line reads "Group 5 Pars outside in". Tap group 8:
-      "Group 8".
+      "Group 8". Type `Group 5 Enter`: the same message (PRG-96). `Group 7 Enter` on an empty cell, with
+      fixtures selected: "Group 7 is empty", the selection stays.
 - [ ] [Claude] Set Legend on group 5, empty the field, Set: the cell reads "Group 5" again. Undo (label
       "Legend group 5"): "Pars outside in" is back. Set Legend on an empty cell: "Group 7 is empty".
 - [ ] [Claude] Set Legend armed, tap group 8: the selection does not change. Clear disarms: the

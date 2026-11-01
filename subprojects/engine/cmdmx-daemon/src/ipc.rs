@@ -2606,6 +2606,15 @@ pub fn warning(msg: &str) -> String {
     })
 }
 
+/// PRG-96, IPC-49: an informational line for the message strip; never an OSC message.
+pub fn notice(msg: &str) -> String {
+    to_json(&Text {
+        v: PROTOCOL,
+        kind: "notice",
+        message: msg,
+    })
+}
+
 /// What clients have last been told, to emit deltas only for changes (IPC-05, IPC-12).
 pub struct Published {
     stored: Vec<StoredInfo>,

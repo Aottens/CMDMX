@@ -1272,7 +1272,7 @@ final class EngineClient: ObservableObject {
     private var playbackStored: [Int: PlaybackStored] = [:]
     private var playbackLive: [Int: PlaybackLive] = [:]
     @Published private(set) var grandMaster: Double = 1.0
-    /// Latest `warning` / `error` message from the engine; cleared when a
+    /// Latest `warning` / `error` / `notice` message from the engine; cleared when a
     /// `programmer.command` is sent (IPC-17).
     @Published private(set) var lastMessage: String?
     /// IPC-31: what Undo / Redo would do now; nil when there is nothing.
@@ -2080,6 +2080,8 @@ final class EngineClient: ObservableObject {
             if let level = incoming.level {
                 if gmHeld { gmEngineLevel = level.clamped01; releaseGMIfEchoed() } else { grandMaster = level.clamped01 }
             }
+        case "notice": // PRG-96: informational, not logged
+            lastMessage = incoming.message
         case "warning", "error":
             lastMessage = incoming.message
             print("engine \(incoming.type): \(incoming.message ?? "")")

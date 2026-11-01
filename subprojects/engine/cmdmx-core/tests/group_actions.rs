@@ -449,7 +449,12 @@ fn prg_96_other_lines_leave_no_notice() {
     select(&mut e, &SPOTS);
     e.record_group(6).unwrap();
     e.clear_selection();
-    for text in ["Group 5 And 6 Enter", "Group 5 Thro 6 Enter", "201 Enter", "201 @ 50 Enter"] {
+    for text in [
+        "Group 5 And 6 Enter",
+        "Group 5 Thro 6 Enter",
+        "201 Enter",
+        "201 @ 50 Enter",
+    ] {
         line(&mut e, text).unwrap();
         assert_eq!(e.drain_notices(), Vec::<String>::new(), "{text}");
     }

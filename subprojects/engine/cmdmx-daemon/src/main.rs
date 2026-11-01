@@ -423,6 +423,9 @@ fn main() {
             clients.last_warning.clone_from(&w.message);
             clients.broadcast(&ipc::warning(&w.message));
         }
+        for n in engine.drain_notices() {
+            clients.broadcast(&ipc::notice(&n));
+        }
         // IPC-31: the undo delta goes before the others.
         if let Some(msg) = published.undo_delta(&undo_info(&history)) {
             clients.broadcast(&msg);
