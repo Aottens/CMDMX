@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; PRG-85..95 (group handle actions, P1-24) proposed 2026-11-01, awaiting owner approval.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -527,6 +527,67 @@ in selection order.
   never per tick (ENG-13, FX-13); no selection length, grid or order makes the engine panic (0, 1
   or more items than positions included), and refused actions change nothing (PRG-36).
 
+### Group handle actions: Delete, Copy, Move, Set Legend (P1-24; proposed 2026-11-01, awaiting owner approval)
+Titan reference: *Fixture Groups* (the group button's softkeys edit and delete groups; a group
+still in use is not lost but becomes unassigned, with a warning; a legend is set when recording)
+and *Playback controls → Fixture Group Masters*. The handle actions follow palettes (PAL-17, 18,
+20, 29) and playbacks (PBK-14, 38). A group is its number (the cell in the Groups window,
+UI-12), its items in order (PRG-07, 49), its grid (PRG-79) and, new here, a legend. The only
+things that refer to a group by number are group masters (GRM-02); cues and palettes store
+items, never groups, so no group action changes a cue, a palette or a cue's `order` (PRG-80).
+The selection and the programmer hold items too and are not changed either.
+
+- **PRG-85** Delete removes a group: its items, grid and legend; the cell is empty again and a
+  later Record there starts from nothing. Deleting an empty cell is refused with a warning
+  ("Group 7 is empty"). Group 5 "Pars outside in" (201–208, wings 2), selection `[201, 202]` →
+  delete group 5 → the cell is empty, the selection is still `[201, 202]`, every cue still holds
+  201–208 with its order; `Group 5 Enter` is refused as for any empty group.
+- **PRG-86** A group that a group master uses is not deleted: Delete is refused with a warning
+  that names the master ("Group 6 is mastered by handle 1.8: delete the master first"), so
+  nothing on stage changes (Titan keeps a group in use instead of losing it; owner question 1).
+- **PRG-87** Copy to an empty cell makes a new group there with the same items in the same order,
+  the same grid and the same legend; group masters keep pointing at the original. Copy group 5
+  to 9 → group 9 is 201–208, wings 2, legend "Pars outside in"; group 5 is unchanged.
+- **PRG-88** Move to an empty cell gives the group the new number with its items, grid and
+  legend, and every group master of the group follows it (its `group` becomes the new number),
+  so a running group master keeps mastering the same fixtures without a change on stage. Group
+  6 on master 1.8 → move group 6 to 12 → cell 6 is empty, 1.8 masters group 12, the front spots
+  stay where they are.
+- **PRG-89** Copy or Move onto a used cell, onto the group itself, or from an empty cell is
+  refused with a warning and changes nothing (PRG-36). There is no Renumber: a group's number
+  is its cell, so Move is the renumber.
+- **PRG-90** Legend: `legend` is 0–32 characters (longer is refused); an empty legend shows
+  "Group n" (UI-12). The Groups window, the group master's strip (GRM-16) and the command line
+  message ("Group 5 Pars outside in") show it. Re-recording a group (PRG-07) keeps its legend;
+  Delete clears it. Icons on groups are not in phase 1 (Out of scope).
+- **PRG-91** Undo (`undo.md`): each accepted action is one edit step (UNDO-01, 04) labelled
+  "Delete group 5", "Copy group 5", "Move group 5", "Legend group 5". Undo of a Delete brings
+  back items, grid and legend; undo of a Move brings the group and its group masters back to
+  the old number. A refused action adds no step.
+- **PRG-92** Show schema 10 (SHW-04): a group gains the optional `legend` (absent when empty).
+  Schema 9 shows load unchanged; a show without legends saves byte-identical apart from the
+  version number. The snapshot and the `groups` delta (IPC-10) carry each group's `legend`
+  (absent when empty) next to `fixtures` and `grid`.
+- **PRG-93** IPC (extends `ipc.md`, all class edit, UNDO-04): `group.delete {"group":5}` ·
+  `group.copy {"group":5,"to":9}` · `group.move {"group":6,"to":12}` ·
+  `group.legend {"group":5,"legend":"Pars outside in"}` (`""` clears it). `to` takes any number
+  `group.record` takes. Missing or ill-typed fields → `error` to the sender; a refused action →
+  the warning of PRG-85..90.
+- **PRG-94** App (amends `ui.md` UI-12, UI-16 when approved): the function buttons work on the
+  Groups window as PAL-29 does on palette windows. **Delete** + tap a group, confirmed on
+  softkey A (two-step, PAT-10; the softkey names the group, "Delete group 5 Pars outside in").
+  **Copy** / **Move**: tap the source group, then an empty cell. **Set Legend** + tap a group
+  opens the legend editor of PAL-29 with the text field only (no icon library). While one of
+  these is armed a tap on a group does not select it; Clear disarms, as for Record (UI-16). A
+  refusal shows its warning on the message line. The Groups window shows the legend in the
+  cell (UI-12's "Group n" for an empty legend).
+- **PRG-95** `tests/manual/app-groups.md` walks: record three groups, Set Legend on one and
+  clear it again, Copy and Move (to an empty cell, onto a used cell refused), Move a group with a
+  group master while its fader is down (the stage does not change), Delete with Cancel and with
+  softkey A, Delete of a mastered group refused, Undo after each action, and a daemon restart
+  with groups and legends back from the show. The manual's *Groups* section describes the four
+  actions (WEB-33).
+
 ## Scenario test format
 Scenario files (`tests/scenarios/PRG-nn-*.json`, format of `engine-merge.md`) gain a `prg` action
 and a `programmer` expectation:
@@ -557,8 +618,9 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 - Channel mode of the colour picker (one slider per raw emitter) beyond W/Lime: ADR-005 decides.
 - Shapes and effects (phase 2). Multiple programmers (multi-user, remotes): one programmer.
 - Undo: one engine-wide undo for programmer and show edits, its own item (BACKLOG P1-10, `undo.md`).
-- Handle actions on groups other than Record (Set Legend, Copy, Move, Delete): shared with
-  palettes and playbacks, specified with them.
+- Groups beyond PRG-85..95: icons on groups, Titan's unassigned groups in a show library
+  (CMDMX refuses the Delete instead, PRG-86), a keypad syntax for group actions
+  (`Group 5 Delete`), and the Groups window growing past 24 cells.
 - Wheel acceleration, encoder banks and their mapping: `control-surfaces.md`.
 
 ## Owner decisions (2026-10-17)
@@ -599,3 +661,11 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 3. A group stores its grid next to its order and restores it when it starts a selection (PRG-79).
 4. Cues store each item's position, so overlap replays the recorded order (Titan); older cues keep
    user-number order (PRG-80); a fixture-order editor follows in its own slice (PRG-81, UI-34).
+
+## Owner questions (P1-24, open)
+1. A group that a group master uses: refuse the Delete (PRG-86, recommended: nothing on stage can
+   change), or delete it and leave the master mastering nothing (GRM-02; a Scale master at 50 %
+   would let its fixtures jump up), or delete the master with it.
+2. Move takes the group masters along (PRG-88, recommended, as palette Move keeps references), or
+   they stay on the old, now empty, number.
+3. Copy takes the legend along (PRG-87, recommended, as palette Copy), or the copy starts without one.
