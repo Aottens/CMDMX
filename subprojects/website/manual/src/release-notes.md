@@ -1,5 +1,23 @@
 # Release notes
 
+## 0.2.5
+
+Published 1 November 2026 as "CMDMX 0.2.5".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.2.5)
+
+Selection orders: the order of your selection now steers fans, effects and timing (see
+[Selecting fixtures](programming.md)).
+
+- **Order** reverses, shuffles or sorts the selection, or reverts it to the order you picked. A
+  dimmer chase on a shuffled selection is a random chase.
+- **Pattern** lays Odd/Even, 1 in *n*, *n* in *m*, Blocks, Divide, Outside in or Inside out over
+  the selection; Next steps through it, an amber `GRID` tag shows where you are. Fan, new effects
+  and palette overlap follow the pattern: Outside in with a Fan Line mirrors around the middle.
+- A group remembers its order and pattern; a cue remembers its order, so an overlap replays who
+  starts first. Playback Options ▸ Times ▸ **Fixture order** edits it by tapping the fixtures.
+- The Effect editor has **Flip** and Reverse, Shuffle and Sort for a running effect.
+- While Fan is on, Next, All, Order and Pattern stay on the softkeys.
+
 ## 0.2.4
 
 Published 29 October 2026 as "CMDMX 0.2.4".
