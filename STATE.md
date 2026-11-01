@@ -18,7 +18,7 @@ Feature work now: selection orders (IDEA-15, broadened by the owner 2026-10-29):
 lines in `tests/manual/selection-orders.md`. Released in v0.2.5.
 
 Feature work next: the everyday gaps (IDEA-35, `docs/research/everyday-gaps.md`), all in phase 1 and in
-order, batch A to G (owner, 2026-11-01); batch A's spec comes first.
+order, batch A to G (owner, 2026-11-01); batch A is specified (P1-25), SPF-04 builds first.
 
 Parallel track: phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
