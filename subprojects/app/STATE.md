@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-01 (GRP-03)_
+_Last updated: 2026-11-01 (GRP-05)_
 
 ## Current step
+GRP-05 (2026-11-01, PBK-37): `StripLegend` draws the 26 pt icon slot only with a picked or automatic icon, so a group master's legend gets the full width ("Front spots" fits).
 GRP-03 (2026-11-01, PRG-90, 94, UI-12, UI-16): `GroupInfo.legend` (optional), `shownLegend`, `title`; `deleteGroup`/`copyGroup`/`moveGroup`/`setGroupLegend`; `EngineClient.shownLegend(_:)` gives a group master's strip and Active playbacks the group's legend. `GroupsWindow.perform` handles Delete, Copy, Move and Set Legend with `UIState.groupSource`, `deleteGroup` and `groupLegendEditing`; Copy and Move send without a client check, so the refusals are the engine's. A group tap says `title` on the message line; typed `Group n` shows no message yet (GRP-04).
 SEL-09 (2026-11-01, UI-33a/b): with a selection the Fan context adds Next, All, Order and Pattern after Fan off (shared `nextKey`/`allKey`/`orderKey`/`patternKey` with the Selection context); the Order/Pattern sub-contexts win over Fan, so their Back returns to Fan. Pattern gets Next before Back; with more than nine keys the softkeys' min height is 40 pt so ten fit at the 800 pt minimum. Checked with `swift build`; the owner ticks the SEL-09 line in `tests/manual/selection-orders.md`.
 SEL-08 (2026-11-01, UI-34a..c): `FixtureOrder` Edit starts `draft` from the cue view's `order` (taps overwrite, first tap step 1), Done sends the whole draft only after a tap and shows **Saved** for about 2 s; the button reads **Auto increment: On/Off** and every Edit resets it to On. Checked with `swift build`; the owner ticks the SEL-08 line in `tests/manual/selection-orders.md`.

@@ -256,7 +256,8 @@ playback unless it says "per cue".
 ### App (UI v0.1; amends `ui.md` UI-13, 16, 18, 21, 22, 24 when approved)
 - **PBK-37** Strips (UI-22): the legend area shows the halo as a 3 pt top bar, the legend (else
   `page.slot`) on the left and the icon (picked or automatic, 26 pt) on the right (owner, VS2-22
-  run), and a lock mark for `Locked`/`TransparentLock`
+  run; a strip with neither gives the legend the full width, as a group master without a picked
+  icon, GRP-05), and a lock mark for `Locked`/`TransparentLock`
   with the home page when it is not the current one. Swop and Flash are live: press and hold
   sends `on: true`, release `on: false`; a latched Flash is shown inverted. Running = green
   bottom strip, releasing = amber bottom strip (UI-03).
