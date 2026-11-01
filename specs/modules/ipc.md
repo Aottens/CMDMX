@@ -145,7 +145,7 @@ The app (and later remotes, IDEA-06) sees engine state and sends commands over o
   (pattern 2), All and Clear (Clear red while the selection or programmer is non-empty).
 - **IPC-17** A command line in the attribute bar: one text field; Return sends its words plus
   `"Enter"` as `programmer.command` and empties the field. Next to it a message line shows the
-  latest `warning` or `error` until the next command is sent. While the field has focus, keys
+  latest `warning`, `error` or `notice` (IPC-49) until the next command is sent. While the field has focus, keys
   never trigger anything else.
 - **IPC-19** On the C tab the attribute bar shows three buttons HSI, RGB and CMY (and Kelvin, UI-31), the one in
   `colour_model` highlighted; a click sends `programmer.colour_model`. The Hue wheel shows its
@@ -345,3 +345,9 @@ FX-32 (`effect_catalogue` in the snapshot), FX-33 (programmer `effects`, `effect
   action catalogue (CTL-05) gains `order <reverse|shuffle|sort|revert>` and `grid <odd_even|one_in <n>|
   n_in <n> <m>|blocks <n>|divide <n>|outside_in|inside_out|off>` (buttons, feedback lit while that grid is on),
   as CTL-59 did for Fan. New keys and messages only: `v` stays 1 (IPC-41).
+- **IPC-49** A notice (GRP-04, PRG-96; amends IPC-17, UI-19; approved by owner 2026-11-01): `{"v":1,"type":"notice","message":"Group 5
+  Pars outside in"}` to every client, like a `warning` (IPC-06), because the selection it names is
+  shared. The app puts it on the same message line as a `warning` (same colour, cleared by the next
+  command) and has no text of its own for a group select any more, so a tap, a typed line and a
+  control surface read the same. A notice is no command acknowledgement: only PRG-96 sends one so
+  far. A new message type an older app ignores: `v` stays 1 (IPC-41).

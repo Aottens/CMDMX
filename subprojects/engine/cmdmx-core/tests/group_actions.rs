@@ -7,6 +7,7 @@
 //! - `Engine::group_legend(id) -> Option<&str>`: `None` when the legend is empty or there is no
 //!   group.
 //! - `ShowGroup` key `legend`, absent when empty; `SCHEMA_VERSION` 10 with the step "9 -> 10".
+//! - GRP-04, PRG-96: `Engine::drain_notices() -> Vec<String>`, as `drain_warnings`.
 
 #![allow(
     clippy::panic,
@@ -23,6 +24,7 @@ use cmdmx_core::playback::{GroupMaster, Master, PlaybackRecord};
 use cmdmx_core::programmer::{GridShortcut, Item};
 use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
 use cmdmx_core::undo::History;
+use cmdmx_core::CoreError;
 use common::{church, dmx, select};
 
 const PARS: [FixtureId; 8] = [201, 202, 203, 204, 205, 206, 207, 208];
@@ -402,4 +404,109 @@ fn prg_92_a_legend_too_long_in_the_file_is_left_out_with_a_warning() {
         warnings.iter().any(|w| w.starts_with("group 5: legend")),
         "{warnings:?}"
     );
+}
+
+fn line(e: &mut Engine, text: &str) -> Result<(), CoreError> {
+    e.execute_command(&text.split_whitespace().collect::<Vec<_>>())
+}
+
+fn selected(e: &Engine) -> Vec<FixtureId> {
+    e.programmer().selection().to_vec()
+}
+
+#[test]
+fn prg_96_select_group_leaves_a_notice_with_the_legend() {
+    let mut e = church();
+    group_5(&mut e);
+    select(&mut e, &SPOTS);
+    e.record_group(8).unwrap();
+    e.clear_selection();
+    e.drain_notices();
+
+    e.select_group(5).unwrap();
+    assert_eq!(e.drain_notices(), ["Group 5 Pars outside in"]);
+    assert_eq!(e.drain_notices(), Vec::<String>::new(), "drained");
+    e.select_group(8).unwrap();
+    assert_eq!(e.drain_notices(), ["Group 8"], "no legend");
+    e.select_group(5).unwrap(); // PRG-02: toggles the group off
+    assert_eq!(e.drain_notices(), ["Group 5 Pars outside in"]);
+}
+
+#[test]
+fn prg_96_a_line_naming_one_group_leaves_a_notice() {
+    let mut e = church();
+    group_5(&mut e);
+    for text in ["Group 5 Enter", "Group 5 @ 50 Enter", "Group 5 Locate"] {
+        line(&mut e, text).unwrap();
+        assert_eq!(e.drain_notices(), ["Group 5 Pars outside in"], "{text}");
+    }
+}
+
+#[test]
+fn prg_96_other_lines_leave_no_notice() {
+    let mut e = church();
+    group_5(&mut e);
+    select(&mut e, &SPOTS);
+    e.record_group(6).unwrap();
+    e.clear_selection();
+    for text in [
+        "Group 5 And 6 Enter",
+        "Group 5 Thro 6 Enter",
+        "201 Enter",
+        "201 @ 50 Enter",
+    ] {
+        line(&mut e, text).unwrap();
+        assert_eq!(e.drain_notices(), Vec::<String>::new(), "{text}");
+    }
+}
+
+#[test]
+fn prg_96_a_refused_line_leaves_no_notice() {
+    let mut e = church();
+    group_5(&mut e);
+    assert!(line(&mut e, "Group 5 Palette 99 Enter").is_err());
+    assert_eq!(e.drain_notices(), Vec::<String>::new());
+}
+
+#[test]
+fn prg_96_an_empty_group_is_refused_by_name_with_fixtures_selected() {
+    let mut e = church();
+    select(&mut e, &[201, 202]);
+    for text in ["Group 7 Enter", "Group 7 @ 50 Enter", "Group 7 Locate"] {
+        assert_eq!(line(&mut e, text), Err(CoreError::GroupEmpty(7)), "{text}");
+    }
+    assert_eq!(e.select_group(7), Err(CoreError::GroupEmpty(7)));
+    assert_eq!(CoreError::GroupEmpty(7).to_string(), "Group 7 is empty");
+    assert_eq!(selected(&e), [201, 202], "nothing changes");
+    assert_eq!(e.drain_notices(), Vec::<String>::new());
+}
+
+#[test]
+fn prg_96_a_deleted_group_is_refused_as_empty() {
+    let mut e = church();
+    group_5(&mut e);
+    e.delete_group(5).unwrap();
+    assert_eq!(line(&mut e, "Group 5 Enter"), Err(CoreError::GroupEmpty(5)));
+}
+
+#[test]
+fn prg_96_a_group_without_patched_members_is_empty() {
+    let mut e = church();
+    select(&mut e, &[201]);
+    e.record_group(7).unwrap();
+    e.clear_selection();
+    e.patch_remove(&[201]).unwrap();
+    select(&mut e, &[202]);
+    assert_eq!(line(&mut e, "Group 7 Enter"), Err(CoreError::GroupEmpty(7)));
+    assert_eq!(e.select_group(7), Err(CoreError::GroupEmpty(7)));
+    assert_eq!(selected(&e), [202]);
+}
+
+#[test]
+fn prg_96_other_empty_lines_keep_nothing_is_selected() {
+    let mut e = church();
+    select(&mut e, &[201]);
+    for text in ["999 Enter", "Group 7 And 8 Enter"] {
+        assert_eq!(line(&mut e, text), Err(CoreError::EmptySelection), "{text}");
+    }
 }

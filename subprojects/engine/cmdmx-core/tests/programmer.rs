@@ -111,9 +111,9 @@ fn prg_02_typed_group_always_selects() {
 }
 
 #[test]
-fn prg_02_unknown_group_is_refused() {
+fn prg_02_prg_96_unknown_group_is_refused_as_empty() {
     let mut e = church();
-    assert_eq!(e.select_group(42), Err(CoreError::UnknownGroup(42)));
+    assert_eq!(e.select_group(42), Err(CoreError::GroupEmpty(42)));
     assert!(selection(&e).is_empty());
 }
 

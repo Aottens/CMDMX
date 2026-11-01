@@ -262,6 +262,7 @@ pub struct Engine {
     shuffle_seq: u64,
     frames: BTreeMap<UniverseId, Frame>,
     warnings: Vec<Warning>,
+    notices: Vec<String>,
     last_tick: Option<Timestamp>,
     programmer: Programmer,
     /// PRG-49: a group holds items, whole fixtures and cells.
@@ -544,6 +545,7 @@ impl Engine {
             shuffle_seq: 1,
             frames: BTreeMap::new(),
             warnings: Vec::new(),
+            notices: Vec::new(),
             last_tick: None,
             programmer: Programmer::default(),
             groups: BTreeMap::new(),
@@ -3744,13 +3746,26 @@ impl Engine {
     /// PRG-02/03: append a group's fixtures, keeping the ones already selected in place;
     /// a fully selected group is removed instead (IDEA-11). Typed `Group n` replaces, see PRG-08.
     pub fn select_group(&mut self, id: GroupId) -> Result<(), CoreError> {
-        let members = self.group_members(id).ok_or(CoreError::UnknownGroup(id))?;
+        let members = self
+            .group_members(id)
+            .filter(|m| !m.is_empty())
+            .ok_or(CoreError::GroupEmpty(id))?;
         self.fan = None; // PRG-56
         self.programmer
             .add_group(&members, self.group_grids.get(&id).copied());
         self.follow_active_group();
         self.select_entry_of_selection();
+        self.group_notice(id);
         Ok(())
+    }
+
+    /// PRG-96: tell the clients which group was selected, with its legend.
+    fn group_notice(&mut self, id: GroupId) {
+        let text = match self.group_legend(id) {
+            Some(l) => format!("Group {id} {l}"),
+            None => format!("Group {id}"),
+        };
+        self.notices.push(text);
     }
 
     /// PRG-08: a typed selection.
@@ -5520,6 +5535,19 @@ impl Engine {
     /// so a refused line changes nothing.
     pub fn execute_command(&mut self, tokens: &[&str]) -> Result<(), CoreError> {
         let cmd = command::parse(tokens)?;
+        let group = single_group(&cmd);
+        self.run_command(cmd, group)?;
+        if let Some(id) = group {
+            self.group_notice(id); // PRG-96: only when the whole line went through
+        }
+        Ok(())
+    }
+
+    fn run_command(
+        &mut self,
+        cmd: command::Command,
+        group: Option<GroupId>,
+    ) -> Result<(), CoreError> {
         let typed = if cmd.selection.is_empty() {
             None
         } else {
@@ -5544,19 +5572,13 @@ impl Engine {
                 }
             }
             if list.is_empty() {
-                return Err(CoreError::EmptySelection);
+                // PRG-96: a line naming one group says so when that group has no fixtures.
+                return Err(group.map_or(CoreError::EmptySelection, CoreError::GroupEmpty));
             }
             Some(list)
         };
         // PRG-79: `Group n` alone brings the group's grid back.
-        let typed_grid = match cmd.selection.as_slice() {
-            [(false, i)]
-                if i.kind == command::Kind::Group && i.from == i.to && i.cells.is_none() =>
-            {
-                self.group_grids.get(&i.from).copied()
-            }
-            _ => None,
-        };
+        let typed_grid = group.and_then(|g| self.group_grids.get(&g).copied());
         if let Some(number) = cmd.palette {
             // PAL-10: plan against the typed selection first, so a refusal changes nothing.
             let (time, overlap) = self.palette_timing(Timing::default())?;
@@ -6696,6 +6718,11 @@ impl Engine {
         &self.settings
     }
 
+    /// PRG-96: take the group notices (for the IPC layer; not warnings, not in the edit state).
+    pub fn drain_notices(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.notices)
+    }
+
     /// Take accumulated warnings (for the IPC layer to forward to the UI).
     pub fn drain_warnings(&mut self) -> Vec<Warning> {
         std::mem::take(&mut self.warnings)
@@ -7593,6 +7620,16 @@ fn splitmix64(state: &mut u64) -> u64 {
     z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
     z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
     z ^ (z >> 31)
+}
+
+/// PRG-79, 96: the group a line names when it names exactly one, whole.
+fn single_group(cmd: &command::Command) -> Option<GroupId> {
+    match cmd.selection.as_slice() {
+        [(false, i)] if i.kind == command::Kind::Group && i.from == i.to && i.cells.is_none() => {
+            Some(i.from)
+        }
+        _ => None,
+    }
 }
 
 #[cfg(test)]

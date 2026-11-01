@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; **PRG-85..95 (group handle actions, P1-24) approved by owner 2026-11-01**.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; **PRG-85..95 (group handle actions, P1-24) approved by owner 2026-11-01**; **PRG-96 (GRP-04) approved by owner 2026-11-01**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -587,6 +587,16 @@ The selection and the programmer hold items too and are not changed either.
   softkey A, Delete of a mastered group refused, Undo after each action, and a daemon restart
   with groups and legends back from the show. The manual's *Groups* section describes the four
   actions (WEB-33).
+- **PRG-96** Selecting a group names it, wherever the select comes from (GRP-04; makes PRG-90's
+  command line message and PRG-85's refusal exact). `select_group` (a tap, a control surface) and a
+  command line whose selection is `Group n` alone (the test of PRG-79, so also with `@`, `Palette`,
+  `Lee` or `Locate`) leave a notice: "Group 5 Pars outside in", "Group 5" without a legend, also when
+  the select toggles the group off (PRG-02). `Group 5 And 6` and `Group 5 Thro 6` name no one group and
+  leave none. A cell without a group, or a group none of whose members is patched any more, is refused
+  in both ways with "Group 7 is empty" and changes nothing (PRG-36), with fixtures selected or not;
+  `select_group` no longer says "unknown group id 7". Other empty lines (`999 Enter`,
+  `Group 7 And 8 Enter`) keep "nothing is selected". A notice is no warning: it is not a `Warning`
+  (PRG-36) and does not reach OSC `/cmdmx/message` (CTL-37). IPC: IPC-49.
 
 ## Scenario test format
 Scenario files (`tests/scenarios/PRG-nn-*.json`, format of `engine-merge.md`) gain a `prg` action

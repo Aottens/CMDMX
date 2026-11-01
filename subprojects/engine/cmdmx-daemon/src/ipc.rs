@@ -2606,6 +2606,15 @@ pub fn warning(msg: &str) -> String {
     })
 }
 
+/// PRG-96, IPC-49: an informational line for the message strip; never an OSC message.
+pub fn notice(msg: &str) -> String {
+    to_json(&Text {
+        v: PROTOCOL,
+        kind: "notice",
+        message: msg,
+    })
+}
+
 /// What clients have last been told, to emit deltas only for changes (IPC-05, IPC-12).
 pub struct Published {
     stored: Vec<StoredInfo>,
@@ -4624,6 +4633,14 @@ mod tests {
         let v = parse(&error("boom"));
         assert_eq!(v, json!({"v":1,"type":"error","message":"boom"}));
         assert_eq!(parse(&warning("w"))["type"], "warning");
+    }
+
+    #[test]
+    fn ipc_49_a_notice_is_its_own_type() {
+        assert_eq!(
+            parse(&notice("Group 5 Pars outside in")),
+            json!({"v":1,"type":"notice","message":"Group 5 Pars outside in"})
+        );
     }
 
     /// IPC-42: fixture 1 is the plain dimmer of [`engine`]; fixture 9 has a master Dimmer and

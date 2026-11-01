@@ -221,8 +221,9 @@ A group is a saved selection, with its order. The Groups window shows each group
 - **Record a group:** select fixtures in the order you want, press **Record**, then tap a group
   cell. An empty cell gets a new group; a used one is replaced and keeps its legend. With nothing
   selected the record is refused.
-- **Use a group:** tap it, or type `Group 3 Enter`. A tap shows the group on the message line
-  ("Group 5 Pars outside in").
+- **Use a group:** tap it, type `Group 3 Enter` or press its button on a control surface. Each shows
+  the group on the message line ("Group 5 Pars outside in"); an empty group says "Group 7 is empty"
+  and the selection stays.
 - **Set Legend:** press **Set Legend**, tap a group, type up to 32 characters and press Set. An
   empty field clears the legend. A group master's strip shows the legend too.
 - **Copy:** press **Copy**, tap the group, then tap an empty cell. The copy has the same fixtures,

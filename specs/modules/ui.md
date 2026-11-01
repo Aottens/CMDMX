@@ -225,7 +225,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 ### Command line and Mac keys (UX-02c; the field itself in UX-02b)
 - **UI-19 [now]** The command line in the attribute bar shows tokens, not a free text field: the
   prompt `›`, the tokens and a blinking cursor (no blinking under Reduce Motion). The message
-  zone below it shows the latest warning or error in amber (IPC-17), cleared by the next command.
+  zone below it shows the latest warning, error or notice in amber (IPC-17, 49), cleared by the next command.
   While **Keys** is live (status bar toggle, off by default), the Mac keyboard drives the keypad:
   - The digits and `.`.
   - `-` = Thro, `+` = And, `@`, Return = Enter, Esc = Exit, Backspace = Back.
