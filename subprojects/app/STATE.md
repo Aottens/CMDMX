@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-01 (GRP-04)_
+_Last updated: 2026-11-01 (SPF-04)_
 
 ## Current step
+SPF-04 (2026-11-01, UI-36, REL-13): `applicationShouldTerminate` always shows the quit alert and `ConsoleWindowDelegate.windowShouldClose` always goes through `NSApp.terminate` and returns false, so Cancel keeps the window in both modes. Checked with `swift build`; run `tests/manual/runs/2026-11-01-SPF-04.md`.
 GRP-04 (2026-11-01, IPC-49): `notice` lands in `lastMessage`; `GroupsWindow.tap` no longer says the group title itself, the engine does.
 GRP-05 (2026-11-01, PBK-37): `StripLegend` draws the 26 pt icon slot only with a picked or automatic icon, so a group master's legend gets the full width ("Front spots" fits).
 GRP-03 (2026-11-01, PRG-90, 94, UI-12, UI-16): `GroupInfo.legend` (optional), `shownLegend`, `title`; `deleteGroup`/`copyGroup`/`moveGroup`/`setGroupLegend`; `EngineClient.shownLegend(_:)` gives a group master's strip and Active playbacks the group's legend. `GroupsWindow.perform` handles Delete, Copy, Move and Set Legend with `UIState.groupSource`, `deleteGroup` and `groupLegendEditing`; Copy and Move send without a client check, so the refusals are the engine's. A group tap says `title` on the message line; typed `Group n` shows no message yet (GRP-04).

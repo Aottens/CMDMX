@@ -155,7 +155,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 - Installs from a versioned DMG that GitHub builds from a `v*` tag (universal; signed with a
   Developer ID and notarised by Apple once the signing secrets are set, ad hoc before that):
   the app starts its own engine and stops it on quit, so Lightkey can take the USB interface;
-  quitting writes the last changes to the show first.
+  quitting asks first in every mode, from ⌘Q, the menu or the close button, and writes the last
+  changes to the show.
 - A website ([`subprojects/website/`](subprojects/website/)) offers the latest DMG with its
   SHA-256 and the install steps; GitHub Pages rebuilds it after every release.
 - A user manual on the website (`manual/`, mdBook with search and a print page): introduction,

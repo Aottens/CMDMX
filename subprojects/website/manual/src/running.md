@@ -112,8 +112,7 @@ and **Shift+Space** is Back on the connected list. While it is off, Space does n
 key never runs a cue. Space never acts while you are typing in a text field. Command-1 to
 Command-4 switch workspaces whether Keys is on or not.
 
-**Console** in the status bar puts the app full screen with the Dock and menu bar hidden, and
-asks before quitting.
+**Console** in the status bar puts the app full screen with the Dock and menu bar hidden.
 
 ## Undo
 
@@ -131,6 +130,9 @@ CMDMX is built to keep the light on.
 
 - **The app crashes or hangs:** the engine keeps running and keeps sending DMX. Open the app
   again and it reconnects.
+- **Quitting by accident:** quitting always asks first, with Cancel as the default button, whether
+  Console is on or not: Command-Q, the app menu, the window's close button, even a logout. Force Quit
+  does not ask, and it does not stop the engine: DMX keeps flowing. Open the app again and it reconnects.
 - **An output fails** (a network error, the USB interface unplugged): the engine keeps the last
   good frame, keeps running and warns once. The output row on the **Output** screen and its dot
   in the status bar show the state. A USB interface that comes back is picked up again within a
