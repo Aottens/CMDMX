@@ -797,7 +797,7 @@ fn fx_28_a_malformed_entry_is_refused_at_load_and_the_rest_loads() {
 
 #[test]
 fn fx_29_schema_8_and_a_show_without_effects_has_no_effects_key() {
-    assert_eq!(SCHEMA_VERSION, 9);
+    assert_eq!(SCHEMA_VERSION, 10);
     let mut e = rig();
     select(&mut e, &[201]);
     e.set_programmer_value(201, "Dimmer", 0.7).unwrap();
@@ -805,12 +805,12 @@ fn fx_29_schema_8_and_a_show_without_effects_has_no_effects_key() {
     e.record_palette(&Record::at(Cell::new(Window::Beams, 1)))
         .unwrap();
     let json = e.to_show(meta()).to_json();
-    assert!(json.contains("\"schema_version\": 9"));
+    assert!(json.contains("\"schema_version\": 10"));
     assert!(!json.contains("\"effects\""), "{json}");
     assert!(!json.contains("\"palette\": null"));
 
     // The same show as schema 7 loads unchanged and saves byte-identical apart from the version.
-    let seven = json.replace("\"schema_version\": 9", "\"schema_version\": 7");
+    let seven = json.replace("\"schema_version\": 10", "\"schema_version\": 7");
     let (show, migrations) = Show::from_json(&seven).unwrap();
     assert!(
         migrations.iter().any(|m| m.starts_with("7 -> 8")),
