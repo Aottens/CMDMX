@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-01 (SEL-09: Fan and Pattern keep the selection keys)_
+_Last updated: 2026-11-01 (v0.2.5 released: selection orders)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -15,7 +15,7 @@ control layer, cue lists, group masters, an own TouchOSC layout (VS4-04, run on 
 Feature work now: selection orders (IDEA-15, broadened by the owner 2026-10-29): spec P2-02
 (`programmer.md` PRG-71..84, research `docs/research/selection-orders.md`) approved by the owner
 2026-10-29; SEL-01..09 done, the home run on Art-Net passed (2026-10-31); the owner ticks the SEL-08 and SEL-09
-lines in `tests/manual/selection-orders.md`. Claude tags v0.2.5 after the SEL-09 merge.
+lines in `tests/manual/selection-orders.md`. Released in v0.2.5.
 
 Parallel track: phase 3, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
@@ -23,8 +23,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 
 ## Next
 0. Selection orders (phase 2): done and run on Art-Net (SEL-07, `tests/manual/runs/2026-10-31-SEL-07.md`);
-   SEL-08 and SEL-09 done; next tag v0.2.5.
-1. VS8-01 and VS4-07: install `CMDMX-0.2.4.dmg` (the latest release) on the owner's Mac (About, shows came over from
+   SEL-08 and SEL-09 done; released as v0.2.5 (2026-11-01).
+1. VS8-01 and VS4-07: install `CMDMX-0.2.5.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
 2. At home on Art-Net: program the service in *Kerk* as `tests/hardware/church.md` asks (steady
