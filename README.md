@@ -59,6 +59,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
   restart. `--no-artnet`, `--no-sacn` and `--no-serial` silence a protocol for one run.
 - While the engine runs the Mac does not go to idle sleep, with or without the app; if macOS
   refuses that, it is one warning and output carries on.
+- After a stall (the Mac froze for a moment) output carries on at its normal rate, without a burst
+  of the missed frames; a running fade is where it should be.
 - If the app hangs or is killed, output runs on without a dropped frame; the restarted app shows
   the live faders, cue and programmer.
 
