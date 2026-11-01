@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-01 (v0.2.6 released: group actions)_
+_Last updated: 2026-11-01 (TRK-01: README status check)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
