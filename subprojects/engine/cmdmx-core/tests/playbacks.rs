@@ -45,7 +45,8 @@ use cmdmx_core::engine::{Engine, PlaybackSettingsChange, Settings};
 use cmdmx_core::palette::{AutoIcon, Cell, Record, RecordBy, RecordMode, Timing, Window};
 use cmdmx_core::patch::Fixture;
 use cmdmx_core::playback::{
-    Cue, FaderMode, KillPoint, Paging, Playback, PlaybackChange, PlaybackRecord, Priority, Values,
+    AddCue, Cue, FaderMode, KillPoint, Kind, Paging, Playback, PlaybackChange, PlaybackRecord,
+    Priority, Values,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::Item;
@@ -1272,4 +1273,61 @@ fn cue_new_has_zero_times_and_full_overlap() {
     let pb = Playback::new(4, 2, 3, dimmers(&[101], 1.0));
     assert_eq!(pb.cues, vec![cue]);
     let _ = Settings::default();
+}
+
+// ---- PBK-46: the New cue times of the Settings tab ------------------------------------------
+
+#[test]
+fn pbk_46_cues_recorded_after_the_setting_take_its_times_an_earlier_cue_keeps_its_own() {
+    let times = |c: &Cue| (c.delay, c.fade_in, c.fade_out, c.overlap);
+    let record = |e: &mut Engine, slot, add| {
+        e.clear_selection();
+        e.clear();
+        common::select(e, &[101]);
+        set(e, 101, "Dimmer", 1.0);
+        e.record_playback(&PlaybackRecord {
+            add,
+            ..PlaybackRecord::at(1, slot)
+        })
+        .unwrap()
+    };
+    let new_times = (0.5, 3.0, 4.0, 50.0);
+    let mut e = rig();
+
+    // Recorded before the setting: 0 s and 100 %, also afterwards.
+    let list = record(&mut e, 1, None);
+    let chase = record(&mut e, 2, None);
+    e.change_playback(
+        chase,
+        &PlaybackChange {
+            kind: Some(Kind::Chase),
+            ..PlaybackChange::default()
+        },
+    )
+    .unwrap();
+    e.set_playback_settings(&PlaybackSettingsChange {
+        delay: Some(0.5),
+        fade_in: Some(3.0),
+        fade_out: Some(4.0),
+        overlap: Some(50.0),
+        ..PlaybackSettingsChange::default()
+    })
+    .unwrap();
+
+    let memory = record(&mut e, 3, None);
+    record(&mut e, 1, Some(AddCue::Append));
+    record(&mut e, 2, Some(AddCue::Append));
+
+    let cues = |e: &Engine, id| e.playback(id).unwrap().cues.clone();
+    assert_eq!(times(&cues(&e, memory)[0]), new_times, "memory");
+    for (name, id) in [("list", list), ("chase", chase)] {
+        let all = cues(&e, id);
+        assert_eq!(all.len(), 2, "{name}");
+        assert_eq!(
+            times(&all[0]),
+            (0.0, 0.0, 0.0, 100.0),
+            "{name}: earlier cue"
+        );
+        assert_eq!(times(&all[1]), new_times, "{name}: new cue");
+    }
 }

@@ -668,6 +668,12 @@ private struct SettingsTab: View {
                     }
                 }
             }
+            Text("NEW CUE TIMES").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3).padding(.top, 8)
+            Text("Cues recorded from now on take these times; an existing cue keeps its own.").font(Typo.ui(11)).foregroundStyle(t.fg2)
+            OptionRow(label: "Delay") { NumberField(value: s.delay, unit: "s") { engine.setPlaybackSettings(["delay": $0]) } }
+            OptionRow(label: "Fade in") { NumberField(value: s.fadeIn, unit: "s") { engine.setPlaybackSettings(["fade_in": $0]) } }
+            OptionRow(label: "Fade out") { NumberField(value: s.fadeOut, unit: "s") { engine.setPlaybackSettings(["fade_out": $0]) } }
+            OptionRow(label: "Overlap") { NumberField(value: s.overlap, unit: "%") { engine.setPlaybackSettings(["overlap": $0]) } }
         } else {
             Text("Waiting for the engine.").font(Typo.ui(11)).foregroundStyle(t.fg2)
         }

@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-01 (SPF-06 done; the church run is on 2026-11-08)_
+_Last updated: 2026-11-01 (SPF-07 done; the church run is on 2026-11-08)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -18,7 +18,7 @@ Feature work now: selection orders (IDEA-15, broadened by the owner 2026-10-29):
 lines in `tests/manual/selection-orders.md`. Released in v0.2.5.
 
 Feature work next: the everyday gaps (IDEA-35, `docs/research/everyday-gaps.md`), all in phase 1 and in
-order, batch A to G (owner, 2026-11-01); batch A is specified (P1-25); SPF-04, SPF-01, SPF-02, SPF-05 and SPF-06 are done, SPF-03 waits for its sleep run, SPF-07 builds next.
+order, batch A to G (owner, 2026-11-01); batch A is specified (P1-25); SPF-04, SPF-01, SPF-02, SPF-05, SPF-06 and SPF-07 are done, SPF-03 waits for its sleep run, SPF-08 builds next.
 When every batch A task is done, release as v0.3.0, then run a new gap review before batch B (owner, 2026-11-01).
 
 Parallel track: phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
@@ -46,7 +46,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 7. Gel numbers (IDEA-02): core and gel book done (VS2-48/49); VS2-50 (the full LEE table) once LEE
    answers the owner's permission request.
 8. Show-proof (IDEA-35 batch A): spec P1-25 approved by the owner 2026-11-01; SPF-04 (quitting always asks)
-   SPF-01 (the Mac stays awake) and SPF-02 (a late tick does not catch up) are done; SPF-03 (display awake) is built and waits for `tests/hardware/sleep.md`; SPF-05 (an adopted engine comes back) and SPF-06 (level bars never jump) are done; SPF-07 next, then the order of the `BACKLOG.md` table.
+   SPF-01 (the Mac stays awake) and SPF-02 (a late tick does not catch up) are done; SPF-03 (display awake) is built and waits for `tests/hardware/sleep.md`; SPF-05 (an adopted engine comes back), SPF-06 (level bars never jump) and SPF-07 (*New cue times*; its app lines in `tests/manual/app-cuelists.md` are still open) are done; SPF-08 next, then the order of the `BACKLOG.md` table.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:

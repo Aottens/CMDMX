@@ -127,6 +127,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
   locks, fader modes with fades and kill point, Flash/Swop/Latch, legends with icons, and DBO.
 - Level bars never jump: a click on a strip, group master or the Grand Master changes nothing, a drag
   moves the level by the distance dragged.
+- *New cue times* in Playback Options ▸ Settings: the delay, fade in, fade out and overlap that cues recorded from then
+  on start with; an existing cue keeps its own.
 - Cue lists with Go, Back, Go to cue, links, loop and tracking (Block, Cue Only, Solo), times per
   attribute group, a Go block, a Cue list window and a Cue view that follows every change, Undo
   included. The current cue reads large and
