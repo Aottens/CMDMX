@@ -5,6 +5,7 @@
 //! this test owns the protocol port on loopback). A client sets a live look, vanishes without a
 //! close handshake, and the frames must run on unchanged; a new client must see the look.
 
+#![cfg(unix)] // `libc` is a unix-only dependency
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -13,6 +14,7 @@
 )]
 
 use std::net::{TcpListener, TcpStream, UdpSocket};
+use std::os::fd::FromRawFd;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -115,13 +117,42 @@ fn frames_hold(socket: &UdpSocket, look: &[u8], mut last: u8, secs: f64) -> (u8,
     (last, count)
 }
 
+/// `127.0.0.1:6454`, shared with a wildcard socket on the same port if there is one (`olad`).
+fn artnet_on_loopback() -> UdpSocket {
+    // SAFETY: plain socket calls on a fresh fd; the fd is owned by the `UdpSocket` afterwards.
+    unsafe {
+        let fd = libc::socket(libc::AF_INET, libc::SOCK_DGRAM, 0);
+        assert!(fd >= 0, "socket");
+        let socket = UdpSocket::from_raw_fd(fd);
+        let on: libc::c_int = 1;
+        let rc = libc::setsockopt(
+            fd,
+            libc::SOL_SOCKET,
+            libc::SO_REUSEADDR,
+            std::ptr::addr_of!(on).cast(),
+            std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+        );
+        assert_eq!(rc, 0, "SO_REUSEADDR");
+        let mut addr: libc::sockaddr_in = std::mem::zeroed();
+        addr.sin_family = libc::AF_INET as libc::sa_family_t;
+        addr.sin_port = 6454u16.to_be();
+        addr.sin_addr.s_addr = u32::from(std::net::Ipv4Addr::LOCALHOST).to_be();
+        let rc = libc::bind(
+            fd,
+            std::ptr::addr_of!(addr).cast(),
+            std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t,
+        );
+        assert_eq!(rc, 0, "bind 127.0.0.1:6454 (a monitor running?)");
+        socket
+    }
+}
+
 #[test]
 fn ipc_44_killed_client_changes_nothing_and_a_new_client_sees_the_live_state() {
     let dir = std::env::temp_dir().join(format!("cmdmx-ipc44-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let artnet = UdpSocket::bind(("127.0.0.1", 6454))
-        .expect("Art-Net port 6454 on loopback is taken (a monitor running?)");
+    let artnet = artnet_on_loopback();
     artnet
         .set_read_timeout(Some(Duration::from_millis(500)))
         .unwrap();
