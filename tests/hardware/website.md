@@ -33,6 +33,8 @@ Setup: the owner's Mac and an iPhone (or Safari's responsive mode). The site is 
   (WEB-32); note anything wrong under Open points
 - [x] After the first `v*` tag that contains `subprojects/website/manual/`: the banner is gone and the
   front page says *This manual is for CMDMX <version>* (WEB-23)
+- [ ] After a merge to `main` that adds release notes for the latest release: once the *website*
+  run is green, *Release notes* on the site shows that release on top (WEB-35)
 
 ## After the next `v*` tag (WEB-21)
 - [x] Without touching anything: a few minutes after the Release run is green, its *Website* job is

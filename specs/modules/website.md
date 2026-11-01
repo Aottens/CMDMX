@@ -78,6 +78,10 @@ nothing to run or patch on a server.
   out the latest release tag for `subprojects/website/manual/` and `main` for the rest. If that tag
   has no manual yet, the manual is built from `main` with a banner on every page: "Preview: written
   ahead of the next release".
+- **WEB-35** The release notes (`manual/src/release-notes.md`) always come from `main`, also when
+  the rest of the manual comes from the release tag (WEB-23): a release's notes are written after
+  its tag (they link to the published release), so they show on the site as soon as they are
+  merged, not one release later. (Owner 2026-11-01.)
 
 ### The manual
 - **WEB-30** The manual is mdBook with its built-in search, sidebar, print page (one page for the
@@ -125,7 +129,7 @@ nothing to run or patch on a server.
   in `_site/index.html`, no `{{` left, and that a broken link fails the build. In PR CI (WEB-22).
 - WEB-02, 03: the same script fails on `http(s)://` in `src`/`href` of scripts, styles and fonts
   outside GitHub links; the owner checks phone width and dark/light once in the PR (preview).
-- WEB-20, 21, 23: `tests/hardware/website.md` (owner, gate 3 style): after the first deploy the page
+- WEB-20, 21, 23, 35: `tests/hardware/website.md` (owner, gate 3 style): after the first deploy the page
   is live, after the next `v*` tag the button shows it without a manual step, the DMG downloads
   and opens as REL-15.
 - WEB-31, 32: reviewed by the owner per manual PR.

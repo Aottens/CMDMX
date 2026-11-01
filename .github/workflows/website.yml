@@ -21,7 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Also when release.yml calls this on a tag: the page builds from main, the manual from the
-      # latest release tag when that has one (WEB-23), otherwise from main as a preview.
+      # latest release tag when that has one (WEB-23), otherwise from main as a preview. The release
+      # notes are the exception: they always come from main (WEB-35).
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
@@ -35,8 +36,11 @@ jobs:
           [ -n "$tag" ] || exit 0
           git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag"
           if git cat-file -e "$tag:subprojects/website/manual/book.toml" 2>/dev/null; then
+            notes=subprojects/website/manual/src/release-notes.md
+            cp "$notes" "$RUNNER_TEMP/release-notes.md"
             rm -rf subprojects/website/manual
             git checkout "$tag" -- subprojects/website/manual
+            cp "$RUNNER_TEMP/release-notes.md" "$notes"
             echo "MANUAL_FROM_TAG=1" >> "$GITHUB_ENV"
           fi
       - run: subprojects/website/build.sh
