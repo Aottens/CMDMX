@@ -20,6 +20,22 @@ Setup: daemon `rm -rf /tmp/cmdmx-main && cd subprojects/engine && cargo run -p c
 - [ ] The six zones sit where the sketch has them: status bar, rail, 2×2 grid with the side column
       to its right, attribute bar, playback area. Flush, hairlines, no outer margins
 
+### Quit always asks (UI-36, REL-13)
+Start each row from the stated mode (Console toggle in the status bar). The alert is the same every time:
+"Quit the app?", the engine text from UI-26, Cancel the default button. Reopen the app after each Quit.
+- [ ] ⌘Q, console on: Cancel keeps the app, full screen; Quit quits
+- [ ] ⌘Q, console off: Cancel keeps the app and its window; Quit quits
+- [ ] App menu › Quit, console on (move the pointer to the top for the menu bar): Cancel keeps the app; Quit quits
+- [ ] App menu › Quit, console off: Cancel keeps the app and its window; Quit quits
+- [ ] Window close button, console on (pointer at the top shows it): Cancel keeps the window; Quit quits
+- [ ] Window close button, console off: Cancel keeps the window, the app is not left without one; Quit quits
+- [ ] Return in the alert is Cancel
+- [ ] Console off, a quit from another program (`osascript -e 'tell application id "nl.colourmotion.dmx" to quit'`): the
+      alert shows; Cancel keeps the app and the script gets an error; Quit quits
+- [ ] Force Quit (or `kill -9`): no question, the engine keeps running and Art-Net never stops; reopen, it reconnects
+- [ ] Through all of the above the dev daemon runs on and Art-Net does not stop (a bundled engine stops on
+      Quit: `tests/hardware/release.md`)
+
 ### Theme and type (UI-02..05)
 - [ ] Dark theme matches the sketch: dark grey, not black; no colour that does not mean a state
 - [ ] Day/Night in the status bar switches to the day theme and back; it is remembered

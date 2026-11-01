@@ -14,7 +14,7 @@ These always work:
 | ⌘Z | undo the last edit (not while typing in a text field) |
 | ⇧⌘Z | redo |
 | Esc | ends Learn mode (see [Learn](controls.md#learn)) |
-| ⌘Q | quit; with **Console** on it asks first |
+| ⌘Q | quit; it always asks first |
 
 These work while **Keys** is on in the status bar, and never while you are typing in a text field
 (see [The keyboard](running.md#the-keyboard)):

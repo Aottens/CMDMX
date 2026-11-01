@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-// Console mode (UI-26): native full screen with the Dock and menu bar auto-hidden, and a
-// confirmation before the app quits. The choice lives in UserDefaults ("consoleMode").
+// Console mode (UI-26): native full screen with the Dock and menu bar auto-hidden. Quitting asks
+// in every mode (UI-36). The choice lives in UserDefaults ("consoleMode").
 // The engine is a separate process, but the app stops the one it started or adopted (REL-13).
 
 private let consoleKey = "consoleMode"
@@ -17,11 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MainActor.assumeIsolated { DaemonLauncher.shared.stop() }
     }
 
-    /// Closing the only window quits (and so asks in console mode), like Cmd+Q.
+    /// Closing the only window quits (and so asks, UI-36), like Cmd+Q.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard UserDefaults.standard.bool(forKey: consoleKey) else { return .terminateNow }
         let alert = NSAlert()
         alert.messageText = "Quit the app?"
         alert.informativeText = MainActor.assumeIsolated { DaemonLauncher.shared.ownsEngine }
@@ -50,11 +49,8 @@ private final class ConsoleWindowDelegate: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if UserDefaults.standard.bool(forKey: consoleKey) {
-            NSApp.terminate(nil)   // asks via applicationShouldTerminate
-            return false
-        }
-        return original?.windowShouldClose?(sender) ?? true
+        NSApp.terminate(nil)   // asks via applicationShouldTerminate
+        return false
     }
 
     func window(_ window: NSWindow, willUseFullScreenPresentationOptions proposed: NSApplication.PresentationOptions)
