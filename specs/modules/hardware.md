@@ -3,7 +3,7 @@
 Owner: `subprojects/hardware/` (PCBs, firmware, enclosure and flight-case CAD, BOM, build guide).
 Status: **draft, waiting for owner approval (gate 1)**. Written 2026-10-25 from the owner's
 answers to the eleven open questions of `docs/research/hardware-desk.md` (HW-01; answers under
-*Owner decisions*). Phase 3, run as a parallel track beside phase 1 (DECISIONS 2026-10-25).
+*Owner decisions*). Phase 10, run as a parallel track beside phase 1 (DECISIONS 2026-10-25).
 
 References: `docs/research/hardware-desk.md` (parts, prices, §5a fader strips);
 `specs/modules/control-surfaces.md` (CTL, the general control layer this desk plays through);

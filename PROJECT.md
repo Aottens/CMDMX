@@ -23,8 +23,9 @@ them as cue lists, busking pages or (later) a timeline.
   - Input: a general MIDI and OSC control layer (any device, Learn, feedback, portable mappings); Mackie Control (BCF2000 in MC mode, X-Touch) and the church TouchOSC remote are a profile and a client on it
   - Show file: one readable JSON file, autosave, git-friendly
 - Phase 2: show-running depth (tracking views, Move In Dark, …), shape generator, fader mode 3, nested/time palettes, align (fan moved to phase 1, IDEA-27), virtual faders, scene master, gel picker + colour calibration (IDEA-02/03), more USB interfaces (IDEA-01)
-- Phase 3: hardware — the open-hardware maker desk (IDEA-23); runs as a parallel track beside phase 1 since 2026-10-25 (`subprojects/hardware/`)
-- Phase 3+: timeline synced to Ableton/timecode (IDEA-05), pixel mapper, key frame shapes, set list, sACN input, visualiser
+- Phase 3: multi-user support (IDEA-34), timeline synced to Ableton/timecode (IDEA-05)
+- Phases 3–9, not yet placed: pixel mapper, key frame shapes, set list, sACN input, visualiser
+- Phase 10: hardware — the open-hardware maker desk (IDEA-23) and the cross-platform UI for it (IDEA-30); runs as a parallel track beside phase 1 since 2026-10-25 (`subprojects/hardware/`)
 - Ideas not yet placed: `IDEAS.md`
 
 ## Reference venue: the church

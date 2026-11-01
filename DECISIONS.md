@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-01 — Hardware moves from phase 3 to phase 10; multi-user support in phase 3 (owner)
+
+**Decision:** the hardware phase (IDEA-23, IDEA-30) is now phase 10, which leaves phases up to 9 for other work. Only the number changes: it stays the parallel track of 2026-10-25, so `## Phase 3 track — hardware` in that entry is now `## Phase 10 track — hardware`. Phase 3 now holds multi-user support (IDEA-34) and the timeline (IDEA-05).
+
+**Alternatives considered:** keep hardware at phase 3 and number new phases after it.
+
+**Reasoning:** the owner wants room for phases with other work before the hardware phase.
+
+**Reversal trigger:** none expected.
+
 ## 2026-11-01 — Group handle actions: a mastered group is not deleted, Move takes masters along (P1-24)
 
 **Decision:** Delete of a group that a group master uses is refused with a warning naming the

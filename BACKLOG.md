@@ -194,7 +194,7 @@ after VS8-03, in any order.
 | P1-24 | Spec the handle actions on groups (owner, 2026-11-01: a group could not be deleted in the first church try with v0.2.5): Delete, Copy, Move and Set Legend as PRG-85..95, what happens to group masters, undo, IPC and the Groups window; build tasks GRP-01..03; owner approves. | PRG | S | done (2026-11-01, #195; merged = PRG-85..95 and the three owner questions approved) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
-## Phase 3 track — hardware (parallel to phase 1)
+## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions
 and PRs, no changes under `subprojects/engine` or `subprojects/app`, never ahead of a phase-1 task.
 Its contract with the software is the general control layer (CTL). Build tasks are `HWB-nn` (criteria
