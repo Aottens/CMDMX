@@ -11,7 +11,7 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 **Alternatives considered:** keep hardware at phase 3 and number new phases after it.
 
-**Reasoning:** the owner wants room for phases with other work before the hardware phase.
+**Reasoning:** the owner wants room for phases with other work below 10. A phase number is not an order: hardware keeps running beside phase 1 (owner, 2026-11-01).
 
 **Reversal trigger:** none expected.
 
