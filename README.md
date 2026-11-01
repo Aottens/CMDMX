@@ -63,6 +63,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
   of the missed frames; a running fade is where it should be.
 - If the app hangs or is killed, output runs on without a dropped frame; the restarted app shows
   the live faders, cue and programmer.
+- If the engine dies, the app starts it again within seconds, also one it adopted after an app crash, and
+  says plainly that the show is back and nothing is running.
 
 **Patch and fixtures**
 - Browse the library by manufacturer, pick a fixture, set mode, count, address and user number;
