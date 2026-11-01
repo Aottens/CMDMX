@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-10-30 (SEL-06: cue fixture order in the app)_
+_Last updated: 2026-10-31 (VS8-11: macOS CI on macos-15)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,

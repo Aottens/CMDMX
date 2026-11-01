@@ -62,8 +62,8 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
   `.qxf` files; with `--notarised`, also the checks of REL-21. It unmounts in every case.
 
 ### Release job
-- **REL-09** (amended by BRD-04, REL-20) `.github/workflows/release.yml` runs on `push: tags: ['v*']` on `macos-14` (Swift
-  5.10, as the `app` CI job): REL-01 check, `scripts/fetch-qlcplus.sh`, `make-dmg.sh`,
+- **REL-09** (amended by BRD-04, REL-20) `.github/workflows/release.yml` runs on `push: tags: ['v*']` on `macos-15` (Swift
+  6.1, as the `app` CI job): REL-01 check, `scripts/fetch-qlcplus.sh`, `make-dmg.sh`,
   `check-dmg.sh`, then a GitHub release named `CMDMX <version>` for the tag with the DMG
   attached and the install steps of REL-15 in its notes. It also runs on `workflow_dispatch`
   (version `0.0.0`, build = run number) and then uploads the DMG as a workflow artifact instead of
