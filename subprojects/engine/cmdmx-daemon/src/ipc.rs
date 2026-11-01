@@ -201,6 +201,21 @@ pub enum Command {
     RecordGroup {
         group: GroupId,
     },
+    DeleteGroup {
+        group: GroupId,
+    },
+    CopyGroup {
+        group: GroupId,
+        to: GroupId,
+    },
+    MoveGroup {
+        group: GroupId,
+        to: GroupId,
+    },
+    GroupLegend {
+        group: GroupId,
+        legend: String,
+    },
     /// LIB-14: answered by the client thread, never applied by the tick.
     Library(LibraryRequest),
     /// SHW-15: `New` and `SaveAs` reach the tick once their name is checked; `List` and `Open`
@@ -1297,6 +1312,21 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("group.record") => Ok(Command::RecordGroup {
             group: uint(&v, "group")?,
         }),
+        Some("group.delete") => Ok(Command::DeleteGroup {
+            group: uint(&v, "group")?,
+        }),
+        Some("group.copy") => Ok(Command::CopyGroup {
+            group: uint(&v, "group")?,
+            to: uint(&v, "to")?,
+        }),
+        Some("group.move") => Ok(Command::MoveGroup {
+            group: uint(&v, "group")?,
+            to: uint(&v, "to")?,
+        }),
+        Some("group.legend") => Ok(Command::GroupLegend {
+            group: uint(&v, "group")?,
+            legend: string(&v, "legend")?,
+        }),
         Some("library.search") => Ok(Command::Library(LibraryRequest::Search {
             query: string(&v, "query")?,
         })),
@@ -2042,11 +2072,13 @@ struct FixtureInfo<'a> {
     modes: Vec<&'a str>,
 }
 
-#[derive(Serialize)]
-struct GroupInfo<'a> {
+#[derive(Serialize, Clone, PartialEq)]
+struct GroupInfo {
     id: GroupId,
     #[serde(serialize_with = "serialize_wire_items")]
-    fixtures: &'a [Item],
+    fixtures: Vec<Item>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    legend: Option<String>,
 }
 
 /// PAL-25: one palette as clients draw it.
@@ -2173,7 +2205,7 @@ struct Snapshot<'a> {
     dbo: bool,
     playback_settings: PlaybackSettingsInfo,
     fixtures: Vec<FixtureInfo<'a>>,
-    groups: Vec<GroupInfo<'a>>,
+    groups: Vec<GroupInfo>,
     palettes: Vec<PaletteInfo>,
     palette_settings: PaletteSettings,
     programmer_settings: ProgrammerSettings,
@@ -2250,7 +2282,7 @@ struct GroupsDelta<'a> {
     v: u64,
     #[serde(rename = "type")]
     kind: &'static str,
-    groups: Vec<GroupInfo<'a>>,
+    groups: &'a [GroupInfo],
 }
 
 #[derive(Serialize)]
@@ -2354,10 +2386,15 @@ fn entries<'a>(stored: &'a [StoredInfo], engine: &Engine) -> Vec<PlaybackEntry<'
         .collect()
 }
 
-fn group_infos(groups: &BTreeMap<GroupId, Vec<Item>>) -> Vec<GroupInfo<'_>> {
-    groups
-        .iter()
-        .map(|(id, fixtures)| GroupInfo { id: *id, fixtures })
+fn group_infos(engine: &Engine) -> Vec<GroupInfo> {
+    engine
+        .groups()
+        .into_iter()
+        .map(|(id, fixtures)| GroupInfo {
+            id,
+            fixtures,
+            legend: engine.group_legend(id).map(String::from),
+        })
         .collect()
 }
 
@@ -2404,7 +2441,6 @@ pub fn snapshot(
     control: &serde_json::Value,
 ) -> String {
     let stored = stored_infos(engine);
-    let groups = engine.groups();
     to_json(&Snapshot {
         v: PROTOCOL,
         kind: "snapshot",
@@ -2417,7 +2453,7 @@ pub fn snapshot(
         dbo: engine.dbo(),
         playback_settings: playback_settings(engine),
         fixtures: fixture_infos(engine),
-        groups: group_infos(&groups),
+        groups: group_infos(engine),
         palettes: palette_infos(engine),
         palette_settings: palette_settings(engine),
         programmer_settings: programmer_settings(engine),
@@ -2583,7 +2619,7 @@ pub struct Published {
     dbo: bool,
     playback_settings: PlaybackSettingsInfo,
     programmer: ProgrammerView,
-    groups: BTreeMap<GroupId, Vec<Item>>,
+    groups: Vec<GroupInfo>,
     palettes: Vec<PaletteInfo>,
     palette_settings: PaletteSettings,
     programmer_settings: ProgrammerSettings,
@@ -2615,7 +2651,7 @@ impl Published {
             dbo: engine.dbo(),
             playback_settings: playback_settings(engine),
             programmer: engine.programmer_view(),
-            groups: engine.groups(),
+            groups: group_infos(engine),
             palettes: palette_infos(engine),
             palette_settings: palette_settings(engine),
             programmer_settings: programmer_settings(engine),
@@ -2745,13 +2781,13 @@ impl Published {
             }));
             self.programmer = view;
         }
-        let groups = engine.groups();
+        let groups = group_infos(engine);
         if groups != self.groups {
             self.groups = groups;
             out.push(to_json(&GroupsDelta {
                 v: PROTOCOL,
                 kind: "groups",
-                groups: group_infos(&self.groups),
+                groups: &self.groups,
             }));
         }
         // PAL-25: the whole list, once, after any change of it.
@@ -4162,6 +4198,82 @@ mod tests {
             ok(r#"{"v":1,"cmd":"group.record","group":3}"#),
             Command::RecordGroup { group: 3 }
         );
+    }
+
+    #[test]
+    fn prg_93_group_actions_parse() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.delete","group":5}"#),
+            Command::DeleteGroup { group: 5 }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.copy","group":5,"to":9}"#),
+            Command::CopyGroup { group: 5, to: 9 }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.move","group":6,"to":12}"#),
+            Command::MoveGroup { group: 6, to: 12 }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.legend","group":5,"legend":"Pars outside in"}"#),
+            Command::GroupLegend {
+                group: 5,
+                legend: "Pars outside in".into()
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.legend","group":5,"legend":""}"#),
+            Command::GroupLegend {
+                group: 5,
+                legend: String::new()
+            }
+        );
+    }
+
+    #[test]
+    fn prg_93_missing_or_ill_typed_group_fields_are_errors() {
+        for bad in [
+            r#"{"v":1,"cmd":"group.delete"}"#,
+            r#"{"v":1,"cmd":"group.delete","group":"5"}"#,
+            r#"{"v":1,"cmd":"group.delete","group":-1}"#,
+            r#"{"v":1,"cmd":"group.copy","group":5}"#,
+            r#"{"v":1,"cmd":"group.copy","to":9}"#,
+            r#"{"v":1,"cmd":"group.copy","group":5,"to":1.5}"#,
+            r#"{"v":1,"cmd":"group.move","group":6}"#,
+            r#"{"v":1,"cmd":"group.move","group":6,"to":"12"}"#,
+            r#"{"v":1,"cmd":"group.legend","group":5}"#,
+            r#"{"v":1,"cmd":"group.legend","legend":"x"}"#,
+            r#"{"v":1,"cmd":"group.legend","group":5,"legend":3}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn prg_92_legend_in_snapshot_and_delta_absent_when_empty() {
+        let mut e = cell_engine();
+        e.select_fixture(1).unwrap();
+        e.record_group(3).unwrap();
+        let mut published = Published::new(&e, &[], &show_state());
+        assert_eq!(
+            cell_snapshot(&e)["groups"],
+            json!([{"id":3,"fixtures":[1]}])
+        );
+
+        // A change of the legend alone sends the delta.
+        e.set_group_legend(3, "Pars").unwrap();
+        let named = json!([{"id":3,"fixtures":[1],"legend":"Pars"}]);
+        let d = published.diff(&e, &[], &show_state());
+        let delta = d.iter().map(|m| parse(m)).find(|m| m["type"] == "groups");
+        assert_eq!(delta.unwrap()["groups"], named);
+        assert_eq!(cell_snapshot(&e)["groups"], named);
+        assert!(published.diff(&e, &[], &show_state()).is_empty());
+
+        e.set_group_legend(3, "").unwrap();
+        let d = published.diff(&e, &[], &show_state());
+        let delta = d.iter().map(|m| parse(m)).find(|m| m["type"] == "groups");
+        assert_eq!(delta.unwrap()["groups"], json!([{"id":3,"fixtures":[1]}]));
     }
 
     #[test]

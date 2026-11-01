@@ -640,6 +640,10 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             engine.execute_command(&tokens)
         }
         RecordGroup { group } => engine.record_group(group),
+        DeleteGroup { group } => engine.delete_group(group),
+        CopyGroup { group, to } => engine.copy_group(group, to),
+        MoveGroup { group, to } => engine.move_group(group, to),
+        GroupLegend { group, legend } => engine.set_group_legend(group, &legend),
         // Answered in the client thread; the tick never sees it (LIB-14).
         Library(_) => Ok(()),
         // Handled before `apply` (SHW-15).
@@ -897,6 +901,10 @@ fn class(cmd: &ipc::Command) -> Class {
         | Gel { .. }
         | Line { .. }
         | RecordGroup { .. }
+        | DeleteGroup { .. }
+        | CopyGroup { .. }
+        | MoveGroup { .. }
+        | GroupLegend { .. }
         | OutputAdd { .. }
         | OutputEdit { .. }
         | OutputRemove { .. }
@@ -1015,6 +1023,10 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         ProfileSave(p) => (format!("Edit profile {}", p.model), None),
         Colour { .. } | CtStep { .. } | Gel { .. } => ("Colour".into(), Some("colour".into())),
         RecordGroup { group } => (format!("Record group {group}"), None),
+        DeleteGroup { group } => (format!("Delete group {group}"), None),
+        CopyGroup { group, .. } => (format!("Copy group {group}"), None),
+        MoveGroup { group, .. } => (format!("Move group {group}"), None),
+        GroupLegend { group, .. } => (format!("Legend group {group}"), None),
         OutputAdd { .. } => ("Add output".into(), None),
         OutputEdit { .. } => ("Edit output".into(), None),
         OutputRemove { .. } => ("Remove output".into(), None),
@@ -2777,6 +2789,19 @@ mod tests {
             Class::Edit,
         ),
         (r#"{"v":1,"cmd":"group.record","group":3}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"group.delete","group":3}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"group.copy","group":3,"to":4}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"group.move","group":3,"to":4}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"group.legend","group":3,"legend":"Pars"}"#,
+            Class::Edit,
+        ),
         (
             r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1}"#,
             Class::Edit,
@@ -3042,6 +3067,155 @@ mod tests {
             h.undo_label(),
             Some(format!("Delete playback {id}").as_str())
         );
+    }
+
+    // ---- GRP-02: PRG-91, 93 -----------------------------------------------------------------
+
+    /// A show with group 50 holding fixture 101, and an empty history.
+    fn group_engine() -> (Engine, History) {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.select","fixture":101}"#,
+        )
+        .unwrap();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"group.record","group":50}"#).unwrap();
+        (e, h)
+    }
+
+    const GROUP_ACTIONS: [(&str, &str); 4] = [
+        (
+            r#"{"v":1,"cmd":"group.delete","group":50}"#,
+            "Delete group 50",
+        ),
+        (
+            r#"{"v":1,"cmd":"group.copy","group":50,"to":51}"#,
+            "Copy group 50",
+        ),
+        (
+            r#"{"v":1,"cmd":"group.move","group":50,"to":52}"#,
+            "Move group 50",
+        ),
+        (
+            r#"{"v":1,"cmd":"group.legend","group":50,"legend":"Pars"}"#,
+            "Legend group 50",
+        ),
+    ];
+
+    #[test]
+    fn prg_91_each_group_action_is_one_labelled_undo_step() {
+        for (json, label) in GROUP_ACTIONS {
+            let (mut e, mut h) = group_engine();
+            let before = (e.groups(), e.group_legend(50).map(String::from));
+            undo_run(&mut e, &mut h, json).unwrap();
+            assert_eq!(h.undo_label(), Some(label), "{json}");
+            assert_ne!(
+                (e.groups(), e.group_legend(50).map(String::from)),
+                before,
+                "{json}"
+            );
+            h.undo(&mut e).unwrap();
+            assert_eq!(
+                (e.groups(), e.group_legend(50).map(String::from)),
+                before,
+                "{json}"
+            );
+            assert_eq!(h.undo_label(), Some("Record group 50"), "one step: {json}");
+        }
+    }
+
+    #[test]
+    fn prg_91_prg_93_a_refused_action_gives_the_warning_and_no_step() {
+        for (json, warning) in [
+            (
+                r#"{"v":1,"cmd":"group.delete","group":7}"#,
+                "Group 7 is empty",
+            ),
+            (
+                r#"{"v":1,"cmd":"group.copy","group":7,"to":8}"#,
+                "Group 7 is empty",
+            ),
+            (
+                r#"{"v":1,"cmd":"group.move","group":7,"to":8}"#,
+                "Group 7 is empty",
+            ),
+            (
+                r#"{"v":1,"cmd":"group.copy","group":50,"to":50}"#,
+                "Group 50 cannot go onto itself",
+            ),
+            (
+                r#"{"v":1,"cmd":"group.legend","group":7,"legend":"x"}"#,
+                "Group 7 is empty",
+            ),
+        ] {
+            let (mut e, mut h) = group_engine();
+            let err = undo_run(&mut e, &mut h, json).unwrap_err();
+            assert_eq!(err.to_string(), warning, "{json}");
+            assert_eq!(h.undo_label(), Some("Record group 50"), "{json}");
+        }
+        // PRG-90: over 32 characters.
+        let (mut e, mut h) = group_engine();
+        let long = format!(
+            r#"{{"v":1,"cmd":"group.legend","group":50,"legend":"{}"}}"#,
+            "x".repeat(33)
+        );
+        assert!(undo_run(&mut e, &mut h, &long).is_err());
+        assert_eq!(h.undo_label(), Some("Record group 50"));
+    }
+
+    #[test]
+    fn prg_93_the_groups_delta_goes_out_after_each_action_and_after_undo() {
+        let show = shows::ShowState {
+            name: "t".into(),
+            saved_at: None,
+            autosave_ok: true,
+        };
+        for (json, _) in GROUP_ACTIONS {
+            let (mut e, mut h) = group_engine();
+            let mut published = ipc::Published::new(&e, &[], &show);
+            let groups_delta = |published: &mut ipc::Published, e: &Engine| {
+                published
+                    .diff(e, &[], &show)
+                    .iter()
+                    .map(|m| serde_json::from_str::<serde_json::Value>(m).unwrap())
+                    .find(|m| m["type"] == "groups")
+                    .map(|m| m["groups"].clone())
+            };
+            let before = groups_delta(&mut published, &e);
+            assert_eq!(before, None, "nothing changed yet: {json}");
+
+            undo_run(&mut e, &mut h, json).unwrap();
+            let after = groups_delta(&mut published, &e).unwrap_or_else(|| panic!("{json}"));
+            let has = |g: &serde_json::Value, id: u64| {
+                g.as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|x| x["id"] == id)
+                    .cloned()
+            };
+            match json {
+                j if j.contains("delete") => assert_eq!(has(&after, 50), None),
+                j if j.contains("copy") => {
+                    assert!(has(&after, 50).is_some() && has(&after, 51).is_some())
+                }
+                j if j.contains("move") => {
+                    assert!(has(&after, 50).is_none() && has(&after, 52).is_some())
+                }
+                _ => assert_eq!(has(&after, 50).unwrap()["legend"], "Pars"),
+            }
+
+            h.undo(&mut e).unwrap();
+            let undone = groups_delta(&mut published, &e).unwrap_or_else(|| panic!("undo {json}"));
+            let g50 = has(&undone, 50).unwrap_or_else(|| panic!("undo {json}"));
+            assert_eq!(g50["fixtures"], serde_json::json!([101]), "{json}");
+            assert!(g50.get("legend").is_none(), "{json}");
+            assert!(
+                has(&undone, 51).is_none() && has(&undone, 52).is_none(),
+                "{json}"
+            );
+        }
     }
 
     // ---- VS2-24: IPC-38, IPC-39 ------------------------------------------------------------
