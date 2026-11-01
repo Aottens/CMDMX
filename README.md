@@ -125,6 +125,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 **Playbacks, cue lists and chases**
 - Record the programmer onto a handle; Replace/Merge/Update, Copy/Move/Delete, Titan paging
   locks, fader modes with fades and kill point, Flash/Swop/Latch, legends with icons, and DBO.
+- Level bars never jump: a click on a strip, group master or the Grand Master changes nothing, a drag
+  moves the level by the distance dragged.
 - Cue lists with Go, Back, Go to cue, links, loop and tracking (Block, Cue Only, Solo), times per
   attribute group, a Go block, a Cue list window and a Cue view that follows every change, Undo
   included. The current cue reads large and

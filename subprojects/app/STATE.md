@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-01 (SPF-05)_
+_Last updated: 2026-11-01 (SPF-06)_
 
 ## Current step
+SPF-06 (2026-11-01, UI-37): `LevelBar` keeps `pressLevel` for the length of a touch and sets the level from it plus `drag.translation`, only when it differs, so a press sends no `fader.set`; strips, group masters and the GM share it. Checked with `swift build`; run `tests/manual/runs/2026-11-01-SPF-06.md`.
 SPF-05 (2026-11-01, REL-24, 25): `DaemonLauncher.watch` holds a `DispatchSource` process source on an adopted pid, and checks `kill(pid, 0)` after `resume()` for a daemon that already died; `adoptedExited` says "Engine exited, restarting" and goes through `retryLater`, nothing while `stopping`. `restarting` makes the launch that succeeds say the REL-25 line, for a child too; it stays until the next launcher note (SPF-09 adds the Messages sheet). Checked with `swift build`; run `tests/manual/runs/2026-11-01-SPF-05.md`.
 SPF-03 (2026-11-01, UI-35): `WindowConfigurator.Coordinator` holds a `ProcessInfo` activity with `.idleDisplaySleepDisabled` ("CMDMX console mode") while console mode is on and ends it when console mode is off; `attach` is the one place every console change passes. Checked with `swift build` and `pmset -g assertions`; run `tests/hardware/sleep.md` (OUT-41) is the owner's.
 SPF-04 (2026-11-01, UI-36, REL-13): `applicationShouldTerminate` always shows the quit alert and `ConsoleWindowDelegate.windowShouldClose` always goes through `NSApp.terminate` and returns false, so Cancel keeps the window in both modes. Checked with `swift build`; run `tests/manual/runs/2026-11-01-SPF-04.md`.
