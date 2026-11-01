@@ -12,7 +12,7 @@ Builds on DECISIONS 2026-10-27 (versioned DMG, not notarised; its reversal trigg
 the website, DECISIONS 2026-10-27 *own website*), IPC-01/08 (`ipc.md`), SHW-11
 (`showfile.md`), LIB-13 (`fixture-library.md`), CTL-53 (`control-surfaces.md`).
 
-REL-24, REL-25 and the amendment of REL-13: for owner approval (IDEA-35 batch A, P1-25, 2026-11-01).
+REL-24, REL-25 and the amendment of REL-13: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
 
 ## Purpose
 The church Mac runs CMDMX from a DMG that GitHub builds from a version tag: drag the app
@@ -97,13 +97,13 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
   programming. If the app itself crashes, the daemon keeps running and keeps output (show-proof);
   the next app launch adopts it (REL-11).
 
-- **REL-24** (for owner approval (IDEA-35 batch A, P1-25, 2026-11-01)) An adopted engine (REL-11) that dies is restarted like a child (REL-12): the app
+- **REL-24** (approved by owner 2026-11-01 (IDEA-35 batch A, P1-25)) An adopted engine (REL-11) that dies is restarted like a child (REL-12): the app
   watches its pid (`DispatchSource.makeProcessSource`, `.exit`), shows "Engine exited, restarting" (the exit
   code of a process that is not its child is unknown), and starts it after 2 s. A daemon that already died
   between the adopt check and the watch is handled the same way. Not while stopping (REL-13). Today this
   case stays offline until the app is restarted. Manual run: `kill -9` the app, reopen it (adopts),
   `kill -9` the engine; the banner shows, and the engine is back and connected within 5 s.
-- **REL-25** (for owner approval (IDEA-35 batch A, P1-25, 2026-11-01)) After any restart of a daemon the app owns, the amber line and the Messages sheet
+- **REL-25** (approved by owner 2026-11-01 (IDEA-35 batch A, P1-25)) After any restart of a daemon the app owns, the amber line and the Messages sheet
   (UI-39) say "Engine restarted: the show is back, nothing is running". A restart brings back the saved show
   and live state starts fresh (`showfile.md`, owner decision 3): the operator must know the stage changed.
 

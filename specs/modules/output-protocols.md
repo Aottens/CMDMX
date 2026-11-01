@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-protocols` (framing) and `cmdmx-daemon` (sockets, serial, scheduling). Status: **OUT-01..04, 11, 12, 14, 15 approved by owner 2026-10-16**; OUT-06/07/16..19 approved 2026-10-16; OUT-09/20..22 approved 2026-10-17; OUT-09/20 amended and OUT-23/24 added 2026-10-18 (owner, Eurolite MK2 on the Mac); OUT-24 amended 2026-10-21 (owner, VS4-05: own 30 ms timer); OUT-13 rewritten, OUT-23 amended and OUT-25..37 added and **approved by owner 2026-10-22** (P1-18, multi-universe output; the six questions as proposed); rest draft. References: Art-Net 4 specification (Artistic Licence), ANSI E1.31-2018 (sACN), ENTTEC DMX USB Pro API, Avolites Titan v19 manual *DMX Settings*.
 
-OUT-38..41: for owner approval (IDEA-35 batch A, P1-25, 2026-11-01).
+OUT-38..41: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
 
 ## Purpose
 Deliver each universe's frame to one or more *nodes* (Titan's model: lines → nodes). Framing is pure and byte-exact tested; I/O lives in the daemon and must never block the tick.
@@ -44,7 +44,7 @@ Deliver each universe's frame to one or more *nodes* (Titan's model: lines → n
 
   Nodes are saved sorted by `id`. SHW-08 is amended: `output` is the grouped key it foresaw; a serial port path is the one machine-specific value, and on a Mac without that port the node is `Degraded` "port not found" (OUT-31), never an error on load.
 
-### Staying awake and late ticks (IDEA-35 A1; for owner approval (IDEA-35 batch A, P1-25, 2026-11-01))
+### Staying awake and late ticks (IDEA-35 A1; approved by owner 2026-11-01 (IDEA-35 batch A, P1-25))
 What is known: macOS freezes every process during system sleep, so a sleeping Mac sends no frame.
 Nothing in CMDMX prevents that. It went unseen at the desk because other programs hold the Mac awake
 (`pmset -g` on 2026-11-01: `sleep 1, prevented by coreaudiod, sharingd, bluetoothd, powerd, Claude,

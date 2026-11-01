@@ -352,7 +352,7 @@ FX-32 (`effect_catalogue` in the snapshot), FX-33 (programmer `effects`, `effect
   control surface read the same. A notice is no command acknowledgement: only PRG-96 sends one so
   far. A new message type an older app ignores: `v` stays 1 (IPC-41).
 
-### Show-proof (IDEA-35 batch A; for owner approval (IDEA-35 batch A, P1-25, 2026-11-01))
+### Show-proof (IDEA-35 batch A; approved by owner 2026-11-01 (IDEA-35 batch A, P1-25))
 New keys and messages only: `v` stays 1 (IPC-41).
 - **IPC-50** Lock (UI-38; Titan: "all functions are disabled except the DMX outputs and currently running
   playbacks"). `lock.set {"on":true,"code":"1234"}` locks, `lock.set {"on":false,"code":"1234"}` unlocks

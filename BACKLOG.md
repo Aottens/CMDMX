@@ -143,7 +143,7 @@ after the specs are added when each spec is approved (no sizing of code before i
 | VS4-03 | One real Sunday morning service run entirely on CMDMX, Lightkey on standby as fallback; checklist ticked. | all phase 1 | — | todo |
 
 ### Show-proof (IDEA-35 batch A, spec P1-25)
-Proposed order: what can darken a show first, each task on its own PR.
+Order approved by owner 2026-11-01, as in this table: what can darken a show first, each task on its own PR.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
@@ -209,7 +209,7 @@ after VS8-03, in any order.
 | P1-22 | Spec automatic emitter mixing and the colour-temperature view (IDEA-32, owner decisions 2026-10-28): ADR-010 amends ADR-005, LIB/ENG/PRG/IPC/UI criteria, build tasks VS2-44..46; owner approves. | LIB, ENG, PRG, IPC, UI | M | done (2026-10-28, #158; ADR-010 and the criteria approved, the four questions as proposed) |
 | P1-23 | Spec gel numbers, LEE first (IDEA-02, owner 2026-10-28): data source and licence, the reference source, PRG-67..70, IPC-47, UI-32, PAL-33, build tasks VS2-48..50; owner approves. | PRG, IPC, UI, PAL | M | done (2026-10-28, #164; the criteria approved, the four questions as proposed: tungsten 3200 K, owner asks LEE, test rows only until LEE answers, `Lee n` and the gel legend) |
 | P1-24 | Spec the handle actions on groups (owner, 2026-11-01: a group could not be deleted in the first church try with v0.2.5): Delete, Copy, Move and Set Legend as PRG-85..95, what happens to group masters, undo, IPC and the Groups window; build tasks GRP-01..03; owner approves. | PRG | S | done (2026-11-01, #195; merged = PRG-85..95 and the three owner questions approved) |
-| P1-25 | Spec IDEA-35 batch A, show-proof (owner, 2026-11-01): keep the Mac awake, quit always asks, faders that do not jump, Lock, message history, restarting an adopted engine, default cue times, as OUT-38..41, UI-35..40, IPC-50..52, REL-24, 25, PBK-46; build tasks SPF-01..11; owner approves. | OUT, UI, IPC, REL, PBK | S | done (2026-11-01, #208; merged = criteria and the owner questions approved) |
+| P1-25 | Spec IDEA-35 batch A, show-proof (owner, 2026-11-01): keep the Mac awake, quit always asks, faders that do not jump, Lock, message history, restarting an adopted engine, default cue times, as OUT-38..41, UI-35..40, IPC-50..52, REL-24, 25, PBK-46; build tasks SPF-01..11; owner approves. | OUT, UI, IPC, REL, PBK | S | done (2026-11-01, #208; all five owner questions approved as proposed) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ## Phase 10 track — hardware (parallel to phase 1)

@@ -11,7 +11,7 @@ UI-18 BPM / Rate Master take the next empty handle (FXB-10, 2026-10-29; for owne
 UI-33 and UI-34 (selection orders, P2-02): **approved by owner 2026-10-29**.
 UI-33a, UI-33b (Fan and Pattern keep the selection keys, SEL-09): **approved by owner 2026-11-01**.
 UI-26 (console mode) quit, UI-19 message zone, UI-22 level bars, Lock in the Main context, and UI-35..40:
-for owner approval (IDEA-35 batch A, P1-25, 2026-11-01).
+approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -419,7 +419,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - **UI-34c** The Auto increment button reads **Auto increment: On** or **Auto increment: Off**,
     and every Edit starts with it On (Done and Cancel do not carry it over).
 
-### Show-proof (IDEA-35 batch A; for owner approval (IDEA-35 batch A, P1-25, 2026-11-01))
+### Show-proof (IDEA-35 batch A; approved by owner 2026-11-01 (IDEA-35 batch A, P1-25))
 - **UI-35** While console mode is on, the app keeps the display awake
   (`ProcessInfo.beginActivity` with `.idleDisplaySleepDisabled`); leaving console mode ends that. System
   sleep is the engine's (OUT-38). An operator must not lose the screen in a quiet part of a show.

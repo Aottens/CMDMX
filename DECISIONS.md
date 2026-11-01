@@ -5,7 +5,7 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
-## 2026-11-01 — The system-sleep assertion lives in the daemon (IDEA-35 A1; for owner approval)
+## 2026-11-01 — The system-sleep assertion lives in the daemon (IDEA-35 A1; approved by owner)
 
 **Decision:** the daemon holds `PreventUserIdleSystemSleep` for its whole life (OUT-38). The app only keeps the display awake, in console mode (UI-35).
 

@@ -41,6 +41,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    fixes (Became wraps, full text on hover, Escape closes).
 7. Gel numbers (IDEA-02): core and gel book done (VS2-48/49); VS2-50 (the full LEE table) once LEE
    answers the owner's permission request.
+8. Show-proof (IDEA-35 batch A): spec P1-25 approved by the owner 2026-11-01; build SPF-04 first, then the
+   order of the `BACKLOG.md` table.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
@@ -66,7 +68,6 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - The website's domain name: register it and tell Claude the name; it becomes one line in
   `subprojects/website/CNAME` (until then the site is `aottens.github.io/CMDMX`).
 - Find the Colourmotion logo (VS8-02 builds the CMDMX concepts on it).
-- IDEA-35 batch A, show-proof: approve P1-25 (its PR puts the questions: display, faders, Lock, defaults); build tasks SPF-01..11 after that.
 - IDEA-35 (everyday gaps, `docs/research/everyday-gaps.md`): which batch next, and the phases.
 - IDEA-30 (cross-platform UI for the Linux desk): phase 10 after the surface; toolkit open.
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
