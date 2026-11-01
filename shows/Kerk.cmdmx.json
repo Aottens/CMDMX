@@ -1,0 +1,2454 @@
+{
+  "schema_version": 6,
+  "meta": {
+    "name": "Kerk",
+    "created": "2026-10-18T11:22:26Z",
+    "modified": "2026-10-24T16:07:34Z",
+    "app_version": "0.1.0"
+  },
+  "settings": {
+    "faders_per_page": 8,
+    "handles_per_page": 40,
+    "ltp_trigger_level": 0.02,
+    "wheel_step_normal": 0.003921569,
+    "wheel_step_fine": 0.000015259022,
+    "wheel_step_coarse": 0.04,
+    "colour_model": "Hsi",
+    "palette_time": 0.0,
+    "palette_overlap": 100.0,
+    "record_by": "Mixed",
+    "cue_record_by": "Channel",
+    "cue_delay": 0.0,
+    "cue_fade_in": 0.0,
+    "cue_fade_out": 0.0,
+    "cue_overlap": 100.0,
+    "release_mask": [],
+    "release_time": 2.0,
+    "auto_connect": true,
+    "cue_list_fader": "KillWithOff",
+    "update_mode": "Forwards",
+    "handle_buttons": "BestPractice"
+  },
+  "profiles": {
+    "Generic/PAR Spot": {
+      "manufacturer": "Generic",
+      "model": "PAR Spot",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "1 Channel",
+          "footprint": 1,
+          "attributes": [
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 1,
+              "default": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    "Generic/PAR Spot (RGB)": {
+      "manufacturer": "Generic",
+      "model": "PAR Spot (RGB)",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "3 Channel",
+          "footprint": 3,
+          "attributes": [],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          },
+          "virtual_dimmer": true
+        }
+      ]
+    },
+    "Generic/PAR Spot (RGBL)": {
+      "manufacturer": "Generic",
+      "model": "PAR Spot (RGBL)",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "4 Channel",
+          "footprint": 4,
+          "attributes": [
+            {
+              "name": "Lime",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 4,
+              "default": 0.0,
+              "emitter": true
+            }
+          ],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          },
+          "virtual_dimmer": true
+        }
+      ]
+    },
+    "Generic/PAR Wash (RGBW)": {
+      "manufacturer": "Generic",
+      "model": "PAR Wash (RGBW)",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "4 Channel",
+          "footprint": 4,
+          "attributes": [
+            {
+              "name": "White",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 4,
+              "default": 0.0,
+              "emitter": true
+            }
+          ],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          },
+          "virtual_dimmer": true
+        }
+      ]
+    },
+    "Pro-Lights/Lumipar6UQ": {
+      "manufacturer": "Pro-Lights",
+      "model": "Lumipar6UQ",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "4 Channel",
+          "footprint": 4,
+          "attributes": [
+            {
+              "name": "White",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 4,
+              "default": 0.0,
+              "emitter": true
+            }
+          ],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          },
+          "virtual_dimmer": true
+        }
+      ]
+    },
+    "Shehds/LED Beam+Wash 19x15W RGBW Zoom Lighting": {
+      "manufacturer": "Shehds",
+      "model": "LED Beam+Wash 19x15W RGBW Zoom Lighting",
+      "source": "qlcplus:Shehds/Shehds-LED-Beam+Wash-19x15W-RGBW-Zoom.qxf",
+      "modes": [
+        {
+          "name": "16 Channel",
+          "footprint": 16,
+          "attributes": [
+            {
+              "name": "Pan",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 1,
+              "fine_channel": 2,
+              "default": 0.0
+            },
+            {
+              "name": "Tilt",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 3,
+              "fine_channel": 4,
+              "default": 0.0
+            },
+            {
+              "name": "Pan/Tilt Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 5,
+              "default": 0.0
+            },
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 6,
+              "default": 0.0
+            },
+            {
+              "name": "Strobe",
+              "group": "I",
+              "kind": "Ltp",
+              "channel": 7,
+              "default": 0.0
+            },
+            {
+              "name": "White",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 11,
+              "default": 0.0,
+              "emitter": true
+            },
+            {
+              "name": "Zoom",
+              "group": "B",
+              "kind": "Ltp",
+              "channel": 12,
+              "default": 0.0
+            },
+            {
+              "name": "Program Selection",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 13,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "Preset Color",
+                  "from": 0,
+                  "to": 175
+                },
+                {
+                  "name": "Program Jump",
+                  "from": 176,
+                  "to": 200
+                },
+                {
+                  "name": "Program Gradient",
+                  "from": 201,
+                  "to": 224
+                },
+                {
+                  "name": "Program Pulse",
+                  "from": 225,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Program Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 14,
+              "default": 0.0
+            },
+            {
+              "name": "Program Activation",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 15,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "No Function",
+                  "from": 0,
+                  "to": 49
+                },
+                {
+                  "name": "Program Activation",
+                  "from": 50,
+                  "to": 99
+                },
+                {
+                  "name": "Self-propelled mode (1)",
+                  "from": 100,
+                  "to": 150
+                },
+                {
+                  "name": "Self-propelled mode (2)",
+                  "from": 151,
+                  "to": 199
+                },
+                {
+                  "name": "Audio control mode",
+                  "from": 200,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Reset",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 16,
+              "default": 0.0
+            }
+          ],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 8
+              },
+              {
+                "channel": 9
+              },
+              {
+                "channel": 10
+              }
+            ]
+          },
+          "pan_degrees": 540.0,
+          "tilt_degrees": 180.0,
+          "zoom_degrees": [
+            8.0,
+            55.0
+          ]
+        },
+        {
+          "name": "24 Channel",
+          "footprint": 24,
+          "attributes": [
+            {
+              "name": "Pan",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 1,
+              "fine_channel": 2,
+              "default": 0.0
+            },
+            {
+              "name": "Tilt",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 3,
+              "fine_channel": 4,
+              "default": 0.0
+            },
+            {
+              "name": "Pan/Tilt Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 5,
+              "default": 0.0
+            },
+            {
+              "name": "Zoom",
+              "group": "B",
+              "kind": "Ltp",
+              "channel": 6,
+              "default": 0.0
+            },
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 7,
+              "default": 0.0
+            },
+            {
+              "name": "Strobe",
+              "group": "I",
+              "kind": "Ltp",
+              "channel": 8,
+              "default": 0.0
+            },
+            {
+              "name": "Program Selection",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 21,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "Preset Color",
+                  "from": 0,
+                  "to": 175
+                },
+                {
+                  "name": "Program Jump",
+                  "from": 176,
+                  "to": 200
+                },
+                {
+                  "name": "Program Gradient",
+                  "from": 201,
+                  "to": 224
+                },
+                {
+                  "name": "Program Pulse",
+                  "from": 225,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Program Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 22,
+              "default": 0.0
+            },
+            {
+              "name": "Program Activation",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 23,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "No Function",
+                  "from": 0,
+                  "to": 49
+                },
+                {
+                  "name": "Program Activation",
+                  "from": 50,
+                  "to": 99
+                },
+                {
+                  "name": "Self-propelled mode (1)",
+                  "from": 100,
+                  "to": 150
+                },
+                {
+                  "name": "Self-propelled mode (2)",
+                  "from": 151,
+                  "to": 199
+                },
+                {
+                  "name": "Audio control mode",
+                  "from": 200,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Reset",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 24,
+              "default": 0.0
+            }
+          ],
+          "cells": [
+            {
+              "colour": {
+                "system": "RGB",
+                "components": [
+                  {
+                    "channel": 9
+                  },
+                  {
+                    "channel": 10
+                  },
+                  {
+                    "channel": 11
+                  }
+                ]
+              },
+              "attributes": [
+                {
+                  "name": "White",
+                  "group": "C",
+                  "kind": "Ltp",
+                  "channel": 12,
+                  "default": 0.0,
+                  "emitter": true
+                }
+              ]
+            },
+            {
+              "colour": {
+                "system": "RGB",
+                "components": [
+                  {
+                    "channel": 13
+                  },
+                  {
+                    "channel": 14
+                  },
+                  {
+                    "channel": 15
+                  }
+                ]
+              },
+              "attributes": [
+                {
+                  "name": "White",
+                  "group": "C",
+                  "kind": "Ltp",
+                  "channel": 16,
+                  "default": 0.0,
+                  "emitter": true
+                }
+              ]
+            },
+            {
+              "colour": {
+                "system": "RGB",
+                "components": [
+                  {
+                    "channel": 17
+                  },
+                  {
+                    "channel": 18
+                  },
+                  {
+                    "channel": 19
+                  }
+                ]
+              },
+              "attributes": [
+                {
+                  "name": "White",
+                  "group": "C",
+                  "kind": "Ltp",
+                  "channel": 20,
+                  "default": 0.0,
+                  "emitter": true
+                }
+              ]
+            }
+          ],
+          "pan_degrees": 540.0,
+          "tilt_degrees": 180.0,
+          "zoom_degrees": [
+            8.0,
+            55.0
+          ]
+        }
+      ]
+    },
+    "Showtec/Compact Par 7 Tri": {
+      "manufacturer": "Showtec",
+      "model": "Compact Par 7 Tri",
+      "source": "qlcplus:Showtec/Showtec-Compact-Par-7-Tri.qxf",
+      "modes": [
+        {
+          "name": "4 Channel",
+          "footprint": 4,
+          "attributes": [
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 1,
+              "default": 0.0
+            }
+          ],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              },
+              {
+                "channel": 4
+              }
+            ]
+          },
+          "zoom_degrees": [
+            18.0,
+            18.0
+          ]
+        },
+        {
+          "name": "8  Channel",
+          "footprint": 8,
+          "attributes": [
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 1,
+              "default": 0.0
+            },
+            {
+              "name": "Strobe",
+              "group": "I",
+              "kind": "Ltp",
+              "channel": 5,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "No Strobe",
+                  "from": 0,
+                  "to": 9
+                },
+                {
+                  "name": "Strobe 0-20 Hz",
+                  "from": 10,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Color programs",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 6,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "No function",
+                  "from": 0,
+                  "to": 0
+                },
+                {
+                  "name": "29 static color prog via channel 2",
+                  "from": 1,
+                  "to": 24
+                },
+                {
+                  "name": "Program 2 (7 color change)",
+                  "from": 25,
+                  "to": 49
+                },
+                {
+                  "name": "Program 3 (3 color change)",
+                  "from": 50,
+                  "to": 74
+                },
+                {
+                  "name": "Program 4 (7 color switch)",
+                  "from": 75,
+                  "to": 99
+                },
+                {
+                  "name": "Program 5 (3 color switch)",
+                  "from": 100,
+                  "to": 124
+                },
+                {
+                  "name": "Program 6 (fantasy change 1)",
+                  "from": 125,
+                  "to": 149
+                },
+                {
+                  "name": "Program 7 (fantasy change 2)",
+                  "from": 150,
+                  "to": 174
+                },
+                {
+                  "name": "Program 8 (Red gradual change)",
+                  "from": 175,
+                  "to": 199
+                },
+                {
+                  "name": "Program 9 (Green gradual change)",
+                  "from": 200,
+                  "to": 224
+                },
+                {
+                  "name": "Program 10 (Blue gradual change)",
+                  "from": 225,
+                  "to": 249
+                },
+                {
+                  "name": "Sound-controlled",
+                  "from": 250,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "ID Adress",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 7,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "ID 1-66",
+                  "from": 0,
+                  "to": 9
+                },
+                {
+                  "name": "ID 1",
+                  "from": 10,
+                  "to": 19
+                },
+                {
+                  "name": "ID 2",
+                  "from": 20,
+                  "to": 29
+                },
+                {
+                  "name": "ID 3",
+                  "from": 30,
+                  "to": 39
+                },
+                {
+                  "name": "ID 4",
+                  "from": 40,
+                  "to": 49
+                },
+                {
+                  "name": "ID 5",
+                  "from": 50,
+                  "to": 59
+                },
+                {
+                  "name": "ID 6",
+                  "from": 60,
+                  "to": 69
+                },
+                {
+                  "name": "ID 7",
+                  "from": 70,
+                  "to": 79
+                },
+                {
+                  "name": "ID 8",
+                  "from": 80,
+                  "to": 89
+                },
+                {
+                  "name": "ID 9",
+                  "from": 90,
+                  "to": 99
+                },
+                {
+                  "name": "ID 10",
+                  "from": 100,
+                  "to": 109
+                },
+                {
+                  "name": "ID 11",
+                  "from": 110,
+                  "to": 119
+                },
+                {
+                  "name": "ID 12",
+                  "from": 120,
+                  "to": 129
+                },
+                {
+                  "name": "ID 13",
+                  "from": 130,
+                  "to": 139
+                },
+                {
+                  "name": "ID 14",
+                  "from": 140,
+                  "to": 149
+                },
+                {
+                  "name": "ID 15",
+                  "from": 150,
+                  "to": 159
+                },
+                {
+                  "name": "ID 16",
+                  "from": 160,
+                  "to": 169
+                },
+                {
+                  "name": "ID 17",
+                  "from": 170,
+                  "to": 179
+                },
+                {
+                  "name": "ID 18",
+                  "from": 180,
+                  "to": 189
+                },
+                {
+                  "name": "ID 19",
+                  "from": 190,
+                  "to": 199
+                },
+                {
+                  "name": "ID 20",
+                  "from": 200,
+                  "to": 209
+                },
+                {
+                  "name": "ID 21",
+                  "from": 210,
+                  "to": 210
+                },
+                {
+                  "name": "ID 22",
+                  "from": 211,
+                  "to": 211
+                },
+                {
+                  "name": "ID 23",
+                  "from": 212,
+                  "to": 212
+                },
+                {
+                  "name": "ID 63",
+                  "from": 213,
+                  "to": 250
+                },
+                {
+                  "name": "ID 62",
+                  "from": 251,
+                  "to": 251
+                },
+                {
+                  "name": "ID 63",
+                  "from": 252,
+                  "to": 252
+                },
+                {
+                  "name": "ID 64",
+                  "from": 253,
+                  "to": 253
+                },
+                {
+                  "name": "ID 65",
+                  "from": 254,
+                  "to": 254
+                },
+                {
+                  "name": "ID 66",
+                  "from": 255,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Fader response",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 8,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "CH1-CH4 instant fader response",
+                  "from": 0,
+                  "to": 250
+                },
+                {
+                  "name": "CH1-CH4 delayed fader response",
+                  "from": 251,
+                  "to": 255
+                }
+              ]
+            }
+          ],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              },
+              {
+                "channel": 4
+              }
+            ]
+          },
+          "zoom_degrees": [
+            18.0,
+            18.0
+          ]
+        },
+        {
+          "name": "3 Channel",
+          "footprint": 3,
+          "attributes": [],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          },
+          "virtual_dimmer": true,
+          "zoom_degrees": [
+            18.0,
+            18.0
+          ]
+        }
+      ]
+    },
+    "Showtec/LED Par 56": {
+      "manufacturer": "Showtec",
+      "model": "LED Par 56",
+      "source": "qlcplus:Showtec/Showtec-LED-Par-56.qxf",
+      "modes": [
+        {
+          "name": "6 Channel",
+          "footprint": 6,
+          "attributes": [
+            {
+              "name": "Colour Macro",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 4,
+              "default": 0.0
+            },
+            {
+              "name": "Strobe and Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 5,
+              "default": 0.0
+            },
+            {
+              "name": "Mode",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 6,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "RGB Control",
+                  "from": 0,
+                  "to": 63
+                },
+                {
+                  "name": "7 Color Fade",
+                  "from": 64,
+                  "to": 127
+                },
+                {
+                  "name": "7 color change",
+                  "from": 128,
+                  "to": 191
+                },
+                {
+                  "name": "music controlled",
+                  "from": 192,
+                  "to": 255
+                }
+              ]
+            }
+          ],
+          "colour": {
+            "system": "RGB",
+            "components": [
+              {
+                "channel": 1
+              },
+              {
+                "channel": 2
+              },
+              {
+                "channel": 3
+              }
+            ]
+          },
+          "virtual_dimmer": true
+        }
+      ]
+    },
+    "Showtec/Phantom 25 LED Spot": {
+      "manufacturer": "Showtec",
+      "model": "Phantom 25 LED Spot",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "11 Channel",
+          "footprint": 11,
+          "attributes": [
+            {
+              "name": "Pan",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 1,
+              "fine_channel": 3,
+              "default": 0.0
+            },
+            {
+              "name": "Tilt",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 2,
+              "fine_channel": 4,
+              "default": 0.0
+            },
+            {
+              "name": "Pan/Tilt Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 5,
+              "default": 0.0
+            },
+            {
+              "name": "Colour Wheel",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 6,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "Open / White",
+                  "from": 0,
+                  "to": 5,
+                  "colour": {
+                    "r": 1.0,
+                    "g": 1.0,
+                    "b": 1.0
+                  }
+                },
+                {
+                  "name": "Yellow",
+                  "from": 6,
+                  "to": 11,
+                  "colour": {
+                    "r": 1.0,
+                    "g": 0.7913,
+                    "b": 0.0
+                  }
+                },
+                {
+                  "name": "Pink",
+                  "from": 12,
+                  "to": 17,
+                  "colour": {
+                    "r": 1.0,
+                    "g": 0.1144,
+                    "b": 0.4564
+                  }
+                },
+                {
+                  "name": "Green",
+                  "from": 18,
+                  "to": 23,
+                  "colour": {
+                    "r": 0.0,
+                    "g": 0.5776,
+                    "b": 0.0802
+                  }
+                },
+                {
+                  "name": "Red",
+                  "from": 24,
+                  "to": 29,
+                  "colour": {
+                    "r": 1.0,
+                    "g": 0.0,
+                    "b": 0.0
+                  }
+                },
+                {
+                  "name": "Light Blue",
+                  "from": 30,
+                  "to": 35,
+                  "colour": {
+                    "r": 0.1274,
+                    "g": 0.5776,
+                    "b": 1.0
+                  }
+                },
+                {
+                  "name": "Orange",
+                  "from": 36,
+                  "to": 41,
+                  "colour": {
+                    "r": 1.0,
+                    "g": 0.2232,
+                    "b": 0.0
+                  }
+                },
+                {
+                  "name": "Dark Blue",
+                  "from": 42,
+                  "to": 47,
+                  "colour": {
+                    "r": 0.0,
+                    "g": 0.0212,
+                    "b": 0.5776
+                  }
+                },
+                {
+                  "name": "Light Green",
+                  "from": 48,
+                  "to": 53,
+                  "colour": {
+                    "r": 0.2623,
+                    "g": 1.0,
+                    "b": 0.1274
+                  }
+                },
+                {
+                  "name": "Bright Red",
+                  "from": 54,
+                  "to": 63,
+                  "colour": {
+                    "r": 1.0,
+                    "g": 0.0,
+                    "b": 0.0212
+                  }
+                },
+                {
+                  "name": "White / Yellow",
+                  "from": 64,
+                  "to": 69
+                },
+                {
+                  "name": "Yellow / Pink",
+                  "from": 70,
+                  "to": 75
+                },
+                {
+                  "name": "Pink / Green",
+                  "from": 76,
+                  "to": 81
+                },
+                {
+                  "name": "Green / Red",
+                  "from": 82,
+                  "to": 87
+                },
+                {
+                  "name": "Red / Light Blue",
+                  "from": 88,
+                  "to": 93
+                },
+                {
+                  "name": "Light Blue / Orange",
+                  "from": 94,
+                  "to": 99
+                },
+                {
+                  "name": "Orange / Dark Blue",
+                  "from": 100,
+                  "to": 105
+                },
+                {
+                  "name": "Dark Blue / Light Green",
+                  "from": 106,
+                  "to": 111
+                },
+                {
+                  "name": "Light Green / Bright Red",
+                  "from": 112,
+                  "to": 117
+                },
+                {
+                  "name": "Bright Red / White",
+                  "from": 118,
+                  "to": 127
+                },
+                {
+                  "name": "Rotate CW slow → fast",
+                  "from": 128,
+                  "to": 191
+                },
+                {
+                  "name": "Rotate CCW slow → fast",
+                  "from": 192,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Shutter",
+              "group": "I",
+              "kind": "Ltp",
+              "channel": 7,
+              "default": 1.0,
+              "slots": [
+                {
+                  "name": "Closed",
+                  "from": 0,
+                  "to": 3
+                },
+                {
+                  "name": "Open",
+                  "from": 4,
+                  "to": 7
+                },
+                {
+                  "name": "Strobe slow → fast",
+                  "from": 8,
+                  "to": 215
+                },
+                {
+                  "name": "Open",
+                  "from": 216,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 8,
+              "default": 0.0
+            },
+            {
+              "name": "Gobo",
+              "group": "G",
+              "kind": "Ltp",
+              "channel": 9,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "Open",
+                  "from": 0,
+                  "to": 5
+                },
+                {
+                  "name": "Gobo 1",
+                  "from": 6,
+                  "to": 11
+                },
+                {
+                  "name": "Gobo 2",
+                  "from": 12,
+                  "to": 17
+                },
+                {
+                  "name": "Gobo 3",
+                  "from": 18,
+                  "to": 23
+                },
+                {
+                  "name": "Gobo 4",
+                  "from": 24,
+                  "to": 29
+                },
+                {
+                  "name": "Gobo 5",
+                  "from": 30,
+                  "to": 35
+                },
+                {
+                  "name": "Gobo 6",
+                  "from": 36,
+                  "to": 41
+                },
+                {
+                  "name": "Gobo 7",
+                  "from": 42,
+                  "to": 47
+                },
+                {
+                  "name": "Gobo 8",
+                  "from": 48,
+                  "to": 53
+                },
+                {
+                  "name": "Gobo 9",
+                  "from": 54,
+                  "to": 63
+                },
+                {
+                  "name": "Gobo 9 shake",
+                  "from": 64,
+                  "to": 73
+                },
+                {
+                  "name": "Gobo 8 shake",
+                  "from": 74,
+                  "to": 79
+                },
+                {
+                  "name": "Gobo 7 shake",
+                  "from": 80,
+                  "to": 85
+                },
+                {
+                  "name": "Gobo 6 shake",
+                  "from": 86,
+                  "to": 91
+                },
+                {
+                  "name": "Gobo 5 shake",
+                  "from": 92,
+                  "to": 97
+                },
+                {
+                  "name": "Gobo 4 shake",
+                  "from": 98,
+                  "to": 103
+                },
+                {
+                  "name": "Gobo 3 shake",
+                  "from": 104,
+                  "to": 109
+                },
+                {
+                  "name": "Gobo 2 shake",
+                  "from": 110,
+                  "to": 115
+                },
+                {
+                  "name": "Gobo 1 shake",
+                  "from": 116,
+                  "to": 121
+                },
+                {
+                  "name": "Open",
+                  "from": 122,
+                  "to": 127
+                },
+                {
+                  "name": "Rotate CW slow → fast",
+                  "from": 128,
+                  "to": 191
+                },
+                {
+                  "name": "Rotate CCW slow → fast",
+                  "from": 192,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Control",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 10,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "No function",
+                  "from": 0,
+                  "to": 7
+                },
+                {
+                  "name": "Blackout on Pan/Tilt",
+                  "from": 8,
+                  "to": 27
+                },
+                {
+                  "name": "Blackout on gobo",
+                  "from": 28,
+                  "to": 47
+                },
+                {
+                  "name": "No blackout on Pan/Tilt/gobo",
+                  "from": 48,
+                  "to": 67
+                },
+                {
+                  "name": "Blackout on colour",
+                  "from": 68,
+                  "to": 87
+                },
+                {
+                  "name": "No blackout on Pan/Tilt/colour",
+                  "from": 88,
+                  "to": 107
+                },
+                {
+                  "name": "No blackout on gobo/colour",
+                  "from": 108,
+                  "to": 127
+                },
+                {
+                  "name": "No blackout on Pan/Tilt/gobo/colour",
+                  "from": 128,
+                  "to": 147
+                },
+                {
+                  "name": "Reset Pan",
+                  "from": 148,
+                  "to": 167
+                },
+                {
+                  "name": "Reset Tilt",
+                  "from": 168,
+                  "to": 187
+                },
+                {
+                  "name": "Reset colour wheel",
+                  "from": 188,
+                  "to": 207
+                },
+                {
+                  "name": "Reset gobo wheel",
+                  "from": 208,
+                  "to": 227
+                },
+                {
+                  "name": "Reset all",
+                  "from": 228,
+                  "to": 247
+                },
+                {
+                  "name": "No function",
+                  "from": 248,
+                  "to": 255
+                }
+              ]
+            },
+            {
+              "name": "Programs",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 11,
+              "default": 0.0,
+              "slots": [
+                {
+                  "name": "No function",
+                  "from": 0,
+                  "to": 7
+                },
+                {
+                  "name": "Program 1",
+                  "from": 8,
+                  "to": 23
+                },
+                {
+                  "name": "Program 2",
+                  "from": 24,
+                  "to": 39
+                },
+                {
+                  "name": "Program 3",
+                  "from": 40,
+                  "to": 55
+                },
+                {
+                  "name": "Program 4",
+                  "from": 56,
+                  "to": 71
+                },
+                {
+                  "name": "Program 5",
+                  "from": 72,
+                  "to": 87
+                },
+                {
+                  "name": "Program 6",
+                  "from": 88,
+                  "to": 103
+                },
+                {
+                  "name": "Program 7",
+                  "from": 104,
+                  "to": 119
+                },
+                {
+                  "name": "Program 8",
+                  "from": 120,
+                  "to": 135
+                },
+                {
+                  "name": "Sound program 1",
+                  "from": 136,
+                  "to": 151
+                },
+                {
+                  "name": "Sound program 2",
+                  "from": 152,
+                  "to": 167
+                },
+                {
+                  "name": "Sound program 3",
+                  "from": 168,
+                  "to": 183
+                },
+                {
+                  "name": "Sound program 4",
+                  "from": 184,
+                  "to": 199
+                },
+                {
+                  "name": "Sound program 5",
+                  "from": 200,
+                  "to": 215
+                },
+                {
+                  "name": "Sound program 6",
+                  "from": 216,
+                  "to": 231
+                },
+                {
+                  "name": "Sound program 7",
+                  "from": 232,
+                  "to": 247
+                },
+                {
+                  "name": "Sound program 8",
+                  "from": 248,
+                  "to": 255
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "Stairville/Hz-200 DMX": {
+      "manufacturer": "Stairville",
+      "model": "Hz-200 DMX",
+      "source": "qlcplus:Stairville/Stairville-Hz-200-DMX.qxf",
+      "modes": [
+        {
+          "name": "Default",
+          "footprint": 2,
+          "attributes": [
+            {
+              "name": "Haze",
+              "group": "I",
+              "kind": "Ltp",
+              "channel": 1,
+              "default": 0.0
+            },
+            {
+              "name": "Fan Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 2,
+              "default": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    "beamZ/BTF50Z Mini Fresnel": {
+      "manufacturer": "beamZ",
+      "model": "BTF50Z Mini Fresnel",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "3 Channel",
+          "footprint": 3,
+          "attributes": [
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 1,
+              "default": 0.0
+            },
+            {
+              "name": "Warm White",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 2,
+              "default": 0.0,
+              "emitter": true
+            },
+            {
+              "name": "Cold White",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 3,
+              "default": 0.0,
+              "emitter": true
+            }
+          ]
+        }
+      ]
+    },
+    "beamZ/Fuze 75S Spot": {
+      "manufacturer": "beamZ",
+      "model": "Fuze 75S Spot",
+      "source": "channel-list",
+      "modes": [
+        {
+          "name": "16 Bit",
+          "footprint": 13,
+          "attributes": [
+            {
+              "name": "Pan",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 1,
+              "fine_channel": 2,
+              "default": 0.0
+            },
+            {
+              "name": "Tilt",
+              "group": "P",
+              "kind": "Ltp",
+              "channel": 3,
+              "fine_channel": 4,
+              "default": 0.0
+            },
+            {
+              "name": "Colour Wheel",
+              "group": "C",
+              "kind": "Ltp",
+              "channel": 5,
+              "default": 0.0
+            },
+            {
+              "name": "Gobo",
+              "group": "G",
+              "kind": "Ltp",
+              "channel": 6,
+              "default": 0.0
+            },
+            {
+              "name": "Shutter",
+              "group": "I",
+              "kind": "Ltp",
+              "channel": 7,
+              "default": 1.0
+            },
+            {
+              "name": "Dimmer",
+              "group": "I",
+              "kind": "Htp",
+              "channel": 8,
+              "default": 0.0
+            },
+            {
+              "name": "Focus",
+              "group": "B",
+              "kind": "Ltp",
+              "channel": 9,
+              "default": 0.0
+            },
+            {
+              "name": "Prism",
+              "group": "E",
+              "kind": "Ltp",
+              "channel": 10,
+              "default": 0.0
+            },
+            {
+              "name": "Gobo/Prism Rotation",
+              "group": "G",
+              "kind": "Ltp",
+              "channel": 11,
+              "default": 0.0
+            },
+            {
+              "name": "Pan/Tilt Speed",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 12,
+              "default": 0.0
+            },
+            {
+              "name": "Programs",
+              "group": "S",
+              "kind": "Ltp",
+              "channel": 13,
+              "default": 0.0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "patch": {
+    "next_id": 57,
+    "fixtures": [
+      {
+        "id": 1,
+        "number": 101,
+        "name": "P1",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 1,
+        "handle": {
+          "page": 1,
+          "slot": 1
+        }
+      },
+      {
+        "id": 2,
+        "number": 102,
+        "name": "P2",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 7,
+        "handle": {
+          "page": 1,
+          "slot": 2
+        }
+      },
+      {
+        "id": 3,
+        "number": 103,
+        "name": "P3",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 13,
+        "handle": {
+          "page": 1,
+          "slot": 3
+        }
+      },
+      {
+        "id": 4,
+        "number": 104,
+        "name": "P4",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 19,
+        "handle": {
+          "page": 1,
+          "slot": 4
+        }
+      },
+      {
+        "id": 5,
+        "number": 105,
+        "name": "P5",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 25,
+        "handle": {
+          "page": 1,
+          "slot": 5
+        }
+      },
+      {
+        "id": 6,
+        "number": 106,
+        "name": "P6",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 31,
+        "handle": {
+          "page": 1,
+          "slot": 6
+        }
+      },
+      {
+        "id": 7,
+        "number": 107,
+        "name": "P7",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 37,
+        "handle": {
+          "page": 1,
+          "slot": 7
+        }
+      },
+      {
+        "id": 8,
+        "number": 108,
+        "name": "P8",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 43,
+        "handle": {
+          "page": 1,
+          "slot": 8
+        }
+      },
+      {
+        "id": 9,
+        "number": 109,
+        "name": "P9",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 49,
+        "handle": {
+          "page": 1,
+          "slot": 9
+        }
+      },
+      {
+        "id": 10,
+        "number": 110,
+        "name": "P10",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 55,
+        "handle": {
+          "page": 1,
+          "slot": 10
+        }
+      },
+      {
+        "id": 11,
+        "number": 111,
+        "name": "P11",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 61,
+        "handle": {
+          "page": 1,
+          "slot": 11
+        }
+      },
+      {
+        "id": 12,
+        "number": 112,
+        "name": "P12",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 67,
+        "handle": {
+          "page": 1,
+          "slot": 12
+        }
+      },
+      {
+        "id": 13,
+        "number": 113,
+        "name": "P13",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 73,
+        "handle": {
+          "page": 1,
+          "slot": 13
+        }
+      },
+      {
+        "id": 14,
+        "number": 114,
+        "name": "P14",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 79,
+        "handle": {
+          "page": 1,
+          "slot": 14
+        }
+      },
+      {
+        "id": 15,
+        "number": 115,
+        "name": "P15",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 85,
+        "handle": {
+          "page": 1,
+          "slot": 15
+        }
+      },
+      {
+        "id": 16,
+        "number": 116,
+        "name": "P16",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 91,
+        "handle": {
+          "page": 1,
+          "slot": 16
+        }
+      },
+      {
+        "id": 17,
+        "number": 117,
+        "name": "P17",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 97,
+        "handle": {
+          "page": 1,
+          "slot": 17
+        }
+      },
+      {
+        "id": 18,
+        "number": 118,
+        "name": "P18",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 103,
+        "handle": {
+          "page": 1,
+          "slot": 18
+        }
+      },
+      {
+        "id": 19,
+        "number": 119,
+        "name": "P35",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 250,
+        "handle": {
+          "page": 1,
+          "slot": 19
+        }
+      },
+      {
+        "id": 20,
+        "number": 120,
+        "name": "P36",
+        "profile": "Showtec/LED Par 56",
+        "mode": "6 Channel",
+        "universe": 1,
+        "address": 256,
+        "handle": {
+          "page": 1,
+          "slot": 20
+        }
+      },
+      {
+        "id": 21,
+        "number": 201,
+        "name": "MH1",
+        "profile": "Showtec/Phantom 25 LED Spot",
+        "mode": "11 Channel",
+        "universe": 1,
+        "address": 109,
+        "handle": {
+          "page": 1,
+          "slot": 21
+        }
+      },
+      {
+        "id": 22,
+        "number": 202,
+        "name": "MH2",
+        "profile": "Showtec/Phantom 25 LED Spot",
+        "mode": "11 Channel",
+        "universe": 1,
+        "address": 120,
+        "handle": {
+          "page": 1,
+          "slot": 22
+        }
+      },
+      {
+        "id": 23,
+        "number": 203,
+        "name": "MH3",
+        "profile": "Showtec/Phantom 25 LED Spot",
+        "mode": "11 Channel",
+        "universe": 1,
+        "address": 131,
+        "handle": {
+          "page": 1,
+          "slot": 23
+        }
+      },
+      {
+        "id": 24,
+        "number": 204,
+        "name": "MH4",
+        "profile": "Showtec/Phantom 25 LED Spot",
+        "mode": "11 Channel",
+        "universe": 1,
+        "address": 142,
+        "handle": {
+          "page": 1,
+          "slot": 24
+        }
+      },
+      {
+        "id": 25,
+        "number": 301,
+        "name": "P19",
+        "profile": "Pro-Lights/Lumipar6UQ",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 153,
+        "handle": {
+          "page": 1,
+          "slot": 25
+        }
+      },
+      {
+        "id": 26,
+        "number": 302,
+        "name": "P20",
+        "profile": "Pro-Lights/Lumipar6UQ",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 157,
+        "handle": {
+          "page": 1,
+          "slot": 26
+        }
+      },
+      {
+        "id": 27,
+        "number": 303,
+        "name": "P21",
+        "profile": "Pro-Lights/Lumipar6UQ",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 161,
+        "handle": {
+          "page": 1,
+          "slot": 27
+        }
+      },
+      {
+        "id": 28,
+        "number": 304,
+        "name": "P22",
+        "profile": "Pro-Lights/Lumipar6UQ",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 165,
+        "handle": {
+          "page": 1,
+          "slot": 28
+        }
+      },
+      {
+        "id": 29,
+        "number": 305,
+        "name": "P23",
+        "profile": "Pro-Lights/Lumipar6UQ",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 169,
+        "handle": {
+          "page": 1,
+          "slot": 29
+        }
+      },
+      {
+        "id": 30,
+        "number": 306,
+        "name": "P24",
+        "profile": "Pro-Lights/Lumipar6UQ",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 173,
+        "handle": {
+          "page": 1,
+          "slot": 30
+        }
+      },
+      {
+        "id": 31,
+        "number": 307,
+        "name": "P25",
+        "profile": "Pro-Lights/Lumipar6UQ",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 177,
+        "handle": {
+          "page": 1,
+          "slot": 31
+        }
+      },
+      {
+        "id": 32,
+        "number": 308,
+        "name": "P26",
+        "profile": "Pro-Lights/Lumipar6UQ",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 181,
+        "handle": {
+          "page": 1,
+          "slot": 32
+        }
+      },
+      {
+        "id": 33,
+        "number": 401,
+        "name": "P27",
+        "profile": "Generic/PAR Spot",
+        "mode": "1 Channel",
+        "universe": 1,
+        "address": 185,
+        "handle": {
+          "page": 1,
+          "slot": 33
+        }
+      },
+      {
+        "id": 34,
+        "number": 402,
+        "name": "P28",
+        "profile": "Generic/PAR Spot",
+        "mode": "1 Channel",
+        "universe": 1,
+        "address": 186,
+        "handle": {
+          "page": 1,
+          "slot": 34
+        }
+      },
+      {
+        "id": 35,
+        "number": 403,
+        "name": "P29",
+        "profile": "Generic/PAR Spot",
+        "mode": "1 Channel",
+        "universe": 1,
+        "address": 187,
+        "handle": {
+          "page": 1,
+          "slot": 35
+        }
+      },
+      {
+        "id": 36,
+        "number": 404,
+        "name": "P30",
+        "profile": "Generic/PAR Spot",
+        "mode": "1 Channel",
+        "universe": 1,
+        "address": 188,
+        "handle": {
+          "page": 1,
+          "slot": 36
+        }
+      },
+      {
+        "id": 37,
+        "number": 405,
+        "name": "P31",
+        "profile": "Generic/PAR Spot",
+        "mode": "1 Channel",
+        "universe": 1,
+        "address": 189,
+        "handle": {
+          "page": 1,
+          "slot": 37
+        }
+      },
+      {
+        "id": 38,
+        "number": 406,
+        "name": "P32",
+        "profile": "Generic/PAR Spot",
+        "mode": "1 Channel",
+        "universe": 1,
+        "address": 190,
+        "handle": {
+          "page": 1,
+          "slot": 38
+        }
+      },
+      {
+        "id": 39,
+        "number": 501,
+        "name": "P33",
+        "profile": "Showtec/Compact Par 7 Tri",
+        "mode": "3 Channel",
+        "universe": 1,
+        "address": 191,
+        "handle": {
+          "page": 1,
+          "slot": 39
+        }
+      },
+      {
+        "id": 40,
+        "number": 502,
+        "name": "P34",
+        "profile": "Showtec/Compact Par 7 Tri",
+        "mode": "3 Channel",
+        "universe": 1,
+        "address": 194,
+        "handle": {
+          "page": 1,
+          "slot": 40
+        }
+      },
+      {
+        "id": 41,
+        "number": 601,
+        "name": "P43",
+        "profile": "Generic/PAR Wash (RGBW)",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 217,
+        "handle": {
+          "page": 2,
+          "slot": 1
+        }
+      },
+      {
+        "id": 42,
+        "number": 602,
+        "name": "P44",
+        "profile": "Generic/PAR Wash (RGBW)",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 221,
+        "handle": {
+          "page": 2,
+          "slot": 2
+        }
+      },
+      {
+        "id": 43,
+        "number": 701,
+        "name": "F1",
+        "profile": "Stairville/Hz-200 DMX",
+        "mode": "Default",
+        "universe": 1,
+        "address": 232,
+        "handle": {
+          "page": 2,
+          "slot": 3
+        }
+      },
+      {
+        "id": 44,
+        "number": 801,
+        "name": "P40",
+        "profile": "beamZ/BTF50Z Mini Fresnel",
+        "mode": "3 Channel",
+        "universe": 1,
+        "address": 234,
+        "handle": {
+          "page": 2,
+          "slot": 4
+        }
+      },
+      {
+        "id": 45,
+        "number": 802,
+        "name": "P41",
+        "profile": "beamZ/BTF50Z Mini Fresnel",
+        "mode": "3 Channel",
+        "universe": 1,
+        "address": 237,
+        "handle": {
+          "page": 2,
+          "slot": 5
+        }
+      },
+      {
+        "id": 46,
+        "number": 901,
+        "name": "MH5",
+        "profile": "Shehds/LED Beam+Wash 19x15W RGBW Zoom Lighting",
+        "mode": "24 Channel",
+        "universe": 1,
+        "address": 265,
+        "handle": {
+          "page": 2,
+          "slot": 6
+        }
+      },
+      {
+        "id": 47,
+        "number": 902,
+        "name": "MH6",
+        "profile": "Shehds/LED Beam+Wash 19x15W RGBW Zoom Lighting",
+        "mode": "24 Channel",
+        "universe": 1,
+        "address": 289,
+        "handle": {
+          "page": 2,
+          "slot": 7
+        }
+      },
+      {
+        "id": 48,
+        "number": 903,
+        "name": "MH7",
+        "profile": "Shehds/LED Beam+Wash 19x15W RGBW Zoom Lighting",
+        "mode": "24 Channel",
+        "universe": 1,
+        "address": 313,
+        "handle": {
+          "page": 2,
+          "slot": 8
+        }
+      },
+      {
+        "id": 49,
+        "number": 904,
+        "name": "MH8",
+        "profile": "Shehds/LED Beam+Wash 19x15W RGBW Zoom Lighting",
+        "mode": "24 Channel",
+        "universe": 1,
+        "address": 337,
+        "handle": {
+          "page": 2,
+          "slot": 9
+        }
+      },
+      {
+        "id": 50,
+        "number": 1001,
+        "name": "P37",
+        "profile": "Generic/PAR Spot (RGBL)",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 361,
+        "handle": {
+          "page": 2,
+          "slot": 10
+        }
+      },
+      {
+        "id": 51,
+        "number": 1002,
+        "name": "P38",
+        "profile": "Generic/PAR Spot (RGBL)",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 365,
+        "handle": {
+          "page": 2,
+          "slot": 11
+        }
+      },
+      {
+        "id": 52,
+        "number": 1003,
+        "name": "P39",
+        "profile": "Generic/PAR Spot (RGBL)",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 369,
+        "handle": {
+          "page": 2,
+          "slot": 12
+        }
+      },
+      {
+        "id": 53,
+        "number": 1004,
+        "name": "P45",
+        "profile": "Generic/PAR Spot (RGBL)",
+        "mode": "4 Channel",
+        "universe": 1,
+        "address": 373,
+        "handle": {
+          "page": 2,
+          "slot": 13
+        }
+      },
+      {
+        "id": 54,
+        "number": 1101,
+        "name": "MH9",
+        "profile": "beamZ/Fuze 75S Spot",
+        "mode": "16 Bit",
+        "universe": 1,
+        "address": 464,
+        "handle": {
+          "page": 2,
+          "slot": 14
+        }
+      },
+      {
+        "id": 55,
+        "number": 1102,
+        "name": "MH10",
+        "profile": "beamZ/Fuze 75S Spot",
+        "mode": "16 Bit",
+        "universe": 1,
+        "address": 477,
+        "handle": {
+          "page": 2,
+          "slot": 15
+        }
+      },
+      {
+        "id": 56,
+        "number": 1201,
+        "name": "P42",
+        "profile": "Generic/PAR Spot (RGB)",
+        "mode": "3 Channel",
+        "universe": 1,
+        "address": 490,
+        "handle": {
+          "page": 2,
+          "slot": 16
+        }
+      }
+    ]
+  },
+  "groups": [],
+  "palettes": {
+    "next_id": 1,
+    "palettes": []
+  },
+  "pages": [],
+  "playbacks": {
+    "next_id": 1,
+    "playbacks": []
+  },
+  "output": {
+    "next_node_id": 4,
+    "nodes": [
+      {
+        "id": 1,
+        "line": 1,
+        "enabled": true,
+        "kind": "artnet",
+        "port_address": 0,
+        "target": "255.255.255.255"
+      },
+      {
+        "id": 2,
+        "line": 1,
+        "enabled": true,
+        "kind": "sacn",
+        "universe": 1,
+        "priority": 100,
+        "unicast": null
+      },
+      {
+        "id": 3,
+        "line": 1,
+        "enabled": true,
+        "kind": "serial",
+        "port": "auto"
+      }
+    ]
+  }
+}
