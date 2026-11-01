@@ -9,7 +9,7 @@ UI-26 quit text amended to match REL-13 (VS4-08, 2026-10-28; for owner approval 
 UI-26 (VS2-05) timed Clear from the keypad amended (FXB-07, 2026-10-29; for owner approval in its PR).
 UI-18 BPM / Rate Master take the next empty handle (FXB-10, 2026-10-29; for owner approval in its PR).
 UI-33 and UI-34 (selection orders, P2-02): **approved by owner 2026-10-29**.
-UI-33a, UI-33b (Fan and Pattern keep the selection keys, SEL-09, 2026-11-01): for owner approval.
+UI-33a, UI-33b (Fan and Pattern keep the selection keys, SEL-09): **approved by owner 2026-11-01**.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -390,7 +390,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   editor's *More* (FX-38) gains **Flip** next to Wings and an **Order** row: Reverse, Shuffle, Sort
   (FX-45). The app computes no position. The manual's *Selecting fixtures* page and *Shapes and
   effects* page grow in the same PR (WEB-33).
-  Amended by SEL-09 (from the SEL-07 run; for owner approval):
+  Amended by SEL-09 (from the SEL-07 run; approved by owner 2026-11-01):
   - **UI-33a** While Fan is on and fixtures are selected, the Fan context (UI-30) keeps Line,
     Mirror, Wings, Arrow and Fan off on A–E and adds **Next** (Fix +1), **All**, **Order** and
     **Pattern** on F–I, as in the Selection context. Order and Pattern open their sub-contexts while

@@ -182,6 +182,7 @@ final class UIState: ObservableObject {
     func show(workspace index: Int) {
         workspace = index
         screen = nil
+        selectionMenu = nil   // UI-33a: an open Order/Pattern would otherwise hide the Shapes softkeys
     }
 }
 
