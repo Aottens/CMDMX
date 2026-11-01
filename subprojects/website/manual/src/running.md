@@ -135,7 +135,11 @@ CMDMX is built to keep the light on.
   does not ask, and it does not stop the engine: DMX keeps flowing. Open the app again and it reconnects.
 - **The Mac stays awake:** while the engine runs, with or without the app, the Mac does not go to sleep
   by itself, because a sleeping Mac sends no DMX. If macOS refuses this, you get one warning
-  and the engine keeps running: set the Mac's sleep setting by hand then.
+  and the engine keeps running: set the Mac's sleep setting by hand then. While **Console** is on the
+  display stays on as well; outside Console it follows the Mac's setting and output carries on.
+- **What does not keep the Mac awake:** closing the lid without an external display, Sleep in the Apple
+  menu, the power button and an empty battery. A sleeping Mac sends no DMX, so do not close the lid during
+  a show and keep a laptop on mains. On wake, output returns by itself without any action.
 - **An output fails** (a network error, the USB interface unplugged): the engine keeps the last
   good frame, keeps running and warns once. The output row on the **Output** screen and its dot
   in the status bar show the state. A USB interface that comes back is picked up again within a

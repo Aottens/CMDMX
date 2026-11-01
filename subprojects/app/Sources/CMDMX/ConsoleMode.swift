@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-// Console mode (UI-26): native full screen with the Dock and menu bar auto-hidden. Quitting asks
-// in every mode (UI-36). The choice lives in UserDefaults ("consoleMode").
+// Console mode (UI-26): native full screen with the Dock and menu bar auto-hidden and the display
+// kept awake (UI-35). Quitting asks in every mode (UI-36). The choice lives in UserDefaults ("consoleMode").
 // The engine is a separate process, but the app stops the one it started or adopted (REL-13).
 
 private let consoleKey = "consoleMode"
@@ -89,9 +89,18 @@ struct WindowConfigurator: NSViewRepresentable {
         var console = true
         private let delegate = ConsoleWindowDelegate()
         private var observers: [NSObjectProtocol] = []
+        private var displayActivity: NSObjectProtocol?
 
         func attach(_ window: NSWindow, console: Bool) {
             self.console = console
+            // UI-35: console mode keeps the display awake; system sleep stays the engine's (OUT-38).
+            if console, displayActivity == nil {
+                displayActivity = ProcessInfo.processInfo.beginActivity(
+                    options: .idleDisplaySleepDisabled, reason: "CMDMX console mode")
+            } else if !console, let activity = displayActivity {
+                ProcessInfo.processInfo.endActivity(activity)
+                displayActivity = nil
+            }
             window.collectionBehavior.insert(.fullScreenPrimary)
             if window.delegate !== delegate {
                 delegate.original = window.delegate

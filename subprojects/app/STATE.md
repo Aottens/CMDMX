@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-01 (SPF-04)_
+_Last updated: 2026-11-01 (SPF-03)_
 
 ## Current step
+SPF-03 (2026-11-01, UI-35): `WindowConfigurator.Coordinator` holds a `ProcessInfo` activity with `.idleDisplaySleepDisabled` ("CMDMX console mode") while console mode is on and ends it when console mode is off; `attach` is the one place every console change passes. Checked with `swift build` and `pmset -g assertions`; run `tests/hardware/sleep.md` (OUT-41) is the owner's.
 SPF-04 (2026-11-01, UI-36, REL-13): `applicationShouldTerminate` always shows the quit alert and `ConsoleWindowDelegate.windowShouldClose` always goes through `NSApp.terminate` and returns false, so Cancel keeps the window in both modes. Checked with `swift build`; run `tests/manual/runs/2026-11-01-SPF-04.md`.
 GRP-04 (2026-11-01, IPC-49): `notice` lands in `lastMessage`; `GroupsWindow.tap` no longer says the group title itself, the engine does.
 GRP-05 (2026-11-01, PBK-37): `StripLegend` draws the 26 pt icon slot only with a picked or automatic icon, so a group master's legend gets the full width ("Front spots" fits).
