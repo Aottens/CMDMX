@@ -1,5 +1,16 @@
 # Release notes
 
+## 0.2.7
+
+Published 1 November 2026 as "CMDMX 0.2.7".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.2.7)
+
+The message line now names a group however you select it (see [Groups](programming.md#groups)).
+
+- Tapping a group, typing `Group 3 Enter` and pressing its button on a control surface all show
+  "Group 5 Pars outside in".
+- An empty group says "Group 7 is empty", and the selection stays.
+
 ## 0.2.6
 
 Published 1 November 2026 as "CMDMX 0.2.6".
