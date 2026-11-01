@@ -477,9 +477,18 @@ fn main() {
             return;
         }
 
-        next += TICK;
+        next = next_deadline(next, Instant::now(), TICK);
         let wait = next.saturating_duration_since(Instant::now());
         std::thread::sleep(wait);
+    }
+}
+
+/// OUT-40: after a late tick, restart the cadence from now instead of bursting to catch up.
+fn next_deadline(deadline: Instant, now: Instant, tick: Duration) -> Instant {
+    if now.saturating_duration_since(deadline) > tick {
+        now + tick
+    } else {
+        deadline + tick
     }
 }
 
@@ -4706,5 +4715,33 @@ mod tests {
             assert!(json_run(&mut e, &mut h, refused).is_err(), "{refused}");
             assert_eq!(order(&e), before, "{refused}");
         }
+    }
+
+    #[test]
+    fn out_40_a_tick_within_one_tick_of_its_deadline_keeps_the_grid() {
+        let deadline = Instant::now();
+        // On time, a little late and exactly one TICK late: the old deadline + TICK.
+        for now in [deadline, deadline + TICK / 2, deadline + TICK] {
+            assert_eq!(next_deadline(deadline, now, TICK), deadline + TICK);
+        }
+    }
+
+    #[test]
+    fn out_40_a_tick_more_than_one_tick_late_does_not_catch_up() {
+        let deadline = Instant::now();
+        let just_too_late = deadline + TICK + Duration::from_millis(1);
+        assert_eq!(
+            next_deadline(deadline, just_too_late, TICK),
+            just_too_late + TICK
+        );
+        let stalled = deadline + Duration::from_secs(3);
+        assert_eq!(next_deadline(deadline, stalled, TICK), stalled + TICK);
+    }
+
+    #[test]
+    fn out_40_a_wake_before_the_deadline_is_not_late() {
+        let now = Instant::now();
+        let deadline = now + TICK;
+        assert_eq!(next_deadline(deadline, now, TICK), deadline + TICK);
     }
 }

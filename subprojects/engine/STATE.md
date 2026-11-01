@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-11-01 (SPF-01)_
+_Last updated: 2026-11-01 (SPF-02)_
 
 ## Current step
+SPF-02 (2026-11-01, OUT-40): `next_deadline` in `cmdmx-daemon/src/main.rs`: a tick loop more than one `TICK` past its deadline continues at now + `TICK` instead of sending the missed ticks at once; `now` stays the time since start, so fades are untouched. Tests `out_40_*` in `main.rs`, and `tests/late_tick.rs` (real binary, `SIGSTOP` of 3 s, sACN unicast on loopback: 129 packets in the first 250 ms before the fix, at most 20 after). It binds `127.0.0.1:5568` with `SO_REUSEADDR`, so it shares the port with an `olad` on `*:5568`.
 SPF-01 (2026-11-01, OUT-38, 39): new `cmdmx-daemon/src/power.rs`. `hold` creates the `PreventUserIdleSystemSleep` assertion `CMDMX DMX output` over IOKit and never releases it (macOS drops it when the process dies); off macOS it does nothing. `keep_awake` turns a failure into one log line and one `pending` warning, called in `main` before the outputs and the first tick. Tests `out_39_*` in `power.rs`, `tests/power_assertion.rs` (`out_38_*`, macOS only, reads `pmset -g assertions`, after SIGTERM and `kill -9`).
 GRP-04 (2026-11-01, PRG-96, IPC-49): `Engine::drain_notices` and `group_notice`; `select_group` and a line naming one group (`single_group`, the test of PRG-79) leave "Group 5 Pars outside in"; the tick broadcasts `ipc::notice`, not `last_warning`. An empty group is refused as `GroupEmpty` both ways (`select_group` no longer gives `UnknownGroup`; group masters still do).
 GRP-02 (2026-11-01, PRG-91..93): `ipc::Command` `DeleteGroup`, `CopyGroup`, `MoveGroup`, `GroupLegend` (`group.delete`, `group.copy`, `group.move`, `group.legend`; class edit; labels "Delete group n", "Copy group n", "Move group n", "Legend group n"; refusals are the core's warnings). `GroupInfo` is owned and carries `legend` (absent when empty); `Published.groups` compares `Vec<GroupInfo>`, so a legend-only change and its undo send the `groups` delta. The group's grid is not on the wire (PRG-92 worded accordingly). Tests `prg_91_*`, `prg_92_*`, `prg_93_*` in `ipc.rs` and `main.rs`. App: GRP-03.
