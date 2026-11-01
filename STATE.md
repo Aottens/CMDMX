@@ -17,6 +17,9 @@ Feature work now: selection orders (IDEA-15, broadened by the owner 2026-10-29):
 2026-10-29; SEL-01..09 done, the home run on Art-Net passed (2026-10-31); the owner ticks the SEL-08 and SEL-09
 lines in `tests/manual/selection-orders.md`. Released in v0.2.5.
 
+Feature work next: the everyday gaps (IDEA-35, `docs/research/everyday-gaps.md`), all in phase 1 and in
+order, batch A to G (owner, 2026-11-01); batch A's spec comes first.
+
 Parallel track: phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
 HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's run; HWB-02 (playback strip) follows it.
@@ -66,7 +69,6 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
 - The website's domain name: register it and tell Claude the name; it becomes one line in
   `subprojects/website/CNAME` (until then the site is `aottens.github.io/CMDMX`).
 - Find the Colourmotion logo (VS8-02 builds the CMDMX concepts on it).
-- IDEA-35 (everyday gaps, `docs/research/everyday-gaps.md`): which batch first, and the phases.
 - IDEA-30 (cross-platform UI for the Linux desk): phase 10 after the surface; toolkit open.
 - IDEA-29 (serial fade steps after VS4-05): confirm the phase.
 - IDEA-10 (output lamps) and IDEA-24 (info message type): confirm the phase. IDEA-10 now also carries FX-41
