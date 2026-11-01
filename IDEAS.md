@@ -48,17 +48,18 @@ the backlog, not the whole idea.
 | IDEA-20 | Website: the place to download CMDMX | specified 2026-10-27 (P1-21, `website.md` WEB-01..34; VS8-03 done) | 1 (owner 2026-10-27) | `website.md`, `release.md` |
 | IDEA-21 | Paid: 1 universe free (full feature set), more universes cost a little; licence model open | triaged | 1 (decision now) / end of 1 (build) | new `licensing.md`, OUT |
 | IDEA-22 | Elgato Stream Deck natively: link playbacks to keys intuitively, keys show legend, colour and state | specified 2026-10-25 (P1-19, CTL-44..58; VS7-05, VS7-06, VS7-07 and VS7-09 done) | late 1 (after VS7-04; owner 2026-10-23) | CTL, app |
-| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | specified 2026-10-25 (`hardware.md` HW-01..71; HW-01 done) | 3 (hardware; parallel track beside phase 1) | `hardware.md`, CTL, licence |
+| IDEA-23 | Open-hardware maker desk: free build plans for a real desk (2× 15" touch, playback faders, buttons) with flight case, show-proof | specified 2026-10-25 (`hardware.md` HW-01..71; HW-01 done) | 10 (hardware; parallel track beside phase 1) | `hardware.md`, CTL, licence |
 | IDEA-24 | An info message type, so good news ("autosave works again") is not amber like a warning | triaged | 1 (later, proposed) | IPC, UI |
 | IDEA-25 | 2D rig overview from above: fixtures where they hang, select and see output there | triaged | 2 (owner 2026-10-25) | PAT, UI, IPC |
 | IDEA-26 | User pages (as in Onyx): own pages with a free layout of windows and widgets (show clock, …) next to fixed default workspaces | triaged | 2 (owner 2026-10-25) | UI, SHW, IPC |
 | IDEA-27 | Fan in phase 1: spread a value over the selection order (moving heads above all) | specified 2026-10-25 (P1-20, PRG-56..62; VS2-35 done) | 1 | PRG, UI |
 | IDEA-28 | Local AI assistant: a small model on the Mac, a chat window in the app that builds palettes, groups and more on request | triaged | 2, with IDEA-17 (owner 2026-10-25) | IPC, UI, new `assistant.md` |
 | IDEA-29 | Serial fade steps: check the "fraction" more steps than Lightkey with an engine cue fade; cut frames to the highest patched channel only if they remain | new | 2 (proposed) | OUT |
-| IDEA-30 | Cross-platform UI, so the reference desk runs on Linux (HW-02) | triaged | 3, after the surface (owner 2026-10-25) | UI, IPC, daemon on Linux |
+| IDEA-30 | Cross-platform UI, so the reference desk runs on Linux (HW-02) | triaged | 10, after the surface (owner 2026-10-25; phase renumbered 2026-11-01) | UI, IPC, daemon on Linux |
 | IDEA-31 | Stream Deck + and Neo extras (dials, touch strip, touch keys, info screen; was VS7-08), for a volunteer who owns one | triaged | later (owner 2026-10-27) | CTL, app |
 | IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | done (2026-10-28, VS2-44..46: #159, #160, #161) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
+| IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -515,6 +516,7 @@ many times more.
 **Research (2026-10-23):** candidate parts, sample BOMs and open questions in `docs/research/hardware-desk.md`; §5a records the owner's modular fader-strip boards (2 faders per JLCPCB board on a bus to one main controller).
 **Owner's answer (2026-10-25):** phase 3 starts now as a parallel track beside phase 1 (DECISIONS); `subprojects/hardware/`, first task HW-01 (the open questions, then `hardware.md`).
 **Specified (2026-10-25, HW-01):** the owner answered the eleven questions (`hardware.md`, *Owner decisions*): a Tiger Touch II-size desk with one touch screen, Linux reference compute (IDEA-30), 10 motorised playback + 10 preset faders, four optical wheels, four isolated DMX ports, CERN-OHL-S v2. Build tasks HWB-01..09, the USB-MIDI box first.
+**Owner's answer (2026-11-01):** the hardware phase moves from 3 to 10, which leaves phases up to 9 for other work (DECISIONS).
 
 ### IDEA-24 — An info message type for good news (2026-10-18, SHW-c run; recorded 2026-10-24)
 **Owner's intent (from the SHW-c run, finding 1):** "autosave of <name> works again" is shown in
@@ -653,7 +655,7 @@ rate). Touches now: nothing.
 without touch is not acceptable); development stays on the Mac. "At some point we have to go to
 the cross-platform UI."
 **Triage:**
-- Phase 3, after the surface (owner 2026-10-25). The UI holds no lighting logic and talks to the
+- Phase 10, after the surface (owner 2026-10-25; the hardware phase was 3 until 2026-11-01). The UI holds no lighting logic and talks to the
   daemon over WebSocket, so it is a rewrite of the screens, not of the console.
 - The daemon needs Linux too: MIDI through ALSA instead of CoreMIDI, serial ports under
   `/dev/tty*` instead of `/dev/cu.*` (OUT-09/35), paths outside `~/Library`.
@@ -735,3 +737,22 @@ parts 6 and 7 build on.
 which ONYX pain from IDEA-18 each part must avoid.
 **Outcome (2026-10-29):** owner confirmed the phases and the order as proposed (parts 1–6 phase 2 in
 this order after IDEA-15, part 7 after IDEA-25, part 8 with IDEA-16). No criteria until each part is planned.
+
+### IDEA-34 — Multi-user support in the software (2026-11-01)
+**Owner's intent:** "Multi-user support in the software", for phase 3.
+**Triage:**
+- Phase 3 (owner 2026-11-01). Spec in a new module when the phase is planned.
+- The daemon already takes several clients and sends each change to all of them (IPC-01), so the
+  transport is there. The state is not: phase 1 has one programmer (`programmer.md`, out of scope)
+  and one shared undo history (UNDO-15). Titan gives each user their own Undo History column
+  (`undo.md`), and ADR-008 expects a per-user programmer part, which its design does not block.
+- Loopback only today (IPC-01), so users on other machines need the LAN listener and password of
+  IDEA-06 (phase 2).
+**What it touches now:** nothing; no decision is forced before phase 3.
+**Open questions:**
+- What is a user: several operators working at once, each with an own programmer and selection, or
+  also named profiles with own preferences and rights?
+- Several devices on one daemon only, or also several consoles sharing a show (TitanNet, out of
+  scope in `PROJECT.md`)?
+- Which parts are per user (programmer, selection, undo, pages (IDEA-26)), and what happens when two
+  users change the same fixture?

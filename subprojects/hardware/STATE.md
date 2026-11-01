@@ -1,6 +1,6 @@
 # hardware — State
 
-_Last updated: 2026-10-25 (HWB-01: USB-MIDI box firmware)_
+_Last updated: 2026-11-01 (the hardware phase is now phase 10)_
 
 ## Current step
 `specs/modules/hardware.md` is approved (HW-01): a Tiger Touch II-size desk with one 15.6" touch

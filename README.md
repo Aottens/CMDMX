@@ -43,7 +43,7 @@ restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Next up: the [latest release](https://github.com/Aottens/CMDMX/releases/latest) on the church Mac
 (VS4-07), then the first service run (VS4-03). Phase 2 features already work (see below); the
-open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is
+open-hardware desk (phase 10, [`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is
 in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manual are at
 [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
 
@@ -192,7 +192,7 @@ PROJECT.md ARCHITECTURE.md DECISIONS.md STATE.md BACKLOG.md IDEAS.md CLAUDE.md
 specs/              PRD, ADRs, module specs with numbered acceptance criteria, UX sketch
 subprojects/engine  Rust workspace: cmdmx-core, -protocols, -control, -daemon
 subprojects/app     SwiftPM app (Command Line Tools only, no Xcode.app)
-subprojects/hardware  Open-hardware desk (phase 3 track): PCB, firmware, CAD, BOM
+subprojects/hardware  Open-hardware desk (phase 10 track): PCB, firmware, CAD, BOM
 tests/              scenario tests, manual and hardware checklists
 touchosc/           TouchOSC Mk1 layout and its generator
 scripts/            tracking check (runs in CI)

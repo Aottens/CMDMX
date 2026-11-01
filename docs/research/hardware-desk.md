@@ -1,6 +1,6 @@
 # Research: hardware for the open-hardware maker desk (IDEA-23)
 
-Status: research only, phase 3 (hardware). No acceptance criteria, no code. Written 2026-10-23.
+Status: research only, phase 10 (hardware). No acceptance criteria, no code. Written 2026-10-23.
 
 This note collects concrete parts for the CMDMX maker desk described in IDEA-23 (`IDEAS.md`):
 two 15" touch screens, playback faders under them, keys per fader, encoders, a flight case,
@@ -235,7 +235,7 @@ and caps on the strips are the real cost.
   faders send nothing, the others keep working. Strips power up with motors off until they have
   a target from the main controller.
 
-This is its own design track (strip PCB, main controller PCB, firmware for both) inside phase 3,
+This is its own design track (strip PCB, main controller PCB, firmware for both) inside phase 10,
 and it fits the build path: strips plus main controller are step 1 (a USB-MIDI surface for
 today's Mac app).
 
