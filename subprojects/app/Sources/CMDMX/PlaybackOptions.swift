@@ -289,8 +289,10 @@ private struct TimesTab: View {
 }
 
 /// UI-34, PRG-81: the order a timed Go with overlap runs the fixtures in. The cue's hard items are
-/// drawn as Fixtures window cells; Edit lets the operator tap them into steps, Done sends `cue.order`
-/// (the engine puts untapped items after the tapped ones). The new order comes back through the cue view.
+/// drawn as Fixtures window cells; Edit lets the operator tap them into steps, Done sends `cue.order`.
+/// UI-34a: Edit starts from the cue's current steps and Done sends the whole draft, only after a tap.
+/// UI-34b: a "Saved" note shows for ~2 s after Done; the new order comes back through the cue view.
+/// UI-34c: Auto increment reads On/Off and every Edit starts with it On.
 private struct FixtureOrder: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
@@ -300,6 +302,8 @@ private struct FixtureOrder: View {
     @State private var draft: [Item: Int] = [:]
     @State private var next = 0
     @State private var autoIncrement = true
+    @State private var tapped = false
+    @State private var saved = false
 
     var body: some View {
         let reply = engine.cueView.flatMap { $0.playback == playback.id && $0.cue == cue ? $0 : nil }
@@ -312,7 +316,7 @@ private struct FixtureOrder: View {
                 Text("This cue holds no fixtures.").font(Typo.ui(11)).foregroundStyle(t.fg2)
             } else {
                 grid(rows.map(\.item), steps: editing ? draft : reply?.order ?? [:])
-                controls
+                controls(reply?.order ?? [:])
             }
         }
         .task(id: "\(playback.id)-\(cue)-\(engine.storedRevision)") { engine.viewCue(playback.id, cue: cue) }
@@ -332,27 +336,46 @@ private struct FixtureOrder: View {
         }
     }
 
-    @ViewBuilder private var controls: some View {
+    @ViewBuilder private func controls(_ current: [Item: Int]) -> some View {
         if editing {
             HStack(spacing: 6) {
-                Button("Auto increment") { autoIncrement.toggle() }.buttonStyle(FlatButton(fill: autoIncrement ? .blue : nil))
+                Button("Auto increment: \(autoIncrement ? "On" : "Off")") { autoIncrement.toggle() }.buttonStyle(FlatButton(fill: autoIncrement ? .blue : nil))
                 Button("Next step") { next += 1 }.buttonStyle(FlatButton())
                 Text("Next tap: step \(next + 1)").font(Typo.ui(11)).foregroundStyle(t.fg2)
                 Spacer(minLength: 0)
                 Button("Done") {
-                    if !draft.isEmpty { engine.setCueOrder(playback.id, cue: cue, order: draft) }
+                    if tapped {
+                        engine.setCueOrder(playback.id, cue: cue, order: draft)
+                        saved = true
+                    }
                     stop()
                 }.buttonStyle(FlatButton(fill: .blue))
                 Button("Cancel") { stop() }.buttonStyle(FlatButton())
             }
-            Text("Untapped fixtures follow after the tapped ones, in their old order.").font(Typo.ui(11)).foregroundStyle(t.fg2)
+            Text("Tap a fixture to give it the next step; untapped fixtures keep their step.").font(Typo.ui(11)).foregroundStyle(t.fg2)
         } else {
-            Button("Edit") { editing = true }.buttonStyle(FlatButton())
+            HStack(spacing: 6) {
+                Button("Edit") {
+                    draft = current
+                    next = 0
+                    tapped = false
+                    autoIncrement = true
+                    saved = false
+                    editing = true
+                }.buttonStyle(FlatButton())
+                if saved { Text("Saved").font(Typo.ui(11)).foregroundStyle(t.fg2) }
+            }
+            .task(id: saved) {
+                guard saved else { return }
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                saved = false
+            }
         }
     }
 
     private func tap(_ item: Item) {
         draft[item] = next
+        tapped = true
         if autoIncrement { next += 1 }
     }
 

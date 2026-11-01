@@ -127,15 +127,17 @@ a selection you reversed, shuffled or laid out Outside in (see
 goes by fixture number.
 
 The **Fixture order** part of the Times tab shows the cue's fixtures with their step number
-(step 1 starts first). To change it, press **Edit** and tap the fixtures in the order you want:
+(step 1 starts first). To change it, press **Edit**: the fixtures keep their numbers, and every
+tap overwrites the step of the fixture you tap, starting at step 1:
 
-- With **Auto increment** on (the default), every tap gives the next step: tap 205, 204, 206,
-  203 … to go from the middle out.
-- With **Auto increment** off, the taps share one step, so several fixtures start together;
+- With **Auto increment: On** (every Edit starts with it on), every tap gives the next step: tap
+  205, 204, 206, 203 … to go from the middle out.
+- With **Auto increment: Off**, the taps share one step, so several fixtures start together;
   **Next step** moves on to the next one. Tap 204 and 205, Next step, 203 and 206, and so on.
 
-**Done** stores the new order (Undo takes it back); fixtures you did not tap follow after the
-tapped ones, in their old order. **Cancel** leaves the order as it was.
+**Done** stores the new order (Undo takes it back) and shows **Saved** for a moment; the grid
+then shows the stored order. Fixtures you did not tap keep the step they had. **Cancel** leaves
+the order as it was.
 
 ### Links
 

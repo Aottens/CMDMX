@@ -55,6 +55,11 @@ Setup: two terminals and a fresh shows folder so the real one stays untouched.
 - [ ] **Undo**: Fixture order reads 1 2 3 4 4 3 2 1 again; Go cue 1, Go cue 2 replays Outside in.
       An Edit closed with **Cancel** changes nothing.
 
+- [ ] SEL-08 (UI-34a..c), owner: **Edit** keeps every step number and the button reads
+      **Auto increment: On**; tap 208 then 207: they read 1 and 2, the rest keep theirs. **Done**
+      shows **Saved** briefly and the grid keeps the stored numbers. Edit again: Auto increment
+      reads On even after turning it Off last time; Cancel changes nothing.
+
 Claude's background clicks do not fire the cells' tap gestures, so the owner taps the Fixture order cells.
 
 ## Open points

@@ -394,7 +394,14 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   each item's step number (`order` + 1) in its cell; a tap gives the item the next step number,
   with **Auto increment** on (default) the number goes up after each tap, off several items share
   it; Done sends `cue.order` (items not tapped keep their order after the tapped ones), Cancel sends
-  nothing.
+  nothing. Amended by SEL-08 (from the SEL-07 run; approved by owner 2026-11-01):
+  - **UI-34a** Edit starts the draft from the cue's current steps, so every cell keeps its number
+    while editing; a tap overwrites that item's step, the first tap of an Edit gives step 1. Done
+    sends the whole draft (untapped items keep the step they had); Done without a tap sends nothing.
+  - **UI-34b** After Done, a short **Saved** note (about 2 s) stands next to Edit, and the grid shows
+    the order the engine stored (the cue view after the change).
+  - **UI-34c** The Auto increment button reads **Auto increment: On** or **Auto increment: Off**,
+    and every Edit starts with it On (Done and Cancel do not carry it over).
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
