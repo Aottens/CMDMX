@@ -300,17 +300,20 @@ private struct Softkeys: View {
         if let ref = ui.cueMenu { return cueContext(ref) }
         if let function = ui.function { return functionContext(function) }
         if ui.paletteMenu { return paletteContext }
-        if let current = engine.programmer.fan { return fanContext(current) }
-        if ui.screen == nil, ui.workspace == Workspace.shapes { return shapesContext }   // FX-39
+        // UI-33a: Order and Pattern open from the Fan context too and win over it.
         if !engine.programmer.selection.isEmpty {
             if ui.selectionMenu == "Order" { return orderContext }
             if ui.selectionMenu == "Pattern" { return patternContext }
+        }
+        if let current = engine.programmer.fan { return fanContext(current) }
+        if ui.screen == nil, ui.workspace == Workspace.shapes { return shapesContext }   // FX-39
+        if !engine.programmer.selection.isEmpty {
             return ("Selection", [
-                Softkey(name: "Next", sub: "Fix +1", action: { ui.learnOrRun("key step_next", engine) { engine.step(1) } }),
+                nextKey,
                 Softkey(name: "Previous", sub: "Fix −1", action: { ui.learnOrRun("key step_prev", engine) { engine.step(-1) } }),
-                Softkey(name: "All", sub: "whole selection", action: { ui.learnOrRun("key all", engine) { engine.selectAll() } }),
-                Softkey(name: "Order", sub: "reverse, shuffle", action: { ui.selectionMenu = "Order" }),
-                Softkey(name: "Pattern", sub: "grid, odd/even", action: { ui.selectionMenu = "Pattern" }),
+                allKey,
+                orderKey,
+                patternKey,
                 Softkey(name: "Rem Dim", sub: "the rest to 0", action: { ui.learnOrRun("key rem_dim", engine) { engine.remDim() } }),   // UI-26
                 optionsKey,
                 undoKey,
@@ -362,17 +365,20 @@ private struct Softkeys: View {
             Softkey(name: "Outside in", on: current == "OutsideIn", action: { ui.learnOrRun("grid outside_in", engine) { engine.grid(shortcut: "OutsideIn") } }),
             Softkey(name: "Inside out", on: current == "InsideOut", action: { ui.learnOrRun("grid inside_out", engine) { engine.grid(shortcut: "InsideOut") } }),
             Softkey(name: "Grid off", action: { ui.learnOrRun("grid off", engine) { engine.grid() } }),
+            nextKey,   // UI-33b
             Softkey(name: "Back", action: { ui.selectionMenu = nil }),
         ])
     }
 
     /// UI-30: while Fan is on, the curves (the current one inverted) and Fan off.
+    /// UI-33a: with a selection also Next, All, Order and Pattern on F–I; their Back returns here.
     private func fanContext(_ current: String) -> (name: String, keys: [Softkey?]) {
         var keys: [Softkey?] = ["Line", "Mirror", "Wings", "Arrow"].map { curve in
             Softkey(name: curve, on: curve == current,
                     action: { ui.learnOrRun("fan \(curve.lowercased())", engine) { engine.fan(curve: curve) } })
         }
         keys.append(Softkey(name: "Fan off", action: { ui.learnOrRun("fan off", engine) { engine.fanOff() } }))
+        if !engine.programmer.selection.isEmpty { keys += [nextKey, allKey, orderKey, patternKey] }
         return ("Fan", keys)
     }
 
@@ -386,6 +392,22 @@ private struct Softkeys: View {
             Softkey(name: "Record", sub: "then tap a palette", action: { ui.cancelModes(); ui.recordArmed = true }),
             undoKey,
         ])
+    }
+
+    private var nextKey: Softkey {
+        Softkey(name: "Next", sub: "Fix +1", action: { ui.learnOrRun("key step_next", engine) { engine.step(1) } })
+    }
+
+    private var allKey: Softkey {
+        Softkey(name: "All", sub: "whole selection", action: { ui.learnOrRun("key all", engine) { engine.selectAll() } })
+    }
+
+    private var orderKey: Softkey {
+        Softkey(name: "Order", sub: "reverse, shuffle", action: { ui.selectionMenu = "Order" })
+    }
+
+    private var patternKey: Softkey {
+        Softkey(name: "Pattern", sub: "grid, odd/even", action: { ui.selectionMenu = "Pattern" })
     }
 
     /// UNDO-18: the IPC-31 label as the second line; no action while there is nothing to undo.
@@ -679,7 +701,8 @@ private struct Softkeys: View {
                         .contentShape(SoftkeyShape())
                     }
                     .buttonStyle(.plain)
-                    .frame(maxHeight: .infinity).frame(minHeight: 44)
+                    // 10 keys (Pattern with Next) at 40 pt fit the 446 pt available at the 800 pt window minimum.
+                    .frame(maxHeight: .infinity).frame(minHeight: context.keys.count > 9 ? 40 : 44)
                     .disabled(key?.action == nil)
                     .opacity(key?.action == nil ? t.disabled : 1)
                     .help(key?.spec ?? "")

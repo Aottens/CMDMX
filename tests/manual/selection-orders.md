@@ -59,6 +59,10 @@ Setup: two terminals and a fresh shows folder so the real one stays untouched.
       **Auto increment: On**; tap 208 then 207: they read 1 and 2, the rest keep theirs. **Done**
       shows **Saved** briefly and the grid keeps the stored numbers. Edit again: Auto increment
       reads On even after turning it Off last time; Cancel changes nothing.
+- [ ] SEL-09 (UI-33a/b), owner: `201 Thro 208 Enter`, **Fan** on: the softkeys show Line, Mirror,
+      Wings, Arrow, Fan off, then **Next**, **All**, **Order**, **Pattern**. Order ▸ Reverse, Back:
+      the Fan softkeys return with Fan still lit. Pattern ▸ Odd/Even ▸ **Next**: the tag reads
+      `GRID ODD/EVEN · 2/2`; all ten Pattern keys fit the column at the smallest window.
 
 Claude's background clicks do not fire the cells' tap gestures, so the owner taps the Fixture order cells.
 

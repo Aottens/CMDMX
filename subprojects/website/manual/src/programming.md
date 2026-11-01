@@ -78,6 +78,10 @@ The numbers on the buttons follow the new order, and so do Fix ±1, Fan, effects
 overlap. A dimmer chase on a reversed selection runs the other way; on a shuffled one it is a
 random chase.
 
+While Fan is on, its softkeys keep **Next**, **All**, **Order** and **Pattern** below the curves, so
+you can reorder or step the selection without switching Fan off; **Back** in Order or Pattern
+returns to the Fan softkeys.
+
 ### Patterns
 
 The **Pattern** softkey lays a pattern over the selection: fixtures that share a number in the
@@ -92,6 +96,7 @@ even pars apart, or work from the outside in.
 - **Divide n**: halves, thirds, quarters: `3`, then Divide (else halves).
 - **Outside in**: the two ends first, then towards the middle. **Inside out** the other way.
 - **Grid off** ends the pattern.
+- **Next** (Fix +1) steps to the next number of the pattern without leaving it.
 
 While a pattern is on, the attribute bar shows an amber tag such as `GRID 1 IN 3 · 2/3` (the
 second of three steps) or `· ALL` after **All**; tap the tag to end the pattern. The buttons show
@@ -177,7 +182,8 @@ the Functions column: it lights, and the softkeys show the curves.
 
 Fan follows the order of your selection. It works on every wheel, colour included, but not on
 typed levels, palettes or the colour picker. It stays on until you press Fan again (or **Fan off**)
-or start a new selection; Fix ±1, Odd/Even and All keep it on. The fanned values are ordinary
+or start a new selection; Fix ±1, Odd/Even and All keep it on, and with fixtures selected the Fan
+softkeys also offer Next, All, Order and Pattern. The fanned values are ordinary
 values: record them like any other.
 
 ## Locate, Highlight and Rem Dim

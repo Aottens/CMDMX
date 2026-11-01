@@ -44,7 +44,7 @@ interface needs no restart, and killing the app with `kill -9` mid-show dropped 
 CMDMX v0.2.4 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
 (VS8-03, 04). Next up: install it on the church Mac (VS4-07), then the first service run (VS4-03). Progress
 is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
-The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); with its run leftovers (FXB-07..10) it shipped in v0.2.4. Selection orders (IDEA-15, spec P2-02) work in engine and app and passed their home run on Art-Net (SEL-07); one app leftover (SEL-09) is next; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
+The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); with its run leftovers (FXB-07..10) it shipped in v0.2.4. Selection orders (IDEA-15, spec P2-02) work in engine and app and passed their home run on Art-Net (SEL-07); they ship in v0.2.5; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
 
 ## What works today
 
@@ -87,7 +87,8 @@ The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.
 - Selection orders: the Order softkeys Reverse, Shuffle, Sort and Revert the selection; the
   Pattern softkeys lay Odd/Even, 1 in *n*, *n* in *m*, Blocks, Divide, Outside in or Inside out
-  over it (an amber `GRID 1 IN 3 · 2/3` tag, Fix ±1 steps through it). Fan, effects, palette
+  over it (an amber `GRID 1 IN 3 · 2/3` tag, Fix ±1 or Next steps through it); with Fan on its
+  softkeys keep Next, All, Order and Pattern. Fan, effects, palette
   overlap, groups and cues follow; the Effect editor has Flip and Reverse/Shuffle/Sort. A cue's
   fixture order (who starts first on an overlap) is edited by tapping in Playback Options ▸ Times.
 - Colour as one value per fixture: HSI, RGB, CMY or Kelvin wheels or a colour picker with
