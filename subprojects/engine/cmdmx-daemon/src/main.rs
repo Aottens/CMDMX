@@ -27,6 +27,7 @@
 //! `control.osc` enables it (CTL-35), feedback goes to the senders heard and the listed clients.
 //! Stream Decks (VS7-06) are devices on this layer: `deck_io` drives them over USB HID on a
 //! `deck` thread (key images, brightness, reports); SIGINT and SIGTERM blank them before exit.
+//! The Mac is kept awake with an IOKit power assertion held until exit (OUT-38, OUT-39).
 //! Edit commands run through the undo history (UNDO-01..04, IPC-30/31); open and new empty it.
 
 mod artnet_out;
@@ -38,6 +39,7 @@ mod midi_io;
 mod migrate;
 mod osc_io;
 mod output;
+mod power;
 mod sacn_out;
 mod serial_out;
 mod shows;
@@ -97,6 +99,8 @@ fn main() {
     for w in &pending {
         eprintln!("warning: {w}");
     }
+    // OUT-38: keep the Mac awake before the first tick and any output node.
+    power::keep_awake(power::hold, &mut pending);
     eprintln!("show: {}", opened.name);
     if let Err(e) = shows.remember(&opened.name) {
         eprintln!("warning: cannot remember the open show: {e}");
