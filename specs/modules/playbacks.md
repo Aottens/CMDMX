@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (pure: storage, recording, fader modes, release, flash/swop),
 `cmdmx-daemon` (IPC), the playback area and Playback Options in `subprojects/app`.
 Status: **PBK-01..05 approved by owner 2026-10-18 (VS1-06 subset); PBK-06..45 approved by owner
-2026-10-18 (P1-04), owner decisions at the end.** PBK-15 amended for P2-02 (cue `order`, approved by owner 2026-10-29).
+2026-10-18 (P1-04), owner decisions at the end.** PBK-15 amended for P2-02 (cue `order`, approved by owner 2026-10-29). PBK-46: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
 Behavioural reference: Avolites Titan v19 manual, *Cues* (https://manual.avolites.com/docs/cues:
 Creating a Cue, Cue Playback, Cue Timing, Playback Options, Copying/Moving/Linking/Deleting) and
 the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1 (`specs/ux/main-screen.html`:
@@ -285,6 +285,13 @@ playback unless it says "per cue".
   time, kill point, Release + tap, Flash/Swop/Latch, a locked front-spots handle across pages,
   a playback group, legends with icons and halos, page legends, DBO, and a daemon restart with
   the playbacks back from the show.
+
+- **PBK-46** (approved by owner 2026-11-01 (IDEA-35 batch A, P1-25)) The **Settings** tab of Playback Options (show-wide, UI-18) gains *New cue times*:
+  delay, fade in, fade out and overlap, the PBK-12 settings that the engine, the show file and
+  `settings.playback` already have and no screen shows. They apply to cues recorded from then on and
+  change no existing cue. A new show keeps 0 s and 100 %, so no schema or migration change. Engine test
+  `pbk_46_…`: a cue recorded on a memory, on a list and a chase step after `settings.playback` takes those times,
+  an earlier cue keeps its own. The manual's "default times (0 s)" in `cuelists.md` names the setting.
 
 ### Safety and determinism
 - **PBK-43** Every refused playback action returns a warning and changes nothing (PRG-36); no

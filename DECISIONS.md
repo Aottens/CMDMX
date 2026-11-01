@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-01 — The system-sleep assertion lives in the daemon (IDEA-35 A1; approved by owner)
+
+**Decision:** the daemon holds `PreventUserIdleSystemSleep` for its whole life (OUT-38). The app only keeps the display awake, in console mode (UI-35).
+
+**Alternatives considered:** the app holds both (an app crash would let the Mac sleep while the daemon, which outlives it, keeps the show); a `caffeinate -w` child (no FFI, but one more process and the assertion does not carry the daemon's name); a setting (nothing to choose: a console that may sleep during a show is no console).
+
+**Reasoning:** what sends must keep the machine on, and only the daemon has I/O (`CLAUDE.md`). macOS drops the assertion with the process, so it cannot leak. The daemon already uses small `unsafe` blocks to reach macOS.
+
+**Reversal trigger:** a Mac where the assertion fails or harms; the Linux desk (IDEA-30) gets its own answer.
+
+---
+
 ## 2026-11-01 — Hardware moves from phase 3 to phase 10; multi-user support in phase 3 (owner)
 
 **Decision:** the hardware phase (IDEA-23, IDEA-30) is now phase 10, which leaves phases up to 9 for other work. Only the number changes: it stays the parallel track of 2026-10-25, so `## Phase 3 track — hardware` in that entry is now `## Phase 10 track — hardware`. Phase 3 now holds multi-user support (IDEA-34) and the timeline (IDEA-05).

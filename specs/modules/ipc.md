@@ -351,3 +351,28 @@ FX-32 (`effect_catalogue` in the snapshot), FX-33 (programmer `effects`, `effect
   command) and has no text of its own for a group select any more, so a tap, a typed line and a
   control surface read the same. A notice is no command acknowledgement: only PRG-96 sends one so
   far. A new message type an older app ignores: `v` stays 1 (IPC-41).
+
+### Show-proof (IDEA-35 batch A; approved by owner 2026-11-01 (IDEA-35 batch A, P1-25))
+New keys and messages only: `v` stays 1 (IPC-41).
+- **IPC-50** Lock (UI-38; Titan: "all functions are disabled except the DMX outputs and currently running
+  playbacks"). `lock.set {"on":true,"code":"1234"}` locks, `lock.set {"on":false,"code":"1234"}` unlocks
+  with the same code or the fixed master code `68340` (printed in the manual, as Titan's, so a forgotten
+  code never ends a show). The snapshot gains `locked` (bool), with a `locked` delta to every client. While
+  locked:
+  - every command that changes something is refused with the `warning` "Console is locked" and nothing
+    changes; requests that only ask for information (`output.ports`, the library) still answer;
+  - a wrong code is a `warning` "Wrong code";
+  - MIDI, OSC and Stream Deck input is dropped without a warning; feedback keeps running. After the unlock a
+    fader without motor picks up as CTL-13, a motor fader follows the engine's level (CTL-13, CTL-20/21);
+  - the tick, running playbacks, fades, chases, effects, output and autosave go on untouched.
+  The lock is live state: it is not saved, and a restarted engine is unlocked. Tests `ipc_50_…` (refused
+  command, surface event dropped, a fade finishing while locked, wrong code, master code).
+- **IPC-51** Message history (UI-39). The daemon keeps the last 200 of its `warning` and `notice`
+  messages in memory as `{"at":"<ISO UTC>","level":"warning","message":"…"}`; older ones drop off, and it is
+  not saved (`daemon.log` keeps warnings). The snapshot gains `messages`, oldest first, so a restarted or
+  crashed app gets the history back. `warning` and `notice` messages gain `at`. Tests `ipc_51_…` (the cap, and
+  a new client's snapshot holds what an earlier client saw).
+- **IPC-52** A change of an enabled node's state (OUT-12, OUT-21) is a message too, because today it only
+  turns a dot amber: to `Degraded` or `Stopped` a `warning` `serial #3 universe 1: Degraded: <detail>`,
+  back to `Ok` a `notice` `serial #3 universe 1: Ok again`. One message per change, none at startup for a
+  node that starts Ok. Test `ipc_52_…`.

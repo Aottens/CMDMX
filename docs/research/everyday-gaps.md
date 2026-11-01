@@ -10,6 +10,10 @@ the app was not run. Only A1, A2 and B1 were checked by hand in the code. The Ti
 page summaries, and some pages only by title.
 
 ## A. Show-proof
+Specified 2026-11-01 (P1-25; build tasks SPF-01..11): OUT-38..41, UI-35..40, IPC-50..52, REL-24, REL-25,
+PBK-46. Checked against the code: all six hold, with two corrections. A3: UI-22 already said "draggable cap",
+so the jump is a difference from the spec. A6: the engine, show file and IPC have the settings (PBK-12);
+only the screen is missing.
 1. Nothing keeps the Mac awake: no power assertion in app or daemon, nothing in the checklists.
    Whether idle sleep stops the output was not tried.
 2. Command-Q asks only in console mode (`ConsoleMode.swift`); leaving full screen turns that off. The
