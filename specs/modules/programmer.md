@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; PRG-85..95 (group handle actions, P1-24) proposed 2026-11-01, awaiting owner approval.
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; **PRG-85..95 (group handle actions, P1-24) approved by owner 2026-11-01**.
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -527,7 +527,7 @@ in selection order.
   never per tick (ENG-13, FX-13); no selection length, grid or order makes the engine panic (0, 1
   or more items than positions included), and refused actions change nothing (PRG-36).
 
-### Group handle actions: Delete, Copy, Move, Set Legend (P1-24; proposed 2026-11-01, awaiting owner approval)
+### Group handle actions: Delete, Copy, Move, Set Legend (P1-24; approved by owner 2026-11-01)
 Titan reference: *Fixture Groups* (the group button's softkeys edit and delete groups; a group
 still in use is not lost but becomes unassigned, with a warning; a legend is set when recording)
 and *Playback controls → Fixture Group Masters*. The handle actions follow palettes (PAL-17, 18,
@@ -662,10 +662,10 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 4. Cues store each item's position, so overlap replays the recorded order (Titan); older cues keep
    user-number order (PRG-80); a fixture-order editor follows in its own slice (PRG-81, UI-34).
 
-## Owner questions (P1-24, open)
-1. A group that a group master uses: refuse the Delete (PRG-86, recommended: nothing on stage can
-   change), or delete it and leave the master mastering nothing (GRM-02; a Scale master at 50 %
+## Owner decisions (P1-24, approved 2026-11-01 as recommended)
+1. A group that a group master uses: the Delete is refused (PRG-86), so nothing on stage can
+   change. Not chosen: delete it and leave the master mastering nothing (GRM-02; a Scale master at 50 %
    would let its fixtures jump up), or delete the master with it.
-2. Move takes the group masters along (PRG-88, recommended, as palette Move keeps references), or
-   they stay on the old, now empty, number.
-3. Copy takes the legend along (PRG-87, recommended, as palette Copy), or the copy starts without one.
+2. Move takes the group masters along (PRG-88, as palette Move keeps references). Not chosen: they
+   stay on the old, now empty, number.
+3. Copy takes the legend along (PRG-87, as palette Copy). Not chosen: the copy starts without one.

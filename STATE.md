@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-01 (spec P1-24: group handle actions, awaiting approval)_
+_Last updated: 2026-11-01 (spec P1-24: group handle actions, approved)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -25,8 +25,8 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 0. Selection orders (phase 2): done and run on Art-Net (SEL-07, `tests/manual/runs/2026-10-31-SEL-07.md`);
    SEL-08 and SEL-09 done; released as v0.2.5 (2026-11-01).
 1. Groups (owner, 2026-11-01: the first church try with v0.2.5 showed a group cannot be deleted):
-   spec P1-24 (`programmer.md` PRG-85..95: Delete, Copy, Move, Set Legend) awaits the owner's
-   approval; then GRP-01..03 and a home run, before the church service (about a week out).
+   spec P1-24 (`programmer.md` PRG-85..95: Delete, Copy, Move, Set Legend) approved by the
+   owner 2026-11-01; next GRP-01..03 and a home run, before the church service (about a week out).
 2. VS8-01 and VS4-07: install `CMDMX-0.2.5.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
@@ -60,8 +60,6 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
   request through leefilters.com/contact on 2026-10-28 (answer to aottens@gmail.com).
 
 ## Owner to decide
-- P1-24 (group Delete/Copy/Move/Legend): approve PRG-85..95 and the three questions at the end of
-  `programmer.md` (mastered group: refuse Delete; Move takes group masters along; Copy keeps the legend).
 - When to join the Apple Developer Program (postponed for cost, VS8-09); then for VS8-08/10: join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).
