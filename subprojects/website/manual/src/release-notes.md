@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.2.6
+
+Published 1 November 2026 as "CMDMX 0.2.6".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.2.6)
+
+Groups can now be managed from the Groups window (see [Groups](programming.md#groups)).
+
+- **Delete** a group, confirmed on softkey A. A group that a group master uses is not deleted: the
+  message line names the handle.
+- **Copy** and **Move** a group to an empty cell. Group masters follow a Move, so nothing changes on
+  stage.
+- **Set Legend** names a group. The name shows in the cell, on the group master's strip and on the
+  message line when you tap the group.
+- A strip without an icon gives its legend the full width.
+
+Shows from older versions load unchanged; saving one writes the new show version.
+
 ## 0.2.5
 
 Published 1 November 2026 as "CMDMX 0.2.5".
