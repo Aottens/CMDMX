@@ -36,6 +36,28 @@ Start each row from the stated mode (Console toggle in the status bar). The aler
 - [ ] Through all of the above the dev daemon runs on and Art-Net does not stop (a bundled engine stops on
       Quit: `tests/hardware/release.md`)
 
+### The engine comes back (REL-24, 25)
+Needs a bundle with the engine inside and its own `HOME`, so the app's engine leaves your shows alone (REL-10 gives it
+no `--show-dir`). Do not `open` it: LaunchServices drops the `HOME`. The app itself does not follow `HOME`: its pid file and
+`daemon.log` stay in your real `~/Library`, and Quit removes the pid file.
+- `cd subprojects/engine && cargo build --release -p cmdmx-daemon`
+- `cd subprojects/app && scripts/bundle-app.sh && cp ../engine/target/release/cmdmx-daemon .build/CMDMX.app/Contents/MacOS/`
+- `mkdir -p /tmp/cmdmx-rel24/home && HOME=/tmp/cmdmx-rel24/home .build/CMDMX.app/Contents/MacOS/CMDMX &`
+- The pid: `cat ~/Library/Application\ Support/CMDMX/daemon.pid`.
+
+A fresh `HOME` opens the Demo show, and this engine cannot be given `--no-artnet`: it sends the Demo patch at level 0 on
+Art-Net and sACN. Ask the owner first when Lightkey runs or a rig is on the network. Without `--serial` the Eurolite stays closed.
+
+- [ ] A child dies: `kill -9` the engine. The status bar shows "Engine exited (code 9), restarting" and offline; within 5 s
+      a new pid, Engine green, "Engine restarted: the show is back, nothing is running"
+- [ ] Adopt: `kill -9` the app, the engine keeps its pid. Start the app again: the same pid, one engine, Engine green,
+      no amber line
+- [ ] An adopted engine dies: `kill -9` the engine. "Engine exited, restarting" and offline; within 5 s a new pid, Engine green,
+      "Engine restarted: the show is back, nothing is running"
+- [ ] The show is back: a group recorded and autosaved before the kill is still there after it
+- [ ] Not while stopping: adopt again, Quit in the alert. The app and the engine are gone, the pid file too, and no
+      engine comes back within 5 s
+
 ### Theme and type (UI-02..05)
 - [ ] Dark theme matches the sketch: dark grey, not black; no colour that does not mean a state
 - [ ] Day/Night in the status bar switches to the day theme and back; it is remembered

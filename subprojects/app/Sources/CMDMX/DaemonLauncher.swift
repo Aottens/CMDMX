@@ -3,7 +3,8 @@ import Darwin
 import Foundation
 
 /// REL-10..13: starts the daemon bundled in the app (if any), adopts one that is still running
-/// after an app crash, restarts it when it dies, and stops it on quit. No lighting logic here.
+/// after an app crash, restarts it when it dies (adopted too, REL-24, 25), and stops it on quit.
+/// No lighting logic here.
 @MainActor
 final class DaemonLauncher: ObservableObject {
     static let shared = DaemonLauncher()
@@ -16,7 +17,10 @@ final class DaemonLauncher: ObservableObject {
     private var child: Process?
     private var childExited: DispatchSemaphore?
     private var adopted: pid_t?
+    private var adoptedWatch: DispatchSourceProcess?
     private var stopping = false
+    /// REL-25: set when a restart is pending, so the launch that succeeds says the show is back.
+    private var restarting = false
     /// True while this app started or adopted the engine, so quitting the app stops it (REL-13).
     /// A flag, not `child != nil`: during the restart window `child` is nil but the app still owns it.
     private(set) var ownsEngine = false
@@ -30,7 +34,7 @@ final class DaemonLauncher: ObservableObject {
     func start() {
         guard fm.isExecutableFile(atPath: daemonURL.path) else { return }
         ownsEngine = true
-        if let pid = adoptablePid() { adopted = pid; return }
+        if let pid = adoptablePid() { adopted = pid; watch(pid); return }
         launch()
     }
 
@@ -42,6 +46,27 @@ final class DaemonLauncher: ObservableObject {
         var buf = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
         guard proc_pidpath(pid, &buf, UInt32(buf.count)) > 0 else { return nil }
         return String(cString: buf) == daemonURL.path ? pid : nil
+    }
+
+    /// REL-24: an adopted engine is not our child, so watch its pid instead of a termination handler.
+    private func watch(_ pid: pid_t) {
+        let src = DispatchSource.makeProcessSource(identifier: pid, eventMask: .exit, queue: .main)
+        src.setEventHandler { [weak self] in MainActor.assumeIsolated { self?.adoptedExited() } }
+        src.resume()
+        adoptedWatch = src
+        // Died between the adopt check and the watch: kqueue may never report it.
+        if kill(pid, 0) != 0 { adoptedExited() }
+    }
+
+    private func adoptedExited() {
+        guard adopted != nil else { return }
+        adopted = nil
+        adoptedWatch?.cancel()
+        adoptedWatch = nil
+        guard !stopping else { return }
+        restarting = true
+        note = "Engine exited, restarting"
+        retryLater()
     }
 
     private func launch() {
@@ -65,7 +90,8 @@ final class DaemonLauncher: ObservableObject {
             retryLater()
             return
         }
-        note = nil
+        note = restarting ? "Engine restarted: the show is back, nothing is running" : nil
+        restarting = false
         child = p
         childExited = done
         try? fm.createDirectory(at: pidFile.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -97,6 +123,7 @@ final class DaemonLauncher: ObservableObject {
             note = "Another engine is running on port 7319"
             return
         }
+        restarting = true
         note = "Engine exited (code \(code)), restarting"
         retryLater()
     }
