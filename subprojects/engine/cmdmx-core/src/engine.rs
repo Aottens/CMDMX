@@ -268,6 +268,8 @@ pub struct Engine {
     groups: BTreeMap<GroupId, Vec<Item>>,
     /// PRG-79: the grid a group was recorded with; absent = grid off.
     group_grids: BTreeMap<GroupId, Grid>,
+    /// PRG-90: a group's legend; an empty legend has no entry.
+    group_legends: BTreeMap<GroupId, String>,
     palettes: BTreeMap<PaletteId, Palette>,
     /// Above every palette id ever used, so ids are never reused (PAL, Definitions).
     palette_next_id: PaletteId,
@@ -496,6 +498,8 @@ pub struct EditState {
     page_legends: Vec<String>,
     groups: BTreeMap<GroupId, Vec<Item>>,
     group_grids: BTreeMap<GroupId, Grid>,
+    /// PRG-90: a group's legend; an empty legend has no entry.
+    group_legends: BTreeMap<GroupId, String>,
     palettes: BTreeMap<PaletteId, Palette>,
     nodes: BTreeMap<NodeId, Node>,
     programmer: EditPart,
@@ -544,6 +548,7 @@ impl Engine {
             programmer: Programmer::default(),
             groups: BTreeMap::new(),
             group_grids: BTreeMap::new(),
+            group_legends: BTreeMap::new(),
             palettes: BTreeMap::new(),
             palette_next_id: 1,
             gels: GelTable::lee(),
@@ -1447,6 +1452,7 @@ impl Engine {
             page_legends: self.page_legends.clone(),
             groups: self.groups.clone(),
             group_grids: self.group_grids.clone(),
+            group_legends: self.group_legends.clone(),
             palettes: self.palettes.clone(),
             nodes: self.nodes.clone(),
             programmer: self.programmer.edit_part(),
@@ -1476,6 +1482,7 @@ impl Engine {
         self.page_legends = s.page_legends;
         self.groups = s.groups;
         self.group_grids = s.group_grids;
+        self.group_legends = s.group_legends;
         self.palettes = s.palettes;
         self.nodes = s.nodes;
         let old_fixtures = std::mem::replace(&mut self.fixtures, s.fixtures);
@@ -1602,6 +1609,7 @@ impl Engine {
                     id,
                     items: items.clone(),
                     grid: self.group_grids.get(&id).copied(),
+                    legend: self.group_legends.get(&id).cloned().unwrap_or_default(),
                 })
                 .collect(),
             palettes: ShowPalettes {
@@ -1740,6 +1748,14 @@ impl Engine {
                 }
                 Some(Err(e)) => warnings.push(format!("group {}: grid left out, {e}", group.id)),
                 None => {}
+            }
+            if !group.legend.is_empty() {
+                match check_legend(&group.legend) {
+                    Ok(()) => {
+                        engine.group_legends.insert(group.id, group.legend.clone());
+                    }
+                    Err(e) => warnings.push(format!("group {}: legend left out, {e}", group.id)),
+                }
             }
         }
         for entry in &show.palettes.palettes {
@@ -4268,6 +4284,96 @@ impl Engine {
     /// PRG-79: the grid a group was recorded with, `None` when it was recorded with the grid off.
     pub fn group_grid(&self, id: GroupId) -> Option<Grid> {
         self.group_grids.get(&id).copied()
+    }
+
+    /// PRG-90: a group's legend, `None` when it has none.
+    pub fn group_legend(&self, id: GroupId) -> Option<&str> {
+        self.group_legends.get(&id).map(String::as_str)
+    }
+
+    /// PRG-85, 86: delete a group; refused while a group master uses it.
+    pub fn delete_group(&mut self, id: GroupId) -> Result<(), CoreError> {
+        if !self.groups.contains_key(&id) {
+            return Err(CoreError::GroupEmpty(id));
+        }
+        for pb in self.playbacks.values() {
+            if matches!(&pb.master, Some(Master::Group(m)) if m.group == id) {
+                return Err(CoreError::GroupMastered {
+                    group: id,
+                    page: pb.page,
+                    slot: pb.slot,
+                });
+            }
+        }
+        self.groups.remove(&id);
+        self.group_grids.remove(&id);
+        self.group_legends.remove(&id);
+        Ok(())
+    }
+
+    /// PRG-89: the refusals of Copy and Move.
+    fn check_group_target(&self, id: GroupId, to: GroupId) -> Result<(), CoreError> {
+        if !self.groups.contains_key(&id) {
+            return Err(CoreError::GroupEmpty(id));
+        }
+        if to == id {
+            return Err(CoreError::GroupOntoItself(id));
+        }
+        if self.groups.contains_key(&to) {
+            return Err(CoreError::GroupUsed(to));
+        }
+        Ok(())
+    }
+
+    /// PRG-87: copy a group (items, grid, legend) to an empty cell; group masters stay.
+    pub fn copy_group(&mut self, id: GroupId, to: GroupId) -> Result<(), CoreError> {
+        self.check_group_target(id, to)?;
+        if let Some(items) = self.groups.get(&id).cloned() {
+            self.groups.insert(to, items);
+        }
+        if let Some(grid) = self.group_grids.get(&id).copied() {
+            self.group_grids.insert(to, grid);
+        }
+        if let Some(legend) = self.group_legends.get(&id).cloned() {
+            self.group_legends.insert(to, legend);
+        }
+        Ok(())
+    }
+
+    /// PRG-88: move a group (items, grid, legend) to an empty cell; group masters follow it.
+    pub fn move_group(&mut self, id: GroupId, to: GroupId) -> Result<(), CoreError> {
+        self.check_group_target(id, to)?;
+        if let Some(items) = self.groups.remove(&id) {
+            self.groups.insert(to, items);
+        }
+        if let Some(grid) = self.group_grids.remove(&id) {
+            self.group_grids.insert(to, grid);
+        }
+        if let Some(legend) = self.group_legends.remove(&id) {
+            self.group_legends.insert(to, legend);
+        }
+        for pb in self.playbacks.values_mut() {
+            if let Some(Master::Group(m)) = &mut pb.master {
+                if m.group == id {
+                    m.group = to;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// PRG-90: set a group's legend; an empty one clears it.
+    pub fn set_group_legend(&mut self, id: GroupId, legend: &str) -> Result<(), CoreError> {
+        check_legend(legend)?;
+        if !self.groups.contains_key(&id) {
+            return Err(CoreError::GroupEmpty(id));
+        }
+        if legend.is_empty() {
+            self.group_legends.remove(&id);
+        } else {
+            self.group_legends.insert(id, legend.to_string());
+        }
+        Ok(())
     }
 
     /// Set a manual value; it joins the merge at `Priority::Programmer` (PRG-12/13).
