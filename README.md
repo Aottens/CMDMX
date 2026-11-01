@@ -57,6 +57,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 - The Eurolite USB-DMX512 PRO MK2 drives real dimmers and LED pars (250000 baud, about 33 Hz).
   The port chosen on the Output screen survives a restart; unplugging and replugging needs no
   restart. `--no-artnet`, `--no-sacn` and `--no-serial` silence a protocol for one run.
+- While the engine runs the Mac does not go to idle sleep, with or without the app; if macOS
+  refuses that, it is one warning and output carries on.
 - If the app hangs or is killed, output runs on without a dropped frame; the restarted app shows
   the live faders, cue and programmer.
 

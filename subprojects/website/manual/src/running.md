@@ -133,6 +133,9 @@ CMDMX is built to keep the light on.
 - **Quitting by accident:** quitting always asks first, with Cancel as the default button, whether
   Console is on or not: Command-Q, the app menu, the window's close button, even a logout. Force Quit
   does not ask, and it does not stop the engine: DMX keeps flowing. Open the app again and it reconnects.
+- **The Mac stays awake:** while the engine runs, with or without the app, the Mac does not go to sleep
+  by itself, because a sleeping Mac sends no DMX. If macOS refuses this, you get one warning
+  and the engine keeps running: set the Mac's sleep setting by hand then.
 - **An output fails** (a network error, the USB interface unplugged): the engine keeps the last
   good frame, keeps running and warns once. The output row on the **Output** screen and its dot
   in the status bar show the state. A USB interface that comes back is picked up again within a
