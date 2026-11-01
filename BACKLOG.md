@@ -245,6 +245,7 @@ steps are IDEA-33 (phases confirmed 2026-10-29).
 | SEL-08 | App: Fixture order Edit starts from the cue's current steps (taps overwrite them), Done shows the stored order with a short "Saved" note, Auto increment reads On/Off and is on at every Edit. From the SEL-07 run. | UI-34 | S | done (2026-11-01, #189) |
 | SEL-09 | App: All, Next and Order reachable while Fan is on (Fan context keeps them or gets Back), and Next in the Pattern sub-context. From the SEL-07 run. | UI-33, PRG-76 | S | done (2026-11-01, #190) |
 | KERK-01 | The show *Kerk* (church patch, 56 fixtures, profiles inside) in `shows/Kerk.cmdmx.json`, so the church Mac can start from it; owner 2026-11-01, before the first church service run. | SHW | S | done (2026-11-01, #192) |
+| TRK-01 | `check-tracking.py`: README `## Status` has lines of at most 120 characters, no version number and names next by BACKLOG ids that are still open; `--summary` warns when a task finished and the status did not change; status rewritten. Owner, 2026-11-01. | CLAUDE.md step 5 | S | done (2026-11-01, #202) |
 | VS8-10 | Release notes on the site come from `main` (`website.yml` restores `release-notes.md` after checking out the tag's manual), so 0.2.5's notes show without a new release. | WEB-35 | S | done (2026-11-01, #193) |
 
 ## Later phases

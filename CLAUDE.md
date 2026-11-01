@@ -22,7 +22,9 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
 5. **Close the loop.** Update the subproject `STATE.md`, root `STATE.md`, `BACKLOG.md` and
    `README.md` in the same PR. In the README, a new feature goes into its group under
    *What works today*; `## Status` is rewritten, never appended to: where phase 1 stands and what
-   is next, at most 8 lines (checked). Update the description whenever the project's direction
+   is next, at most 8 lines of at most 120 characters, no version numbers (it links the latest release),
+   and next named by BACKLOG ids that are still open, so finishing a named task fails CI until the
+   status is rewritten (checked). Update the description whenever the project's direction
    has moved. A decision made along the way goes in `DECISIONS.md` (and an ADR if it is
    structural). **Merged = done:** the PR sets its own `BACKLOG.md` row to `done (date, #PR)`, or
    `gate3: <checklist path>` when only the owner's hardware run is left; never `review`/`merged`.

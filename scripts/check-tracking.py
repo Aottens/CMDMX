@@ -7,15 +7,16 @@
 - A task status named in an IDEAS index row ("VS2-26 todo") matches its BACKLOG row.
 - A run file from 2026-10-24 on has `## Open points`: `- none`, or one line per point ending in
   `→ <where it went>` (a BACKLOG id, an IDEA id or an existing file in backticks).
-- README.md's `## Status` has at most STATUS_MAX_LINES lines of text (features go under
-  *What works today*).
+- README.md's `## Status` has at most STATUS_MAX_LINES lines of STATUS_MAX_WIDTH characters, no version
+  number (link the latest release), and names a not-yet-done BACKLOG id (what is next), none done.
 - With PR_TITLE set: every backlog task id in the title is not `todo` (the PR updates its row), and
   PR_BODY has a `## Tracking` section.
 
 With --summary <base> it prints, in Markdown, what this branch changes against <base>: new and
 moved BACKLOG and IDEAS rows and the open points of the run files it touches. CI writes it to the
-job summary; paste it into the PR description under "## Tracking". It also warns (never fails,
-WEB-33) when subprojects/app/Sources changes without subprojects/website/manual/.
+job summary; paste it into the PR description under "## Tracking". It also warns (never fails)
+when subprojects/app/Sources changes without subprojects/website/manual/ (WEB-33), and when a row
+moved to done/gate3 but README `## Status` is unchanged.
 
 Usage: scripts/check-tracking.py [--summary origin/main]  (PR_TITLE="core: … (VS2-26)" to check a title)
 """
@@ -30,6 +31,7 @@ STATUSES = ("todo", "doing", "done", "gate3", "blocked")
 TASK = r"[A-Z][A-Z0-9]*-[0-9A-Za-z.]+"
 RUNS_FROM = "2026-10-24"
 STATUS_MAX_LINES = 8
+STATUS_MAX_WIDTH = 120
 errors = []
 
 
@@ -52,6 +54,12 @@ def open_points(text):
     """The `- ` lines under `## Open points`, or None when the section is missing."""
     m = re.search(r"^## Open points[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
     return None if m is None else [l[2:].strip() for l in m.group(1).splitlines() if l.startswith("- ")]
+
+
+def status_text(readme):
+    """The text under README's `## Status`, or "" when the section is missing."""
+    m = re.search(r"^## Status\n(.*?)(?=^## )", readme, re.M | re.S)
+    return m.group(1) if m else ""
 
 
 backlog = backlog_rows((ROOT / "BACKLOG.md").read_text())
@@ -93,10 +101,22 @@ for run in sorted(ROOT.glob("tests/*/runs/*.md")):
         if not ok:
             errors.append(f"{where}: open point needs `→ <BACKLOG id | IDEA id | `existing file`>`: {point[:60]}")
 
-readme_status = re.search(r"^## Status\n(.*?)(?=^## )", (ROOT / "README.md").read_text(), re.M | re.S)
-status_lines = [line for line in readme_status.group(1).splitlines() if line.strip()] if readme_status else []
+readme = (ROOT / "README.md").read_text()
+status_lines = [line for line in status_text(readme).splitlines() if line.strip()]
 if len(status_lines) > STATUS_MAX_LINES:
     errors.append(f"README.md: ## Status has {len(status_lines)} lines, at most {STATUS_MAX_LINES}; rewrite it and move features under What works today")
+for line in status_lines:
+    if len(line) > STATUS_MAX_WIDTH:
+        errors.append(f"README.md: ## Status line is {len(line)} characters, at most {STATUS_MAX_WIDTH}: {line[:40]}…")
+status_blob = "\n".join(status_lines)
+if re.search(r"\bv?\d+\.\d+\.\d+\b", status_blob):
+    errors.append("README.md: ## Status names a version number; link the latest release instead, a version there is stale once a tag is pushed")
+status_ids = [t for t in (i.rstrip(".,") for i in re.findall(TASK, status_blob)) if t in status]
+if not status_ids:
+    errors.append("README.md: ## Status names no BACKLOG id; name what is next")
+for task in dict.fromkeys(status_ids):
+    if status[task] == "done":
+        errors.append(f"README.md: ## Status names {task}, which is done; rewrite the status")
 
 if os.environ.get("PR_TITLE") and "## Tracking" not in os.environ.get("PR_BODY", ""):
     errors.append("PR description: add a `## Tracking` section with `scripts/check-tracking.py --summary origin/main`")
@@ -132,6 +152,10 @@ def summary(base):
     if any(f.startswith("subprojects/app/Sources") for f in changed) and not any(
             f.startswith("subprojects/website/manual/") for f in changed):
         out.append("- **Warning (WEB-33):** changes subprojects/app/Sources but not the manual (subprojects/website/manual/)")
+    moved = [t for t, (_, _, cell) in backlog.items() if status[t] in ("done", "gate3")
+             and (old[t][2].split(":")[0].split(" ")[0] if t in old else "") != status[t]]
+    if moved and status_text(readme) == status_text(git("show", f"{base}:README.md")):
+        out.append(f"- **Warning:** {', '.join(moved)} finished but README ## Status did not change: is it still true?")
     if len(out) == 2:
         out.append("No BACKLOG, IDEAS or run-file changes.")
     return "\n".join(out)

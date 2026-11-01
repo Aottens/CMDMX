@@ -37,15 +37,15 @@ window with each fixture's values; cyan means the value comes from a palette.*
 
 ## Status
 
-Phase 1, under active development, not yet trusted for a full service. On 2026-10-25 it drove
-the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging the
-interface needs no restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
+Phase 1, under active development, not yet trusted for a full service. It has driven the real church
+rig through the Eurolite interface: fades comparable with Lightkey, replugging the interface needs no
+restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-CMDMX v0.2.6 is out; site and manual are live at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/)
-(VS8-03, 04). Delete, Copy, Move and legends for groups (found in the first church try) shipped in it.
-Next up: the church Mac (VS4-07) and the first service run (VS4-03). Progress
-is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md).
-The FX generator (phase 2, [`effects.md`](specs/modules/effects.md)) runs in the engine and the app's Shapes workspace and passed its home run on Art-Net (FXB-06); with its run leftovers (FXB-07..10) it shipped in v0.2.4. Selection orders (IDEA-15, spec P2-02) work in engine and app and passed their home run on Art-Net (SEL-07); they shipped in v0.2.5; beside it runs the open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)).
+Next up: the [latest release](https://github.com/Aottens/CMDMX/releases/latest) on the church Mac
+(VS4-07), then the first service run (VS4-03). Phase 2 features already work (see below); the
+open-hardware desk (phase 3, [`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is
+in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manual are at
+[aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
 
 ## What works today
 
