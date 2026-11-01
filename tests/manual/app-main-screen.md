@@ -212,6 +212,13 @@ Art-Net and sACN. Ask the owner first when Lightkey runs or a rig is on the netw
       scroll down to 0 % never jumps back up on the way (also not the %)
 - [ ] Holding a fader: it follows the pointer and does not bounce; on release it shows the
       engine's value
+- [ ] A level bar never jumps (UI-37), on a strip, a group master and the GM, each at a level
+      in the middle of the bar:
+  - a press anywhere on the bar, far from the cap: the % stays and Art-Net does not change
+  - a drag of a quarter of the bar's height moves the level by 25 %, from where it was, wherever the press was
+  - a drag past the top or bottom stops at 100 % or 0 %; dragging back moves it again from the press level
+  - with the Learn panel open, a press on a bar arms Learn for it and the level stays
+  - scrolling over a strip still moves its level
 - [ ] The Go block (210 pt): header, "now" line, big green-outlined GO, Back / Stop / Release, all
       greyed with "Cue lists · P1-08"; nothing covers it
 - [ ] Grand Master: a level bar like a strip, amber below 100 %, DBO greyed under it

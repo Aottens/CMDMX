@@ -25,7 +25,8 @@ Each strip shows, from top to bottom:
   kinds: `Q3 › 4` on a cue list (current and next cue), `2/8 · 120` on a chase (step and BPM), or
   what a master does;
 - the **level bar** with the level in %. Drag it, or scroll over it (Option for fine steps, Shift
-  for big ones);
+  for big ones). A drag moves the level by the distance you drag, from where it is, so a click
+  anywhere on the bar changes nothing;
 - the two **handle buttons**. What they do depends on what is on the handle: Swop and Flash on a
   single look, Go and Flash on a cue list, Tap and Flash on a chase.
 

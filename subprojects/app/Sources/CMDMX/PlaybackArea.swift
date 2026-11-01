@@ -349,7 +349,8 @@ struct RightClickCatcher: NSViewRepresentable {
     }
 }
 
-/// Vertical level bar with a cap and the % in SF Mono. Drag to set; the engine's delta stays authoritative.
+/// Vertical level bar with a cap and the % in SF Mono. A drag moves the level by the distance dragged from the level at the press; a press changes nothing (UI-37).
+/// The engine's delta stays authoritative.
 private struct LevelBar: View {
     @Environment(\.theme) private var t
     @Binding var value: Double
@@ -364,7 +365,7 @@ private struct LevelBar: View {
     var onTouch: (Bool) -> Void = { _ in }
     /// UI-22: scroll over the bar moves the level (whole steps, modifiers as for the wheels).
     var onScroll: ((Int, NSEvent.ModifierFlags) -> Void)?
-    @State private var touching = false
+    @State private var pressLevel: Double?   // UI-37: the level at the press; nil = not touched
 
     var body: some View {
         GeometryReader { geo in
@@ -383,10 +384,12 @@ private struct LevelBar: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
-                        if !touching { touching = true; onTouch(true) }
-                        value = height > 0 ? (1 - drag.location.y / height).clamped01 : value
+                        if pressLevel == nil { pressLevel = value; onTouch(true) }
+                        guard height > 0 else { return }
+                        let level = ((pressLevel ?? value) - drag.translation.height / height).clamped01
+                        if level != value { value = level }   // UI-37: a press without movement sends nothing
                     }
-                    .onEnded { _ in touching = false; onTouch(false) }
+                    .onEnded { _ in pressLevel = nil; onTouch(false) }
             )
         }
         .background { if let onScroll { ScrollCatcher(onSteps: onScroll) } }
