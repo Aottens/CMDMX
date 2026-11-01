@@ -151,7 +151,7 @@ Order approved by owner 2026-11-01, as in this table: what can darken a show fir
 | SPF-01 | Daemon: the power assertion from before the first tick to exit, a failure is one warning; macOS test on `pmset -g assertions` (`out_38_…`, `out_39_…`). | OUT-38, 39 | S | done (2026-11-01, #211) |
 | SPF-02 | Daemon: a late tick does not catch up; `out_40_…` on a pure deadline function and the `SIGSTOP` test on loopback. | OUT-40 | S | done (2026-11-01, #212) |
 | SPF-03 | App keeps the display awake in console mode; `tests/hardware/sleep.md` with a real sleep during a fade on the Eurolite and Art-Net; the manual says what does not keep the Mac awake (lid, Sleep). Needs SPF-01, 02. | UI-35, OUT-41 | S | gate3: `tests/hardware/sleep.md` |
-| SPF-05 | App: an adopted engine that dies is restarted, the restart message; run with `kill -9` as REL-24. | REL-24, 25 | S | doing (built; the `kill -9` run is open: `tests/manual/runs/2026-11-01-SPF-05.md`) |
+| SPF-05 | App: an adopted engine that dies is restarted, the restart message; run with `kill -9` as REL-24. | REL-24, 25 | S | done (2026-11-01, #215) |
 | SPF-06 | App: level bars never jump (strips, group masters, GM); manual and `tests/manual/app-main-screen.md`. | UI-37 | S | todo |
 | SPF-07 | App and engine test: *New cue times* in the Settings tab; `pbk_46_…`; manual. | PBK-46 | S | todo |
 | SPF-08 | Daemon: message history in the snapshot, `at` on messages, node state changes as messages; `ipc_51_…`, `ipc_52_…`. | IPC-51, 52 | S | todo |
