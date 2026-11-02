@@ -780,3 +780,10 @@ showing 602 until the tab is reopened. `NumberField` shows what was sent (VS3-05
 the file's header says a refused value stays as it was. Every `NumberField` in Playback Options does this, also a cue's own times.
 **Triage:** phase 1 (owner, 2026-11-02); `ui.md`; its place in the order is still open. Nothing recorded wrong: the show holds the old value.
 **Open question:** how the field learns of the refusal, since warnings carry no field; and whether it snaps back at once or on leaving the field.
+
+### IDEA-37 — The app takes over when another engine goes away (2026-11-02)
+**Found in:** the DEF-03 run; not from the owner.
+**What happens:** an app that found another engine on port 7319 (REL-11) connects to it and owns nothing. When that engine goes, the app says "Engine offline" and stays
+offline until it is restarted; it does not start its own bundled engine. Only reachable with a second engine by hand, so not in an ordinary show.
+**Triage:** proposed phase 1, after A2; `release.md`. Owner to confirm the phase. Nothing touched now.
+**Open question:** take over at once or ask, and with the same show?

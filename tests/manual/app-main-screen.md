@@ -49,14 +49,32 @@ A fresh `HOME` opens the Demo show, and this engine cannot be given `--no-artnet
 Art-Net and sACN. Ask the owner first when Lightkey runs or a rig is on the network. Without `--serial` the Eurolite stays closed.
 
 - [ ] A child dies: `kill -9` the engine. The status bar shows "Engine exited (code 9), restarting" and offline; within 5 s
-      a new pid, Engine green, "Engine restarted: the show is back, nothing is running"
+      a new pid, Engine green, "Engine restarted: <show> is back, nothing is running"
 - [ ] Adopt: `kill -9` the app, the engine keeps its pid. Start the app again: the same pid, one engine, Engine green,
       no amber line
 - [ ] An adopted engine dies: `kill -9` the engine. "Engine exited, restarting" and offline; within 5 s a new pid, Engine green,
-      "Engine restarted: the show is back, nothing is running"
+      "Engine restarted: <show> is back, nothing is running"
 - [ ] The show is back: a group recorded and autosaved before the kill is still there after it
 - [ ] Not while stopping: adopt again, Quit in the alert. The app and the engine are gone, the pid file too, and no
       engine comes back within 5 s
+
+### A failing engine (REL-26..28)
+A bundle whose engine is a script, so no real show is touched and every attempt leaves a time. No lamps needed; the engine sends nothing.
+- `cd subprojects/engine && cargo build --release -p cmdmx-daemon && mkdir -p /tmp/cmdmx-rel28/home /tmp/cmdmx-rel28/shows && cp target/release/cmdmx-daemon /tmp/cmdmx-rel28/real-daemon`
+- `cd subprojects/app && scripts/bundle-app.sh`
+- `Contents/MacOS/cmdmx-daemon` becomes a script: `date +%H:%M:%S >> /tmp/cmdmx-rel28/attempts; exit 1`
+- `HOME=/tmp/cmdmx-rel28/home .build/CMDMX.app/Contents/MacOS/CMDMX &`
+
+Then:
+- [ ] The attempts in the file wait 2, 4, 8, 16, then 30 s, and stay at 30 s
+- [ ] From the third failure the status bar has one steady line, "Engine does not start (code 1), trying every 30 s. Log: ~/Library/Logs/CMDMX/daemon.log"; "back" never shows
+- [ ] Messages after several minutes: two lines, "Engine exited (code 1), restarting" and the steady line
+- [ ] The script becomes `exec /tmp/cmdmx-rel28/real-daemon --show-dir /tmp/cmdmx-rel28/shows --no-artnet --no-sacn --no-serial "$@"`. At the next attempt: Engine green, "Engine connected" and "Engine restarted: Demo is back, nothing is running" with the same time
+- [ ] A change of workspace leaves the line; Clear ends it; it stays in Messages
+- [ ] After 60 s of running, `kill -9` the engine three times with less than 60 s between them: 2, 4, then 8 s of wait; the third gives the steady line with code 9, the connect replaces it
+- [ ] `chmod -x` the script, `kill -9` the engine: "Could not start the engine: …", from the third failure the steady line without a code. `chmod +x`: connected, "back"
+- [ ] Quit during a wait, with the failing script in place: the app is gone and no attempt follows
+- [ ] Another engine on 7319 before the app starts (`/tmp/cmdmx-rel28/real-daemon --show-dir /tmp/cmdmx-rel28/other --no-artnet --no-sacn --no-serial`): "Another engine is running on port 7319"; Clear leaves it; `kill -9` that engine ends it
 
 ### Theme and type (UI-02..05)
 - [ ] Dark theme matches the sketch: dark grey, not black; no colour that does not mean a state

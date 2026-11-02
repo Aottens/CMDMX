@@ -157,7 +157,7 @@ and errors since you last opened it, and it stays when the line clears. With a f
 Patch, Show) the count waits until you are back on a workspace.
 
 The list holds the engine's last 200 warnings and notices, which survive a restart of the app, and the app's
-own lines: the engine going offline and connecting, the engine restarting ("Engine restarted: the show is
+own lines: the engine going offline and connecting, the engine restarting ("Engine restarted: Demo is
 back, nothing is running") and refused requests. Those last ones are gone after a restart of the app.
 Hints such as "tap the source group" stay on the line only.
 
