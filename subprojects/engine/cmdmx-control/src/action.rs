@@ -327,6 +327,11 @@ impl FromStr for Action {
 }
 
 impl Action {
+    /// IPC-53: the actions whose release lets go of something held.
+    pub fn holds(&self) -> bool {
+        matches!(self, Action::Upper(_) | Action::Lower(_) | Action::Dbo)
+    }
+
     /// True when the action addresses a playback by page slot or id, so it does not follow the
     /// console page (CTL-50).
     pub fn is_fixed(&self) -> bool {

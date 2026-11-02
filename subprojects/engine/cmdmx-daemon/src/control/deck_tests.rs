@@ -879,3 +879,34 @@ fn ipc_50_a_deck_key_is_dropped_its_images_keep_running_and_it_acts_after_the_un
     key(&mut c, 1, true);
     assert_eq!(c.commands(&e, 2.0).len(), 1);
 }
+
+// --- IPC-53 what is held when the lock comes ----------------------------------
+
+#[test]
+fn ipc_53_a_held_deck_key_lets_go_once_under_the_lock() {
+    let mut e = engine();
+    let (mut c, _) = ready("held", &e);
+    let mut h = cmdmx_core::undo::History::default();
+    key(&mut c, 1, true);
+    let cmds = c.commands(&e, 0.0);
+    assert!(matches!(
+        cmds[..],
+        [(_, Command::PlaybackButton { on: true, .. })]
+    ));
+    for (dev, cmd) in cmds {
+        crate::run_control(&mut e, &mut h, &dev, cmd, 0.0).unwrap();
+    }
+
+    c.set_locked(true);
+    key(&mut c, 1, false);
+    let cmds = c.commands(&e, 0.1);
+    assert!(
+        matches!(cmds[..], [(_, Command::PlaybackButton { on: false, .. })]),
+        "{cmds:?}"
+    );
+    assert!(c.take_messages().is_empty(), "without a warning");
+
+    // Down and up under the lock: a press that was dropped, and its release.
+    press(&mut c, 1);
+    assert!(c.commands(&e, 0.2).is_empty());
+}

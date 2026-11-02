@@ -128,6 +128,10 @@ The status bar stays so you can read the state of the outputs, but its buttons d
 - **Stops working:** every button and fader in the app, the Mac keyboard's shortcuts, and all input from MIDI,
   OSC and Stream Deck. Feedback to those surfaces keeps running. After the unlock a fader without motor picks up
   when it reaches the level again, and a motor fader follows the engine's level.
+- **Letting go still lets go:** a Flash, a Swop or a momentary DBO you are holding when the lock comes stays on, so the
+  stage does not change by locking, and it ends when you let go, from the app, MIDI, OSC or a Stream Deck. Holding Flash
+  or Swop with the mouse, it ends at the moment the cover comes. A mouse still down after the unlock can bring it on again,
+  and letting go ends it. A latched Flash or a DBO that was toggled on stays on.
 
 To unlock, type the code and press **Enter**. A wrong code shows "Wrong code" and the console stays locked.
 

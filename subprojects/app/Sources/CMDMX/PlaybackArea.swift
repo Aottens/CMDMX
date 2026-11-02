@@ -300,6 +300,7 @@ private struct HoldKey: View {
     let actions: HoldActions
     @State private var held: Int?
     @State private var oneShot = false
+    @GestureState private var pressing = false
 
     var body: some View {
         let down = held != nil
@@ -311,6 +312,7 @@ private struct HoldKey: View {
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
+                    .updating($pressing) { _, state, _ in state = true }
                     .onChanged { _ in
                         guard held == nil, let target else { return }
                         held = target
@@ -318,6 +320,9 @@ private struct HoldKey: View {
                     }
                     .onEnded { _ in end() }
             )
+            // UI-41: GestureState resets on end and on cancel (the lock cover disables the view mid-press,
+            // and a cancelled gesture never calls onEnded), so the release is sent either way.
+            .onChange(of: pressing) { _, on in if !on { end() } }
             .onDisappear { end() }   // a strip that goes away mid-press must not leave Flash on
             .help(target == nil ? (label.isEmpty ? "No function" : "Empty handle") : "\(label): hold")
     }

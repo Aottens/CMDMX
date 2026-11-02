@@ -69,7 +69,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 - If the engine dies, the app starts it again within seconds, also one it adopted after an app crash, and
   says plainly that the show is back and nothing is running.
 - **Lock** on the softkeys covers the console with a code keypad: DMX, running playbacks and autosave go on, every
-  control and surface input stops, and quitting refuses until the unlock. An operational control, not show-file protection.
+  control and surface input stops, and quitting refuses until the unlock. A Flash or Swop held when the lock comes still
+  ends when you let go. An operational control, not show-file protection.
 
 **Patch and fixtures**
 - Browse the library by manufacturer, pick a fixture, set mode, count, address and user number;

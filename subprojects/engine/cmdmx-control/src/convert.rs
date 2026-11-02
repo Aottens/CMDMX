@@ -81,9 +81,21 @@ pub struct BindingState {
     pickup: Pickup,
     wheel: Option<f32>,
     remainder: f32,
+    /// IPC-53: a momentary press is held until its release.
+    down: bool,
 }
 
 impl BindingState {
+    /// IPC-53: true when this reading is the release of a held button that lets go of something.
+    pub fn lets_go(&self, b: &Binding, r: Reading) -> bool {
+        let release = match r {
+            Reading::Button(pressed) => !pressed,
+            Reading::Level(l) => l < 0.5,
+            Reading::Tap | Reading::Steps(_) => false,
+        };
+        self.down && b.action.holds() && release
+    }
+
     /// IPC-50: forget what the input did while it was dropped; `toggle` and `above` stay.
     pub fn rearm(&mut self) {
         self.pickup.rearm();
@@ -107,8 +119,14 @@ impl BindingState {
 
     fn press(&mut self, b: &Binding, pressed: bool) -> Vec<ActionValue> {
         match (b.button_mode, pressed) {
-            (ButtonMode::Momentary, true) => vec![ActionValue::Press],
-            (ButtonMode::Momentary, false) => vec![ActionValue::Release],
+            (ButtonMode::Momentary, true) => {
+                self.down = true;
+                vec![ActionValue::Press]
+            }
+            (ButtonMode::Momentary, false) => {
+                self.down = false;
+                vec![ActionValue::Release]
+            }
             (ButtonMode::Toggle, true) => {
                 self.toggle = !self.toggle;
                 vec![if self.toggle {

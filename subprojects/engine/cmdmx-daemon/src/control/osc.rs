@@ -325,56 +325,65 @@ impl Control {
         if self.osc.heard.insert(ip, now).is_none() {
             self.dirty = true;
         }
-        // IPC-50: heard for feedback, but nothing acts.
-        if self.locked {
-            return;
-        }
         for m in messages {
-            self.osc_message(ip, m, now);
+            if self.locked {
+                // IPC-50: heard for feedback, but nothing acts. IPC-53: but a held button lets go.
+                let lets_go = self.osc_binding(&m).is_some_and(|(b, r, _)| {
+                    (self.osc.states.get(&m.address)).is_some_and(|s| s.lets_go(&b, r))
+                });
+                if lets_go {
+                    self.push_osc(ip, m);
+                }
+            } else {
+                self.osc_message(ip, m, now);
+            }
+        }
+    }
+
+    /// The binding an OSC message addresses, its reading and whether it is a custom one.
+    fn osc_binding(&self, m: &OscMessage) -> Option<(Binding, Reading, bool)> {
+        if m.address == "/cmdmx" || m.address.starts_with("/cmdmx/") {
+            let (action, reading) = osc::schema(m)?;
+            return Some((
+                Binding::new(Input::Osc(m.address.clone()), action),
+                reading,
+                false,
+            ));
+        }
+        let mapping = self.mappings.get(&self.osc.settings.mapping)?;
+        let b = (mapping.bindings.iter())
+            .find(|b| matches!(&b.input, Input::Osc(a) if *a == m.address))?;
+        Some((b.clone(), custom_reading(b, &m.args)?, true))
+    }
+
+    fn push_osc(&mut self, from: IpAddr, m: OscMessage) {
+        if let Some((binding, reading, custom)) = self.osc_binding(&m) {
+            self.osc.pending.push(Pending {
+                from,
+                address: m.address,
+                binding,
+                reading,
+                custom,
+            });
         }
     }
 
     fn osc_message(&mut self, from: IpAddr, m: OscMessage, now: f64) {
         let builtin = m.address == "/cmdmx" || m.address.starts_with("/cmdmx/");
-        let schema = if builtin {
-            let Some((action, reading)) = osc::schema(&m) else {
-                return self.osc_error(&format!("unknown address {} from {from}", m.address), now);
-            };
-            Some((Binding::new(Input::Osc(m.address.clone()), action), reading))
-        } else {
-            None
-        };
+        if builtin && osc::schema(&m).is_none() {
+            return self.osc_error(&format!("unknown address {} from {from}", m.address), now);
+        }
         self.last_input = Some(LastInput {
             device: format!("OSC {from}"),
             input: m.address.clone(),
             value: m.args.first().map_or(Value::Null, arg_json),
         });
         self.input_dirty = true;
-        let (binding, reading, custom) = match schema {
-            Some((b, r)) => (b, r, false),
-            // CTL-38: Learn takes the next address outside /cmdmx and does not act on it.
-            None if self.learn.is_some() => return self.learn_osc(m.address),
-            None => {
-                let mapping = self.mappings.get(&self.osc.settings.mapping);
-                let found = mapping.and_then(|map| {
-                    map.bindings
-                        .iter()
-                        .find(|b| matches!(&b.input, Input::Osc(a) if *a == m.address))
-                });
-                let Some(b) = found else { return };
-                let Some(reading) = custom_reading(b, &m.args) else {
-                    return;
-                };
-                (b.clone(), reading, true)
-            }
-        };
-        self.osc.pending.push(Pending {
-            from,
-            address: m.address,
-            binding,
-            reading,
-            custom,
-        });
+        // CTL-38: Learn takes the next address outside /cmdmx and does not act on it.
+        if !builtin && self.learn.is_some() {
+            return self.learn_osc(m.address);
+        }
+        self.push_osc(from, m);
     }
 
     /// CTL-25, 27, 38: bind the address to the armed action.
@@ -434,7 +443,8 @@ impl Control {
             let b = &item.binding;
             // OSC controls follow their feedback like motor faders: never pickup (CTL-13, 37).
             let mut fresh = BindingState::default();
-            let state = match item.custom {
+            // IPC-53: a built-in button that holds remembers its press too.
+            let state = match item.custom || b.action.holds() {
                 true => self.osc.states.entry(item.address.clone()).or_default(),
                 false => &mut fresh,
             };

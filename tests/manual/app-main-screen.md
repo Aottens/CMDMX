@@ -264,3 +264,13 @@ or a long fade, so output can be seen going on.
       and the cover goes away.
 - [ ] Learn on, then Lock: Learn ends first; after the unlock Learn is off.
 
+What is held when the cover comes (UI-41, IPC-53). Only a real mouse can show these: a click through accessibility cannot
+hold. Claude locks from a second client and listens to Art-Net; the owner holds the mouse.
+
+- [ ] (owner) Hold Flash on a strip with the mouse. Claude locks. The Flash ends when the mouse lets go, or at the moment
+      the cover comes if the cover takes the press away; which of the two is noted in the run. It does not stay on.
+- [ ] (owner) The same with Swop.
+- [ ] (owner) Unlock: the key does not show as down, nothing is on, and the next hold of the same Flash works and ends when let go.
+- [ ] (owner) Hold Flash, lock, and unlock while still holding (Claude does both): it may come on again while the mouse
+      is down, and letting go ends it as usual; nothing stays on.
+
