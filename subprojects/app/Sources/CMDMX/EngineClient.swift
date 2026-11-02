@@ -1284,6 +1284,9 @@ final class EngineClient: ObservableObject {
     /// Latest `warning` / `error` / `notice` message from the engine; cleared when a
     /// `programmer.command` is sent (IPC-17).
     @Published private(set) var lastMessage: String?
+    /// UI-38, IPC-50: the engine's lock; the cover follows it.
+    @Published private(set) var locked = false
+    static let shared = EngineClient()
     /// UI-39: the Messages sheet's history, oldest first, at most `messageCap` lines. Merged from the
     /// engine's snapshot (IPC-51) plus the app's own lines; `unseenMessages` counts warnings and errors
     /// since the sheet was last open.
@@ -1862,6 +1865,8 @@ final class EngineClient: ObservableObject {
 
     /// Hides the last engine message (e.g. when the operator selects another row).
     func clearMessage() { lastMessage = nil }
+    /// UI-38: the engine checks the code; a wrong one comes back as a warning.
+    func setLock(_ on: Bool, code: String) { lastMessage = nil; sendJSON("lock.set", ["on": on, "code": code]) }
 
     private func patch(_ cmd: String, _ fields: [String: Any]) {
         lastMessage = nil
@@ -1946,6 +1951,7 @@ final class EngineClient: ObservableObject {
         fileprivate let pages: Tolerant<[PageLegend]>?
         let dbo: Bool?
         let on: Bool?
+        let locked: Bool?
         fileprivate let playbackSettings: Tolerant<PlaybackSettings>?
         let level: Double?
         let message: String?
@@ -1969,7 +1975,7 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
+            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -2006,6 +2012,7 @@ final class EngineClient: ObservableObject {
             storePlaybackList(incoming.playbacks?.value)
             pages = incoming.pages?.value ?? []
             dbo = incoming.dbo ?? false
+            locked = incoming.locked ?? false
             playbackSettings = incoming.playbackSettings?.value
             connected = incoming.connected?.value
             cueView = nil
@@ -2124,6 +2131,8 @@ final class EngineClient: ObservableObject {
             if let on = incoming.on { dbo = on }
         case "playback_settings":
             if let state = try? JSONDecoder().decode(PlaybackSettings.self, from: data) { playbackSettings = state }
+        case "locked":
+            if let on = incoming.locked { locked = on }
         case "grand_master":
             if let level = incoming.level {
                 if gmHeld { gmEngineLevel = level.clamped01; releaseGMIfEchoed() } else { grandMaster = level.clamped01 }

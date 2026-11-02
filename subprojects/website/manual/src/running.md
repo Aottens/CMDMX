@@ -115,6 +115,34 @@ Command-4 switch workspaces whether Keys is on or not.
 
 **Console** in the status bar puts the app full screen with the Dock and menu bar hidden.
 
+## Locking the console
+
+**Lock** on the softkeys of the Main context (nothing selected) keeps fingers off the console while the show runs
+or while you step away. It asks for a code. Type digits on the keypad or the Mac keyboard and press **Enter**. You
+can also press Enter with no digits, then Enter alone unlocks. **Cancel** or Escape leaves it unlocked.
+
+While locked, a cover hides everything below the status bar. It shows "Locked", the show name, the clock and a keypad.
+The status bar stays so you can read the state of the outputs, but its buttons do nothing.
+
+- **Keeps running:** DMX output, the playbacks and fades that are running, chases, effects and autosave.
+- **Stops working:** every button and fader in the app, the Mac keyboard's shortcuts, and all input from MIDI,
+  OSC and Stream Deck. Feedback to those surfaces keeps running. After the unlock a fader without motor picks up
+  when it reaches the level again, and a motor fader follows the engine's level.
+
+To unlock, type the code and press **Enter**. A wrong code shows "Wrong code" and the console stays locked.
+
+**The master code `68340` always unlocks**, so a forgotten code never ends a show. It is printed here on purpose, so
+anyone who reads this manual can unlock the console. The lock is an operational control against accidents and
+casual fingers. It does not protect the show file: anyone at the Mac can still copy or open the files in the
+Finder.
+
+Quitting while locked does not ask: the cover says "The console is locked. Unlock it to quit." Unlock first and
+the usual quit question comes. If the engine is offline nothing can unlock, so quitting asks as usual. Force Quit
+always works and does not stop the engine.
+
+The lock lives in the engine and is not saved. If the app restarts, the cover comes back. If the engine restarts,
+the console is unlocked.
+
 ## Undo
 
 Command-Z undoes the last edit and Shift-Command-Z redoes it; the **Undo** softkey shows what it
@@ -132,7 +160,7 @@ CMDMX is built to keep the light on.
 - **The app crashes or hangs:** the engine keeps running and keeps sending DMX. Open the app
   again and it reconnects.
 - **Quitting by accident:** quitting always asks first, with Cancel as the default button, whether
-  Console is on or not: Command-Q, the app menu, the window's close button, even a logout. Force Quit
+  Console is on or not: Command-Q, the app menu, the window's close button, even a logout (a [locked console](#locking-the-console) refuses instead). Force Quit
   does not ask, and it does not stop the engine: DMX keeps flowing. Open the app again and it reconnects.
 - **The engine stops unexpectedly:** the status bar says "Engine exited, restarting" and the app starts it again
   after 2 seconds, also after you reopened the app following a crash. Then it says "Engine restarted: the show is back,

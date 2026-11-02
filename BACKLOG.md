@@ -157,7 +157,7 @@ Order approved by owner 2026-11-01, as in this table: what can darken a show fir
 | SPF-08 | Daemon: message history in the snapshot, `at` on messages, node state changes as messages; `ipc_51_…`, `ipc_52_…`. | IPC-51, 52 | S | done (2026-11-02, #218) |
 | SPF-09 | App: Messages sheet with count, the app's own lines, dots that open their screen; manual. Needs SPF-05, SPF-08. | UI-39, 40 | M | done (2026-11-02, #219) |
 | SPF-10 | Daemon: `lock.set`, refusals, surfaces dropped, playbacks running on; `ipc_50_…`. | IPC-50 | M | done (2026-11-02, #220) |
-| SPF-11 | App: Lock softkey, cover, keypad, refused quit; manual and manual run. Needs SPF-04, SPF-10. | UI-38 | S | todo |
+| SPF-11 | App: Lock softkey, cover, keypad, refused quit; manual and manual run. Needs SPF-04, SPF-10. | UI-38 | S | done (2026-11-02, #221) |
 
 ### VS8 — CMDMX by Colourmotion: name, logo and website (IDEA-19, IDEA-20)
 Approved with P1-21 (owner, 2026-10-27). Order: VS8-01, then VS8-03 with a placeholder logo

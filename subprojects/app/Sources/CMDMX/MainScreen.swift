@@ -72,6 +72,14 @@ final class UIState: ObservableObject {
     @Published var workspace = 0
     /// UI-39: the Messages sheet.
     @Published var messagesOpen = false
+    /// UI-38: the Lock prompt, and the digits typed into it or into the cover.
+    @Published var lockPrompt = false
+    @Published var lockCode = ""
+    /// UI-38: Enter on the prompt locks, on the cover unlocks; the engine judges the code.
+    func enterLockCode(_ engine: EngineClient) {
+        engine.setLock(!engine.locked, code: lockCode)
+        lockCode = ""; lockPrompt = false
+    }
     /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
     @Published var screen: Screen?
@@ -235,33 +243,39 @@ private struct Frame: View {
         GeometryReader { geo in
             VStack(spacing: 0) {
                 StatusBar().frame(height: 26)
+                    .allowsHitTesting(!engine.locked)   // UI-38: readable (`.disabled` would dim the dots), not clickable
                 HLine()
-                if let screen = ui.screen {
-                    HStack(spacing: 0) {
-                        Rail().frame(width: 78)
-                        VLine()
-                        switch screen {
-                        case .patch: PatchView()
-                        case .output: OutputView()
-                        case .control: ControlView()
-                        case .show: ShowView()
-                        case .options: PlaybackOptionsView()
+                Group {
+                    if let screen = ui.screen {
+                        HStack(spacing: 0) {
+                            Rail().frame(width: 78)
+                            VLine()
+                            switch screen {
+                            case .patch: PatchView()
+                            case .output: OutputView()
+                            case .control: ControlView()
+                            case .show: ShowView()
+                            case .options: PlaybackOptionsView()
+                            }
                         }
-                    }
-                } else {
-                    HStack(spacing: 0) {
-                        Rail().frame(width: 78)
-                        VLine()
-                        Workspaces()
-                        VLine()
-                        SideColumn(showKeypad: keypad && geo.size.width >= 1440)
+                    } else {
+                        HStack(spacing: 0) {
+                            Rail().frame(width: 78)
+                            VLine()
+                            Workspaces()
+                            VLine()
+                            SideColumn(showKeypad: keypad && geo.size.width >= 1440)
+                        }
+                        HLine()
+                        AttributeBar().frame(height: 96)
                     }
                     HLine()
-                    AttributeBar().frame(height: 96)
+                    PlaybackArea().frame(height: 232)
                 }
-                HLine()
-                PlaybackArea().frame(height: 232)
+                .disabled(engine.locked)   // UI-38: workspaces and shortcuts stop under the cover
+                .accessibilityHidden(engine.locked)
             }
+            .overlay { if engine.locked { LockCover().padding(.top, 27) } }   // status bar + hairline stay visible
         }
         .background(t.bg)
         .foregroundStyle(t.fg)
@@ -304,6 +318,19 @@ private struct Frame: View {
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
+        .sheet(isPresented: $ui.lockPrompt) {
+            LockPrompt()
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
+        // UI-38: locking takes the console's open modes with it; Learn ends in the Lock softkey (the engine refuses commands while locked).
+        .onChange(of: engine.locked) { _, on in
+            ui.lockPrompt = false; ui.lockCode = ""
+            guard on else { return }
+            line.clear(); ui.cancelModes(); ui.messagesOpen = false; engine.clearMessage()
+            if ui.learnMode { ui.setLearnMode(false, engine) }
+        }
         .onAppear {
             // Mac keys (UI-19): the monitor stays installed; the handler checks the Keys toggle.
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [ui, line, engine] event in
@@ -344,7 +371,7 @@ private struct StatusBar: View {
     @EnvironmentObject private var ui: UIState
     @ObservedObject private var daemon = DaemonLauncher.shared
 
-    private static let clock: DateFormatter = {
+    fileprivate static let clock: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
         return f
@@ -590,5 +617,80 @@ private struct MessagesSheet: View {
         // Arrivals while open leave no count.
         .onAppear { engine.messagesSeen() }
         .onDisappear { engine.messagesSeen() }
+    }
+}
+
+// MARK: - Lock (UI-38)
+
+private struct CodeKeypad: View {
+    @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
+
+    var body: some View {
+        let digit = { (d: String) in KeyButton(label: d, spec: "", style: .number, height: 52) { ui.lockCode += d; engine.clearMessage() } }
+        Grid(horizontalSpacing: 6, verticalSpacing: 6) {
+            GridRow { digit("7"); digit("8"); digit("9") }
+            GridRow { digit("4"); digit("5"); digit("6") }
+            GridRow { digit("1"); digit("2"); digit("3") }
+            GridRow {
+                KeyButton(label: "Back", spec: "", height: 52) { _ = ui.lockCode.popLast() }
+                digit("0")
+                KeyButton(label: "Enter", spec: "", style: .enter, height: 52) { ui.enterLockCode(engine) }
+            }
+        }
+        .frame(width: 3 * 64 + 12)
+    }
+}
+
+/// The code as typed: dots on the cover, digits in the prompt.
+private struct CodeBox: View {
+    @Environment(\.theme) private var t
+    let text: String
+
+    var body: some View {
+        Text(text).font(Typo.mono(Typo.large)).foregroundStyle(t.fg)
+            .frame(width: 204, height: 36)
+            .background(RoundedRectangle(cornerRadius: radius).fill(t.surf2))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line2, lineWidth: 1))
+    }
+}
+
+private struct LockCover: View {
+    @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text("Locked").font(Typo.legend(32, .semibold))
+            Text(engine.show.name.isEmpty ? "—" : engine.show.name).font(Typo.legend(Typo.large)).foregroundStyle(t.fg2)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(StatusBar.clock.string(from: context.date)).font(Typo.mono(Typo.large)).foregroundStyle(t.fg2)
+            }
+            CodeBox(text: String(repeating: "•", count: ui.lockCode.count))
+            Text(engine.lastMessage ?? "").font(Typo.ui()).foregroundStyle(t.amber).frame(height: 16)
+            CodeKeypad()
+        }
+        .foregroundStyle(t.fg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(t.bg)
+    }
+}
+
+private struct LockPrompt: View {
+    @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Lock the console").font(.headline)
+            Text("Enter a code, or nothing for no code. Unlocking needs the same code.").foregroundStyle(t.fg2)
+            CodeBox(text: ui.lockCode)
+            CodeKeypad()
+            Button("Cancel") { ui.lockPrompt = false; ui.lockCode = "" }.keyboardShortcut(.cancelAction)
+        }
+        .padding(16)
+        .frame(width: 360)
     }
 }

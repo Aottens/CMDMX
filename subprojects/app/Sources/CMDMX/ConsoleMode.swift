@@ -21,6 +21,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // UI-38: locked, quitting refuses; with the engine offline nothing could unlock, so it asks as UI-36.
+        let refused = MainActor.assumeIsolated { () -> Bool in
+            let engine = EngineClient.shared
+            guard engine.locked, engine.connection == .online else { return false }
+            engine.say("The console is locked. Unlock it to quit.")
+            return true
+        }
+        if refused { return .terminateCancel }
         let alert = NSAlert()
         alert.messageText = "Quit the app?"
         alert.informativeText = MainActor.assumeIsolated { DaemonLauncher.shared.ownsEngine }

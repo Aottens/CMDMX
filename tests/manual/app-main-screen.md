@@ -239,3 +239,27 @@ Keys off unless a line says otherwise. A warning: `Fixture 999 Enter` on the key
 - [ ] The Go block (210 pt): header, "now" line, big green-outlined GO, Back / Stop / Release, all
       greyed with "Cue lists · P1-08"; nothing covers it
 - [ ] Grand Master: a level bar like a strip, amber below 100 %, DBO greyed under it
+
+## Lock (UI-38, IPC-50)
+Claude does the setup and the second-client checks and listens to Art-Net; the owner does the steps marked
+(owner). Every step message shows done/total ("Stap 3/12"). Before the first step: a playback running a chase
+or a long fade, so output can be seen going on.
+
+- [ ] Main context, nothing selected: **Lock** is live. With something selected the Selection softkeys show instead.
+- [ ] Lock opens the prompt, digits show as typed; Back and Delete remove one; Cancel and Esc leave it unlocked.
+- [ ] (owner) Lock with `1234`, Enter: the cover hides all below the status bar, with "Locked", show name, a running
+      clock, dots and a keypad. The status bar still shows the dots; its buttons do nothing.
+- [ ] Art-Net: frames keep coming and the chase or fade runs on (no gap, the levels keep moving).
+- [ ] Space, digits on the Mac keyboard with Keys on, ⌘Z: no cue moves, nothing on the console changes; digits fill the dots.
+- [ ] (owner) A wrong code, Enter: "Wrong code", still locked, dots empty. The next digit clears the line.
+- [ ] A second client's `fader.set`: `warning` "Console is locked", no change on Art-Net.
+- [ ] ⌘Q and the close button: no alert, the cover says "The console is locked. Unlock it to quit."
+- [ ] (owner) `1234`, Enter: the cover is gone, with the same workspace and scroll position as before. ⌘Q now asks
+      as UI-36; Cancel.
+- [ ] Master code: lock with `1234`, unlock with `68340`.
+- [ ] Empty code: Lock, Enter with no digits; Enter unlocks.
+- [ ] `kill -9` of the app while locked (bundled, adopted engine): the reopened app shows the cover at once.
+- [ ] Kill the engine while locked: within a moment ⌘Q asks as UI-36 while offline; the restarted engine is unlocked
+      and the cover goes away.
+- [ ] Learn on, then Lock: Learn ends first; after the unlock Learn is off.
+
