@@ -160,7 +160,8 @@ Order approved by owner 2026-11-01, as in this table: what can darken a show fir
 | SPF-11 | App: Lock softkey, cover, keypad, refused quit; manual and manual run. Needs SPF-04, SPF-10. | UI-38 | S | done (2026-11-02, #221) |
 
 ### Defects in what exists (IDEA-35 batch A2, spec P1-26)
-Order approved by owner 2026-11-02, as in this table: what can stick or mislead during a show first, each task on its own PR.
+Order approved by owner 2026-11-02, as in this table: what can stick or mislead during a show first.
+Builds: DEF-01 + DEF-02; DEF-03; DEF-04 + DEF-05.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
