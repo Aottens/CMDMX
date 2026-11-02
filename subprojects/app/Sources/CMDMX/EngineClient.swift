@@ -1378,8 +1378,8 @@ final class EngineClient: ObservableObject {
 
     init() {
         rebuildSlots()
-        // UI-39: the launcher's notes (REL-12, 24, 25); removeDuplicates keeps a failing launch from flooding.
-        launcherNotes = DaemonLauncher.shared.$note.compactMap { $0 }.removeDuplicates()
+        // UI-39: the launcher's notes (REL-12, 24..28); the sheet gets a line per change of text, not per attempt (REL-28).
+        launcherNotes = DaemonLauncher.shared.$note.removeDuplicates().compactMap { $0 }
             .sink { [weak self] in self?.addMessage(level: "warning", message: $0, at: Date()) }
         Task { await connectForever() }
     }
@@ -1873,10 +1873,14 @@ final class EngineClient: ObservableObject {
         sendJSON(cmd, fields)
     }
 
+    /// The app's own reads, not the operator's commands (REL-27).
+    private static let asks: Set<String> = ["cue.view", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "control.mapping", "effect.wheels"]
+
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
               let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": Self.protocolVersion, "cmd": cmd]) { a, _ in a }),
               let text = String(data: data, encoding: .utf8) else { return }
+        if !Self.asks.contains(cmd) { DaemonLauncher.shared.commandGiven() }   // REL-27
         socket.send(.string(text)) { error in
             if error != nil { socket.cancel(with: .goingAway, reason: nil) }
         }
@@ -1900,6 +1904,7 @@ final class EngineClient: ObservableObject {
         guard let socket,
               let data = try? JSONEncoder().encode(command),
               let text = String(data: data, encoding: .utf8) else { return }
+        DaemonLauncher.shared.commandGiven()   // REL-27
         socket.send(.string(text)) { error in
             if error != nil { socket.cancel(with: .goingAway, reason: nil) }
         }
@@ -1912,7 +1917,10 @@ final class EngineClient: ObservableObject {
         while !Task.isCancelled {
             await runOneConnection()
             socket = nil
-            if connection == .online { addMessage(level: "warning", message: "Engine offline", at: Date()) }
+            if connection == .online {
+                addMessage(level: "warning", message: "Engine offline", at: Date())
+                DaemonLauncher.shared.engineLost()   // REL-27
+            }
             connection = .offline
             outputs = []
             control = ControlState(); controlMapping = nil
@@ -2043,6 +2051,7 @@ final class EngineClient: ObservableObject {
             if added { messageLog.sort { $0.at < $1.at } }
             if connection != .online { addMessage(level: "notice", message: "Engine connected", at: Date()) }
             connection = .online
+            DaemonLauncher.shared.engineConnected(show: incoming.show?.value?.name)   // REL-26
             listShows()
         case "page":
             // PBK-03: the delta carries the page fields at top level.

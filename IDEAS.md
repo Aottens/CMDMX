@@ -62,6 +62,7 @@ the backlog, not the whole idea.
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
 | IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J | 1, in order A2, H, B to G, I, J (owner 2026-11-02) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | triaged; phase confirmed 2026-11-02 | 1 (owner 2026-11-02) | UI |
+| IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -780,3 +781,10 @@ showing 602 until the tab is reopened. `NumberField` shows what was sent (VS3-05
 the file's header says a refused value stays as it was. Every `NumberField` in Playback Options does this, also a cue's own times.
 **Triage:** phase 1 (owner, 2026-11-02); `ui.md`; its place in the order is still open. Nothing recorded wrong: the show holds the old value.
 **Open question:** how the field learns of the refusal, since warnings carry no field; and whether it snaps back at once or on leaving the field.
+
+### IDEA-37 — The app takes over when another engine goes away (2026-11-02)
+**Found in:** the DEF-03 run; not from the owner.
+**What happens:** an app that found another engine on port 7319 (REL-11) connects to it and owns nothing. When that engine goes, the app says "Engine offline" and stays
+offline until it is restarted; it does not start its own bundled engine. Only reachable with a second engine by hand, so not in an ordinary show.
+**Triage:** proposed phase 1, after A2; `release.md`. Owner to confirm the phase. Nothing touched now.
+**Open question:** take over at once or ask, and with the same show?

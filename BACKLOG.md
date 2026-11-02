@@ -167,7 +167,7 @@ Builds: DEF-01 + DEF-02; DEF-03; DEF-04 + DEF-05.
 | --- | --- | --- | --- | --- |
 | DEF-01 | Daemon: what is held when the lock comes can be let go, from each surface and a client; `ipc_53_…`. | IPC-53 | S | done (2026-11-02, #228) |
 | DEF-02 | App: a Flash held with the mouse ends through the cover; the real-mouse lines in `tests/manual/app-main-screen.md`. Needs DEF-01. | UI-41 | S | done (2026-11-02, #228) |
-| DEF-03 | App: the restart note says "back" at the first snapshot, ends at the next command, and failures back off to 30 s; manual and the `exit 1` run. | REL-26, REL-27, REL-28 | S | todo |
+| DEF-03 | App: the restart note says "back" at the first snapshot, ends at the next command, and failures back off to 30 s; manual and the `exit 1` run. | REL-26, REL-27, REL-28 | S | done (2026-11-02, #229) |
 | DEF-04 | Core: removal reaches cue, palette and running effects, the load drops palette effect members; `pat_26_…`. | PAT-26 | S | todo |
 | DEF-05 | Core: a mode change reaches cue, programmer and running effects and warns about palettes; manual; `pat_27_…`, `pat_28_…`. | PAT-27, PAT-28 | S | todo |
 
