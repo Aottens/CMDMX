@@ -86,6 +86,9 @@ Checked by hand in the code: A2.1, A2.2, A2.3, H1, H3 (Patch and other screens),
 A claim about Titan rests on a page summary; I2 is an inference from one.
 
 ## A2. Defects in what exists, proposed before B
+Specified 2026-11-02 (P1-26; build tasks DEF-01..05, criteria PAT-26..28, IPC-53, UI-41, REL-26..28), each point checked
+(`tests/manual/runs/2026-11-02-A2-checks.md`). Point 3 happens, also from a client and for a momentary DBO. Point 5 does not happen. Point 2 is worse:
+the Messages sheet gets two lines every 2 s. Points 1 and 4 also leave palette effects, running cues and programmer effects.
 1. Fixture remove leaves its members in cue effects: `patch_remove` cleans cue values and order, the
    load drops the members (`engine.rs`), so a running cue and a reopened show can differ. A gone first
    member also defeats the FX-42 dark check.

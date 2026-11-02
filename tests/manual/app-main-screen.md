@@ -258,6 +258,7 @@ or a long fade, so output can be seen going on.
       as UI-36; Cancel.
 - [ ] Master code: lock with `1234`, unlock with `68340`.
 - [ ] Empty code: Lock, Enter with no digits; Enter unlocks.
+- [x] ⌘1–⌘5 under the cover switch nothing; after the unlock the same workspace shows (passed by raw key input, `tests/manual/runs/2026-11-02-A2-checks.md`).
 - [ ] `kill -9` of the app while locked (bundled, adopted engine): the reopened app shows the cover at once.
 - [ ] Kill the engine while locked: within a moment ⌘Q asks as UI-36 while offline; the restarted engine is unlocked
       and the cover goes away.

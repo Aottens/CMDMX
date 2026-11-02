@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1). Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -146,6 +146,28 @@ CMDMX has no parking (a removed fixture is gone, PAT-05), so every clash refuses
   unknown or repeated id refuses the whole removal; an accepted one is one undo step that brings
   every removed fixture back with its groups, palettes and cue data (UNDO-03).
 
+### Effects and palettes follow the patch (IDEA-35 batch A2; proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1))
+- **PAT-26** Removal reaches the effects. `patch.remove` (PAT-05) takes the fixture and its cells out of every
+  cue's effects, every palette's effects and the effects of the cues running now, in the same command. Member
+  positions are worked out again (FX-07); an entry left without members goes. So a running show gives the same
+  frames as that show saved and reopened, which today it does not: the load drops these members
+  (`from_show`) and `patch_remove` leaves them, also as the first member the FX-42 checks read. The load
+  drops them from palette effects too (SHW-07), which it does not yet. No warning: removal is silent
+  today, and what a delete should say is batch H5. Undo brings the members back, also in a running cue.
+  Tests `pat_26_…` (frames equal to a reopen, palette effects, a gone first member and FX-42, undo while running).
+- **PAT-27** A mode change reaches the effects as it reaches the values. A fixture whose new mode has none of the
+  attributes an entry drives leaves that entry, in cue effects, the programmer's effects and the
+  cues running now; an entry left without members goes. An entry that still has one of its attributes keeps the
+  member. A cell member stays in every mode, as a cell's values do (PRG-53). It counts in the warnings of
+  `apply_mode`: per value for one fixture, and the one line of PAT-22 for a range ("Dropped Strobe on 6
+  fixtures"). Undo brings it back. Tests `pat_27_…`.
+- **PAT-28** A mode change says what a palette can no longer do. Palettes keep what they store (PAL-19: the old
+  mode can come back, and a shared value also serves other fixtures), but where a palette holds a
+  value or effect for the fixture, per fixture or by type, on an attribute the new mode lacks, one warning per
+  palette names it: `Palette 3 Fast strobe: no Strobe on 6 fixtures in this mode, the value stays`. A
+  global value says nothing: it is meant for any fixture that has the attribute. A change that loses nothing
+  says nothing. Tests `pat_28_…`.
+
 ### The church
 - **PAT-11** The church rig from the owner's Lightkey export is patched once through these commands
   (or a one-off script that calls them) into the church show; the result is listed in
@@ -233,3 +255,9 @@ visual plot (with the visualiser).
    playground, not the limit.
 2. PAT-05: removal is always allowed and dangling data is ignored with a warning; a confirm
    for fixtures used in cues comes with cue lists (P1-08).
+
+## Open question (P1-26, owner)
+1. **PAT-27, an effect on a mode without its attribute: leave the entry, or stay and warn?** *Recommend leave*:
+   values do that today, so a cue's values and effects cannot disagree, and undo brings it back. Staying
+   would restore the effect if the mode comes back, as palettes do (PAT-28), but the cue would hold
+   a member that does nothing.

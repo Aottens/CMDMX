@@ -159,6 +159,17 @@ Order approved by owner 2026-11-01, as in this table: what can darken a show fir
 | SPF-10 | Daemon: `lock.set`, refusals, surfaces dropped, playbacks running on; `ipc_50_…`. | IPC-50 | M | done (2026-11-02, #220) |
 | SPF-11 | App: Lock softkey, cover, keypad, refused quit; manual and manual run. Needs SPF-04, SPF-10. | UI-38 | S | done (2026-11-02, #221) |
 
+### Defects in what exists (IDEA-35 batch A2, spec P1-26)
+Proposed order: what can stick or mislead during a show first, each task on its own PR. The spec waits for the owner (gate 1).
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+| --- | --- | --- | --- | --- |
+| DEF-01 | Daemon: what is held when the lock comes can be let go, from each surface and a client; `ipc_53_…`. | IPC-53 | S | todo |
+| DEF-02 | App: a Flash held with the mouse ends through the cover; the real-mouse lines in `tests/manual/app-main-screen.md`. Needs DEF-01. | UI-41 | S | todo |
+| DEF-03 | App: the restart note says "back" at the first snapshot, ends at the next command, and failures back off to 30 s; manual and the `exit 1` run. | REL-26, REL-27, REL-28 | S | todo |
+| DEF-04 | Core: removal reaches cue, palette and running effects, the load drops palette effect members; `pat_26_…`. | PAT-26 | S | todo |
+| DEF-05 | Core: a mode change reaches cue, programmer and running effects and warns about palettes; manual; `pat_27_…`, `pat_28_…`. | PAT-27, PAT-28 | S | todo |
+
 ### VS8 — CMDMX by Colourmotion: name, logo and website (IDEA-19, IDEA-20)
 Approved with P1-21 (owner, 2026-10-27). Order: VS8-01, then VS8-03 with a placeholder logo
 (DECISIONS 2026-10-28), VS8-02 when the owner has the Colourmotion logo; the manual rows VS8-04..07
@@ -210,6 +221,7 @@ after VS8-03, in any order.
 | P1-23 | Spec gel numbers, LEE first (IDEA-02, owner 2026-10-28): data source and licence, the reference source, PRG-67..70, IPC-47, UI-32, PAL-33, build tasks VS2-48..50; owner approves. | PRG, IPC, UI, PAL | M | done (2026-10-28, #164; the criteria approved, the four questions as proposed: tungsten 3200 K, owner asks LEE, test rows only until LEE answers, `Lee n` and the gel legend) |
 | P1-24 | Spec the handle actions on groups (owner, 2026-11-01: a group could not be deleted in the first church try with v0.2.5): Delete, Copy, Move and Set Legend as PRG-85..95, what happens to group masters, undo, IPC and the Groups window; build tasks GRP-01..03; owner approves. | PRG | S | done (2026-11-01, #195; merged = PRG-85..95 and the three owner questions approved) |
 | P1-25 | Spec IDEA-35 batch A, show-proof (owner, 2026-11-01): keep the Mac awake, quit always asks, faders that do not jump, Lock, message history, restarting an adopted engine, default cue times, as OUT-38..41, UI-35..40, IPC-50..52, REL-24, 25, PBK-46; build tasks SPF-01..11; owner approves. | OUT, UI, IPC, REL, PBK | S | done (2026-11-01, #208; all five owner questions approved as proposed) |
+| P1-26 | Spec IDEA-35 batch A2, defects in what exists: each point checked in the code or a run (`tests/manual/runs/2026-11-02-A2-checks.md`; A2.5 does not happen), as PAT-26..28, IPC-53, UI-41, REL-26..28; build tasks DEF-01..05; owner approves. | PAT, IPC, UI, REL | S | doing |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ## Phase 10 track — hardware (parallel to phase 1)

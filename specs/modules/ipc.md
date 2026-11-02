@@ -383,3 +383,23 @@ New keys and messages only: `v` stays 1 (IPC-41).
   turns a dot amber: to `Degraded` or `Stopped` a `warning` `serial #3 universe 1: Degraded: <detail>`,
   back to `Ok` a `notice` `serial #3 universe 1: Ok again`. One message per change, none at startup for a
   node that starts Ok. Test `ipc_52_…`.
+
+### Lock and what is held (IDEA-35 batch A2; proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1))
+- **IPC-53** (amends IPC-50) Locking changes nothing on stage, and letting go still lets go. Today a Flash, Swop or
+  held DBO stays on through the lock and after the unlock, because its release is dropped or refused (run
+  `tests/manual/runs/2026-11-02-A2-checks.md`). What is held when the lock comes stays held, and while locked its
+  release passes, once, without a warning:
+  - from a surface (MIDI, OSC, Stream Deck): the release of an input whose press went through before the lock,
+    on a Flash, a Swop or a momentary DBO, also a fader acting as a button going back below 0.5 (CTL-07);
+  - from a client: `playback.flash` or `playback.swop` with `on:false`, and `playback.button` with `on:false`
+    on a button doing Flash or Swop, for a playback that held it when the lock came.
+  Everything else stays as IPC-50 says: a press is dropped or refused, a release of a press that was dropped does
+  nothing, a latched Flash stays, a DBO toggled on stays on (`dbo.set` is refused), and a toggle
+  binding's release stays dropped. An input still down at the unlock is released as usual when it comes up. Tests
+  `ipc_53_…` (each surface, a client, a fader as a button, a press under the lock, a latch, the unlock).
+
+## Open question (P1-26, owner)
+1. **IPC-53, a Flash or Swop held when the lock comes.** *Recommend: it stays, and letting go ends it.* The stage
+   does not change by locking, and nothing can stick. The alternatives are worse: the lock ends every hold (the
+   stage jumps at the moment of locking), or the hold lasts until the unlock and beyond (what happens today).
+   IPC-50's Titan line keeps "currently running playbacks" going and says nothing about a held button.
