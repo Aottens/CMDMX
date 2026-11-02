@@ -276,6 +276,25 @@ impl Kill {
 /// OUT-31: the serial paths that enabled, running serial nodes name; one list shared by all.
 pub type Claimed = Arc<Mutex<Vec<String>>>;
 
+/// What the UI shows for a state (IPC-20, OUT-31): the serial states read as `Degraded`.
+pub fn shown(state: OutputState, detail: &Option<String>) -> (&'static str, Option<String>) {
+    match state {
+        OutputState::Ok => ("Ok", detail.clone()),
+        OutputState::Degraded => ("Degraded", detail.clone()),
+        OutputState::NoInterface => ("Degraded", Some("no interface".into())),
+        OutputState::PortNotFound => ("Degraded", Some("port not found".into())),
+        OutputState::Stopped => ("Stopped", detail.clone()),
+        OutputState::Disabled => ("Disabled", detail.clone()),
+    }
+}
+
+/// IPC-52: a state change of an enabled node, for the message history.
+#[derive(Debug, PartialEq)]
+pub enum NodeMessage {
+    Warning(String),
+    Notice(String),
+}
+
 /// What the reconciler shares with a running node thread.
 #[derive(Debug, Clone)]
 pub struct Live {
@@ -388,6 +407,8 @@ pub struct Outputs {
     /// Sorted by line, then id; `slots[i]` is the running node of `statuses[i]`, if any.
     statuses: Vec<OutputStatus>,
     slots: Vec<Option<Running>>,
+    /// IPC-52: state changes since `take_messages`.
+    messages: Vec<NodeMessage>,
 }
 
 impl Outputs {
@@ -399,7 +420,12 @@ impl Outputs {
             nodes: Vec::new(),
             statuses: Vec::new(),
             slots: Vec::new(),
+            messages: Vec::new(),
         }
+    }
+
+    pub fn take_messages(&mut self) -> Vec<NodeMessage> {
+        std::mem::take(&mut self.messages)
     }
 
     pub fn statuses(&self) -> &[OutputStatus] {
@@ -461,6 +487,7 @@ impl Outputs {
             let kept = previous.filter(|r| {
                 same_destination(&r.node.kind, &node.kind) && r.status.get() != OutputState::Stopped
             });
+            let is_new = kept.is_none();
             let running = match kept {
                 Some(mut r) => {
                     r.live
@@ -487,10 +514,16 @@ impl Outputs {
                     }
                 }
             };
+            // A fresh node starts from Ok, so `publish` reports a state it already left (IPC-52).
+            let (state, detail) = if is_new {
+                (OutputState::Ok, None)
+            } else {
+                (running.status.get(), running.status.detail())
+            };
             self.statuses.push(OutputStatus {
                 node: node.clone(),
-                state: running.status.get(),
-                detail: running.status.detail(),
+                state,
+                detail,
             });
             self.slots.push(Some(running));
         }
@@ -514,8 +547,24 @@ impl Outputs {
             }
             let state = r.status.get();
             if state != out.state {
+                let detail = r.status.detail();
+                let (was, _) = shown(out.state, &out.detail);
+                let (now, why) = shown(state, &detail);
+                if was != now {
+                    let name = node_name(&out.node);
+                    let line = out.node.line;
+                    self.messages.push(match (now, why) {
+                        ("Ok", _) => {
+                            NodeMessage::Notice(format!("{name} universe {line}: Ok again"))
+                        }
+                        (_, Some(why)) => {
+                            NodeMessage::Warning(format!("{name} universe {line}: {now}: {why}"))
+                        }
+                        _ => NodeMessage::Warning(format!("{name} universe {line}: {now}")),
+                    });
+                }
                 out.state = state;
-                out.detail = r.status.detail();
+                out.detail = detail;
             }
         }
     }
@@ -1016,6 +1065,111 @@ mod tests {
         assert_eq!(
             (s.state, s.detail.as_deref()),
             (OutputState::Degraded, Some("no route to host"))
+        );
+    }
+
+    fn warning(s: &str) -> NodeMessage {
+        NodeMessage::Warning(s.into())
+    }
+
+    fn notice(s: &str) -> NodeMessage {
+        NodeMessage::Notice(s.into())
+    }
+
+    #[test]
+    fn ipc_52_a_state_change_is_one_message() {
+        let (mut outputs, f) = fake(Kill::default());
+        outputs.reconcile(&[artnet(1, 2, 0)]);
+        outputs.publish(frames);
+        assert_eq!(
+            outputs.take_messages(),
+            [],
+            "none for a node that starts Ok"
+        );
+
+        let status = f.status.borrow()[&1].clone();
+        status.set_detail(Some("no route to host".into()));
+        status.set(OutputState::Degraded);
+        outputs.publish(frames);
+        outputs.publish(frames);
+        assert_eq!(
+            outputs.take_messages(),
+            [warning("art-net #1 universe 2: Degraded: no route to host")]
+        );
+
+        status.set_detail(None);
+        status.set(OutputState::Ok);
+        outputs.publish(frames);
+        assert_eq!(
+            outputs.take_messages(),
+            [notice("art-net #1 universe 2: Ok again")]
+        );
+    }
+
+    /// The serial states all show as `Degraded` (OUT-31), so moving between them is no change.
+    #[test]
+    fn ipc_52_serial_states_read_as_degraded_and_only_the_first_is_a_message() {
+        let (mut outputs, f) = fake(Kill::default());
+        outputs.reconcile(&[serial(3, "/dev/cu.x")]);
+        let status = f.status.borrow()[&3].clone();
+        status.set(OutputState::PortNotFound);
+        outputs.publish(frames);
+        assert_eq!(
+            outputs.take_messages(),
+            [warning("serial #3 universe 1: Degraded: port not found")]
+        );
+        status.set_detail(Some("write failed".into()));
+        status.set(OutputState::Degraded);
+        outputs.publish(frames);
+        status.set(OutputState::PortNotFound);
+        outputs.publish(frames);
+        assert_eq!(outputs.take_messages(), []);
+    }
+
+    #[test]
+    fn ipc_52_a_stopped_thread_is_a_warning() {
+        let (mut outputs, f) = fake(Kill::default());
+        outputs.reconcile(&[artnet(1, 1, 0)]);
+        f.rx.borrow_mut().clear();
+        outputs.publish(frames);
+        outputs.publish(frames);
+        assert_eq!(
+            outputs.take_messages(),
+            [warning("art-net #1 universe 1: Stopped")]
+        );
+    }
+
+    #[test]
+    fn ipc_52_a_disabled_node_says_nothing() {
+        let (mut outputs, f) = fake(Kill::default());
+        let mut node = artnet(1, 1, 0);
+        outputs.reconcile(std::slice::from_ref(&node));
+        f.status.borrow()[&1].set(OutputState::Degraded);
+        node.enabled = false;
+        outputs.reconcile(std::slice::from_ref(&node));
+        outputs.publish(frames);
+        assert_eq!(outputs.take_messages(), []);
+    }
+
+    /// A node's thread can be in `PortNotFound` before `reconcile` reads its state: that is
+    /// no node that started Ok, so it still gets its message.
+    #[test]
+    fn ipc_52_a_node_already_degraded_when_it_starts_is_a_message() {
+        let mut outputs = Outputs::new(
+            Kill::default(),
+            Box::new(|_: &Node, _: &Live| {
+                let (tx, rx) = sync_channel(1);
+                std::mem::forget(rx);
+                let s = Status::new();
+                s.set(OutputState::PortNotFound);
+                (tx, s)
+            }),
+        );
+        outputs.reconcile(&[serial(3, "/dev/cu.x")]);
+        outputs.publish(frames);
+        assert_eq!(
+            outputs.take_messages(),
+            [warning("serial #3 universe 1: Degraded: port not found")]
         );
     }
 

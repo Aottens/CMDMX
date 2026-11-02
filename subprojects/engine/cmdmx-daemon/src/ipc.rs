@@ -52,7 +52,9 @@ use tungstenite::http::StatusCode;
 use tungstenite::{Error as WsError, Message};
 
 use crate::library::Library;
-use crate::output::{OutputState, OutputStatus};
+#[cfg(test)]
+use crate::output::OutputState;
+use crate::output::{shown, OutputStatus};
 use crate::shows::{valid_name, Opened, ShowRequest, ShowState, Shows};
 
 /// Messages a client may have queued before it is disconnected (IPC-07).
@@ -2217,6 +2219,8 @@ struct Snapshot<'a> {
     undo: &'a UndoInfo,
     /// CTL-39
     control: &'a serde_json::Value,
+    /// IPC-51: the message history, oldest first.
+    messages: &'a [HistoryMessage],
 }
 
 /// OUT-33: one output node with its fields, state and detail.
@@ -2231,14 +2235,7 @@ struct OutputJson {
 
 impl From<&OutputStatus> for OutputJson {
     fn from(o: &OutputStatus) -> Self {
-        let (state, detail) = match o.state {
-            OutputState::Ok => ("Ok", o.detail.clone()),
-            OutputState::Degraded => ("Degraded", o.detail.clone()),
-            OutputState::NoInterface => ("Degraded", Some("no interface".into())),
-            OutputState::PortNotFound => ("Degraded", Some("port not found".into())),
-            OutputState::Stopped => ("Stopped", o.detail.clone()),
-            OutputState::Disabled => ("Disabled", o.detail.clone()),
-        };
+        let (state, detail) = shown(o.state, &o.detail);
         OutputJson {
             node: o.node.clone(),
             state,
@@ -2367,6 +2364,9 @@ struct Text<'a> {
     #[serde(rename = "type")]
     kind: &'static str,
     message: &'a str,
+    /// IPC-51: when; only on `warning` and `notice`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    at: Option<&'a str>,
 }
 
 /// Serialisation of these plain structs cannot fail; if it ever did, an empty
@@ -2439,6 +2439,7 @@ pub fn snapshot(
     show: &ShowState,
     undo: &UndoInfo,
     control: &serde_json::Value,
+    messages: &[HistoryMessage],
 ) -> String {
     let stored = stored_infos(engine);
     to_json(&Snapshot {
@@ -2463,6 +2464,7 @@ pub fn snapshot(
         show,
         undo,
         control,
+        messages,
     })
 }
 
@@ -2595,23 +2597,26 @@ pub fn error(msg: &str) -> String {
         v: PROTOCOL,
         kind: "error",
         message: msg,
+        at: None,
     })
 }
 
-pub fn warning(msg: &str) -> String {
+pub fn warning(msg: &str, at: &str) -> String {
     to_json(&Text {
         v: PROTOCOL,
         kind: "warning",
         message: msg,
+        at: Some(at),
     })
 }
 
 /// PRG-96, IPC-49: an informational line for the message strip; never an OSC message.
-pub fn notice(msg: &str) -> String {
+pub fn notice(msg: &str, at: &str) -> String {
     to_json(&Text {
         v: PROTOCOL,
         kind: "notice",
         message: msg,
+        at: Some(at),
     })
 }
 
@@ -2866,6 +2871,19 @@ pub struct Clients {
     queues: Vec<SyncSender<String>>,
     /// The last warning sent, for OSC `/cmdmx/message` (CTL-37).
     pub last_warning: String,
+    /// IPC-51: the last `MESSAGES_KEPT` warnings and notices, oldest first.
+    messages: Vec<HistoryMessage>,
+}
+
+/// IPC-51
+const MESSAGES_KEPT: usize = 200;
+
+/// IPC-51: one line of the message history.
+#[derive(Serialize)]
+pub struct HistoryMessage {
+    at: String,
+    level: &'static str,
+    pub message: String,
 }
 
 impl Clients {
@@ -2880,6 +2898,36 @@ impl Clients {
     pub fn broadcast(&mut self, msg: &str) {
         self.queues
             .retain(|tx| tx.try_send(msg.to_string()).is_ok());
+    }
+
+    /// IPC-51: keep the message and tell every client.
+    fn say(&mut self, level: &'static str, msg: &str) {
+        let at = crate::shows::iso_utc(std::time::SystemTime::now());
+        let json = match level {
+            "warning" => warning(msg, &at),
+            _ => notice(msg, &at),
+        };
+        if self.messages.len() >= MESSAGES_KEPT {
+            self.messages.remove(0);
+        }
+        self.messages.push(HistoryMessage {
+            at,
+            level,
+            message: msg.to_string(),
+        });
+        self.broadcast(&json);
+    }
+
+    pub fn warning(&mut self, msg: &str) {
+        self.say("warning", msg);
+    }
+
+    pub fn notice(&mut self, msg: &str) {
+        self.say("notice", msg);
+    }
+
+    pub fn messages(&self) -> &[HistoryMessage] {
+        &self.messages
     }
 
     #[cfg(test)]
@@ -3022,12 +3070,12 @@ pub fn patch_profile(engine: &Engine, key: &str) -> Result<String, CoreError> {
 
 /// IPC-38: write a saved profile into the user library, and say so (`fixtures` is how many
 /// patched fixtures use it). The show already holds the profile, so a failure here is a
-/// warning, not an error (LIB-25).
+/// warning for every client, not an error (LIB-25): `Err` carries its text.
 pub fn write_user_profile(
     lib: &RwLock<Option<Library>>,
     profile: &Profile,
     fixtures: usize,
-) -> String {
+) -> Result<String, String> {
     let written = lib
         .write()
         .map_err(|_| LIBRARY_POISONED.to_string())
@@ -3038,12 +3086,10 @@ pub fn write_user_profile(
                 .save_profile(profile)
         });
     match written {
-        Ok(()) => {
-            serde_json::json!({"v": PROTOCOL, "type": "library.saved", "manufacturer": profile.manufacturer,
-                "model": profile.model, "fixtures": fixtures})
-            .to_string()
-        }
-        Err(e) => warning(&format!("Saved in the show, not in the library: {e}")),
+        Ok(()) => Ok(serde_json::json!({"v": PROTOCOL, "type": "library.saved", "manufacturer": profile.manufacturer,
+            "model": profile.model, "fixtures": fixtures})
+        .to_string()),
+        Err(e) => Err(format!("Saved in the show, not in the library: {e}")),
     }
 }
 
@@ -3349,6 +3395,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "snapshot");
@@ -3428,6 +3475,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["outputs"],
@@ -3455,6 +3503,7 @@ mod tests {
                 &show_state(),
                 &UndoInfo::default(),
                 &serde_json::Value::Null,
+                &[]
             ))["outputs"],
             json!([])
         );
@@ -3660,6 +3709,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
@@ -3705,6 +3755,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["fixtures"],
@@ -3742,6 +3793,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let wash = &v["fixtures"][1];
         assert_eq!(wash["mode"], "24 Channel");
@@ -3981,6 +4033,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let c = &v["effect_catalogue"];
         let looks = c["looks"].as_array().unwrap();
@@ -4073,6 +4126,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["programmer"],
@@ -4092,6 +4146,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["programmer"]["wheels"],
@@ -4632,15 +4687,92 @@ mod tests {
         }
         let v = parse(&error("boom"));
         assert_eq!(v, json!({"v":1,"type":"error","message":"boom"}));
-        assert_eq!(parse(&warning("w"))["type"], "warning");
+        assert_eq!(parse(&warning("w", "t"))["type"], "warning");
     }
 
     #[test]
     fn ipc_49_a_notice_is_its_own_type() {
         assert_eq!(
-            parse(&notice("Group 5 Pars outside in")),
-            json!({"v":1,"type":"notice","message":"Group 5 Pars outside in"})
+            parse(&notice("Group 5 Pars outside in", "2026-11-02T10:00:00Z")),
+            json!({"v":1,"type":"notice","at":"2026-11-02T10:00:00Z","message":"Group 5 Pars outside in"})
         );
+    }
+
+    #[test]
+    fn ipc_51_warning_and_notice_carry_at_and_land_in_the_history() {
+        let mut clients = Clients::default();
+        let (tx, rx) = sync_channel(8);
+        clients.add(tx, "snapshot");
+        clients.warning("too hot");
+        clients.notice("Group 5");
+        assert_eq!(rx.try_recv().unwrap(), "snapshot");
+        let (w, n) = (
+            parse(&rx.try_recv().unwrap()),
+            parse(&rx.try_recv().unwrap()),
+        );
+        assert_eq!(
+            (&w["type"], &w["message"]),
+            (&json!("warning"), &json!("too hot"))
+        );
+        assert_eq!(
+            (&n["type"], &n["message"]),
+            (&json!("notice"), &json!("Group 5"))
+        );
+        let at = w["at"].as_str().unwrap();
+        assert!(
+            at.len() == 20 && at.ends_with('Z') && at.contains('T'),
+            "{at}"
+        );
+        let history = serde_json::to_value(clients.messages()).unwrap();
+        assert_eq!(
+            history,
+            json!([
+                {"at": w["at"], "level": "warning", "message": "too hot"},
+                {"at": n["at"], "level": "notice", "message": "Group 5"},
+            ])
+        );
+    }
+
+    #[test]
+    fn ipc_51_the_history_keeps_the_last_200_oldest_first() {
+        let mut clients = Clients::default();
+        for i in 0..205 {
+            clients.warning(&format!("w{i}"));
+        }
+        let texts: Vec<&str> = clients
+            .messages()
+            .iter()
+            .map(|m| m.message.as_str())
+            .collect();
+        assert_eq!(texts.len(), 200);
+        assert_eq!(texts.first(), Some(&"w5"));
+        assert_eq!(texts.last(), Some(&"w204"));
+    }
+
+    #[test]
+    fn ipc_51_a_new_clients_snapshot_holds_what_an_earlier_client_saw() {
+        let mut clients = Clients::default();
+        clients.warning("first");
+        clients.notice("second");
+        let v = parse(&snapshot(
+            &engine(),
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+            clients.messages(),
+        ));
+        let m = v["messages"].as_array().unwrap();
+        assert_eq!(m.len(), 2);
+        assert_eq!(
+            (&m[0]["level"], &m[0]["message"]),
+            (&json!("warning"), &json!("first"))
+        );
+        assert_eq!(
+            (&m[1]["level"], &m[1]["message"]),
+            (&json!("notice"), &json!("second"))
+        );
+        assert!(m[0]["at"].as_str().unwrap().ends_with('Z'));
     }
 
     /// IPC-42: fixture 1 is the plain dimmer of [`engine`]; fixture 9 has a master Dimmer and
@@ -4676,6 +4808,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ))
     }
 
@@ -4892,6 +5025,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ))
         .unwrap();
         let msg = ws.read().unwrap();
@@ -4960,6 +5094,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["show"],
@@ -4975,7 +5110,8 @@ mod tests {
                 &[],
                 &fresh,
                 &UndoInfo::default(),
-                &serde_json::Value::Null
+                &serde_json::Value::Null,
+                &[]
             ))["show"]["saved_at"],
             Value::Null
         );
@@ -5070,6 +5206,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let slots: Vec<Value> = (1..=8)
             .map(|s| json!({"slot": s, "playback": if s == 1 { json!(1) } else { Value::Null }}))
@@ -5165,6 +5302,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["palettes"],
@@ -5217,6 +5355,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["palette_settings"],
@@ -5243,6 +5382,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["programmer"]["palettes"],
@@ -5258,6 +5398,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ))["programmer"];
         assert_eq!(p["palettes"], json!({"in_use":[7],"relevant":[7]}));
         assert_eq!(
@@ -5433,6 +5574,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let mut want = playback_entry();
         want["legend"] = json!("Walk-in");
@@ -5451,6 +5593,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let pages: Vec<Value> = (1..=10)
             .map(|n| json!({"number": n, "legend": if n == 2 { "Service" } else { "" }}))
@@ -5520,6 +5663,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let fired = |i: usize| v["playbacks"][i]["fired"].as_u64().unwrap();
         assert!(fired(1) < fired(0), "playback 2 fired first");
@@ -5531,6 +5675,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert!(v["playbacks"][0]["fired"].is_null(), "off again");
     }
@@ -5939,6 +6084,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let p = entry(&v, 2);
         assert_eq!(p["kind"], json!("Cues"));
@@ -5971,6 +6117,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(v["connected"], json!(null));
     }
@@ -6039,6 +6186,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let chase = entry(&v, 3);
         assert_eq!(chase["kind"], json!("Chase"));
@@ -6084,6 +6232,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let m = entry(&v, u64::from(master));
         assert_eq!(
@@ -6311,6 +6460,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         let m = entry(&v, u64::from(id));
         assert_eq!(m["kind"], json!("GroupMaster"));
@@ -6366,6 +6516,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
     }
@@ -6419,6 +6570,7 @@ mod tests {
             &show_state(),
             &none,
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(v["undo"], json!({"undo": null, "redo": null}));
         let some = UndoInfo {
@@ -6431,6 +6583,7 @@ mod tests {
             &show_state(),
             &some,
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(v["undo"], json!({"undo": "Clear", "redo": "Wheel Pan"}));
     }
@@ -6479,6 +6632,7 @@ mod tests {
             &show_state(),
             &UndoInfo::default(),
             &serde_json::Value::Null,
+            &[],
         ));
         assert_eq!(
             v["programmer_settings"],
@@ -6562,7 +6716,7 @@ mod tests {
     fn ipc_38_the_user_profile_is_written_indexed_and_answered() {
         let lib = library("profile-save");
         let p = Profile::from_json(PHANTOM).unwrap();
-        let v = parse(&write_user_profile(&lib, &p, 4));
+        let v = parse(&write_user_profile(&lib, &p, 4).unwrap());
         assert_eq!(
             v,
             json!({"v":1,"type":"library.saved","manufacturer":"Showtec",
@@ -6575,9 +6729,7 @@ mod tests {
         assert_eq!(v["items"][0]["source"], "user");
         // The show was updated, the file was not: a warning that says so (LIB-25).
         let loading = std::sync::RwLock::new(None);
-        let v = parse(&write_user_profile(&loading, &p, 4));
-        assert_eq!(v["type"], "warning");
-        let text = v["message"].as_str().unwrap();
+        let text = write_user_profile(&loading, &p, 4).unwrap_err();
         assert!(
             text.starts_with("Saved in the show, not in the library: "),
             "{text}"
@@ -6733,6 +6885,7 @@ mod tests {
                 &show_state(),
                 &UndoInfo::default(),
                 &serde_json::Value::Null,
+                &[],
             ))["programmer"]
                 .clone()
         };

@@ -57,6 +57,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 - The Eurolite USB-DMX512 PRO MK2 drives real dimmers and LED pars (250000 baud, about 33 Hz).
   The port chosen on the Output screen survives a restart; unplugging and replugging needs no
   restart. `--no-artnet`, `--no-sacn` and `--no-serial` silence a protocol for one run.
+- A node that goes wrong or recovers says so once on the message line, and the engine keeps its last
+  200 messages, so a restarted app gets them back.
 - While the engine runs the Mac does not go to idle sleep, with or without the app; if macOS
   refuses that, it is one warning and output carries on. In console mode the display stays awake too.
 - After a stall (the Mac froze for a moment) output carries on at its normal rate, without a burst

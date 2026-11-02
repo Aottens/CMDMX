@@ -136,7 +136,9 @@ Work from the console to the lamp:
 3. Something is sending intensity: a playback is up, or the programmer has a value.
 4. The **Output** screen has an enabled node for the fixture's universe, with a green dot. A
    universe that has fixtures but no enabled node shows an amber line `Universe 2: 6 fixtures, no
-   output`. Hover over a protocol dot in the status bar to see what is wrong with a node.
+   output`. Hover over a protocol dot in the status bar to see what is wrong with a node. When a
+   node goes wrong or recovers, the message line says so once, for example
+   `serial #3 universe 1: Degraded: port not found` and later `serial #3 universe 1: Ok again`.
 5. **USB DMX**: the Serial row shows `no interface` or `port not found` when it cannot find the
    interface. Choose its port in the dropdown (a Eurolite is never found by itself; see
    [Connect output](getting-started.md#connect-output)), and check the cable.
