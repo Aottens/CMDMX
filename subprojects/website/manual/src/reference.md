@@ -136,9 +136,10 @@ Work from the console to the lamp:
 3. Something is sending intensity: a playback is up, or the programmer has a value.
 4. The **Output** screen has an enabled node for the fixture's universe, with a green dot. A
    universe that has fixtures but no enabled node shows an amber line `Universe 2: 6 fixtures, no
-   output`. Hover over a protocol dot in the status bar to see what is wrong with a node. When a
-   node goes wrong or recovers, the message line says so once, for example
-   `serial #3 universe 1: Degraded: port not found` and later `serial #3 universe 1: Ok again`.
+   output`. Hover over a protocol dot in the status bar to see what is wrong with a node; a click on it
+   opens the Output screen. When a node goes wrong or recovers, the message line says so once, for
+   example `serial #3 universe 1: Degraded: port not found` and later `serial #3 universe 1: Ok again`.
+   [Messages](#messages) keeps those lines.
 5. **USB DMX**: the Serial row shows `no interface` or `port not found` when it cannot find the
    interface. Choose its port in the dropdown (a Eurolite is never found by itself; see
    [Connect output](getting-started.md#connect-output)), and check the cable.
@@ -146,6 +147,19 @@ Work from the console to the lamp:
    the local network (System Settings › Privacy & Security › Local Network).
 7. The engine was not started by hand with `--no-artnet`, `--no-sacn` or `--no-serial`.
 8. The fixture's address and mode in **Patch** match the fixture itself.
+
+### Messages
+
+The message line shows only the latest message and the next command clears it. A click on the line, or
+on the amber count next to it, opens **Messages**: the history, newest first, with the time and the level
+(warning, notice or error) of each line. Close it with **Done** or Esc. The count is the number of warnings
+and errors since you last opened it, and it stays when the line clears. With a full screen open (Output,
+Patch, Show) the count waits until you are back on a workspace.
+
+The list holds the engine's last 200 warnings and notices, which survive a restart of the app, and the app's
+own lines: the engine going offline and connecting, the engine restarting ("Engine restarted: the show is
+back, nothing is running") and refused requests. Those last ones are gone after a restart of the app.
+Hints such as "tap the source group" stay on the line only.
 
 ### Port in use
 

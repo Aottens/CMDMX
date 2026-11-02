@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-01 (SPF-07)_
+_Last updated: 2026-11-02 (SPF-09)_
 
 ## Current step
+SPF-09 (2026-11-02, UI-39, 40): `EngineClient.messageLog` (at most 500 lines) and `unseenMessages`; `addMessage` is the one way in. The snapshot's `messages` merge by at, level and text, so a reconnect adds nothing and a daemon restart keeps the earlier lines; `Engine connected`, `Engine offline`, `error` replies and `DaemonLauncher.note` (Combine, without repeats) join them. `say` stays out. `MessagesSheet` in `MainScreen.swift`; the message zone and the count open it through `UIState.messagesOpen`, and while it is open `MacKeys.handle` steps aside so Escape reaches it. The protocol and Control dots are plain buttons to their screens. Checked with `swift build`; run `tests/manual/runs/2026-11-02-SPF-09.md`.
 SPF-07 (2026-11-01, PBK-46): `SettingsTab` gains *New cue times*: delay, fade in, fade out and overlap as `NumberField`s, each sending only its own key in `settings.playback`. `PlaybackSettings` already decoded them. The screen's warning moved out of the `ScrollView`, so a refused value's warning stays in sight on a tab that scrolls. Checked with `swift build` and the run in `tests/manual/runs/2026-11-01-SPF-07.md`; a refused number stays in its field (IDEA-36).
 SPF-06 (2026-11-01, UI-37): `LevelBar` keeps `pressLevel` for the length of a touch and sets the level from it plus `drag.translation`, only when it differs, so a press sends no `fader.set`; strips, group masters and the GM share it. Checked with `swift build`; run `tests/manual/runs/2026-11-01-SPF-06.md`.
 SPF-05 (2026-11-01, REL-24, 25): `DaemonLauncher.watch` holds a `DispatchSource` process source on an adopted pid, and checks `kill(pid, 0)` after `resume()` for a daemon that already died; `adoptedExited` says "Engine exited, restarting" and goes through `retryLater`, nothing while `stopping`. `restarting` makes the launch that succeeds say the REL-25 line, for a child too; it stays until the next launcher note (SPF-09 adds the Messages sheet). Checked with `swift build`; run `tests/manual/runs/2026-11-01-SPF-05.md`.

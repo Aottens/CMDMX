@@ -70,6 +70,8 @@ final class UIState: ObservableObject {
     enum Screen { case patch, output, control, show, options }
 
     @Published var workspace = 0
+    /// UI-39: the Messages sheet.
+    @Published var messagesOpen = false
     /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
     @Published var screen: Screen?
@@ -296,6 +298,12 @@ private struct Frame: View {
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
+        .sheet(isPresented: $ui.messagesOpen) {
+            MessagesSheet()
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
         .onAppear {
             // Mac keys (UI-19): the monitor stays installed; the handler checks the Keys toggle.
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [ui, line, engine] event in
@@ -354,8 +362,10 @@ private struct StatusBar: View {
             let issues = nodes.filter { $0.state != .ok }.map { n in
                 "#\(n.id) universe \(n.line)" + (n.detail.map { ": \($0)" } ?? "")
             }
-            Dot(color: color, label: "\(name) \(nodes.count)", warn: worst == .degraded || worst == .stopped)
-                .help(issues.joined(separator: "\n"))
+            // UI-40: a click opens the Output screen.
+            Button { ui.screen = .output } label: {
+                Dot(color: color, label: "\(name) \(nodes.count)", warn: worst == .degraded || worst == .stopped)
+            }.buttonStyle(.plain).help(issues.joined(separator: "\n"))
         }
     }
 
@@ -368,9 +378,10 @@ private struct StatusBar: View {
             let issues = devices.filter { $0.state != .ok }.map { "\($0.name): " + ($0.state == .missing ? "not connected" : $0.state.word.lowercased()) }
                 + (oscError.map { ["OSC: \($0)"] } ?? [])
             let missing = devices.contains { $0.state != .ok && $0.state != .disabled }
-            Dot(color: oscError != nil ? t.red : missing ? t.amber : t.green, label: "Control \(devices.count + (c.osc.enabled ? 1 : 0))",
-                warn: oscError != nil || missing)
-                .help(issues.joined(separator: "\n"))
+            Button { ui.screen = .control } label: {   // UI-40
+                Dot(color: oscError != nil ? t.red : missing ? t.amber : t.green, label: "Control \(devices.count + (c.osc.enabled ? 1 : 0))",
+                    warn: oscError != nil || missing)
+            }.buttonStyle(.plain).help(issues.joined(separator: "\n"))
         }
     }
 
@@ -537,5 +548,47 @@ private struct RailItem: View {
         .disabled(action == nil)
         .opacity(action == nil ? t.disabled : 1)
         .help(action == nil ? "\(title) · \(small)" : title)
+    }
+}
+
+/// UI-39: the history of warnings, errors and notices, newest first.
+private struct MessagesSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
+
+    private static let clock: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Messages").font(.headline)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    if engine.messageLog.isEmpty { Text("No messages").foregroundStyle(t.fg3) }
+                    ForEach(engine.messageLog.reversed()) { m in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(Self.clock.string(from: m.at)).font(Typo.mono(11)).foregroundStyle(t.fg3)
+                            Text(m.level).font(Typo.mono(11)).frame(width: 52, alignment: .leading)
+                            Text(m.message).font(Typo.ui(12)).fixedSize(horizontal: false, vertical: true)
+                        }
+                        .foregroundStyle(m.level == "error" ? t.red : m.level == "warning" ? t.amber : t.fg)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }
+        }
+        // Escape closes like Done; zero-size rather than .hidden(), which disables the shortcut.
+        .background(Button("") { dismiss() }.keyboardShortcut(.cancelAction).frame(width: 0, height: 0).opacity(0))
+        .padding(16)
+        .frame(width: 640, height: 420)
+        // Arrivals while open leave no count.
+        .onAppear { engine.messagesSeen() }
+        .onDisappear { engine.messagesSeen() }
     }
 }
