@@ -9,7 +9,7 @@ finished service; the everyday chapters of the Titan manual against specs and co
 the app was not run. Only A1, A2 and B1 were checked by hand in the code. The Titan comparison used
 page summaries, and some pages only by title.
 
-## A. Show-proof
+## A. Show-proof (done, v0.3.0: SPF-01..11; SPF-03 waits for its sleep run)
 Specified 2026-11-01 (P1-25; build tasks SPF-01..11): OUT-38..41, UI-35..40, IPC-50..52, REL-24, REL-25,
 PBK-46. Checked against the code: all six hold, with two corrections. A3: UI-22 already said "draggable cap",
 so the jump is a difference from the spec. A6: the engine, show file and IPC have the settings (PBK-12);
@@ -77,3 +77,67 @@ only the screen is missing.
 Tracked already, not repeated here: Macros, Select If, Align, Scene Master, virtual faders, nested and
 time palettes, Merge from another show, Parking, Undo History, set list, Move In Dark (their specs'
 out-of-scope lists, mostly without a backlog row).
+
+# Second review, 2026-11-02 (at v0.3.0)
+
+Same method and limits: code, specs and summaries of the Titan manual, the app not run. It looked at
+what the first round skipped: paths between features, failures, and the Titan pages read by title only.
+Checked by hand in the code: A2.1, A2.2, A2.3, H1, H3 (Patch and other screens), I1 (the fields), I5, J1.
+A claim about Titan rests on a page summary; I2 is an inference from one.
+
+## A2. Defects in what exists, proposed before B
+1. Fixture remove leaves its members in cue effects: `patch_remove` cleans cue values and order, the
+   load drops the members (`engine.rs`), so a running cue and a reopened show can differ. A gone first
+   member also defeats the FX-42 dark check.
+2. The restart note says "the show is back" straight after the process starts, before anything is
+   loaded (`DaemonLauncher.swift`). It is never cleared, and an engine that dies on start seems to repeat it
+   every 2 s with no backoff.
+3. A held surface Flash or Swop can stick through Lock: the release is dropped and `set_locked` releases
+   nothing (`control.rs`). Inferred; IPC-50 covers touch only.
+4. A mode change drops programmer and cue values with a warning, but leaves palette values and cue
+   effects without one (`engine.rs` `apply_mode`).
+5. Whether Command-1 to 5 still switch workspaces behind the Lock cover: `running.md` says shortcuts
+   stop. Needs a run.
+
+## H. Functions and consequences behave the same everywhere
+1. An armed function does the normal action on some targets, without a refusal: Delete, Update, Copy,
+   Move or Set Legend plus a cue row sets Next (`CueLists.swift`); any function plus a fixture tile selects.
+2. Flash and Swop stay live while a function is armed (`PlaybackViews.swift`).
+3. Esc differs: with Keys off it does not disarm, with Keys on it does nothing on Patch, Show, Output
+   and Control, and Record stays armed into those screens, where its keys are hidden.
+4. Armed functions hear mouse taps only: Record plus `Group 5 Enter` just selects.
+5. Delete confirmations state no consequence: how many cues use a palette, a playback that is running,
+   the groups and cues a fixture is in. Empty groups and cues stay behind. Undo does cover these.
+6. Lock is only in the Main context, with no Key action or Mac key.
+
+## I. Behaviour that differs from Titan, no reason recorded
+1. Fade Out and Delay Out follow Fade In until set; here they are separate and 0, so a cue with only a
+   fade in snaps HTP down. Daily.
+2. Keypad level: two digits as normal, a single-digit mode, `@ @` = 100 %; here `@ v` is v %. Daily.
+3. Building a list: Titan stays in Record (Record, fader, fader appends); here Record disarms each time
+   and needs a tap and the Append softkey. A chase is made by changing the kind in Options. Daily.
+4. A connected chase's crossfade on the wheels; here only shown, set in Options. Daily.
+5. Playback View scrolls to the active cue; here it does not. Daily on long lists.
+6. Times edited in the grid over several cues; here one cue at a time through a tab. Daily.
+7. Prev and Next Step set the chase direction, with bounce and random on keys; here Options only.
+8. Shape size on the fader per playback (Fixed, Fader, HTP Fader); here always multiplied (FX-25).
+9. Block Shapes and Solo Excluding Shapes (FX-27).
+
+Absent and untracked (sometimes): Record By Fixture on playbacks; Group in the palette mask; an automatic
+link for new cues; time in the programmer for the next cue; Options on several playbacks; Tempo Units;
+Temporary Speed; per-playback Key Profile; effect Speed Multiplier; Referencing Playbacks list; Unassign to
+the Show Library; gobo image as palette legend. Rarely: Copy Legends, Add Channels on Update, Minimum Palette
+Mode, Auto Legend off, Always Merge, Attribute Overlap, Prev + Next cancels a skip, Bunch Up With Offset.
+
+## J. Input paths and what you can see
+1. Attribute values cannot be typed: the command grammar has level, palette and gel only (`command.rs`).
+2. No range selection by mouse: Thro on the keypad only (a lasso only on the rig plan, IDEA-25).
+3. The Mac keyboard covers the command line only: no Clear, Record, Update, Delete, Locate, Highlight or
+   page key, and the app has no menu commands.
+4. Surfaces cannot program: no Record, Update, Delete, Copy, Move, Set Legend or Exit in the vocabulary.
+5. The surface keypad line is invisible and has no Exit, so a half-typed line is prefixed to the next.
+6. Mappings and deck keys address by number or slot, so Move or Delete leaves them on the wrong thing,
+   with no warning.
+7. Running playbacks on other pages have no mark on the page buttons.
+8. No "why is this lit": no view or IPC field gives the owner of an attribute or channel.
+9. The app cannot show why the engine died: a panic goes to `daemon.log`, and the app cannot reveal it.
