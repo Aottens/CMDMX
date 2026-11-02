@@ -13,7 +13,7 @@ the website, DECISIONS 2026-10-27 *own website*), IPC-01/08 (`ipc.md`), SHW-11
 (`showfile.md`), LIB-13 (`fixture-library.md`), CTL-53 (`control-surfaces.md`).
 
 REL-24, REL-25 and the amendment of REL-13: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
-REL-26..28 and their amendment of REL-25: proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1).
+REL-26..28 and their amendment of REL-25: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26).
 
 ## Purpose
 The church Mac runs CMDMX from a DMG that GitHub builds from a version tag: drag the app
@@ -266,10 +266,8 @@ The questions and the recommended answers the owner chose:
 4. **First notarised version:** the next tag after the build task is merged (e.g. `v0.2.0`), and
    from then on the site is announced (DECISIONS 2026-10-27). Recommended: yes.
 
-## Open questions (P1-26, owner)
-1. **REL-27, when does "Engine restarted … nothing is running" go?** *Recommend the first command from this app*,
-   like the message zone: whoever acts has seen it. A timer can run out while nobody looks, and a
-   click to dismiss is one more thing in a show.
-2. **REL-28, keep trying or stop?** *Recommend keep trying at 30 s, never stop*: an engine that fails on a full disk or a
-   busy port can recover, and nothing else would bring it back. Stopping after n tries needs a Retry button
-   and an operator who sees it.
+## Owner decisions (P1-26, 2026-11-02: every recommendation accepted)
+1. **REL-27, when "Engine restarted … nothing is running" goes:** at the first command from this app, like the message
+   zone: whoever acts has seen it. Not chosen: a timer, which can run out while nobody looks; a click to dismiss.
+2. **REL-28, a failing engine:** keep trying at 30 s, never stop: an engine that fails on a full disk or a busy port can
+   recover, and nothing else would bring it back. Not chosen: stopping after n tries with a Retry button.

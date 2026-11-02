@@ -384,7 +384,7 @@ New keys and messages only: `v` stays 1 (IPC-41).
   back to `Ok` a `notice` `serial #3 universe 1: Ok again`. One message per change, none at startup for a
   node that starts Ok. Test `ipc_52_…`.
 
-### Lock and what is held (IDEA-35 batch A2; proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1))
+### Lock and what is held (IDEA-35 batch A2; approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26))
 - **IPC-53** (amends IPC-50) Locking changes nothing on stage, and letting go still lets go. Today a Flash, Swop or
   held DBO stays on through the lock and after the unlock, because its release is dropped or refused (run
   `tests/manual/runs/2026-11-02-A2-checks.md`). What is held when the lock comes stays held, and while locked its
@@ -398,8 +398,8 @@ New keys and messages only: `v` stays 1 (IPC-41).
   binding's release stays dropped. An input still down at the unlock is released as usual when it comes up. Tests
   `ipc_53_…` (each surface, a client, a fader as a button, a press under the lock, a latch, the unlock).
 
-## Open question (P1-26, owner)
-1. **IPC-53, a Flash or Swop held when the lock comes.** *Recommend: it stays, and letting go ends it.* The stage
-   does not change by locking, and nothing can stick. The alternatives are worse: the lock ends every hold (the
-   stage jumps at the moment of locking), or the hold lasts until the unlock and beyond (what happens today).
-   IPC-50's Titan line keeps "currently running playbacks" going and says nothing about a held button.
+## Owner decision (P1-26, 2026-11-02: the recommendation accepted)
+1. **IPC-53, a Flash or Swop held when the lock comes:** it stays, and letting go ends it. The stage does not change by
+   locking, and nothing can stick. Not chosen: the lock ends every hold (the stage jumps at the moment of locking), or
+   the hold lasts until the unlock and beyond (what happened before). IPC-50's Titan line keeps "currently running
+   playbacks" going and says nothing about a held button.

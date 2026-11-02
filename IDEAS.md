@@ -771,7 +771,7 @@ the app."
 **Outcome (2026-11-01):** owner: all of it in phase 1, worked through in order, A to G.
 **Owner's answer (2026-11-01):** when batch A is done, the version goes straight to 0.3.0, followed by a new gap review.
 **Second review (2026-11-02):** batches A2 (defects), H, I and J in `docs/research/everyday-gaps.md`; owner: A2 and H first, then B to G, I and J; I1 and I3 go with B as advised.
-**A2 (2026-11-02):** proposed as P1-26 (build tasks DEF-01..05), waiting for the owner.
+**A2 (2026-11-02):** spec P1-26 approved by the owner, every recommendation accepted; build tasks DEF-01..05.
 
 ### IDEA-36 — A refused number stays in its field (2026-11-02)
 **Found in:** the SPF-07 run; not from the owner.

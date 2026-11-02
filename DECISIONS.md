@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-02 — Batch A2: what is held survives the lock, a failing engine never stops being retried (IDEA-35 A2, P1-26; approved by owner)
+
+**Decision:** a Flash, Swop or momentary DBO held when the lock comes stays, and its release passes the lock (IPC-53). An effect member on a mode without the entry's attributes leaves the entry, with a warning (PAT-27); palettes keep their values and warn (PAT-28). The restart line goes at the first command from the app (REL-27). A failing engine is retried with a backoff up to 30 s, without end (REL-28).
+
+**Alternatives considered:** the lock ends every hold; the hold lasts until the unlock; effect members stay and warn; a timer or a click for the restart line; stopping after n tries with a Retry button. The reasons per question are in `ipc.md`, `patch.md` and `release.md`, *Owner decision(s)*.
+
+**Reasoning:** locking must not change the stage and nothing may stick; values and effects of a cue must not disagree; a show-proof console keeps trying while it is open.
+
+**Reversal trigger:** a run where a release through the lock does something an operator did not mean, or where the 30 s retry harms.
+
+---
+
 ## 2026-11-01 — The system-sleep assertion lives in the daemon (IDEA-35 A1; approved by owner)
 
 **Decision:** the daemon holds `PreventUserIdleSystemSleep` for its whole life (OUT-38). The app only keeps the display awake, in console mode (UI-35).

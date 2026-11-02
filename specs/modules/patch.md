@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1). Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -146,7 +146,7 @@ CMDMX has no parking (a removed fixture is gone, PAT-05), so every clash refuses
   unknown or repeated id refuses the whole removal; an accepted one is one undo step that brings
   every removed fixture back with its groups, palettes and cue data (UNDO-03).
 
-### Effects and palettes follow the patch (IDEA-35 batch A2; proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1))
+### Effects and palettes follow the patch (IDEA-35 batch A2; approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26))
 - **PAT-26** Removal reaches the effects. `patch.remove` (PAT-05) takes the fixture and its cells out of every
   cue's effects, every palette's effects and the effects of the cues running now, in the same command. Member
   positions are worked out again (FX-07); an entry left without members goes. So a running show gives the same
@@ -256,8 +256,7 @@ visual plot (with the visualiser).
 2. PAT-05: removal is always allowed and dangling data is ignored with a warning; a confirm
    for fixtures used in cues comes with cue lists (P1-08).
 
-## Open question (P1-26, owner)
-1. **PAT-27, an effect on a mode without its attribute: leave the entry, or stay and warn?** *Recommend leave*:
-   values do that today, so a cue's values and effects cannot disagree, and undo brings it back. Staying
-   would restore the effect if the mode comes back, as palettes do (PAT-28), but the cue would hold
-   a member that does nothing.
+## Owner decision (P1-26, 2026-11-02: the recommendation accepted)
+1. **PAT-27, an effect on a mode without its attribute:** the fixture leaves the entry, with a warning, as values do, so
+   a cue's values and effects cannot disagree; undo brings it back. Not chosen: staying and warning, which would
+   restore the effect if the mode comes back, but leaves a member in the cue that does nothing.
