@@ -169,6 +169,15 @@ impl Osc {
         }
     }
 
+    /// IPC-50: a lock drops what waited; an unlock re-arms and sends everything again.
+    pub(super) fn set_locked(&mut self, on: bool) {
+        self.pending.clear();
+        if !on {
+            self.states.values_mut().for_each(BindingState::rearm);
+            self.feedback.clear();
+        }
+    }
+
     /// Everyone who gets feedback: the listed clients, then the senders heard.
     fn targets(&self) -> Vec<SocketAddr> {
         let mut all: Vec<SocketAddr> = (self.settings.clients.iter())
@@ -315,6 +324,10 @@ impl Control {
         };
         if self.osc.heard.insert(ip, now).is_none() {
             self.dirty = true;
+        }
+        // IPC-50: heard for feedback, but nothing acts.
+        if self.locked {
+            return;
         }
         for m in messages {
             self.osc_message(ip, m, now);

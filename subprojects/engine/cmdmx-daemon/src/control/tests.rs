@@ -722,6 +722,7 @@ fn ctl_39_snapshot_has_the_control_section() {
         &ipc::UndoInfo::default(),
         &c.snapshot(),
         &[],
+        false,
     ))
     .unwrap();
     let control = &s["control"];
@@ -1637,4 +1638,90 @@ fn ipc_48_order_and_grid_buttons_with_led_feedback() {
     assert_eq!(e.programmer().grid(), None);
     assert!(out.contains(&note_out(72, 0)), "1 in 3 dark: {out:?}");
     assert!(out.contains(&note_out(73, 0)), "grid off dark: {out:?}");
+}
+
+// --- IPC-50 the lock ---------------------------------------------------------
+
+#[test]
+fn ipc_50_midi_is_dropped_feedback_runs_and_a_fader_picks_up_after_the_unlock() {
+    let (mut c, _) = enabled("lock");
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":7},"pickup":true}"#,
+    )
+    .unwrap();
+    let mut e = engine();
+    let mut h = History::default();
+    let p1 = slot(&e, 1, 1);
+    let held = 64.0 / 127.0;
+    e.set_fader(p1, held, 0.0).unwrap();
+    e.tick(0.0);
+    // The fader has hold of the level.
+    packet(&mut c, "nano", &cc7(64));
+    let cmds = c.commands(&e, 0.0);
+    assert_eq!(cmds.len(), 1);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    let _ = c.feedback(&e);
+
+    c.set_locked(true);
+    packet(&mut c, "nano", &cc7(127));
+    packet(&mut c, "nano", &[0x90, 60, 127]);
+    packet(&mut c, "nano", &[0x90, 61, 127]);
+    assert!(c.commands(&e, 0.1).is_empty(), "dropped");
+    assert!(c.take_messages().is_empty(), "without a warning");
+    // Feedback keeps running.
+    e.set_fader(p1, 0.25, 0.1).unwrap();
+    e.tick(0.1);
+    assert!(c.feedback(&e).contains(&cc_out(32)));
+    e.set_fader(p1, held, 0.2).unwrap();
+    e.tick(0.2);
+    let _ = c.feedback(&e);
+
+    c.set_locked(false);
+    assert!(
+        c.feedback(&e).contains(&cc_out(64)),
+        "the whole state goes out at the unlock"
+    );
+    // The fader moved under the lock: the first move after it does not jump (CTL-13).
+    packet(&mut c, "nano", &cc7(120));
+    assert!(c.commands(&e, 0.3).is_empty(), "no jump");
+    packet(&mut c, "nano", &cc7(30));
+    assert_eq!(c.commands(&e, 0.3).len(), 1, "picked up on the way past");
+}
+
+#[test]
+fn ipc_50_a_motor_goes_back_on_touch_release_and_follows_after_the_unlock() {
+    let (mut c, _) = surface("lock-motor", &["BCF2000"]);
+    let mut e = engine();
+    let p1 = slot(&e, 1, 1);
+    e.set_fader(p1, 0.7, 0.0).unwrap();
+    e.tick(0.0);
+    let _ = c.feedback(&e);
+
+    c.set_locked(true);
+    packet(&mut c, "BCF2000", &note(104, 127));
+    packet(&mut c, "BCF2000", &pb(1, cmdmx_control::mcu::position(0.1)));
+    assert!(c.commands(&e, 0.1).is_empty(), "dropped");
+    let held = c.feedback(&e);
+    assert!(!held.iter().any(|o| o.bytes[0] == 0xE0), "{held:?}");
+    // The level never changed, and still the motor is sent back to it.
+    packet(&mut c, "BCF2000", &note(104, 0));
+    assert!(c.commands(&e, 0.2).is_empty());
+    assert!(c.feedback(&e).contains(&motor("BCF2000", 1, 0.7)));
+
+    c.set_locked(false);
+    let _ = c.feedback(&e);
+    packet(&mut c, "BCF2000", &pb(1, cmdmx_control::mcu::position(0.1)));
+    assert_eq!(c.commands(&e, 0.3).len(), 1, "a motor never picks up");
+}
+
+#[test]
+fn ipc_50_devices_still_come_and_go_while_locked() {
+    let (mut c, _) = enabled("lock-ports");
+    c.set_locked(true);
+    ports(&mut c, &[]);
+    assert_eq!(c.take_messages(), ["nano disconnected"]);
+    assert_eq!(device(&c.snapshot(), "nano")["state"], "Missing");
+    ports(&mut c, &[port("nano", true)]);
+    assert_eq!(device(&c.snapshot(), "nano")["state"], "Ok");
 }

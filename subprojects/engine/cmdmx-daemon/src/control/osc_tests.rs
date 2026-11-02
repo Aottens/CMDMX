@@ -795,3 +795,30 @@ fn ctl_64_every_touchosc_layout_address_is_in_the_schema() {
     }
     assert!(lines > 0, "empty address list");
 }
+
+// --- IPC-50 the lock ---------------------------------------------------------
+
+#[test]
+fn ipc_50_osc_is_dropped_a_new_sender_gets_feedback_and_the_unlock_sends_all_again() {
+    let (mut c, _) = on("lock");
+    let e = engine();
+    c.set_locked(true);
+    send(&mut c, A, "/cmdmx/gm", vec![OscArg::Float(0.5)], 0.0);
+    assert!(c.commands(&e, 0.0).is_empty(), "dropped");
+    assert!(c.take_messages().is_empty(), "without a warning");
+    let gm = OscArg::Float(1.0);
+    let first = c.osc_feedback(&e, 0.0);
+    assert!(has(&first, A_FB, "/cmdmx/gm", gm.clone()), "{first:?}");
+    assert!(!has(
+        &c.osc_feedback(&e, 0.1),
+        A_FB,
+        "/cmdmx/gm",
+        gm.clone()
+    ));
+
+    c.set_locked(false);
+    // The control moved under the lock: it goes back to the engine's level (CTL-37).
+    assert!(has(&c.osc_feedback(&e, 0.2), A_FB, "/cmdmx/gm", gm));
+    send(&mut c, A, "/cmdmx/gm", vec![OscArg::Float(0.5)], 0.3);
+    assert_eq!(c.commands(&e, 0.3).len(), 1);
+}

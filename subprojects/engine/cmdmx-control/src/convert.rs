@@ -84,6 +84,13 @@ pub struct BindingState {
 }
 
 impl BindingState {
+    /// IPC-50: forget what the input did while it was dropped; `toggle` and `above` stay.
+    pub fn rearm(&mut self) {
+        self.pickup.rearm();
+        self.wheel = None;
+        self.remainder = 0.0;
+    }
+
     pub fn apply(
         &mut self,
         b: &Binding,

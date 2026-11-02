@@ -856,3 +856,26 @@ fn ctl_57_each_key_says_whether_it_is_fixed() {
     assert_eq!(key(9)["fixed"], true);
     assert_eq!(key(1)["fixed"], false);
 }
+
+// --- IPC-50 the lock ---------------------------------------------------------
+
+#[test]
+fn ipc_50_a_deck_key_is_dropped_its_images_keep_running_and_it_acts_after_the_unlock() {
+    let mut e = engine();
+    let (mut c, _) = ready("lock", &e);
+    c.set_locked(true);
+    press(&mut c, 1);
+    assert!(c.commands(&e, 1.0).is_empty(), "dropped");
+    assert!(c.take_messages().is_empty(), "without a warning");
+    let id = slot(&e, 1, 1);
+    e.set_fader(id, 1.0, 1.0).unwrap();
+    e.tick(1.0);
+    assert!(
+        !looks(&c.deck_out(&e)).is_empty(),
+        "the level bar still moves"
+    );
+
+    c.set_locked(false);
+    key(&mut c, 1, true);
+    assert_eq!(c.commands(&e, 2.0).len(), 1);
+}

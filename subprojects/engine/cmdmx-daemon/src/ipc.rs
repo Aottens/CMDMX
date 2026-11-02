@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender, TryRecvError};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
@@ -65,6 +66,11 @@ pub const PROTOCOL: u64 = 1;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
+    /// IPC-50: lock or unlock the console; handled on the tick, never by the engine.
+    LockSet {
+        on: bool,
+        code: String,
+    },
     /// CTL-40: handled by the control layer on the tick, never by the engine.
     Control(ControlRequest),
     /// OUT-34: a new output node; the fields not given are the line's defaults (OUT-25).
@@ -1741,6 +1747,11 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 number: opt_uint(&v, "number")?,
             })
         }
+        // IPC-50
+        Some("lock.set") => Ok(Command::LockSet {
+            on: boolean(&v, "on")?,
+            code: string(&v, "code")?,
+        }),
         Some("control.mapping") => Ok(Command::ControlMapping {
             name: string(&v, "name")?,
         }),
@@ -2221,6 +2232,8 @@ struct Snapshot<'a> {
     control: &'a serde_json::Value,
     /// IPC-51: the message history, oldest first.
     messages: &'a [HistoryMessage],
+    /// IPC-50
+    locked: bool,
 }
 
 /// OUT-33: one output node with its fields, state and detail.
@@ -2432,6 +2445,54 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
         .collect()
 }
 
+/// IPC-50: the refusal while locked.
+pub const LOCKED: &str = "Console is locked";
+
+/// IPC-50: the master code, printed in the manual so a forgotten code never ends a show.
+const MASTER_CODE: &str = "68340";
+
+/// IPC-50: the lock. `code` is `Some` while locked; `flag` mirrors it for the client threads.
+#[derive(Default)]
+pub struct Lock {
+    code: Option<String>,
+    flag: Arc<AtomicBool>,
+}
+
+impl Lock {
+    /// Whether the lock changed. A second lock is refused, an unlock while unlocked is a no-op.
+    pub fn set(&mut self, on: bool, code: &str) -> Result<bool, &'static str> {
+        match (&self.code, on) {
+            (Some(_), true) => Err(LOCKED),
+            (None, true) => {
+                self.code = Some(code.to_string());
+                self.flag.store(true, Ordering::Relaxed);
+                Ok(true)
+            }
+            (None, false) => Ok(false),
+            (Some(c), false) if code == c || code == MASTER_CODE => {
+                self.code = None;
+                self.flag.store(false, Ordering::Relaxed);
+                Ok(true)
+            }
+            (Some(_), false) => Err("Wrong code"),
+        }
+    }
+
+    pub fn is_on(&self) -> bool {
+        self.code.is_some()
+    }
+
+    /// What the client threads read.
+    pub fn flag(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.flag)
+    }
+}
+
+/// IPC-50: the `locked` delta to every client.
+pub fn locked_delta(on: bool) -> String {
+    to_json(&serde_json::json!({"v": PROTOCOL, "type": "locked", "locked": on}))
+}
+
 /// IPC-03/10/20: full state for a freshly connected client.
 pub fn snapshot(
     engine: &Engine,
@@ -2440,6 +2501,7 @@ pub fn snapshot(
     undo: &UndoInfo,
     control: &serde_json::Value,
     messages: &[HistoryMessage],
+    locked: bool,
 ) -> String {
     let stored = stored_infos(engine);
     to_json(&Snapshot {
@@ -2465,6 +2527,7 @@ pub fn snapshot(
         undo,
         control,
         messages,
+        locked,
     })
 }
 
@@ -3130,6 +3193,7 @@ pub fn spawn_server(port: u16) -> std::io::Result<(Receiver<Event>, SocketAddr)>
         Arc::new(RwLock::new(None)),
         Arc::new(shows),
         Instant::now(),
+        Arc::default(),
     )
 }
 
@@ -3142,6 +3206,7 @@ pub fn spawn_server_with(
     library: SharedLibrary,
     shows: Arc<Shows>,
     started: Instant,
+    locked: Arc<AtomicBool>,
 ) -> std::io::Result<(Receiver<Event>, SocketAddr)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port))?;
     let addr = listener.local_addr()?;
@@ -3153,13 +3218,14 @@ pub fn spawn_server_with(
                 let events = events.clone();
                 let library = Arc::clone(&library);
                 let shows = Arc::clone(&shows);
+                let locked = Arc::clone(&locked);
                 // A failed spawn only loses this one client.
                 let _ = std::thread::Builder::new()
                     .name("ipc-client".into())
                     .spawn(move || {
                         // IPC-07: a panic closes only this client.
                         if catch_unwind(AssertUnwindSafe(|| {
-                            serve_client(stream, &events, &library, &shows, started)
+                            serve_client(stream, &events, &library, &shows, started, &locked)
                         }))
                         .is_err()
                         {
@@ -3200,6 +3266,7 @@ fn serve_client(
     library: &RwLock<Option<Library>>,
     shows: &Shows,
     started: Instant,
+    locked: &AtomicBool,
 ) {
     let Ok(mut ws) = tungstenite::accept_hdr(stream, refuse_origin) else {
         return;
@@ -3223,6 +3290,23 @@ fn serve_client(
     loop {
         match ws.read() {
             Ok(Message::Text(text)) => match parse_command(text.as_str()) {
+                // IPC-50: the requests that write a file are refused before they run.
+                Ok(
+                    Command::Library(
+                        LibraryRequest::SaveProfile(_)
+                        | LibraryRequest::SaveChannelList(_)
+                        | LibraryRequest::ImportGdtf { .. },
+                    )
+                    | Command::Show(
+                        ShowRequest::New { .. }
+                        | ShowRequest::Open { .. }
+                        | ShowRequest::SaveAs { .. },
+                    ),
+                ) if locked.load(Ordering::Relaxed) => {
+                    if events.send(Event::Warning(LOCKED.into())).is_err() {
+                        return;
+                    }
+                }
                 Ok(Command::Library(req)) => {
                     if ws
                         .send(Message::text(answer_library(library, req)))
@@ -3396,6 +3480,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "snapshot");
@@ -3476,6 +3561,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["outputs"],
@@ -3503,7 +3589,8 @@ mod tests {
                 &show_state(),
                 &UndoInfo::default(),
                 &serde_json::Value::Null,
-                &[]
+                &[],
+                false,
             ))["outputs"],
             json!([])
         );
@@ -3710,6 +3797,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
@@ -3756,6 +3844,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["fixtures"],
@@ -3794,6 +3883,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let wash = &v["fixtures"][1];
         assert_eq!(wash["mode"], "24 Channel");
@@ -4034,6 +4124,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let c = &v["effect_catalogue"];
         let looks = c["looks"].as_array().unwrap();
@@ -4127,6 +4218,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["programmer"],
@@ -4147,6 +4239,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["programmer"]["wheels"],
@@ -4761,6 +4854,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             clients.messages(),
+            false,
         ));
         let m = v["messages"].as_array().unwrap();
         assert_eq!(m.len(), 2);
@@ -4809,6 +4903,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ))
     }
 
@@ -5026,6 +5121,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ))
         .unwrap();
         let msg = ws.read().unwrap();
@@ -5095,6 +5191,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["show"],
@@ -5111,7 +5208,8 @@ mod tests {
                 &fresh,
                 &UndoInfo::default(),
                 &serde_json::Value::Null,
-                &[]
+                &[],
+                false,
             ))["show"]["saved_at"],
             Value::Null
         );
@@ -5207,6 +5305,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let slots: Vec<Value> = (1..=8)
             .map(|s| json!({"slot": s, "playback": if s == 1 { json!(1) } else { Value::Null }}))
@@ -5303,6 +5402,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["palettes"],
@@ -5356,6 +5456,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["palette_settings"],
@@ -5383,6 +5484,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["programmer"]["palettes"],
@@ -5399,6 +5501,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ))["programmer"];
         assert_eq!(p["palettes"], json!({"in_use":[7],"relevant":[7]}));
         assert_eq!(
@@ -5575,6 +5678,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let mut want = playback_entry();
         want["legend"] = json!("Walk-in");
@@ -5594,6 +5698,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let pages: Vec<Value> = (1..=10)
             .map(|n| json!({"number": n, "legend": if n == 2 { "Service" } else { "" }}))
@@ -5664,6 +5769,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let fired = |i: usize| v["playbacks"][i]["fired"].as_u64().unwrap();
         assert!(fired(1) < fired(0), "playback 2 fired first");
@@ -5676,6 +5782,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert!(v["playbacks"][0]["fired"].is_null(), "off again");
     }
@@ -6085,6 +6192,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let p = entry(&v, 2);
         assert_eq!(p["kind"], json!("Cues"));
@@ -6118,6 +6226,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(v["connected"], json!(null));
     }
@@ -6187,6 +6296,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let chase = entry(&v, 3);
         assert_eq!(chase["kind"], json!("Chase"));
@@ -6233,6 +6343,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let m = entry(&v, u64::from(master));
         assert_eq!(
@@ -6461,6 +6572,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         let m = entry(&v, u64::from(id));
         assert_eq!(m["kind"], json!("GroupMaster"));
@@ -6517,6 +6629,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
     }
@@ -6571,6 +6684,7 @@ mod tests {
             &none,
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(v["undo"], json!({"undo": null, "redo": null}));
         let some = UndoInfo {
@@ -6584,6 +6698,7 @@ mod tests {
             &some,
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(v["undo"], json!({"undo": "Clear", "redo": "Wheel Pan"}));
     }
@@ -6633,6 +6748,7 @@ mod tests {
             &UndoInfo::default(),
             &serde_json::Value::Null,
             &[],
+            false,
         ));
         assert_eq!(
             v["programmer_settings"],
@@ -6886,6 +7002,7 @@ mod tests {
                 &UndoInfo::default(),
                 &serde_json::Value::Null,
                 &[],
+                false,
             ))["programmer"]
                 .clone()
         };

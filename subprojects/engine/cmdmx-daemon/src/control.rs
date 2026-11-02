@@ -300,6 +300,8 @@ pub struct Control {
     osc: osc::Osc,
     /// Faders per page, which the generated deck profiles follow (CTL-49).
     fpp: u16,
+    /// IPC-50: surface input is dropped while set.
+    locked: bool,
 }
 
 /// The text of an input, as the user sees it.
@@ -730,9 +732,31 @@ impl Control {
             input_sent: f64::NEG_INFINITY,
             osc: osc::Osc::load(saved.as_ref()),
             fpp: Settings::default().faders_per_page,
+            locked: false,
         };
         control.refresh();
         (control, warnings)
+    }
+
+    /// IPC-50: a lock drops what waited; an unlock re-arms every binding and sends all feedback.
+    pub fn set_locked(&mut self, on: bool) {
+        self.locked = on;
+        for dev in self.devices.values_mut() {
+            dev.pending.clear();
+            if let Some(k) = &mut dev.deck {
+                k.pending.clear();
+            }
+            if on {
+                continue;
+            }
+            dev.states.values_mut().for_each(BindingState::rearm);
+            dev.feedback.clear();
+            if let Some(k) = &mut dev.deck {
+                k.states.values_mut().for_each(BindingState::rearm);
+                k.feedback.clear();
+            }
+        }
+        self.osc.set_locked(on);
     }
 
     /// After a mapping or assignment changed: decoders follow the 14-bit pairs, and every
@@ -825,7 +849,14 @@ impl Control {
                 dev.touched.retain(|t| *t != fader);
                 if m.value > 0 {
                     dev.touched.push(fader);
+                } else if self.locked {
+                    // IPC-50: the motor goes back to the level.
+                    dev.feedback.clear();
                 }
+                continue;
+            }
+            // IPC-50: dropped without a trace.
+            if self.locked {
                 continue;
             }
             self.last_input = Some(LastInput {
@@ -1690,6 +1721,10 @@ impl Control {
         };
         let mut learned = None;
         for (input, reading) in events {
+            // IPC-50: the key state followed; nothing acts.
+            if self.locked {
+                continue;
+            }
             let value = match reading {
                 Reading::Button(down) => i32::from(down),
                 Reading::Steps(n) => n as i32,

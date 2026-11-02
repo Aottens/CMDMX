@@ -365,6 +365,13 @@ New keys and messages only: `v` stays 1 (IPC-41).
   - MIDI, OSC and Stream Deck input is dropped without a warning; feedback keeps running. After the unlock a
     fader without motor picks up as CTL-13, a motor fader follows the engine's level (CTL-13, CTL-20/21);
   - the tick, running playbacks, fades, chases, effects, output and autosave go on untouched.
+  `lock.set` with `on:true` while locked is refused like any other change (the first code stays); `on:false`
+  while unlocked changes nothing and says nothing. The refusal covers the requests a client thread answers
+  itself: `show.new/open/save_as`, `library.save_profile`, `library.save_channel_list`,
+  `library.import_gdtf`. A dropped surface input leaves device state alone: ports and decks come and go,
+  a touch note still holds a motor and its release sends the motor back to the level, an OSC sender is
+  still heard for feedback, a Stream Deck's key state still follows. At the unlock every surface gets its
+  whole feedback state again.
   The lock is live state: it is not saved, and a restarted engine is unlocked. Tests `ipc_50_…` (refused
   command, surface event dropped, a fade finishing while locked, wrong code, master code).
 - **IPC-51** Message history (UI-39). The daemon keeps the last 200 of its `warning` and `notice`
