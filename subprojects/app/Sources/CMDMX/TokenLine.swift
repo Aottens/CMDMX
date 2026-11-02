@@ -98,8 +98,20 @@ enum MacKeys {
 
     @MainActor
     static func handle(_ event: NSEvent, ui: UIState, line: TokenLine, engine: EngineClient) -> Bool {
-        // UNDO-18: ⌘Z / ⇧⌘Z, whatever the Keys toggle says; a text field keeps its own undo.
         let chord = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        // UI-38: the prompt and the cover take digits, Delete and Return, whatever the Keys toggle says; nothing else reaches the console. ⌘ shortcuts go on to the menu, so ⌘Q reaches the refusal.
+        if engine.locked || ui.lockPrompt {
+            guard event.modifierFlags.isDisjoint(with: [.command, .control, .option]) else { return false }
+            switch event.keyCode {
+            case 36, 76: ui.enterLockCode(engine)
+            case 51: _ = ui.lockCode.popLast()
+            case 53: if ui.lockPrompt { ui.lockPrompt = false; ui.lockCode = "" }
+            default:
+                if let c = event.characters, c.count == 1, "0"..."9" ~= c { ui.lockCode += c; engine.clearMessage() }
+            }
+            return true
+        }
+        // UNDO-18: ⌘Z / ⇧⌘Z, whatever the Keys toggle says; a text field keeps its own undo.
         if (chord == .command || chord == [.command, .shift]), event.charactersIgnoringModifiers?.lowercased() == "z",
            !(NSApp.keyWindow?.firstResponder is NSText) {
             if chord == .command { engine.undo() } else { engine.redo() }

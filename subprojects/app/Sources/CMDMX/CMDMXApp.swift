@@ -7,7 +7,7 @@ import SwiftUI
 @main
 struct CMDMXApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var engine = EngineClient()
+    @StateObject private var engine = EngineClient.shared
 
     init() {
         // Console mode is on by default (UI-26); the theme starts dark (UI-02).

@@ -440,6 +440,13 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     clock and a keypad for the code. The status bar stays, so output state is readable;
   - keypad Enter sends the code; a wrong one shows "Wrong code" and stays locked;
   - quitting does not ask but refuses: "The console is locked. Unlock it to quit." (UI-36's alert after unlock).
+    With the engine offline nothing could unlock, so quitting asks as UI-36;
+  - the cover follows the engine's `locked`, so an app that reconnects to a locked engine shows it, and a
+    restarted engine (unlocked) takes it away. The status bar shows state but its buttons do nothing.
+  The prompt and the cover take the Mac's digits, Delete and Return, whatever the Keys toggle says (Esc
+  cancels the prompt), and nothing else from the keyboard reaches the console; ⌘ shortcuts still reach the
+  menu, so ⌘Q is refused as above. The prompt shows the digits, so a slip is seen before it locks; the cover
+  shows dots.
   The lock is an operational control and does not protect the show file (as Titan); the manual says so.
 - **UI-39** Messages sheet. A click on the message zone, or on a count next to it, opens a sheet with
   the history (IPC-51), newest first: local time `hh:mm:ss`, level, full wrapped selectable text. Close with
