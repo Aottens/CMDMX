@@ -461,7 +461,8 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
 - **UI-41** (approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26)) A Flash or Swop held with the mouse when the cover comes (UI-38; the prompt's Enter from
   the Mac keyboard, or a second client's lock): letting go ends it (IPC-53). When the cover takes the press away, so
   the view never sees the release, the app sends the release the moment the cover comes. Which of the two happens
-  only a real mouse can show (`tests/manual/app-main-screen.md`).
+  only a real mouse can show (`tests/manual/app-main-screen.md`): the run of 2026-11-02 shows the cover ending it. A mouse
+  still down after the unlock can bring it on again, and letting go ends it (owner, 2026-11-02).
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each

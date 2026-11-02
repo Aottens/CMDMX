@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-02 — A mouse still down after the unlock may bring a Flash back (owner)
+
+**Decision:** when the cover has ended a Flash or Swop held with the mouse and the mouse is still down after the unlock, the key can come on again (seen 0.3 s after the unlock, with the mouse moving); letting go ends it. Left as is.
+
+**Alternatives considered:** keep it off until a new press (more code in `HoldKey`, days before a service run).
+
+**Reasoning:** the key is held, so it being on is what the hand says, and letting go always ends it. Getting there takes typing the code with the mouse held, or a second client unlocking.
+
+**Reversal trigger:** an operator is surprised by it on stage.
+
+---
+
 ## 2026-11-02 — A build can hold more than one task (owner)
 
 **Decision:** a session, branch and PR hold one build instead of one task: at most three tasks that are one behaviour, depend on each other or change the same code, at most one of them M. The main session proposes the builds with the spec; each task keeps its own subagent, brief, commit and review (`CLAUDE.md`, *Builds*). This amends "one PR per task" (2026-10-16) and the one-feature-per-session habit. Batch A2 is the first: DEF-01 + DEF-02, DEF-03, DEF-04 + DEF-05, in the approved order.

@@ -271,5 +271,6 @@ hold. Claude locks from a second client and listens to Art-Net; the owner holds 
       the cover comes if the cover takes the press away; which of the two is noted in the run. It does not stay on.
 - [ ] (owner) The same with Swop.
 - [ ] (owner) Unlock: the key does not show as down, nothing is on, and the next hold of the same Flash works and ends when let go.
-- [ ] (owner) Hold Flash, lock, and unlock while still holding (Claude does both): letting go ends it as usual.
+- [ ] (owner) Hold Flash, lock, and unlock while still holding (Claude does both): it may come on again while the mouse
+      is down, and letting go ends it as usual; nothing stays on.
 
