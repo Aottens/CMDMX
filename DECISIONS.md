@@ -17,6 +17,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-02 — What a sub-release is, and a gap review after each (owner)
+
+**Decision:** a sub-release (`0.x.0`) is a finished batch that changes what an operator can do or how they work. The amount of code or PRs does not count. Everything else is a patch (`0.x.y`) without a review. After each sub-release comes a gap review from a new angle, with the app running as well as the code read; an angle that gives no daily points any more is dropped. For IDEA-35: A2 is a patch on 0.3, H is 0.4.0, B is 0.5.0, then one per batch unless a batch is too small.
+
+**Alternatives considered:** a review at every release; sub-releases by amount of work or by date.
+
+**Reasoning:** a review costs about 400,000 tokens of agents, and a review finds what it is aimed at, so repeating one adds little. The group gap came from real use, which reading code does not replace.
+
+**Reversal trigger:** the reviews stop finding daily points, or the cost outweighs what they find.
+
 ## 2026-11-01 — Hardware moves from phase 3 to phase 10; multi-user support in phase 3 (owner)
 
 **Decision:** the hardware phase (IDEA-23, IDEA-30) is now phase 10, which leaves phases up to 9 for other work. Only the number changes: it stays the parallel track of 2026-10-25, so `## Phase 3 track — hardware` in that entry is now `## Phase 10 track — hardware`. Phase 3 now holds multi-user support (IDEA-34) and the timeline (IDEA-05).

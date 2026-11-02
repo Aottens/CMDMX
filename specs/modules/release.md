@@ -33,6 +33,11 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
   without `v`. Any other `v*` tag (`v1`, `v0.2`, `v0.2.0-rc1`) fails the job before building,
   with a message naming the tag. Cargo crate versions are not the product version and are not
   changed by a release.
+- **REL-26** A sub-release (`0.x.0`) is a finished batch that changes what an operator can do or how they
+  work; the amount of code or PRs does not count. Everything else is a patch (`0.x.y`) and needs no review.
+  A batch of small things goes out as a patch or joins the next batch. After each sub-release comes a gap
+  review from a new angle, with the app running as well as the code read; an angle that gives no daily
+  points any more is dropped (owner, 2026-11-02, DECISIONS).
 - **REL-02** The app's `Info.plist` carries `CFBundleShortVersionString` = the version and
   `CFBundleVersion` = the GitHub run number. `CMDMX › About CMDMX` (the
   standard macOS About panel, no own code) shows `Version <version> (<run number>)`.
