@@ -160,7 +160,7 @@ Order approved by owner 2026-11-01, as in this table: what can darken a show fir
 | SPF-11 | App: Lock softkey, cover, keypad, refused quit; manual and manual run. Needs SPF-04, SPF-10. | UI-38 | S | done (2026-11-02, #221) |
 
 ### Defects in what exists (IDEA-35 batch A2, spec P1-26)
-Proposed order: what can stick or mislead during a show first, each task on its own PR. The spec waits for the owner (gate 1).
+Order approved by owner 2026-11-02, as in this table: what can stick or mislead during a show first, each task on its own PR.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
@@ -221,7 +221,7 @@ after VS8-03, in any order.
 | P1-23 | Spec gel numbers, LEE first (IDEA-02, owner 2026-10-28): data source and licence, the reference source, PRG-67..70, IPC-47, UI-32, PAL-33, build tasks VS2-48..50; owner approves. | PRG, IPC, UI, PAL | M | done (2026-10-28, #164; the criteria approved, the four questions as proposed: tungsten 3200 K, owner asks LEE, test rows only until LEE answers, `Lee n` and the gel legend) |
 | P1-24 | Spec the handle actions on groups (owner, 2026-11-01: a group could not be deleted in the first church try with v0.2.5): Delete, Copy, Move and Set Legend as PRG-85..95, what happens to group masters, undo, IPC and the Groups window; build tasks GRP-01..03; owner approves. | PRG | S | done (2026-11-01, #195; merged = PRG-85..95 and the three owner questions approved) |
 | P1-25 | Spec IDEA-35 batch A, show-proof (owner, 2026-11-01): keep the Mac awake, quit always asks, faders that do not jump, Lock, message history, restarting an adopted engine, default cue times, as OUT-38..41, UI-35..40, IPC-50..52, REL-24, 25, PBK-46; build tasks SPF-01..11; owner approves. | OUT, UI, IPC, REL, PBK | S | done (2026-11-01, #208; all five owner questions approved as proposed) |
-| P1-26 | Spec IDEA-35 batch A2, defects in what exists: each point checked in the code or a run (`tests/manual/runs/2026-11-02-A2-checks.md`; A2.5 does not happen), as PAT-26..28, IPC-53, UI-41, REL-26..28; build tasks DEF-01..05; owner approves. | PAT, IPC, UI, REL | S | done (2026-11-02, #225) |
+| P1-26 | Spec IDEA-35 batch A2, defects in what exists: each point checked in the code or a run (`tests/manual/runs/2026-11-02-A2-checks.md`; A2.5 does not happen), as PAT-26..28, IPC-53, UI-41, REL-26..28; build tasks DEF-01..05; approved by owner 2026-11-02. | PAT, IPC, UI, REL | S | done (2026-11-02, #225) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ## Phase 10 track — hardware (parallel to phase 1)
