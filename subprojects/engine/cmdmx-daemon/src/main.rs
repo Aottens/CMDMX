@@ -158,16 +158,23 @@ fn main() {
 
     // IPC-01: a bound port that is already taken most likely means another daemon runs.
     let library: ipc::SharedLibrary = Default::default();
+    // IPC-50: live state only, not saved and not touched by a show switch.
+    let mut lock = ipc::Lock::default();
     // The tick's clock; the client threads stamp taps and buttons on it (IPC-25).
     let started = Instant::now();
-    let (events, ipc_addr) =
-        match ipc::spawn_server_with(cli.ipc_port, library.clone(), Arc::clone(&shows), started) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("cmdmx-daemon: cannot open IPC port {}: {e}", cli.ipc_port);
-                std::process::exit(2);
-            }
-        };
+    let (events, ipc_addr) = match ipc::spawn_server_with(
+        cli.ipc_port,
+        library.clone(),
+        Arc::clone(&shows),
+        started,
+        lock.flag(),
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("cmdmx-daemon: cannot open IPC port {}: {e}", cli.ipc_port);
+            std::process::exit(2);
+        }
+    };
     eprintln!("ipc: listening on ws://{ipc_addr}");
     // LIB-13: index the library in the background; until it is stored, requests get "loading".
     let (qlcplus_dir, profiles_dir) = (cli.qlcplus_dir.clone(), cli.profiles_dir.clone());
@@ -211,6 +218,29 @@ fn main() {
         let wall = shows::iso_utc(SystemTime::now());
         // IPC-07: commands and new clients are drained here, never waited for.
         while let Ok(event) = events.try_recv() {
+            // IPC-50: the lock first; while it is on, everything that changes something is refused.
+            match &event {
+                ipc::Event::Command(ipc::Command::LockSet { on, code }) => {
+                    match lock.set(*on, code) {
+                        Ok(true) => {
+                            control.set_locked(*on);
+                            clients.broadcast(&ipc::locked_delta(*on));
+                        }
+                        Ok(false) => {}
+                        Err(e) => warn(&mut clients, e),
+                    }
+                    continue;
+                }
+                ipc::Event::Command(_)
+                | ipc::Event::ProfileSave { .. }
+                | ipc::Event::ShowOpened(_)
+                    if lock.is_on() =>
+                {
+                    warn(&mut clients, ipc::LOCKED);
+                    continue;
+                }
+                _ => {}
+            }
             let result = match event {
                 ipc::Event::Connected(tx) => {
                     clients.add(
@@ -222,6 +252,7 @@ fn main() {
                             &undo_info(&history),
                             &control.snapshot(),
                             clients.messages(),
+                            lock.is_on(),
                         ),
                     );
                     for w in std::mem::take(&mut pending) {
@@ -348,6 +379,7 @@ fn main() {
                             &undo_info(&history),
                             &control.snapshot(),
                             clients.messages(),
+                            lock.is_on(),
                         ));
                         for w in &next.warnings {
                             warn(&mut clients, w);
@@ -683,7 +715,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         // Handled before `apply` (SHW-15).
         Show(_) => Ok(()),
         // Handled by the control layer on the tick (CTL-40).
-        Control(_) | ControlMapping { .. } => Ok(()),
+        Control(_) | LockSet { .. } | ControlMapping { .. } => Ok(()),
         PatchAdd { add, profile } => {
             if let Some(p) = profile.filter(|_| !engine.has_profile(&add.profile)) {
                 // ponytail: a refused add leaves the installed profile unused in the show.
@@ -900,6 +932,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CueView { .. }
         | PatchProfile { .. }
         | Control(_)
+        | LockSet { .. }
         | ControlMapping { .. }
         | Library(_)
         | OutputPorts
@@ -2955,6 +2988,10 @@ mod tests {
             r#"{"v":1,"cmd":"control.mapping","name":"nano"}"#,
             Class::Neutral,
         ),
+        (
+            r#"{"v":1,"cmd":"lock.set","on":true,"code":"1"}"#,
+            Class::Neutral,
+        ),
     ];
 
     #[test]
@@ -4562,6 +4599,7 @@ mod tests {
                 &ipc::UndoInfo::default(),
                 &serde_json::Value::Null,
                 &[],
+                false,
             );
             serde_json::from_str::<serde_json::Value>(&s).unwrap()["palettes"].clone()
         };
