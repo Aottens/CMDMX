@@ -163,7 +163,7 @@ lists) store, so they come first.
 - **PAL-19** Patch changes: removing fixtures (PAT-05) removes their per-fixture entries from
   every palette; a palette left without values stays (with its legend) and resolves nothing.
   Changing a fixture's mode keeps the stored values; an attribute the new mode lacks resolves
-  nothing for that fixture.
+  nothing for that fixture, with a warning (PAT-28, proposed). Removal also reaches palette effects (PAT-26, proposed).
 - **PAL-20** Legend and icon: `legend` is 0–32 characters; an empty legend shows the window name
   and number ("Colour 1", "Position 2", "Beam 3"). `icon` is an icon id from the built-in
   library (PAL-22) or `null` for the automatic icon (PAL-21).

@@ -13,6 +13,7 @@ the website, DECISIONS 2026-10-27 *own website*), IPC-01/08 (`ipc.md`), SHW-11
 (`showfile.md`), LIB-13 (`fixture-library.md`), CTL-53 (`control-surfaces.md`).
 
 REL-24, REL-25 and the amendment of REL-13: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
+REL-26..28 and their amendment of REL-25: proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1).
 
 ## Purpose
 The church Mac runs CMDMX from a DMG that GitHub builds from a version tag: drag the app
@@ -111,6 +112,22 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
 - **REL-25** (approved by owner 2026-11-01 (IDEA-35 batch A, P1-25)) After any restart of a daemon the app owns, the amber line and the Messages sheet
   (UI-39) say "Engine restarted: the show is back, nothing is running". A restart brings back the saved show
   and live state starts fresh (`showfile.md`, owner decision 3): the operator must know the stage changed.
+- **REL-26** (amends REL-25) "The show is back" is said when it is true. Today it is set right after the process
+  starts, before anything is loaded. While a restart is pending the note stays "Engine exited (code N), restarting"
+  (REL-12, REL-24). Only at the first snapshot from the new engine does it become `Engine restarted: <show> is back,
+  nothing is running`, with the show name that snapshot carries, so an engine that came back with another show or
+  an empty one says so. An engine that dies before that never says it. Manual run: REL-28's.
+- **REL-27** That line ends. It stays until the first command the operator gives from this app, as the message zone
+  does (UI-19), and stays in the Messages sheet (UI-39). Today it stays in the status bar until the app quits. The line
+  "Another engine is running on port 7319" stays as long as that is so.
+- **REL-28** A failing engine does not hammer. The restart waits 2 s, as REL-12 says, then 4, 8, 16 and 30 s, and
+  stays at 30 s; an engine that ran 60 s starts the count again. A failed `Process.run` counts the same. From the
+  third failure in a row the note is one steady line, `Engine does not start (code N), trying every 30 s. Log:
+  ~/Library/Logs/CMDMX/daemon.log`, which goes when an engine connects. It never gives up: a show-proof console keeps
+  trying while it is open, and `stop()` ends the wait (REL-13). The Messages sheet gets a line per change of text, not
+  per attempt; today it gets two lines every 2 s (run `tests/manual/runs/2026-11-02-A2-checks.md`). Manual
+  run: a bundle whose `cmdmx-daemon` is `exit 1`: the waits, the steady line, no "back", the sheet; then
+  a real daemon in its place: connected, the "back" line, gone at the next command.
 
 ### First launch on a Mac
 - **REL-15** (amended by REL-22) The release notes and `tests/hardware/release.md` give the install steps for an
@@ -248,3 +265,11 @@ The questions and the recommended answers the owner chose:
    Recommended: ad hoc with a warning, so forks and tests without the secrets still build.
 4. **First notarised version:** the next tag after the build task is merged (e.g. `v0.2.0`), and
    from then on the site is announced (DECISIONS 2026-10-27). Recommended: yes.
+
+## Open questions (P1-26, owner)
+1. **REL-27, when does "Engine restarted … nothing is running" go?** *Recommend the first command from this app*,
+   like the message zone: whoever acts has seen it. A timer can run out while nobody looks, and a
+   click to dismiss is one more thing in a show.
+2. **REL-28, keep trying or stop?** *Recommend keep trying at 30 s, never stop*: an engine that fails on a full disk or a
+   busy port can recover, and nothing else would bring it back. Stopping after n tries needs a Retry button
+   and an operator who sees it.

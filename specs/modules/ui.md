@@ -458,6 +458,11 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   (OUT-37, which shows state and detail per node), a click on the Control dot (CTL-43) the Control screen.
   The hover text stays.
 
+- **UI-41** (proposed 2026-11-02 (IDEA-35 batch A2, P1-26), waits for the owner (gate 1)) A Flash or Swop held with the mouse when the cover comes (UI-38; the prompt's Enter from
+  the Mac keyboard, or a second client's lock): letting go ends it (IPC-53). When the cover takes the press away, so
+  the view never sees the release, the app sends the release the moment the cover comes. Which of the two happens
+  only a real mouse can show (`tests/manual/app-main-screen.md`).
+
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
   zone against the sketch. `tests/manual/app-programmer.md` and `tests/manual/app-patch.md` keep

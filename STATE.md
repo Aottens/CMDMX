@@ -19,7 +19,7 @@ lines in `tests/manual/selection-orders.md`. Released in v0.2.5.
 
 Feature work next: the everyday gaps (IDEA-35, `docs/research/everyday-gaps.md`), all in phase 1 and in
 order, batch A to G (owner, 2026-11-01); batch A is specified (P1-25); SPF-04, SPF-01, SPF-02, SPF-05, SPF-06, SPF-07, SPF-08, SPF-09, SPF-10 and SPF-11 are done, SPF-03 waits for its sleep run, the last open task of the batch.
-Batch A is released as v0.3.0 (2026-11-02); the second gap review added A2, H, I and J (`docs/research/everyday-gaps.md`). Order (owner, 2026-11-02): A2, H, B to G, I, J; I1 and I3 go with B. A sub-release with a gap review follows each batch that changes how an operator works (REL rule, DECISIONS 2026-11-02): A2 is a patch, H 0.4.0, B 0.5.0.
+Batch A is released as v0.3.0 (2026-11-02); the second gap review added A2, H, I and J (`docs/research/everyday-gaps.md`). Order (owner, 2026-11-02): A2, H, B to G, I, J; I1 and I3 go with B. A sub-release with a gap review follows each batch that changes how an operator works (REL rule, DECISIONS 2026-11-02): A2 is a patch, H 0.4.0, B 0.5.0. A2 is proposed as P1-26 and waits for gate 1 (see *Owner to decide*).
 
 Parallel track: phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
@@ -67,6 +67,7 @@ Never run the Demo show on the real rig: its demo fixtures on 9–150 light real
   request through leefilters.com/contact on 2026-10-28 (answer to aottens@gmail.com).
 
 ## Owner to decide
+- P1-26 (IDEA-35 batch A2): approve PAT-26..28, IPC-53, UI-41, REL-26..28 and the four open questions at the end of `patch.md`, `ipc.md` and `release.md`; then DEF-01..05.
 - When to join the Apple Developer Program (postponed for cost, VS8-09); then for VS8-08/10: join the Apple Developer Program, as Colourmotion if it
   is a registered business (D-U-N-S number) or else as an individual; make the Developer ID
   Application certificate and an App Store Connect API key; set the five repo secrets (REL-20).
