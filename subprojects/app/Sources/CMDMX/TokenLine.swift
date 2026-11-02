@@ -105,6 +105,8 @@ enum MacKeys {
             if chord == .command { engine.undo() } else { engine.redo() }
             return true
         }
+        // UI-39: with the Messages sheet open the keypad stays out of it, so Esc reaches the sheet.
+        if ui.messagesOpen { return false }
         // CTL-42: Esc ends Learn mode (and cancels an armed Learn), whatever the Keys toggle says.
         // Also from a text field: Esc there only drops the edit.
         if event.keyCode == 53, chord.isEmpty, ui.learnMode || engine.control.learn != nil {

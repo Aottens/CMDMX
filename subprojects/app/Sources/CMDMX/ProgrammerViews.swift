@@ -178,9 +178,17 @@ struct AttributeBar: View {
             .background(RoundedRectangle(cornerRadius: radius).fill(t.field))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
 
-            // Only warnings and errors land here (IPC-17).
+            // Warnings, errors and notices land here (IPC-17); UI-39: the count and a click open the Messages sheet.
+            if engine.unseenMessages > 0 {
+                Button { ui.messagesOpen = true } label: {
+                    Text("\(engine.unseenMessages)").font(Typo.ui(11, .semibold)).foregroundStyle(t.amber)
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.amber, lineWidth: 1))
+                }.buttonStyle(.plain).fixedSize().help("Warnings since Messages was last open")
+            }
             Text(engine.lastMessage ?? " ").font(Typo.ui(11)).foregroundStyle(t.amber).lineLimit(1)
                 .truncationMode(.tail).frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle()).onTapGesture { ui.messagesOpen = true }
 
             HStack(spacing: 4) {
                 Text(verbatim: !programmer.inProgrammer.isEmpty ? "\(Set(programmer.inProgrammer.map(\.fixture)).count) fx · \(touchedGroups)" : "empty")

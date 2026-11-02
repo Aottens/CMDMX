@@ -32,7 +32,7 @@ When a device is unplugged it goes **Missing** with one warning, and keeps its m
 again and it is back within two seconds, with its motor faders and lights up to date.
 
 The **Control** dot in the status bar shows the worst state of the enabled devices and OSC. It is
-amber when something is missing or busy; hover over it to see which.
+amber when something is missing or busy; hover over it to see which. A click on it opens the Control screen.
 
 ## Mappings
 

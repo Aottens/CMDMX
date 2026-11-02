@@ -99,6 +99,23 @@ Art-Net and sACN. Ask the owner first when Lightkey runs or a rig is on the netw
 - [ ] Nothing that worked before is lost: faders 1–8, GM, the attribute bar wheels and command
       line, Record + group still work (`tests/manual/app-programmer.md` spot checks)
 
+## Messages sheet and dots (UI-39, UI-40, IPC-51, IPC-52, REL-12, REL-25)
+Keys off unless a line says otherwise. A warning: `Fixture 999 Enter` on the keypad.
+- [ ] Message zone empty: a click on it opens the sheet; Done closes it; Escape closes it
+- [ ] A warning shows in amber on the line and a count `1` next to it. A second one: `2`
+- [ ] The next command clears the line, the count stays
+- [ ] A click on the count opens the sheet, newest first: local time `hh:mm:ss`, level, full text, wrapped; text can be selected and copied
+- [ ] After closing, the count is gone. A warning while the sheet is open does not leave a count behind
+- [ ] A notice (`Group 1 Enter`: `Group 1 …`) is in the sheet and does not raise the count
+- [ ] A `say` hint (Copy, then tap an empty group cell) shows on the line, is not in the sheet, no count
+- [ ] An `error` reply (import a broken profile file) is in the sheet with level `error` and raises the count
+- [ ] A node's state change (IPC-52: an unplugged or wrong serial node) is in the sheet as a warning; back to Ok as a notice
+- [ ] Engine down and up (`kill` the daemon, start it again): `Engine offline` and `Engine connected` in the sheet; the engine's earlier lines stay; none shows twice after the reconnect
+- [ ] App restart with the engine running: the engine's history is back with its own times; the earlier `error` and the app's own lines are gone
+- [ ] Bundled app: `kill -9` the engine: `Engine exited (code …), restarting` and `Engine restarted: the show is back, nothing is running` in the sheet
+- [ ] Keys on, sheet open: Escape closes the sheet; digits and Space do nothing while it is open (no token, no Go)
+- [ ] A click on the Art-Net dot opens the Output screen; on the Control dot the Control screen; the hover text still shows on a dot with a problem
+
 ## UX-02b — attribute bar, Programmer window, colour picker
 
 ### Attribute bar (UI-20)

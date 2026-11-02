@@ -42,7 +42,8 @@ selection replaces the current one.
   [The gel book](#the-gel-book)). With fixtures selected, `Lee 201 Enter` does the same.
 
 **Back** removes the last word, **Exit** empties the line. A line the engine cannot use is refused
-with a message next to it, and nothing changes.
+with a message next to it, and nothing changes. A click on the message opens the history (see
+[Messages](reference.md#messages)).
 
 With **Keys** on in the status bar, the Mac keyboard types into the line as well: the digits, `-`
 for Thro, `+` for And, `@`, `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter and

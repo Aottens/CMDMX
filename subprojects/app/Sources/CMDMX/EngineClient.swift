@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 /// Connection state to cmdmx-daemon.
 enum EngineConnection: Equatable {
@@ -1243,6 +1244,14 @@ struct ShowEntry: Decodable, Identifiable, Equatable {
     }
 }
 
+/// UI-39: one line of the Messages sheet; `level` is "warning", "notice" or "error".
+struct MessageLine: Identifiable {
+    let id = UUID()
+    let at: Date
+    let level: String
+    let message: String
+}
+
 /// Thin IPC client: WebSocket to cmdmx-daemon (specs/modules/ipc.md, IPC-03..09).
 /// Holds no lighting logic; local state is a mirror of the engine's snapshot and deltas.
 @MainActor
@@ -1275,6 +1284,13 @@ final class EngineClient: ObservableObject {
     /// Latest `warning` / `error` / `notice` message from the engine; cleared when a
     /// `programmer.command` is sent (IPC-17).
     @Published private(set) var lastMessage: String?
+    /// UI-39: the Messages sheet's history, oldest first, at most `messageCap` lines. Merged from the
+    /// engine's snapshot (IPC-51) plus the app's own lines; `unseenMessages` counts warnings and errors
+    /// since the sheet was last open.
+    @Published private(set) var messageLog: [MessageLine] = []
+    @Published private(set) var unseenMessages = 0
+    private static let messageCap = 500
+    private var launcherNotes: AnyCancellable?
     /// IPC-31: what Undo / Redo would do now; nil when there is nothing.
     @Published private(set) var undoLabel: String?
     @Published private(set) var redoLabel: String?
@@ -1359,7 +1375,23 @@ final class EngineClient: ObservableObject {
 
     init() {
         rebuildSlots()
+        // UI-39: the launcher's notes (REL-12, 24, 25); removeDuplicates keeps a failing launch from flooding.
+        launcherNotes = DaemonLauncher.shared.$note.compactMap { $0 }.removeDuplicates()
+            .sink { [weak self] in self?.addMessage(level: "warning", message: $0, at: Date()) }
         Task { await connectForever() }
+    }
+
+    func messagesSeen() { unseenMessages = 0 }
+
+    private func addMessage(level: String, message: String, at: Date) {
+        messageLog.append(MessageLine(at: at, level: level, message: message))
+        if messageLog.count > Self.messageCap { messageLog.removeFirst(messageLog.count - Self.messageCap) }
+        if level != "notice" { unseenMessages += 1 }
+    }
+
+    /// IPC-51: a missing or unparsable timestamp counts as now.
+    private static func messageDate(_ at: String?) -> Date {
+        at.flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
     }
 
     // MARK: - Commands (app → engine)
@@ -1875,6 +1907,7 @@ final class EngineClient: ObservableObject {
         while !Task.isCancelled {
             await runOneConnection()
             socket = nil
+            if connection == .online { addMessage(level: "warning", message: "Engine offline", at: Date()) }
             connection = .offline
             outputs = []
             control = ControlState(); controlMapping = nil
@@ -1900,6 +1933,8 @@ final class EngineClient: ObservableObject {
 
     // MARK: - Messages (engine → app)
 
+    private struct WireMessage: Decodable { let at: String?; let level: String; let message: String }
+
     /// Union of all server message shapes; unused fields stay nil.
     private struct Incoming: Decodable {
         let type: String
@@ -1914,6 +1949,9 @@ final class EngineClient: ObservableObject {
         fileprivate let playbackSettings: Tolerant<PlaybackSettings>?
         let level: Double?
         let message: String?
+        let at: String?
+        /// IPC-51: the snapshot's history.
+        fileprivate let messages: Tolerant<[Tolerant<WireMessage>]>?
         fileprivate let fixtures: Tolerant<[FixtureInfo]>?   // a `cue.view` reply has other fixtures
         let groups: [GroupInfo]?
         /// The snapshot's `connected` (an id or null) and the `connected` delta's `id`.
@@ -1931,7 +1969,7 @@ final class EngineClient: ObservableObject {
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, level, message, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
+            case type, v, page, pages, playbacks, dbo, on, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -1987,6 +2025,16 @@ final class EngineClient: ObservableObject {
             if let show = incoming.show?.value { self.show = show }
             let labels = (try? JSONDecoder().decode(SnapshotUndo.self, from: data))?.undo?.value
             undoLabel = labels?.undo; redoLabel = labels?.redo
+            // UI-39: merge, the app keeps earlier lines across a daemon restart; known lines are skipped.
+            var known = Set(messageLog.map { "\($0.at.timeIntervalSince1970)|\($0.level)|\($0.message)" })
+            var added = false
+            for m in (incoming.messages?.value ?? []).compactMap(\.value) {
+                let at = Self.messageDate(m.at)
+                guard known.insert("\(at.timeIntervalSince1970)|\(m.level)|\(m.message)").inserted else { continue }
+                addMessage(level: m.level, message: m.message, at: at); added = true
+            }
+            if added { messageLog.sort { $0.at < $1.at } }
+            if connection != .online { addMessage(level: "notice", message: "Engine connected", at: Date()) }
             connection = .online
             listShows()
         case "page":
@@ -2080,11 +2128,10 @@ final class EngineClient: ObservableObject {
             if let level = incoming.level {
                 if gmHeld { gmEngineLevel = level.clamped01; releaseGMIfEchoed() } else { grandMaster = level.clamped01 }
             }
-        case "notice": // PRG-96: informational, not logged
+        case "notice", "warning", "error": // PRG-96: a notice is informational; UI-39: all three go to the Messages list
             lastMessage = incoming.message
-        case "warning", "error":
-            lastMessage = incoming.message
-            print("engine \(incoming.type): \(incoming.message ?? "")")
+            addMessage(level: incoming.type, message: incoming.message ?? "", at: Self.messageDate(incoming.at))
+            if incoming.type != "notice" { print("engine \(incoming.type): \(incoming.message ?? "")") }
         default:
             break
         }
