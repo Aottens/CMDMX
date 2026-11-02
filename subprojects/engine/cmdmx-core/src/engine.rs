@@ -2277,6 +2277,26 @@ impl Engine {
         }
     }
 
+    /// IPC-53: whether the handle button is down now (Flash or Swop held).
+    pub fn button_held(&self, id: PlaybackId, button: HandleButton) -> bool {
+        let Some(playback) = self.playbacks.get(&id) else {
+            return false;
+        };
+        let pair = self.button_pair(playback);
+        let function = match button {
+            HandleButton::Upper => pair[0],
+            HandleButton::Lower => pair[1],
+        };
+        let Some(state) = self.playback_state(id) else {
+            return false;
+        };
+        match function {
+            Button::Flash => state.flash,
+            Button::Swop => state.swop,
+            _ => false,
+        }
+    }
+
     /// CUE-33: a tap of a chase or a BPM master, timed `at` the moment the daemon received it.
     /// The first tap, or one more than 2 s after the last, starts a series and changes nothing;
     /// each further tap sets the BPM from the mean of the series' last three intervals (1–600,

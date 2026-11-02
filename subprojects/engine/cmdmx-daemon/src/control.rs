@@ -855,8 +855,17 @@ impl Control {
                 }
                 continue;
             }
-            // IPC-50: dropped without a trace.
+            // IPC-50: dropped without a trace. IPC-53: but the release of a held button passes.
             if self.locked {
+                let mapping = dev.mapping.as_ref().and_then(|n| self.mappings.get(n));
+                let want = Input::Midi(m.input);
+                let lets_go = dev.enabled
+                    && (mapping.and_then(|map| map.bindings.iter().find(|b| b.input == want)))
+                        .zip(dev.states.get(&m.input))
+                        .is_some_and(|(b, s)| s.lets_go(b, b.read(&m)));
+                if lets_go {
+                    dev.pending.push(m);
+                }
                 continue;
             }
             self.last_input = Some(LastInput {
@@ -1721,8 +1730,19 @@ impl Control {
         };
         let mut learned = None;
         for (input, reading) in events {
-            // IPC-50: the key state followed; nothing acts.
+            // IPC-50: the key state followed; nothing acts. IPC-53: but a held key lets go.
             if self.locked {
+                let want = Input::Deck(input);
+                let mapping = dev.mapping.as_ref().and_then(|n| self.mappings.get(n));
+                let lets_go = dev.enabled
+                    && (mapping.and_then(|map| {
+                        (map.bindings.iter()).find(|b| b.input == want && deck::on_page(b, k.page))
+                    }))
+                    .zip(k.states.get(&input))
+                    .is_some_and(|(b, s)| s.lets_go(b, reading));
+                if lets_go {
+                    k.pending.push((input, reading));
+                }
                 continue;
             }
             let value = match reading {

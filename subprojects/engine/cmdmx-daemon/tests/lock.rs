@@ -433,3 +433,200 @@ fn ipc_50_osc_is_dropped_on_the_real_tick_without_a_warning() {
         m["type"] == "grand_master" && m["level"].as_f64() == Some(0.5)
     });
 }
+
+// --- IPC-53 what is held when the lock comes ----------------------------------
+
+const LOCKED: &str = "Console is locked";
+
+/// The daemon answered a later request and no warning came before it.
+fn no_warning(ws: &mut WebSocket<TcpStream>) {
+    send(ws, json!({"cmd": "output.ports"}));
+    until(ws, "the ports, or a warning before them", |m| {
+        assert_ne!(m["type"], "warning", "{m}");
+        m["type"] == "ports"
+    });
+}
+
+/// A playback of the snapshot whose buttons are these.
+fn with_buttons(snapshot: &Value, upper: &str, lower: &str) -> u64 {
+    let p = snapshot["playbacks"].as_array().unwrap().iter();
+    p.into_iter()
+        .find(|p| p["buttons"] == json!([upper, lower]))
+        .unwrap()["id"]
+        .as_u64()
+        .unwrap()
+}
+
+fn flash_is(snapshot: &Value, id: u64) -> bool {
+    let mut p = snapshot["playbacks"].as_array().unwrap().iter();
+    p.find(|p| p["id"] == id).unwrap()["flash"] == true
+}
+
+fn saw_flash(ws: &mut WebSocket<TcpStream>, id: u64, on: bool) {
+    until(ws, "the flash delta, or a warning before it", |m| {
+        assert_ne!(m["type"], "warning", "{m}");
+        m["type"] == "playback" && m["id"] == id && m["flash"] == on
+    });
+}
+
+#[test]
+fn ipc_53_a_client_lets_go_of_a_flash_held_when_the_lock_came_once() {
+    let dir = folder("ipc53-flash");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    let id = with_buttons(&recv(&mut app), "Swop", "Flash");
+    send(
+        &mut app,
+        json!({"cmd": "playback.flash", "id": id, "on": true}),
+    );
+    saw_flash(&mut app, id, true);
+
+    lock_set(&mut app, true, "1234");
+    saw_locked(&mut app, true);
+    assert!(flash_is(&fresh_snapshot(port), id), "the lock ends nothing");
+    send(
+        &mut app,
+        json!({"cmd": "playback.flash", "id": id, "on": false}),
+    );
+    saw_flash(&mut app, id, false);
+    no_warning(&mut app);
+
+    send(
+        &mut app,
+        json!({"cmd": "playback.flash", "id": id, "on": false}),
+    );
+    saw_warning(&mut app, LOCKED);
+    send(
+        &mut app,
+        json!({"cmd": "playback.flash", "id": id, "on": true}),
+    );
+    saw_warning(&mut app, LOCKED);
+    assert!(!flash_is(&fresh_snapshot(port), id));
+}
+
+#[test]
+fn ipc_53_a_client_lets_go_of_a_swop_and_of_a_button_doing_flash_or_swop() {
+    let dir = folder("ipc53-swop");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    let id = with_buttons(&recv(&mut app), "Swop", "Flash");
+    let button = |which: &str, on: bool| json!({"cmd": "playback.button", "id": id, "button": which, "on": on});
+    send(&mut app, button("upper", true));
+    send(&mut app, button("lower", true));
+    saw_flash(&mut app, id, true);
+
+    lock_set(&mut app, true, "1234");
+    saw_locked(&mut app, true);
+    send(&mut app, button("lower", false));
+    saw_flash(&mut app, id, false);
+    send(&mut app, button("upper", false));
+    no_warning(&mut app);
+    send(&mut app, button("upper", false));
+    saw_warning(&mut app, LOCKED);
+    send(&mut app, button("lower", false));
+    saw_warning(&mut app, LOCKED);
+
+    // The same through `playback.swop`.
+    lock_set(&mut app, false, "1234");
+    saw_locked(&mut app, false);
+    send(
+        &mut app,
+        json!({"cmd": "playback.swop", "id": id, "on": true}),
+    );
+    no_warning(&mut app);
+    lock_set(&mut app, true, "1234");
+    saw_locked(&mut app, true);
+    send(
+        &mut app,
+        json!({"cmd": "playback.swop", "id": id, "on": false}),
+    );
+    no_warning(&mut app);
+    send(
+        &mut app,
+        json!({"cmd": "playback.swop", "id": id, "on": false}),
+    );
+    saw_warning(&mut app, LOCKED);
+}
+
+#[test]
+fn ipc_53_a_button_doing_something_else_stays_refused() {
+    let dir = folder("ipc53-go");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    recv(&mut app);
+    // A list of two cues on page 9 slot 1 (free in the demo show): its upper button is Go.
+    send(&mut app, json!({"cmd": "programmer.select", "fixture": 4}));
+    send(
+        &mut app,
+        json!({"cmd": "programmer.set", "attribute": "Dimmer", "value": 1.0}),
+    );
+    send(
+        &mut app,
+        json!({"cmd": "playback.record", "page": 9, "slot": 1}),
+    );
+    send(
+        &mut app,
+        json!({"cmd": "playback.record", "page": 9, "slot": 1, "mode": "Append"}),
+    );
+    let stored = until(&mut app, "the recorded list", |m| {
+        m["playbacks"]
+            .as_array()
+            .is_some_and(|p| p.iter().any(|p| p["buttons"] == json!(["Go", "Flash"])))
+    });
+    let id = with_buttons(&stored, "Go", "Flash");
+    lock_set(&mut app, true, "1234");
+    saw_locked(&mut app, true);
+    send(
+        &mut app,
+        json!({"cmd": "playback.button", "id": id, "button": "upper", "on": false}),
+    );
+    saw_warning(&mut app, LOCKED);
+}
+
+#[test]
+fn ipc_53_a_latched_flash_stays() {
+    let dir = folder("ipc53-latch");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    let id = with_buttons(&recv(&mut app), "Swop", "Flash");
+    send(&mut app, json!({"cmd": "playback.latch", "id": id}));
+    saw_flash(&mut app, id, true);
+
+    lock_set(&mut app, true, "1234");
+    saw_locked(&mut app, true);
+    send(
+        &mut app,
+        json!({"cmd": "playback.flash", "id": id, "on": false}),
+    );
+    saw_warning(&mut app, LOCKED);
+    assert!(flash_is(&fresh_snapshot(port), id));
+}
+
+#[test]
+fn ipc_53_held_through_the_unlock_it_is_released_as_usual() {
+    let dir = folder("ipc53-unlock");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    let id = with_buttons(&recv(&mut app), "Swop", "Flash");
+    send(
+        &mut app,
+        json!({"cmd": "playback.flash", "id": id, "on": true}),
+    );
+    saw_flash(&mut app, id, true);
+
+    lock_set(&mut app, true, "1234");
+    saw_locked(&mut app, true);
+    lock_set(&mut app, false, "1234");
+    saw_locked(&mut app, false);
+    assert!(flash_is(&fresh_snapshot(port), id));
+    send(
+        &mut app,
+        json!({"cmd": "playback.flash", "id": id, "on": false}),
+    );
+    saw_flash(&mut app, id, false);
+}

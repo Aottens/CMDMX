@@ -1725,3 +1725,165 @@ fn ipc_50_devices_still_come_and_go_while_locked() {
     ports(&mut c, &[port("nano", true)]);
     assert_eq!(device(&c.snapshot(), "nano")["state"], "Ok");
 }
+
+// --- IPC-53 what is held when the lock comes ----------------------------------
+
+const HELD: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"note","channel":1,"number":60},"action":"upper 1"},
+  {"input":{"kind":"note","channel":1,"number":61},"action":"dbo"},
+  {"input":{"kind":"note","channel":1,"number":62},"action":"upper 2","button_mode":"toggle"},
+  {"input":{"kind":"pitchbend","channel":1},"action":"lower 1"},
+  {"input":{"kind":"cc","channel":1,"number":7},"action":"fader 1","pickup":false}
+]}"#;
+
+fn held(test: &str) -> Control {
+    let dir = tmp(test);
+    fs::write(dir.join("control/nano.json"), HELD).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    c
+}
+
+/// Pitch bend ch 1 at a share of its travel: a continuous input (a 7-bit CC on a button is a button, CTL-12).
+fn bend(share: f32) -> [u8; 3] {
+    let v = (share * 16383.0) as u16;
+    [0xE0, (v & 0x7F) as u8, (v >> 7) as u8]
+}
+
+#[test]
+fn ipc_53_a_held_button_lets_go_once_under_the_lock() {
+    let mut c = held("ipc53-button");
+    let (mut e, mut h) = (engine(), History::default());
+    let id = slot(&e, 1, 1);
+    packet(&mut c, "nano", &[0x90, 60, 127]);
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(e.playback_state(id).unwrap().swop);
+
+    c.set_locked(true);
+    assert!(e.playback_state(id).unwrap().swop, "the lock ends nothing");
+    packet(&mut c, "nano", &[0x90, 60, 0]);
+    let cmds = c.commands(&e, 0.1);
+    assert_eq!(cmds.len(), 1, "{cmds:?}");
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(!e.playback_state(id).unwrap().swop, "letting go lets go");
+    assert!(c.take_messages().is_empty(), "without a warning");
+
+    packet(&mut c, "nano", &[0x90, 60, 0]);
+    assert!(c.commands(&e, 0.2).is_empty(), "once");
+}
+
+#[test]
+fn ipc_53_a_held_dbo_lets_go_under_the_lock() {
+    let mut c = held("ipc53-dbo");
+    let (mut e, mut h) = (engine(), History::default());
+    packet(&mut c, "nano", &[0x90, 61, 127]);
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(e.dbo());
+
+    c.set_locked(true);
+    assert!(e.dbo());
+    packet(&mut c, "nano", &[0x90, 61, 0]);
+    let cmds = c.commands(&e, 0.1);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(!e.dbo());
+}
+
+#[test]
+fn ipc_53_a_fader_as_a_button_lets_go_below_one_half() {
+    let mut c = held("ipc53-fader");
+    let (mut e, mut h) = (engine(), History::default());
+    let id = slot(&e, 1, 1);
+    packet(&mut c, "nano", &bend(1.0));
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(e.playback_state(id).unwrap().flash);
+
+    c.set_locked(true);
+    packet(&mut c, "nano", &bend(0.8));
+    assert!(c.commands(&e, 0.1).is_empty(), "still above");
+    packet(&mut c, "nano", &bend(0.1));
+    let cmds = c.commands(&e, 0.2);
+    assert_eq!(cmds.len(), 1, "{cmds:?}");
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(!e.playback_state(id).unwrap().flash);
+
+    // Up and down again under the lock: a press that was dropped, and its release.
+    packet(&mut c, "nano", &bend(1.0));
+    packet(&mut c, "nano", &bend(0.1));
+    assert!(c.commands(&e, 0.3).is_empty());
+    assert!(!e.playback_state(id).unwrap().flash);
+}
+
+#[test]
+fn ipc_53_a_real_fader_low_under_the_lock_stays_dropped() {
+    let mut c = held("ipc53-level");
+    let (mut e, mut h) = (engine(), History::default());
+    let id = slot(&e, 1, 1);
+    packet(&mut c, "nano", &cc7(127));
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    e.tick(0.0);
+    let before = level(&e, id);
+
+    c.set_locked(true);
+    packet(&mut c, "nano", &cc7(10));
+    assert!(c.commands(&e, 0.1).is_empty(), "a level is no release");
+    assert_eq!(level(&e, id), before);
+}
+
+#[test]
+fn ipc_53_a_press_under_the_lock_and_its_release_do_nothing() {
+    let mut c = held("ipc53-press");
+    let e = engine();
+    c.set_locked(true);
+    packet(&mut c, "nano", &[0x90, 60, 127]);
+    packet(&mut c, "nano", &[0x90, 60, 0]);
+    packet(&mut c, "nano", &[0x90, 61, 127]);
+    packet(&mut c, "nano", &[0x90, 61, 0]);
+    assert!(c.commands(&e, 0.0).is_empty());
+    assert!(c.take_messages().is_empty());
+}
+
+#[test]
+fn ipc_53_a_toggle_binding_stays_on_and_its_release_stays_dropped() {
+    let mut c = held("ipc53-toggle");
+    let (mut e, mut h) = (engine(), History::default());
+    let id = slot(&e, 1, 2);
+    packet(&mut c, "nano", &[0x90, 62, 127]);
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(e.playback_state(id).unwrap().swop);
+
+    c.set_locked(true);
+    packet(&mut c, "nano", &[0x90, 62, 0]);
+    packet(&mut c, "nano", &[0x90, 62, 127]);
+    packet(&mut c, "nano", &[0x90, 62, 0]);
+    assert!(c.commands(&e, 0.1).is_empty());
+    assert!(e.playback_state(id).unwrap().swop);
+}
+
+#[test]
+fn ipc_53_an_input_still_down_at_the_unlock_is_released_as_usual() {
+    let mut c = held("ipc53-unlock");
+    let (mut e, mut h) = (engine(), History::default());
+    let id = slot(&e, 1, 1);
+    packet(&mut c, "nano", &[0x90, 60, 127]);
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+
+    c.set_locked(true);
+    c.set_locked(false);
+    assert!(e.playback_state(id).unwrap().swop);
+    packet(&mut c, "nano", &[0x90, 60, 0]);
+    let cmds = c.commands(&e, 0.1);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(!e.playback_state(id).unwrap().swop);
+}

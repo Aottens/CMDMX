@@ -822,3 +822,44 @@ fn ipc_50_osc_is_dropped_a_new_sender_gets_feedback_and_the_unlock_sends_all_aga
     send(&mut c, A, "/cmdmx/gm", vec![OscArg::Float(0.5)], 0.3);
     assert_eq!(c.commands(&e, 0.3).len(), 1);
 }
+
+// --- IPC-53 what is held when the lock comes ----------------------------------
+
+#[test]
+fn ipc_53_a_held_osc_button_lets_go_once_under_the_lock() {
+    let (mut c, _) = on("held");
+    let mut e = engine();
+    let id = slot(&e, 1, 1);
+    let upper = "/cmdmx/fader/1/upper";
+    send(&mut c, A, upper, vec![OscArg::Float(1.0)], 0.0);
+    send(&mut c, A, "/cmdmx/dbo", vec![OscArg::Float(1.0)], 0.0);
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, cmds).is_empty());
+    assert!(e.playback_state(id).unwrap().swop);
+    assert!(e.dbo());
+
+    c.set_locked(true);
+    send(&mut c, A, upper, vec![OscArg::Float(0.0)], 0.1);
+    send(&mut c, A, "/cmdmx/dbo", vec![OscArg::Float(0.0)], 0.1);
+    let cmds = c.commands(&e, 0.1);
+    assert_eq!(cmds.len(), 2, "{cmds:?}");
+    assert!(run_all(&mut e, cmds).is_empty());
+    assert!(!e.playback_state(id).unwrap().swop);
+    assert!(!e.dbo());
+    assert!(c.take_messages().is_empty(), "without a warning");
+
+    send(&mut c, A, upper, vec![OscArg::Float(0.0)], 0.2);
+    assert!(c.commands(&e, 0.2).is_empty(), "once");
+}
+
+#[test]
+fn ipc_53_an_osc_press_under_the_lock_and_its_release_do_nothing() {
+    let (mut c, _) = on("held-press");
+    let e = engine();
+    c.set_locked(true);
+    let upper = "/cmdmx/fader/1/upper";
+    send(&mut c, A, upper, vec![OscArg::Float(1.0)], 0.0);
+    send(&mut c, A, upper, vec![OscArg::Float(0.0)], 0.0);
+    send(&mut c, A, upper, vec![], 0.0);
+    assert!(c.commands(&e, 0.0).is_empty());
+}

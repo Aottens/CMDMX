@@ -231,6 +231,8 @@ fn main() {
                     }
                     continue;
                 }
+                // IPC-53: the release of a held button passes.
+                ipc::Event::Command(c) if lock.is_on() && lets_go(&engine, c) => {}
                 ipc::Event::Command(_)
                 | ipc::Event::ProfileSave { .. }
                 | ipc::Event::ShowOpened(_)
@@ -596,6 +598,22 @@ fn write_library_file(
         drop(warnings.send(format!(
             "Saved in the show, not in the library: cannot start the writer: {e}"
         )));
+    }
+}
+
+/// IPC-53: a release of a Flash or Swop that was held when the lock came.
+fn lets_go(engine: &Engine, c: &ipc::Command) -> bool {
+    use ipc::Command::*;
+    match c {
+        PlaybackFlash { id, on: false } => engine.playback_state(*id).is_some_and(|s| s.flash),
+        PlaybackSwop { id, on: false } => engine.playback_state(*id).is_some_and(|s| s.swop),
+        PlaybackButton {
+            id,
+            button,
+            on: false,
+            ..
+        } => engine.button_held(*id, *button),
+        _ => false,
     }
 }
 
