@@ -154,7 +154,7 @@ Order approved by owner 2026-11-01, as in this table: what can darken a show fir
 | SPF-05 | App: an adopted engine that dies is restarted, the restart message; run with `kill -9` as REL-24. | REL-24, 25 | S | done (2026-11-01, #215) |
 | SPF-06 | App: level bars never jump (strips, group masters, GM); manual and `tests/manual/app-main-screen.md`. | UI-37 | S | done (2026-11-01, #216) |
 | SPF-07 | App and engine test: *New cue times* in the Settings tab; `pbk_46_…`; manual. | PBK-46 | S | done (2026-11-01, #217) |
-| SPF-08 | Daemon: message history in the snapshot, `at` on messages, node state changes as messages; `ipc_51_…`, `ipc_52_…`. | IPC-51, 52 | S | todo |
+| SPF-08 | Daemon: message history in the snapshot, `at` on messages, node state changes as messages; `ipc_51_…`, `ipc_52_…`. | IPC-51, 52 | S | done (2026-11-02, #218) |
 | SPF-09 | App: Messages sheet with count, the app's own lines, dots that open their screen; manual. Needs SPF-05, SPF-08. | UI-39, 40 | M | todo |
 | SPF-10 | Daemon: `lock.set`, refusals, surfaces dropped, playbacks running on; `ipc_50_…`. | IPC-50 | M | todo |
 | SPF-11 | App: Lock softkey, cover, keypad, refused quit; manual and manual run. Needs SPF-04, SPF-10. | UI-38 | S | todo |

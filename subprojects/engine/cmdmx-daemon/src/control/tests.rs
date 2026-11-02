@@ -721,6 +721,7 @@ fn ctl_39_snapshot_has_the_control_section() {
         },
         &ipc::UndoInfo::default(),
         &c.snapshot(),
+        &[],
     ))
     .unwrap();
     let control = &s["control"];

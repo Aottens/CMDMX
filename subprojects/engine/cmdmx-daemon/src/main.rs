@@ -196,6 +196,7 @@ fn main() {
         eprintln!("library: cannot start the loader thread: {e}");
     }
     let mut clients = ipc::Clients::default();
+    let (library_tx, library_warnings) = std::sync::mpsc::channel::<String>();
     let mut history = History::default();
     let mut published = ipc::Published::new(&engine, outputs.statuses(), &autosave.state());
 
@@ -220,10 +221,11 @@ fn main() {
                             &autosave.state(),
                             &undo_info(&history),
                             &control.snapshot(),
+                            clients.messages(),
                         ),
                     );
                     for w in std::mem::take(&mut pending) {
-                        clients.broadcast(&ipc::warning(&w));
+                        clients.warning(&w);
                     }
                     Ok(())
                 }
@@ -264,7 +266,7 @@ fn main() {
                     saved.map(|()| {
                         let key = format!("{}/{}", profile.manufacturer, profile.model);
                         let fixtures = engine.fixtures().filter(|f| f.profile == key).count();
-                        write_library_file(&library, profile, fixtures, reply);
+                        write_library_file(&library, profile, fixtures, reply, &library_tx);
                     })
                 }
                 // SHW-11/14/15: write the current show at once, then continue in the next one.
@@ -345,6 +347,7 @@ fn main() {
                             &state,
                             &undo_info(&history),
                             &control.snapshot(),
+                            clients.messages(),
                         ));
                         for w in &next.warnings {
                             warn(&mut clients, w);
@@ -356,7 +359,7 @@ fn main() {
             };
             if let Err(e) = result {
                 eprintln!("warning: {e}");
-                clients.broadcast(&ipc::warning(&e.to_string()));
+                clients.warning(&e.to_string());
             }
         }
         // CTL-14: every MIDI message waiting is decoded now; commands go out coalesced (CTL-06).
@@ -422,13 +425,24 @@ fn main() {
             &mut clients,
         );
         outputs.publish(|line| engine.frame(line).map(|f| f.slots()));
+        // IPC-52: a node's state change is a message like any other.
+        for m in outputs.take_messages() {
+            match m {
+                output::NodeMessage::Warning(w) => warn(&mut clients, &w),
+                output::NodeMessage::Notice(n) => clients.notice(&n),
+            }
+        }
+        // IPC-38: library write failures, from their thread.
+        while let Ok(w) = library_warnings.try_recv() {
+            warn(&mut clients, &w);
+        }
         for w in engine.drain_warnings() {
             eprintln!("warning @{:.3}: {}", w.at, w.message);
             clients.last_warning.clone_from(&w.message);
-            clients.broadcast(&ipc::warning(&w.message));
+            clients.warning(&w.message);
         }
         for n in engine.drain_notices() {
-            clients.broadcast(&ipc::notice(&n));
+            clients.notice(&n);
         }
         // IPC-31: the undo delta goes before the others.
         if let Some(msg) = published.undo_delta(&undo_info(&history)) {
@@ -534,25 +548,29 @@ fn write_library_file(
     profile: cmdmx_core::profile::Profile,
     fixtures: usize,
     reply: std::sync::mpsc::SyncSender<String>,
+    warnings: &std::sync::mpsc::Sender<String>,
 ) {
     let lib = Arc::clone(library);
-    let answer = reply.clone();
+    let failed = warnings.clone();
     let spawned = std::thread::Builder::new()
         .name("profile-save".into())
-        .spawn(move || {
-            drop(answer.try_send(ipc::write_user_profile(&lib, &profile, fixtures)));
-        });
+        .spawn(
+            move || match ipc::write_user_profile(&lib, &profile, fixtures) {
+                Ok(saved) => drop(reply.try_send(saved)),
+                Err(w) => drop(failed.send(w)),
+            },
+        );
     if let Err(e) = spawned {
-        let msg = format!("Saved in the show, not in the library: cannot start the writer: {e}");
-        eprintln!("warning: {msg}");
-        drop(reply.try_send(ipc::warning(&msg)));
+        drop(warnings.send(format!(
+            "Saved in the show, not in the library: cannot start the writer: {e}"
+        )));
     }
 }
 
 fn warn(clients: &mut ipc::Clients, msg: &str) {
     eprintln!("warning: {msg}");
     clients.last_warning = msg.to_string();
-    clients.broadcast(&ipc::warning(msg));
+    clients.warning(msg);
 }
 
 /// SHW-11/13: give a job to the saver. A saver that has stopped counts as a failed save.
@@ -4543,6 +4561,7 @@ mod tests {
                 &show,
                 &ipc::UndoInfo::default(),
                 &serde_json::Value::Null,
+                &[],
             );
             serde_json::from_str::<serde_json::Value>(&s).unwrap()["palettes"].clone()
         };
