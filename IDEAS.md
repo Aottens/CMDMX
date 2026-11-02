@@ -62,6 +62,7 @@ the backlog, not the whole idea.
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
 | IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J | 1, in order A2, H, B to G, I, J (owner 2026-11-02) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | triaged; phase confirmed 2026-11-02 | 1 (owner 2026-11-02) | UI |
+| IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
