@@ -60,13 +60,16 @@ struct PlaybackOptionsView: View {
                             case .master: MasterTab(playback: playback)
                             case .settings: SettingsTab()
                             }
-                            if let message = engine.lastMessage {
-                                Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
-                            }
                         }
                         .frame(maxWidth: 560, alignment: .leading)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    // Outside the ScrollView so a refused value's warning is never below the fold.
+                    if let message = engine.lastMessage {
+                        Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
+                            .padding(.horizontal, 14).padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .id(playback.id)

@@ -118,7 +118,7 @@ universe 1 during the run and reports the measured values and times.
 - [ ] Set delay 0.5, fade in 3, fade out 4, overlap 50. Record a new memory: its Times tab shows those four.
 - [ ] Append a cue to the service list and a step to the chase: the new cue and step have those times; the
       earlier cues keep theirs.
-- [ ] Fade in 601 is refused with a warning and the setting stays 3. Fire the new memory: the Art-Net level
+- [ ] Fade in 601 is refused, the warning shows under the tab without scrolling and the setting stays 3. Fire the new memory: the Art-Net level
       takes 3 s after 0.5 s delay.
 - [ ] Wait 5 s (autosave), restart the daemon: the four values are back. Set them to 0, 0, 0, 100.
 

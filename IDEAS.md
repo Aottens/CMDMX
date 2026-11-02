@@ -61,6 +61,7 @@ the backlog, not the whole idea.
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
 | IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | triaged; phase and order confirmed 2026-11-01 | 1, batches A to G in order (owner 2026-11-01) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
+| IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | new; phase to confirm | 1, proposed | UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -769,3 +770,11 @@ the app."
 **What it touches now:** batch A is specified (P1-25, SPF-01..11); the other batches nothing until specified.
 **Outcome (2026-11-01):** owner: all of it in phase 1, worked through in order, A to G.
 **Owner's answer (2026-11-01):** when batch A is done, the version goes straight to 0.3.0, followed by a new gap review.
+
+### IDEA-36 — A refused number stays in its field (2026-11-02)
+**Found in:** the SPF-07 run; not from the owner.
+**What happens:** type fade in 602 in Playback Options: the engine refuses it and keeps 3, the warning shows, but the field goes on
+showing 602 until the tab is reopened. `NumberField` shows what was sent (VS3-05 run: the old value looked like a jump back), and
+the file's header says a refused value stays as it was. Every `NumberField` in Playback Options does this, also a cue's own times.
+**Triage:** proposed phase 1, batch A or B of IDEA-35; `ui.md`. Nothing recorded wrong: the show holds the old value.
+**Open question:** how the field learns of the refusal, since warnings carry no field; and whether it snaps back at once or on leaving the field.
