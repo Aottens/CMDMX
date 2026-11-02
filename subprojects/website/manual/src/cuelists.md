@@ -21,7 +21,8 @@ handle: `Record`, `4.5`, tap the handle records Q4.5. If that cue exists, the so
 **Replace**, **Merge** or **Update**.
 
 Cue numbers go from 0.001 to 9999.999, with up to three decimals. The list always runs them in
-number order. A new cue gets the default times (0 s) and waits for Go.
+number order. A new cue gets the *New cue times* of the Settings tab in Playback Options (in a new
+show 0 s and overlap 100 %, see [Times and fader modes](playbacks.md#times-and-fader-modes)) and waits for Go.
 
 You do not need to Clear between cues. With tracking on (the default), each cue stores only what
 you changed, and the rest carries on from the cues before it. See [Tracking](#tracking).

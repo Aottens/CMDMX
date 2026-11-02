@@ -60,13 +60,16 @@ struct PlaybackOptionsView: View {
                             case .master: MasterTab(playback: playback)
                             case .settings: SettingsTab()
                             }
-                            if let message = engine.lastMessage {
-                                Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
-                            }
                         }
                         .frame(maxWidth: 560, alignment: .leading)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    // Outside the ScrollView so a refused value's warning is never below the fold.
+                    if let message = engine.lastMessage {
+                        Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
+                            .padding(.horizontal, 14).padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .id(playback.id)
@@ -668,6 +671,12 @@ private struct SettingsTab: View {
                     }
                 }
             }
+            Text("NEW CUE TIMES").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3).padding(.top, 8)
+            Text("Cues recorded from now on take these times; an existing cue keeps its own.").font(Typo.ui(11)).foregroundStyle(t.fg2)
+            OptionRow(label: "Delay") { NumberField(value: s.delay, unit: "s") { engine.setPlaybackSettings(["delay": $0]) } }
+            OptionRow(label: "Fade in") { NumberField(value: s.fadeIn, unit: "s") { engine.setPlaybackSettings(["fade_in": $0]) } }
+            OptionRow(label: "Fade out") { NumberField(value: s.fadeOut, unit: "s") { engine.setPlaybackSettings(["fade_out": $0]) } }
+            OptionRow(label: "Overlap") { NumberField(value: s.overlap, unit: "%") { engine.setPlaybackSettings(["overlap": $0]) } }
         } else {
             Text("Waiting for the engine.").font(Typo.ui(11)).foregroundStyle(t.fg2)
         }

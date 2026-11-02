@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-11-01 (SPF-02)_
+_Last updated: 2026-11-01 (SPF-07)_
 
 ## Current step
+SPF-07 (2026-11-01, PBK-46): test only, `pbk_46_…` in `cmdmx-core/tests/playbacks.rs`. It passed at once: `new_cue` already gives a memory, a list cue and a chase step the PBK-12 settings, so no engine code changed.
 SPF-02 (2026-11-01, OUT-40): `next_deadline` in `cmdmx-daemon/src/main.rs`: a tick loop more than one `TICK` past its deadline continues at now + `TICK` instead of sending the missed ticks at once; `now` stays the time since start, so fades are untouched. Tests `out_40_*` in `main.rs`, and `tests/late_tick.rs` (real binary, `SIGSTOP` of 3 s, sACN unicast on loopback: 129 packets in the first 250 ms before the fix, at most 20 after). It binds `127.0.0.1:5568` with `SO_REUSEADDR`, so it shares the port with an `olad` on `*:5568`.
 SPF-01 (2026-11-01, OUT-38, 39): new `cmdmx-daemon/src/power.rs`. `hold` creates the `PreventUserIdleSystemSleep` assertion `CMDMX DMX output` over IOKit and never releases it (macOS drops it when the process dies); off macOS it does nothing. `keep_awake` turns a failure into one log line and one `pending` warning, called in `main` before the outputs and the first tick. Tests `out_39_*` in `power.rs`, `tests/power_assertion.rs` (`out_38_*`, macOS only, reads `pmset -g assertions`, after SIGTERM and `kill -9`).
 GRP-04 (2026-11-01, PRG-96, IPC-49): `Engine::drain_notices` and `group_notice`; `select_group` and a line naming one group (`single_group`, the test of PRG-79) leave "Group 5 Pars outside in"; the tick broadcasts `ipc::notice`, not `last_warning`. An empty group is refused as `GroupEmpty` both ways (`select_group` no longer gives `UnknownGroup`; group masters still do).
