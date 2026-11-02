@@ -1,5 +1,25 @@
 # Release notes
 
+## 0.3.0
+
+Published 2 November 2026 as "CMDMX 0.3.0".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.3.0)
+
+This release makes the console harder to stop or disturb by accident (see
+[Running a show](running.md)).
+
+- **The Mac stays awake** while the engine runs, and in Console the display stays on too. A closed lid,
+  Sleep in the Apple menu or an empty battery still put the Mac to sleep.
+- **Quitting always asks**, with Cancel as the default, whether Console is on or not.
+- **Level bars never jump:** a drag moves the level by the distance you drag, so a stray click changes
+  nothing.
+- **Lock** covers the console with a code while the show keeps running. Input from the app, MIDI, OSC and
+  Stream Deck stops until you unlock.
+- **Messages** keeps a history of warnings and notices: click the message line or the amber count.
+- **An engine that stops is restarted**, also after you reopened the app following a crash. The show is
+  back, but nothing is running, so start your look again.
+- **New cue times** in the Settings tab set the times of the cues you record from then on.
+
 ## 0.2.7
 
 Published 1 November 2026 as "CMDMX 0.2.7".

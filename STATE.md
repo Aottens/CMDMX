@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-02 (SPF-11 done; the church run is on 2026-11-08)_
+_Last updated: 2026-11-02 (v0.3.0 released: batch A; the church run is on 2026-11-08)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -19,7 +19,7 @@ lines in `tests/manual/selection-orders.md`. Released in v0.2.5.
 
 Feature work next: the everyday gaps (IDEA-35, `docs/research/everyday-gaps.md`), all in phase 1 and in
 order, batch A to G (owner, 2026-11-01); batch A is specified (P1-25); SPF-04, SPF-01, SPF-02, SPF-05, SPF-06, SPF-07, SPF-08, SPF-09, SPF-10 and SPF-11 are done, SPF-03 waits for its sleep run, the last open task of the batch.
-When every batch A task is done, release as v0.3.0, then run a new gap review before batch B (owner, 2026-11-01).
+Batch A is released as v0.3.0 (2026-11-02); a new gap review comes before batch B (owner, 2026-11-01).
 
 Parallel track: phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
@@ -31,7 +31,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 1. Groups (owner, 2026-11-01: the first church try with v0.2.5 showed a group cannot be deleted):
    spec P1-24 (`programmer.md` PRG-85..95: Delete, Copy, Move, Set Legend) approved by the
    owner 2026-11-01; GRP-01 (core, schema 10), GRP-02 (IPC) and GRP-03 (app) done and run at home (`tests/manual/runs/2026-11-01-GRP-03.md`); released as v0.2.6 (2026-11-01), for the church service about a week out. GRP-04 (the group select message from every source, PRG-96, IPC-49) is done and released as v0.2.7 (2026-11-01).
-2. VS8-01 and VS4-07: install `CMDMX-0.2.7.dmg` (the latest release) on the owner's Mac (About, shows came over from
+2. VS8-01 and VS4-07: install `CMDMX-0.3.0.dmg` (the latest release) on the owner's Mac (About, shows came over from
    the old folder), then on the church Mac (`tests/hardware/release.md`, gate 3; not in the week of a
    service). The repo is renamed and the release is out.
 3. At home on Art-Net: program the service in *Kerk* as `tests/hardware/church.md` asks (steady
