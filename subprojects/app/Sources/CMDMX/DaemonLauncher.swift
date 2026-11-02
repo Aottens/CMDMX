@@ -3,7 +3,8 @@ import Darwin
 import Foundation
 
 /// REL-10..13: starts the daemon bundled in the app (if any), adopts one that is still running
-/// after an app crash, restarts it when it dies (adopted too, REL-24, 25), and stops it on quit.
+/// after an app crash, restarts it when it dies (adopted too, REL-24), backing off when it keeps failing
+/// (REL-28), says when it is back (REL-25..27), and stops it on quit.
 /// No lighting logic here.
 @MainActor
 final class DaemonLauncher: ObservableObject {
@@ -19,8 +20,13 @@ final class DaemonLauncher: ObservableObject {
     private var adopted: pid_t?
     private var adoptedWatch: DispatchSourceProcess?
     private var stopping = false
-    /// REL-25: set when a restart is pending, so the launch that succeeds says the show is back.
+    /// REL-25, 26: set when a restart is pending; the first snapshot after it says the show is back.
     private var restarting = false
+    /// REL-28: failures in a row, and when the running child started; 60 s of running starts the count again.
+    private var failures = 0
+    private var startedAt: Date?
+    private static let waits: [Double] = [2, 4, 8, 16, 30]
+    private static let otherEngine = "Another engine is running on port 7319"
     /// True while this app started or adopted the engine, so quitting the app stops it (REL-13).
     /// A flag, not `child != nil`: during the restart window `child` is nil but the app still owns it.
     private(set) var ownsEngine = false
@@ -64,9 +70,7 @@ final class DaemonLauncher: ObservableObject {
         adoptedWatch?.cancel()
         adoptedWatch = nil
         guard !stopping else { return }
-        restarting = true
-        note = "Engine exited, restarting"
-        retryLater()
+        failed("Engine exited, restarting", code: nil)
     }
 
     private func launch() {
@@ -86,12 +90,10 @@ final class DaemonLauncher: ObservableObject {
         do {
             try p.run()
         } catch {
-            note = "Could not start the engine: \(error.localizedDescription)"
-            retryLater()
+            failed("Could not start the engine: \(error.localizedDescription)", code: nil)
             return
         }
-        note = restarting ? "Engine restarted: the show is back, nothing is running" : nil
-        restarting = false
+        startedAt = Date()   // REL-26: the note stays until the first snapshot (engineConnected)
         child = p
         childExited = done
         try? fm.createDirectory(at: pidFile.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -120,19 +122,44 @@ final class DaemonLauncher: ObservableObject {
         if code == 2 {
             ownsEngine = false
             // REL-11: the port is taken by another program; the app connects to that one.
-            note = "Another engine is running on port 7319"
+            restarting = false
+            note = Self.otherEngine
             return
         }
-        restarting = true
-        note = "Engine exited (code \(code)), restarting"
-        retryLater()
+        if let t = startedAt, Date().timeIntervalSince(t) >= 60 { failures = 0 }
+        failed("Engine exited (code \(code)), restarting", code: code)
     }
 
-    private func retryLater() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+    /// REL-28: waits 2, 4, 8, 16, then 30 s; from the third failure in a row one steady line, so the sheet gets one.
+    private func failed(_ text: String, code: Int32?) {
+        restarting = true
+        failures += 1
+        note = failures >= 3
+            ? "Engine does not start\(code.map { " (code \($0))" } ?? ""), trying every 30 s. Log: ~/Library/Logs/CMDMX/daemon.log"
+            : text
+        let wait = Self.waits[min(failures, Self.waits.count) - 1]
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
             guard let self, !self.stopping, self.child == nil else { return }
             self.launch()
         }
+    }
+
+    /// REL-26: called at each snapshot; only the first one after a restart says the show is back.
+    /// Does not reset `failures`: only 60 s of running does (REL-28).
+    func engineConnected(show: String?) {
+        guard restarting else { return }
+        restarting = false
+        note = "Engine restarted: \(show.flatMap { $0.isEmpty ? nil : $0 } ?? "an empty show") is back, nothing is running"
+    }
+
+    /// REL-27: the "back" line ends at the operator's first command.
+    func commandGiven() {
+        if note?.hasPrefix("Engine restarted") == true { note = nil }
+    }
+
+    /// REL-27: the other-engine line stays as long as it is so, so it goes when the connection drops.
+    func engineLost() {
+        if note == Self.otherEngine { note = nil }
     }
 
     /// REL-13: SIGTERM, wait up to 5 s, then SIGKILL; remove the pid file. Leaves a developer's daemon alone.
