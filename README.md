@@ -78,6 +78,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
   clashes are refused. Move, renumber, rename, change mode and remove.
 - Multi-select in the patch table: Shift/Cmd-click a range and move it back to back, renumber
   it, name it ("Par 1…6"), change its mode or remove it in one checked step.
+- Removing a fixture or changing its mode also reaches effects, in cues, palettes and a cue running now, and
+  a warning names each palette that holds something the new mode cannot do; Undo brings it all back.
 - A profile editor for channels, defaults, wheel slots and emitter auto-mix (CIE colour and
   output per emitter); profiles are saved into the show.
 - GDTF files (the manufacturers' own format) convert into profiles in the engine, with cells

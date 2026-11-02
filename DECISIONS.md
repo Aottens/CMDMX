@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-02 — An effect palette as the console records it gives no PAT-28 warning
+
+**Decision:** PAT-28 warns about a palette effect only when the entry has the fixture as a member. An entry without members, which is what recording a palette stores (FX-22), counts like a global value and says nothing. Only an entry with members from a show file warns. Values, per fixture and by type, warn as specified.
+
+**Alternatives considered:** warn for a memberless entry on an attribute the fixture loses, which names every effect palette on that attribute even when it was never applied to this fixture.
+
+**Reasoning:** a memberless entry is meant for any target that has the attribute, the reason PAT-28 gives for silence on a global value. Applying it to a fixture without the attribute already skips that fixture (FX-14). Open for the owner to overturn in the DEF-05 review.
+
+**Reversal trigger:** the owner wants a warning for effect palettes; it is one more source in `palette_mode_warnings`.
+
+---
+
 ## 2026-11-02 — A mouse still down after the unlock may bring a Flash back (owner)
 
 **Decision:** when the cover has ended a Flash or Swop held with the mouse and the mouse is still down after the unlock, the key can come on again (seen 0.3 s after the unlock, with the mouse moving); letting go ends it. Left as is.

@@ -1066,7 +1066,9 @@ impl Engine {
 
     /// PAT-13: give a fixture another mode of its profile. Attributes are matched by name;
     /// programmer and playback values the new mode cannot take are dropped with a warning,
-    /// held values of attributes that remain are kept. A bigger footprint is checked like a move.
+    /// held values of attributes that remain are kept. The fixture leaves effect entries the new
+    /// mode has no attribute of (PAT-27); palettes keep theirs and warn (PAT-28). A bigger
+    /// footprint is checked like a move.
     pub fn patch_change_mode(&mut self, id: FixtureId, mode: &str) -> Result<(), CoreError> {
         let fixture = self
             .fixtures
@@ -1080,8 +1082,14 @@ impl Engine {
             new.footprint,
             &[id],
         )?;
-        let dropped = self.apply_mode(id, mode)?;
         let at = self.last_tick.unwrap_or(0.0);
+        let palette_lines = self.palette_mode_warnings(&[id], mode);
+        self.warnings.extend(
+            palette_lines
+                .into_iter()
+                .map(|message| Warning { at, message }),
+        );
+        let dropped = self.apply_mode(id, mode)?;
         self.warnings.extend(
             dropped
                 .into_iter()
@@ -1090,7 +1098,8 @@ impl Engine {
         Ok(())
     }
 
-    /// The value-dropping half of a mode change; returns `(warning, attribute)` per dropped value.
+    /// The value- and effect-dropping half of a mode change (PAT-13, 27); returns
+    /// `(warning, attribute)` per dropped value or effect attribute.
     fn apply_mode(
         &mut self,
         id: FixtureId,
@@ -1144,6 +1153,44 @@ impl Engine {
                 }
             }
         }
+        // PAT-27: a whole-fixture member leaves an entry the new mode has none of the attributes of.
+        let item = Item::fixture(id);
+        let gone = |e: &effect::Entry| e.attributes.iter().all(|a| new.logical(a).is_none());
+        for playback in self.playbacks.values_mut() {
+            let pid = playback.id;
+            for cue in &mut playback.cues {
+                cue.effects.retain_mut(|e| {
+                    if !gone(e) || !e.members.contains(&item) {
+                        return true;
+                    }
+                    for a in &e.attributes {
+                        warnings.push((
+                            format!(
+                                "fixture {number}: playback {pid} effect '{a}' dropped, mode '{mode}' has no such attribute"
+                            ),
+                            a.clone(),
+                        ));
+                    }
+                    e.drop_members(|m| *m == item);
+                    e.refresh();
+                    !e.members.is_empty()
+                });
+            }
+        }
+        let leaving: Vec<_> = (self.programmer.effects.iter())
+            .filter(|e| gone(e) && e.members.contains(&item))
+            .map(|e| (e.id, e.attributes.clone()))
+            .collect();
+        for (_, attributes) in &leaving {
+            for a in attributes {
+                warnings.push((
+                    format!(
+                        "fixture {number}: programmer effect '{a}' dropped, mode '{mode}' has no such attribute"
+                    ),
+                    a.clone(),
+                ));
+            }
+        }
         self.held.retain(|i, _| i.cell.is_none() || i.fixture != id);
         let old_held = self.held.remove(&Item::fixture(id)).unwrap_or_default();
         let held: BTreeMap<String, Value> = new
@@ -1166,7 +1213,63 @@ impl Engine {
         if let Some(f) = self.fixtures.get_mut(&id) {
             f.mode = Some(mode.to_string());
         }
+        if !leaving.is_empty() {
+            self.effects_leave(|e, m| *m == item && leaving.iter().any(|(i, _)| *i == e.id));
+        }
+        self.follow_cue_effects();
         Ok(warnings)
+    }
+
+    /// PAT-28: per palette (number order) the attributes it holds for the `ids` that `mode` lacks
+    /// while their old mode has them; global values, cells and memberless entries say nothing.
+    fn palette_mode_warnings(&self, ids: &[FixtureId], mode: &str) -> Vec<String> {
+        let mut palettes: Vec<_> = self.palettes.values().collect();
+        palettes.sort_by_key(|p| p.number);
+        let mut lines = Vec::new();
+        for p in palettes {
+            let (mut lost, mut count) = (BTreeSet::new(), 0);
+            for &id in ids {
+                let Some(f) = self.fixtures.get(&id) else {
+                    continue;
+                };
+                let (Some(old), Ok(new)) = (
+                    resolve_mode(&self.profiles, f),
+                    lookup_mode(&self.profiles, &f.profile, Some(mode)),
+                ) else {
+                    continue;
+                };
+                let item = Item::fixture(id);
+                let held = (p.fixtures.get(&item).into_iter())
+                    .chain(p.shared.get(&f.profile))
+                    .flat_map(|m| m.keys().cloned())
+                    .chain(
+                        (p.effects.iter().filter(|e| e.members.contains(&item)))
+                            .flat_map(|e| e.attributes.iter().cloned()),
+                    );
+                let mut any = false;
+                for a in held {
+                    if old.logical(&a).is_some() && new.logical(&a).is_none() {
+                        lost.insert(a);
+                        any = true;
+                    }
+                }
+                count += usize::from(any);
+            }
+            if count > 0 {
+                let name = if p.legend.is_empty() {
+                    format!("Palette {}", p.number)
+                } else {
+                    format!("Palette {} {}", p.number, p.legend)
+                };
+                let attrs: Vec<_> = lost.into_iter().collect();
+                let s = if count == 1 { "" } else { "s" };
+                lines.push(format!(
+                    "{name}: no {} on {count} fixture{s} in this mode, the value stays",
+                    attrs.join(", ")
+                ));
+            }
+        }
+        lines
     }
 
     /// PAT-19: the range's ids sorted by user number; empty, unknown or repeated ids refuse.
@@ -1335,6 +1438,13 @@ impl Engine {
                 });
             }
         }
+        let at = self.last_tick.unwrap_or(0.0);
+        let palette_lines = self.palette_mode_warnings(&sorted, mode);
+        self.warnings.extend(
+            palette_lines
+                .into_iter()
+                .map(|message| Warning { at, message }),
+        );
         let mut attrs = BTreeSet::new();
         let mut affected = 0;
         for &id in &sorted {
@@ -1343,7 +1453,6 @@ impl Engine {
             attrs.extend(dropped.into_iter().map(|(_, attr)| attr));
         }
         if affected > 0 {
-            let at = self.last_tick.unwrap_or(0.0);
             let attrs: Vec<_> = attrs.into_iter().collect();
             self.warnings.push(Warning {
                 at,
