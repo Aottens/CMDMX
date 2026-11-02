@@ -16,7 +16,7 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
    Sonnet subagent (`model: sonnet`) writes the smallest change that turns them green; the main
    session reviews the diff before it goes to the owner (owner preference, 2026-10-17). Run `cargo test` in
    `subprojects/engine` and `cargo clippy --all-targets -- -D warnings`.
-4. **Review.** One branch and one PR per task on `github.com/Aottens/CMDMX`; the owner
+4. **Review.** One branch and one PR per build (see *Builds* below) on `github.com/Aottens/CMDMX`; the owner
    reviews and merges (gate 2). Hardware-touching tasks ship with
    a checklist in `tests/hardware/` that only the owner can tick (gate 3).
 5. **Close the loop.** Update the subproject `STATE.md`, root `STATE.md`, `BACKLOG.md` and
@@ -45,6 +45,25 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
 Use the project-management conventions from the `project-manage` skill when available
 (session start: read STATE files; session end: handoff in STATE.md). Use the
 `project-orchestrator` agent in `.claude/agents/` for pre-flight and post-flight checks.
+
+## Builds: what goes together
+
+A build is one session, one branch and one PR. It holds one task or a few that belong together. Builds are
+written by lighter models, so the aim is a faster flow without a build outgrowing what one brief can carry.
+When a batch gets its build tasks, the main session proposes the builds in `BACKLOG.md`, in a `Builds:` line
+above the table, and the owner approves them with the spec. Look critically: a task standing alone needs a
+reason too.
+
+- **Together** when the tasks are one behaviour across layers, one needs the other, or they change the same code.
+- **Apart** when one may have to be reverted alone, when they share nothing, or when it holds a gate 3 run
+  that would keep the rest from being done.
+- **Size:** at most three tasks and at most one of them M. An L or XL is a build of its own.
+- **Context:** each task gets its own Sonnet subagent with its own brief: criteria ids, failing tests, the
+  files to read and what the task before it left. If a brief cannot stay that short, split the build.
+- **Quality:** one commit per task, so a task can be reverted alone. The main session runs the tests and reviews
+  each task's diff before the next subagent starts.
+- **Stop:** when a task turns out larger than its size or a review finds a real defect in the approach, ship what
+  is done and move the rest to the next build, with the `Builds:` line changed in that PR.
 
 ## Ideas intake
 
@@ -100,4 +119,4 @@ default to a later phase. If an idea forces a decision earlier, add only that de
 ## Commit style
 
 `<area>: <imperative summary>` — e.g. `core: implement HTP merge (ENG-01..03)`.
-Reference criterion ids in the body. One task per PR.
+Reference criterion ids in the body. One commit per task, one build per PR.

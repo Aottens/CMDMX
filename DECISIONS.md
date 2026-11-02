@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-02 — A build can hold more than one task (owner)
+
+**Decision:** a session, branch and PR hold one build instead of one task: at most three tasks that are one behaviour, depend on each other or change the same code, at most one of them M. The main session proposes the builds with the spec; each task keeps its own subagent, brief, commit and review (`CLAUDE.md`, *Builds*). This amends "one PR per task" (2026-10-16) and the one-feature-per-session habit. Batch A2 is the first: DEF-01 + DEF-02, DEF-03, DEF-04 + DEF-05, in the approved order.
+
+**Alternatives considered:** keep one task per PR (slower, and related tasks are reviewed apart); one build per batch (a diff across daemon, app and core that cannot be reverted in parts); a CI check on bundle size (judgement, not arithmetic, so a written rule first).
+
+**Reasoning:** the owner wants a somewhat faster flow with quality kept. Lighter models build, so what stays small is the brief per task, not the PR.
+
+**Reversal trigger:** a bundled PR where a defect slipped through review because of its size, or where one task had to be reverted and could not be alone.
+
+---
+
 ## 2026-11-02 — Batch A2: what is held survives the lock, a failing engine never stops being retried (IDEA-35 A2, P1-26; approved by owner)
 
 **Decision:** a Flash, Swop or momentary DBO held when the lock comes stays, and its release passes the lock (IPC-53). An effect member on a mode without the entry's attributes leaves the entry, with a warning (PAT-27); palettes keep their values and warn (PAT-28). The restart line goes at the first command from the app (REL-27). A failing engine is retried with a backoff up to 30 s, without end (REL-28).
