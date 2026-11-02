@@ -43,7 +43,8 @@ use cmdmx_core::patch::{Fixture, FixtureId};
 use cmdmx_core::playback::{CueNumber, ListAction, PlaybackRecord, Priority, Track};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::Item;
-use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
+use cmdmx_core::show::{Meta, Show, ShowPalette, SCHEMA_VERSION};
+use cmdmx_core::undo::History;
 use common::{church, dmx, select};
 
 const TICK: f64 = 0.025;
@@ -865,4 +866,202 @@ fn fx_29_effects_round_trip_through_the_show() {
         .collect();
     let new = look(&mut loaded, &[206], "Breathe");
     assert!(all.iter().all(|&id| id < new), "{new} vs {all:?}");
+}
+
+// ---------- PAT-26: removal reaches the effects ----------
+
+/// A `RampUp` on the dimmers of `ids` spread over 360°, recorded on 1.1; the programmer empty.
+fn spread_cue(e: &mut Engine, ids: &[FixtureId]) -> u32 {
+    ramp(e, ids);
+    e.effect_set(EffectSet::Spread(360.0)).unwrap();
+    let pb = record(e, 1, 1);
+    clear(e);
+    pb
+}
+
+fn start(e: &mut Engine, pb: u32) {
+    e.tick(0.0);
+    e.set_fader(pb, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+}
+
+#[test]
+fn pat_26_removal_takes_the_member_out_of_every_cue_and_works_out_positions() {
+    let mut e = rig();
+    let pb = spread_cue(&mut e, &[201, 202, 203]);
+    e.patch_remove(&[202]).unwrap();
+    let entries = cue_effects(&e, pb, 0);
+    assert_eq!(entries[0].members, items(&[201, 203]));
+    assert_eq!(entries[0].positions, [0, 1], "FX-07: worked out again");
+    assert_eq!(entries[0].count, 2);
+}
+
+#[test]
+fn pat_26_a_cell_member_goes_with_its_fixture() {
+    let mut e = rig();
+    let pb = spread_cue(&mut e, &[251, 252]);
+    edit_playback(&mut e, pb, |p| {
+        p.cues[0].effects[0].members.push(Item::cell(251, 1));
+    });
+    e.patch_remove(&[251]).unwrap();
+    assert_eq!(cue_effects(&e, pb, 0)[0].members, items(&[252]));
+}
+
+#[test]
+fn pat_26_an_entry_left_without_members_goes() {
+    let mut e = rig();
+    ramp(&mut e, &[201]);
+    line_pan(&mut e, &[311]);
+    let pb = record(&mut e, 1, 1);
+    clear(&mut e);
+    assert_eq!(cue_effects(&e, pb, 0).len(), 2);
+    e.patch_remove(&[311]).unwrap();
+    let entries = cue_effects(&e, pb, 0);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].members, items(&[201]));
+}
+
+#[test]
+fn pat_26_a_running_cue_gives_the_frames_of_the_show_reopened() {
+    let mut e = rig();
+    let pb = spread_cue(&mut e, &[201, 202, 203]);
+    start(&mut e, pb);
+    tick_to(&mut e, 0.0, 1.1);
+    e.patch_remove(&[202]).unwrap();
+    let (mut reopened, warnings) = Engine::from_show(&e.to_show(meta()));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    start(&mut reopened, pb);
+    tick_to(&mut reopened, 0.0, 1.1);
+    let mut from = 1.1;
+    for to in [1.2, 1.35, 1.6, 1.95] {
+        tick_to(&mut e, from, to);
+        tick_to(&mut reopened, from, to);
+        for address in [21, 22, 23] {
+            assert_eq!(
+                dmx(&e, address),
+                dmx(&reopened, address),
+                "{address} at {to}"
+            );
+        }
+        from = to;
+    }
+    assert_eq!(dmx(&e, 22), 0, "the removed fixture's channel is dark");
+}
+
+/// A show file whose first palette's entry is copied over: one on 101 and 102, one on a fixture
+/// the file never patched, one without members as FX-22 records them.
+fn palette_with_members(e: &mut Engine) -> (Engine, u32) {
+    let (number, _) = circle_palette(e);
+    let mut show = e.to_show(meta());
+    let ShowPalette::Palette(p) = &mut show.palettes.palettes[0] else {
+        panic!("a readable palette");
+    };
+    let stored = p.effects[0].clone();
+    let with = |members: Vec<Item>| {
+        let mut entry = stored.clone();
+        entry.members = members;
+        entry
+    };
+    p.effects = vec![
+        with(items(&[101, 102])),
+        with(items(&[999])),
+        stored.clone(),
+    ];
+    let (loaded, _) = Engine::from_show(&show);
+    (loaded, number)
+}
+
+#[test]
+fn pat_26_the_load_drops_palette_effect_members() {
+    let mut e = rig();
+    let (loaded, number) = palette_with_members(&mut e);
+    let effects = &loaded.palette(number).unwrap().effects;
+    assert_eq!(effects.len(), 2, "the entry on 999 goes: {effects:?}");
+    assert_eq!(effects[0].members, items(&[101, 102]));
+    assert!(effects[1].members.is_empty(), "FX-22 entry stays");
+}
+
+#[test]
+fn pat_26_removal_reaches_palette_effects_and_spares_an_entry_that_never_had_members() {
+    let mut e = rig();
+    let (mut loaded, number) = palette_with_members(&mut e);
+    loaded.patch_remove(&[101]).unwrap();
+    let effects = &loaded.palette(number).unwrap().effects;
+    assert_eq!(effects[0].members, items(&[102]));
+    assert_eq!(effects[0].positions, [0]);
+    assert_eq!(effects[0].count, 1);
+    loaded.patch_remove(&[102]).unwrap();
+    let effects = &loaded.palette(number).unwrap().effects;
+    assert_eq!(effects.len(), 1, "the emptied entry goes");
+    assert!(effects[0].members.is_empty(), "FX-22 entry stays");
+}
+
+#[test]
+fn pat_26_removal_leaves_an_ordinary_effect_palette_alone() {
+    let mut e = rig();
+    let (number, _) = circle_palette(&mut e);
+    let before = e.palette(number).unwrap().effects.clone();
+    e.patch_remove(&[101]).unwrap();
+    assert_eq!(e.palette(number).unwrap().effects, before);
+}
+
+#[test]
+fn pat_26_a_gone_first_member_is_not_what_fx_42_reads() {
+    let mut e = rig();
+    e.set_programmer_value(251, "Dimmer", 1.0).unwrap();
+    e.set_programmer_value(252, "Dimmer", 0.0).unwrap();
+    shape(&mut e, &[251, 252], Shape::Colour(ColourShape::Rainbow));
+    assert!(!e.programmer_view().effects[0].dark);
+    e.patch_remove(&[251]).unwrap();
+    let view = e.programmer_view();
+    assert_eq!(view.effects[0].members, items(&[252]));
+    assert!(view.effects[0].dark, "252 is the first member now");
+}
+
+/// A control that was never touched and `e`, which takes `act` at 1.1: the same frames afterwards.
+fn assert_same_frames_as_untouched(ids: &[FixtureId], act: impl FnOnce(&mut Engine, &mut History)) {
+    let mut e = rig();
+    let mut control = rig();
+    let pb = spread_cue(&mut e, ids);
+    spread_cue(&mut control, ids);
+    start(&mut e, pb);
+    start(&mut control, pb);
+    tick_to(&mut e, 0.0, 1.1);
+    tick_to(&mut control, 0.0, 1.1);
+    let mut h = History::default();
+    act(&mut e, &mut h);
+    let mut from = 1.1;
+    for to in [1.2, 1.35, 1.6] {
+        tick_to(&mut e, from, to);
+        tick_to(&mut control, from, to);
+        for address in [21, 22, 23] {
+            assert_eq!(
+                dmx(&e, address),
+                dmx(&control, address),
+                "{address} at {to}"
+            );
+        }
+        from = to;
+    }
+    assert_eq!(cue_effects(&e, pb, 0), cue_effects(&control, pb, 0));
+}
+
+#[test]
+fn pat_26_undo_brings_the_member_back_in_a_running_cue() {
+    assert_same_frames_as_untouched(&[201, 202, 203], |e, h| {
+        h.edit(e, "Remove", None, |e| e.patch_remove(&[202]))
+            .unwrap();
+        h.undo(e).unwrap();
+    });
+}
+
+#[test]
+fn pat_26_undo_after_ticks_brings_a_whole_entry_back_on_its_clock() {
+    assert_same_frames_as_untouched(&[201], |e, h| {
+        h.edit(e, "Remove", None, |e| e.patch_remove(&[201]))
+            .unwrap();
+        e.tick(1.1);
+        assert_eq!(dmx(e, 21), 0);
+        h.undo(e).unwrap();
+    });
 }
