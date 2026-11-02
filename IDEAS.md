@@ -60,7 +60,7 @@ the backlog, not the whole idea.
 | IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | done (2026-10-28, VS2-44..46: #159, #160, #161) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
-| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J (place them: owner) | 1, batches A to G in order (owner 2026-11-01) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
+| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J | 1, in order A2, H, B to G, I, J (owner 2026-11-02) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | triaged; phase confirmed 2026-11-02 | 1 (owner 2026-11-02) | UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
@@ -770,7 +770,7 @@ the app."
 **What it touches now:** batch A is specified (P1-25, SPF-01..11); the other batches nothing until specified.
 **Outcome (2026-11-01):** owner: all of it in phase 1, worked through in order, A to G.
 **Owner's answer (2026-11-01):** when batch A is done, the version goes straight to 0.3.0, followed by a new gap review.
-**Second review (2026-11-02):** batches A2 (defects), H, I and J in `docs/research/everyday-gaps.md`; the owner places them in the order.
+**Second review (2026-11-02):** batches A2 (defects), H, I and J in `docs/research/everyday-gaps.md`; owner: A2 and H first, then B to G, I and J; I1 and I3 go with B as advised.
 
 ### IDEA-36 — A refused number stays in its field (2026-11-02)
 **Found in:** the SPF-07 run; not from the owner.
