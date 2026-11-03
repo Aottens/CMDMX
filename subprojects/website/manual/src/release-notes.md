@@ -1,5 +1,23 @@
 # Release notes
 
+## 0.3.1
+
+Published 3 November 2026 as "CMDMX 0.3.1".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.3.1)
+
+This release fixes defects in what was already there (see [Running a show](running.md) and
+[Patching](patching.md#the-patch-table)).
+
+- **Letting go still lets go:** a Flash, a Swop or a momentary DBO you hold when the lock comes ends when
+  you let go, from the app, MIDI, OSC or a Stream Deck.
+- **The restart line tells the truth:** "Engine restarted: Demo is back, nothing is running" only appears
+  once the engine is really back, with the name of your show, and goes at your next command.
+- **An engine that keeps failing:** the app waits longer each time, up to 30 seconds, and the status bar says so.
+- **Removing a fixture** also takes it out of cues, palettes and effects, including an effect that is running.
+  The other fixtures close up, and Undo brings it back in its place.
+- **Changing a fixture's mode** takes out the effects the new mode cannot do, with a warning. Palettes keep
+  what they store, and a warning names each palette that holds something the new mode cannot do.
+
 ## 0.3.0
 
 Published 2 November 2026 as "CMDMX 0.3.0".
