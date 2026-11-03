@@ -398,6 +398,13 @@ New keys and messages only: `v` stays 1 (IPC-41).
   binding's release stays dropped. An input still down at the unlock is released as usual when it comes up. Tests
   `ipc_53_…` (each surface, a client, a fader as a button, a press under the lock, a latch, the unlock).
 
+- **IPC-54** What a delete touches (UI-47, IDEA-35 batch H, P1-27). `usage {"palette":12}` or `usage {"fixtures":[101,102]}` answers the sender only, as `cue.view` does. It only asks: no edit, no undo step,
+  no message in the history, and it answers while locked (IPC-50).
+  - Palette: `{"type":"usage","palette":12,"cues":3,"playbacks":2}`: the cues with a value or an effect entry that refers to it, and the playbacks they are on. An unknown number → `warning` as `palette.delete` gives.
+  - Fixtures: `{"type":"usage","fixtures":[101,102],"groups":2,"cues":14,"playbacks":3,"palettes":5,"empty_groups":1,"empty_cues":2}`, for the set as a whole. An item counts for its fixture, so a cell does too; a cue or palette counts through
+    values or effect members. `empty_groups` and `empty_cues` are those with something in them now and nothing after removing the set. An unknown fixture counts for nothing. A missing or ill-typed field → `error` to the sender.
+  Counted in `cmdmx-core`, the app counts nothing. Tests `ipc_54_…` (a palette used by a value and by an effect, an unused palette, a set that empties a group only together, a cell, a request while locked).
+
 ## Owner decision (P1-26, 2026-11-02: the recommendation accepted)
 1. **IPC-53, a Flash or Swop held when the lock comes:** it stays, and letting go ends it. The stage does not change by
    locking, and nothing can stick. Not chosen: the lock ends every hold (the stage jumps at the moment of locking), or

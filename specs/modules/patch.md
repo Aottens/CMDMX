@@ -74,7 +74,7 @@ to end up with two fixtures on the same channel by accident.
   Amended (VS2-16, owner 2026-10-18): each entry also carries `modes`, the names of every mode of
   the fixture's profile as the show holds it (ADR-006 decision 5), in profile order, e.g.
   `["16 Channel","24 Channel"]` for the Shehds; the client never asks the library for them.
-- **PAT-10** A Patch screen (full screen from the workspace rail, UI v0.1): a table of the patch
+- **PAT-10** (The Remove confirmation says what it touches: UI-47.) A Patch screen (full screen from the workspace rail, UI v0.1): a table of the patch
   (number, name, manufacturer/model, mode, universe.address, footprint), sorted by number; an Add
   panel with library search (LIB-14), mode, count, universe, start address and start number
   (both optional, PAT-03); Move, Renumber, Name, Change Mode and Remove on a selected row, Remove
