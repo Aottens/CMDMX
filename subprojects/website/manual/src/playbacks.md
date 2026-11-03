@@ -97,7 +97,7 @@ one until you choose **Auto** again.
 **Options**, then tap a handle, opens the options. A right-click on a strip's legend does the
 same, and so does the **Playback Options** softkey (it opens the handle you tapped last). The
 screen takes the place of the windows; the strips, the Grand Master and the status bar stay, so
-you can try a change straight away. Every change is sent at once. **Exit** closes the screen.
+you can try a change straight away. Every change is sent at once. **Exit** or Esc closes the screen.
 
 ![The Playback Options screen of handle 1.1 on the Fader tab, with the playback area still below it](images/playback-options.png)
 

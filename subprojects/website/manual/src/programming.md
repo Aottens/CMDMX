@@ -49,8 +49,9 @@ with a message next to it, and nothing changes. A click on the message opens the
 [Messages](reference.md#messages)).
 
 With **Keys** on in the status bar, the Mac keyboard types into the line as well: the digits, `-`
-for Thro, `+` for And, `@`, `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter and
-Escape is Exit.
+for Thro, `+` for And, `@`, `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter.
+Escape is Exit too, also with **Keys** off, and with nothing to exit it goes one level up (see the
+[reference](reference.md)).
 
 ### Stepping and patterns
 

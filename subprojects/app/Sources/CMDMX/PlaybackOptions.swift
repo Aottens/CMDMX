@@ -43,7 +43,7 @@ struct PlaybackOptionsView: View {
                         }
                         Spacer(minLength: 0)
                         // Full size and blue, at the end of the tabs (VS3-05 run: the title-row Exit was hard to find).
-                        Button("Exit") { ui.screen = nil }.buttonStyle(FlatButton(fill: .blue)).keyboardShortcut(.cancelAction)
+                        Button("Exit") { ui.screen = nil }.buttonStyle(FlatButton(fill: .blue))
                     }
                     .padding(8)
                     HLine()
@@ -128,6 +128,7 @@ private struct NumberField: View {
     let unit: String
     var width: CGFloat = 90
     let commit: (Double) -> Void
+    @EnvironmentObject private var ui: UIState
     @State private var text = ""
     @FocusState private var focused: Bool
 
@@ -135,7 +136,7 @@ private struct NumberField: View {
         HStack(spacing: 6) {
             TextField("", text: $text).textFieldStyle(.roundedBorder).frame(width: width)
                 .font(Typo.mono()).focused($focused).onSubmit(send)
-                .onChange(of: focused) { _, now in if !now { send() } }
+                .onChange(of: focused) { _, now in if !now { if ui.fieldEscaped { text = plain(value) } else { send() } } }   // UI-44
             Text(unit).font(Typo.ui(11)).foregroundStyle(t.fg2)
         }
         .onAppear { text = plain(value) }

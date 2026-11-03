@@ -179,8 +179,8 @@ Builds: FUN-01 + FUN-02; FUN-03 + FUN-04; FUN-05 + FUN-06.
 | --- | --- | --- | --- | --- |
 | FUN-01 | App: the UI-42 table on every target and Flash or Swop as a target while armed; manual and the run in `tests/manual/app-main-screen.md`. | UI-42, UI-43 | M | done (2026-11-03, #233) |
 | FUN-02 | App: `Group n` and `Palette n` with Enter act as a tap, any other line is refused, Enter confirms a waiting Delete; manual and the run. Needs FUN-01. | UI-46 | S | done (2026-11-03, #233) |
-| FUN-03 | App: Esc one level up, whatever Keys says, and opening a screen disarms; manual reference table and the run. | UI-44, UI-45 | S | todo |
-| FUN-04 | App: Lock button in the status bar and ⌘L; manual reference table and the run. | UI-48 | S | todo |
+| FUN-03 | App: Esc one level up, whatever Keys says, and opening a screen disarms; manual reference table and the run. | UI-44, UI-45 | S | done (2026-11-03, #234) |
+| FUN-04 | App: Lock button in the status bar and ⌘L; manual reference table and the run. | UI-48 | S | done (2026-11-03, #234) |
 | FUN-05 | Core and daemon: `usage` for a palette and for a set of fixtures; `ipc_54_…`. | IPC-54 | S | todo |
 | FUN-06 | App: the delete and remove confirmations say what they touch; manual and the run. Needs FUN-05. | UI-47 | S | todo |
 

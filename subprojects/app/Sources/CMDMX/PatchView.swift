@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct PatchView: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
     @State private var selection = Set<Int>()
     /// LIB-23: the profile editor covers the screen while set; the Add panel stays alive underneath.
     @State private var editor: ProfileEditorTarget?
@@ -17,7 +18,9 @@ struct PatchView: View {
 
     var body: some View {
         ZStack {
-            patchScreen.disabled(editor != nil).opacity(editor == nil ? 1 : 0)
+            patchScreen
+                .background(Button("") { ui.screen = nil }.keyboardShortcut(.cancelAction).frame(width: 0, height: 0).opacity(0))   // UI-44
+                .disabled(editor != nil).opacity(editor == nil ? 1 : 0)
             if let editor {
                 ProfileEditor(target: editor) { saved in
                     if let saved { pendingPick = saved }

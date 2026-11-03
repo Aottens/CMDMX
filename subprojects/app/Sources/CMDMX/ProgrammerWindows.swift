@@ -149,7 +149,6 @@ struct ColourPickerWindow: View {
                             TextField("number or name", text: $gelQuery).textFieldStyle(.roundedBorder).font(Typo.mono(Typo.small))
                                 .focused($gelFocus)
                                 .onSubmit { gelFocus = false }      // Return and Esc leave the field, keeping the query
-                                .onExitCommand { gelFocus = false }
                         }
                         if let gel = colour.gel { gelReading(gel) }
                         gelGrid

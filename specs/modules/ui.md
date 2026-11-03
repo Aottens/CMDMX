@@ -504,9 +504,9 @@ press and a surface keypad line go on as before (J4, J5).
 - **UI-44** Esc goes one level up on every screen, whatever Keys says, and never changes the stage. Titan: Exit "Leaves the current menu and goes one
   level back up the menu structure". One press does the first that applies:
   1. the Lock prompt and cover keep UI-38; Learn keeps CTL-42;
-  2. an open sheet or dialog takes it; a text field drops its edit and gives up focus, so the next Esc goes on;
+  2. an open sheet or dialog takes it; a text field drops its edit and gives up focus, so the next Esc goes on (a form field keeps its text until the screen goes: nothing of it was applied; run of 2026-11-03);
   3. Record, a function, a softkey menu or a typed command line: the same as the keypad's Exit (disarms, empties the line);
-  4. the deck focus goes back to Devices; a screen (Patch, Show, Output, Control, Playback Options) goes back to the workspace, and any
+  4. the deck focus goes back to Devices; the profile editor closes, asking first when it has changes (run of 2026-11-03); a screen (Patch, Show, Output, Control, Playback Options) goes back to the workspace, and any
      two-step waiting there goes with it; the Cue view goes back to the Cue list;
   5. otherwise nothing.
 

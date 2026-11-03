@@ -138,8 +138,27 @@ final class TokenLine: ObservableObject {
 enum MacKeys {
     private static let workspaceKeys: [UInt16] = [122, 120, 99, 118, 96]   // F1 F2 F3 F4 F5
 
+    /// UI-44: Esc, whatever the Keys toggle says: leaves a text field, else Exit (line and modes), else the screen, else Back to List.
+    @MainActor
+    private static func escape(_ event: NSEvent, ui: UIState, line: TokenLine) -> Bool {
+        // A sheet, dialog, alert or panel has the key window and takes Esc itself.
+        guard let window = NSApp.keyWindow, window.isMainWindow else { return false }
+        if event.isARepeat { return true }   // a held key counts once
+        if window.firstResponder is NSText { ui.fieldEscaped = true; window.makeFirstResponder(nil); return true }
+        // The keypad's Exit; a line hidden behind a screen does not count.
+        if ui.modesOpen || (ui.screen == nil && !line.tokens.isEmpty) { line.clear(); ui.cancelModes(); return true }
+        // Patch and Control have their own cancelAction (a nested level, the profile editor or deck focus goes first).
+        if ui.screen == .patch || ui.screen == .control { return false }
+        if ui.screen != nil { ui.screen = nil; return true }
+        if ui.cueView != nil, Workspace.all[safe: ui.workspace]?.windows.contains(.cues) == true {
+            ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false   // same as "Back to List"
+        }
+        return true
+    }
+
     @MainActor
     static func handle(_ event: NSEvent, ui: UIState, line: TokenLine, engine: EngineClient) -> Bool {
+        ui.fieldEscaped = false   // UI-44: any key clears it
         let chord = event.modifierFlags.intersection([.command, .shift, .control, .option])
         // UI-38: the prompt and the cover take digits, Delete and Return, whatever the Keys toggle says; nothing else reaches the console. ⌘ shortcuts go on to the menu, so ⌘Q reaches the refusal.
         if engine.locked || ui.lockPrompt {
@@ -167,6 +186,7 @@ enum MacKeys {
             ui.setLearnMode(false, engine)
             return true
         }
+        if event.keyCode == 53, chord.isEmpty { return escape(event, ui: ui, line: line) }
         // Keys off, a shortcut chord, or a text field (Patch, Show) with focus: not ours.
         guard UserDefaults.standard.bool(forKey: "keysLive"),
               event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
@@ -188,7 +208,6 @@ enum MacKeys {
         switch event.keyCode {
         // Return, keypad Enter (UI-46); a held key fires once, so it cannot run on into a waiting Delete's confirmation.
         case 36, 76: if !event.isARepeat { line.enter(engine, ui: ui) }
-        case 53: line.clear(); ui.cancelModes()                  // Esc = Exit
         case 51: line.back()                // Backspace
         case 126: line.older()              // Up
         case 125: line.newer()              // Down

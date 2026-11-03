@@ -69,7 +69,7 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 - If the engine dies, the app starts it again within seconds, also one it adopted after an app crash, and
   says plainly which show is back and that nothing is running, once it is so. An engine that keeps failing is
   tried less often, down to every 30 s, under one steady line, for as long as the app is open.
-- **Lock** on the softkeys covers the console with a code keypad: DMX, running playbacks and autosave go on, every
+- **Lock** in the status bar, ⌘L or the softkey covers the console with a code keypad: DMX, running playbacks and autosave go on, every
   control and surface input stops, and quitting refuses until the unlock. A Flash or Swop held when the lock comes still
   ends when you let go. An operational control, not show-file protection.
 
@@ -164,6 +164,7 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
   playback, Go, a page or the GM onto a key, by right-click or by Learn; a deck has its own pages.
 
 **Show, undo and app**
+- Esc goes one level up on every screen, whatever Keys says, and never changes the stage; opening a screen disarms.
 - An armed function or Record never does the normal action: every tap does what the table in the manual says or is refused with where it works, also a Flash or Swop; `Group 3 Enter` and `Palette 12 Enter` reach it from the command line, and Enter confirms a waiting Delete.
 - The show is one readable JSON file in `~/Documents/CMDMX/Shows/`, autosaved within
   5 seconds of a change, crash-safe, and opened again at start.

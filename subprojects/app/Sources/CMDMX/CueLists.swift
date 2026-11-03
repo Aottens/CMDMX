@@ -165,6 +165,7 @@ private struct BPMField: View {
     @EnvironmentObject private var engine: EngineClient
     let id: Int
     let bpm: Double
+    @EnvironmentObject private var ui: UIState
     @State private var text = ""
     @FocusState private var focused: Bool
 
@@ -172,7 +173,7 @@ private struct BPMField: View {
         HStack(spacing: 4) {
             TextField("", text: $text).textFieldStyle(.plain).multilineTextAlignment(.trailing)
                 .font(Typo.mono(Typo.large)).focused($focused).onSubmit(send)
-                .onChange(of: focused) { _, now in if !now { send() } }
+                .onChange(of: focused) { _, now in if !now { if ui.fieldEscaped { text = shown } else { send() } } }   // UI-44
             Text("BPM").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
         }
         .padding(.horizontal, 6).frame(maxWidth: .infinity).frame(height: 30)

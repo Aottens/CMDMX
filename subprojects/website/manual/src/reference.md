@@ -13,7 +13,8 @@ These always work:
 | ⌘1 to ⌘5 | the workspaces Groups + Palettes, Fixtures + Groups, Colour, Playbacks, Shapes |
 | ⌘Z | undo the last edit (not while typing in a text field) |
 | ⇧⌘Z | redo |
-| Esc | ends Learn mode (see [Learn](controls.md#learn)) |
+| Esc | one level up, see below; it never changes the stage |
+| ⌘L | Lock: asks for a code (see [Locking the console](running.md#locking-the-console)); offline it does nothing |
 | ⌘Q | quit; it always asks first |
 
 These work while **Keys** is on in the status bar, and never while you are typing in a text field
@@ -32,11 +33,21 @@ These work while **Keys** is on in the status bar, and never while you are typin
 | `p` | Palette; on an empty line it also opens the palette menu |
 | `l` | Lee: a gel number follows |
 | Return, Enter | Enter: runs the line; an empty line confirms a waiting Delete |
-| Esc | Exit: empties the line and leaves the mode you are in |
 | Backspace | removes the last word |
 | ↑ and ↓ | the lines you ran before (the last 100) |
 
 The command-line keys work on the workspaces, not on the Patch, Output, Control and Show screens.
+
+One press of **Esc** does the first of these that applies, on every screen:
+
+1. The Lock prompt cancels; Learn mode ends (see [Learn](controls.md#learn)).
+2. An open sheet or dialog closes. In a text field Esc leaves the field: one that sends on leaving goes back to its old value and sends nothing; a form keeps what you typed until you leave the screen, and nothing of it has been applied.
+3. Record, a function, a softkey menu or a typed command line: the same as **Exit**.
+4. The deck's focus goes back to the device table, the profile editor closes (asking first when there are changes), a screen (Patch, Output, Control, Show, Playback Options) goes back to the workspace, and the Cue view goes back to the Cue list.
+
+With nothing left, Esc does nothing. Holding it down counts as one press.
+
+Opening a screen disarms Record and the functions, from the rail, a softkey or a status dot. Changing workspace or page does not, so you can arm in one workspace and tap the target in another.
 See [The command line](programming.md#the-command-line).
 
 ## What an armed function does
