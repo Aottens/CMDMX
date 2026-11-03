@@ -84,13 +84,13 @@ private struct FunctionButtons: View {
 
     /// What an armed palette function waits for (the sketch's MODE_HINT).
     private static let hints = [
-        "Update": "Update: tap the palette or playback handle to update with what is in the programmer.",
+        "Update": "Update: tap the palette, playback handle or cue to update with what is in the programmer.",
         "Include": "Include: tap a palette; its values go into the programmer.",
-        "Delete": "Delete: tap the group, palette or playback handle to delete. You confirm on softkey A.",
-        "Copy": "Copy: tap the source group, palette or playback handle, then an empty cell or handle.",
-        "Move": "Move: tap the source group, palette or playback handle, then an empty cell or handle.",
+        "Delete": "Delete: tap the group, palette, playback handle or cue to delete. You confirm on softkey A.",
+        "Copy": "Copy: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
+        "Move": "Move: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
         "Release": "Release: tap a running playback handle to release it.",
-        "Options": "Options: tap a playback handle to open its options.",
+        "Options": "Options: tap a playback handle or cue to open its options.",
         "Unfold": "Unfold: tap a fixture to unfold or fold its cells.",
         "Latch": "Latch: now press Flash on a handle to latch it.",
     ]
@@ -419,7 +419,7 @@ private struct Softkeys: View {
 
     private var setLegendKey: Softkey {
         Softkey(name: "Set Legend", sub: "then tap a cell or handle",
-                action: { ui.arm(.legend); engine.say("Set Legend: tap a group, a palette, a playback handle or a page.") })
+                action: { ui.arm(.legend); engine.say("Set Legend: tap a group, a palette, a playback handle, a cue or a page.") })
     }
 
     /// PBK-39: the Playback Options screen for the handle tapped last.
