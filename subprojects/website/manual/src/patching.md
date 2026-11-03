@@ -116,9 +116,12 @@ Click a row to edit it in the Selected panel:
   new mode cannot do leave the programmer and the cues, also a cue that is running, with a warning.
   Palettes keep what they store, in case the old mode comes back; a warning names each palette that
   holds something for this fixture the new mode cannot do. Undo brings everything back.
-- **Remove**: asks to confirm. The fixture's channels go to zero and it leaves its groups, palettes,
+- **Remove**: asks to confirm, and under **Confirm remove** it says where the fixture is used:
+  `In 2 groups, 14 cues on 3 playbacks and 5 palettes. 1 group and 2 cues end up empty and stay.
+  Undo brings it all back.` or `Not used anywhere.` The fixture's channels go to zero and it leaves its groups, palettes,
   cues and effects, also an effect that is running: the other fixtures in that effect close up, as
-  they would after reopening the show. Undo brings it back in its place.
+  they would after reopening the show. A group or cue that ends up empty stays, with its number,
+  links and timing. Undo brings it back in its place.
 
 ### Working on many fixtures at once
 
@@ -130,7 +133,8 @@ press Command-A for all of them. The panel then reads *Selected · 6 fixtures*.
 - **Name** with a number at the end numbers them: `Par 1` gives Par 1, Par 2, Par 3 and so on.
   A name without a number gives all of them the same name.
 - **Mode** lists only the modes they all have.
-- **Remove** removes them all, after you confirm.
+- **Remove** removes them all, after you confirm. The text under **Confirm remove** counts them as a
+  whole, so a group that only all of them together empty counts as empty.
 
 Each of these is one step for Undo, and each is refused as a whole when one fixture would clash.
 

@@ -37,7 +37,7 @@ mod common;
 
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::effect::{ColourShape, EffectApply, EffectSet, Entry, EntryId, Path, Shape, Wave};
-use cmdmx_core::engine::Engine;
+use cmdmx_core::engine::{Engine, FixtureUsage, PaletteUsage};
 use cmdmx_core::palette::{
     AutoIcon, Cell, GlobalValue, Palette, Record, RecordMode, Timing, Window,
 };
@@ -1405,4 +1405,30 @@ fn pat_28_each_palette_has_its_line_next_to_the_dropped_values() {
             "Dropped Pan on 1 fixtures",
         ]
     );
+}
+
+// ---- IPC-54 what a delete touches ---------------------------------------------------------
+
+#[test]
+fn ipc_54_an_effect_entry_counts_for_its_palette_and_its_members() {
+    let mut e = rig();
+    let (number, _) = ramp_palette_cue(&mut e);
+    // The cue holds only the entry, on 201: pointing at the palette, and with 201 as a member.
+    assert_eq!(
+        e.palette_usage(number).unwrap(),
+        PaletteUsage {
+            cues: 1,
+            playbacks: 1
+        }
+    );
+    assert_eq!(
+        e.fixture_usage(&[201]),
+        FixtureUsage {
+            cues: 1,
+            playbacks: 1,
+            empty_cues: 1,
+            ..FixtureUsage::default()
+        }
+    );
+    assert_eq!(e.fixture_usage(&[202]), FixtureUsage::default());
 }

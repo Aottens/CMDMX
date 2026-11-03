@@ -64,6 +64,13 @@ const QUEUE: usize = 64;
 /// The protocol version this engine speaks; a command naming another is refused (IPC-41).
 pub const PROTOCOL: u64 = 1;
 
+/// IPC-54: what a delete would touch, asked for a palette or for a set of fixtures.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Usage {
+    Palette(u32),
+    Fixtures(Vec<FixtureId>),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     /// IPC-50: lock or unlock the console; handled on the tick, never by the engine.
@@ -404,6 +411,8 @@ pub enum Command {
         id: PlaybackId,
         cue: CueNumber,
     },
+    /// IPC-54: handed to the tick as `Event::Usage`, never applied.
+    Usage(Usage),
     /// IPC-37: handed to the tick as `Event::PatchProfile`, never applied.
     PatchProfile {
         profile: String,
@@ -644,6 +653,11 @@ pub enum Event {
     CueView {
         id: PlaybackId,
         cue: CueNumber,
+        reply: SyncSender<String>,
+    },
+    /// IPC-54: the answer goes to `reply`, the asking client's own queue.
+    Usage {
+        query: Usage,
         reply: SyncSender<String>,
     },
     /// IPC-37: the answer goes to the asking client only.
@@ -1716,6 +1730,15 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
         }),
+        Some("usage") => match (v.get("palette"), v.get("fixtures")) {
+            (Some(_), None) => Ok(Command::Usage(Usage::Palette(uint(&v, "palette")?))),
+            (None, Some(f)) => Ok(Command::Usage(Usage::Fixtures(
+                f.as_array()
+                    .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
+                    .ok_or("invalid \"fixtures\" (expected an array of fixture ids)")?,
+            ))),
+            _ => Err("expected exactly one of \"palette\" and \"fixtures\"".into()),
+        },
         Some("cue.remove") => Ok(Command::CueRemove {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
@@ -2655,6 +2678,24 @@ pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<Strin
     }))
 }
 
+/// IPC-54: the answer to `usage`, counted by the core.
+pub fn usage(engine: &Engine, query: &Usage) -> Result<String, CoreError> {
+    Ok(to_json(&match query {
+        Usage::Palette(n) => {
+            let u = engine.palette_usage(*n)?;
+            serde_json::json!({"v": PROTOCOL, "type": "usage", "palette": n,
+                "cues": u.cues, "playbacks": u.playbacks})
+        }
+        Usage::Fixtures(ids) => {
+            let u = engine.fixture_usage(ids);
+            serde_json::json!({"v": PROTOCOL, "type": "usage", "fixtures": ids,
+                "groups": u.groups, "cues": u.cues, "playbacks": u.playbacks,
+                "palettes": u.palettes, "empty_groups": u.empty_groups,
+                "empty_cues": u.empty_cues})
+        }
+    }))
+}
+
 pub fn error(msg: &str) -> String {
     to_json(&Text {
         v: PROTOCOL,
@@ -3358,6 +3399,12 @@ fn serve_client(
                 Ok(Command::ProfileSave(profile)) => {
                     let reply = reply.clone();
                     if events.send(Event::ProfileSave { profile, reply }).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::Usage(query)) => {
+                    let reply = reply.clone();
+                    if events.send(Event::Usage { query, reply }).is_err() {
                         return;
                     }
                 }
@@ -6488,6 +6535,60 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn ipc_54_usage_parses_either_a_palette_or_fixtures() {
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"usage","palette":12}"#).unwrap(),
+            Command::Usage(Usage::Palette(12))
+        );
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"usage","fixtures":[101,102]}"#).unwrap(),
+            Command::Usage(Usage::Fixtures(vec![101, 102]))
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"usage"}"#,
+            r#"{"v":1,"cmd":"usage","palette":12,"fixtures":[101]}"#,
+            r#"{"v":1,"cmd":"usage","palette":"12"}"#,
+            r#"{"v":1,"cmd":"usage","palette":-1}"#,
+            r#"{"v":1,"cmd":"usage","fixtures":101}"#,
+            r#"{"v":1,"cmd":"usage","fixtures":["a"]}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_54_the_messages() {
+        let e = engine_with_palettes();
+        let v = parse(&usage(&e, &Usage::Palette(5)).unwrap());
+        assert_eq!(
+            v,
+            json!({"v":1,"type":"usage","palette":5,"cues":0,"playbacks":0})
+        );
+        assert!(usage(&e, &Usage::Palette(77)).is_err());
+        let v = parse(&usage(&e, &Usage::Fixtures(vec![999, 998])).unwrap());
+        assert_eq!(
+            v,
+            json!({"v":1,"type":"usage","fixtures":[999,998],"groups":0,"cues":0,"playbacks":0,
+                "palettes":0,"empty_groups":0,"empty_cues":0})
+        );
+    }
+
+    #[test]
+    fn ipc_54_a_cell_counts_for_its_fixture() {
+        use cmdmx_core::playback::PlaybackRecord;
+        let mut e = cell_engine();
+        e.execute_command(&["9", ".", "2", "@", "50", "Enter"])
+            .unwrap();
+        e.record_playback(&PlaybackRecord::at(1, 2)).unwrap();
+        let v = parse(&usage(&e, &Usage::Fixtures(vec![9])).unwrap());
+        assert_eq!(
+            (&v["cues"], &v["playbacks"], &v["empty_cues"]),
+            (&json!(1), &json!(1), &json!(1)),
+            "{v}"
+        );
     }
 
     #[test]

@@ -77,7 +77,8 @@ These are function buttons in the side column. Press one, then tap a strip's leg
 - **Copy**: tap the playback, then an empty handle. The copy gets the same cues, legend, halo and
   options.
 - **Move**: tap the playback, then an empty handle. A running playback keeps running.
-- **Delete**: tap the playback and confirm on softkey **A**. A running playback is stopped first.
+- **Delete**: tap the playback and confirm on softkey **A**. A running playback is stopped first. The
+  message says so before you confirm, and how many cues go with it.
 - **Set Legend**: opens an editor with the legend (up to 32 characters), the icon library with
   **Auto** for the automatic icon, and a halo row: **Auto**, eight colours and a colour picker.
 - **Options**: opens the Playback Options screen (next part).

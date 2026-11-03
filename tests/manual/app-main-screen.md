@@ -325,6 +325,20 @@ At home, no lamps: `--show-dir` in a temp folder. Each line with Keys on and wit
 - [ ] Locked: the button does nothing and ⌘L does not open a second prompt.
 - [ ] Learn on: the prompt ends Learn, as the softkey does.
 
+## A delete says what it does (UI-47)
+- [ ] Palette used by two cues on one playback, by a value or by an effect: Delete, tap it: "Delete palette n Legend? 2 cues on 1 playback use it and keep its values. Confirm on softkey A." One cue: "1 cue on 1 playback uses it and keeps its values."
+- [ ] Unused palette: "… No cue uses it. …". No legend: the number alone.
+- [ ] Softkey A confirms, and Enter on an empty line; afterwards the cue still gives the same output with plain values.
+- [ ] Palette waiting, another palette tapped: the second one's text shows, not the older count.
+- [ ] Running playback with 8 cues: "Delete playback 1.4 Service? It is running: its output ends at once. 8 cues go with it. Confirm on softkey A."
+- [ ] Not running: without the running sentence. One cue: without the cues sentence. A master with no cues: neither.
+- [ ] The live cue, by the armed row tap and by the Cue softkey: "Delete cue 3 Song? It is the live cue: the output stays until the next Go. Confirm on softkey A." Art-Net: nothing changes on confirming, the next Go moves on.
+- [ ] Another cue of that list, or the list not running: without the live sentence.
+- [ ] Patch: Remove on one fixture, then on a selection, then **Confirm remove** shows the count underneath; "In 1 group." singular forms; a set that together empties a group says so, one of them alone does not. Compare with the group and cue windows after confirming. Undo brings it all back.
+- [ ] Patch: a fixture in nothing: "Not used anywhere." The text leaves with Esc, a changed selection or the confirmation. Confirm remove works at once.
+- [ ] Group delete: the message is unchanged (PRG-85).
+- [ ] Locked (second client): `usage` still answers; the console is unchanged and Undo shows no new step.
+
 ## Lock (UI-38, IPC-50)
 Claude does the setup and the second-client checks and listens to Art-Net; the owner does the steps marked
 (owner). Every step message shows done/total ("Stap 3/12"). Before the first step: a playback running a chase

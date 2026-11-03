@@ -630,3 +630,40 @@ fn ipc_53_held_through_the_unlock_it_is_released_as_usual() {
     );
     saw_flash(&mut app, id, false);
 }
+
+#[test]
+fn ipc_54_usage_answers_the_sender_only_and_while_locked() {
+    let dir = folder("ipc54-usage");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    let mut other = connect(port);
+    recv(&mut app);
+    recv(&mut other);
+    lock_set(&mut app, true, "1234");
+    saw_locked(&mut app, true);
+    saw_locked(&mut other, true);
+
+    send(
+        &mut app,
+        json!({"cmd": "usage", "fixtures": [99991, 99992]}),
+    );
+    let answer = until(&mut app, "the usage answer", |m| m["type"] == "usage");
+    assert_eq!(answer["fixtures"], json!([99991, 99992]));
+    assert_eq!(answer["cues"], 0);
+
+    // The other client sees no answer before its own.
+    send(&mut other, json!({"cmd": "output.ports"}));
+    until(&mut other, "the ports, with no usage before them", |m| {
+        assert_ne!(m["type"], "usage", "{m}");
+        m["type"] == "ports"
+    });
+
+    // An unknown palette is the warning `palette.delete` gives, and locked it still answers.
+    send(&mut app, json!({"cmd": "usage", "palette": 77}));
+    saw_warning(&mut app, "unknown palette 77");
+
+    // Ill-typed: an error to the sender.
+    send(&mut app, json!({"cmd": "usage", "palette": "x"}));
+    until(&mut app, "the error", |m| m["type"] == "error");
+}

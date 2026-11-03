@@ -319,7 +319,7 @@ private struct CueListWindow: View {
         case .delete:
             openCueMenu()
             ui.cueDelete = true
-            engine.say("Delete cue \(plain(cue.number))? Confirm on softkey A.")
+            engine.sayDelete(cue: cue, of: list)
         case .legend:
             ui.cueLegendEditing = ref
         case .options:

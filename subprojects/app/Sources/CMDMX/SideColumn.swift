@@ -588,7 +588,11 @@ private struct Softkeys: View {
             numbered("Copy") { engine.copyCue(ref.playback, cue: ref.cue, to: $0) },
             Softkey(name: "Delete", sub: "confirm on A") {
                 ui.cueDelete = true
-                engine.say("Delete cue \(name)? Confirm on softkey A.")
+                if let list = engine.playback(ref.playback), let cue = list.cue(ref.cue) {
+                    engine.sayDelete(cue: cue, of: list)
+                } else {
+                    engine.say("Delete cue \(name)? Confirm on softkey A.")
+                }
             },
             Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() }),
         ])

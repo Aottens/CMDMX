@@ -93,7 +93,7 @@ tap in the list can never cue the wrong thing.
 - **Set Legend**: a name of up to 32 characters.
 - **Renumber** and **Copy**: type a free number on the keypad first, then press the softkey.
 - **Delete**: confirm on softkey **A**. The last cue of a playback cannot be deleted; delete the
-  playback instead.
+  playback instead. The message says when it is the live cue: the output stays until the next Go.
 
 **Record**, then a tap on a row, records onto that cue: **Replace**, **Merge** or **Update**.
 **Renumber All** on the Cue list tab of Playback Options numbers the cues 1, 2, 3 … in their order.

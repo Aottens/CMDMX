@@ -511,8 +511,13 @@ private struct SelectedPanel: View {
                             armed = nil
                         } else {
                             armed = .remove
+                            engine.askUsage(fixtures: ids)
                         }
                     }.buttonStyle(FlatButton(fill: armed == .remove ? .red : nil))
+                    if armed == .remove, let usage = engine.usage, usage.fixtures == ids {
+                        Text(usage.patchText).font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(8)
                 .onAppear { load(fixture) }

@@ -139,6 +139,24 @@ impl Frame {
     }
 }
 
+/// IPC-54: what deleting a palette touches.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PaletteUsage {
+    pub cues: u32,
+    pub playbacks: u32,
+}
+
+/// IPC-54: what removing a set of fixtures from the patch touches.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct FixtureUsage {
+    pub groups: u32,
+    pub cues: u32,
+    pub playbacks: u32,
+    pub palettes: u32,
+    pub empty_groups: u32,
+    pub empty_cues: u32,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Settings {
     /// Fader level at which LTP attributes of a mode-0/1 playback are asserted.
@@ -6483,6 +6501,60 @@ impl Engine {
             *stored = stored.without_palette(id);
         }
         Ok(())
+    }
+
+    /// IPC-54: the cues (and their playbacks) that `delete_palette` would change.
+    pub fn palette_usage(&self, number: u32) -> Result<PaletteUsage, CoreError> {
+        let id = self
+            .palette(number)
+            .ok_or(CoreError::UnknownPalette(number))?
+            .id;
+        let mut usage = PaletteUsage::default();
+        for pb in self.playbacks.values() {
+            let hits = pb
+                .cues
+                .iter()
+                .filter(|cue| {
+                    let value = (cue.values.values().flat_map(|a| a.values()))
+                        .any(|s| matches!(s, Stored::Reference(r) if r.palette == id));
+                    value || cue.effects.iter().any(|e| e.palette == Some(id))
+                })
+                .count();
+            usage.cues = usage.cues.saturating_add(hits as u32);
+            usage.playbacks = usage.playbacks.saturating_add(u32::from(hits > 0));
+        }
+        Ok(usage)
+    }
+
+    /// IPC-54: what `patch_remove` of `ids` would touch, counted without changing anything.
+    pub fn fixture_usage(&self, ids: &[FixtureId]) -> FixtureUsage {
+        let gone = |i: &Item| ids.contains(&i.fixture);
+        let mut u = FixtureUsage::default();
+        for members in self.groups.values() {
+            let hit = members.iter().any(gone);
+            u.groups += u32::from(hit);
+            u.empty_groups += u32::from(hit && members.iter().all(gone));
+        }
+        for p in self.palettes.values() {
+            let hit =
+                p.fixtures.keys().any(gone) || p.effects.iter().any(|e| e.members.iter().any(gone));
+            u.palettes += u32::from(hit);
+        }
+        for pb in self.playbacks.values() {
+            let mut cues = 0;
+            for cue in &pb.cues {
+                // `Entry::retire` keeps an entry that never had members.
+                let kept = |e: &effect::Entry| e.members.is_empty() || !e.members.iter().all(gone);
+                let hit = cue.values.keys().any(gone)
+                    || cue.effects.iter().any(|e| e.members.iter().any(gone));
+                let after = !cue.values.keys().all(gone) || cue.effects.iter().any(kept);
+                cues += u32::from(hit);
+                u.empty_cues += u32::from(hit && !after);
+            }
+            u.cues += cues;
+            u.playbacks += u32::from(cues > 0);
+        }
+        u
     }
 
     /// PAL-20, 22: the legend (at most 32 characters) and the icon id (`None` = automatic).
