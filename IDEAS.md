@@ -806,6 +806,6 @@ offline until it is restarted; it does not start its own bundled engine. Only re
 
 ### IDEA-40 — A function's hint stays after it is disarmed (2026-11-03)
 **Found in:** the FUN-03 run; not from the owner.
-**What happens:** the hint said on arming ("Unfold: tap a fixture to unfold or fold its cells.") stays in the message zone after Esc, Exit or a screen disarms the function, until the next message. Patch and Control show it too, with nothing armed.
+**What happens:** the hint said on arming ("Unfold: tap a fixture to unfold or fold its cells.") stays in the message zone after Esc, Exit or a screen disarms the function, until the next message. Patch and Control show it too, with nothing armed. A delete's message does the same since UI-47, with its count and "Confirm on softkey A" (FUN-05 + FUN-06 run).
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now.
 **Open question:** clear only hints (`say`) on a disarm, so a warning from the engine stays?

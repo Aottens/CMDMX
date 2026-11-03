@@ -135,8 +135,8 @@ Every cue and playback that uses the palette follows the change straight away, w
   that used the original keep using the original.
 - **Move**, then tap a palette and an empty cell, moves it. Its number stays, and looks that use
   it keep using it.
-- **Delete**, then tap a palette, and confirm on softkey **A**. Cues and playbacks that used it
-  keep the values the palette gave when they were recorded.
+- **Delete**, then tap a palette, and confirm on softkey **A**. The message says how many cues use
+  it, on how many playbacks. Those cues keep the values the palette gave when they were recorded.
 
 Palettes are saved with the show. Recording, changing and deleting them can be undone.
 

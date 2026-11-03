@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-03 (batch H: FUN-01 to FUN-04 done; the church run is on 2026-11-08)_
+_Last updated: 2026-11-03 (batch H done: FUN-01 to FUN-06; next 0.4.0 and its gap review; the church run is on 2026-11-08)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -48,7 +48,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
 8. Show-proof (IDEA-35 batch A): spec P1-25 approved by the owner 2026-11-01; SPF-04 (quitting always asks)
    SPF-01 (the Mac stays awake) and SPF-02 (a late tick does not catch up) are done; SPF-03 (display awake) is built and waits for `tests/hardware/sleep.md`; SPF-05 (an adopted engine comes back), SPF-06 (level bars never jump), SPF-07 (*New cue times*), SPF-08 (message history in the daemon) SPF-09 (the Messages sheet, dots that open their screen), SPF-10 (`lock.set` in the daemon) and SPF-11 (the Lock softkey, cover and keypad) are done; every build task of batch A is done. After `tests/hardware/sleep.md` (SPF-03): v0.3.0, then the new gap review.
 9. Defects in what exists (IDEA-35 batch A2): spec P1-26 approved by the owner 2026-11-02 (`patch.md` PAT-26..28, `ipc.md` IPC-53, `ui.md` UI-41, `release.md` REL-26..28); all three builds are done and released as v0.3.1 (2026-11-03).
-10. Functions and consequences (IDEA-35 batch H): spec P1-27 (`ui.md` UI-42..48, `ipc.md` IPC-54; `tests/manual/runs/2026-11-03-H-checks.md`), the owner's five answers in `ui.md`; FUN-01 to FUN-04 are done (`tests/manual/runs/2026-11-03-FUN-01-02.md`, `2026-11-03-FUN-03-04.md`); next build FUN-05 + FUN-06. Nothing from H goes on the church Mac before the service of 2026-11-08: that Mac gets v0.3.1, also if 0.4.0 is out by then.
+10. Functions and consequences (IDEA-35 batch H): spec P1-27 (`ui.md` UI-42..48, `ipc.md` IPC-54; `tests/manual/runs/2026-11-03-H-checks.md`), the owner's five answers in `ui.md`; FUN-01 to FUN-06 are done (`tests/manual/runs/2026-11-03-FUN-01-02.md`, `2026-11-03-FUN-03-04.md`, `2026-11-03-FUN-05-06.md`), which finishes the batch; next sub-release 0.4.0, then its gap review with the app running. Nothing from H goes on the church Mac before the service of 2026-11-08: that Mac gets v0.3.1, also if 0.4.0 is out by then.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
