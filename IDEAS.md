@@ -65,6 +65,7 @@ the backlog, not the whole idea.
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 | IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
+| IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -802,3 +803,9 @@ offline until it is restarted; it does not start its own bundled engine. Only re
 **What happens:** on the owner's MacBook with the Dock showing the window is 832 pt high. The workspace layout then cuts off the strips below the fader readout, so the handle buttons are out of reach; empty bands stay above and below the window grid. On the screens that replace the grid (Patch, Playback Options) the upper button shows, the lower is cut off.
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now. Console mode may not have this; not tried in the run.
 **Open question:** the minimum height, and whether the bands can give their room to the strips.
+
+### IDEA-40 — A function's hint stays after it is disarmed (2026-11-03)
+**Found in:** the FUN-03 run; not from the owner.
+**What happens:** the hint said on arming ("Unfold: tap a fixture to unfold or fold its cells.") stays in the message zone after Esc, Exit or a screen disarms the function, until the next message. Patch and Control show it too, with nothing armed.
+**Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now.
+**Open question:** clear only hints (`say`) on a disarm, so a warning from the engine stays?

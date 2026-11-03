@@ -41,7 +41,7 @@ The command-line keys work on the workspaces, not on the Patch, Output, Control 
 One press of **Esc** does the first of these that applies, on every screen:
 
 1. The Lock prompt cancels; Learn mode ends (see [Learn](controls.md#learn)).
-2. An open sheet or dialog closes. In a text field Esc drops what you typed and leaves the field; a value that was not sent stays as it was.
+2. An open sheet or dialog closes. In a text field Esc leaves the field: one that sends on leaving goes back to its old value and sends nothing; a form keeps what you typed until you leave the screen, and nothing of it has been applied.
 3. Record, a function, a softkey menu or a typed command line: the same as **Exit**.
 4. The deck's focus goes back to the device table, the profile editor closes (asking first when there are changes), a screen (Patch, Output, Control, Show, Playback Options) goes back to the workspace, and the Cue view goes back to the Cue list.
 
