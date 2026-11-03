@@ -24,18 +24,19 @@ use std::collections::BTreeMap;
 
 use cmdmx_core::attribute::AttributeGroup::{B, C, I, P};
 use cmdmx_core::colour::TargetColour;
-use cmdmx_core::engine::{Engine, Settings};
+use cmdmx_core::engine::{Engine, FixtureUsage, PaletteUsage, Settings};
 use cmdmx_core::palette::{
     AutoIcon, Cell, GlobalValue, Palette, PaletteId, PaletteKind, Record, RecordAs, RecordBy,
     RecordMode, Timing, Window,
 };
 use cmdmx_core::patch::Fixture;
-use cmdmx_core::playback::Playback;
+use cmdmx_core::playback::{CueNumber, Playback};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::Item;
 use cmdmx_core::programmer::Resolution;
 use cmdmx_core::show::{Meta, Show};
 use cmdmx_core::value::{Reference, Stored, Value};
+use cmdmx_core::CoreError;
 
 // ---- rig ---------------------------------------------------------------------
 
@@ -1349,4 +1350,107 @@ fn pal_32_contents_keep_references() {
             value: red()
         })
     );
+}
+
+// ---- IPC-54 what a delete touches ---------------------------------------------------------
+
+#[test]
+fn ipc_54_a_palette_counts_its_cues_and_their_playbacks() {
+    let mut e = rig();
+    set(&mut e, &[201], "Colour", rgb(1.0, 0.0, 0.0));
+    let used = channel_record(&mut e, Window::Colours, 1);
+    let unused = channel_record(&mut e, Window::Colours, 2);
+    e.clear();
+    playback_with_reference(&mut e, used, red());
+    // Two cues of one playback that refer to it, one that does not.
+    let reference = |palette| {
+        Stored::Reference(Reference {
+            palette,
+            value: red(),
+        })
+    };
+    let mut pb = Playback::new(
+        2,
+        1,
+        2,
+        BTreeMap::from([(
+            Item::fixture(202),
+            BTreeMap::from([("Colour".to_string(), reference(used))]),
+        )]),
+    );
+    let mut second = pb.cues[0].clone();
+    second.number = CueNumber::new(2.0).unwrap();
+    let mut third = pb.cues[0].clone();
+    third.number = CueNumber::new(3.0).unwrap();
+    third.values = BTreeMap::from([(
+        Item::fixture(202),
+        BTreeMap::from([("Colour".to_string(), Stored::Value(blue()))]),
+    )]);
+    pb.cues.extend([second, third]);
+    e.add_playback(pb);
+
+    let number = number_of(&e, used);
+    assert_eq!(
+        e.palette_usage(number).unwrap(),
+        PaletteUsage {
+            cues: 3,
+            playbacks: 2
+        }
+    );
+    assert_eq!(
+        e.palette_usage(number_of(&e, unused)).unwrap(),
+        PaletteUsage::default()
+    );
+    assert_eq!(e.palette_usage(77), Err(CoreError::UnknownPalette(77)));
+}
+
+#[test]
+fn ipc_54_a_set_of_fixtures_counts_as_a_whole_and_says_what_ends_up_empty() {
+    let mut e = rig();
+    select(&mut e, &[201, 202]);
+    e.record_group(1).unwrap();
+    e.clear();
+    select(&mut e, &[101]);
+    e.record_group(2).unwrap();
+    e.clear();
+    // Two colours, so the palette holds per-fixture values and not one global value.
+    set(&mut e, &[201], "Colour", rgb(1.0, 0.0, 0.0));
+    set(&mut e, &[202], "Colour", rgb(0.0, 0.0, 1.0));
+    channel_record(&mut e, Window::Colours, 1);
+    e.clear();
+    let values = |ids: &[u32]| -> BTreeMap<Item, BTreeMap<String, Stored>> {
+        ids.iter()
+            .map(|&id| {
+                let value = BTreeMap::from([("Dimmer".to_string(), Stored::Value(level(1.0)))]);
+                (Item::fixture(id), value)
+            })
+            .collect()
+    };
+    e.add_playback(Playback::new(1, 1, 1, values(&[201])));
+    e.add_playback(Playback::new(2, 1, 2, values(&[201, 202])));
+    e.add_playback(Playback::new(3, 1, 3, values(&[101])));
+
+    let usage = |groups, cues, playbacks, palettes, empty_groups, empty_cues| FixtureUsage {
+        groups,
+        cues,
+        playbacks,
+        palettes,
+        empty_groups,
+        empty_cues,
+    };
+    // Alone, 201 empties only the cue that holds nothing else.
+    assert_eq!(e.fixture_usage(&[201]), usage(1, 2, 2, 1, 0, 1));
+    // Together they empty the group and the second cue too.
+    assert_eq!(e.fixture_usage(&[201, 202]), usage(1, 2, 2, 1, 1, 2));
+    // An unknown fixture counts for nothing.
+    assert_eq!(e.fixture_usage(&[201, 999]), usage(1, 2, 2, 1, 0, 1));
+    assert_eq!(e.fixture_usage(&[999]), FixtureUsage::default());
+    assert_eq!(e.fixture_usage(&[]), FixtureUsage::default());
+
+    // The count says what `patch_remove` then does: the group and both cues stay, empty.
+    e.patch_remove(&[201, 202]).unwrap();
+    assert_eq!(e.group_items(1), Some(Vec::new()));
+    assert!(e.playback(1).unwrap().cues[0].values.is_empty());
+    assert!(e.playback(2).unwrap().cues[0].values.is_empty());
+    assert_eq!(e.fixture_usage(&[201, 202]), FixtureUsage::default());
 }

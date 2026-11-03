@@ -281,6 +281,10 @@ fn main() {
                 ipc::Event::CueView { id, cue, reply } => {
                     ipc::cue_view(&engine, id, cue).map(|msg| drop(reply.try_send(msg)))
                 }
+                // IPC-54: counted by the core; an unknown palette is a warning like the delete's.
+                ipc::Event::Usage { query, reply } => {
+                    ipc::usage(&engine, &query).map(|msg| drop(reply.try_send(msg)))
+                }
                 // IPC-37: an unknown key is an error to the asking client only.
                 ipc::Event::PatchProfile { key, reply } => {
                     let msg = ipc::patch_profile(&engine, &key)
@@ -874,6 +878,8 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         CueCopy { id, cue, to } => engine.copy_cue(id, cue, to),
         // Answered through `Event::CueView` (IPC-24).
         CueView { .. } => Ok(()),
+        // Answered through `Event::Usage` (IPC-54).
+        Usage(_) => Ok(()),
         // Answered through `Event::PatchProfile` (IPC-37).
         PatchProfile { .. } => Ok(()),
         ProfileSave(p) => engine
@@ -948,6 +954,7 @@ fn class(cmd: &ipc::Command) -> Class {
         Show(New { .. } | Open { .. }) => Class::Reset,
         Show(List | SaveAs { .. })
         | CueView { .. }
+        | Usage(_)
         | PatchProfile { .. }
         | Control(_)
         | LockSet { .. }
@@ -2771,6 +2778,8 @@ mod tests {
             Class::Neutral,
         ),
         (r#"{"v":1,"cmd":"cue.view","id":2,"cue":2}"#, Class::Neutral),
+        (r#"{"v":1,"cmd":"usage","palette":12}"#, Class::Neutral),
+        (r#"{"v":1,"cmd":"usage","fixtures":[1,2]}"#, Class::Neutral),
         (
             r#"{"v":1,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#,
             Class::Neutral,
