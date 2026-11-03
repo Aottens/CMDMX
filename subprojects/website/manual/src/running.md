@@ -117,8 +117,8 @@ Command-4 switch workspaces whether Keys is on or not.
 
 ## Locking the console
 
-**Lock** on the softkeys of the Main context (nothing selected) keeps fingers off the console while the show runs
-or while you step away. It asks for a code. Type digits on the keypad or the Mac keyboard and press **Enter**. You
+**Lock** in the status bar, ⌘L, or **Lock** on the softkeys of the Main context (nothing selected) keeps fingers off the console while the show runs
+or while you step away. The button and ⌘L work from every screen, also with **Keys** off. It asks for a code. Type digits on the keypad or the Mac keyboard and press **Enter**. You
 can also press Enter with no digits, then Enter alone unlocks. **Cancel** or Escape leaves it unlocked.
 
 While locked, a cover hides everything below the status bar. It shows "Locked", the show name, the clock and a keypad.

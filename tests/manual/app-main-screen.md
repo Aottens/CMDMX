@@ -299,6 +299,32 @@ happens, the function stays armed.
 - [ ] Options, `Palette 12`, Enter with no palette 12: Options's refusal, not "is empty".
 - [ ] Nothing armed: Enter and Locate behave as before, and Enter closes the Palette softkeys.
 
+## Esc, one level up (UI-44)
+At home, no lamps: `--show-dir` in a temp folder. Each line with Keys on and with Keys off (`-keysLive NO`); listen to Art-Net, as no Esc may change it.
+
+- [ ] A workspace: Record armed, Esc disarms. A function armed, a softkey menu (Palette, Order), a typed line: Esc does what Exit does. With nothing left, Esc does nothing.
+- [ ] Patch, Output, Control, Show and Playback Options: Esc goes back to the workspace; a typed line waits there untouched.
+- [ ] Patch: Confirm remove waiting, Esc goes back to the workspace and nothing is removed; back on Patch, it no longer waits.
+- [ ] Patch, the profile editor: Esc cancels when clean; with changes it asks "Discard changes?", and Esc on that dialog stays in the editor.
+- [ ] Control: a deck's focus goes back to Devices, the next Esc to the workspace.
+- [ ] Cue view: Esc goes back to the Cue list; with Remove waiting, the first Esc cancels that and the second goes back.
+- [ ] A text field that commits on losing focus (BPM in the Cue list, a time in Playback Options, a port on Control): type, Esc: the old value shows and nothing was sent; the next Esc goes on. Clicking away still sends.
+- [ ] A form field on Patch or Show: Esc gives up focus and the next Esc leaves the screen. Nothing was applied.
+- [ ] A sheet (a legend editor, Messages): Esc closes the sheet only. Lock prompt: Esc cancels. Learn: Esc ends it.
+- [ ] Esc held on a screen: leaves it once, and an armed Record on the workspace is not touched by the repeats. A running chase and a held Flash do not change.
+
+## Opening a screen disarms (UI-45)
+- [ ] Record armed, then Patch (rail), Patch (softkey), Disk (softkey), Output, Control, Show (rail), a protocol dot, the Control dot: no armed function on return; a tap on a handle from that screen does not record.
+- [ ] A function armed, then a screen: the same.
+- [ ] Record armed, another workspace by the rail, F-key and ⌘-key: stays armed, and a tap there records. A page button: stays armed.
+
+## Lock from anywhere (UI-48)
+- [ ] **Lock** in the status bar opens the prompt from each workspace, with a selection, on each screen, and with a function armed. The softkey still does.
+- [ ] ⌘L does the same, with Keys off and with focus in a text field.
+- [ ] Engine offline: the button is dim and ⌘L does nothing. Under a sheet, ⌘L does nothing until the sheet closes.
+- [ ] Locked: the button does nothing and ⌘L does not open a second prompt.
+- [ ] Learn on: the prompt ends Learn, as the softkey does.
+
 ## Lock (UI-38, IPC-50)
 Claude does the setup and the second-client checks and listens to Art-Net; the owner does the steps marked
 (owner). Every step message shows done/total ("Stap 3/12"). Before the first step: a playback running a chase
