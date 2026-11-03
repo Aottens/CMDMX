@@ -174,6 +174,9 @@ On the Playback tab:
 
 ## Flash, Swop and Latch
 
+With Record or a function armed, Flash and Swop are a tap on the legend and the stage does not change (see
+[What an armed function does](reference.md#what-an-armed-function-does)). Latch is the exception, below. A control surface's Flash stays live.
+
 - **Flash**, held: the playback goes to full, ignoring its fade-in. Let go and it follows its fader
   again at once.
 - **Swop**, held: as Flash, and the intensity of every other playback goes to 0 while you hold it.

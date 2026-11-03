@@ -84,13 +84,13 @@ private struct FunctionButtons: View {
 
     /// What an armed palette function waits for (the sketch's MODE_HINT).
     private static let hints = [
-        "Update": "Update: tap the palette or playback handle to update with what is in the programmer.",
+        "Update": "Update: tap the palette, playback handle or cue to update with what is in the programmer.",
         "Include": "Include: tap a palette; its values go into the programmer.",
-        "Delete": "Delete: tap the group, palette or playback handle to delete. You confirm on softkey A.",
-        "Copy": "Copy: tap the source group, palette or playback handle, then an empty cell or handle.",
-        "Move": "Move: tap the source group, palette or playback handle, then an empty cell or handle.",
+        "Delete": "Delete: tap the group, palette, playback handle or cue to delete. You confirm on softkey A.",
+        "Copy": "Copy: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
+        "Move": "Move: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
         "Release": "Release: tap a running playback handle to release it.",
-        "Options": "Options: tap a playback handle to open its options.",
+        "Options": "Options: tap a playback handle or cue to open its options.",
         "Unfold": "Unfold: tap a fixture to unfold or fold its cells.",
         "Latch": "Latch: now press Flash on a handle to latch it.",
     ]
@@ -238,9 +238,9 @@ private struct Keypad: View {
         switch label {
         case "Back": line.back()
         case "Exit": line.clear(); ui.cancelModes()   // also disarms Record and the function buttons (PBK-28)
-        case "Enter": line.send(engine); ui.paletteMenu = false
+        case "Enter": line.enter(engine, ui: ui)   // UI-46
         case "Locate":   // UI-26: an empty line locates everything, else the line ends in Locate
-            if line.tokens.isEmpty { engine.locate() } else { line.send(engine, end: "Locate") }
+            if line.tokens.isEmpty { engine.locate() } else { line.enter(engine, ui: ui, end: "Locate") }
             ui.paletteMenu = false
         case "Highlight": engine.setHighlight(!engine.programmer.highlight)
         case "Clear": line.clearProgrammer(engine); ui.cancelModes(); ui.pendingOverlap = nil
@@ -419,7 +419,7 @@ private struct Softkeys: View {
 
     private var setLegendKey: Softkey {
         Softkey(name: "Set Legend", sub: "then tap a cell or handle",
-                action: { ui.arm(.legend); engine.say("Set Legend: tap a group, a palette, a playback handle or a page.") })
+                action: { ui.arm(.legend); engine.say("Set Legend: tap a group, a palette, a playback handle, a cue or a page.") })
     }
 
     /// PBK-39: the Playback Options screen for the handle tapped last.
@@ -566,8 +566,7 @@ private struct Softkeys: View {
         if ui.cueDelete {
             var keys: [Softkey?] = Array(repeating: nil, count: 7)
             keys[0] = Softkey(name: "Confirm delete", sub: name) {
-                engine.deleteCue(ref.playback, cue: ref.cue)
-                ui.cancelModes()
+                ui.confirmDelete(engine)   // UI-46
             }
             keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() })
             return ("Cue · \(name)", keys)
@@ -625,20 +624,17 @@ private struct Softkeys: View {
         var keys: [Softkey?] = Array(repeating: nil, count: 7)
         if function == .delete, let number = ui.deleteTarget {
             keys[0] = Softkey(name: "Confirm delete", sub: "palette \(number)") {
-                engine.deletePalette(number)
-                ui.cancelModes()
+                ui.confirmDelete(engine)   // UI-46
             }
         }
         if function == .delete, let id = ui.deletePlayback {
             keys[0] = Softkey(name: "Confirm delete", sub: "playback \(engine.playback(id)?.homeHandle ?? "")") {
-                engine.deletePlayback(id)
-                ui.cancelModes()
+                ui.confirmDelete(engine)   // UI-46
             }
         }
         if function == .delete, let number = ui.deleteGroup, let group = engine.groups.first(where: { $0.id == number }) {
             keys[0] = Softkey(name: "Delete group \(number)", sub: group.legend ?? "") {
-                engine.deleteGroup(number)
-                ui.cancelModes()
+                ui.confirmDelete(engine)   // UI-46
             }
         }
         if function == .unfold {

@@ -63,6 +63,8 @@ the backlog, not the whole idea.
 | IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | triaged; phase confirmed 2026-11-02 | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
+| IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
+| IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -788,3 +790,15 @@ the file's header says a refused value stays as it was. Every `NumberField` in P
 offline until it is restarted; it does not start its own bundled engine. Only reachable with a second engine by hand, so not in an ordinary show.
 **Triage:** proposed phase 1, after A2; `release.md`. Owner to confirm the phase. Nothing touched now.
 **Open question:** take over at once or ask, and with the same show?
+
+### IDEA-38 — Workspaces that are not on show leave the accessibility tree (2026-11-03)
+**Found in:** the FUN-01 run; not from the owner.
+**What happens:** the workspaces stay built while hidden, and their buttons stay in the accessibility tree at their own positions. An accessibility click on a cue row in Playbacks landed on the Looks tile "Dimmer wave" of the hidden Shapes workspace and applied the effect; a real mouse does not. It reaches VoiceOver and anything that drives the app by accessibility, such as background runs.
+**Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now.
+**Open question:** hide them from accessibility, or stop keeping hidden workspaces built?
+
+### IDEA-39 — Strips are cut off on a window with the Dock (2026-11-03)
+**Found in:** the FUN-01 run; not from the owner.
+**What happens:** on the owner's MacBook with the Dock showing the window is 832 pt high. The workspace layout then cuts off the strips below the fader readout, so the handle buttons are out of reach; empty bands stay above and below the window grid. On the screens that replace the grid (Patch, Playback Options) the upper button shows, the lower is cut off.
+**Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now. Console mode may not have this; not tried in the run.
+**Open question:** the minimum height, and whether the bands can give their room to the strips.

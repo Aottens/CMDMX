@@ -66,12 +66,54 @@ final class TokenLine: ObservableObject {
     func send(_ engine: EngineClient, end: String = "Enter") {
         guard !tokens.isEmpty else { return }
         engine.command(words: tokens, end: end)
+        remember()
+        clear()
+    }
+
+    private func remember() {
         let line = tokens.joined(separator: " ")
         if history.last != line {
             history = Array((history + [line]).suffix(100))
             UserDefaults.standard.set(history, forKey: "commandHistory")
         }
+    }
+
+    /// UI-46: Enter, and Locate on a non-empty line. An empty line confirms a waiting Delete. While Record or a
+    /// function is armed, exactly `Group n` or `Palette n` is a tap on that cell; any other line is refused.
+    func enter(_ engine: EngineClient, ui: UIState, end: String = "Enter") {
+        if tokens.isEmpty {
+            if end == "Enter" { ui.confirmDelete(engine) }
+            ui.paletteMenu = false
+            return
+        }
+        guard ui.recordArmed || ui.function != nil else {
+            send(engine, end: end)
+            ui.paletteMenu = false
+            return
+        }
+        if end == "Enter", tokens.count == 2, let n = Int(tokens[1]), n >= 1, tokens[0] == "Group" || tokens[0] == "Palette" {
+            if tokens[0] == "Group" {
+                guard ui.armedAllows(.group, engine) else { return }
+                finishTap(ui)
+                GroupTaps.tap(n, engine.groups.first { $0.id == n }, engine: engine, ui: ui)
+            } else {
+                guard let p = engine.palettes.first(where: { $0.number == n }) else {
+                    return engine.say(ui.refusal(on: .palette) ?? "Palette \(n) is empty: tap a cell in a palette window")
+                }
+                guard ui.armedAllows(.palette, engine) else { return }
+                finishTap(ui)
+                PaletteTaps.armed(window: p.window, handle: p.handle, p, engine: engine, ui: ui)
+            }
+            return
+        }
+        let name = ui.recordArmed ? "Record" : (ui.function?.rawValue ?? "")
+        engine.say("\(name): type Group n or Palette n, or tap a target.")
+    }
+
+    private func finishTap(_ ui: UIState) {
+        remember()
         clear()
+        ui.paletteMenu = false
     }
 
     /// Up: the previous entry.
@@ -144,7 +186,8 @@ enum MacKeys {
         guard ui.screen == nil else { return false }
 
         switch event.keyCode {
-        case 36, 76: line.send(engine); ui.paletteMenu = false   // Return, keypad Enter
+        // Return, keypad Enter (UI-46); a held key fires once, so it cannot run on into a waiting Delete's confirmation.
+        case 36, 76: if !event.isARepeat { line.enter(engine, ui: ui) }
         case 53: line.clear(); ui.cancelModes()                  // Esc = Exit
         case 51: line.back()                // Backspace
         case 126: line.older()              // Up

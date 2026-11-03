@@ -38,6 +38,9 @@ selection replaces the current one.
 - `201 Thro 208 @ 50 Enter` selects them and sets their intensity to 50 %. With fixtures selected,
   `@ 80 Enter` sets the selection to 80 %.
 - Ending the line with **Locate** instead of Enter selects and locates in one go.
+- With Record or a function armed, `Group 3 Enter` or `Palette 12 Enter` is a tap on that cell. Any other line is refused and stays,
+  to be corrected, and a palette that does not exist has to be tapped, because its cell decides where it goes.
+- With a Delete waiting, Enter on an empty line confirms it, as softkey A does. A second tap on the target does not.
 - `201 Thro 208 Lee 106 Enter` selects them and gives them LEE 106's colour (see
   [The gel book](#the-gel-book)). With fixtures selected, `Lee 201 Enter` does the same.
 
@@ -235,7 +238,8 @@ A group is a saved selection, with its order. The Groups window shows each group
   selection hold fixtures rather than groups, so they do not change. A group that a group master
   uses is not deleted: the message line names the handle, and you delete the master first.
 
-While one of these is armed a tap on a group does not select it. **Clear** disarms. A refusal, such
+While one of these is armed a tap on a group does not select it, and neither does any other armed function: see
+[What an armed function does](reference.md#what-an-armed-function-does). **Clear** disarms. A refusal, such
 as a Copy onto a used cell, shows its warning on the message line and changes nothing. Each action
 is one Undo step.
 

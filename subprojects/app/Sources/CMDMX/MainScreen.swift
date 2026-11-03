@@ -12,6 +12,9 @@ enum PaletteFunction: String {
     case release = "Release", options = "Options", latch = "Latch", unfold = "Unfold"
 }
 
+/// What a tap can land on while Record or a function is armed (UI-42).
+enum ArmedTarget { case group, fixture, cell, palette, handle, cue, effectCell, activeRow }
+
 /// A used handle tapped while Record is armed (PBK-38): the softkeys ask how to record onto it.
 struct UsedHandle: Equatable {
     let page: Int
@@ -166,6 +169,72 @@ final class UIState: ObservableObject {
     func resetRecord() {
         usedCell = nil; usedHandle = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
         usedCue = nil; updateMode = nil; recordMaster = nil; recordMasterGroup = nil
+    }
+
+    /// UI-42: the one table. nil = the tap may go on (allowed, or nothing armed); else the message that
+    /// names where the armed Record or function works.
+    func refusal(on target: ArmedTarget) -> String? {
+        if recordArmed {
+            let ok: [ArmedTarget] = [.group, .palette, .handle, .cue]
+            return ok.contains(target) ? nil : "Record: tap a group, palette, cue or handle."
+        }
+        guard let function else { return nil }
+        let name = function.rawValue
+        if function == .latch { return "Latch: press Flash on a handle." }
+        if function == .release, target == .activeRow { return nil }
+        let places: [ArmedTarget]
+        switch function {
+        case .update: places = [.palette, .handle, .cue]
+        case .include: places = [.palette]
+        case .copy, .move, .delete, .legend: places = [.group, .palette, .handle, .cue]
+        case .options: places = [.handle, .cue]
+        case .release: places = [.handle]
+        case .unfold: places = [.fixture]
+        case .latch: places = []
+        }
+        if places.contains(target) { return nil }
+        if target == .fixture || target == .cell, [.delete, .copy, .move, .legend].contains(function) {
+            return "\(name): fixtures are changed on the Patch screen."
+        }
+        if target == .effectCell, places.contains(.palette) { return "\(name): tap the palette in its own window." }
+        let names: [ArmedTarget: String] = [.group: "groups", .fixture: "fixtures", .palette: "palettes", .handle: "playback handles", .cue: "cues"]
+        let list = places.compactMap { names[$0] }
+        let joined = list.count > 1 ? list.dropLast().joined(separator: ", ") + " and " + list[list.count - 1] : list.joined()
+        return "\(name) works on \(joined)."
+    }
+
+    /// UI-42: true when the tap on `target` may go on. A refusal is said and nothing else happens. An allowed
+    /// tap off a cue closes the Cue softkeys, which win over the function softkeys in the side column.
+    func armedAllows(_ target: ArmedTarget, _ engine: EngineClient) -> Bool {
+        if let message = refusal(on: target) {
+            engine.say(message)
+            return false
+        }
+        if (recordArmed || function != nil), target != .cue { cueMenu = nil; cueDelete = false }
+        return true
+    }
+
+    /// Delete waits for softkey A on exactly one target (UI-42, UI-47).
+    func waitForDelete(palette: Int? = nil, playback: Int? = nil, group: Int? = nil) {
+        deleteTarget = palette; deletePlayback = playback; deleteGroup = group
+    }
+
+    /// UI-46: the one place a waiting Delete is confirmed (softkey A and Enter). false = nothing was waiting.
+    @discardableResult
+    func confirmDelete(_ engine: EngineClient) -> Bool {
+        if cueDelete, let ref = cueMenu {
+            engine.deleteCue(ref.playback, cue: ref.cue)
+        } else if function == .delete, let number = deleteTarget {
+            engine.deletePalette(number)
+        } else if function == .delete, let id = deletePlayback {
+            engine.deletePlayback(id)
+        } else if function == .delete, let number = deleteGroup {
+            engine.deleteGroup(number)
+        } else {
+            return false
+        }
+        cancelModes()
+        return true
     }
 
     /// PRG-94: a function the Groups window answers to.

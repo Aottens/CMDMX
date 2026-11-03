@@ -100,8 +100,11 @@ struct PaletteWindow: View {
 
     /// What a tap on a cell sends, by what is armed (PAL-28, PAL-29).
     private func tap(_ handle: Int, _ p: PaletteInfo?) {
-        if ui.recordArmed { return record(handle, p) }
-        if let function = ui.function { return perform(function, handle, p) }
+        if ui.recordArmed || ui.function != nil {
+            guard ui.armedAllows(.palette, engine) else { return }   // UI-42
+            lastTap = nil
+            return PaletteTaps.armed(window: kind.wire, handle: handle, p, engine: engine, ui: ui)
+        }
         guard let p else { return quickRecord(handle) }
         lastTap = nil
         // A number alone on the command line is the fade time of this tap (Titan).
@@ -120,18 +123,27 @@ struct PaletteWindow: View {
             lastTap = (handle, Date())
         }
     }
+}
+
+/// UI-46: the armed tap on a palette cell, called by the palette windows and by the command line (`Palette n`).
+@MainActor
+enum PaletteTaps {
+    /// The armed tap: Record records, a function performs.
+    static func armed(window: String, handle: Int, _ p: PaletteInfo?, engine: EngineClient, ui: UIState) {
+        if ui.recordArmed { return record(window, handle, p, engine: engine, ui: ui) }
+        if let function = ui.function { perform(function, window, handle, p, engine: engine, ui: ui) }
+    }
 
     /// Record armed: an empty cell records. A used cell asks for Replace / Merge / Quick Merge on the
     /// softkeys; a second tap on the same cell is Quick Merge (Titan).
-    private func record(_ handle: Int, _ p: PaletteInfo?) {
-        lastTap = nil
+    private static func record(_ window: String, _ handle: Int, _ p: PaletteInfo?, engine: EngineClient, ui: UIState) {
         guard let p else {
-            send(handle, mode: nil)
+            send(window, handle, mode: nil, engine: engine, ui: ui)
             return
         }
-        let cell = UsedCell(window: kind.wire, handle: handle, number: p.number)
+        let cell = UsedCell(window: window, handle: handle, number: p.number)
         if ui.usedCell == cell {
-            send(handle, mode: "QuickMerge")
+            send(window, handle, mode: "QuickMerge", engine: engine, ui: ui)
         } else {
             ui.usedCell = cell
             ui.maskMenu = false
@@ -139,23 +151,20 @@ struct PaletteWindow: View {
         }
     }
 
-    private func send(_ handle: Int, mode: String?) {
-        engine.recordPalette(window: kind.wire, handle: handle, mask: ui.orderedRecordMask, recordBy: ui.recordBy,
+    private static func send(_ window: String, _ handle: Int, mode: String?, engine: EngineClient, ui: UIState) {
+        engine.recordPalette(window: window, handle: handle, mask: ui.orderedRecordMask, recordBy: ui.recordBy,
                              recordAs: ui.recordAs, mode: mode)
         ui.recordArmed = false
     }
 
-    private func perform(_ function: PaletteFunction, _ handle: Int, _ p: PaletteInfo?) {
-        lastTap = nil
+    private static func perform(_ function: PaletteFunction, _ window: String, _ handle: Int, _ p: PaletteInfo?, engine: EngineClient, ui: UIState) {
         switch function {
-        case .release, .options, .latch, .unfold:
-            engine.say("\(function.rawValue) works on playback handles.")
         case .copy, .move:
             if let source = ui.source {
                 guard p == nil else { return engine.say("Pick an empty cell for the \(function.rawValue.lowercased()).") }
                 guard let from = engine.palettes.first(where: { $0.id == source }) else { return ui.cancelModes() }
-                function == .copy ? engine.copyPalette(from.number, window: kind.wire, handle: handle)
-                                  : engine.movePalette(from.number, window: kind.wire, handle: handle)
+                function == .copy ? engine.copyPalette(from.number, window: window, handle: handle)
+                                  : engine.movePalette(from.number, window: window, handle: handle)
                 ui.cancelModes()
             } else if let p {
                 ui.source = p.id
@@ -169,14 +178,13 @@ struct PaletteWindow: View {
             guard let p else { return engine.say("\(function.rawValue): that cell is empty.") }
             switch function {
             case .update:
-                engine.recordPalette(window: kind.wire, handle: handle, mode: "QuickMerge")
+                engine.recordPalette(window: window, handle: handle, mode: "QuickMerge")
                 ui.cancelModes()
             case .include:
                 engine.includePalette(p.number)
                 ui.cancelModes()
             case .delete:
-                ui.deleteTarget = p.number
-                ui.deleteGroup = nil
+                ui.waitForDelete(palette: p.number)
                 engine.say("Delete palette \(p.number)? Confirm on softkey A.")
             case .legend:
                 ui.legendEditing = PaletteRef(number: p.number)

@@ -200,7 +200,11 @@ struct FixturesWindow: View {
                          dimmed: subSelection && order[item] != nil && !targets.contains(item),
                          inProgrammer: inProgrammer.contains(item),
                          lamp: true) {
-                        if let n = item.cell { engine.selectCell(fixture.id, cell: n) } else { tap(fixture) }
+                        if let n = item.cell {
+                            if ui.armedAllows(.cell, engine) { engine.selectCell(fixture.id, cell: n) }
+                        } else {
+                            tap(fixture)
+                        }
                     }
                 }
             }
@@ -211,6 +215,7 @@ struct FixturesWindow: View {
 extension FixturesWindow {
     /// While Unfold is armed a tap folds or unfolds instead of selecting (UI-29), then disarms.
     fileprivate func tap(_ fixture: FixtureInfo) {
+        guard ui.armedAllows(.fixture, engine) else { return }   // UI-42
         guard ui.function == .unfold else { return engine.selectFixture(fixture.id) }
         if fixture.cells == 0 {
             engine.say("Unfold: this fixture has no cells.")
@@ -244,20 +249,25 @@ struct GroupsWindow: View {
                         Cell(number: id, tag: "\(group.fixtures.count)", legend: group.shownLegend,
                              selected: !group.fixtures.isEmpty && group.fixtures.allSatisfy(selection.contains)
                                  || ui.groupSource == id || ui.deleteGroup == id,
-                             mask: true) { tap(id, group) }
+                             mask: true) { GroupTaps.tap(id, group, engine: engine, ui: ui) }
                     } else {
-                        // Empty cells only react while Record or a group function is armed.
+                        // Empty cells only react while Record or a group function is armed; any other
+                        // armed function gets its refusal said (UI-42).
                         let reacts = ui.recordArmed || ui.groupFunctionArmed
                         Cell(number: id, empty: true, armed: reacts,
-                             action: reacts ? { tap(id, nil) } : nil)
+                             action: ui.recordArmed || ui.function != nil ? { GroupTaps.tap(id, nil, engine: engine, ui: ui) } : nil)
                     }
                 }
             }
         }
     }
+}
 
+/// UI-46: the armed tap on a group, called by the Groups window and by the command line (`Group n`).
+@MainActor
+enum GroupTaps {
     /// While armed, the next group tap records instead of selecting.
-    private func tap(_ id: Int, _ group: GroupInfo?) {
+    static func tap(_ id: Int, _ group: GroupInfo?, engine: EngineClient, ui: UIState) {
         if ui.recordArmed, ui.recordMaster == "Group" {
             // GRM-15: this tap picks the group of a group master; the handle tap records it.
             guard group != nil else { return engine.say("Group Master: tap an existing group.") }
@@ -266,15 +276,17 @@ struct GroupsWindow: View {
         } else if ui.recordArmed {
             engine.recordGroup(id)
             ui.recordArmed = false
+        } else if !ui.armedAllows(.group, engine) {
+            return
         } else if let function = ui.function, ui.groupFunctionArmed {
-            perform(function, id, group)
+            perform(function, id, group, engine: engine, ui: ui)
         } else if group != nil {
             engine.selectGroup(id)
         }
     }
 
     /// PRG-94: Copy, Move, Delete and Set Legend on a group; the engine refuses a bad target (PRG-89).
-    private func perform(_ function: PaletteFunction, _ id: Int, _ group: GroupInfo?) {
+    private static func perform(_ function: PaletteFunction, _ id: Int, _ group: GroupInfo?, engine: EngineClient, ui: UIState) {
         switch function {
         case .copy, .move:
             if let source = ui.groupSource {
@@ -290,9 +302,7 @@ struct GroupsWindow: View {
             }
         case .delete:
             guard let group else { return engine.say("Group \(id) is empty") }
-            ui.deleteGroup = id
-            ui.deleteTarget = nil
-            ui.deletePlayback = nil
+            ui.waitForDelete(group: id)
             engine.say("Delete \(group.title)? Confirm on softkey A.")
         case .legend:
             guard group != nil else { return engine.say("Group \(id) is empty") }

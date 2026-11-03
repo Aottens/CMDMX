@@ -289,10 +289,43 @@ private struct CueListWindow: View {
     /// CUE-43: a tap sets the cue next (CUE-19), so it never changes the stage; with Record armed it
     /// picks the cue to record onto (CUE-45).
     private func tap(_ list: PlaybackInfo, _ cue: StoredCue) {
-        guard ui.recordArmed else { return engine.cuelist("next", id: list.id, cue: cue.number) }
-        ui.usedHandle = nil; ui.usedCell = nil; ui.maskMenu = false
-        ui.usedCue = CueRef(playback: list.id, cue: cue.number)
-        engine.say("Record onto \(cueName(cue.number)): Replace, Merge or Update on the softkeys.")
+        if ui.recordArmed {
+            ui.usedHandle = nil; ui.usedCell = nil; ui.maskMenu = false
+            ui.usedCue = CueRef(playback: list.id, cue: cue.number)
+            engine.say("Record onto \(cueName(cue.number)): Replace, Merge or Update on the softkeys.")
+            return
+        }
+        guard ui.armedAllows(.cue, engine) else { return }   // UI-42
+        let ref = CueRef(playback: list.id, cue: cue.number)
+        // Copy, Move and Delete open the Cue softkeys on this row (CUE-43) and stay armed; every Cue softkey disarms.
+        func openCueMenu() {
+            ui.waitForDelete()
+            ui.source = nil; ui.handleSource = nil; ui.groupSource = nil
+            ui.cueMenu = ref; ui.cueDelete = false; ui.lastHandle = list.id
+        }
+        switch ui.function {
+        case nil:
+            engine.cuelist("next", id: list.id, cue: cue.number)
+        case .update:
+            engine.recordPlayback(page: list.stored.page, slot: list.stored.slot, mode: "Update", cue: cue.number)
+            ui.cancelModes()
+        case .copy:
+            openCueMenu()
+            engine.say("Copy cue \(plain(cue.number)): type the number, then Copy.")
+        case .move:
+            openCueMenu()
+            engine.say("Move cue \(plain(cue.number)): type the number, then Renumber.")
+        case .delete:
+            openCueMenu()
+            ui.cueDelete = true
+            engine.say("Delete cue \(plain(cue.number))? Confirm on softkey A.")
+        case .legend:
+            ui.cueLegendEditing = ref
+        case .options:
+            ui.openOptions(list.id, tab: .times, cue: cue.number)
+        default:
+            break   // refused above
+        }
     }
 
     private func rightClick(_ list: PlaybackInfo, _ cue: StoredCue) {

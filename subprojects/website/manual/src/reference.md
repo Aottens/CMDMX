@@ -31,13 +31,40 @@ These work while **Keys** is on in the status bar, and never while you are typin
 | `f`, `g` | Fixture, Group |
 | `p` | Palette; on an empty line it also opens the palette menu |
 | `l` | Lee: a gel number follows |
-| Return, Enter | Enter: runs the line |
+| Return, Enter | Enter: runs the line; an empty line confirms a waiting Delete |
 | Esc | Exit: empties the line and leaves the mode you are in |
 | Backspace | removes the last word |
 | ↑ and ↓ | the lines you ran before (the last 100) |
 
 The command-line keys work on the workspaces, not on the Patch, Output, Control and Show screens.
 See [The command line](programming.md#the-command-line).
+
+## What an armed function does
+
+With Record or a function button armed, a tap never does the normal thing. It does what this table says, or
+the message line names where the function works, nothing else happens and the function stays armed.
+
+| Armed | Group | Fixture | Palette | Handle legend | Cue row |
+| --- | --- | --- | --- | --- | --- |
+| Record | records | no | records | records | Replace, Merge or Update on the softkeys |
+| Update | no | no | updates | updates | updates that cue |
+| Include | no | no | includes | no | no |
+| Copy | source, then an empty cell | no | source, then an empty cell | source, then an empty handle | the Cue softkeys: type the number, then Copy |
+| Move | source, then an empty cell | no | source, then an empty cell | source, then an empty handle | the Cue softkeys: type the number, then Renumber |
+| Delete | confirm on softkey A | no | confirm on softkey A | confirm on softkey A | confirm on softkey A |
+| Set Legend | the editor | no | the editor | the editor | the editor |
+| Options | no | no | no | Playback Options | Playback Options on that cue's Times tab |
+| Release | no | no | no | releases | no |
+| Latch | no | no | no | press Flash instead | no |
+| Unfold | no | unfolds (not on a cell button) | no | no | no |
+
+Fixtures are changed on the Patch screen, so Delete, Copy, Move and Set Legend on a fixture point there. A cell in the
+Effects window only applies, so with anything armed it is refused. A row of Active playbacks releases, so only
+with Release armed or nothing armed.
+
+Flash and Swop on a handle count as a tap on its legend while something is armed, so the stage does not change. Latch is the
+exception: Flash latches. Page buttons, the workspace rail, faders, GM, DBO, Go, Back and Clear are never targets: a show keeps
+running while a function is armed.
 
 ## OSC addresses
 

@@ -93,7 +93,7 @@ private struct StripCell: View {
 
     /// CUE-44, 55: a handle button presses and releases `playback.button`; the engine does what the
     /// setting `handle_buttons` assigns. Latch armed (or a latched playback) turns a Flash press
-    /// into `playback.latch` (PBK-28).
+    /// into `playback.latch` (PBK-28); armed, Flash and Swop are a legend tap (UI-43).
     private func hold(_ index: Int) -> HoldActions {
         let function = slot.info?.stored.buttons[safe: index] ?? "None"
         let which = index == 0 ? "upper" : "lower"
@@ -102,7 +102,7 @@ private struct StripCell: View {
         return HoldActions(press: { id in
                                var oneShot = true
                                ui.learnOrRun("\(which) \(slot.id + 1)", engine) {
-                                   oneShot = HandleTaps.buttonPress(id, which: which, function: function, info: slot.info, engine: engine, ui: ui)
+                                   oneShot = HandleTaps.buttonPress(id, which: which, function: function, slot: slot.id + 1, info: slot.info, engine: engine, ui: ui, line: line)
                                }
                                return oneShot
                            },

@@ -31,6 +31,7 @@ enum HandleTaps {
 
     /// A tap on the legend area of the strip for `slot` (1-based) on the current page.
     static func tap(slot: Int, info: PlaybackInfo?, engine: EngineClient, ui: UIState, line: TokenLine) {
+        guard ui.armedAllows(.handle, engine) else { return }   // UI-42
         let page = engine.page.number
         let used = isUsed(info, page: page)
         if let info { ui.lastHandle = info.id }
@@ -84,10 +85,6 @@ enum HandleTaps {
             } else {
                 engine.say("Tap a recorded playback as the source.")
             }
-        case .latch:
-            engine.say("Latch: press Flash on a handle.")
-        case .include:
-            engine.say("Include works on palettes.")
         default:
             guard let info, used else { return engine.say("\(name): that handle is empty.") }
             switch function {
@@ -95,9 +92,7 @@ enum HandleTaps {
                 engine.recordPlayback(page: page, slot: slot, mode: "Update")
                 ui.cancelModes()
             case .delete:
-                ui.deleteTarget = nil
-                ui.deleteGroup = nil
-                ui.deletePlayback = info.id
+                ui.waitForDelete(playback: info.id)
                 engine.say("Delete playback \(info.homeHandle)? Confirm on softkey A.")
             case .release:
                 engine.releasePlayback(info.id)
@@ -119,10 +114,15 @@ enum HandleTaps {
         ui.openOptions(info.id)
     }
 
-    /// CUE-44, 55: a press of the handle button `which` (upper / lower) that does `function`. A Flash
-    /// with Latch armed, or on a latched playback, is `playback.latch` (on, or off again, PBK-28);
-    /// true = one-shot, nothing to send on release. Everything else is `playback.button`.
-    static func buttonPress(_ id: Int, which: String, function: String, info: PlaybackInfo?, engine: EngineClient, ui: UIState) -> Bool {
+    /// CUE-44, 55: a press of the handle button `which` (upper / lower) that does `function`. UI-43: with
+    /// Record or a function armed, a Swop, or a Flash unless Latch is armed, is a tap on the legend and
+    /// sends nothing. A Flash with Latch armed, or on a latched playback, is `playback.latch` (on, or off
+    /// again, PBK-28); true = one-shot, nothing to send on release. Everything else is `playback.button`.
+    static func buttonPress(_ id: Int, which: String, function: String, slot: Int, info: PlaybackInfo?, engine: EngineClient, ui: UIState, line: TokenLine) -> Bool {
+        if (ui.recordArmed || ui.function != nil), function == "Swop" || (function == "Flash" && ui.function != .latch) {
+            tap(slot: slot, info: info, engine: engine, ui: ui, line: line)
+            return true
+        }
         if function == "Flash", ui.function == .latch || info?.live.latched == true {
             engine.latchPlayback(id)
             if ui.function == .latch { ui.cancelModes() }
@@ -342,6 +342,7 @@ struct GroupLegendEditor: View {
 struct ActivePlaybacksWindow: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
 
     private static let widths: [CGFloat?] = [44, nil, 54, 70, 66]
 
@@ -375,7 +376,11 @@ struct ActivePlaybacksWindow: View {
 
     private func row(_ p: PlaybackInfo) -> some View {
         let releasing = p.live.state == "releasing"
-        return Button { engine.releasePlayback(p.id) } label: {
+        return Button {
+            guard ui.armedAllows(.activeRow, engine) else { return }   // UI-42
+            engine.releasePlayback(p.id)
+            if ui.function == .release { ui.cancelModes() }
+        } label: {
             HStack(spacing: 0) {
                 Text(p.homeHandle).font(Typo.mono(Typo.body)).foregroundStyle(t.fg2).frame(width: Self.widths[0], alignment: .leading)
                 Text(engine.shownLegend(p)).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
