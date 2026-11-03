@@ -258,6 +258,33 @@ Keys off unless a line says otherwise. A warning: `Fixture 999 Enter` on the key
       greyed with "Cue lists · P1-08"; nothing covers it
 - [ ] Grand Master: a level bar like a strip, amber below 100 %, DBO greyed under it
 
+## An armed function on every target (UI-42, UI-43)
+At home, no lamps: `--show-dir` in a temp folder, a show with a group, a palette, a memory on a handle, a cue list of three cues and a
+fixture with cells. Listen to Art-Net for the Flash and Swop lines. A refused tap: the message names where the function works, nothing else
+happens, the function stays armed.
+
+- [ ] Group tile: Update, Include, Options, Release, Latch and Unfold are refused and do not select. An empty group cell refuses them too.
+- [ ] Fixture tile: Record says to tap a group, palette, cue or handle. Delete, Copy, Move and Set Legend point to the Patch screen. Update, Include, Options, Release and Latch are refused. None selects.
+- [ ] Unfold: a fixture tile unfolds (UI-29); a cell button is refused and does not select.
+- [ ] Palette cell: Options, Release, Latch and Unfold are refused, each with its own places, not "works on playback handles" for all.
+- [ ] Handle legend: Include and Unfold are refused and the last tapped handle does not move. Latch says "Latch: press Flash on a handle."
+- [ ] Cue row, Update: updates that cue, disarms; no change to the Next row.
+- [ ] Cue row, Copy: the Cue softkeys, "Copy cue 3: type the number, then Copy."; Move: "Move cue 3: type the number, then Renumber."
+- [ ] Cue row, Delete: the softkeys wait on Confirm delete; a second tap on the row does not confirm; Confirm deletes that cue.
+- [ ] Cue row, Delete, then Delete on a palette: softkey A now confirms the palette, not the cue.
+- [ ] Cue row, Set Legend: the cue's legend editor. Options: Playback Options on that cue's Times tab.
+- [ ] Cue row, Include, Release, Latch, Unfold: refused, and Next does not move.
+- [ ] Shapes, Effects, Palettes: a cell with anything armed is refused and applies nothing.
+- [ ] Active playbacks: a row with anything but Release armed is refused and keeps running; with Release armed it releases and disarms.
+- [ ] Not targets: with a function armed, page buttons, the rail, faders, GM, DBO, Go and Back work as always.
+- [ ] Flash with Record armed: the used-handle softkeys, Art-Net does not change, nothing to release.
+- [ ] Swop with Delete armed: the delete waits on softkey A, Art-Net does not change.
+- [ ] Flash with Update armed on a latched playback: an Update, it stays latched.
+- [ ] Latch armed: Flash latches and disarms; Swop says "Latch: press Flash on a handle." and stays armed.
+- [ ] A Go or Back on a handle button with Record armed stays live.
+- [ ] (owner) Hold Flash, arm Record with the keyboard, let go: the Flash ends.
+- [ ] Learn on, a function armed: a Flash press arms Learn; an empty handle's buttons stay dead.
+
 ## Lock (UI-38, IPC-50)
 Claude does the setup and the second-client checks and listens to Art-Net; the owner does the steps marked
 (owner). Every step message shows done/total ("Stap 3/12"). Before the first step: a playback running a chase

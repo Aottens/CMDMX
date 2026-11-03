@@ -572,7 +572,7 @@ struct EffectsWindow: View {
                                      legend: p.legend.isEmpty ? (first?.look ?? first?.shape.title ?? "") : p.legend,
                                      icon: first.map { f in
                                          AnyView(ShapeIcon(shape: f.shape, tint: Theme.groupHue(engine.effectCatalogue.group(look: f.look, shape: f.shape))).frame(height: 22))
-                                     }) { engine.applyEffectPalette(p.number) }
+                                     }) { if ui.armedAllows(.effectCell, engine) { engine.applyEffectPalette(p.number) } }
                             }
                         }
                         .padding(3)

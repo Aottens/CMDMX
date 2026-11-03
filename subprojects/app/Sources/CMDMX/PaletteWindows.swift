@@ -101,7 +101,10 @@ struct PaletteWindow: View {
     /// What a tap on a cell sends, by what is armed (PAL-28, PAL-29).
     private func tap(_ handle: Int, _ p: PaletteInfo?) {
         if ui.recordArmed { return record(handle, p) }
-        if let function = ui.function { return perform(function, handle, p) }
+        if let function = ui.function {
+            guard ui.armedAllows(.palette, engine) else { return }   // UI-42
+            return perform(function, handle, p)
+        }
         guard let p else { return quickRecord(handle) }
         lastTap = nil
         // A number alone on the command line is the fade time of this tap (Titan).
@@ -148,8 +151,6 @@ struct PaletteWindow: View {
     private func perform(_ function: PaletteFunction, _ handle: Int, _ p: PaletteInfo?) {
         lastTap = nil
         switch function {
-        case .release, .options, .latch, .unfold:
-            engine.say("\(function.rawValue) works on playback handles.")
         case .copy, .move:
             if let source = ui.source {
                 guard p == nil else { return engine.say("Pick an empty cell for the \(function.rawValue.lowercased()).") }
@@ -175,8 +176,7 @@ struct PaletteWindow: View {
                 engine.includePalette(p.number)
                 ui.cancelModes()
             case .delete:
-                ui.deleteTarget = p.number
-                ui.deleteGroup = nil
+                ui.waitForDelete(palette: p.number)
                 engine.say("Delete palette \(p.number)? Confirm on softkey A.")
             case .legend:
                 ui.legendEditing = PaletteRef(number: p.number)

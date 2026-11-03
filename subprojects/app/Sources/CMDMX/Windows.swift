@@ -200,7 +200,11 @@ struct FixturesWindow: View {
                          dimmed: subSelection && order[item] != nil && !targets.contains(item),
                          inProgrammer: inProgrammer.contains(item),
                          lamp: true) {
-                        if let n = item.cell { engine.selectCell(fixture.id, cell: n) } else { tap(fixture) }
+                        if let n = item.cell {
+                            if ui.armedAllows(.cell, engine) { engine.selectCell(fixture.id, cell: n) }
+                        } else {
+                            tap(fixture)
+                        }
                     }
                 }
             }
@@ -211,6 +215,7 @@ struct FixturesWindow: View {
 extension FixturesWindow {
     /// While Unfold is armed a tap folds or unfolds instead of selecting (UI-29), then disarms.
     fileprivate func tap(_ fixture: FixtureInfo) {
+        guard ui.armedAllows(.fixture, engine) else { return }   // UI-42
         guard ui.function == .unfold else { return engine.selectFixture(fixture.id) }
         if fixture.cells == 0 {
             engine.say("Unfold: this fixture has no cells.")
@@ -246,10 +251,11 @@ struct GroupsWindow: View {
                                  || ui.groupSource == id || ui.deleteGroup == id,
                              mask: true) { tap(id, group) }
                     } else {
-                        // Empty cells only react while Record or a group function is armed.
+                        // Empty cells only react while Record or a group function is armed; any other
+                        // armed function gets its refusal said (UI-42).
                         let reacts = ui.recordArmed || ui.groupFunctionArmed
                         Cell(number: id, empty: true, armed: reacts,
-                             action: reacts ? { tap(id, nil) } : nil)
+                             action: ui.recordArmed || ui.function != nil ? { tap(id, nil) } : nil)
                     }
                 }
             }
@@ -266,6 +272,8 @@ struct GroupsWindow: View {
         } else if ui.recordArmed {
             engine.recordGroup(id)
             ui.recordArmed = false
+        } else if !ui.armedAllows(.group, engine) {
+            return
         } else if let function = ui.function, ui.groupFunctionArmed {
             perform(function, id, group)
         } else if group != nil {
@@ -290,9 +298,7 @@ struct GroupsWindow: View {
             }
         case .delete:
             guard let group else { return engine.say("Group \(id) is empty") }
-            ui.deleteGroup = id
-            ui.deleteTarget = nil
-            ui.deletePlayback = nil
+            ui.waitForDelete(group: id)
             engine.say("Delete \(group.title)? Confirm on softkey A.")
         case .legend:
             guard group != nil else { return engine.say("Group \(id) is empty") }

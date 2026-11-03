@@ -235,7 +235,8 @@ A group is a saved selection, with its order. The Groups window shows each group
   selection hold fixtures rather than groups, so they do not change. A group that a group master
   uses is not deleted: the message line names the handle, and you delete the master first.
 
-While one of these is armed a tap on a group does not select it. **Clear** disarms. A refusal, such
+While one of these is armed a tap on a group does not select it, and neither does any other armed function: see
+[What an armed function does](reference.md#what-an-armed-function-does). **Clear** disarms. A refusal, such
 as a Copy onto a used cell, shows its warning on the message line and changes nothing. Each action
 is one Undo step.
 
