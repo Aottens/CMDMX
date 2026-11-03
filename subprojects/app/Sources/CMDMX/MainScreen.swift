@@ -83,6 +83,11 @@ final class UIState: ObservableObject {
         engine.setLock(!engine.locked, code: lockCode)
         lockCode = ""; lockPrompt = false
     }
+    /// UI-48: the Lock softkey and the status-bar Lock button (⌘L) both open the prompt; Learn ends first.
+    func openLockPrompt(_ engine: EngineClient) {
+        if learnMode { setLearnMode(false, engine) }
+        lockCode = ""; lockPrompt = true
+    }
     /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
     /// UI-45: opening a screen disarms Record and every function, as hiding the keys must not leave one live.
@@ -513,6 +518,11 @@ private struct StatusBar: View {
             }
 
             Spacer(minLength: 0)
+            BarToggle(title: "Lock", on: false, enabled: engine.connection == .online) {
+                if !engine.locked { ui.openLockPrompt(engine) }   // UI-48: ⌘ chords pass the lock block
+            }
+            .keyboardShortcut("l", modifiers: .command)
+            .help("Lock the console with a code · ⌘L")
 
             BarToggle(title: "Console", on: console) { console.toggle() }
                 .help("Full screen, Dock and menu bar hidden, asks before quitting")

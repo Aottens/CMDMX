@@ -326,7 +326,7 @@ private struct Softkeys: View {
             Softkey(name: "Shapes & Effects", sub: "looks and effects", action: { ui.show(workspace: Workspace.shapes) }),   // FX-36
             Softkey(name: "Timecode", sub: "phase 3", spec: "Timecode · phase 3"),
             Softkey(name: "Lock", sub: "with a code", spec: "Engine offline",   // UI-38
-                    action: engine.connection == .online ? { if ui.learnMode { ui.setLearnMode(false, engine) }; ui.lockCode = ""; ui.lockPrompt = true } : nil),
+                    action: engine.connection == .online ? { ui.openLockPrompt(engine) } : nil),
             undoKey,
         ])
     }
