@@ -38,12 +38,15 @@ mod common;
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::effect::{ColourShape, EffectApply, EffectSet, Entry, EntryId, Path, Shape, Wave};
 use cmdmx_core::engine::Engine;
-use cmdmx_core::palette::{AutoIcon, Cell, Record, RecordMode, Timing, Window};
+use cmdmx_core::palette::{
+    AutoIcon, Cell, GlobalValue, Palette, Record, RecordMode, Timing, Window,
+};
 use cmdmx_core::patch::{Fixture, FixtureId};
 use cmdmx_core::playback::{CueNumber, ListAction, PlaybackRecord, Priority, Track};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::Item;
-use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
+use cmdmx_core::show::{Meta, Show, ShowPalette, SCHEMA_VERSION};
+use cmdmx_core::undo::History;
 use common::{church, dmx, select};
 
 const TICK: f64 = 0.025;
@@ -865,4 +868,541 @@ fn fx_29_effects_round_trip_through_the_show() {
         .collect();
     let new = look(&mut loaded, &[206], "Breathe");
     assert!(all.iter().all(|&id| id < new), "{new} vs {all:?}");
+}
+
+// ---------- PAT-26: removal reaches the effects ----------
+
+/// A `RampUp` on the dimmers of `ids` spread over 360°, recorded on 1.1; the programmer empty.
+fn spread_cue(e: &mut Engine, ids: &[FixtureId]) -> u32 {
+    ramp(e, ids);
+    e.effect_set(EffectSet::Spread(360.0)).unwrap();
+    let pb = record(e, 1, 1);
+    clear(e);
+    pb
+}
+
+fn start(e: &mut Engine, pb: u32) {
+    e.tick(0.0);
+    e.set_fader(pb, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+}
+
+#[test]
+fn pat_26_removal_takes_the_member_out_of_every_cue_and_works_out_positions() {
+    let mut e = rig();
+    let pb = spread_cue(&mut e, &[201, 202, 203]);
+    e.patch_remove(&[202]).unwrap();
+    let entries = cue_effects(&e, pb, 0);
+    assert_eq!(entries[0].members, items(&[201, 203]));
+    assert_eq!(entries[0].positions, [0, 1], "FX-07: worked out again");
+    assert_eq!(entries[0].count, 2);
+}
+
+#[test]
+fn pat_26_a_cell_member_goes_with_its_fixture() {
+    let mut e = rig();
+    let pb = spread_cue(&mut e, &[251, 252]);
+    edit_playback(&mut e, pb, |p| {
+        p.cues[0].effects[0].members.push(Item::cell(251, 1));
+    });
+    e.patch_remove(&[251]).unwrap();
+    assert_eq!(cue_effects(&e, pb, 0)[0].members, items(&[252]));
+}
+
+#[test]
+fn pat_26_an_entry_left_without_members_goes() {
+    let mut e = rig();
+    ramp(&mut e, &[201]);
+    line_pan(&mut e, &[311]);
+    let pb = record(&mut e, 1, 1);
+    clear(&mut e);
+    assert_eq!(cue_effects(&e, pb, 0).len(), 2);
+    e.patch_remove(&[311]).unwrap();
+    let entries = cue_effects(&e, pb, 0);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].members, items(&[201]));
+}
+
+#[test]
+fn pat_26_a_running_cue_gives_the_frames_of_the_show_reopened() {
+    let mut e = rig();
+    let pb = spread_cue(&mut e, &[201, 202, 203]);
+    start(&mut e, pb);
+    tick_to(&mut e, 0.0, 1.1);
+    e.patch_remove(&[202]).unwrap();
+    let (mut reopened, warnings) = Engine::from_show(&e.to_show(meta()));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    start(&mut reopened, pb);
+    tick_to(&mut reopened, 0.0, 1.1);
+    let mut from = 1.1;
+    for to in [1.2, 1.35, 1.6, 1.95] {
+        tick_to(&mut e, from, to);
+        tick_to(&mut reopened, from, to);
+        for address in [21, 22, 23] {
+            assert_eq!(
+                dmx(&e, address),
+                dmx(&reopened, address),
+                "{address} at {to}"
+            );
+        }
+        from = to;
+    }
+    assert_eq!(dmx(&e, 22), 0, "the removed fixture's channel is dark");
+}
+
+/// A show file whose first palette's entry is copied over: one on 101 and 102, one on a fixture
+/// the file never patched, one without members as FX-22 records them.
+fn palette_with_members(e: &mut Engine) -> (Engine, u32) {
+    let (number, _) = circle_palette(e);
+    let mut show = e.to_show(meta());
+    let ShowPalette::Palette(p) = &mut show.palettes.palettes[0] else {
+        panic!("a readable palette");
+    };
+    let stored = p.effects[0].clone();
+    let with = |members: Vec<Item>| {
+        let mut entry = stored.clone();
+        entry.members = members;
+        entry
+    };
+    p.effects = vec![
+        with(items(&[101, 102])),
+        with(items(&[999])),
+        stored.clone(),
+    ];
+    let (loaded, _) = Engine::from_show(&show);
+    (loaded, number)
+}
+
+#[test]
+fn pat_26_the_load_drops_palette_effect_members() {
+    let mut e = rig();
+    let (loaded, number) = palette_with_members(&mut e);
+    let effects = &loaded.palette(number).unwrap().effects;
+    assert_eq!(effects.len(), 2, "the entry on 999 goes: {effects:?}");
+    assert_eq!(effects[0].members, items(&[101, 102]));
+    assert!(effects[1].members.is_empty(), "FX-22 entry stays");
+}
+
+#[test]
+fn pat_26_removal_reaches_palette_effects_and_spares_an_entry_that_never_had_members() {
+    let mut e = rig();
+    let (mut loaded, number) = palette_with_members(&mut e);
+    loaded.patch_remove(&[101]).unwrap();
+    let effects = &loaded.palette(number).unwrap().effects;
+    assert_eq!(effects[0].members, items(&[102]));
+    assert_eq!(effects[0].positions, [0]);
+    assert_eq!(effects[0].count, 1);
+    loaded.patch_remove(&[102]).unwrap();
+    let effects = &loaded.palette(number).unwrap().effects;
+    assert_eq!(effects.len(), 1, "the emptied entry goes");
+    assert!(effects[0].members.is_empty(), "FX-22 entry stays");
+}
+
+#[test]
+fn pat_26_removal_leaves_an_ordinary_effect_palette_alone() {
+    let mut e = rig();
+    let (number, _) = circle_palette(&mut e);
+    let before = e.palette(number).unwrap().effects.clone();
+    e.patch_remove(&[101]).unwrap();
+    assert_eq!(e.palette(number).unwrap().effects, before);
+}
+
+#[test]
+fn pat_26_a_gone_first_member_is_not_what_fx_42_reads() {
+    let mut e = rig();
+    e.set_programmer_value(251, "Dimmer", 1.0).unwrap();
+    e.set_programmer_value(252, "Dimmer", 0.0).unwrap();
+    shape(&mut e, &[251, 252], Shape::Colour(ColourShape::Rainbow));
+    assert!(!e.programmer_view().effects[0].dark);
+    e.patch_remove(&[251]).unwrap();
+    let view = e.programmer_view();
+    assert_eq!(view.effects[0].members, items(&[252]));
+    assert!(view.effects[0].dark, "252 is the first member now");
+}
+
+/// A control that was never touched and `e`, which takes `act` at 1.1: the same frames afterwards.
+fn assert_same_frames_as_untouched(ids: &[FixtureId], act: impl FnOnce(&mut Engine, &mut History)) {
+    let mut e = rig();
+    let mut control = rig();
+    let pb = spread_cue(&mut e, ids);
+    spread_cue(&mut control, ids);
+    start(&mut e, pb);
+    start(&mut control, pb);
+    tick_to(&mut e, 0.0, 1.1);
+    tick_to(&mut control, 0.0, 1.1);
+    let mut h = History::default();
+    act(&mut e, &mut h);
+    let mut from = 1.1;
+    for to in [1.2, 1.35, 1.6] {
+        tick_to(&mut e, from, to);
+        tick_to(&mut control, from, to);
+        for address in [21, 22, 23] {
+            assert_eq!(
+                dmx(&e, address),
+                dmx(&control, address),
+                "{address} at {to}"
+            );
+        }
+        from = to;
+    }
+    assert_eq!(cue_effects(&e, pb, 0), cue_effects(&control, pb, 0));
+}
+
+#[test]
+fn pat_26_undo_brings_the_member_back_in_a_running_cue() {
+    assert_same_frames_as_untouched(&[201, 202, 203], |e, h| {
+        h.edit(e, "Remove", None, |e| e.patch_remove(&[202]))
+            .unwrap();
+        h.undo(e).unwrap();
+    });
+}
+
+#[test]
+fn pat_26_undo_after_ticks_brings_a_whole_entry_back_on_its_clock() {
+    assert_same_frames_as_untouched(&[201], |e, h| {
+        h.edit(e, "Remove", None, |e| e.patch_remove(&[201]))
+            .unwrap();
+        e.tick(1.1);
+        assert_eq!(dmx(e, 21), 0);
+        h.undo(e).unwrap();
+    });
+}
+
+// ---------- PAT-27, PAT-28: a mode change reaches the effects, and warns about palettes ----------
+
+/// "Big" (Dimmer, Pan, Tilt, Zoom), "Panonly" (Dimmer, Pan), "Small" (Dimmer, Zoom).
+const MOVER: &str = r#"{ "manufacturer": "T", "model": "Mover", "source": "channel-list", "modes": [
+  { "name": "Big", "footprint": 4, "attributes": [
+    { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+    { "name": "Pan", "group": "P", "kind": "Ltp", "channel": 2 },
+    { "name": "Tilt", "group": "P", "kind": "Ltp", "channel": 3 },
+    { "name": "Zoom", "group": "B", "kind": "Ltp", "channel": 4 } ] },
+  { "name": "Panonly", "footprint": 2, "attributes": [
+    { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+    { "name": "Pan", "group": "P", "kind": "Ltp", "channel": 2 } ] },
+  { "name": "Small", "footprint": 2, "attributes": [
+    { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 },
+    { "name": "Zoom", "group": "B", "kind": "Ltp", "channel": 2 } ] } ] }"#;
+
+/// The rig plus movers 401 @61, 402 @65, 403 @69 in `mode` (Pan at 62, 66, 70).
+fn mover_rig(mode: &str) -> Engine {
+    let mut e = rig();
+    e.add_profile("mover", Profile::from_json(MOVER).unwrap())
+        .unwrap();
+    for (id, address) in [(401, 61), (402, 65), (403, 69)] {
+        e.patch(Fixture {
+            id,
+            number: 0,
+            name: String::new(),
+            handle: None,
+            profile: "mover".into(),
+            mode: Some(mode.into()),
+            universe: 1,
+            address,
+        })
+        .unwrap();
+    }
+    e
+}
+
+/// A `LinePan` on all three movers spread over 360°.
+fn pan_entry(e: &mut Engine) {
+    line_pan(e, &[401, 402, 403]);
+    e.effect_set(EffectSet::Spread(360.0)).unwrap();
+}
+
+fn messages(e: &mut Engine) -> Vec<String> {
+    e.drain_warnings().into_iter().map(|w| w.message).collect()
+}
+
+#[test]
+fn pat_27_a_mode_without_the_attribute_takes_the_fixture_out_of_cue_and_programmer() {
+    let mut e = mover_rig("Big");
+    pan_entry(&mut e);
+    let pb = record(&mut e, 1, 1);
+    e.drain_warnings();
+    e.patch_change_mode(402, "Small").unwrap();
+    let cue = cue_effects(&e, pb, 0);
+    assert_eq!(cue[0].members, items(&[401, 403]));
+    assert_eq!(cue[0].positions, [0, 1], "FX-07: worked out again");
+    assert_eq!(cue[0].count, 2);
+    assert_eq!(e.effects()[0].members, items(&[401, 403]));
+    assert_eq!(e.effects()[0].positions, [0, 1]);
+    let warnings = messages(&mut e);
+    assert_eq!(
+        warnings.len(),
+        4,
+        "a path drives Pan and Tilt: {warnings:?}"
+    );
+    for a in ["Pan", "Tilt"] {
+        let says = |source: String| {
+            format!(
+                "fixture 402: {source} effect '{a}' dropped, mode 'Small' has no such attribute"
+            )
+        };
+        assert!(
+            warnings.contains(&says("programmer".into())),
+            "{warnings:?}"
+        );
+        assert!(
+            warnings.contains(&says(format!("playback {pb}"))),
+            "{warnings:?}"
+        );
+    }
+}
+
+#[test]
+fn pat_27_an_entry_left_without_members_goes() {
+    let mut e = mover_rig("Big");
+    let id = line_pan(&mut e, &[402]);
+    let pb = record(&mut e, 1, 1);
+    assert!(e.effects().iter().any(|x| x.id == id));
+    e.patch_change_mode(402, "Small").unwrap();
+    assert!(cue_effects(&e, pb, 0).is_empty());
+    assert!(e.effects().is_empty());
+    assert_eq!(e.programmer_view().effects.len(), 0);
+}
+
+#[test]
+fn pat_27_a_member_stays_while_the_mode_has_one_of_the_attributes() {
+    let mut e = mover_rig("Big");
+    look(&mut e, &[401, 402], "Circle");
+    let pb = record(&mut e, 1, 1);
+    e.drain_warnings();
+    e.patch_change_mode(402, "Panonly").unwrap();
+    assert_eq!(cue_effects(&e, pb, 0)[0].members, items(&[401, 402]));
+    assert_eq!(e.effects()[0].members, items(&[401, 402]));
+    assert_eq!(messages(&mut e), Vec::<String>::new());
+}
+
+#[test]
+fn pat_27_a_cell_member_stays_in_every_mode() {
+    let mut e = mover_rig("Big");
+    pan_entry(&mut e);
+    let pb = record(&mut e, 1, 1);
+    edit_playback(&mut e, pb, |p| {
+        p.cues[0].effects[0].members.push(Item::cell(402, 1));
+    });
+    e.patch_change_mode(402, "Small").unwrap();
+    let mut expected = items(&[401, 403]);
+    expected.push(Item::cell(402, 1));
+    assert_eq!(cue_effects(&e, pb, 0)[0].members, expected);
+}
+
+#[test]
+fn pat_27_a_range_counts_effects_in_the_one_line() {
+    let mut e = mover_rig("Big");
+    pan_entry(&mut e);
+    record(&mut e, 1, 1);
+    e.drain_warnings();
+    e.patch_change_mode_range(&[401, 402], "Small").unwrap();
+    assert_eq!(messages(&mut e), ["Dropped Pan, Tilt on 2 fixtures"]);
+    assert_eq!(e.effects()[0].members, items(&[403]));
+}
+
+#[test]
+fn pat_27_a_running_cue_gives_the_frames_of_the_show_reopened() {
+    let mut e = mover_rig("Big");
+    pan_entry(&mut e);
+    let pb = record(&mut e, 1, 1);
+    clear(&mut e);
+    start(&mut e, pb);
+    tick_to(&mut e, 0.0, 1.1);
+    e.patch_change_mode(402, "Small").unwrap();
+    let (mut reopened, warnings) = Engine::from_show(&e.to_show(meta()));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    start(&mut reopened, pb);
+    tick_to(&mut reopened, 0.0, 1.1);
+    let mut from = 1.1;
+    for to in [1.2, 1.35, 1.6, 1.95] {
+        tick_to(&mut e, from, to);
+        tick_to(&mut reopened, from, to);
+        for address in [62, 70] {
+            assert_eq!(
+                dmx(&e, address),
+                dmx(&reopened, address),
+                "{address} at {to}"
+            );
+        }
+        from = to;
+    }
+}
+
+#[test]
+fn pat_27_undo_brings_it_back_also_in_a_running_cue() {
+    let setup = || {
+        let mut e = mover_rig("Big");
+        pan_entry(&mut e);
+        let pb = record(&mut e, 1, 1);
+        start(&mut e, pb);
+        tick_to(&mut e, 0.0, 1.1);
+        (e, pb)
+    };
+    let (mut e, pb) = setup();
+    let (mut control, _) = setup();
+    let mut h = History::default();
+    h.edit(&mut e, "Mode", None, |e| e.patch_change_mode(402, "Small"))
+        .unwrap();
+    e.tick(1.1);
+    h.undo(&mut e).unwrap();
+    assert_eq!(e.fixture(402).unwrap().mode.as_deref(), Some("Big"));
+    assert_eq!(e.effects(), control.effects());
+    assert_eq!(cue_effects(&e, pb, 0), cue_effects(&control, pb, 0));
+    let mut from = 1.1;
+    for to in [1.2, 1.35, 1.6] {
+        tick_to(&mut e, from, to);
+        tick_to(&mut control, from, to);
+        for address in [62, 66, 70] {
+            assert_eq!(
+                dmx(&e, address),
+                dmx(&control, address),
+                "{address} at {to}"
+            );
+        }
+        from = to;
+    }
+}
+
+/// Palette `number` with `legend`, filled by `fill`.
+fn add_palette(e: &mut Engine, number: u32, legend: &str, fill: impl FnOnce(&mut Palette)) {
+    let mut p = Palette {
+        id: 100 + number,
+        number,
+        window: Window::Positions,
+        handle: u16::try_from(number).unwrap(),
+        legend: legend.into(),
+        icon: None,
+        global: Default::default(),
+        shared: Default::default(),
+        shared_cells: Default::default(),
+        fixtures: Default::default(),
+        effects: Vec::new(),
+    };
+    fill(&mut p);
+    e.add_palette(p).unwrap();
+}
+
+fn holds(p: &mut Palette, item: Item, attribute: &str) {
+    p.fixtures
+        .entry(item)
+        .or_default()
+        .insert(attribute.into(), 0.5.into());
+}
+
+#[test]
+fn pat_28_a_per_fixture_value_warns_once_per_palette_and_stays() {
+    let mut e = mover_rig("Big");
+    add_palette(&mut e, 3, "Fast strobe", |p| {
+        holds(p, Item::fixture(401), "Pan");
+        holds(p, Item::fixture(402), "Pan");
+    });
+    let before = e.palette(3).unwrap().clone();
+    e.patch_change_mode_range(&[401, 402, 403], "Small")
+        .unwrap();
+    assert_eq!(
+        messages(&mut e),
+        ["Palette 3 Fast strobe: no Pan on 2 fixtures in this mode, the value stays"]
+    );
+    assert_eq!(
+        e.palette(3).unwrap(),
+        &before,
+        "PAL-19: the old mode can come back"
+    );
+}
+
+#[test]
+fn pat_28_one_fixture_and_an_empty_legend() {
+    let mut e = mover_rig("Big");
+    add_palette(&mut e, 4, "", |p| holds(p, Item::fixture(401), "Pan"));
+    e.patch_change_mode(401, "Small").unwrap();
+    assert_eq!(
+        messages(&mut e),
+        ["Palette 4: no Pan on 1 fixture in this mode, the value stays"]
+    );
+}
+
+#[test]
+fn pat_28_a_value_by_type_counts_the_fixtures_of_that_type() {
+    let mut e = mover_rig("Big");
+    add_palette(&mut e, 3, "Sweep", |p| {
+        p.shared.insert(
+            "mover".into(),
+            [
+                ("Pan".to_string(), 0.5.into()),
+                ("Tilt".to_string(), 0.5.into()),
+            ]
+            .into(),
+        );
+        p.shared
+            .insert("spot".into(), [("Pan".to_string(), 0.5.into())].into());
+    });
+    e.patch_change_mode_range(&[401, 402, 403], "Small")
+        .unwrap();
+    assert_eq!(
+        messages(&mut e),
+        ["Palette 3 Sweep: no Pan, Tilt on 3 fixtures in this mode, the value stays"]
+    );
+}
+
+#[test]
+fn pat_28_an_effect_for_the_fixture_warns_and_one_without_members_does_not() {
+    let mut e = mover_rig("Big");
+    let id = line_pan(&mut e, &[401]);
+    let entry = e.effects().iter().find(|x| x.id == id).unwrap().clone();
+    let mut memberless = entry.clone();
+    memberless.members.clear();
+    clear(&mut e);
+    add_palette(&mut e, 3, "With", |p| p.effects = vec![entry]);
+    add_palette(&mut e, 4, "Without", |p| p.effects = vec![memberless]);
+    e.patch_change_mode(401, "Small").unwrap();
+    assert_eq!(
+        messages(&mut e),
+        ["Palette 3 With: no Pan, Tilt on 1 fixture in this mode, the value stays"]
+    );
+}
+
+#[test]
+fn pat_28_a_global_value_says_nothing() {
+    let mut e = mover_rig("Big");
+    add_palette(&mut e, 3, "Centre", |p| {
+        p.global
+            .insert("Pan".into(), GlobalValue::Value(0.5.into()));
+    });
+    e.patch_change_mode(401, "Small").unwrap();
+    assert_eq!(messages(&mut e), Vec::<String>::new());
+}
+
+#[test]
+fn pat_28_a_change_that_loses_nothing_says_nothing() {
+    let mut e = mover_rig("Panonly");
+    add_palette(&mut e, 3, "Still there", |p| {
+        holds(p, Item::fixture(401), "Dimmer");
+    });
+    add_palette(&mut e, 4, "Never there", |p| {
+        holds(p, Item::fixture(401), "Tilt");
+    });
+    add_palette(&mut e, 5, "Its cell", |p| {
+        holds(p, Item::cell(401, 1), "Pan");
+    });
+    e.patch_change_mode(401, "Small").unwrap();
+    assert_eq!(messages(&mut e), Vec::<String>::new());
+}
+
+#[test]
+fn pat_28_each_palette_has_its_line_next_to_the_dropped_values() {
+    let mut e = mover_rig("Big");
+    add_palette(&mut e, 4, "Second", |p| {
+        holds(p, Item::fixture(402), "Tilt")
+    });
+    add_palette(&mut e, 3, "First", |p| holds(p, Item::fixture(401), "Pan"));
+    e.set_programmer_value(401, "Pan", 0.5).unwrap();
+    e.patch_change_mode_range(&[401, 402], "Small").unwrap();
+    assert_eq!(
+        messages(&mut e),
+        [
+            "Palette 3 First: no Pan on 1 fixture in this mode, the value stays",
+            "Palette 4 Second: no Tilt on 1 fixture in this mode, the value stays",
+            "Dropped Pan on 1 fixtures",
+        ]
+    );
 }

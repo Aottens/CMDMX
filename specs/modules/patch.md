@@ -165,7 +165,8 @@ CMDMX has no parking (a removed fixture is gone, PAT-05), so every clash refuses
   mode can come back, and a shared value also serves other fixtures), but where a palette holds a
   value or effect for the fixture, per fixture or by type, on an attribute the new mode lacks, one warning per
   palette names it: `Palette 3 Fast strobe: no Strobe on 6 fixtures in this mode, the value stays`. A
-  global value says nothing: it is meant for any fixture that has the attribute. A change that loses nothing
+  global value says nothing: it is meant for any fixture that has the attribute; an effect entry without members,
+  as FX-22 records it, is the same (DEF-05, see `DECISIONS.md`). A change that loses nothing
   says nothing. Tests `pat_28_…`.
 
 ### The church

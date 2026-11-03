@@ -318,6 +318,16 @@ struct EntrySpec {
     palette: Option<PaletteId>,
 }
 
+/// FX-24: the index of the cue a playback runs now, if any.
+fn cue_index(playback: &Playback, state: Option<&PlaybackState>) -> Option<usize> {
+    if is_list(playback) {
+        let current = state.and_then(|s| s.run.current);
+        current.and_then(|n| playback.cues.iter().position(|c| c.number == n))
+    } else {
+        (!playback.cues.is_empty() && !playback.kind.is_master()).then_some(0)
+    }
+}
+
 /// FX-24: the effects a playback's current cue runs. Live state, never saved.
 #[derive(Debug, Default)]
 struct CueFx {
@@ -345,6 +355,64 @@ struct Run {
 }
 
 impl CueFx {
+    /// PAT-26: the runs that are not leaving take members, positions and count from the cue state
+    /// `incoming` as it is now; clocks, starts, blends and ramps stay. A run left empty stays, so
+    /// an undo brings its entry back on its clock; a member no run holds joins the first run of
+    /// its entry (none: it shows at the next start).
+    fn follow(&mut self, incoming: &[effect::Entry]) {
+        let same = |a: &effect::Entry, b: &effect::Entry| {
+            a.id == b.id && a.shape == b.shape && a.attributes == b.attributes
+        };
+        for r in self.runs.iter_mut().filter(|r| !r.leaving) {
+            let hold: Vec<&effect::Entry> = incoming.iter().filter(|e| same(&r.entry, e)).collect();
+            r.entry
+                .drop_members(|m| !hold.iter().any(|e| e.members.contains(m)));
+        }
+        for e in incoming {
+            let live: Vec<usize> = (0..self.runs.len())
+                .filter(|&i| {
+                    self.runs
+                        .get(i)
+                        .is_some_and(|r| !r.leaving && same(&r.entry, e))
+                })
+                .collect();
+            let held = |m: &Item| {
+                live.iter().any(|&i| {
+                    self.runs
+                        .get(i)
+                        .is_some_and(|r| r.entry.members.contains(m))
+                })
+            };
+            let missing: Vec<Item> = e.members.iter().filter(|m| !held(m)).cloned().collect();
+            let sharing = live.iter().copied().find(|&i| {
+                self.runs
+                    .get(i)
+                    .is_some_and(|r| r.entry.members.iter().any(|m| e.members.contains(m)))
+            });
+            let target = sharing.or(live.first().copied());
+            if let Some(run) = target.and_then(|i| self.runs.get_mut(i)) {
+                run.entry.members.extend(missing);
+            }
+        }
+        for r in self.runs.iter_mut().filter(|r| !r.leaving) {
+            let hold: Vec<&effect::Entry> = incoming.iter().filter(|e| same(&r.entry, e)).collect();
+            let at = |m: &Item| {
+                hold.iter()
+                    .find_map(|e| e.members.iter().position(|x| x == m).map(|k| (*e, k)))
+            };
+            r.entry.positions = (r.entry.members.iter())
+                .map(|m| {
+                    at(m)
+                        .and_then(|(e, k)| e.positions.get(k).copied())
+                        .unwrap_or(0)
+                })
+                .collect();
+            if let Some((e, _)) = r.entry.members.first().and_then(at) {
+                r.entry.count = e.count;
+            }
+        }
+    }
+
     /// FX-26: the runs of `cue` (its state `incoming`) at `now`, from the runs of the cue before.
     /// Per member and attribute: an entry of the same shape continues the clock and fades size,
     /// top and BPM over the fade time; otherwise the outputs crossfade (an effect the cue lacks
@@ -928,8 +996,9 @@ impl Engine {
     }
 
     /// PAT-05: remove fixtures from the patch, the selection, the programmer, every group and
-    /// every palette (PAL-19) and every cue of every playback (PBK-14).
-    /// All ids are checked first.
+    /// every palette (PAL-19) and every cue of every playback (PBK-14). PAT-26: the fixture and
+    /// its cells also leave the effects of every cue and palette (positions worked out again, an
+    /// entry this emptied goes) and the runs of the cues playing. All ids are checked first.
     pub fn patch_remove(&mut self, ids: &[FixtureId]) -> Result<(), CoreError> {
         self.range_ids(ids)?;
         for &id in ids {
@@ -950,12 +1019,16 @@ impl Engine {
             }
             for palette in self.palettes.values_mut() {
                 palette.fixtures.retain(|i, _| i.fixture != id); // PAL-19
+                effect::Entry::retire(&mut palette.effects, |m| m.fixture == id);
+                // PAT-26
             }
             for cue in self.playbacks.values_mut().flat_map(|pb| &mut pb.cues) {
                 cue.values.retain(|i, _| i.fixture != id); // PBK-14
                 cue.order.retain(|i, _| i.fixture != id);
+                effect::Entry::retire(&mut cue.effects, |m| m.fixture == id); // PAT-26
             }
         }
+        self.follow_cue_effects();
         self.follow_active_group();
         Ok(())
     }
@@ -993,7 +1066,9 @@ impl Engine {
 
     /// PAT-13: give a fixture another mode of its profile. Attributes are matched by name;
     /// programmer and playback values the new mode cannot take are dropped with a warning,
-    /// held values of attributes that remain are kept. A bigger footprint is checked like a move.
+    /// held values of attributes that remain are kept. The fixture leaves effect entries the new
+    /// mode has no attribute of (PAT-27); palettes keep theirs and warn (PAT-28). A bigger
+    /// footprint is checked like a move.
     pub fn patch_change_mode(&mut self, id: FixtureId, mode: &str) -> Result<(), CoreError> {
         let fixture = self
             .fixtures
@@ -1007,8 +1082,14 @@ impl Engine {
             new.footprint,
             &[id],
         )?;
-        let dropped = self.apply_mode(id, mode)?;
         let at = self.last_tick.unwrap_or(0.0);
+        let palette_lines = self.palette_mode_warnings(&[id], mode);
+        self.warnings.extend(
+            palette_lines
+                .into_iter()
+                .map(|message| Warning { at, message }),
+        );
+        let dropped = self.apply_mode(id, mode)?;
         self.warnings.extend(
             dropped
                 .into_iter()
@@ -1017,7 +1098,8 @@ impl Engine {
         Ok(())
     }
 
-    /// The value-dropping half of a mode change; returns `(warning, attribute)` per dropped value.
+    /// The value- and effect-dropping half of a mode change (PAT-13, 27); returns
+    /// `(warning, attribute)` per dropped value or effect attribute.
     fn apply_mode(
         &mut self,
         id: FixtureId,
@@ -1071,6 +1153,44 @@ impl Engine {
                 }
             }
         }
+        // PAT-27: a whole-fixture member leaves an entry the new mode has none of the attributes of.
+        let item = Item::fixture(id);
+        let gone = |e: &effect::Entry| e.attributes.iter().all(|a| new.logical(a).is_none());
+        for playback in self.playbacks.values_mut() {
+            let pid = playback.id;
+            for cue in &mut playback.cues {
+                cue.effects.retain_mut(|e| {
+                    if !gone(e) || !e.members.contains(&item) {
+                        return true;
+                    }
+                    for a in &e.attributes {
+                        warnings.push((
+                            format!(
+                                "fixture {number}: playback {pid} effect '{a}' dropped, mode '{mode}' has no such attribute"
+                            ),
+                            a.clone(),
+                        ));
+                    }
+                    e.drop_members(|m| *m == item);
+                    e.refresh();
+                    !e.members.is_empty()
+                });
+            }
+        }
+        let leaving: Vec<_> = (self.programmer.effects.iter())
+            .filter(|e| gone(e) && e.members.contains(&item))
+            .map(|e| (e.id, e.attributes.clone()))
+            .collect();
+        for (_, attributes) in &leaving {
+            for a in attributes {
+                warnings.push((
+                    format!(
+                        "fixture {number}: programmer effect '{a}' dropped, mode '{mode}' has no such attribute"
+                    ),
+                    a.clone(),
+                ));
+            }
+        }
         self.held.retain(|i, _| i.cell.is_none() || i.fixture != id);
         let old_held = self.held.remove(&Item::fixture(id)).unwrap_or_default();
         let held: BTreeMap<String, Value> = new
@@ -1093,7 +1213,63 @@ impl Engine {
         if let Some(f) = self.fixtures.get_mut(&id) {
             f.mode = Some(mode.to_string());
         }
+        if !leaving.is_empty() {
+            self.effects_leave(|e, m| *m == item && leaving.iter().any(|(i, _)| *i == e.id));
+        }
+        self.follow_cue_effects();
         Ok(warnings)
+    }
+
+    /// PAT-28: per palette (number order) the attributes it holds for the `ids` that `mode` lacks
+    /// while their old mode has them; global values, cells and memberless entries say nothing.
+    fn palette_mode_warnings(&self, ids: &[FixtureId], mode: &str) -> Vec<String> {
+        let mut palettes: Vec<_> = self.palettes.values().collect();
+        palettes.sort_by_key(|p| p.number);
+        let mut lines = Vec::new();
+        for p in palettes {
+            let (mut lost, mut count) = (BTreeSet::new(), 0);
+            for &id in ids {
+                let Some(f) = self.fixtures.get(&id) else {
+                    continue;
+                };
+                let (Some(old), Ok(new)) = (
+                    resolve_mode(&self.profiles, f),
+                    lookup_mode(&self.profiles, &f.profile, Some(mode)),
+                ) else {
+                    continue;
+                };
+                let item = Item::fixture(id);
+                let held = (p.fixtures.get(&item).into_iter())
+                    .chain(p.shared.get(&f.profile))
+                    .flat_map(|m| m.keys().cloned())
+                    .chain(
+                        (p.effects.iter().filter(|e| e.members.contains(&item)))
+                            .flat_map(|e| e.attributes.iter().cloned()),
+                    );
+                let mut any = false;
+                for a in held {
+                    if old.logical(&a).is_some() && new.logical(&a).is_none() {
+                        lost.insert(a);
+                        any = true;
+                    }
+                }
+                count += usize::from(any);
+            }
+            if count > 0 {
+                let name = if p.legend.is_empty() {
+                    format!("Palette {}", p.number)
+                } else {
+                    format!("Palette {} {}", p.number, p.legend)
+                };
+                let attrs: Vec<_> = lost.into_iter().collect();
+                let s = if count == 1 { "" } else { "s" };
+                lines.push(format!(
+                    "{name}: no {} on {count} fixture{s} in this mode, the value stays",
+                    attrs.join(", ")
+                ));
+            }
+        }
+        lines
     }
 
     /// PAT-19: the range's ids sorted by user number; empty, unknown or repeated ids refuse.
@@ -1262,6 +1438,13 @@ impl Engine {
                 });
             }
         }
+        let at = self.last_tick.unwrap_or(0.0);
+        let palette_lines = self.palette_mode_warnings(&sorted, mode);
+        self.warnings.extend(
+            palette_lines
+                .into_iter()
+                .map(|message| Warning { at, message }),
+        );
         let mut attrs = BTreeSet::new();
         let mut affected = 0;
         for &id in &sorted {
@@ -1270,7 +1453,6 @@ impl Engine {
             attrs.extend(dropped.into_iter().map(|(_, attr)| attr));
         }
         if affected > 0 {
-            let at = self.last_tick.unwrap_or(0.0);
             let attrs: Vec<_> = attrs.into_iter().collect();
             self.warnings.push(Warning {
                 at,
@@ -1488,6 +1670,12 @@ impl Engine {
         self.palettes = s.palettes;
         self.nodes = s.nodes;
         let old_fixtures = std::mem::replace(&mut self.fixtures, s.fixtures);
+        let patched = old_fixtures.len() != self.fixtures.len()
+            || old_fixtures.iter().any(|(id, o)| {
+                self.fixtures
+                    .get(id)
+                    .is_none_or(|n| (&o.profile, &o.mode) != (&n.profile, &n.mode))
+            });
         self.held
             .retain(|item, _| self.fixtures.contains_key(&item.fixture));
         let fixtures: Vec<Fixture> = self.fixtures.values().cloned().collect();
@@ -1528,6 +1716,9 @@ impl Engine {
             }
         }
         self.playbacks = new;
+        if patched {
+            self.follow_cue_effects(); // PAT-26: a fixture came, went or changed mode
+        }
         let p = &self.programmer;
         let mut held_before: Vec<(Item, String)> = Vec::new();
         for item in p.touched_items() {
@@ -1778,6 +1969,10 @@ impl Engine {
                     ));
                 }
                 keep
+            });
+            // PAT-26: like cue effects, members that are not patched are left out.
+            effect::Entry::retire(&mut palette.effects, |m| {
+                !engine.fixtures.contains_key(&m.fixture)
             });
             let number = palette.number;
             if let Err(e) = engine.add_palette(palette) {
@@ -4925,10 +5120,28 @@ impl Engine {
             .retain(|id, _| effects.iter().any(|e| e.id == *id));
     }
 
+    /// PAT-26: the runs of every playback follow the cue state as it is now (a fixture came or
+    /// went); not per tick.
+    fn follow_cue_effects(&mut self) {
+        let mut fx = std::mem::take(&mut self.cue_fx);
+        for (id, f) in &mut fx {
+            let Some(playback) = self.playbacks.get(id) else {
+                continue;
+            };
+            let Some(i) = cue_index(playback, self.states.get(id)) else {
+                continue;
+            };
+            if f.cue.is_some() && playback.cues.get(i).map(|c| c.number) == f.cue {
+                f.follow(&playback.effect_state(i));
+            }
+        }
+        self.cue_fx = fx;
+    }
+
     /// FX-24, 26: before the merge, build the runs of every active playback's current cue when
     /// the cue changed, move the clocks of all of them by Δt · rate and drop what has faded out.
     /// Allocates only when a cue starts. ponytail: an edit to the running cue's entries shows at
-    /// its next start; a Back starts with the cue's delay.
+    /// its next start (a patch change is followed, PAT-26); a Back starts with the cue's delay.
     fn tick_cue_effects(&mut self, now: Timestamp) {
         let mut fx = std::mem::take(&mut self.cue_fx);
         fx.retain(|id, _| self.states.get(id).is_some_and(PlaybackState::is_active));
@@ -4936,13 +5149,7 @@ impl Engine {
             let Some(activated) = (self.states.get(id)).and_then(|s| s.activated) else {
                 continue;
             };
-            let state = self.states.get(id);
-            let at = if is_list(playback) {
-                let current = state.and_then(|s| s.run.current);
-                current.and_then(|n| playback.cues.iter().position(|c| c.number == n))
-            } else {
-                (!playback.cues.is_empty() && !playback.kind.is_master()).then_some(0)
-            };
+            let at = cue_index(playback, self.states.get(id));
             let Some(cue) = at.and_then(|i| playback.cues.get(i)) else {
                 continue;
             };

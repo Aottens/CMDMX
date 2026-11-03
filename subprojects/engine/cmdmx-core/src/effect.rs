@@ -569,6 +569,16 @@ impl Entry {
         self.members.len() != before
     }
 
+    /// PAT-26: take the members `gone` accepts out of `entries`, work positions out again and
+    /// drop an entry this emptied (one that never had members, as FX-22 records them, stays).
+    pub(crate) fn retire(entries: &mut Vec<Entry>, gone: impl Fn(&Item) -> bool) {
+        entries.retain_mut(|e| {
+            let lost = e.drop_members(&gone);
+            e.refresh();
+            !(lost && e.members.is_empty())
+        });
+    }
+
     /// ENG-14..16: `base` with member `i`'s effect on `attribute` at clock `theta`, clamped;
     /// `base` itself for an attribute the entry does not drive. `p` is the entry's parameters as
     /// they are now (a palette's, FX-23; faded, FX-26; scaled, FX-25). `round` is FX-02's factor

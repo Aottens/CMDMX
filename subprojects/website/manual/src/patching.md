@@ -112,8 +112,13 @@ Click a row to edit it in the Selected panel:
 - **Renumber** to another user number.
 - **Name** the fixture.
 - **Mode**: pick another mode of the same profile and click **Change**. It asks to confirm, and
-  keeps the values the fixture had for the attributes both modes share.
-- **Remove**: asks to confirm. The fixture's channels go to zero and it leaves its groups.
+  keeps the values the fixture had for the attributes both modes share. Values and effects the
+  new mode cannot do leave the programmer and the cues, also a cue that is running, with a warning.
+  Palettes keep what they store, in case the old mode comes back; a warning names each palette that
+  holds something for this fixture the new mode cannot do. Undo brings everything back.
+- **Remove**: asks to confirm. The fixture's channels go to zero and it leaves its groups, palettes,
+  cues and effects, also an effect that is running: the other fixtures in that effect close up, as
+  they would after reopening the show. Undo brings it back in its place.
 
 ### Working on many fixtures at once
 

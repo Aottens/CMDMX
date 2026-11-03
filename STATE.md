@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-02 (DEF-01..03 built; the church run is on 2026-11-08)_
+_Last updated: 2026-11-02 (DEF-01..05 built; the church run is on 2026-11-08)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -19,7 +19,7 @@ lines in `tests/manual/selection-orders.md`. Released in v0.2.5.
 
 Feature work next: the everyday gaps (IDEA-35, `docs/research/everyday-gaps.md`), all in phase 1 and in
 order, batch A to G (owner, 2026-11-01); batch A is specified (P1-25); SPF-04, SPF-01, SPF-02, SPF-05, SPF-06, SPF-07, SPF-08, SPF-09, SPF-10 and SPF-11 are done, SPF-03 waits for its sleep run, the last open task of the batch.
-Batch A is released as v0.3.0 (2026-11-02); the second gap review added A2, H, I and J (`docs/research/everyday-gaps.md`). Order (owner, 2026-11-02): A2, H, B to G, I, J; I1 and I3 go with B. A sub-release with a gap review follows each batch that changes how an operator works (REL rule, DECISIONS 2026-11-02): A2 is a patch, H 0.4.0, B 0.5.0. A2 is specified (P1-26, approved by the owner 2026-11-02); DEF-01, DEF-02 and DEF-03 are built, DEF-04 + DEF-05 follow.
+Batch A is released as v0.3.0 (2026-11-02); the second gap review added A2, H, I and J (`docs/research/everyday-gaps.md`). Order (owner, 2026-11-02): A2, H, B to G, I, J; I1 and I3 go with B. A sub-release with a gap review follows each batch that changes how an operator works (REL rule, DECISIONS 2026-11-02): A2 is a patch, H 0.4.0, B 0.5.0. A2 is specified (P1-26, approved by the owner 2026-11-02); DEF-01 to DEF-05 are built; the patch release closes A2, then batch H.
 
 Parallel track: phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own
 sessions and PRs (`subprojects/hardware/`, DECISIONS 2026-10-25); it never touches engine or app code.
@@ -47,7 +47,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    answers the owner's permission request.
 8. Show-proof (IDEA-35 batch A): spec P1-25 approved by the owner 2026-11-01; SPF-04 (quitting always asks)
    SPF-01 (the Mac stays awake) and SPF-02 (a late tick does not catch up) are done; SPF-03 (display awake) is built and waits for `tests/hardware/sleep.md`; SPF-05 (an adopted engine comes back), SPF-06 (level bars never jump), SPF-07 (*New cue times*), SPF-08 (message history in the daemon) SPF-09 (the Messages sheet, dots that open their screen), SPF-10 (`lock.set` in the daemon) and SPF-11 (the Lock softkey, cover and keypad) are done; every build task of batch A is done. After `tests/hardware/sleep.md` (SPF-03): v0.3.0, then the new gap review.
-9. Defects in what exists (IDEA-35 batch A2): spec P1-26 approved by the owner 2026-11-02 (`patch.md` PAT-26..28, `ipc.md` IPC-53, `ui.md` UI-41, `release.md` REL-26..28); three builds (DEF-01 + DEF-02, built; DEF-03, built; DEF-04 + DEF-05, next), then a patch release.
+9. Defects in what exists (IDEA-35 batch A2): spec P1-26 approved by the owner 2026-11-02 (`patch.md` PAT-26..28, `ipc.md` IPC-53, `ui.md` UI-41, `release.md` REL-26..28); all three builds are built; the patch release follows the merge of DEF-04 + DEF-05.
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:
