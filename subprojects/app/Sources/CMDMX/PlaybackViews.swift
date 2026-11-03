@@ -93,7 +93,7 @@ enum HandleTaps {
                 ui.cancelModes()
             case .delete:
                 ui.waitForDelete(playback: info.id)
-                engine.say("Delete playback \(info.homeHandle)? Confirm on softkey A.")
+                engine.sayDelete(playback: info)
             case .release:
                 engine.releasePlayback(info.id)
                 ui.cancelModes()

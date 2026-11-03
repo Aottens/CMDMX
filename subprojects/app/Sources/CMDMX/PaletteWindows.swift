@@ -185,7 +185,7 @@ enum PaletteTaps {
                 ui.cancelModes()
             case .delete:
                 ui.waitForDelete(palette: p.number)
-                engine.say("Delete palette \(p.number)? Confirm on softkey A.")
+                engine.sayDelete(palette: p)
             case .legend:
                 ui.legendEditing = PaletteRef(number: p.number)
             case .copy, .move, .release, .options, .latch, .unfold:

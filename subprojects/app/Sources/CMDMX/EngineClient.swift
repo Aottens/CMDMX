@@ -563,6 +563,50 @@ struct CueViewReply: Decodable, Equatable {
     }
 }
 
+/// IPC-54: the answer to `usage` (this client only). The daemon counts; `patchText` only words it.
+struct UsageReply: Decodable, Equatable {
+    var palette: Int?
+    var fixtures: [Int]?
+    var groups = 0, cues = 0, playbacks = 0, palettes = 0, emptyGroups = 0, emptyCues = 0
+
+    private enum CodingKeys: String, CodingKey {
+        case palette, fixtures, groups, cues, playbacks, palettes
+        case emptyGroups = "empty_groups", emptyCues = "empty_cues"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        palette = try? c.decode(Int.self, forKey: .palette)
+        fixtures = try? c.decode([Int].self, forKey: .fixtures)
+        groups = (try? c.decode(Int.self, forKey: .groups)) ?? 0
+        cues = (try? c.decode(Int.self, forKey: .cues)) ?? 0
+        playbacks = (try? c.decode(Int.self, forKey: .playbacks)) ?? 0
+        palettes = (try? c.decode(Int.self, forKey: .palettes)) ?? 0
+        emptyGroups = (try? c.decode(Int.self, forKey: .emptyGroups)) ?? 0
+        emptyCues = (try? c.decode(Int.self, forKey: .emptyCues)) ?? 0
+    }
+
+    /// UI-47: what removing the fixtures touches, for the Patch screen.
+    var patchText: String {
+        func list(_ parts: [String]) -> String {
+            parts.count < 2 ? parts.joined() : parts.dropLast().joined(separator: ", ") + " and " + (parts.last ?? "")
+        }
+        if groups == 0 && cues == 0 && palettes == 0 { return "Not used anywhere." }
+        var used: [String] = []
+        if groups > 0 { used.append("\(groups) \(groups == 1 ? "group" : "groups")") }
+        if cues > 0 { used.append("\(cues) \(cues == 1 ? "cue" : "cues") on \(playbacks) \(playbacks == 1 ? "playback" : "playbacks")") }
+        if palettes > 0 { used.append("\(palettes) \(palettes == 1 ? "palette" : "palettes")") }
+        var text = "In \(list(used))."
+        var empty: [String] = []
+        if emptyGroups > 0 { empty.append("\(emptyGroups) \(emptyGroups == 1 ? "group" : "groups")") }
+        if emptyCues > 0 { empty.append("\(emptyCues) \(emptyCues == 1 ? "cue" : "cues")") }
+        if !empty.isEmpty {
+            text += " \(list(empty)) \(emptyGroups + emptyCues == 1 ? "ends" : "end") up empty and \(emptyGroups + emptyCues == 1 ? "stays" : "stay")."
+        }
+        return text + " Undo brings it all back."
+    }
+}
+
 /// The current page of playbacks (PBK-03): snapshot object or `page` delta (flattened).
 /// Fields missing from a message fall back to a single empty page.
 struct PageState: Decodable, Equatable {
@@ -1276,6 +1320,10 @@ final class EngineClient: ObservableObject {
     /// CUE-54: the last `cue.view` reply (this client only), and a counter that goes up with every
     /// stored change (snapshot, `playbacks` delta) so an open Cue view asks again.
     @Published private(set) var cueView: CueViewReply?
+    /// IPC-54: the answer to the last `usage` ask.
+    @Published private(set) var usage: UsageReply?
+    /// UI-47: the palette delete message still waiting for its count, and the text it showed.
+    private var pendingDelete: (palette: Int, shown: String)?
     @Published private(set) var storedRevision = 0
     /// Stored part and shown live part per playback id, so a page switch shows the right values at once.
     private var playbackStored: [Int: PlaybackStored] = [:]
@@ -1852,6 +1900,8 @@ final class EngineClient: ObservableObject {
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
     func say(_ text: String) { lastMessage = text }
 
+    func askUsage(fixtures: [Int]) { usage = nil; sendJSON("usage", ["fixtures": fixtures]) }
+
     /// UNDO-19: confirm with the label the key showed; a refusal arrives as a warning and overwrites.
     func undo() { lastMessage = undoLabel.map { "Undone: \($0)" }; sendJSON("undo") }
     func redo() { lastMessage = redoLabel.map { "Redone: \($0)" }; sendJSON("redo") }
@@ -1874,7 +1924,7 @@ final class EngineClient: ObservableObject {
     }
 
     /// The app's own reads, not the operator's commands (REL-27).
-    private static let asks: Set<String> = ["cue.view", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "control.mapping", "effect.wheels"]
+    private static let asks: Set<String> = ["cue.view", "usage", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "control.mapping", "effect.wheels"]
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
@@ -1967,7 +2017,7 @@ final class EngineClient: ObservableObject {
         /// IPC-51: the snapshot's history.
         fileprivate let messages: Tolerant<[Tolerant<WireMessage>]>?
         fileprivate let fixtures: Tolerant<[FixtureInfo]>?   // a `cue.view` reply has other fixtures
-        let groups: [GroupInfo]?
+        fileprivate let groups: Tolerant<[GroupInfo]>?   // a `usage` reply has a count
         /// The snapshot's `connected` (an id or null) and the `connected` delta's `id`.
         fileprivate let connected: Tolerant<Int>?
         fileprivate let id: Tolerant<Int>?
@@ -2024,9 +2074,10 @@ final class EngineClient: ObservableObject {
             playbackSettings = incoming.playbackSettings?.value
             connected = incoming.connected?.value
             cueView = nil
+            usage = nil
             grandMaster = (incoming.grandMaster ?? grandMaster).clamped01
             fixtures = incoming.fixtures?.value ?? []
-            groups = incoming.groups ?? []
+            groups = incoming.groups?.value ?? []
             palettes = (incoming.palettes?.value ?? []).compactMap(\.value)
             paletteSettings = incoming.paletteSettings?.value
             programmerSettings = incoming.programmerSettings?.value
@@ -2113,7 +2164,7 @@ final class EngineClient: ObservableObject {
                 gdtfImported = done
             }
         case "groups":
-            if let groups = incoming.groups { self.groups = groups }
+            if let groups = incoming.groups?.value { self.groups = groups }
         case "palette_settings":
             // The delta carries the settings at top level.
             if let state = try? JSONDecoder().decode(PaletteSettings.self, from: data) { paletteSettings = state }
@@ -2136,6 +2187,19 @@ final class EngineClient: ObservableObject {
             connected = incoming.id?.value
         case "cue.view":
             if let reply = try? JSONDecoder().decode(CueViewReply.self, from: data) { cueView = reply }
+        case "usage":
+            if let reply = try? JSONDecoder().decode(UsageReply.self, from: data) {
+                usage = reply
+                if let p = pendingDelete, p.palette == reply.palette {
+                    if lastMessage == p.shown {
+                        let what = p.shown.dropLast(" Confirm on softkey A.".count)
+                        let used = reply.cues == 0 ? "No cue uses it."
+                            : "\(reply.cues) \(reply.cues == 1 ? "cue" : "cues") on \(reply.playbacks) \(reply.playbacks == 1 ? "playback" : "playbacks") \(reply.cues == 1 ? "uses" : "use") it and \(reply.cues == 1 ? "keeps" : "keep") its values."
+                        lastMessage = "\(what) \(used) Confirm on softkey A."
+                    }
+                    pendingDelete = nil
+                }
+            }
         case "dbo":
             if let on = incoming.on { dbo = on }
         case "playback_settings":
@@ -2215,4 +2279,27 @@ final class EngineClient: ObservableObject {
 
 extension Double {
     var clamped01: Double { Swift.min(1, Swift.max(0, self)) }
+}
+
+/// UI-47: a delete says what it does before the confirmation.
+extension EngineClient {
+    func sayDelete(palette p: PaletteInfo) {
+        let shown = "Delete palette \(p.number)\(p.legend.isEmpty ? "" : " " + p.legend)? Confirm on softkey A."
+        say(shown)
+        pendingDelete = (p.number, shown)
+        sendJSON("usage", ["palette": p.number])
+    }
+
+    func sayDelete(playback info: PlaybackInfo) {
+        var text = "Delete playback \(info.homeHandle)\(info.stored.legend.isEmpty ? "" : " " + info.stored.legend)?"
+        if info.isRunning { text += " It is running: its output ends at once." }
+        if info.stored.cues.count > 1 { text += " \(info.stored.cues.count) cues go with it." }
+        say(text + " Confirm on softkey A.")
+    }
+
+    func sayDelete(cue: StoredCue, of list: PlaybackInfo) {
+        var text = "Delete cue \(plain(cue.number))\(cue.legend.isEmpty ? "" : " " + cue.legend)?"
+        if list.isRunning && list.live.cue?.current == cue.number { text += " It is the live cue: the output stays until the next Go." }
+        say(text + " Confirm on softkey A.")
+    }
 }
