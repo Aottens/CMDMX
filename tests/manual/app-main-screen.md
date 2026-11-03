@@ -282,7 +282,7 @@ happens, the function stays armed.
 - [ ] Flash with Update armed on a latched playback: an Update, it stays latched.
 - [ ] Latch armed: Flash latches and disarms; Swop says "Latch: press Flash on a handle." and stays armed.
 - [ ] A Go or Back on a handle button with Record armed stays live.
-- [ ] (owner) Hold Flash, arm Record with the keyboard, let go: the Flash ends.
+- [ ] A Flash held when a function is armed still ends when let go: by reading, as arming takes the only mouse (`HoldActions.release` does not look at what is armed).
 - [ ] Learn on, a function armed: a Flash press arms Learn; an empty handle's buttons stay dead.
 
 ## The command line reaches an armed function (UI-46)
@@ -291,7 +291,7 @@ happens, the function stays armed.
 - [ ] Record, `Palette 12`, Enter with no palette 12: "Palette 12 is empty: tap a cell in a palette window"; the line stays, Record stays.
 - [ ] Update, `Group 1`, Enter: the same refusal as a tap, the line stays, Update stays.
 - [ ] Delete, `Group 1`, Enter: waits on softkey A, the line empties. Enter on the empty line confirms.
-- [ ] Delete, `Group 1`, Return held down: it waits on softkey A, a held key does not confirm.
+- [ ] (owner) Delete, `Group 1`, Return held down: it waits on softkey A, a held key does not confirm.
 - [ ] Delete: a palette, a handle and a cue row in turn, each confirmed by Enter on an empty line, from the keypad and from the Mac's Return.
 - [ ] A right-click on a cue row, Delete: Enter on an empty line confirms. A second tap on any target never confirms.
 - [ ] Record, `Fixture 1`, Enter: "Record: type Group n or Palette n, or tap a target."; nothing sent, the line stays, Record stays. The same with Locate, and with `Group 1` and Locate.
