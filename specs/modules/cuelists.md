@@ -480,7 +480,7 @@ values.
     button's large green caption. Titan reference as CTL-63: the live cue highlighted, the next
     cue quieter. Checked in `tests/manual/app-cuelists.md` (a Go block line: current large and
     green, next small and grey with "Next:").
-- **CUE-43** **Cue list window** (UI-13) shows the connected list: title "Cue list · <legend>",
+- **CUE-43** (A tap with a function armed: UI-42.) **Cue list window** (UI-13) shows the connected list: title "Cue list · <legend>",
   info "1.1 · 7 cues"; columns Q, Legend, Delay, Fade (in/out), Link (`·`, "follow +1s", "with
   +2s"), Track (CUE-54), Groups; the current row marked green, the next row outlined; a running transition shows
   its progress in its row. A tap on a row sets it next (CUE-19), so a tap can never change the

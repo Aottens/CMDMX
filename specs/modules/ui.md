@@ -12,6 +12,7 @@ UI-33 and UI-34 (selection orders, P2-02): **approved by owner 2026-10-29**.
 UI-33a, UI-33b (Fan and Pattern keep the selection keys, SEL-09): **approved by owner 2026-11-01**.
 UI-26 (console mode) quit, UI-19 message zone, UI-22 level bars, Lock in the Main context, and UI-35..40:
 approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
+UI-42..48 (IDEA-35 batch H, P1-27): owner's answers 2026-11-03; approved when the spec PR merges.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -239,6 +240,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   - Space = Go and Shift+Space = Back on the connected list (CUE-47; amended 2026-10-21, VS3-05).
     Space does nothing while Keys is off.
 
+  (Amended by UI-44: Esc works whatever Keys says.)
   ⌘1–⌘4 switch workspaces too, also while Keys is off (owner, UX-02a run). Keys never fire while a text field (Patch, Show, legends) has focus. The Keys toggle is
   remembered across launches, like Console.
 - **UI-27 [now]** Command history (IDEA-12; owner, 2026-10-18): every line sent with Enter is
@@ -434,7 +436,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   The press still counts as a touch (UI-22) and still arms Learn (CTL-42). Scroll (UI-22) is unchanged. So a
   stray click on the Grand Master at a live moment does nothing, as a physical fader does nothing until it
   is moved. Amends UI-22 and UI-24.
-- **UI-38** Lock, softkey in the Main context (Titan's Avo+Lock, *Useful functions*): a prompt for a code
+- **UI-38** (UI-48 adds the status bar button and ⌘L.) Lock, softkey in the Main context (Titan's Avo+Lock, *Useful functions*): a prompt for a code
   (the keypad's digits; empty allowed), Enter sends `lock.set` (IPC-50). While locked:
   - a full-window cover hides workspace, softkeys and playback area, with "Locked", the show name, the
     clock and a keypad for the code. The status bar stays, so output state is readable;
@@ -464,6 +466,75 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
   only a real mouse can show (`tests/manual/app-main-screen.md`): the run of 2026-11-02 shows the cover ending it. A mouse
   still down after the unlock can bring it on again, and letting go ends it (owner, 2026-11-02).
 
+### Functions and consequences (IDEA-35 batch H, P1-27)
+Checked in the code first: `tests/manual/runs/2026-11-03-H-checks.md`. Arming stays view state in the app, so a surface's
+press and a surface keypad line go on as before (J4, J5).
+
+- **UI-42** An armed function or Record never does the normal action. A tap does what the table says, or is refused: the message
+  zone names where the function works ("Update works on palettes, playback handles and cues."), nothing else happens and
+  the function stays armed. Titan: Record, Include, Options, Legend and Unfold are each followed by a Select press (*Button reference*).
+
+  | Armed | Group tile | Fixture tile, cell button | Palette cell | Handle legend | Cue row |
+  | --- | --- | --- | --- | --- | --- |
+  | Record | records (UI-16) | refused | PAL-29 | PBK-38 | CUE-45 |
+  | Update | refused | refused | PAL-29 | PBK-38 | updates that cue, as Record's Update softkey (CUE-45) |
+  | Include | refused | refused | PAL-29 | refused | refused |
+  | Copy | PRG-94 | refused | PAL-29 | PBK-38 | the Cue softkeys on that row (CUE-43), "Copy cue 3: type the number, then Copy." |
+  | Move | PRG-94 | refused | PAL-29 | PBK-38 | the same, "Move cue 3: type the number, then Renumber." |
+  | Delete | PRG-94 | refused | PAL-29 | PBK-38 | the Cue softkeys waiting on Confirm delete (CUE-07, UI-47) |
+  | Set Legend | PRG-94 | refused | PAL-29 | PBK-38 | the cue's legend editor |
+  | Options | refused | refused | refused | PBK-39 | Playback Options on that cue's Times tab |
+  | Release | refused | refused | refused | PBK-38 | refused |
+  | Latch | refused | refused | refused | "Latch: press Flash on a handle." | refused |
+  | Unfold | refused | fixture tile UI-29, cell button refused | refused | refused | refused |
+
+  A refused Delete, Copy, Move or Set Legend on a fixture tile points to the Patch screen, where fixtures are changed (PAT-10); a
+  refused Record on one says to tap a group, palette, cue or handle. Titan sets a legend on a fixture button and deletes one
+  in Patch mode; here the legend stays in Patch (PAT-09), because one place for patch data is enough for now.
+  With anything armed, an effect palette cell (Shapes) is refused and does not apply, and an Active playbacks row is refused
+  unless Release is armed. Page buttons, the workspace rail, faders, GM, DBO, Go, Back, Clear, Locate, Fix ±1 and softkeys are not targets
+  and stay as they are: a show keeps running, and the page and the workspace are how the target is reached.
+- **UI-43** Flash and Swop while armed. With Record or a function armed, except Latch, a press of a strip's button doing Flash or Swop is a tap on that
+  strip's legend (UI-42, PBK-38) and no `playback.button` goes out, so the stage does not change and there is nothing to release.
+  Latch stays as PBK-28: Flash latches, and Swop is refused like a legend tap. A button with another function (Go, Back, Tap, …) stays live.
+  A Flash already held when a function is armed still ends when it is let go. Learn goes first (CTL-42), an empty handle's buttons stay dead,
+  and a surface's Flash stays live, as arming is not known to the daemon. Titan uses Select as the target; Select swops by default, and the
+  manual does not say what Flash does while a function is armed. Here both act alike, because two buttons on one strip that
+  answer differently would surprise (owner, 2026-11-03).
+- **UI-44** Esc goes one level up on every screen, whatever Keys says, and never changes the stage. Titan: Exit "Leaves the current menu and goes one
+  level back up the menu structure". One press does the first that applies:
+  1. the Lock prompt and cover keep UI-38; Learn keeps CTL-42;
+  2. an open sheet or dialog takes it; a text field drops its edit and gives up focus, so the next Esc goes on;
+  3. Record, a function, a softkey menu or a typed command line: the same as the keypad's Exit (disarms, empties the line);
+  4. the deck focus goes back to Devices; a screen (Patch, Show, Output, Control, Playback Options) goes back to the workspace, and any
+     two-step waiting there goes with it; the Cue view goes back to the Cue list;
+  5. otherwise nothing.
+
+  A key held down counts once, so holding Esc cannot leave a screen by accident.
+- **UI-45** Opening a screen disarms, from the rail, a function button or a status dot, as hiding the keys must not leave a function live: Record armed, Patch, and a
+  tap on a handle no longer records. Changing workspace does not disarm (armed in one workspace, target in another); the page buttons do not either.
+- **UI-46** The command line reaches an armed function. With Record or a function armed, Enter on exactly `Group n` or `Palette n` is a tap on that
+  cell (UI-42), with the same confirmation, refusal and disarm. `Palette n` that does not exist, as a record or copy target, is refused ("Palette 12 is empty: tap a
+  cell in a palette window"), because the cell a new palette goes to is a window and a handle. Any other line, with Enter or Locate, is refused
+  ("Record: type Group n or Palette n, or tap a target."): nothing is sent, the line stays to be corrected, and the function stays armed.
+  Record, a number, then a handle tap stays (CUE-45), since no Enter is pressed. With a Delete waiting and an empty line, Enter confirms, as softkey A does (on Titan Enter
+  confirms too). A second tap on the target does not confirm: Titan's does, but a mouse double-click would then delete.
+  Titan also has `Record Cue n` and `Copy … @ n`; here there is no Cue or handle key, and `@` adds nothing to two steps; I and J look at the keypad again.
+- **UI-47** A delete says what it does, before the confirmation (Titan confirms by a second press and warns only that a fixture's programming goes; the owner
+  wants the count, since an undo cannot take back what a running show already showed). The app asks IPC-54 and replaces the message when the answer comes; the
+  confirmation works before it does.
+  - Palette: "Delete palette 12 Warm? 3 cues on 2 playbacks use it and keep its values. Confirm on softkey A." or "… No cue uses it. …".
+  - Playback, running (`live.state` not `off`): "Delete playback 1.4 Service? It is running: its output ends at once. 8 cues go with it. Confirm on softkey A." Not
+    running leaves out that sentence; one cue leaves out the last.
+  - Cue, the current one: "Delete cue 3 Song? It is the live cue: the output stays until the next Go. Confirm on softkey A." (CUE-07).
+  - Fixtures, under the Patch screen's Confirm remove, as that screen has no message zone (UI-10): "In 2 groups, 14 cues on 3 playbacks and 5 palettes. 1 group and 2 cues end up empty and
+    stay. Undo brings it all back." Nothing to say gives "Not used anywhere."
+  Empty groups and cues stay (owner, 2026-11-03): an action removes no more than was asked, and a list keeps its numbers, links and timing. Group delete stays as PRG-85 and 86.
+- **UI-48** Lock from anywhere. A **Lock** button in the status bar and ⌘L open UI-38's prompt from every screen and context, whatever Keys says; the softkey stays. Offline the button is
+  disabled and ⌘L does nothing, as the softkey. Under a sheet ⌘L waits for the sheet. Titan's Avo+Lock works from anywhere too. A surface key is left to J4: a surface cannot type a
+  code, and a key that only opens a prompt on the Mac does not lock anything; it needs a saved code, as Titan's Set Saved Password.
+Checked by hand: `tests/manual/app-main-screen.md` gets one section per criterion, with the UI-42 table walked for each target. `swift build` is the app's gate (no Swift tests, `CLAUDE.md`).
+
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
   zone against the sketch. `tests/manual/app-programmer.md` and `tests/manual/app-patch.md` keep
@@ -475,6 +546,13 @@ Palette, cue and playback behaviour (their own specs fill in the disabled contro
 (P1-10), freely configurable workspaces, legends and halos, picture legends, the fixture output
 lamps (IDEA-10), a remote/touch layout
 (IDEA-06), and the narrow single-column layout of the sketch (below 900 px).
+
+## Owner decisions (P1-27, 2026-11-03: every recommendation accepted)
+1. **UI-43, Flash or Swop while armed:** it picks the target and the stage does not change. Not chosen: doing nothing with a message, or staying live.
+2. **UI-42, cue rows and fixture tiles:** a cue row does what the function says through what exists; a fixture tile refuses and points to Patch. Not chosen: refusing everywhere, or fixture actions on the tile.
+3. **UI-44, Esc on a screen:** one level up, so with nothing armed it leaves the screen. Not chosen: Esc only disarms.
+4. **UI-47, fixture removal:** empty groups and cues stay and the confirmation says so. Not chosen: removing them too.
+5. **UI-48, Lock:** status bar button and ⌘L, no surface key yet. Not chosen: ⌘L alone, or a surface key with a saved code now.
 
 ## Owner decisions (2026-10-17)
 1. Screens (Patch now) keep the playback area and the status bar visible (UI-10).

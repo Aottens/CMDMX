@@ -113,6 +113,8 @@ the Messages sheet gets two lines every 2 s. Points 1 and 4 also leave palette e
    the groups and cues a fixture is in. Empty groups and cues stay behind. Undo does cover these.
 6. Lock is only in the Main context, with no Key action or Mac key.
 
+Specified as P1-27 (UI-42..48, IPC-54); all six still happened on 2026-11-03 (`tests/manual/runs/2026-11-03-H-checks.md`).
+
 ## I. Behaviour that differs from Titan, no reason recorded
 1. Fade Out and Delay Out follow Fade In until set; here they are separate and 0, so a cue with only a
    fade in snaps HTP down. Daily.
@@ -137,7 +139,8 @@ Mode, Auto Legend off, Always Merge, Attribute Overlap, Prev + Next cancels a sk
 2. No range selection by mouse: Thro on the keypad only (a lasso only on the rig plan, IDEA-25).
 3. The Mac keyboard covers the command line only: no Clear, Record, Update, Delete, Locate, Highlight or
    page key, and the app has no menu commands.
-4. Surfaces cannot program: no Record, Update, Delete, Copy, Move, Set Legend or Exit in the vocabulary.
+4. Surfaces cannot program: no Record, Update, Delete, Copy, Move, Set Legend or Exit in the vocabulary. Lock too: a
+   surface cannot type a code, so a `key lock` needs a saved code, as Titan's Set Saved Password (UI-48).
 5. The surface keypad line is invisible and has no Exit, so a half-typed line is prefixed to the next.
 6. Mappings and deck keys address by number or slot, so Move or Delete leaves them on the wrong thing,
    with no warning.

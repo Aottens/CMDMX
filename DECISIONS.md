@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-03 — Batch H: an armed function has the console's attention, Esc goes one level up (IDEA-35 H, P1-27; owner)
+
+**Decision:** with Record or a function armed, a tap does what that function does on that target or is refused with a message, and never the normal action; Flash and Swop on a strip pick the target and change nothing on stage (UI-42, 43). `Group n` and `Palette n` with Enter act as a tap (UI-46). Esc goes one level up on every screen whatever Keys says, and opening a screen disarms (UI-44, 45). A delete says what it touches, counted in the daemon (UI-47, IPC-54); empty groups and cues stay. Lock is also a status bar button and ⌘L (UI-48). Arming stays view state in the app, so surfaces are unchanged.
+
+**Alternatives considered:** Flash and Swop dead with a message, or live; refusing on every cue row, or fixture actions on the tile; Esc that only disarms; removing empty groups and cues; a surface lock key with a saved code now; the counts in the snapshot (sent on every change for a rare question); arming in the daemon (a large move for one batch, J4 may need it).
+
+**Reasoning:** Titan makes Select the target of a function and Exit one level up; the same answer everywhere is what the review asked. A delete removes no more than was asked, and a list keeps its numbers. Where Titan is silent or differs, the reason is in the criterion.
+
+**Reversal trigger:** an operator misses a Flash because a function was armed; the 0.4.0 gap review finds Esc leaving a screen by surprise.
+
+---
+
 ## 2026-11-02 — An effect palette as the console records it gives no PAT-28 warning
 
 **Decision:** PAT-28 warns about a palette effect only when the entry has the fixture as a member. An entry without members, which is what recording a palette stores (FX-22), counts like a global value and says nothing. Only an entry with members from a show file warns. Values, per fixture and by type, warn as specified.
