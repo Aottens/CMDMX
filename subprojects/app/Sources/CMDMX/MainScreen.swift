@@ -219,6 +219,24 @@ final class UIState: ObservableObject {
         deleteTarget = palette; deletePlayback = playback; deleteGroup = group
     }
 
+    /// UI-46: the one place a waiting Delete is confirmed (softkey A and Enter). false = nothing was waiting.
+    @discardableResult
+    func confirmDelete(_ engine: EngineClient) -> Bool {
+        if cueDelete, let ref = cueMenu {
+            engine.deleteCue(ref.playback, cue: ref.cue)
+        } else if function == .delete, let number = deleteTarget {
+            engine.deletePalette(number)
+        } else if function == .delete, let id = deletePlayback {
+            engine.deletePlayback(id)
+        } else if function == .delete, let number = deleteGroup {
+            engine.deleteGroup(number)
+        } else {
+            return false
+        }
+        cancelModes()
+        return true
+    }
+
     /// PRG-94: a function the Groups window answers to.
     var groupFunctionArmed: Bool {
         function == .delete || function == .copy || function == .move || function == .legend

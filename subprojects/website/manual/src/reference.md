@@ -31,7 +31,7 @@ These work while **Keys** is on in the status bar, and never while you are typin
 | `f`, `g` | Fixture, Group |
 | `p` | Palette; on an empty line it also opens the palette menu |
 | `l` | Lee: a gel number follows |
-| Return, Enter | Enter: runs the line |
+| Return, Enter | Enter: runs the line; an empty line confirms a waiting Delete |
 | Esc | Exit: empties the line and leaves the mode you are in |
 | Backspace | removes the last word |
 | ↑ and ↓ | the lines you ran before (the last 100) |

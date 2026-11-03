@@ -238,9 +238,9 @@ private struct Keypad: View {
         switch label {
         case "Back": line.back()
         case "Exit": line.clear(); ui.cancelModes()   // also disarms Record and the function buttons (PBK-28)
-        case "Enter": line.send(engine); ui.paletteMenu = false
+        case "Enter": line.enter(engine, ui: ui)   // UI-46
         case "Locate":   // UI-26: an empty line locates everything, else the line ends in Locate
-            if line.tokens.isEmpty { engine.locate() } else { line.send(engine, end: "Locate") }
+            if line.tokens.isEmpty { engine.locate() } else { line.enter(engine, ui: ui, end: "Locate") }
             ui.paletteMenu = false
         case "Highlight": engine.setHighlight(!engine.programmer.highlight)
         case "Clear": line.clearProgrammer(engine); ui.cancelModes(); ui.pendingOverlap = nil
@@ -566,8 +566,7 @@ private struct Softkeys: View {
         if ui.cueDelete {
             var keys: [Softkey?] = Array(repeating: nil, count: 7)
             keys[0] = Softkey(name: "Confirm delete", sub: name) {
-                engine.deleteCue(ref.playback, cue: ref.cue)
-                ui.cancelModes()
+                ui.confirmDelete(engine)   // UI-46
             }
             keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() })
             return ("Cue · \(name)", keys)
@@ -625,20 +624,17 @@ private struct Softkeys: View {
         var keys: [Softkey?] = Array(repeating: nil, count: 7)
         if function == .delete, let number = ui.deleteTarget {
             keys[0] = Softkey(name: "Confirm delete", sub: "palette \(number)") {
-                engine.deletePalette(number)
-                ui.cancelModes()
+                ui.confirmDelete(engine)   // UI-46
             }
         }
         if function == .delete, let id = ui.deletePlayback {
             keys[0] = Softkey(name: "Confirm delete", sub: "playback \(engine.playback(id)?.homeHandle ?? "")") {
-                engine.deletePlayback(id)
-                ui.cancelModes()
+                ui.confirmDelete(engine)   // UI-46
             }
         }
         if function == .delete, let number = ui.deleteGroup, let group = engine.groups.first(where: { $0.id == number }) {
             keys[0] = Softkey(name: "Delete group \(number)", sub: group.legend ?? "") {
-                engine.deleteGroup(number)
-                ui.cancelModes()
+                ui.confirmDelete(engine)   // UI-46
             }
         }
         if function == .unfold {

@@ -285,6 +285,20 @@ happens, the function stays armed.
 - [ ] (owner) Hold Flash, arm Record with the keyboard, let go: the Flash ends.
 - [ ] Learn on, a function armed: a Flash press arms Learn; an empty handle's buttons stay dead.
 
+## The command line reaches an armed function (UI-46)
+- [ ] Record, `Group 5`, Enter on an empty group: records it, disarms, the line empties. `Group 5` is in the history.
+- [ ] Record, `Palette 1`, Enter on a used palette: the Replace, Merge, Quick Merge softkeys. Copy, `Palette 1`, Enter: the source, then tap an empty cell.
+- [ ] Record, `Palette 12`, Enter with no palette 12: "Palette 12 is empty: tap a cell in a palette window"; the line stays, Record stays.
+- [ ] Update, `Group 1`, Enter: the same refusal as a tap, the line stays, Update stays.
+- [ ] Delete, `Group 1`, Enter: waits on softkey A, the line empties. Enter on the empty line confirms.
+- [ ] Delete, `Group 1`, Return held down: it waits on softkey A, a held key does not confirm.
+- [ ] Delete: a palette, a handle and a cue row in turn, each confirmed by Enter on an empty line, from the keypad and from the Mac's Return.
+- [ ] A right-click on a cue row, Delete: Enter on an empty line confirms. A second tap on any target never confirms.
+- [ ] Record, `Fixture 1`, Enter: "Record: type Group n or Palette n, or tap a target."; nothing sent, the line stays, Record stays. The same with Locate, and with `Group 1` and Locate.
+- [ ] Record, `3`, a tap on a handle: records cue 3 (CUE-45). Record, `3`, Enter: refused, the line stays.
+- [ ] Options, `Palette 12`, Enter with no palette 12: Options's refusal, not "is empty".
+- [ ] Nothing armed: Enter and Locate behave as before, and Enter closes the Palette softkeys.
+
 ## Lock (UI-38, IPC-50)
 Claude does the setup and the second-client checks and listens to Art-Net; the owner does the steps marked
 (owner). Every step message shows done/total ("Stap 3/12"). Before the first step: a playback running a chase
