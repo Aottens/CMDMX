@@ -85,7 +85,12 @@ final class UIState: ObservableObject {
     }
     /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
-    @Published var screen: Screen?
+    /// UI-45: opening a screen disarms Record and every function, as hiding the keys must not leave one live.
+    @Published var screen: Screen? { didSet { if screen != nil { cancelModes() } } }
+    /// UI-44: any armed mode or open menu that Esc cancels first.
+    var modesOpen: Bool { recordArmed || function != nil || cueMenu != nil || cueRemoveConfirm || paletteMenu || selectionMenu != nil }
+    /// UI-44: Esc just left a text field, so a field that commits on losing focus restores instead.
+    var fieldEscaped = false
     /// Record armed with the Record function button (UI-16); the next group or palette tap records.
     /// Disarming forgets the record choices below (they hold for one record only, PAL-29).
     @Published var recordArmed = false { didSet { if !recordArmed { resetRecord() } } }
@@ -255,7 +260,6 @@ final class UIState: ObservableObject {
 
     /// PBK-39: open the Playback Options screen on a playback.
     func openOptions(_ playback: Int, tab: PlaybackOptionsTab = .fader, cue: Double? = nil) {
-        cancelModes()
         optionsFor = playback
         optionsCue = cue
         optionsTab = tab

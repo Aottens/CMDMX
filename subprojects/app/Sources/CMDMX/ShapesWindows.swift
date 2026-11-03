@@ -273,6 +273,7 @@ private struct NumberField: View {
     let value: Double
     let range: ClosedRange<Double>
     let set: (Double) -> Void
+    @EnvironmentObject private var ui: UIState
     @State private var text = ""
     @FocusState private var focused: Bool
 
@@ -287,6 +288,7 @@ private struct NumberField: View {
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(focused ? t.blue : t.line2, lineWidth: 1))
             .onAppear { text = format(value) }
             .onChange(of: value) { _, v in if !focused { text = format(v) } }
+            .onChange(of: focused) { _, now in if !now, ui.fieldEscaped { text = format(value) } }   // UI-44
             .onSubmit {
                 if let v = Double(text.replacingOccurrences(of: ",", with: ".")) { set(min(range.upperBound, max(range.lowerBound, v))) }
                 text = format(value)

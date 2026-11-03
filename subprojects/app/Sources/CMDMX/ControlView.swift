@@ -34,6 +34,10 @@ struct ControlView: View {
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
+        // UI-44: Esc leaves a deck's focus first, then the screen.
+        .background(Button("") {
+            if engine.control.devices.contains(where: { $0.name == selected && $0.isDeck }) { selected = nil } else { ui.screen = nil }
+        }.keyboardShortcut(.cancelAction).frame(width: 0, height: 0).opacity(0))
         .onAppear {
             // Only a mapping that exists: the OSC mapping is made by the first OSC Learn (CTL-35).
             let known = Set(engine.control.mappings.map(\.name))
@@ -65,7 +69,6 @@ struct ControlView: View {
             if c.devices.contains(where: { $0.name == selected && $0.isDeck }) {
                 Button("‹ Devices") { selected = nil }
                     .buttonStyle(FlatButton(fill: .blue))
-                    .keyboardShortcut(.cancelAction)
             }
             Text("LAST INPUT").font(Typo.legend(11, .semibold)).tracking(0.7).foregroundStyle(t.fg2)
             Text(c.lastInput.map { "\($0.device) · \($0.input) · \($0.value)" } ?? "—").font(Typo.mono(Typo.body)).foregroundStyle(t.fg)
@@ -271,6 +274,7 @@ private struct CommitField: View {
     let load: String
     var width: CGFloat?
     let commit: (String) -> Void
+    @EnvironmentObject private var ui: UIState
     @State private var text = ""
     @FocusState private var focused: Bool
 
@@ -278,7 +282,7 @@ private struct CommitField: View {
         TextField(placeholder, text: $text).textFieldStyle(.roundedBorder).frame(width: width)
             .focused($focused)
             .onSubmit { send() }
-            .onChange(of: focused) { _, now in if !now { send() } }
+            .onChange(of: focused) { _, now in if !now { if ui.fieldEscaped { text = load } else { send() } } }   // UI-44
             .onAppear { text = load }
             .onChange(of: load) { _, new in text = new }
     }

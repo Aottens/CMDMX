@@ -486,7 +486,7 @@ private struct ProfileDocEditor: View {
             Spacer(minLength: 8)
             Button(numbers.isEmpty ? "Test" : "Test on \(rangeText(numbers))") { testOn.toggle() }
                 .buttonStyle(FlatButton(fill: testOn ? .red : nil)).disabled(numbers.isEmpty)
-            Button("Cancel") { if dirty { askDiscard = true } else { onClose(nil) } }.buttonStyle(FlatButton())
+            Button("Cancel") { if dirty { askDiscard = true } else { onClose(nil) } }.buttonStyle(FlatButton()).keyboardShortcut(.cancelAction)
             Button("Save") { saving = true; engine.saveProfile(doc) }
                 .buttonStyle(FlatButton(fill: .blue)).disabled(original == nil || !incompleteCie.isEmpty)
         }
@@ -795,7 +795,7 @@ private struct ChannelListEditor: View {
                     TextField("Manufacturer", text: $manufacturer).textFieldStyle(.roundedBorder)
                     TextField("Model", text: $model).textFieldStyle(.roundedBorder)
                     TextField("Mode name", text: $modeName).textFieldStyle(.roundedBorder).frame(width: 160)
-                    Button("Cancel") { if dirty { askDiscard = true } else { onClose(nil) } }.buttonStyle(FlatButton())
+                    Button("Cancel") { if dirty { askDiscard = true } else { onClose(nil) } }.buttonStyle(FlatButton()).keyboardShortcut(.cancelAction)
                     Button("Save") {
                         let (m, mo, md) = trimmed
                         saving = true
