@@ -19,6 +19,17 @@ const SEARCH_LIMIT: usize = 50;
 /// LIB-21: models listed without a manufacturer.
 const MODELS_LIMIT: usize = 500;
 
+/// LIB-40: a plain dimmer that is always there, like a QLC+ entry.
+const GENERIC_DIMMER: &str = r#"{
+  "manufacturer": "Generic", "model": "Dimmer", "source": "builtin",
+  "modes": [
+    {"name": "1 channel", "footprint": 1,
+     "attributes": [{"name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1, "default": 0.0}]},
+    {"name": "2 channel 16-bit", "footprint": 2,
+     "attributes": [{"name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1, "fine_channel": 2, "default": 0.0}]}
+  ]
+}"#;
+
 pub struct Library {
     index: Index,
     /// Bundled QLC+ folder; the paths below it name the source of a converted profile.
@@ -66,6 +77,22 @@ impl Library {
         let mut warnings = Vec::new();
         if let Some(dir) = qlcplus_dir {
             lib.index_qlcplus(dir, &mut warnings);
+        }
+        // After the QLC+ folder, before the user folder: a later non-user entry replaces an
+        // earlier one, and a user entry is never replaced.
+        match Profile::from_json(GENERIC_DIMMER) {
+            Ok(p) => {
+                let modes = p.modes.iter().map(entry_mode).collect();
+                lib.add(
+                    p.manufacturer,
+                    p.model,
+                    modes,
+                    "builtin",
+                    Path::new(""),
+                    &mut warnings,
+                );
+            }
+            Err(e) => warnings.push(format!("built-in Generic Dimmer: {e}")),
         }
         match fs::read_dir(user_dir) {
             Ok(files) => {
@@ -177,8 +204,13 @@ impl Library {
     pub fn import_report(&self, manufacturer: &str, model: &str) -> Result<ImportReport, String> {
         let entry = self.entry(manufacturer, model)?;
         if entry.source != "qlcplus" {
+            let what = if entry.source == "builtin" {
+                "built in"
+            } else {
+                "a user profile"
+            };
             return Err(format!(
-                "'{manufacturer} {model}' is a user profile; it has no import report"
+                "'{manufacturer} {model}' is {what}; it has no import report"
             ));
         }
         self.convert(entry).map(|i| i.report)
@@ -189,6 +221,9 @@ impl Library {
         let entry = self.entry(manufacturer, model)?;
         if entry.source == "qlcplus" {
             return self.convert(entry).map(|i| i.profile);
+        }
+        if entry.source == "builtin" {
+            return Profile::from_json(GENERIC_DIMMER).map_err(|e| e.to_string());
         }
         let json = fs::read_to_string(&entry.path).map_err(|e| format!("{}: {e}", entry.path))?;
         Profile::from_json(&json).map_err(|e| format!("{}: {e}", entry.path))
@@ -301,7 +336,11 @@ mod tests {
         let (lib, warnings) = Library::load(Some(&qlcplus_dir()), &user);
         assert!(warnings.is_empty(), "{warnings:?}");
         let all = lib.search("");
-        assert_eq!(all.len(), 3, "only *.qxf files count");
+        assert_eq!(
+            all.len(),
+            4,
+            "only *.qxf files count, plus the LIB-40 dimmer"
+        );
         let shehds = lib.search("shehds 19x15");
         assert_eq!(shehds.len(), 1);
         let modes: Vec<(&str, u16)> = shehds[0]
@@ -360,6 +399,7 @@ mod tests {
         assert_eq!(
             names,
             [
+                ("Generic".into(), 1),
                 ("Pro-Lights".into(), 1),
                 ("Shehds".into(), 1),
                 ("Showtec".into(), 1)
@@ -375,10 +415,11 @@ mod tests {
     fn lib_13_missing_bundled_folder_is_a_warning_not_a_failure() {
         let user = user_dir("missing");
         let (lib, warnings) = Library::load(Some(Path::new("/nonexistent/qlcplus")), &user);
-        assert!(lib.search("").is_empty());
+        assert_eq!(lib.search("").len(), 1, "only the LIB-40 dimmer");
         assert_eq!(warnings.len(), 1);
         let (lib, warnings) = Library::load(None, &user);
-        assert!(lib.search("").is_empty() && warnings.is_empty());
+        assert_eq!(lib.search("").len(), 1, "only the LIB-40 dimmer");
+        assert!(warnings.is_empty());
     }
 
     #[test]
@@ -472,7 +513,7 @@ mod tests {
         std::fs::create_dir_all(&user).unwrap();
         std::fs::write(user.join("Broken - Thing.json"), "{ not json").unwrap();
         let (lib, warnings) = Library::load(Some(&qlcplus_dir()), &user);
-        assert_eq!(lib.search("").len(), 3);
+        assert_eq!(lib.search("").len(), 4);
         assert!(
             warnings.iter().any(|w| w.contains("Broken - Thing.json")),
             "{warnings:?}"
@@ -493,5 +534,87 @@ mod tests {
         let files: Vec<_> = std::fs::read_dir(&user).unwrap().flatten().collect();
         assert_eq!(files.len(), 1, "written inside the user folder");
         assert!(lib.profile("../../evil", "a/b").is_ok());
+    }
+
+    #[test]
+    fn lib_40_the_dimmer_is_there_without_the_qlcplus_folder() {
+        let (lib, warnings) = Library::load(None, &user_dir("dimmer-find"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        for query in ["dimmer", "generic", "generic dimmer", "GENERIC DIMMER"] {
+            let found = lib.search(query);
+            assert_eq!(found.len(), 1, "{query}");
+            assert_eq!(
+                (found[0].manufacturer.as_str(), found[0].model.as_str()),
+                ("Generic", "Dimmer")
+            );
+            assert_eq!(found[0].source, "builtin");
+            let modes: Vec<(&str, u16)> = found[0]
+                .modes
+                .iter()
+                .map(|m| (m.name.as_str(), m.channels))
+                .collect();
+            assert_eq!(modes, [("1 channel", 1), ("2 channel 16-bit", 2)]);
+        }
+    }
+
+    #[test]
+    fn lib_40_the_profile_maps_as_a_channel_list_does() {
+        let lib = load(&user_dir("dimmer-profile"));
+        let p = lib.profile("Generic", "Dimmer").unwrap();
+        assert_eq!(p.source, "builtin");
+        let listed = |mode: &str, channels: Vec<ChannelType>| {
+            channel_list::build(&ChannelList {
+                manufacturer: "Generic".into(),
+                model: "Dimmer".into(),
+                mode: mode.into(),
+                channels,
+            })
+            .unwrap()
+            .modes
+        };
+        let mut modes = listed("1 channel", vec![ChannelType::Dimmer]);
+        modes.extend(listed(
+            "2 channel 16-bit",
+            vec![ChannelType::Dimmer, ChannelType::DimmerFine],
+        ));
+        assert_eq!(p.modes, modes);
+    }
+
+    #[test]
+    fn lib_40_a_user_copy_hides_it_and_never_overwrites_it() {
+        let user = user_dir("dimmer-copy");
+        let mut lib = load(&user);
+        assert!(!lib.has_user_profile("Generic", "Dimmer"));
+        let mut copy = lib.profile("Generic", "Dimmer").unwrap();
+        copy.modes[0].attributes[0].name = "Intensity".into();
+        lib.save_profile(&copy).unwrap();
+        assert!(user.join("Generic - Dimmer.json").is_file());
+        let hidden = |lib: &Library| names(lib, "generic dimmer");
+        let as_user = [("Generic".to_string(), "user".to_string())];
+        assert_eq!(hidden(&lib), as_user);
+        assert_eq!(lib.profile("Generic", "Dimmer").unwrap(), copy);
+        // After a restart the user copy still wins, with or without the QLC+ folder.
+        assert_eq!(hidden(&load(&user)), as_user);
+        let (again, _) = Library::load(None, &user);
+        assert_eq!(again.profile("Generic", "Dimmer").unwrap(), copy);
+        // Remove the copy and the built-in one is back, untouched.
+        std::fs::remove_file(user.join("Generic - Dimmer.json")).unwrap();
+        let back = load(&user);
+        assert_eq!(
+            hidden(&back),
+            [("Generic".to_string(), "builtin".to_string())]
+        );
+        assert_eq!(
+            back.profile("Generic", "Dimmer").unwrap().modes[0].attributes[0].name,
+            "Dimmer"
+        );
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn lib_40_it_has_no_import_report_and_is_not_called_a_user_profile() {
+        let lib = load(&user_dir("dimmer-report"));
+        let e = lib.import_report("Generic", "Dimmer").unwrap_err();
+        assert!(e.contains("built in") && !e.contains("user profile"), "{e}");
     }
 }

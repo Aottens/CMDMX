@@ -146,8 +146,11 @@ private struct AddPanel: View {
         let fromShow: Bool
         var pick: ModelPick { ModelPick(key: "\(manufacturer)/\(model)", fromShow: fromShow) }
         var id: ModelPick { pick }
-        /// QLC+ profiles are the stock library; anything else is the user's own.
-        var isUser: Bool { fromShow ? !source.isEmpty && !source.hasPrefix("qlcplus") : source == "user" }
+        /// QLC+ and built-in profiles are the stock library; anything else is the user's own.
+        var isUser: Bool {
+            fromShow ? !source.isEmpty && !source.hasPrefix("qlcplus") && !source.hasPrefix("builtin") : source == "user"
+        }
+        var sourceLabel: String { source.hasPrefix("builtin") ? "built in" : isUser ? "user profile" : "QLC+" }
     }
 
     /// Distinct profile keys in the show whose "manufacturer model" text holds every query word.
@@ -249,7 +252,7 @@ private struct AddPanel: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(picked.map { "\($0.manufacturer) \($0.model)" } ?? "Pick a model").lineLimit(1)
                         if let picked, let m = picked.modes.first(where: { $0.name == mode }) {
-                            Text(verbatim: "\(m.name) · \(m.channels) channels · \(picked.isUser ? "user profile" : "QLC+")")
+                            Text(verbatim: "\(m.name) · \(m.channels) channels · \(picked.sourceLabel)")
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                         }
                     }

@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-11-03 (FUN-05)_
+_Last updated: 2026-11-04 (NEW-01)_
 
 ## Current step
+NEW-01 (2026-11-04, LIB-40): `library.rs` holds `GENERIC_DIMMER`, a JSON profile with source `builtin`, equal in its modes to what `channel_list::build` makes. `Library::load` indexes it after the QLC+ folder and before the user folder, so it wins over a QLC+ file of the same name and a user profile hides it. `profile()` parses the const; `import_report` says it is built in. The library now always holds at least one entry. A user copy keeps `source` `builtin` in its file, as a QLC+ copy keeps `qlcplus:…`; the index marks it `user`.
 FUN-05 (2026-11-03, IPC-54): `Engine::palette_usage` and `fixture_usage` count what `delete_palette` and `patch_remove` would touch, and must stay in step with them; `usage` goes to the tick as `Event::Usage`, as `cue.view` does, so it answers while locked and leaves no undo step.
 DEF-05 (2026-11-02, PAT-27, 28): `apply_mode` takes a whole-fixture member out of cue and programmer effects when the new mode has none of the entry's attributes (a cell member stays), one warning per attribute, counted in the range's `Dropped` line; running cues follow. `palette_mode_warnings` runs before the change, one line per palette in number order for attributes the old mode had and the new one lacks: per fixture, by type, and entries with the fixture as a member; global values, cells and memberless entries say nothing (DECISIONS 2026-11-02).
 DEF-04 (2026-11-02, PAT-26): `Entry::retire` drops members, works positions out again and removes only an entry it emptied, so a memberless FX-22 palette entry stays; used by `patch_remove` for cue and palette effects and by `from_show` for palette effects. `CueFx::follow` gives non-leaving runs the members, positions and count of the cue state, clocks kept; an emptied run stays so an undo brings the entry back on its clock. `follow_cue_effects` runs from `patch_remove` and from `restore_edit_state` only when a fixture came, went or changed profile or mode; other edits to a running cue still show at its next start.
