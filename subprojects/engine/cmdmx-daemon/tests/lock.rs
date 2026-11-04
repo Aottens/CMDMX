@@ -9,10 +9,11 @@
     clippy::indexing_slicing
 )]
 
-use std::net::{TcpListener, TcpStream, UdpSocket};
+use std::net::{TcpStream, UdpSocket};
 use std::os::fd::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::{Duration, Instant};
 
 use cmdmx_control::osc::{encode, OscArg, OscMessage};
@@ -29,12 +30,19 @@ impl Drop for Daemon {
     }
 }
 
+/// Below the ephemeral ranges and never bound here. A port the kernel hands out can become another
+/// test's client source port before the daemon binds it, and a socket bound to probe one can be
+/// inherited by a daemon another thread forks. Either way this daemon exits and the handshake is
+/// reset. A connect finds a port another program on this machine listens on.
 fn free_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port()
+    static NEXT: AtomicU16 = AtomicU16::new(0);
+    let base = 20_000 + (std::process::id() % 10_000) as u16;
+    loop {
+        let port = base + NEXT.fetch_add(1, Ordering::Relaxed);
+        if TcpStream::connect(("127.0.0.1", port)).is_err() {
+            return port;
+        }
+    }
 }
 
 fn folder(test: &str) -> PathBuf {
@@ -62,8 +70,9 @@ fn connect(port: u16) -> WebSocket<TcpStream> {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         if let Ok(stream) = TcpStream::connect(("127.0.0.1", port)) {
+            // Longer than `until`'s deadline: an autosave can take the whole 5 s of SHW-11 and more.
             stream
-                .set_read_timeout(Some(Duration::from_secs(5)))
+                .set_read_timeout(Some(Duration::from_secs(15)))
                 .unwrap();
             return tungstenite::client(format!("ws://127.0.0.1:{port}/"), stream)
                 .unwrap()
