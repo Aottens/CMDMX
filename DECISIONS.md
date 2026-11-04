@@ -7,7 +7,7 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ## 2026-11-04 — A small patch before batch B (owner)
 
-**Decision:** K1 (a plain dimmer in the library), K2's hint and manual line, and IDEA-40 go out as patch 0.4.1 before the spec of batch B (P1-30); the rest of the third review's order stays as proposed, subject to the owner's approval of the batches. As a patch it has no gap review (REL-26).
+**Decision:** K1 (a plain dimmer in the library), K2's hint and manual line, and IDEA-40 go out as patch 0.4.1 before the spec of batch B (P1-30); the rest of the third review's order stays as proposed, subject to the owner's approval of the batches. As a patch it has no gap review (REL-26). Spec approved 2026-11-04: Keys stays off by default (a stray key cannot reach a running show), the dimmer has 8-bit and 16-bit modes, and UI-50 clears only what the app itself said.
 
 **Alternatives considered:** straight to batch B, with these points in E, J and F.
 

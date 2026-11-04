@@ -364,7 +364,7 @@ only seed editable defaults.
   colour, outside the reference gamut). Switching on fills the LIB-37 defaults once; they show as
   ordinary values. Save follows LIB-23/25. Verified by `tests/manual/app-profile-editor.md`
   (amended).
-- **LIB-40** (proposed, P1-30; awaits owner approval) A plain dimmer is always in the library: `Generic` / `Dimmer`, source `"builtin"`, modes `1 channel` (Dimmer) and
+- **LIB-40** (approved by owner 2026-11-04, P1-30) A plain dimmer is always in the library: `Generic` / `Dimmer`, source `"builtin"`, modes `1 channel` (Dimmer) and
   `2 channel 16-bit` (Dimmer, Dimmer fine), compiled into the daemon so it is there without the QLC+ folder. `dimmer`, `generic` and `generic dimmer` all find it. It behaves as a QLC+ entry: it cannot be
   overwritten, Edit profile starts a user copy, and a user profile `Generic/Dimmer` hides it (LIB-11). Test: `lib_40_…`.
 
