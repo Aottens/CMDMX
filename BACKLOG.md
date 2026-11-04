@@ -177,7 +177,7 @@ Builds: NEW-01; NEW-02 + NEW-03.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| NEW-01 | Daemon: a built-in `Generic` / `Dimmer` in the library; `lib_40_…`. | LIB-40 | S | todo |
+| NEW-01 | Daemon: a built-in `Generic` / `Dimmer` in the library; `lib_40_…`. | LIB-40 | S | done (2026-11-04, #238) |
 | NEW-02 | App: with Keys off a key or a click on the line says how to turn it on; manual; checklist. | UI-49 | S | todo |
 | NEW-03 | App: an armed function's own message goes when it disarms; checklist and the run. | UI-50 | S | todo |
 
