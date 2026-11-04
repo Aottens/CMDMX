@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-04 (v0.4.0 out and its gap review done; next the spec of batch B, once the owner approves the order; the church run is on 2026-11-08, on v0.3.1)_
+_Last updated: 2026-11-04 (v0.4.0 out and its gap review done; next the patch before batch B once the owner approves its spec (P1-30), then the spec of batch B; the church run is on 2026-11-08, on v0.3.1)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,

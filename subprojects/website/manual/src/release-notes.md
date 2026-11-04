@@ -1,5 +1,24 @@
 # Release notes
 
+## 0.4.0
+
+Published 3 November 2026 as "CMDMX 0.4.0".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.4.0)
+
+This release makes functions and their consequences behave the same everywhere (see
+[What an armed function does](reference.md#what-an-armed-function-does)).
+
+- **An armed function never does the normal thing:** every tap does what the table in the manual says, or the
+  message line says where the function works. A Flash or Swop pressed while armed does not change the stage.
+- **The command line reaches an armed function:** `Group 5` or `Palette 3` with Enter acts as a tap, and Enter
+  on an empty line confirms a waiting Delete.
+- **Esc goes one level up** on every screen, whatever Keys says, and never changes the stage. Opening a screen
+  disarms.
+- **Lock from anywhere:** a **Lock** button in the status bar and ⌘L, on every screen.
+- **A delete says what it does** before you confirm: how many cues on how many playbacks use a palette, that a
+  running playback's output ends, that a cue is the live one. Under **Confirm remove** in Patch: where a fixture
+  is used and what ends up empty.
+
 ## 0.3.1
 
 Published 3 November 2026 as "CMDMX 0.3.1".
