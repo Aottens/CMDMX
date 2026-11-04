@@ -64,6 +64,7 @@ struct CueRef: Equatable, Identifiable {
 enum CuePick: Equatable {
     case value(fixture: Int, cell: Int?, attribute: String?)   // attribute nil = the whole item (CUE-60)
     case effect(entry: Int, name: String)
+    case dormant(fixture: Int, cell: Int?, attribute: String)   // CUE-61: a value that is off
 }
 
 /// UI-51: cues (list order) selected in one time column; `column` is the `cue.times` key, `anchor` the Shift-tap start.

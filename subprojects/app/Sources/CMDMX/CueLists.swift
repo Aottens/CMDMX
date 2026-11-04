@@ -522,29 +522,41 @@ private struct CueViewWindow: View {
 
     @ViewBuilder private func cell(_ row: CueViewFixture, _ fixture: FixtureInfo?, _ group: String) -> some View {
         let mine = row.values.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
-        if mine.isEmpty {
+        let off = row.dormant.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
+        if mine.isEmpty && off.isEmpty {
             Text("·").foregroundStyle(t.fg3)
         } else {
             HStack(spacing: 4) {
                 ForEach(mine, id: \.key) { name, value in
                     item(row.fixture, name, value, named: mine.count > 1).overlay { RightClickCatcher { pick(row.item, name, value) } }
                 }
+                // CUE-61: what is off stays in sight, struck through and dim.
+                ForEach(off, id: \.key) { name, value in
+                    shown(name, value.value, named: Set(mine.map(\.key) + off.map(\.key)).count > 1, palette: value.palette)
+                        .strikethrough().foregroundStyle(t.fg3)
+                        .overlay { RightClickCatcher { pickDormant(row.item, name) } }
+                }
             }
         }
     }
 
     private func item(_ fixture: Int, _ name: String, _ v: CueViewValue, named: Bool) -> Text {
+        let text = shown(name, v.value, named: named, palette: v.palette)
+        if v.palette != nil { return text.foregroundStyle(t.cyan) }
+        return text.foregroundStyle(v.from == ref.cue ? t.fg : t.magenta)
+    }
+
+    /// The value as text, with the palette legend after a reference; the caller colours it.
+    private func shown(_ name: String, _ value: ProgrammerValue, named: Bool, palette: Int?) -> Text {
         let text: Text
-        switch v.value {
+        switch value {
         case .level(let level): text = Text(named ? "\(name) \(percent(level))" : percent(level))
         case .colour(let r, let g, let b):
             text = Text("\(Text(Image(systemName: "square.fill")).font(.system(size: 8)).foregroundStyle(Color(red: r, green: g, blue: b))) \(ProgrammerWindow.hex(r, g, b))")
         }
-        if let id = v.palette {
-            let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
-            return Text("\(text) \(legend)").foregroundStyle(t.cyan)
-        }
-        return text.foregroundStyle(v.from == ref.cue ? t.fg : t.magenta)
+        guard let id = palette else { return text }
+        let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
+        return Text("\(text) \(legend)")
     }
 
     /// CUE-59: look or shape, attributes, member count; magenta when it tracks from an earlier cue.
@@ -576,6 +588,13 @@ private struct CueViewWindow: View {
         ui.cueValue = .value(fixture: item.fixture, cell: item.cell, attribute: nil)
         ui.cueRemoveConfirm = false
         engine.say("\(ProgrammerWindow.number(item, fixture)) picked: Remove on the softkeys takes it out of \(cueName(ref.cue)).")
+    }
+
+    /// CUE-61: a value that is off is picked for On.
+    private func pickDormant(_ item: Item, _ name: String) {
+        ui.cueValue = .dormant(fixture: item.fixture, cell: item.cell, attribute: name)
+        ui.cueRemoveConfirm = false
+        engine.say("\(name) is off: On on the softkeys brings it back to \(cueName(ref.cue)).")
     }
 
     /// Only a value that is hard in this cue can be removed from it (CUE-54).

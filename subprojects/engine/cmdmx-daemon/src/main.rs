@@ -893,6 +893,13 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             item,
             attribute,
         } => engine.remove_cue_value(id, cue, item, attribute.as_deref()),
+        CueOff {
+            id,
+            cue,
+            item,
+            attribute,
+            off,
+        } => engine.set_cue_off(id, cue, item, attribute.as_deref(), off),
         CueRemoveEffect { id, cue, entry } => engine.remove_cue_effect(id, cue, entry),
         // IPC-26: no number is the lowest free one.
         MasterRecord {
@@ -1034,6 +1041,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CueRenumberAll { .. }
         | CueCopy { .. }
         | CueRemove { .. }
+        | CueOff { .. }
         | CueRemoveEffect { .. }
         | MasterRecord { .. }
         | GroupMasterRecord { .. } => Class::Edit,
@@ -1160,6 +1168,8 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         CueRenumber { .. } | CueRenumberAll { .. } => ("Renumber cue".into(), None),
         CueCopy { .. } => ("Copy cue".into(), None),
         CueRemove { .. } => ("Remove cue value".into(), None),
+        CueOff { off: true, .. } => ("Cue value off".into(), None),
+        CueOff { .. } => ("Cue value on".into(), None),
         CueRemoveEffect { .. } => ("Remove cue effect".into(), None),
         MasterRecord { .. } | GroupMasterRecord { .. } => ("Record master".into(), None),
         _ => ("Edit".into(), None),
@@ -3020,6 +3030,10 @@ mod tests {
         ),
         (
             r#"{"v":1,"cmd":"cue.remove_effect","id":2,"cue":2,"entry":7}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":201,"off":true}"#,
             Class::Edit,
         ),
         (

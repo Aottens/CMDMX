@@ -1205,6 +1205,29 @@ fn pat_27_a_mode_without_the_attribute_takes_the_fixture_out_of_cue_and_programm
 }
 
 #[test]
+fn cue_61_a_mode_without_the_attribute_drops_a_dormant_value_with_its_warning() {
+    let mut e = mover_rig("Big");
+    select(&mut e, &[402]);
+    e.set_programmer_value(402, "Pan", 0.2).unwrap();
+    let pb = record(&mut e, 1, 1);
+    let cue = e.playback(pb).unwrap().cues[0].number;
+    e.set_cue_off(pb, cue, Item::fixture(402), Some("Pan"), true)
+        .unwrap();
+    e.drain_warnings();
+    e.patch_change_mode(402, "Small").unwrap();
+    let dormant = &e.playback(pb).unwrap().cues[0].dormant;
+    let kept = dormant.get(&Item::fixture(402));
+    assert!(kept.is_none_or(|a| !a.contains_key("Pan")), "{dormant:?}");
+    let warnings = messages(&mut e);
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains(&format!("playback {pb} value 'Pan' dropped"))),
+        "{warnings:?}"
+    );
+}
+
+#[test]
 fn pat_27_an_entry_left_without_members_goes() {
     let mut e = mover_rig("Big");
     let id = line_pan(&mut e, &[402]);

@@ -168,6 +168,16 @@ Claude listens to Art-Net for what goes on stage.
 - [ ] Remove on the live cue: on Art-Net the channel stops on the next tick.
 - [ ] A right-click on a fixture number: **Remove** names "fixture 201"; on a cell row "901.2". Confirm: its values and its place in the cue's effects go; a tracked value of it stays, magenta. A fixture holding nothing of its own: the warning, nothing changes.
 
+## Off and On (CUE-61, IPC-57)
+Claude listens to Art-Net; what goes on stage is read there.
+- [ ] Q1 dimmer 1 at 50 %, Q2 dimmer 1 at 100 %, dimmer 2 at 100 %. Cue view of Q2, right-click 1's value, **Off**: struck through and dim, and next to it Q1's 50 % in magenta. On Art-Net with Q2 live: channel 1 goes to 128 on the next tick, no fade. Channel 2 stays.
+- [ ] Back, Go into Q2 with it off: channel 1 stays 128 through the Go.
+- [ ] Right-click the struck value, **On**: back at 100 %, 255 on the next tick. One Undo takes it off again.
+- [ ] A fixture number, **Off**, **On**: all of that fixture. An item holding only values that are off keeps its row.
+- [ ] Off on a tracked value: "tracks from Q1", nothing picked. **Remove** on a value that is off: "That value is off". Off and On with nothing picked say what to do.
+- [ ] Merge the attribute into the cue from the programmer: the new value, the struck one gone. Replace: all struck ones gone.
+- [ ] Save, reopen: the struck value is still there and still off on Art-Net.
+
 ## Restart (CUE-24, SHW)
 - [ ] Wait 5 s (autosave), stop the daemon (Ctrl-C) and start it again with the same command:
       the app reconnects, the lists, cues, legends, tracking options, chase and masters are back;

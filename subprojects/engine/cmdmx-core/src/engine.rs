@@ -761,7 +761,7 @@ impl Engine {
         }
         for playback in self.playbacks.values() {
             for cue in &playback.cues {
-                for (id, values) in &cue.values {
+                for (id, values) in cue.stored_items() {
                     if let Some(name) = values.keys().find(|n| gone(id, n)) {
                         return used(name, format!("cue {} of list {}", cue.number, playback.id));
                     }
@@ -1053,6 +1053,7 @@ impl Engine {
             }
             for cue in self.playbacks.values_mut().flat_map(|pb| &mut pb.cues) {
                 cue.values.retain(|i, _| i.fixture != id); // PBK-14
+                cue.dormant.retain(|i, _| i.fixture != id); // CUE-61
                 cue.order.retain(|i, _| i.fixture != id);
                 effect::Entry::retire(&mut cue.effects, |m| m.fixture == id); // PAT-26
             }
@@ -1165,7 +1166,10 @@ impl Engine {
         }
         for playback in self.playbacks.values_mut() {
             for cue in &mut playback.cues {
-                if let Some(values) = cue.values.get_mut(&Item::fixture(id)) {
+                for values in [&mut cue.values, &mut cue.dormant] // CUE-61
+                    .into_iter()
+                    .filter_map(|v| v.get_mut(&Item::fixture(id)))
+                {
                     values.retain(|name, value| {
                         let keep = keeps(name, value);
                         if !keep {
@@ -1862,6 +1866,8 @@ impl Engine {
                         for cue in &mut pb.cues {
                             cue.values
                                 .retain(|item, _| self.fixtures.contains_key(&item.fixture));
+                            cue.dormant
+                                .retain(|item, _| self.fixtures.contains_key(&item.fixture));
                         }
                         pb
                     })
@@ -2258,17 +2264,22 @@ impl Engine {
                     *value = None;
                 }
             }
-            cue.values.retain(|item, _| {
-                let fixture = item.fixture;
-                let keep = self.fixtures.contains_key(&fixture);
-                if !keep && !in_file.contains(&fixture) {
-                    warnings.push(format!(
-                        "playback {id}: fixture {fixture} is not in the patch, its values are left out"
-                    ));
-                }
-                keep
-            });
-            for stored in cue.values.values_mut().flat_map(|a| a.values_mut()) {
+            for values in [&mut cue.values, &mut cue.dormant] {
+                // CUE-61: what is off is left out and checked alike.
+                values.retain(|item, _| {
+                    let fixture = item.fixture;
+                    let keep = self.fixtures.contains_key(&fixture);
+                    if !keep && !in_file.contains(&fixture) {
+                        warnings.push(format!(
+                            "playback {id}: fixture {fixture} is not in the patch, its values are left out"
+                        ));
+                    }
+                    keep
+                });
+            }
+            for stored in (cue.values.values_mut().chain(cue.dormant.values_mut()))
+                .flat_map(|a| a.values_mut())
+            {
                 if let Stored::Reference(r) = *stored {
                     if !self.palettes.contains_key(&r.palette) {
                         warnings.push(format!(
@@ -3378,13 +3389,26 @@ impl Engine {
                 playback.store_tracked(at, values, mode, htp);
             } else if let Some(cue) = target.and_then(|at| playback.cues.get_mut(at)) {
                 match record.mode {
-                    Some(RecordMode::Replace) | None => cue.values = values,
+                    Some(RecordMode::Replace) | None => {
+                        cue.values = values;
+                        cue.dormant.clear(); // CUE-61
+                    }
                     Some(RecordMode::Merge | RecordMode::QuickMerge) => {
                         for (fixture, attrs) in values {
                             cue.values.entry(fixture).or_default().extend(attrs);
                         }
                     }
                 }
+            }
+            // CUE-61: a value stored now is on; an attribute is never both on and off.
+            for cue in &mut playback.cues {
+                let on = &cue.values;
+                cue.dormant.retain(|item, attrs| {
+                    if let Some(held) = on.get(item) {
+                        attrs.retain(|name, _| !held.contains_key(name));
+                    }
+                    !attrs.is_empty()
+                });
             }
             // FX-21: Merge and Update replace the effect per member and attribute, Replace all.
             if let Some(cue) = target.and_then(|at| playback.cues.get_mut(at)) {
@@ -3707,6 +3731,54 @@ impl Engine {
             state.run.edited = true;
         }
         self.follow_cue_effects();
+        Ok(())
+    }
+
+    /// CUE-61: move one attribute (or all of an item's) between the cue's values and what is off.
+    pub fn set_cue_off(
+        &mut self,
+        id: PlaybackId,
+        cue: CueNumber,
+        item: Item,
+        attribute: Option<&str>,
+        off: bool,
+    ) -> Result<(), CoreError> {
+        let playback = self.playback_mut(id)?;
+        let cue = (playback.cues.iter_mut())
+            .find(|c| c.number == cue)
+            .ok_or(CoreError::UnknownCue(cue))?;
+        let (from, to) = match off {
+            true => (&mut cue.values, &mut cue.dormant),
+            false => (&mut cue.dormant, &mut cue.values),
+        };
+        let moved = match (from.get_mut(&item), attribute) {
+            (Some(_), None) => from.remove(&item),
+            (Some(attributes), Some(name)) => {
+                let one = attributes.remove_entry(name);
+                let rest = attributes.is_empty();
+                if rest {
+                    from.remove(&item);
+                }
+                one.map(|(k, v)| BTreeMap::from([(k, v)]))
+            }
+            (None, _) => None,
+        };
+        let Some(moved) = moved else {
+            let what = match (attribute, item.cell) {
+                (Some(name), _) => name.to_string(),
+                (None, Some(_)) => item.to_string(),
+                (None, None) => format!("fixture {item}"),
+            };
+            let tail = if off { "of its own" } else { "that is off" };
+            return Err(CoreError::InvalidCommand(format!(
+                "Q{} holds no {what} {tail}",
+                cue.number
+            )));
+        };
+        to.entry(item).or_default().extend(moved);
+        if let Some(state) = self.states.get_mut(&id) {
+            state.run.edited = true;
+        }
         Ok(())
     }
 
@@ -6678,7 +6750,7 @@ impl Engine {
             .playbacks
             .values_mut()
             .flat_map(|pb| pb.cues.iter_mut())
-            .flat_map(|cue| cue.values.values_mut())
+            .flat_map(|cue| cue.values.values_mut().chain(cue.dormant.values_mut()))
             .flat_map(|attrs| attrs.values_mut())
         {
             *stored = stored.without_palette(id);
@@ -6698,7 +6770,7 @@ impl Engine {
                 .cues
                 .iter()
                 .filter(|cue| {
-                    let value = (cue.values.values().flat_map(|a| a.values()))
+                    let value = (cue.stored_items().flat_map(|(_, a)| a.values()))
                         .any(|s| matches!(s, Stored::Reference(r) if r.palette == id));
                     value || cue.effects.iter().any(|e| e.palette == Some(id))
                 })
@@ -6728,9 +6800,10 @@ impl Engine {
             for cue in &pb.cues {
                 // `Entry::retire` keeps an entry that never had members.
                 let kept = |e: &effect::Entry| e.members.is_empty() || !e.members.iter().all(gone);
-                let hit = cue.values.keys().any(gone)
+                let hit = cue.stored_items().any(|(i, _)| gone(i))
                     || cue.effects.iter().any(|e| e.members.iter().any(gone));
-                let after = !cue.values.keys().all(gone) || cue.effects.iter().any(kept);
+                let after =
+                    !cue.stored_items().all(|(i, _)| gone(i)) || cue.effects.iter().any(kept);
                 cues += u32::from(hit);
                 u.empty_cues += u32::from(hit && !after);
             }

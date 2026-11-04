@@ -556,16 +556,25 @@ func cellsAfterFixtures<T>(_ rows: [T], _ fixtures: [FixtureInfo], item: (T) -> 
 struct CueViewFixture: Decodable, Identifiable, Equatable {
     let item: Item
     let values: [String: CueViewValue]
+    /// CUE-61: the cue's own values that are off.
+    let dormant: [String: CueViewDormant]
     var id: Item { item }
     var fixture: Int { item.fixture }
 
-    private enum CodingKeys: String, CodingKey { case fixture, values }
+    private enum CodingKeys: String, CodingKey { case fixture, values, dormant }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         item = try c.decode(Item.self, forKey: .fixture)
         values = ((try? c.decode([String: Tolerant<CueViewValue>].self, forKey: .values)) ?? [:]).compactMapValues(\.value)
+        dormant = ((try? c.decode([String: Tolerant<CueViewDormant>].self, forKey: .dormant)) ?? [:]).compactMapValues(\.value)
     }
+}
+
+/// CUE-61: a hard value the cue holds but does not play.
+struct CueViewDormant: Decodable, Equatable {
+    let value: ProgrammerValue
+    let palette: Int?
 }
 
 /// CUE-59: an effect entry of the cue's state; `from` is the cue it is hard in.
@@ -1899,6 +1908,12 @@ final class EngineClient: ObservableObject {
         var fields: [String: Any] = ["id": id, "cue": cue, "fixture": cell.map { "\(fixture).\($0)" as Any } ?? fixture]
         if let attribute { fields["attribute"] = attribute }
         patch("cue.remove", fields)
+    }
+    /// CUE-61: moves a hard value (or all of an item's) off the cue's output, or back on.
+    func setCueOff(_ id: Int, cue: Double, fixture: Int, cell: Int? = nil, attribute: String?, off: Bool) {
+        var fields: [String: Any] = ["id": id, "cue": cue, "fixture": cell.map { "\(fixture).\($0)" as Any } ?? fixture, "off": off]
+        if let attribute { fields["attribute"] = attribute }
+        patch("cue.off", fields)
     }
     /// CUE-59: takes a hard effect entry out of the cue.
     func removeCueEffect(_ id: Int, cue: Double, entry: Int) { patch("cue.remove_effect", ["id": id, "cue": cue, "entry": entry]) }

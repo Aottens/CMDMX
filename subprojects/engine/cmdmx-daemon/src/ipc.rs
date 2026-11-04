@@ -431,6 +431,14 @@ pub enum Command {
         item: Item,
         attribute: Option<String>,
     },
+    /// CUE-61, IPC-57: move a hard value (or all of an item's) off or back on.
+    CueOff {
+        id: PlaybackId,
+        cue: CueNumber,
+        item: Item,
+        attribute: Option<String>,
+        off: bool,
+    },
     /// CUE-59: take a hard effect entry out of a cue.
     CueRemoveEffect {
         id: PlaybackId,
@@ -1786,6 +1794,13 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             item: wire_item(&v, "fixture")?,
             attribute: opt_field(&v, "attribute", "a string")?,
         }),
+        Some("cue.off") => Ok(Command::CueOff {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            item: wire_item(&v, "fixture")?,
+            attribute: opt_field(&v, "attribute", "a string")?,
+            off: (v.get("off").and_then(|b| b.as_bool())).ok_or("missing or invalid \"off\"")?,
+        }),
         Some("cue.remove_effect") => Ok(Command::CueRemoveEffect {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
@@ -2694,6 +2709,17 @@ struct CueViewFixture {
     #[serde(serialize_with = "serialize_wire_item")]
     fixture: Item,
     values: BTreeMap<String, CueViewValue>,
+    /// CUE-61: the cue's own values that are off.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    dormant: BTreeMap<String, CueViewDormant>,
+}
+
+/// CUE-61: one value that is off.
+#[derive(Serialize)]
+struct CueViewDormant {
+    value: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    palette: Option<PaletteId>,
 }
 
 /// CUE-59: one effect entry of the cue's state and the cue it is hard in.
@@ -2727,26 +2753,51 @@ struct CueViewMessage {
 /// CUE-54, IPC-24: the answer to `cue.view`, sorted by fixture; a palette reference shows what
 /// its palette resolves (as `contents`, IPC-21) with its id.
 pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<String, CoreError> {
-    let fixtures = (engine.cue_view(id, cue)?.into_iter())
-        .map(|(item, attributes)| CueViewFixture {
+    let mut rows = BTreeMap::new();
+    for (item, attributes) in engine.cue_view(id, cue)? {
+        let values = (attributes.into_iter())
+            .map(|(name, v)| {
+                let palette = match v.value {
+                    Stored::Reference(r) => Some(r.palette),
+                    Stored::Value(_) => None,
+                };
+                let value = engine.resolve_stored(item, &name, v.value);
+                let shown = CueViewValue {
+                    value,
+                    from: v.from,
+                    palette,
+                };
+                (name, shown)
+            })
+            .collect();
+        let row = CueViewFixture {
             fixture: item,
-            values: (attributes.into_iter())
-                .map(|(name, v)| {
-                    let palette = match v.value {
-                        Stored::Reference(r) => Some(r.palette),
-                        Stored::Value(_) => None,
-                    };
-                    let value = engine.resolve_stored(item, &name, v.value);
-                    let shown = CueViewValue {
-                        value,
-                        from: v.from,
-                        palette,
-                    };
-                    (name, shown)
-                })
-                .collect(),
-        })
-        .collect();
+            values,
+            dormant: BTreeMap::new(),
+        };
+        rows.insert(item, row);
+    }
+    // CUE-61: what the cue holds off; an item with nothing else still gets its row.
+    let held = engine
+        .playback(id)
+        .and_then(|p| p.cues.iter().find(|c| c.number == cue));
+    for (item, attributes) in held.iter().flat_map(|c| &c.dormant) {
+        let row = rows.entry(*item).or_insert_with(|| CueViewFixture {
+            fixture: *item,
+            values: BTreeMap::new(),
+            dormant: BTreeMap::new(),
+        });
+        for (name, stored) in attributes {
+            let palette = match stored {
+                Stored::Reference(r) => Some(r.palette),
+                Stored::Value(_) => None,
+            };
+            let value = engine.resolve_stored(*item, name, *stored);
+            row.dormant
+                .insert(name.clone(), CueViewDormant { value, palette });
+        }
+    }
+    let fixtures: Vec<_> = rows.into_values().collect();
     let effects = (engine.cue_effects(id, cue)?.into_iter())
         .map(|v| CueViewEffect {
             entry: v.entry.id,
@@ -2852,7 +2903,7 @@ fn cue_effects(engine: &Engine) -> impl Iterator<Item = &Vec<effect::Entry>> {
 fn cue_values(engine: &Engine) -> impl Iterator<Item = &Values> {
     engine
         .playbacks()
-        .flat_map(|p| p.cues.iter().map(|c| &c.values))
+        .flat_map(|p| p.cues.iter().flat_map(|c| [&c.values, &c.dormant]))
 }
 
 impl Published {
@@ -6943,6 +6994,47 @@ mod tests {
         e.tick(0.05);
         let d = published.diff(&e, &[], &show_state());
         assert_eq!(deltas(&d, "playbacks").len(), 1, "undo: {d:?}");
+    }
+
+    #[test]
+    fn cue_61_cue_view_shows_what_is_off() {
+        let mut e = list_engine();
+        let item = cmdmx_core::programmer::Item::fixture(2);
+        e.set_cue_off(2, q(2.0), item, None, true).unwrap();
+        let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
+        assert_eq!(
+            v["fixtures"],
+            json!([{"fixture":1,"values":{"Dimmer":{"value":1.0,"from":1.0}}},
+                   {"fixture":2,"values":{},"dormant":{"Dimmer":{"value":0.5}}}]),
+            "an item holding only dormant values keeps its row"
+        );
+    }
+
+    #[test]
+    fn ipc_57_cue_off_parses() {
+        let on = parse_command(
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":"901.2","off":false}"#,
+        );
+        assert!(matches!(
+            on,
+            Ok(Command::CueOff {
+                id: 2,
+                attribute: None,
+                off: false,
+                ..
+            })
+        ));
+        let off = parse_command(
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":201,"attribute":"Dimmer","off":true}"#,
+        );
+        assert!(matches!(off, Ok(Command::CueOff { off: true, .. })));
+        for bad in [
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":201}"#,
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"off":true}"#,
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":201,"off":1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

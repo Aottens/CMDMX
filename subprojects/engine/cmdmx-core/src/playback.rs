@@ -230,7 +230,7 @@ pub struct Cue {
     /// PRG-80: each item's position in the recorded selection order; empty = no order.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub order: BTreeMap<Item, u32>,
-    /// CUE-58: stored for CUE-61 (Off and On); nothing reads it yet.
+    /// CUE-61: the hard values that are off; nothing that plays reads them.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dormant: Values,
 }
@@ -240,6 +240,11 @@ fn full_overlap() -> f32 {
 }
 
 impl Cue {
+    /// CUE-61: what the cue holds, on or off; bookkeeping (fixture removal, palettes) treats both alike.
+    pub(crate) fn stored_items(&self) -> impl Iterator<Item = (&Item, &BTreeMap<String, Stored>)> {
+        self.values.iter().chain(&self.dormant)
+    }
+
     /// CUE-56: the fade out in force, As In = `fade_in`.
     pub fn fade_out_in_force(&self) -> f32 {
         self.fade_out.unwrap_or(self.fade_in)

@@ -245,6 +245,13 @@ Right-click a fixture number to take the whole fixture out: **Remove** names it 
 and takes out what this cue holds of it, its values and its place in the cue's own effects. A cell row is taken out on
 its own. What tracks from an earlier cue stays visible.
 
+**Off** takes a value out of play without forgetting it: the cue then behaves as if it did not hold that value, so the
+attribute tracks from the cues before it, and a live cue shows that on the next tick. It is not a recorded zero. Right-click
+a value the cue holds itself, or a fixture number for all of it, and press **Off**. The value stays in its column, struck
+through and dim. Right-click it and press **On** to bring it back (a fixture number brings back all of that fixture's).
+Recording or merging that attribute into the cue stores the new value and forgets the old one; Replace forgets all of
+the cue's values that are off; Update does not read them.
+
 ## The connected list
 
 The Go block, Space and the Cue list window always work on one cue list or chase: the
