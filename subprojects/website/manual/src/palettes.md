@@ -122,7 +122,8 @@ from wherever the fade has got to.
   there) and **Quick Merge** (only update the attributes the palette already holds). Tapping the
   same cell again is Quick Merge too. A merge never makes the palette wider than its kind: a
   normal palette stays normal.
-- **Update**, then tap a palette: a Quick Merge with what is in the programmer.
+- **Update**, then tap a palette: a Quick Merge with what is in the programmer. Or tick the palette on Update's softkeys
+  and **Store**: see [Playbacks](playbacks.md).
 
 Every cue and playback that uses the palette follows the change straight away, without a fade.
 

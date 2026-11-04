@@ -58,8 +58,8 @@ the message line names where the function works, nothing else happens and the fu
 | Armed | Group | Fixture | Palette | Handle legend | Cue row |
 | --- | --- | --- | --- | --- | --- |
 | Record | records | no | records | records | Replace, Merge or Update on the softkeys |
-| Update | no | no | updates | updates | updates that cue |
-| Include | no | no | includes | no | no |
+| Update | no | no | updates | updates | updates that cue; or tick targets on the softkeys and Store |
+| Include | no | no | includes | its cue in the programmer | that cue in the programmer |
 | Copy | source, then an empty cell | no | source, then an empty cell | source, then an empty handle | the Cue softkeys: type the number, then Copy |
 | Move | source, then an empty cell | no | source, then an empty cell | source, then an empty handle | the Cue softkeys: type the number, then Renumber |
 | Delete | confirm on softkey A | no | confirm on softkey A | confirm on softkey A | confirm on softkey A |

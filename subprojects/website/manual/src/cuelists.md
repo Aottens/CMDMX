@@ -114,6 +114,9 @@ has no Times view. In this view a tap selects a time and does not change Next:
   playback instead. The message says when it is the live cue: the output stays until the next Go.
 
 **Record**, then a tap on a row, records onto that cue: **Replace**, **Merge** or **Update**.
+**Include**, then a tap on a row, puts what that cue holds itself in the programmer: nothing tracked and
+nothing that is off, so **Merge** afterwards turns nothing tracked into a value of this cue. See
+[Playbacks](playbacks.md).
 **Renumber All** on the Cue list tab of Playback Options numbers the cues 1, 2, 3 … in their order.
 
 ## Times per cue
@@ -250,7 +253,7 @@ attribute tracks from the cues before it, and a live cue shows that on the next 
 a value the cue holds itself, or a fixture number for all of it, and press **Off**. The value stays in its column, struck
 through and dim. Right-click it and press **On** to bring it back (a fixture number brings back all of that fixture's).
 Recording or merging that attribute into the cue stores the new value and forgets the old one; Replace forgets all of
-the cue's values that are off; Update does not read them.
+the cue's values that are off; Update and Include do not read them.
 
 ## The connected list
 
