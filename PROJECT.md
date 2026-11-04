@@ -24,7 +24,8 @@ them as cue lists, busking pages or (later) a timeline.
   - Show file: one readable JSON file, autosave, git-friendly
 - Phase 2: show-running depth (tracking views, Move In Dark, …), shape generator, fader mode 3, nested/time palettes, align (fan moved to phase 1, IDEA-27), virtual faders, scene master, gel picker + colour calibration (IDEA-02/03), more USB interfaces (IDEA-01)
 - Phase 3: multi-user support (IDEA-34), timeline synced to Ableton/timecode (IDEA-05)
-- Phases 3–9, not yet placed: pixel mapper, key frame shapes, set list, sACN input, visualiser
+- Phase 4: our own built-in 3D visualiser (IDEA-41)
+- Phases 3–9, not yet placed: pixel mapper, key frame shapes, set list, sACN input
 - Phase 10: hardware — the open-hardware maker desk (IDEA-23) and the cross-platform UI for it (IDEA-30); runs as a parallel track beside phase 1 since 2026-10-25 (`subprojects/hardware/`)
 - Ideas not yet placed: `IDEAS.md`
 
