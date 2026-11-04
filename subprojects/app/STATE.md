@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-04 (REC-02)_
+_Last updated: 2026-11-04 (REC-04)_
 
 ## Current step
+REC-04 (2026-11-04, UI-51): `UIState.cueTimesView` and `timeCells`; arming clears the cells through `didSet`. `liveTimeCells` is the one condition for the softkeys and Enter, `setTimes` the one send. `CueListWindow.timesRow` shares `decorated` with the plain row; the drag works out its row from `rowHeight` in the `cueTimes` coordinate space. Shift comes from `NSApp.currentEvent`, the click itself.
 REC-02 (2026-11-04, CUE-56, 57, UI-52): `PlaybackOptions.NumberField` gets `asIn` and `clear`: an empty out field sends `null`. `.task(id: sent)` shows `held` half a second after a send unless the operator typed on; `held` is state because a captured `value` is stale. Delay out shows on a real list only, and in *New cue times*.
 NEW-03 (2026-11-04, UI-50): `EngineClient.say` marks its text as `armedMessage` while `isArmed` (set by `Frame` to `ui.modesOpen`) holds; `endArmedMessage` clears the message only if it is still that text. `Frame` calls it when `modesOpen` goes false; the function keys and the Cancel softkeys call it directly, as switching functions leaves `modesOpen` true. Cancel no longer clears an engine warning.
 NEW-02 (2026-11-04, UI-49): `MacKeys.keysAct` and `token(for:)` are one list for typing and for the hint; `sayKeysOff` skips `addMessage`, so the Messages sheet stays out of it, and is not marked as armed.

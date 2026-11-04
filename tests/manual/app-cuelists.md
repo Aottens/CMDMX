@@ -135,6 +135,17 @@ Claude listens to Art-Net; the times below are read there, not on screen.
 - [ ] An old show (schema 10) with fade in 3 and fade out 0 opens: the Times tab shows 0, the cue still snaps down; save it: it stays that way on the next open.
 - [ ] Type fade in 602, Return: the warning shows, and half a second later the field shows the old number, focused or not. The same in delay out and in *New cue times*.
 
+## Times in the grid (UI-51, IPC-56)
+Claude listens to Art-Net; the times below are read there, not on screen. Taps and drags need a real mouse, not a background click.
+- [ ] **Times** in the Cue list window: columns Q, Legend, Delay in, Delay out, Fade in, Fade out, Overlap; an As In value is dim. A tap on a cell lights it and does not move Next.
+- [ ] Drag Fade in over Q2 to Q5: "Q2–Q5 · Fade in", no As In softkey. A number and Set: all four change, one Undo takes all four back.
+- [ ] Tap Q2 Fade out, Shift-tap Q3, a number, Enter: both change. As In: both dim. Read the fall on Art-Net.
+- [ ] Change a time while its fade runs: the running fade keeps its time on Art-Net, the cell reads the new one.
+- [ ] A refused number (601): the warning, the cell keeps its value and stays selected.
+- [ ] A function armed clears the cells, and a tap then targets the row (Delete: "Confirm on softkey A"). Right-click: the Cue softkeys.
+- [ ] Done: the cells go, the view stays. Esc: the cells go; Esc again: the plain view. There a tap sets Next.
+- [ ] A chase has no Times toggle.
+
 ## Restart (CUE-24, SHW)
 - [ ] Wait 5 s (autosave), stop the daemon (Ctrl-C) and start it again with the same command:
       the app reconnects, the lists, cues, legends, tracking options, chase and masters are back;
