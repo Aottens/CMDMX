@@ -1899,6 +1899,8 @@ final class EngineClient: ObservableObject {
 
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
     func say(_ text: String) { lastMessage = text }
+    /// UI-49: Keys off and a key it would act on (or a click on the command line); not in the Messages sheet, so not `addMessage`.
+    func sayKeysOff() { lastMessage = "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad." }
 
     func askUsage(fixtures: [Int]) { usage = nil; sendJSON("usage", ["fixtures": fixtures]) }
 

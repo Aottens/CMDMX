@@ -318,6 +318,14 @@ At home, no lamps: `--show-dir` in a temp folder. Each line with Keys on and wit
 - [ ] A function armed, then a screen: the same.
 - [ ] Record armed, another workspace by the rail, F-key and ⌘-key: stays armed, and a tap there records. A page button: stays armed.
 
+## Keys off says so (UI-49)
+- [ ] Keys off, the workspace, nothing focused: a digit, `f`, Return, Backspace, Up: the line stays empty, and the message zone says "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad."
+- [ ] Keys off: F2 does not change workspace and Space runs no Go; both say the same, also on a screen (Output). A digit on a screen says nothing.
+- [ ] Keys off: a key Keys does not use (`x`) says nothing. ⌘2 still switches workspace and says nothing. Esc does its own work (UI-44) and says nothing.
+- [ ] A held digit shows the message without flicker or a repeat beep; the Messages sheet has no such line.
+- [ ] Keys off: a click on the command line says the same. Keys on: a click there says nothing, and digits fill the line.
+- [ ] Keys off, typing in a text field (Patch search, a sheet's name field), under an open sheet, under the Lock prompt and cover: no such message.
+
 ## Lock from anywhere (UI-48)
 - [ ] **Lock** in the status bar opens the prompt from each workspace, with a selection, on each screen, and with a function armed. The softkey still does.
 - [ ] ⌘L does the same, with Keys off and with focus in a text field.
