@@ -102,6 +102,10 @@ struct StoredCue: Decodable, Identifiable, Equatable {
     var delay = 0.0
     var fadeIn = 0.0
     var fadeOut = 0.0
+    /// CUE-56: the out times in force, and whether each is As In.
+    var delayOut = 0.0
+    var fadeOutAsIn = false
+    var delayOutAsIn = false
     var overlap = 100.0
     var link = CueLink()
     /// `Track`, `Block`, `CueOnly` or `Solo` (CUE-51).
@@ -113,6 +117,7 @@ struct StoredCue: Decodable, Identifiable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case number, legend, delay, overlap, link, track, groups
         case fadeIn = "fade_in", fadeOut = "fade_out", groupTimes = "group_times"
+        case delayOut = "delay_out", fadeOutAsIn = "fade_out_as_in", delayOutAsIn = "delay_out_as_in"
     }
 
     init(from decoder: Decoder) throws {
@@ -122,6 +127,9 @@ struct StoredCue: Decodable, Identifiable, Equatable {
         delay = (try? c.decode(Double.self, forKey: .delay)) ?? 0
         fadeIn = (try? c.decode(Double.self, forKey: .fadeIn)) ?? 0
         fadeOut = (try? c.decode(Double.self, forKey: .fadeOut)) ?? 0
+        delayOut = (try? c.decode(Double.self, forKey: .delayOut)) ?? delay
+        fadeOutAsIn = (try? c.decode(Bool.self, forKey: .fadeOutAsIn)) ?? false
+        delayOutAsIn = (try? c.decode(Bool.self, forKey: .delayOutAsIn)) ?? false
         overlap = (try? c.decode(Double.self, forKey: .overlap)) ?? 100
         link = (try? c.decode(CueLink.self, forKey: .link)) ?? CueLink()
         track = (try? c.decode(String.self, forKey: .track)) ?? "Track"
@@ -277,6 +285,9 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
         var delay = 0.0
         var fadeIn = 0.0
         var fadeOut = 0.0
+        var delayOut = 0.0
+        var fadeOutAsIn = false
+        var delayOutAsIn = false
         var overlap = 100.0
 
         init() {}
@@ -284,6 +295,7 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
         private enum CodingKeys: String, CodingKey {
             case delay, overlap
             case fadeIn = "fade_in", fadeOut = "fade_out"
+            case delayOut = "delay_out", fadeOutAsIn = "fade_out_as_in", delayOutAsIn = "delay_out_as_in"
         }
 
         init(from decoder: Decoder) throws {
@@ -291,6 +303,9 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
             delay = (try? c.decode(Double.self, forKey: .delay)) ?? 0
             fadeIn = (try? c.decode(Double.self, forKey: .fadeIn)) ?? 0
             fadeOut = (try? c.decode(Double.self, forKey: .fadeOut)) ?? 0
+            delayOut = (try? c.decode(Double.self, forKey: .delayOut)) ?? delay
+            fadeOutAsIn = (try? c.decode(Bool.self, forKey: .fadeOutAsIn)) ?? false
+            delayOutAsIn = (try? c.decode(Bool.self, forKey: .delayOutAsIn)) ?? false
             overlap = (try? c.decode(Double.self, forKey: .overlap)) ?? 100
         }
     }
@@ -422,6 +437,10 @@ struct PlaybackSettings: Decodable, Equatable {
     let delay: Double
     let fadeIn: Double
     let fadeOut: Double
+    /// CUE-57: the new-cue out times in force, and whether each is As In.
+    let delayOut: Double
+    let fadeOutAsIn: Bool
+    let delayOutAsIn: Bool
     let overlap: Double
     let releaseMask: [String]
     let releaseTime: Double
@@ -438,6 +457,7 @@ struct PlaybackSettings: Decodable, Equatable {
         case releaseMask = "release_mask", releaseTime = "release_time"
         case autoConnect = "auto_connect", cueListFader = "cue_list_fader"
         case updateMode = "update_mode", handleButtons = "handle_buttons"
+        case delayOut = "delay_out", fadeOutAsIn = "fade_out_as_in", delayOutAsIn = "delay_out_as_in"
     }
 
     init(from decoder: Decoder) throws {
@@ -446,6 +466,9 @@ struct PlaybackSettings: Decodable, Equatable {
         delay = (try? c.decode(Double.self, forKey: .delay)) ?? 0
         fadeIn = (try? c.decode(Double.self, forKey: .fadeIn)) ?? 0
         fadeOut = (try? c.decode(Double.self, forKey: .fadeOut)) ?? 0
+        delayOut = (try? c.decode(Double.self, forKey: .delayOut)) ?? delay
+        fadeOutAsIn = (try? c.decode(Bool.self, forKey: .fadeOutAsIn)) ?? false
+        delayOutAsIn = (try? c.decode(Bool.self, forKey: .delayOutAsIn)) ?? false
         overlap = (try? c.decode(Double.self, forKey: .overlap)) ?? 100
         releaseMask = (try? c.decode([String].self, forKey: .releaseMask)) ?? []
         releaseTime = (try? c.decode(Double.self, forKey: .releaseTime)) ?? 0
@@ -1798,7 +1821,7 @@ final class EngineClient: ObservableObject {
     }
     /// `playback.options` (PBK-36): only the given fields change; `NSNull()` clears a nullable one.
     func setPlaybackOptions(_ id: Int, _ fields: [String: Any]) { patch("playback.options", fields.merging(["id": id]) { a, _ in a }) }
-    /// `playback.times`: delay, fade_in, fade_out (s) and overlap (%) of the first cue.
+    /// `playback.times`: delay, delay_out, fade_in, fade_out (s) and overlap (%) of the first cue; `fade_out` and `delay_out` also take NSNull for As In (CUE-56).
     func setPlaybackTimes(_ id: Int, _ fields: [String: Any]) { patch("playback.times", fields.merging(["id": id]) { a, _ in a }) }
     /// `icon` and `halo` nil = automatic (PBK-31, PBK-33).
     func setPlaybackLegend(_ id: Int, legend: String, icon: String?, halo: AutoIcon.RGB?) {
@@ -1822,7 +1845,7 @@ final class EngineClient: ObservableObject {
     func pressButton(_ id: Int, _ which: String, on: Bool) { sendJSON("playback.button", ["id": id, "button": which, "on": on]) }
     func tapPlayback(_ id: Int) { sendJSON("playback.tap", ["id": id]) }
     func setBPM(_ id: Int, _ bpm: Double) { patch("playback.bpm", ["id": id, "bpm": bpm]) }
-    /// `fields` as `cue.times`: delay, fade_in, fade_out, overlap, link, group_times (CUE-07, 14, 20).
+    /// `fields` as `cue.times`: delay, delay_out, fade_in, fade_out (the out times also NSNull for As In, CUE-56), overlap, link, group_times (CUE-07, 14, 20).
     func setCueTimes(_ id: Int, cue: Double, _ fields: [String: Any]) {
         patch("cue.times", fields.merging(["id": id, "cue": cue]) { a, _ in a })
     }

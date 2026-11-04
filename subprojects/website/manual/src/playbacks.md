@@ -116,15 +116,16 @@ The tabs depend on the kind of playback. A single look has these:
 
 ## Times and fader modes
 
-A new playback starts with the *New cue times* of the Settings tab: delay, fade in, fade out and
-overlap, in a new show every time at 0 and overlap at 100 %. Changing them applies to cues you record
+A new playback starts with the *New cue times* of the Settings tab: delay, delay out, fade in, fade
+out and overlap, in a new show delay and fade in at 0, overlap at 100 % and both out times *as in*:
+an empty out field takes the delay or the fade in (see [Times per cue](cuelists.md#times-per-cue)). Changing them applies to cues you record
 from then on, on a memory, a cue list or a chase; an existing cue keeps its own. Set a cue's times on
 the Times tab:
 
 - **Delay**: how long after the fader goes up before anything happens.
 - **Fade in**: how long the intensity takes to come up, and how long colour, position and the
   other values take to move to the cue.
-- **Fade out**: used by fader mode 1 (below).
+- **Fade out**: used by fader mode 1 (below). Left empty it says *as in* and follows the fade in; type a number to set it apart. A memory has no delay out.
 - **Overlap**: spreads the fades over the fixtures, in user-number order, as for palettes. At
   100 % they all move together.
 

@@ -120,37 +120,54 @@ private struct Choice<Value: Hashable>: View {
     }
 }
 
-/// A number the operator types; it is sent on Return or when the field loses focus. The engine's
-/// value is shown again at once, and replaced by the new one when the engine accepts the change.
+/// A number the operator types; it is sent on Return or when the field loses focus. The field shows
+/// what was sent, and half a second later what the engine holds (UI-52): the same number when
+/// accepted, the old one when refused, focused or not unless the operator typed on.
 private struct NumberField: View {
     @Environment(\.theme) private var t
     let value: Double
     let unit: String
     var width: CGFloat = 90
+    /// CUE-56, 57: an out time; As In shows an empty field saying "as in", and emptying the field sends `clear`.
+    var asIn = false
+    var clear: (() -> Void)? = nil
     let commit: (Double) -> Void
     @EnvironmentObject private var ui: UIState
     @State private var text = ""
+    @State private var held = ""     // what the engine holds now, for the look back below
+    @State private var sent = 0
     @FocusState private var focused: Bool
+    private var shown: String { asIn ? "" : plain(value) }
 
     var body: some View {
         HStack(spacing: 6) {
-            TextField("", text: $text).textFieldStyle(.roundedBorder).frame(width: width)
+            TextField(clear == nil ? "" : "as in", text: $text).textFieldStyle(.roundedBorder).frame(width: width)
                 .font(Typo.mono()).focused($focused).onSubmit(send)
-                .onChange(of: focused) { _, now in if !now { if ui.fieldEscaped { text = plain(value) } else { send() } } }   // UI-44
+                .onChange(of: focused) { _, now in if !now { if ui.fieldEscaped { text = shown } else { send() } } }   // UI-44
             Text(unit).font(Typo.ui(11)).foregroundStyle(t.fg2)
         }
-        .onAppear { text = plain(value) }
-        .onChange(of: value) { _, new in if !focused { text = plain(new) } }
+        .onAppear { text = shown; held = shown }
+        .onChange(of: shown) { _, new in held = new; if !focused { text = new } }
+        .task(id: sent) {   // UI-52
+            guard sent > 0 else { return }
+            let typed = text
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if !Task.isCancelled, text == typed { text = held }
+        }
     }
 
     /// Shows what was sent (VS3-05 run: showing the old value until the engine answered looked
-    /// like the field had jumped back); a refused value shows its warning below.
+    /// like the field had jumped back); UI-52 then shows what the engine holds.
     private func send() {
-        if let n = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")), n != value {
+        let typed = text.trimmingCharacters(in: .whitespaces)
+        if typed.isEmpty, let clear {
+            if !asIn { clear(); sent += 1 }
+        } else if let n = Double(typed.replacingOccurrences(of: ",", with: ".")), n != value || asIn {
             commit(n)
             text = plain(n)
+            sent += 1
         } else {
-            text = plain(value)
+            text = shown
         }
     }
 }
@@ -222,8 +239,17 @@ private struct TimesTab: View {
     @ViewBuilder private func times(_ cue: StoredCue) -> some View {
         let id = playback.id
         OptionRow(label: "Delay") { NumberField(value: cue.delay, unit: "s") { engine.setCueTimes(id, cue: cue.number, ["delay": $0]) } }
+        if playback.stored.cues.count >= 2 && !playback.isChase {   // CUE-56: a memory has no delay out, a chase ignores it
+            OptionRow(label: "Delay out") {
+                NumberField(value: cue.delayOut, unit: "s", asIn: cue.delayOutAsIn,
+                            clear: { engine.setCueTimes(id, cue: cue.number, ["delay_out": NSNull()]) }) { engine.setCueTimes(id, cue: cue.number, ["delay_out": $0]) }
+            }
+        }
         OptionRow(label: "Fade in") { NumberField(value: cue.fadeIn, unit: "s") { engine.setCueTimes(id, cue: cue.number, ["fade_in": $0]) } }
-        OptionRow(label: "Fade out") { NumberField(value: cue.fadeOut, unit: "s") { engine.setCueTimes(id, cue: cue.number, ["fade_out": $0]) } }
+        OptionRow(label: "Fade out") {
+            NumberField(value: cue.fadeOut, unit: "s", asIn: cue.fadeOutAsIn,
+                        clear: { engine.setCueTimes(id, cue: cue.number, ["fade_out": NSNull()]) }) { engine.setCueTimes(id, cue: cue.number, ["fade_out": $0]) }
+        }
         OptionRow(label: "Overlap") { NumberField(value: cue.overlap, unit: "%") { engine.setCueTimes(id, cue: cue.number, ["overlap": $0]) } }
     }
 
@@ -675,8 +701,15 @@ private struct SettingsTab: View {
             Text("NEW CUE TIMES").font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3).padding(.top, 8)
             Text("Cues recorded from now on take these times; an existing cue keeps its own.").font(Typo.ui(11)).foregroundStyle(t.fg2)
             OptionRow(label: "Delay") { NumberField(value: s.delay, unit: "s") { engine.setPlaybackSettings(["delay": $0]) } }
+            OptionRow(label: "Delay out") {
+                NumberField(value: s.delayOut, unit: "s", asIn: s.delayOutAsIn,
+                            clear: { engine.setPlaybackSettings(["delay_out": NSNull()]) }) { engine.setPlaybackSettings(["delay_out": $0]) }
+            }
             OptionRow(label: "Fade in") { NumberField(value: s.fadeIn, unit: "s") { engine.setPlaybackSettings(["fade_in": $0]) } }
-            OptionRow(label: "Fade out") { NumberField(value: s.fadeOut, unit: "s") { engine.setPlaybackSettings(["fade_out": $0]) } }
+            OptionRow(label: "Fade out") {
+                NumberField(value: s.fadeOut, unit: "s", asIn: s.fadeOutAsIn,
+                            clear: { engine.setPlaybackSettings(["fade_out": NSNull()]) }) { engine.setPlaybackSettings(["fade_out": $0]) }
+            }
             OptionRow(label: "Overlap") { NumberField(value: s.overlap, unit: "%") { engine.setPlaybackSettings(["overlap": $0]) } }
         } else {
             Text("Waiting for the engine.").font(Typo.ui(11)).foregroundStyle(t.fg2)

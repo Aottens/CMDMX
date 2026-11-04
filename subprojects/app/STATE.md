@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-04 (NEW-03)_
+_Last updated: 2026-11-04 (REC-02)_
 
 ## Current step
+REC-02 (2026-11-04, CUE-56, 57, UI-52): `PlaybackOptions.NumberField` gets `asIn` and `clear`: an empty out field sends `null`. `.task(id: sent)` shows `held` half a second after a send unless the operator typed on; `held` is state because a captured `value` is stale. Delay out shows on a real list only, and in *New cue times*.
 NEW-03 (2026-11-04, UI-50): `EngineClient.say` marks its text as `armedMessage` while `isArmed` (set by `Frame` to `ui.modesOpen`) holds; `endArmedMessage` clears the message only if it is still that text. `Frame` calls it when `modesOpen` goes false; the function keys and the Cancel softkeys call it directly, as switching functions leaves `modesOpen` true. Cancel no longer clears an engine warning.
 NEW-02 (2026-11-04, UI-49): `MacKeys.keysAct` and `token(for:)` are one list for typing and for the hint; `sayKeysOff` skips `addMessage`, so the Messages sheet stays out of it, and is not marked as armed.
 NEW-01 (2026-11-04, LIB-40): `AddPanel.ModelRow` treats source `builtin` as stock like QLC+ (`isUser`) and `sourceLabel` gives "built in", "user profile" or "QLC+" for the line under the columns.
