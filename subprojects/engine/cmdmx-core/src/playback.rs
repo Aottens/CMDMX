@@ -1114,7 +1114,8 @@ pub(crate) type Origins = BTreeMap<Item, BTreeMap<String, Origin>>;
 
 /// PBK-20: the LTP attributes of a killed playback fading back, per fixture and attribute from
 /// the output at the kill to what is underneath (`to` is the playback's origin, used when no
-/// other source proposes the attribute). Live state, never saved.
+/// other source proposes the attribute). PBK-47 reuses it for an HTP fall: each entry is
+/// (level at the Release, 0). Live state, never saved.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Release {
     /// Set by the first tick after the kill (PBK, Timing).
@@ -1185,6 +1186,9 @@ pub struct PlaybackState {
     pub(crate) was_holding: bool,
     pub(crate) from: Origins,
     pub(crate) release: Option<Release>,
+    /// PBK-47: the HTP falls of Releases; each runs on its own clock, firing again does not
+    /// stop them.
+    pub(crate) falls: Vec<Release>,
     /// CUE-10..24: a cue list's current and next cue, pause, fades and link timer.
     pub(crate) run: ListRun,
     /// CUE-33: the receive times of the last taps of this playback, the current series.
@@ -1205,9 +1209,9 @@ impl PlaybackState {
         self.activated.is_some()
     }
 
-    /// PBK-20: killed, with LTP attributes still fading back.
+    /// PBK-20, 47: killed, with LTP attributes still fading back or HTP levels still falling.
     pub fn is_releasing(&self) -> bool {
-        self.release.is_some()
+        self.release.is_some() || !self.falls.is_empty()
     }
 
     /// PBK, Definitions: the fader level, or 1.0 while Flash or Swop is held or Flash is latched.

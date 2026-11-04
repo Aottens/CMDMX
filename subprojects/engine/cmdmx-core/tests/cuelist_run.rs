@@ -1884,3 +1884,32 @@ fn cue_57_a_setting_out_of_range_is_refused_as_a_whole() {
     assert!(e.set_playback_settings(&change).is_err());
     assert_eq!(e.settings(), &before);
 }
+
+// ---- PBK-47: Release fades HTP over the release time -----------------------------------------
+
+#[test]
+fn pbk_47_a_list_falls_from_where_its_fade_is() {
+    let mut e = three();
+    change(
+        &mut e,
+        1.0,
+        CueChange {
+            fade_in: Some(2.0),
+            ..CueChange::default()
+        },
+    );
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    run(&mut e, 0.025, 1.0);
+    assert_eq!(dmx(&e, 21), 128, "halfway its cue fade");
+    act(&mut e, ListAction::Release, 1.0);
+    assert_eq!(dmx(&e, 21), 128);
+    assert!(!e.playback_state(1).unwrap().is_active());
+    assert!(e.playback_state(1).unwrap().is_releasing());
+    assert_eq!(live(&e).current, None, "CUE-17 holds");
+    run(&mut e, 1.025, 2.0);
+    assert_eq!(dmx(&e, 21), 64, "the global release time, 2 s");
+    run(&mut e, 2.025, 3.0);
+    assert_eq!(dmx(&e, 21), 0);
+    assert!(!e.playback_state(1).unwrap().is_releasing());
+}

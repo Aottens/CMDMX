@@ -230,6 +230,11 @@ impl ListRun {
         self.fades.keys().copied()
     }
 
+    /// The (item, attribute) pairs the list has a fade for (PBK-47).
+    pub(crate) fn attributes(&self) -> impl Iterator<Item = (Item, &str)> + '_ {
+        (self.fades.iter()).flat_map(|(i, a)| a.keys().map(move |n| (*i, n.as_str())))
+    }
+
     /// CUE-07, 08: the current and next cue follow a renumbered cue.
     pub(crate) fn renumbered(&mut self, map: impl Fn(CueNumber) -> CueNumber) {
         self.current = self.current.map(&map);

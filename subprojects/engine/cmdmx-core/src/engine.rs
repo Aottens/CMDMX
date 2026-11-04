@@ -2358,13 +2358,80 @@ impl Engine {
         Ok(())
     }
 
-    /// PBK-22, 23: kill the playback at once, ignoring `fade_out` and the kill point, and
-    /// release every LTP attribute it holds over its release time. A fader still up has to go
-    /// to 0 before it fires again. An inactive playback is left alone.
-    pub fn release_playback(&mut self, id: PlaybackId, _now: Timestamp) -> Result<(), CoreError> {
+    /// PBK-22, 23, 47: kill the playback at once, ignoring `fade_out` and the kill point, and
+    /// release every LTP attribute it holds over its release time; each HTP attribute it
+    /// outputs falls to 0 over the same time. A fader still up has to go to 0 before it fires
+    /// again. An inactive playback is left alone.
+    pub fn release_playback(&mut self, id: PlaybackId, now: Timestamp) -> Result<(), CoreError> {
         self.live_state(id)?;
+        self.start_htp_fall(id, now);
         self.kill_playback(id, true, None);
         Ok(())
+    }
+
+    /// PBK-47: before a Release kills the playback, note each HTP level it outputs now (master
+    /// included); `merge_attribute` lets them fall to 0 beside the LTP release.
+    fn start_htp_fall(&mut self, id: PlaybackId, now: Timestamp) {
+        let (Some(state), Some(playback)) = (self.states.get(&id), self.playbacks.get(&id)) else {
+            return;
+        };
+        if !state.is_active() {
+            return;
+        }
+        let stored: Vec<(Item, String, Stored)> = if is_list(playback) {
+            let at = |item: Item, name: &str| {
+                let fixture = self.fixtures.get(&item.fixture)?;
+                let mode = resolve_mode(&self.profiles, fixture)?;
+                let resolve = |s| resolve_stored(&self.palettes, item, fixture, mode, name, s);
+                let (v, _) = state.run.fade_value(item, name, now, resolve)?;
+                Some(Stored::Value(v))
+            };
+            (state.run.attributes())
+                .filter_map(|(item, name)| Some((item, name.to_string(), at(item, name)?)))
+                .collect()
+        } else {
+            (playback.values().into_iter())
+                .flat_map(|v| v.iter())
+                .flat_map(|(item, a)| a.iter().map(|(n, s)| (*item, n.clone(), *s)))
+                .collect()
+        };
+        let mut entries: BTreeMap<Item, BTreeMap<String, (Value, Value)>> = BTreeMap::new();
+        for (item, name, stored) in stored {
+            let Some(fixture) = self.fixtures.get(&item.fixture) else {
+                continue;
+            };
+            let Some(mode) = resolve_mode(&self.profiles, fixture) else {
+                continue;
+            };
+            let Some(l) = mode
+                .item_logical(item.cell, &name)
+                .filter(|l| l.kind == AttributeKind::Htp)
+            else {
+                continue;
+            };
+            let value = resolve_stored(&self.palettes, item, fixture, mode, l.name, stored);
+            if !value.same_kind(&l.default) {
+                continue;
+            }
+            let value = value.scaled(state.master);
+            if value.level() > 0.0 {
+                entries
+                    .entry(item)
+                    .or_default()
+                    .insert(name, (value, Value::Level(0.0)));
+            }
+        }
+        if entries.is_empty() {
+            return;
+        }
+        let duration = (playback.release_time).unwrap_or(self.settings.release_time);
+        if let Some(state) = self.states.get_mut(&id) {
+            state.falls.push(Release {
+                start: None,
+                duration,
+                entries,
+            });
+        }
     }
 
     /// CUE-10..12, 18, 19, 27, 32: Go, Back, Stop, Go to cue, Set next or Release on a cue list or
@@ -2879,6 +2946,9 @@ impl Engine {
         for (id, state) in &mut self.states {
             if let Some(release) = &mut state.release {
                 release.start.get_or_insert(now);
+            }
+            for fall in &mut state.falls {
+                fall.start.get_or_insert(now);
             }
             let playback = self.playbacks.get(id);
             // PBK-27, GRM-12: a held Swop counts for an active playback and a group master.
@@ -6908,6 +6978,7 @@ impl Engine {
             if state.release.as_ref().is_some_and(|r| r.finished(now)) {
                 state.release = None; // PBK-20: this tick was its last
             }
+            state.falls.retain(|f| !f.finished(now)); // PBK-47
         }
     }
 
@@ -6939,6 +7010,9 @@ impl Engine {
             }
             if let Some(release) = &state.release {
                 items.extend(release.entries.keys().filter(|i| i.cell.is_some()));
+            }
+            for fall in &state.falls {
+                items.extend(fall.entries.keys().filter(|i| i.cell.is_some()));
             }
         }
         items
@@ -7800,6 +7874,39 @@ fn merge_attribute(
             None => candidate,
             Some(current) => pick(attr.kind, current, candidate),
         });
+    }
+
+    // PBK-47: a Released playback's HTP levels fall to 0 (the virtual cell Dimmer towards full,
+    // PRG-47) over its release time, merging HTP; a Swop silences them (PBK-27).
+    if attr.kind == AttributeKind::Htp {
+        for (id, state) in src.states {
+            if src.swop_owner.is_some_and(|owner| owner != *id) {
+                continue;
+            }
+            for fall in &state.falls {
+                let Some((from, _)) = items
+                    .clone()
+                    .find_map(|item| fall.entries.get(&item)?.get(attr.name))
+                    .copied()
+                else {
+                    continue;
+                };
+                let to = if own_only {
+                    attr.default
+                } else {
+                    Value::Level(0.0)
+                };
+                let candidate = Candidate {
+                    priority: (src.playbacks.get(id)).map_or(Priority::Normal, |p| p.priority),
+                    activated: 0,
+                    value: from.lerp(to, fall.progress(now)),
+                };
+                best = Some(match best {
+                    None => candidate,
+                    Some(current) => pick(attr.kind, current, candidate),
+                });
+            }
+        }
     }
 
     // ENG-04: manual values are absolute and sit at Priority::Programmer.

@@ -159,8 +159,12 @@ On the Release tab:
   its own time.
 
 **Release**, then a tap on a running playback, stops it at once and fades **everything** it holds
-back over its release time, whatever the mask says. Its fader may still be up: it has to go to 0
-and back up before the playback runs again. A tap on a row of the Active playbacks window (see
+over its release time, whatever the mask says: colour, position and the like go back, and its
+intensity falls from where it is, fader included, to 0. A release time of 0 is at once. Whatever
+else gives that intensity stays, nothing dips below it. Its fader may still be up: it has to go to 0
+and back up before the playback runs again. Fired again meanwhile, the fall runs on beside it, so the
+light does not jump. Taking a playback out with its fader or a playback group is not a Release:
+its intensity goes as before. A tap on a row of the Active playbacks window (see
 [Running a show](running.md#active-playbacks)) does the same.
 
 ## Priority and playback groups

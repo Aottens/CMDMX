@@ -467,3 +467,135 @@ fn cue_56_a_memory_ignores_delay_out() {
     run(&mut e, 3.0, 4.0);
     assert_eq!(ch(&e, 1), 128, "falls at once");
 }
+
+// ---- PBK-47: Release fades HTP over the release time --------------------------------------------
+
+fn dimmer_playback(id: u32, slot: u16, level: f32) -> Playback {
+    Playback {
+        release_time: Some(2.0),
+        ..Playback::new(id, 1, slot, values(&[(101, "Dimmer", level)]))
+    }
+}
+
+#[test]
+fn pbk_47_the_fall_starts_at_the_level_with_the_fader_in_it() {
+    let mut e = rig();
+    e.add_playback(dimmer_playback(1, 1, 1.0));
+    e.set_fader(1, 0.5, 0.0).unwrap();
+    run(&mut e, 0.0, 1.0);
+    e.release_playback(1, 1.0).unwrap();
+    run(&mut e, 1.0, 1.0);
+    assert_eq!(ch(&e, 1), 128);
+    assert!(!active(&e, 1), "the playback is off");
+    assert!(
+        releasing(&e, 1),
+        "and shown as releasing, with no LTP in it"
+    );
+    run(&mut e, 1.025, 2.0);
+    assert_eq!(ch(&e, 1), 64);
+    run(&mut e, 2.025, 3.0);
+    assert_eq!(ch(&e, 1), 0);
+    assert!(!releasing(&e, 1), "finished");
+}
+
+#[test]
+fn pbk_47_the_fall_starts_at_a_falling_master() {
+    let mut e = rig();
+    let mut pb = Playback {
+        fader_mode: FaderMode::Mode1,
+        ..dimmer_playback(1, 1, 1.0)
+    };
+    pb.cues[0].fade_out = Some(4.0);
+    e.add_playback(pb);
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 1.0);
+    e.set_fader(1, 0.0, 1.0).unwrap();
+    run(&mut e, 1.0, 3.0);
+    assert_eq!(ch(&e, 1), 128, "m halfway down its fade out");
+    e.release_playback(1, 3.0).unwrap();
+    run(&mut e, 3.0, 4.0);
+    assert_eq!(ch(&e, 1), 64, "over the release time, not the fade out");
+}
+
+#[test]
+fn pbk_47_nothing_falls_below_another_source() {
+    let mut e = rig();
+    e.add_playback(dimmer_playback(1, 1, 1.0));
+    e.add_playback(dimmer_playback(2, 2, 0.5));
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.set_fader(2, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 1.0);
+    e.release_playback(1, 1.0).unwrap();
+    run(&mut e, 1.0, 1.5);
+    assert_eq!(ch(&e, 1), 191, "the fall is the highest");
+    run(&mut e, 1.525, 3.5);
+    assert_eq!(ch(&e, 1), 128, "the other playback stays, no dip");
+}
+
+#[test]
+fn pbk_47_a_second_release_runs_beside_the_first() {
+    let mut e = rig();
+    e.add_playback(dimmer_playback(1, 1, 1.0));
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 0.5);
+    e.release_playback(1, 0.5).unwrap();
+    run(&mut e, 0.5, 0.5);
+    e.set_fader(1, 0.0, 0.5).unwrap();
+    e.set_fader(1, 0.25, 0.5).unwrap();
+    run(&mut e, 0.525, 1.0);
+    assert!(active(&e, 1), "fired again");
+    e.release_playback(1, 1.0).unwrap();
+    run(&mut e, 1.0, 1.5);
+    assert_eq!(ch(&e, 1), 128, "the first fall, 1 s in of 2 s");
+    run(&mut e, 1.525, 2.5);
+    assert_eq!(
+        ch(&e, 1),
+        16,
+        "the first is out; the second, from 25 %, 1.5 s in"
+    );
+    run(&mut e, 2.525, 3.0);
+    assert_eq!(ch(&e, 1), 0);
+    assert!(!releasing(&e, 1));
+}
+
+#[test]
+fn pbk_47_a_kill_by_the_fader_or_a_group_stays_at_once() {
+    let mut e = rig();
+    e.add_playback(dimmer_playback(1, 1, 1.0));
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 0.5);
+    e.set_fader(1, 0.0, 0.5).unwrap();
+    run(&mut e, 0.5, 0.5);
+    assert_eq!(ch(&e, 1), 0, "fader");
+    assert!(!releasing(&e, 1));
+
+    let mut e = rig();
+    let grouped = |id, slot, fixture: u32| Playback {
+        group: Some(1),
+        release_time: Some(2.0),
+        ..Playback::new(id, 1, slot, values(&[(fixture, "Dimmer", 1.0)]))
+    };
+    e.add_playback(grouped(1, 1, 101));
+    e.add_playback(grouped(2, 2, 201));
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 0.5);
+    e.set_fader(2, 1.0, 0.5).unwrap();
+    run(&mut e, 0.5, 0.5);
+    assert_eq!(ch(&e, 1), 0, "playback group");
+    assert!(!releasing(&e, 1));
+}
+
+#[test]
+fn pbk_47_a_swop_silences_the_fall() {
+    let mut e = rig();
+    e.add_playback(dimmer_playback(1, 1, 1.0));
+    e.add_playback(Playback::new(2, 1, 2, values(&[(201, "Dimmer", 1.0)])));
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 0.5);
+    e.release_playback(1, 0.5).unwrap();
+    run(&mut e, 0.5, 0.5);
+    assert_eq!(ch(&e, 1), 255);
+    e.set_swop(2, true, 0.5).unwrap();
+    run(&mut e, 0.525, 0.6);
+    assert_eq!(ch(&e, 1), 0);
+}
