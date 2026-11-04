@@ -901,6 +901,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             off,
         } => engine.set_cue_off(id, cue, item, attribute.as_deref(), off),
         CueRemoveEffect { id, cue, entry } => engine.remove_cue_effect(id, cue, entry),
+        PlaybackInclude { id, cue, mask } => engine.include_playback(id, cue, mask.as_deref()),
         // IPC-26: no number is the lowest free one.
         MasterRecord {
             page,
@@ -1042,6 +1043,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CueCopy { .. }
         | CueRemove { .. }
         | CueOff { .. }
+        | PlaybackInclude { .. }
         | CueRemoveEffect { .. }
         | MasterRecord { .. }
         | GroupMasterRecord { .. } => Class::Edit,
@@ -1171,6 +1173,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         CueOff { off: true, .. } => ("Cue value off".into(), None),
         CueOff { .. } => ("Cue value on".into(), None),
         CueRemoveEffect { .. } => ("Remove cue effect".into(), None),
+        PlaybackInclude { .. } => ("Include cue".into(), None),
         MasterRecord { .. } | GroupMasterRecord { .. } => ("Record master".into(), None),
         _ => ("Edit".into(), None),
     };
@@ -3036,6 +3039,7 @@ mod tests {
             r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":201,"off":true}"#,
             Class::Edit,
         ),
+        (r#"{"v":1,"cmd":"playback.include","id":2}"#, Class::Edit),
         (
             r#"{"v":1,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
             Class::Edit,

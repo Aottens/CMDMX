@@ -2138,3 +2138,157 @@ fn cue_61_a_new_engine_keeps_them_through_save_and_load() {
     let (loaded, _) = Engine::from_show(&show);
     assert_eq!(dormant(&loaded, 4.0, 201, "Dimmer"), Some(0.8));
 }
+
+// ---- PBK-48: Include a cue ------------------------------------------------------------------
+
+/// List 1: Q1 par 201 at 50 %; Q2 par 202 full and par 203 at 40 %, the 203 off (CUE-61); Q3 par 204.
+fn include_list() -> Engine {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            cue(1.0, &[(201, "Dimmer", 0.5)]),
+            cue(2.0, &[(202, "Dimmer", 1.0), (203, "Dimmer", 0.4)]),
+            cue(3.0, &[(204, "Dimmer", 1.0)]),
+        ],
+    );
+    off(&mut e, 2.0, 203, Some("Dimmer"), true);
+    e
+}
+
+fn in_programmer(e: &Engine, fixture: u32, attribute: &str) -> Option<f32> {
+    e.programmer()
+        .stored(fixture, attribute)
+        .map(|s| match s.value() {
+            Value::Level(v) => v,
+            other => panic!("not a level: {other:?}"),
+        })
+}
+
+#[test]
+fn pbk_48_a_named_cue_loads_its_hard_values_not_what_tracks_or_is_off() {
+    let mut e = include_list();
+    e.include_playback(1, Some(q(2.0)), None).unwrap();
+    assert_eq!(in_programmer(&e, 202, "Dimmer"), Some(1.0));
+    assert_eq!(in_programmer(&e, 201, "Dimmer"), None, "tracked from Q1");
+    assert_eq!(in_programmer(&e, 203, "Dimmer"), None, "dormant");
+    assert_eq!(e.programmer().items(), [Item::fixture(202)]);
+}
+
+#[test]
+fn pbk_48_record_merge_after_it_turns_nothing_tracked_into_hard() {
+    let mut e = include_list();
+    e.include_playback(1, Some(q(2.0)), None).unwrap();
+    e.set_programmer_value(202, "Dimmer", 0.3).unwrap();
+    record(&mut e, Some(2.0), RecordMode::Merge, None).unwrap();
+    assert_eq!(hard(&e, 2.0, 202, "Dimmer"), Some(0.3));
+    assert_eq!(hard(&e, 2.0, 201, "Dimmer"), None);
+    assert_eq!(dormant(&e, 2.0, 203, "Dimmer"), Some(0.4));
+}
+
+#[test]
+fn pbk_48_without_a_cue_a_running_list_gives_its_current_and_one_that_is_off_is_refused() {
+    let mut e = include_list();
+    let refused = e.include_playback(1, None, None).unwrap_err();
+    assert!(refused.to_string().starts_with("Name a cue"), "{refused}");
+    assert!(e.programmer().is_empty(), "a refusal changes nothing");
+    act(&mut e, ListAction::Go, 0.0);
+    act(&mut e, ListAction::Go, 0.1);
+    assert_eq!(current(&e), Some(2.0));
+    e.include_playback(1, None, None).unwrap();
+    assert_eq!(in_programmer(&e, 202, "Dimmer"), Some(1.0));
+    assert_eq!(in_programmer(&e, 201, "Dimmer"), None);
+}
+
+#[test]
+fn pbk_48_without_a_cue_a_memory_gives_its_cue_in_the_cues_order() {
+    let mut e = common::church();
+    common::select(&mut e, &[203, 201]);
+    e.set_programmer_value(203, "Dimmer", 0.7).unwrap();
+    e.set_programmer_value(201, "Dimmer", 0.6).unwrap();
+    let id = e.record_playback(&PlaybackRecord::at(1, 2)).unwrap();
+    e.clear_selection();
+    e.clear();
+    e.include_playback(id, None, None).unwrap();
+    assert_eq!(in_programmer(&e, 203, "Dimmer"), Some(0.7));
+    assert_eq!(in_programmer(&e, 201, "Dimmer"), Some(0.6));
+    assert_eq!(
+        e.programmer().items(),
+        [Item::fixture(203), Item::fixture(201)],
+        "the selection in the cue's order"
+    );
+}
+
+#[test]
+fn pbk_48_values_there_are_overwritten_others_stay_and_it_is_on_stage_at_once() {
+    let mut e = include_list();
+    program(&mut e, 202, "Dimmer", 0.2);
+    also(&mut e, 205, "Dimmer", 0.25);
+    e.include_playback(1, Some(q(2.0)), None).unwrap();
+    assert_eq!(in_programmer(&e, 202, "Dimmer"), Some(1.0));
+    assert_eq!(in_programmer(&e, 205, "Dimmer"), Some(0.25));
+    assert_eq!(e.programmer().items(), [Item::fixture(202)]);
+    tick(&mut e, 0.0);
+    assert_eq!(dmx(&e, 22), 255, "par 202 from the programmer, no fader up");
+}
+
+#[test]
+fn pbk_48_a_reference_stays_a_reference() {
+    let mut e = include_list();
+    let reference = Stored::Reference(cmdmx_core::value::Reference {
+        palette: 7,
+        value: Value::Level(0.9),
+    });
+    let mut held = e.playback(1).unwrap().clone();
+    held.cues[0]
+        .values
+        .entry(Item::fixture(201))
+        .or_default()
+        .insert("Dimmer".into(), reference);
+    e.add_playback(held);
+    e.include_playback(1, Some(q(1.0)), None).unwrap();
+    assert_eq!(e.programmer().stored(201, "Dimmer"), Some(reference));
+}
+
+#[test]
+fn pbk_48_the_mask_limits_it() {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            cue(1.0, &[(101, "Dimmer", 0.5), (101, "Pan", 0.2)]),
+            cue(2.0, &[(101, "Pan", 0.3)]),
+        ],
+    );
+    e.include_playback(1, Some(q(1.0)), Some(&[AttributeGroup::I]))
+        .unwrap();
+    assert_eq!(in_programmer(&e, 101, "Dimmer"), Some(0.5));
+    assert_eq!(in_programmer(&e, 101, "Pan"), None);
+    e.clear_selection();
+    e.clear();
+    // Nothing of the mask in the cue: refused, the selection stays.
+    common::select(&mut e, &[201]);
+    let refused = e
+        .include_playback(1, Some(q(2.0)), Some(&[AttributeGroup::I]))
+        .unwrap_err();
+    assert_eq!(refused.to_string(), "Q2 holds nothing to include");
+    assert_eq!(e.programmer().items(), [Item::fixture(201)]);
+}
+
+#[test]
+fn pbk_48_unknown_and_empty_are_refused() {
+    let mut e = include_list();
+    assert!(e.include_playback(99, None, None).is_err());
+    assert!(e.include_playback(1, Some(q(9.0)), None).is_err());
+    // Everything of Q2 off: nothing of its own to load.
+    off(&mut e, 2.0, 202, Some("Dimmer"), true);
+    let refused = e.include_playback(1, Some(q(2.0)), None).unwrap_err();
+    assert_eq!(refused.to_string(), "Q2 holds nothing to include");
+    assert!(e.programmer().is_empty());
+}

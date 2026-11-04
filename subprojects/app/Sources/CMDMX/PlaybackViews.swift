@@ -111,7 +111,10 @@ enum HandleTaps {
                 ui.openOptions(info.id)
             case .legend:
                 ui.playbackLegendEditing = PlaybackRef(id: info.id)
-            case .copy, .move, .latch, .include, .unfold:
+            case .include:
+                engine.includePlayback(info.id, mask: ui.orderedRecordMask)   // PBK-48
+                ui.cancelModes()
+            case .copy, .move, .latch, .unfold:
                 break
             }
         }

@@ -431,6 +431,12 @@ pub enum Command {
         item: Item,
         attribute: Option<String>,
     },
+    /// PBK-48, IPC-57: put a cue's own values and effects in the programmer.
+    PlaybackInclude {
+        id: PlaybackId,
+        cue: Option<CueNumber>,
+        mask: Option<Vec<AttributeGroup>>,
+    },
     /// CUE-61, IPC-57: move a hard value (or all of an item's) off or back on.
     CueOff {
         id: PlaybackId,
@@ -1793,6 +1799,11 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             cue: cue_number(&v, "cue")?,
             item: wire_item(&v, "fixture")?,
             attribute: opt_field(&v, "attribute", "a string")?,
+        }),
+        Some("playback.include") => Ok(Command::PlaybackInclude {
+            id: uint(&v, "id")?,
+            cue: opt_cue_number(&v, "cue")?,
+            mask: opt_field(&v, "mask", "an array of attribute groups")?,
         }),
         Some("cue.off") => Ok(Command::CueOff {
             id: uint(&v, "id")?,
@@ -7008,6 +7019,38 @@ mod tests {
                    {"fixture":2,"values":{},"dormant":{"Dimmer":{"value":0.5}}}]),
             "an item holding only dormant values keeps its row"
         );
+    }
+
+    #[test]
+    fn ipc_57_playback_include_parses() {
+        let plain = parse_command(r#"{"v":1,"cmd":"playback.include","id":2}"#);
+        assert!(matches!(
+            plain,
+            Ok(Command::PlaybackInclude {
+                id: 2,
+                cue: None,
+                mask: None
+            })
+        ));
+        let full =
+            parse_command(r#"{"v":1,"cmd":"playback.include","id":2,"cue":3.5,"mask":["I","FX"]}"#);
+        let Ok(Command::PlaybackInclude {
+            cue: Some(cue),
+            mask: Some(mask),
+            ..
+        }) = full
+        else {
+            panic!("{full:?}");
+        };
+        assert_eq!(cue.as_f64(), 3.5);
+        assert_eq!(mask, [AttributeGroup::I, AttributeGroup::Fx]);
+        for bad in [
+            r#"{"v":1,"cmd":"playback.include"}"#,
+            r#"{"v":1,"cmd":"playback.include","id":2,"cue":"x"}"#,
+            r#"{"v":1,"cmd":"playback.include","id":2,"mask":["Z"]}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

@@ -85,7 +85,7 @@ private struct FunctionButtons: View {
     /// What an armed palette function waits for (the sketch's MODE_HINT).
     private static let hints = [
         "Update": "Update: tap the palette, playback handle or cue to update with what is in the programmer.",
-        "Include": "Include: tap a palette; its values go into the programmer.",
+        "Include": "Include: tap a palette, playback handle or cue; its values go into the programmer.",
         "Delete": "Delete: tap the group, palette, playback handle or cue to delete. You confirm on softkey A.",
         "Copy": "Copy: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
         "Move": "Move: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
@@ -683,6 +683,18 @@ private struct Softkeys: View {
     // MARK: Update, Include, Copy, Move, Delete, Set Legend (PAL-29)
 
     private func functionContext(_ function: PaletteFunction) -> (name: String, keys: [Softkey?]) {
+        // PBK-48: Include's Mask covers all eight groups, FX too, and starts all on; a palette tap ignores it (PAL-12).
+        if function == .include, ui.maskMenu {
+            let mask = ui.recordMask ?? Set(attributeGroupOrder)
+            let groups = attributeGroupOrder.map { group in
+                Softkey(name: group, sub: mask.contains(group) ? "on" : "off", on: mask.contains(group)) {
+                    var m = mask
+                    if m.contains(group) { m.remove(group) } else { m.insert(group) }
+                    ui.recordMask = m
+                }
+            }
+            return ("Include · Mask", groups + [Softkey(name: "Back", action: { ui.maskMenu = false })])
+        }
         var keys: [Softkey?] = Array(repeating: nil, count: 7)
         if function == .delete, let number = ui.deleteTarget {
             keys[0] = Softkey(name: "Confirm delete", sub: "palette \(number)") {
@@ -707,6 +719,11 @@ private struct Softkeys: View {
                 ui.cancelModes()
             }
             keys[1] = Softkey(name: "Exit Unfold") { ui.unfolded = []; ui.cancelModes() }
+        }
+        if function == .include {
+            keys[0] = Softkey(name: "Mask", sub: ui.recordMask.map { attributeGroupOrder.filter($0.contains).joined() } ?? "all") {
+                ui.maskMenu = true
+            }
         }
         keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
         return (function.rawValue, keys)

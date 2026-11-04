@@ -1801,6 +1801,13 @@ final class EngineClient: ObservableObject {
         patch("palette.apply", fields)
     }
     func includePalette(_ number: Int) { patch("palette.include", ["number": number]) }
+    /// PBK-48: a cue's own values and effects into the programmer; no cue = the playback's current one.
+    func includePlayback(_ id: Int, cue: Double? = nil, mask: [String]? = nil) {
+        var fields: [String: Any] = ["id": id]
+        if let cue { fields["cue"] = cue }
+        if let mask { fields["mask"] = mask }
+        patch("playback.include", fields)
+    }
     func copyPalette(_ number: Int, window: String, handle: Int) {
         patch("palette.copy", ["number": number, "to": ["window": window, "handle": handle]])
     }

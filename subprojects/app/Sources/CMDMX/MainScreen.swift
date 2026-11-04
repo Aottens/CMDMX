@@ -218,7 +218,7 @@ final class UIState: ObservableObject {
         let places: [ArmedTarget]
         switch function {
         case .update: places = [.palette, .handle, .cue]
-        case .include: places = [.palette]
+        case .include: places = [.palette, .handle, .cue]
         case .copy, .move, .delete, .legend: places = [.group, .palette, .handle, .cue]
         case .options: places = [.handle, .cue]
         case .release: places = [.handle]
@@ -296,6 +296,7 @@ final class UIState: ObservableObject {
         cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
         paletteMenu = false
         selectionMenu = nil
+        recordMask = nil; maskMenu = false
     }
 
     /// PBK-39: open the Playback Options screen on a playback.

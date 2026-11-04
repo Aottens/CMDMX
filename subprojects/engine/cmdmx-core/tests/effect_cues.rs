@@ -1659,3 +1659,52 @@ fn cue_60_remove_on_the_running_cue_is_on_stage_on_the_next_tick() {
     assert_eq!(dmx(&e, 21), 0);
     assert_dmx(&e, 22, 134);
 }
+
+// ---- PBK-48: Include takes a cue's own effect entries ---------------------------------------
+
+#[test]
+fn pbk_48_a_cues_own_entries_come_along_with_fx_in_the_mask() {
+    let (mut e, pb, first, second) = effect_list();
+    e.include_playback(pb, Some(q(2.0)), None).unwrap();
+    let held = e.effects();
+    assert_eq!(held.len(), 1, "the tracked entry stays out: {held:?}");
+    assert_eq!(held[0].members, items(&[202]));
+    assert_eq!(held[0].shape, Shape::Wave(Wave::RampUp));
+    assert_eq!(held[0].params.bpm, 60.0);
+    assert_ne!(held[0].id, first);
+    assert_ne!(held[0].id, second, "the programmer's entry has its own id");
+    assert_eq!(e.programmer().items(), items(&[202]));
+    // The cue keeps its own, whatever happens to the programmer's.
+    assert_eq!(cue_effects(&e, pb, 1)[0].id, second);
+}
+
+#[test]
+fn pbk_48_without_fx_in_the_mask_they_stay_out() {
+    let (mut e, pb, ..) = effect_list();
+    let refused = e.include_playback(pb, Some(q(2.0)), Some(&[AttributeGroup::I]));
+    assert!(refused.is_err(), "the cue holds only an effect");
+    assert!(e.effects().is_empty());
+    e.include_playback(pb, Some(q(2.0)), Some(&[AttributeGroup::Fx]))
+        .unwrap();
+    assert_eq!(e.effects().len(), 1);
+}
+
+#[test]
+fn pbk_48_a_member_leaves_the_entry_it_ran_in_the_programmer() {
+    let (mut e, pb, ..) = effect_list();
+    line_pan(&mut e, &[101]);
+    let running = ramp(&mut e, &[201, 202]);
+    e.include_playback(pb, Some(q(2.0)), None).unwrap();
+    let pan = e
+        .effects()
+        .iter()
+        .find(|x| x.attributes.contains(&"Pan".to_string()));
+    assert!(pan.is_some(), "another attribute stays");
+    let old = e.effects().iter().find(|x| x.id == running).unwrap();
+    assert_eq!(
+        old.members,
+        items(&[201]),
+        "one programmer effect per member"
+    );
+    assert_eq!(e.effects().len(), 3);
+}

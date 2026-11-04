@@ -6655,6 +6655,105 @@ impl Engine {
         Ok(())
     }
 
+    /// PBK-48: put a cue's own (hard) values and effect entries in the programmer, with their
+    /// fixtures selected. Tracked and off (dormant) values stay out. Refused, changing nothing,
+    /// when nothing is left in the mask.
+    pub fn include_playback(
+        &mut self,
+        id: PlaybackId,
+        cue: Option<CueNumber>,
+        mask: Option<&[AttributeGroup]>,
+    ) -> Result<(), CoreError> {
+        let mask = mask.unwrap_or(&ALL_GROUPS);
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        let at = match cue {
+            Some(n) => playback.cues.iter().position(|c| c.number == n),
+            None if is_list(playback) => {
+                let current = self.states.get(&id).and_then(|s| s.run.current);
+                let Some(n) = current else {
+                    let name = if playback.legend.is_empty() {
+                        let (page, slot) = (playback.page, playback.slot);
+                        format!("{page}.{slot}")
+                    } else {
+                        playback.legend.clone()
+                    };
+                    return Err(CoreError::NameACue(name));
+                };
+                playback.cues.iter().position(|c| c.number == n)
+            }
+            None => (!playback.cues.is_empty()).then_some(0),
+        };
+        let held = at.and_then(|i| playback.cues.get(i));
+        let Some(held) = held else {
+            return Err(match cue {
+                Some(n) => CoreError::UnknownCue(n),
+                None => CoreError::ListRefused("The playback holds no cue to include".into()),
+            });
+        };
+        let mut values = Values::new();
+        for (item, attrs) in &held.values {
+            let Some(mode) = self.mode_of(item.fixture) else {
+                continue;
+            };
+            for (name, stored) in attrs {
+                let in_mask = mode.item_logical(item.cell, name);
+                if in_mask.is_some_and(|l| mask.contains(&l.group)) {
+                    values
+                        .entry(*item)
+                        .or_default()
+                        .insert(name.clone(), *stored);
+                }
+            }
+        }
+        let mut effects: Vec<effect::Entry> = Vec::new();
+        if mask.contains(&AttributeGroup::Fx) {
+            for entry in &held.effects {
+                let mut e = entry.clone();
+                e.drop_members(|m| self.mode_of(m.fixture).is_none());
+                e.refresh();
+                if !e.members.is_empty() {
+                    effects.push(e);
+                }
+            }
+        }
+        if values.is_empty() && effects.is_empty() {
+            return Err(CoreError::ListRefused(format!(
+                "Q{} holds nothing to include",
+                held.number
+            )));
+        }
+        let mut items: Vec<Item> = values.keys().copied().collect();
+        items.extend(effects.iter().flat_map(|e| e.members.iter().copied()));
+        // The cue's order; what it does not rank goes after, by fixture number.
+        items.sort_by_key(|i| {
+            let rank = held.order.get(i).copied().unwrap_or(u32::MAX);
+            let number = self.fixtures.get(&i.fixture).map(|f| f.number);
+            (rank, number, *i)
+        });
+        items.dedup();
+        self.programmer.replace_selection(items);
+        self.activation_seq = self.activation_seq.saturating_add(1);
+        for (item, attrs) in values {
+            for (name, stored) in attrs {
+                self.programmer
+                    .set_value(item, &name, stored, self.activation_seq);
+            }
+        }
+        for mut e in effects {
+            let id = self.effect_next_id;
+            self.effect_next_id = id.saturating_add(1);
+            e.id = id;
+            let (members, names) = (e.members.clone(), e.attributes.clone());
+            self.effects_leave(|o, m| {
+                o.attributes.iter().any(|a| names.contains(a)) && members.contains(m)
+            });
+            self.programmer.effects.push(e);
+            self.programmer.current = Some(id);
+            self.programmer.mark_changed(); // PRG-03
+        }
+        Ok(())
+    }
+
     /// PAL-17: a new palette (new id, next free number) on an empty cell with the same values,
     /// legend and icon.
     pub fn copy_palette(&mut self, number: u32, to: Cell) -> Result<PaletteId, CoreError> {
