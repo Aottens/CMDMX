@@ -148,7 +148,7 @@ does; a group master can also take them down.)
   programmer value, Take Over picking up at the spots' level, Disabled, Flash, two masters on one
   fixture, read on Art-Net, and a daemon restart with the masters and their levels back.
 
-- **GRM-21** A group master can change its group (B6; own choice, Titan's group pages do not cover it; proposed, IDEA-35 batch B, P1-29). `master.group {id, group}`: a group that does not exist, or a playback that is not a group master, is refused. Level, mode and handle stay; it applies from the next tick; one undo step. The Master tab (GRM-17) gains a Group number field. Test `grm_21_…`.
+- **GRM-21** A group master can change its group (B6; own choice, Titan's group pages do not cover it; approved by owner 2026-11-04, IDEA-35 batch B, P1-29). `master.group {id, group}`: a group that does not exist, or a playback that is not a group master, is refused. Level, mode and handle stay; it applies from the next tick; one undo step. The Master tab (GRM-17) gains a Group number field. Test `grm_21_…`.
 
 ### Safety and determinism
 - **GRM-19** Every refused group-master action returns a warning and changes nothing (PBK-43);

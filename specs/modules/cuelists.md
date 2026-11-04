@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (cue lists, chases and masters are playbacks), `cmdmx-daemon`
 (IPC, tap timestamps), the Go block, Cue list window, strips and Playback Options in
 `subprojects/app`.
-Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.** CUE-56..62: proposed (IDEA-35 batch B, P1-29).
+Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.** CUE-56..62: approved by owner 2026-11-04 (IDEA-35 batch B, P1-29).
 Behavioural reference: Avolites Titan v19 manual, *Cue Lists* (https://manual.avolites.com/docs/cue-lists:
 Creating, Playback, Editing, Timing, Options), *Chases* (https://manual.avolites.com/docs/chases:
 Playback, Timing, Options) and *Running the Show → Playback controls* (speed masters, key
@@ -532,7 +532,7 @@ values.
   same timestamped actions (tap times included) → identical list state and frames (ENG-11). The
   core has no clock and no random source of its own (CUE-30, 33).
 
-### Changing what is recorded (IDEA-35 batch B, P1-29; proposed, approved when the spec PR merges)
+### Changing what is recorded (IDEA-35 batch B, P1-29; approved by owner 2026-11-04)
 Titan pages used: *Cue List Timing*, *Creating a Cue List*, *Editing Cue Lists*, *Editing Cues*. What a page does not say is marked as our own choice.
 - **CUE-56** **As In** (I1; amends CUE-02, 09, 13, PBK-16; Titan: Fade Out and Delay Out default to *As In*, a typed value overrides, a blank box links them again). A cue's
   `fade_out` and new `delay_out` are a time or **As In**, default As In: they then have the value of `fade_in` and `delay`. CUE-13's HTP attribute falling waits `delay_out` and
@@ -601,6 +601,13 @@ Grand Master; Size masters and shapes following masters (phase 2); key profiles 
 beyond the two handle buttons (CUE-25); a Cue / Connect key on the keypad; copying cues between
 lists; Quick Build and Record Stage; autoloads, macros and timecode / MIDI triggers in cues
 (phase 3 for timecode); Blind editing; the set list.
+
+## Owner decisions (P1-29, 2026-11-04: every recommendation accepted)
+1. **Third review:** K6, K11, I6 and IDEA-36 go in this batch. Not chosen: leaving them in I, B or their own place.
+2. **B7, Blind and Edit:** apart, in its own spec (P1-31). Not chosen: in this batch.
+3. **CUE-58, cues that exist:** a fade out that differs from the fade in stays the number it was, so a show keeps its output on load. Not chosen: a 0 becomes As In.
+4. **CUE-61, Off and On:** in this batch, as Titan. Not chosen: later.
+5. **PBK-49, Update's softkeys:** playbacks ticked, palettes unticked. Not chosen: both ticked, or both unticked.
 
 ## Owner decisions (2026-10-21, answers to the first gate-1 questions)
 1. **Go per fader and one Go block (A):** a cue list sits on any handle with its own Go

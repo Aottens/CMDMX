@@ -26,7 +26,7 @@ only the screen is missing.
 6. Times default to 0 s, with no show-wide default in the Settings tab.
 
 ## B. Changing what is recorded
-Proposed 2026-11-04 (P1-29; build tasks REC-01..12): CUE-56..62, PBK-47..49, PRG-97, GRM-21, IPC-55..57, UI-51..54, with I1, I3, I6, K6, K11 and IDEA-36; B7 proposed apart. Checked in `tests/manual/runs/2026-11-04-B-checks.md`, which corrects I3 and K6.
+Specified 2026-11-04, approved by the owner (P1-29; build tasks REC-01..12): CUE-56..62, PBK-47..49, PRG-97, GRM-21, IPC-55..57, UI-51..54, with I1, I3, I6, K6, K11 and IDEA-36; B7 apart (P1-31). Checked in `tests/manual/runs/2026-11-04-B-checks.md`, which corrects I3 and K6.
 1. A playback with one cue cannot be opened: View Cue exists on cue list rows only, and such a
    playback cannot be connected. The way out is rebuild and Replace.
 2. Include on a cue or playback: palettes only (PRG-16 names PBK and CUE, neither has a criterion).

@@ -182,7 +182,7 @@ Builds: NEW-01; NEW-02 + NEW-03.
 | NEW-03 | App: an armed function's own message goes when it disarms; checklist and the run. | UI-50 | S | done (2026-11-04, #239) |
 
 ### Changing what is recorded (IDEA-35 batch B, spec P1-29)
-Proposed with the spec. Sub-release 0.5.0 follows the batch, then a gap review with the app running; nothing goes on the church Mac before the service of 2026-11-08. Release alone: it may have to be reverted alone, as it changes what a running show does.
+Approved by the owner 2026-11-04. Sub-release 0.5.0 follows the batch, then a gap review with the app running; nothing goes on the church Mac before the service of 2026-11-08. Release alone: it may have to be reverted alone, as it changes what a running show does.
 Builds: REC-01 + REC-02; REC-03; REC-04; REC-05 + REC-06 + REC-07; REC-08 + REC-09; REC-10 + REC-11 + REC-12.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
@@ -267,8 +267,9 @@ after VS8-03, in any order.
 | P1-26 | Spec IDEA-35 batch A2, defects in what exists: each point checked in the code or a run (`tests/manual/runs/2026-11-02-A2-checks.md`; A2.5 does not happen), as PAT-26..28, IPC-53, UI-41, REL-26..28; build tasks DEF-01..05; approved by owner 2026-11-02. | PAT, IPC, UI, REL | S | done (2026-11-02, #225) |
 | P1-27 | Spec IDEA-35 batch H, functions and consequences: each point checked in the code (`tests/manual/runs/2026-11-03-H-checks.md`; all six still happen), as UI-42..48, IPC-54; build tasks FUN-01..06; five owner questions answered 2026-11-03, each as recommended. | UI, IPC | S | done (2026-11-03, #232) |
 | P1-28 | Gap review after v0.4.0 with the app running, one operator's evening (REL-26): third review in `docs/research/everyday-gaps.md`, run `tests/manual/runs/2026-11-04-gap-review.md`, proposals for B to G, I and J, and for IDEA-36..40. | REL-26 | S | done (2026-11-04, #237) |
-| P1-29 | Spec IDEA-35 batch B, changing what is recorded, with I1, I3 and what the owner approves from the third review, as CUE-56..62, PBK-47..49, PRG-97, GRM-21, IPC-55..57, UI-51..54; build tasks REC-01..12; owner approves. | PRG, CUE, PBK, GRM, IPC, UI | S | done (2026-11-04, #241) |
+| P1-29 | Spec IDEA-35 batch B, changing what is recorded, with I1, I3 and what the owner approves from the third review, as CUE-56..62, PBK-47..49, PRG-97, GRM-21, IPC-55..57, UI-51..54; build tasks REC-01..12; approved by owner 2026-11-04, the five questions as recommended (`cuelists.md`). | PRG, CUE, PBK, GRM, IPC, UI | S | done (2026-11-04, #241) |
 | P1-30 | Spec the patch before batch B (owner, 2026-11-04): LIB-40, UI-49, UI-50, build tasks NEW-01..03; approved by owner 2026-11-04. | LIB, UI | S | done (2026-11-04, #237) |
+| P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. | PRG, UI | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ## Phase 10 track — hardware (parallel to phase 1)
