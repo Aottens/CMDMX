@@ -52,6 +52,8 @@ With **Keys** on in the status bar, the Mac keyboard types into the line as well
 for Thro, `+` for And, `@`, `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter.
 Escape is Exit too, also with **Keys** off, and with nothing to exit it goes one level up (see the
 [reference](reference.md)).
+With **Keys** off, which is how the app starts the first time, those keys do nothing, and they or a click on the line
+say so in the message zone: use the keypad, or turn **Keys** on.
 
 ### Stepping and patterns
 

@@ -167,6 +167,7 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 **Show, undo and app**
 - A delete says what it does before you confirm: how many cues on how many playbacks use a palette, a running playback's output ending, the live cue; under Patch's Confirm remove, where a fixture is used and what ends up empty.
 - Esc goes one level up on every screen, whatever Keys says, and never changes the stage; opening a screen disarms.
+- With Keys off, a Mac key or a click on the command line says how to turn Keys on. An armed function's own message goes when it disarms; a warning stays until the next command.
 - An armed function or Record never does the normal action: every tap does what the table in the manual says or is refused with where it works, also a Flash or Swop; `Group 3 Enter` and `Palette 12 Enter` reach it from the command line, and Enter confirms a waiting Delete.
 - The show is one readable JSON file in `~/Documents/CMDMX/Shows/`, autosaved within
   5 seconds of a change, crash-safe, and opened again at start.

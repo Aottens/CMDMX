@@ -177,6 +177,9 @@ struct AttributeBar: View {
             .frame(minWidth: 200, maxWidth: .infinity)
             .background(RoundedRectangle(cornerRadius: radius).fill(t.field))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.line, lineWidth: hairline))
+            // UI-49: with Keys off a click on the line says why the Mac keys do nothing.
+            .contentShape(Rectangle())
+            .onTapGesture { if !UserDefaults.standard.bool(forKey: "keysLive") { engine.sayKeysOff() } }
 
             // Warnings, errors and notices land here (IPC-17); UI-39: the count and a click open the Messages sheet.
             if engine.unseenMessages > 0 {

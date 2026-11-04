@@ -409,7 +409,10 @@ private struct Frame: View {
             line.clear(); ui.cancelModes(); ui.messagesOpen = false; engine.clearMessage()
             if ui.learnMode { ui.setLearnMode(false, engine) }
         }
+        // UI-50: a message said because a function was armed goes when the arming ends (Esc, Exit, a screen, a job done).
+        .onChange(of: ui.modesOpen) { _, open in if !open { engine.endArmedMessage() } }
         .onAppear {
+            engine.isArmed = { [ui] in MainActor.assumeIsolated { ui.modesOpen } }
             // Mac keys (UI-19): the monitor stays installed; the handler checks the Keys toggle.
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [ui, line, engine] event in
                 MainActor.assumeIsolated { MacKeys.handle(event, ui: ui, line: line, engine: engine) } ? nil : event

@@ -178,8 +178,8 @@ Builds: NEW-01; NEW-02 + NEW-03.
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
 | NEW-01 | Daemon: a built-in `Generic` / `Dimmer` in the library; `lib_40_…`. | LIB-40 | S | done (2026-11-04, #238) |
-| NEW-02 | App: with Keys off a key or a click on the line says how to turn it on; manual; checklist. | UI-49 | S | todo |
-| NEW-03 | App: an armed function's own message goes when it disarms; checklist and the run. | UI-50 | S | todo |
+| NEW-02 | App: with Keys off a key or a click on the line says how to turn it on; manual; checklist. | UI-49 | S | done (2026-11-04, #239) |
+| NEW-03 | App: an armed function's own message goes when it disarms; checklist and the run. | UI-50 | S | done (2026-11-04, #239) |
 
 ### Functions and consequences (IDEA-35 batch H, spec P1-27)
 Order proposed with the spec: what can change the stage by surprise first. Sub-release 0.4.0 follows the batch, then a gap review with the app running; nothing from H goes on the church Mac before the service of 2026-11-08.

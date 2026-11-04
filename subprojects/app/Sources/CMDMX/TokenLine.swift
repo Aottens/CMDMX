@@ -156,6 +156,29 @@ enum MacKeys {
         return true
     }
 
+    /// The command-line token a character types, or nil when Keys ignores it (UI-49: one list for typing and for the Keys-off hint).
+    private static func token(for c: String) -> String? {
+        guard c.count == 1 else { return nil }
+        switch c {
+        case "0"..."9", ".", "@": return c
+        case "-": return "Thro"
+        case "+", "=": return "And"
+        case "f": return "Fixture"
+        case "g": return "Group"
+        case "l": return "Lee"   // UI-19, UI-32
+        case "p": return "Palette"
+        default: return nil
+        }
+    }
+
+    /// UI-49: whether Keys would act on this key (F1-F5 and Space anywhere; the command-line keys on the workspace).
+    private static func keysAct(on event: NSEvent, workspace: Bool) -> Bool {
+        if workspaceKeys.contains(event.keyCode) || event.keyCode == 49 { return true }
+        guard workspace else { return false }
+        if [36, 76, 51, 126, 125].contains(event.keyCode) { return true }
+        return event.characters.flatMap { token(for: $0.lowercased()) } != nil
+    }
+
     @MainActor
     static func handle(_ event: NSEvent, ui: UIState, line: TokenLine, engine: EngineClient) -> Bool {
         ui.fieldEscaped = false   // UI-44: any key clears it
@@ -187,11 +210,16 @@ enum MacKeys {
             return true
         }
         if event.keyCode == 53, chord.isEmpty { return escape(event, ui: ui, line: line) }
-        // Keys off, a shortcut chord, or a text field (Patch, Show) with focus: not ours.
-        guard UserDefaults.standard.bool(forKey: "keysLive"),
-              event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
+        // A shortcut chord, or a text field (Patch, Show) with focus: not ours.
+        guard event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
               !(NSApp.keyWindow?.firstResponder is NSText)
         else { return false }
+        // UI-49: Keys off, a key Keys would act on, main window up (a sheet's window is key but not main): say so once, do nothing.
+        guard UserDefaults.standard.bool(forKey: "keysLive") else {
+            guard NSApp.keyWindow?.isMainWindow == true, keysAct(on: event, workspace: ui.screen == nil) else { return false }
+            if !event.isARepeat { engine.sayKeysOff() }
+            return true
+        }
 
         if let index = workspaceKeys.firstIndex(of: event.keyCode) {
             ui.show(workspace: index)
@@ -212,20 +240,9 @@ enum MacKeys {
         case 126: line.older()              // Up
         case 125: line.newer()              // Down
         default:
-            guard let c = event.characters?.lowercased(), c.count == 1 else { return false }
-            switch c {
-            case "0"..."9", ".": line.add(c)
-            case "-": line.add("Thro")
-            case "+", "=": line.add("And")
-            case "@": line.add("@")
-            case "f": line.add("Fixture")
-            case "g": line.add("Group")
-            case "l": line.add("Lee")   // UI-19, UI-32
-            case "p":
-                if line.tokens.isEmpty { ui.paletteMenu = true }
-                line.add("Palette")
-            default: return false
-            }
+            guard let c = event.characters?.lowercased(), let token = token(for: c) else { return false }
+            if c == "p", line.tokens.isEmpty { ui.paletteMenu = true }
+            line.add(token)
         }
         return true
     }

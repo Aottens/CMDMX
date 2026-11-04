@@ -71,7 +71,8 @@ with nothing connected.
 2. **Select it.** Go back to a workspace with fixtures (for example the Colour workspace) and tap
    the fixture. It turns blue.
 3. **Set a look.** Open the **I** group in the attribute bar and turn the Dimmer wheel up, or type
-   a command such as `1 @ 50` on the command line. Pick a colour with the colour picker or a
+   a command such as `1 @ 50` on the command line with the keypad, or with the Mac keyboard once
+   **Keys** is on in the status bar. Pick a colour with the colour picker or a
    colour palette. Values you set sit in the *programmer* and show in red.
 4. **Record it.** Press **Record**, then tap an empty handle in the playback area. The look is now
    a playback.

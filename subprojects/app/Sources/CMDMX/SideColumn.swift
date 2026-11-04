@@ -131,7 +131,7 @@ private struct FunctionButtons: View {
         case "Record":
             // The next group or palette tap records. In the Mask softkeys, Record steps back first.
             if ui.maskMenu { ui.maskMenu = false } else if ui.recordArmed { ui.recordArmed = false } else {
-                ui.cancelModes()
+                ui.cancelModes(); engine.endArmedMessage()   // UI-50
                 ui.recordArmed = true
             }
         case "Patch": ui.screen = .patch
@@ -140,6 +140,7 @@ private struct FunctionButtons: View {
         case "Disk": ui.screen = .show
         default:
             if let function = PaletteFunction(rawValue: label) {   // PAL-29
+                engine.endArmedMessage()   // UI-50: the old function's hint goes, the new one is said below
                 ui.arm(function)
                 if ui.function != nil, let hint = Self.hints[label] { engine.say(hint) }
             }
@@ -390,7 +391,7 @@ private struct Softkeys: View {
             Softkey(name: "Stop FX", sub: "the selection", action: { ui.learnOrRun("effect stop", engine) { engine.stopEffects() } }),
             Softkey(name: "Restart", sub: "from the top", action: { ui.learnOrRun("effect restart", engine) { engine.restartEffects() } }),
             Softkey(name: "Tap", sub: "tempo", action: { ui.learnOrRun("effect tap", engine) { engine.tapEffect() } }),
-            Softkey(name: "Record", sub: "then tap a palette", action: { ui.cancelModes(); ui.recordArmed = true }),
+            Softkey(name: "Record", sub: "then tap a palette", action: { ui.cancelModes(); engine.endArmedMessage(); ui.recordArmed = true }),
             undoKey,
         ])
     }
@@ -457,7 +458,7 @@ private struct Softkeys: View {
             ui.maskMenu = true
         }
         let recordByKey = Softkey(name: "Record By", sub: recordBy) { ui.recordBy = recordBy == "Channel" ? "Mixed" : "Channel" }
-        let cancelKey = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.recordArmed = false })
+        let cancelKey = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.recordArmed = false })
         // CUE-52: on a tracking list or chase an Update Mode softkey cycles the mode of this record.
         let updateModeKey = { (list: PlaybackInfo?) -> Softkey? in
             guard let list, list.hasCues, list.stored.list.tracking else { return nil }
@@ -568,7 +569,7 @@ private struct Softkeys: View {
             keys[0] = Softkey(name: "Confirm delete", sub: name) {
                 ui.confirmDelete(engine)   // UI-46
             }
-            keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() })
+            keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
             return ("Cue · \(name)", keys)
         }
         func numbered(_ title: String, _ send: @escaping (Double) -> Void) -> Softkey {
@@ -594,7 +595,7 @@ private struct Softkeys: View {
                     engine.say("Delete cue \(name)? Confirm on softkey A.")
                 }
             },
-            Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() }),
+            Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() }),
         ])
     }
 
@@ -610,7 +611,7 @@ private struct Softkeys: View {
                 engine.removeCueValue(ref.playback, cue: ref.cue, fixture: target.fixture, cell: target.cell, attribute: target.attribute)
                 ui.cueValue = nil; ui.cueRemoveConfirm = false
             }
-            keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cueRemoveConfirm = false })
+            keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cueRemoveConfirm = false })
             return ("Cue view · \(name)", keys)
         }
         keys[0] = Softkey(name: "Back to List") { ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false }
@@ -650,7 +651,7 @@ private struct Softkeys: View {
             }
             keys[1] = Softkey(name: "Exit Unfold") { ui.unfolded = []; ui.cancelModes() }
         }
-        keys[6] = Softkey(name: "Cancel", action: { engine.clearMessage(); ui.cancelModes() })
+        keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
         return (function.rawValue, keys)
     }
 
@@ -681,7 +682,7 @@ private struct Softkeys: View {
                 }
             },
             nil, nil, nil,
-            Softkey(name: "Cancel", action: { engine.clearMessage(); line.clear(); ui.paletteMenu = false }),
+            Softkey(name: "Cancel", action: { engine.endArmedMessage(); line.clear(); ui.paletteMenu = false }),
         ])
     }
 

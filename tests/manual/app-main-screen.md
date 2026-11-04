@@ -318,6 +318,24 @@ At home, no lamps: `--show-dir` in a temp folder. Each line with Keys on and wit
 - [ ] A function armed, then a screen: the same.
 - [ ] Record armed, another workspace by the rail, F-key and ⌘-key: stays armed, and a tap there records. A page button: stays armed.
 
+## Keys off says so (UI-49)
+- [ ] Keys off, the workspace, nothing focused: a digit, `f`, Return, Backspace, Up: the line stays empty, and the message zone says "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad."
+- [ ] Keys off: F2 does not change workspace and Space runs no Go; both say the same, also on a screen (Output). A digit on a screen says nothing.
+- [ ] Keys off: a key Keys does not use (`x`) says nothing. ⌘2 still switches workspace and says nothing. Esc does its own work (UI-44) and says nothing.
+- [ ] A held digit shows the message without flicker or a repeat beep; the Messages sheet has no such line.
+- [ ] Keys off: a click on the command line says the same. Keys on: a click there says nothing, and digits fill the line.
+- [ ] Keys off, typing in a text field (Patch search, a sheet's name field), under an open sheet, under the Lock prompt and cover: no such message.
+
+## An armed function's message goes with it (UI-50)
+- [ ] Delete armed (its hint shows): Esc, the keypad's Exit, the Cancel softkey and a screen opening each take the hint away with the function.
+- [ ] Delete, tap a palette (what it touches shows), softkey A: the message goes with the delete. The same with a refusal said by a tap on a wrong target, then Exit.
+- [ ] Copy on a palette, then an empty cell: the hint goes when the copy is done. Update, Move and Set Legend likewise.
+- [ ] Delete armed, then Record, or Delete then Copy: the old hint does not stay under the new function.
+- [ ] Record armed, a tap on a used cell (its message), Cancel: it goes.
+- [ ] Delete armed (its hint shows), then a warning from the engine (a second client's refused command): the warning stays through Esc, Exit and Cancel, until the next command.
+- [ ] Delete armed, then a notice from the engine (IPC-49, a group selected by a second client): the notice stays through Esc.
+- [ ] Keys off with Delete armed: a digit says UI-49's message; Esc disarms and that message stays, as it is not the function's own.
+
 ## Lock from anywhere (UI-48)
 - [ ] **Lock** in the status bar opens the prompt from each workspace, with a selection, on each screen, and with a function armed. The softkey still does.
 - [ ] ⌘L does the same, with Keys off and with focus in a text field.
