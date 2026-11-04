@@ -11,14 +11,18 @@ panel along the top, the patch table below it and the *Selected* panel on the ri
 
 ## The fixture library
 
-CMDMX looks for profiles in two places:
+CMDMX looks for profiles in three places:
 
+- **The built-in dimmer.** `Generic` / `Dimmer` is always there, also without the QLC+ set, with the
+  modes *1 channel* and *2 channel 16-bit*. Search for `dimmer` or `generic dimmer`. The line under
+  the columns says *built in*.
 - **The QLC+ set.** The app comes with the fixture definitions of the open QLC+ project, nearly
   1,800 lamps from about 150 manufacturers. CMDMX converts a definition into its own
   profile when you pick it.
 - **Your user profiles.** Profiles you import, make or edit are saved in
   `~/Library/Application Support/CMDMX/profiles/`. A user profile with the same manufacturer and
-  model hides the QLC+ one. In the lists it carries a `USER` tag.
+  model hides the QLC+ one or the built-in dimmer. In the lists it carries a `USER` tag. **Edit
+  profile…** on the built-in dimmer starts such a copy; the built-in one itself never changes.
 
 ### Finding a fixture
 

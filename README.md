@@ -74,6 +74,7 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
   ends when you let go. An operational control, not show-file protection.
 
 **Patch and fixtures**
+- A plain dimmer (`Generic` / `Dimmer`, 8-bit and 16-bit) is always in the library, also without the QLC+ set.
 - Browse the library by manufacturer, pick a fixture, set mode, count, address and user number;
   clashes are refused. Move, renumber, rename, change mode and remove.
 - Multi-select in the patch table: Shift/Cmd-click a range and move it back to back, renumber
