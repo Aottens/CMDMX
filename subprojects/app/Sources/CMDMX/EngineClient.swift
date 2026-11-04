@@ -1898,7 +1898,13 @@ final class EngineClient: ObservableObject {
     }
 
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
-    func say(_ text: String) { lastMessage = text }
+    func say(_ text: String) { lastMessage = text; armedMessage = isArmed() ? text : nil }
+    /// UI-50: set by the Frame; whether a function is armed when the app says something.
+    var isArmed: () -> Bool = { false }
+    /// UI-50: the text the app said because a function was armed.
+    private var armedMessage: String?
+    /// UI-50: the function disarmed. Comparing the text means an engine message, or a later one that replaced it, stays.
+    func endArmedMessage() { if lastMessage == armedMessage { lastMessage = nil }; armedMessage = nil }
     /// UI-49: Keys off and a key it would act on (or a click on the command line); not in the Messages sheet, so not `addMessage`.
     func sayKeysOff() { lastMessage = "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad." }
 
@@ -2198,6 +2204,7 @@ final class EngineClient: ObservableObject {
                         let used = reply.cues == 0 ? "No cue uses it."
                             : "\(reply.cues) \(reply.cues == 1 ? "cue" : "cues") on \(reply.playbacks) \(reply.playbacks == 1 ? "playback" : "playbacks") \(reply.cues == 1 ? "uses" : "use") it and \(reply.cues == 1 ? "keeps" : "keep") its values."
                         lastMessage = "\(what) \(used) Confirm on softkey A."
+                        if armedMessage == p.shown { armedMessage = lastMessage }   // UI-50: still the function's own
                     }
                     pendingDelete = nil
                 }
