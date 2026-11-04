@@ -85,6 +85,17 @@ the bottom of its row.
 **Tap a row** to make that cue the next one. Nothing changes on stage until you press Go, so a
 tap in the list can never cue the wrong thing.
 
+**Times** at the top of the window shows only the timing columns: Delay in, Delay out, Fade in,
+Fade out and Overlap, an out time that is *as in* dim (see [Times per cue](#times-per-cue)). A chase
+has no Times view. In this view a tap selects a time and does not change Next:
+
+- **Tap** a time to select it; **drag** down the column, or **Shift-tap**, to select several. The softkeys
+  show what you have, as "Q2–Q5 · Fade out".
+- Type the number on the keypad and press **Set** or **Enter**: every selected cue takes it, and one
+  Undo takes them all back. **As In** links the out times again. **Done** ends the selection.
+- A number the console refuses changes none of them, and a change to a cue that is fading now is used
+  from the next Go on. Arming a function clears the selection. **Esc** clears it, and again leaves the view.
+
 **Right-click a row** for the cue softkeys:
 
 - **Go to Cue**: runs that cue now, with its own times.
@@ -102,7 +113,7 @@ tap in the list can never cue the wrong thing.
 
 Every cue has its own times. Open **Playback Options** on the list (or **Edit Times** on a row)
 and go to the **Times** tab. The **Cue** menu at the top picks the cue; it starts on the current
-cue. For that cue you set:
+cue. To set one time on many cues at once, use the [Times view](#the-cue-list-window) of the Cue list window. For that cue you set:
 
 - **Delay**, **Delay out**, **Fade in**, **Fade out** and **Overlap**. Intensity that goes up uses
   the delay and the fade in; intensity that goes down uses the delay out and the fade out. Colour,

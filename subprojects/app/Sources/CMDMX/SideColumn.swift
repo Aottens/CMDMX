@@ -300,6 +300,7 @@ private struct Softkeys: View {
         }
         if let ref = ui.cueMenu { return cueContext(ref) }
         if let function = ui.function { return functionContext(function) }
+        if let cells = ui.liveTimeCells(engine) { return timesContext(cells) }
         if ui.paletteMenu { return paletteContext }
         // UI-33a: Order and Pattern open from the Fan context too and win over it.
         if !engine.programmer.selection.isEmpty {
@@ -597,6 +598,23 @@ private struct Softkeys: View {
             },
             Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() }),
         ])
+    }
+
+    /// UI-51: Set, As In (out columns only) and Done for the selected time cells.
+    private func timesContext(_ cells: TimeCells) -> (name: String, keys: [Softkey?]) {
+        let first = cells.cues.first.map { cueName($0) } ?? ""
+        let last = cells.cues.last.map { cueName($0) } ?? ""
+        var keys: [Softkey?] = Array(repeating: nil, count: 8)
+        keys[0] = Softkey(name: "Set", sub: "number on the line") {
+            guard let n = line.onlyNumber else { return engine.say("Set: type the time on the keypad first.") }
+            ui.setTimes(engine, n)
+            line.clear()
+        }
+        if cells.column == "delay_out" || cells.column == "fade_out" {
+            keys[1] = Softkey(name: "As In") { ui.setTimes(engine, NSNull()) }
+        }
+        keys[7] = Softkey(name: "Done") { ui.timeCells = nil }
+        return ((first == last ? first : "\(first)–\(last)") + " · " + cells.title, keys)
     }
 
     /// The Cue view (CUE-54): Back to List, and Remove for the hard value last right-clicked (two-step).

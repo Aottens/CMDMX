@@ -385,6 +385,12 @@ pub enum Command {
         cue: CueNumber,
         change: CueChange,
     },
+    /// `cue.times` with `cues`: one change to several cues, one undo step (IPC-56).
+    CueTimes {
+        id: PlaybackId,
+        cues: Vec<CueNumber>,
+        change: CueChange,
+    },
     CueDelete {
         id: PlaybackId,
         cue: CueNumber,
@@ -809,6 +815,20 @@ fn number(v: &serde_json::Value, key: &str) -> Result<f32, String> {
 fn cue_number(v: &serde_json::Value, key: &str) -> Result<CueNumber, String> {
     (v.get(key).and_then(|n| n.as_f64()).and_then(CueNumber::new)).ok_or_else(|| {
         format!("missing or invalid \"{key}\" (expected a cue number, 0.001 to 9999.999)")
+    })
+}
+
+/// The time fields of `cue.times`, for one cue or several (IPC-56).
+fn times_change(v: &serde_json::Value) -> Result<CueChange, String> {
+    Ok(CueChange {
+        delay: opt_f32(v, "delay")?,
+        fade_in: opt_f32(v, "fade_in")?,
+        fade_out: nullable(v, "fade_out", "a number or null")?,
+        delay_out: nullable(v, "delay_out", "a number or null")?,
+        overlap: opt_f32(v, "overlap")?,
+        link: opt_field::<Link>(v, "link", "{type: Wait, After or With, offset}")?,
+        group_times: opt_field(v, "group_times", "{group: {delay, fade}}")?,
+        ..CueChange::default()
     })
 }
 
@@ -1678,20 +1698,32 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             id: uint(&v, "id")?,
             bpm: number(&v, "bpm")?,
         }),
-        Some("cue.times") => Ok(Command::CueEdit {
-            id: uint(&v, "id")?,
-            cue: cue_number(&v, "cue")?,
-            change: CueChange {
-                delay: opt_f32(&v, "delay")?,
-                fade_in: opt_f32(&v, "fade_in")?,
-                fade_out: nullable(&v, "fade_out", "a number or null")?,
-                delay_out: nullable(&v, "delay_out", "a number or null")?,
-                overlap: opt_f32(&v, "overlap")?,
-                link: opt_field::<Link>(&v, "link", "{type: Wait, After or With, offset}")?,
-                group_times: opt_field(&v, "group_times", "{group: {delay, fade}}")?,
-                ..CueChange::default()
-            },
-        }),
+        Some("cue.times") => {
+            let change = times_change(&v)?;
+            let id = uint(&v, "id")?;
+            match v.get("cues") {
+                None => Ok(Command::CueEdit {
+                    id,
+                    cue: cue_number(&v, "cue")?,
+                    change,
+                }),
+                Some(_) if v.get("cue").is_some() => {
+                    Err("give \"cue\" or \"cues\", not both".into())
+                }
+                Some(list) => {
+                    let cues = (list.as_array())
+                        .filter(|a| !a.is_empty())
+                        .ok_or("\"cues\" must be a non-empty array of cue numbers")?
+                        .iter()
+                        .map(|n| {
+                            (n.as_f64().and_then(CueNumber::new))
+                                .ok_or("invalid cue number in \"cues\" (0.001 to 9999.999)")
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Ok(Command::CueTimes { id, cues, change })
+                }
+            }
+        }
         Some("cue.legend") => Ok(Command::CueEdit {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
@@ -6318,6 +6350,36 @@ mod tests {
             panic!("not settings");
         };
         assert_eq!((s.fade_out, s.delay_out), (Some(Some(3.0)), Some(None)));
+    }
+
+    #[test]
+    fn ipc_56_cues_takes_the_place_of_cue() {
+        let Command::CueTimes { id, cues, change } = parse_command(
+            r#"{"v":1,"cmd":"cue.times","id":3,"cues":[2,3,3.5],"fade_out":null,"delay":1}"#,
+        )
+        .unwrap() else {
+            panic!("not cue times");
+        };
+        assert_eq!(id, 3);
+        assert_eq!(cues, vec![q(2.0), q(3.0), q(3.5)]);
+        assert_eq!((change.fade_out, change.delay), (Some(None), Some(1.0)));
+
+        // `cue` alone stays what it was.
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"cue.times","id":3,"cue":2,"delay":1}"#),
+            Ok(Command::CueEdit { .. })
+        ));
+
+        for bad in [
+            r#"{"v":1,"cmd":"cue.times","id":3,"cues":[],"delay":1}"#,
+            r#"{"v":1,"cmd":"cue.times","id":3,"cues":2,"delay":1}"#,
+            r#"{"v":1,"cmd":"cue.times","id":3,"cues":[2,"x"],"delay":1}"#,
+            r#"{"v":1,"cmd":"cue.times","id":3,"cues":[2,0],"delay":1}"#,
+            r#"{"v":1,"cmd":"cue.times","id":3,"cue":2,"cues":[2],"delay":1}"#,
+            r#"{"v":1,"cmd":"cue.times","id":3,"cues":[2],"delay_out":"as in"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

@@ -67,6 +67,15 @@ struct CueValueRef: Equatable {
     let attribute: String
 }
 
+/// UI-51: cues (list order) selected in one time column; `column` is the `cue.times` key, `anchor` the Shift-tap start.
+struct TimeCells: Equatable {
+    var playback: Int
+    var column: String
+    var title: String
+    var cues: [Double]
+    var anchor: Double
+}
+
 /// UI-only state shared by the zones. None of this reaches the engine.
 @MainActor
 final class UIState: ObservableObject {
@@ -98,7 +107,7 @@ final class UIState: ObservableObject {
     var fieldEscaped = false
     /// Record armed with the Record function button (UI-16); the next group or palette tap records.
     /// Disarming forgets the record choices below (they hold for one record only, PAL-29).
-    @Published var recordArmed = false { didSet { if !recordArmed { resetRecord() } } }
+    @Published var recordArmed = false { didSet { if recordArmed { timeCells = nil } else { resetRecord() } } }
     /// Record + tap on a used cell: waiting for Replace / Merge / Quick Merge (PAL-06).
     @Published var usedCell: UsedCell? { didSet { if usedCell != nil { usedCue = nil } } }
     /// Record + tap on a used handle: waiting for Replace / Merge (PBK-38).
@@ -110,7 +119,7 @@ final class UIState: ObservableObject {
     /// The Mask softkeys (IPCGBES toggles) are showing instead of the Record softkeys.
     @Published var maskMenu = false
     /// Update, Include, Copy, Move, Delete or Set Legend armed (PAL-29).
-    @Published var function: PaletteFunction?
+    @Published var function: PaletteFunction? { didSet { if function != nil { timeCells = nil } } }
     /// UI-29: fixtures (ids) whose cells show in the Fixtures window. View state only.
     @Published var unfolded = Set<Int>()
     /// Copy / Move: the id of the source palette, after its tap.
@@ -147,6 +156,9 @@ final class UIState: ObservableObject {
     /// The Cue view shown in place of the Cue list window, the hard value last right-clicked in it
     /// and Remove waiting for its confirmation.
     @Published var cueView: CueRef?
+    /// UI-51: the Cue list window shows the timing columns; the cells selected in one column of them.
+    @Published var cueTimesView = false
+    @Published var timeCells: TimeCells?
     @Published var cueValue: CueValueRef?
     @Published var cueRemoveConfirm = false
     @Published var cueLegendEditing: CueRef?
@@ -250,6 +262,18 @@ final class UIState: ObservableObject {
     /// PRG-94: a function the Groups window answers to.
     var groupFunctionArmed: Bool {
         function == .delete || function == .copy || function == .move || function == .legend
+    }
+
+    /// UI-51: the selected time cells while the Times view is the one on show.
+    func liveTimeCells(_ engine: EngineClient) -> TimeCells? {
+        guard let cells = timeCells, screen == nil, cueView == nil, cells.playback == engine.connected, engine.connectedList?.isChase != true,
+              Workspace.all[safe: workspace]?.windows.contains(.cues) == true else { return nil }
+        return cells
+    }
+    /// UI-51: Set (a number) or As In (NSNull) on the selected cells: one `cue.times` (IPC-56).
+    func setTimes(_ engine: EngineClient, _ value: Any) {
+        guard let cells = liveTimeCells(engine) else { return }
+        engine.setCueTimes(cells.playback, cues: cells.cues, [cells.column: value])
     }
 
     /// Disarms Record and every palette function.
