@@ -146,6 +146,20 @@ Claude listens to Art-Net; the times below are read there, not on screen. Taps a
 - [ ] Done: the cells go, the view stays. Esc: the cells go; Esc again: the plain view. There a tap sets Next.
 - [ ] A chase has no Times toggle.
 
+## One-cue playback in the Cue window (UI-53)
+- [ ] Tap a memory's legend in the Playbacks workspace: title "Cue · 1.2", one row, no Times toggle. The output, the Go block and the connected list's frame do not change.
+- [ ] A tap on the row does nothing. **⋯**: softkeys View Cue, Edit Times, Set Legend and Cancel only; each works.
+- [ ] Copy, Move or Delete armed, tap the row: refused, naming the handle, still armed. Set Legend armed: the legend editor.
+- [ ] **View** on the row, Back to List: the one row again. Esc in the Cue view, Esc again: the list.
+- [ ] A tap on a list's legend ends it; so does another list getting connected (Auto connect, Go on its handle). The same list stays connected through all of it.
+- [ ] Tap a memory's legend in another workspace: "1.2 holds one cue: the Playbacks workspace shows it."
+
+## A row says what it can do (UI-54)
+- [ ] Each row ends in **View** and **⋯**, in the plain view and the Times view, on a list and a chase. No column is cut off in the Times view.
+- [ ] **View** opens the Cue view; **⋯** the Cue softkeys, as a right-click, which still works. Neither moves Next or the output (Art-Net).
+- [ ] With Delete armed, **View** and **⋯** on a row: "Delete cue n? Confirm on softkey A", as a tap on the row. Cancel.
+- [ ] Times view with cells selected: **View** and **⋯** clear the cells.
+
 ## Restart (CUE-24, SHW)
 - [ ] Wait 5 s (autosave), stop the daemon (Ctrl-C) and start it again with the same command:
       the app reconnects, the lists, cues, legends, tracking options, chase and masters are back;

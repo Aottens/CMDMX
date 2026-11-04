@@ -417,6 +417,8 @@ struct PlaybackInfo: Identifiable, Equatable {
     /// A cue list or a chase: the engine sends live cue state for these only (CUE-40).
     var hasCues: Bool { live.cue != nil }
     var isChase: Bool { stored.kind == "Chase" }
+    /// One cue, no Go: the Cue list window shows it on a tap (UI-53).
+    var isMemory: Bool { stored.kind == "Cues" && stored.cues.count == 1 }
     /// A cue list: kind Cues with two or more cues; fewer is a memory (CUE-46).
     var isCueList: Bool { stored.kind == "Cues" && stored.cues.count >= 2 }
     /// The stored cue with this number.

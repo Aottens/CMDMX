@@ -83,7 +83,14 @@ The current cue is green, the next one has an outline, and a fading cue shows it
 the bottom of its row.
 
 **Tap a row** to make that cue the next one. Nothing changes on stage until you press Go, so a
-tap in the list can never cue the wrong thing.
+tap in the list can never cue the wrong thing. **View** at the end of a row shows the
+[Cue view](#the-cue-view) and **⋯** the cue softkeys; neither changes the stage either. With a function
+armed the whole row is its target, these two buttons included.
+
+**Tap the legend of a playback with one cue** to show that cue here, titled "Cue · 1.2": one row, and its
+softkeys are View Cue, Edit Times and Set Legend. It changes nothing on stage and the connected list stays
+connected, as a memory has no Go. A tap on a list's legend, another connected list or **Esc** brings the list
+back. Outside the Playbacks workspace the message tells you where to look.
 
 **Times** at the top of the window shows only the timing columns: Delay in, Delay out, Fade in,
 Fade out and Overlap, an out time that is *as in* dim (see [Times per cue](#times-per-cue)). A chase
@@ -96,7 +103,7 @@ has no Times view. In this view a tap selects a time and does not change Next:
 - A number the console refuses changes none of them, and a change to a cue that is fading now is used
   from the next Go on. Arming a function clears the selection. **Esc** clears it, and again leaves the view.
 
-**Right-click a row** for the cue softkeys:
+**Right-click a row**, or press **⋯**, for the cue softkeys:
 
 - **Go to Cue**: runs that cue now, with its own times.
 - **View Cue**: shows everything the cue puts on stage (see [The Cue view](#the-cue-view)).

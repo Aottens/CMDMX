@@ -206,9 +206,13 @@ private struct BPMField: View {
 /// The Playbacks workspace's cue window: the Cue list, or the Cue view in its place (CUE-54).
 struct CueWindow: View {
     @EnvironmentObject private var ui: UIState
+    @EnvironmentObject private var engine: EngineClient
 
     var body: some View {
-        if let ref = ui.cueView { CueViewWindow(ref: ref) } else { CueListWindow() }
+        Group {
+            if let ref = ui.cueView { CueViewWindow(ref: ref) } else { CueListWindow() }
+        }
+        .onChange(of: engine.connected) { _, _ in ui.endCueMemory() }   // UI-53: another connected list ends the memory
     }
 }
 
@@ -217,23 +221,24 @@ private struct CueListWindow: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
 
-    private static let widths: [CGFloat?] = [44, nil, 44, 56, 84, 36, 58]
-    private static let titles = ["Q", "Legend", "Delay", "Fade", "Link", "Track", "Groups"]
+    private static let widths: [CGFloat?] = [44, nil, 44, 56, 84, 36, 58, 62]
+    private static let titles = ["Q", "Legend", "Delay", "Fade", "Link", "Track", "Groups", ""]
     /// UI-51: the Times view's columns after Q and Legend: `cue.times` key and title.
     private static let timeColumns = [("delay", "Delay in"), ("delay_out", "Delay out"), ("fade_in", "Fade in"),
                                       ("fade_out", "Fade out"), ("overlap", "Overlap")]
-    private static let timeWidths: [CGFloat?] = [36, nil, 58, 64, 54, 60, 54]
+    private static let timeWidths: [CGFloat?] = [36, nil, 58, 64, 54, 60, 54, 62]
     private static let rowHeight: CGFloat = 24
 
     var body: some View {
-        let list = engine.connectedList
-        let times = ui.cueTimesView && list?.isChase != true   // UI-51
-        let titles = times ? ["Q", "Legend"] + Self.timeColumns.map(\.1) : Self.titles
+        let memory = ui.liveCueMemory(engine)   // UI-53
+        let list = memory ?? engine.connectedList
+        let times = ui.cueTimesView && list?.isChase != true && memory == nil   // UI-51
+        let titles = times ? ["Q", "Legend"] + Self.timeColumns.map(\.1) + [""] : Self.titles
         let widths = times ? Self.timeWidths : Self.widths
-        PanelWindow(title: list.map { "Cue list · \($0.shownLegend)" } ?? "Cue list",
-                    info: list.map { "\($0.homeHandle) · \($0.stored.cues.count) cues" } ?? "No cue list connected",
+        PanelWindow(title: memory.map { "Cue · \($0.homeHandle)" } ?? list.map { "Cue list · \($0.shownLegend)" } ?? "Cue list",
+                    info: memory.map(\.shownLegend) ?? list.map { "\($0.homeHandle) · \($0.stored.cues.count) cues" } ?? "No cue list connected",
                     accessory: {
-                        if list?.isChase != true {
+                        if list?.isChase != true && memory == nil {
                             Button("Times") { ui.cueTimesView.toggle(); ui.timeCells = nil }
                                 .buttonStyle(FlatButton(fill: ui.cueTimesView ? .blue : nil, compact: true))
                         }
@@ -277,12 +282,30 @@ private struct CueListWindow: View {
                         .frame(width: Self.widths[index], alignment: .leading)
                         .frame(maxWidth: Self.widths[index] == nil ? .infinity : nil, alignment: .leading)
                 }
+                rowButtons(list, cue)
             }
         }
         .contentShape(Rectangle())
         .onTapGesture { tap(list, cue) }
         .overlay { RightClickCatcher { rightClick(list, cue) } }
-        .help("Tap: next · right-click: cue softkeys")
+        .help(list.isMemory ? "View: Cue view · ⋯ or right-click: cue softkeys" : "Tap: next · View: Cue view · ⋯ or right-click: cue softkeys")
+    }
+
+    /// UI-54: View (the Cue view) and ⋯ (the cue softkeys) on a row; armed, the whole row is the target (UI-42).
+    private func rowButtons(_ list: PlaybackInfo, _ cue: StoredCue) -> some View {
+        let armed = ui.recordArmed || ui.function != nil
+        return HStack(spacing: 2) {
+            Button("View") {
+                if armed { return tap(list, cue) }
+                ui.timeCells = nil; ui.cueView = CueRef(playback: list.id, cue: cue.number); ui.cueValue = nil; ui.cancelModes()
+            }
+            Button("⋯") {
+                if armed { return tap(list, cue) }
+                ui.timeCells = nil; rightClick(list, cue)
+            }
+        }
+        .buttonStyle(FlatButton(compact: true))
+        .frame(width: 62, alignment: .trailing)
     }
 
     /// The row frame both views share: current, next and progress (CUE-43).
@@ -338,10 +361,11 @@ private struct CueListWindow: View {
                             dragTimes(list, from: cue, column, drag)
                         })
                 }
+                rowButtons(list, cue)
             }
         }
         .overlay { RightClickCatcher { ui.timeCells = nil; rightClick(list, cue) } }
-        .help("Tap a time · drag or Shift-tap: more in this column · right-click: cue softkeys")
+        .help("Tap a time · drag or Shift-tap: more in this column · View: Cue view · ⋯ or right-click: cue softkeys")
     }
 
     /// UI-51: a tap selects this cell; Shift-tap in the same column extends from the anchor.
@@ -386,9 +410,13 @@ private struct CueListWindow: View {
             ui.source = nil; ui.handleSource = nil; ui.groupSource = nil
             ui.cueMenu = ref; ui.cueDelete = false; ui.lastHandle = list.id
         }
+        // UI-53: a memory's one cue is not copied, moved or deleted from its row.
+        if list.isMemory, let f = ui.function, [.copy, .move, .delete].contains(f) {
+            return engine.say("\(f.rawValue): \(list.homeHandle) holds one cue, tap its handle.")
+        }
         switch ui.function {
         case nil:
-            engine.cuelist("next", id: list.id, cue: cue.number)
+            if !list.isMemory { engine.cuelist("next", id: list.id, cue: cue.number) }
         case .update:
             engine.recordPlayback(page: list.stored.page, slot: list.stored.slot, mode: "Update", cue: cue.number)
             ui.cancelModes()

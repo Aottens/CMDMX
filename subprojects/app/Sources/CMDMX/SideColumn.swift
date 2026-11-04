@@ -581,7 +581,7 @@ private struct Softkeys: View {
                 ui.cancelModes()
             }
         }
-        return ("Cue · \(name)", [
+        let keys: [Softkey?] = [
             Softkey(name: "Go to Cue", sub: "runs it now") { engine.cuelist("goto", id: ref.playback, cue: ref.cue); ui.cancelModes() },
             Softkey(name: "View Cue", sub: "its whole state") { ui.cueView = ref; ui.cueValue = nil; ui.cancelModes() },
             Softkey(name: "Edit Times", sub: "Times tab") { ui.openOptions(ref.playback, tab: .times, cue: ref.cue) },
@@ -597,7 +597,12 @@ private struct Softkeys: View {
                 }
             },
             Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() }),
-        ])
+        ]
+        // UI-53: a memory has one cue, so only View Cue, Edit Times, Set Legend and Cancel stay (positions kept).
+        if engine.playback(ref.playback)?.isMemory == true {
+            return ("Cue · \(name)", keys.enumerated().map { [1, 2, 3, 7].contains($0.offset) ? $0.element : nil })
+        }
+        return ("Cue · \(name)", keys)
     }
 
     /// UI-51: Set, As In (out columns only) and Done for the selected time cells.
