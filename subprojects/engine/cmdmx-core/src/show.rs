@@ -21,7 +21,7 @@ use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId, It
 use crate::{CoreError, UniverseId};
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 10;
+pub const SCHEMA_VERSION: u32 = 11;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -58,7 +58,11 @@ pub struct ShowSettings {
     pub cue_record_by: RecordBy,
     pub cue_delay: f32,
     pub cue_fade_in: f32,
-    pub cue_fade_out: f32,
+    /// CUE-57: absent = As In.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cue_fade_out: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cue_delay_out: Option<f32>,
     pub cue_overlap: f32,
     /// PBK-20: the global release mask and time.
     pub release_mask: Vec<AttributeGroup>,
@@ -283,7 +287,45 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
         }
         migrations.push("9 -> 10: groups may store a legend, nothing else changes".into());
     }
+    if version < 11 {
+        migrations.push(migrate_10_to_11(value));
+    }
     migrations
+}
+
+/// CUE-58: a fade out equal to its fade in becomes As In (the key goes), any other stays a number.
+/// Schema 10 fell after `delay`, which is As In for the delay out, so no `delay_out` is written.
+fn migrate_10_to_11(value: &mut serde_json::Value) -> String {
+    use serde_json::{Map, Value};
+    fn as_in(holder: &mut Map<String, Value>, fade_in: &str, fade_out: &str) {
+        let time = |holder: &Map<String, Value>, key: &str| {
+            holder.get(key).and_then(Value::as_f64).unwrap_or(0.0)
+        };
+        let out = time(holder, fade_out);
+        if out == time(holder, fade_in) {
+            holder.remove(fade_out);
+        } else if let Some(n) = serde_json::Number::from_f64(out) {
+            holder.insert(fade_out.into(), Value::Number(n));
+        }
+    }
+    if let Some(show) = value.as_object_mut() {
+        show.insert("schema_version".into(), 11.into());
+        if let Some(settings) = show.get_mut("settings").and_then(Value::as_object_mut) {
+            as_in(settings, "cue_fade_in", "cue_fade_out");
+        }
+        let playbacks = (show.get_mut("playbacks")).and_then(|p| p.get_mut("playbacks"));
+        let cues = playbacks
+            .and_then(Value::as_array_mut)
+            .into_iter()
+            .flatten();
+        for playback in cues {
+            let cues = playback.get_mut("cues").and_then(Value::as_array_mut);
+            for cue in cues.into_iter().flatten().filter_map(Value::as_object_mut) {
+                as_in(cue, "fade_in", "fade_out");
+            }
+        }
+    }
+    "10 -> 11: a fade out equal to the fade in becomes As In, the others stay".into()
 }
 
 /// FX-28: leave out each effect entry of a cue or palette that does not read as one (an unknown

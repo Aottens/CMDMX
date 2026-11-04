@@ -525,7 +525,9 @@ impl ListRun {
             let (delay, fade) = match (chase_fade, cue.group_times.get(&group)) {
                 (Some(fade), _) => (0.0, fade),
                 (None, Some(g)) => (g.delay, g.fade),
-                (None, None) => (cue.delay, if rising { cue.fade_in } else { cue.fade_out }),
+                // CUE-56: falling HTP waits the delay out and falls over the fade out.
+                (None, None) if rising => (cue.delay, cue.fade_in),
+                (None, None) => (cue.delay_out_in_force(), cue.fade_out_in_force()),
             };
             match how {
                 How::Run => (delay, fade),

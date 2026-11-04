@@ -56,12 +56,13 @@ mod common;
 
 use std::collections::BTreeMap;
 
+use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
 use cmdmx_core::palette::RecordMode;
 use cmdmx_core::playback::{
-    AddCue, Button, ButtonKind, Cue, CueChange, CueNumber, CueValue, FaderMode, HandleButton,
-    HandleButtons, Kind, Link, ListAction, ListFader, ListLive, ListOptions, LoopAction,
-    MasterKind, Playback, PlaybackChange, PlaybackRecord, Track, UpdateMode, Values,
+    AddCue, Button, ButtonKind, Cue, CueChange, CueNumber, CueValue, FaderMode, GroupTime,
+    HandleButton, HandleButtons, Kind, Link, ListAction, ListFader, ListLive, ListOptions,
+    LoopAction, MasterKind, Playback, PlaybackChange, PlaybackRecord, Track, UpdateMode, Values,
 };
 use cmdmx_core::programmer::Item;
 use cmdmx_core::show::{Meta, Show};
@@ -433,7 +434,7 @@ fn cue_15_fader_modes_and_the_kill_point_do_not_apply_to_a_cue_list() {
         1,
         &PlaybackChange {
             fader_mode: Some(FaderMode::Mode1),
-            fade_out: Some(4.0),
+            fade_out: Some(Some(4.0)),
             ..PlaybackChange::default()
         },
     )
@@ -954,7 +955,7 @@ fn busy_list() -> Engine {
             n,
             CueChange {
                 fade_in: Some(fade),
-                fade_out: Some(fade),
+                fade_out: Some(Some(fade)),
                 ..CueChange::default()
             },
         );
@@ -1527,4 +1528,359 @@ fn cue_54_remove_on_the_current_cue_is_on_stage_at_once() {
     tick(&mut e, 7.025);
     assert_eq!(dmx(&e, 22), 0);
     assert_eq!(dmx(&e, 21), 128, "Q1 still tracks");
+}
+
+// ---- CUE-56, 57: As In ---------------------------------------------------------------------
+
+/// CUE-56's example: list 1 on 1.1, Q2 par 201 at 80 % (DMX 204), Q3 at 20 % (DMX 51), Q3's
+/// `fade_in` 3 s and nothing else set. The fader goes up at 0 (Q2 on stage); Go runs Q3.
+fn as_in_list() -> Engine {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            cue(2.0, &[(201, "Dimmer", 0.8)]),
+            Cue {
+                fade_in: 3.0,
+                ..cue(3.0, &[(201, "Dimmer", 0.2)])
+            },
+        ],
+    );
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    tick(&mut e, 0.0);
+    assert_eq!(dmx(&e, 21), 204);
+    e
+}
+
+fn near(e: &Engine, address: u16, expected: u8, what: &str) {
+    let got = dmx(e, address);
+    assert!(
+        got.abs_diff(expected) <= 1,
+        "{what}: DMX {address} is {got}, expected {expected}"
+    );
+}
+
+#[test]
+fn cue_56_as_in_falls_over_the_fade_in() {
+    let mut e = as_in_list();
+    assert_eq!(e.playback(1).unwrap().cues[1].fade_out, None);
+    assert_eq!(e.playback(1).unwrap().cues[1].delay_out, None);
+    act(&mut e, ListAction::Go, 1.0);
+    run(&mut e, 1.025, 2.5);
+    near(&e, 21, 128, "half-way over 3 s");
+    run(&mut e, 2.525, 4.0);
+    near(&e, 21, 51, "down after 3 s");
+}
+
+#[test]
+fn cue_56_a_typed_fade_out_overrides_and_as_in_links_again() {
+    let mut e = as_in_list();
+    let set = |fade_out| CueChange {
+        fade_out: Some(fade_out),
+        ..CueChange::default()
+    };
+    change(&mut e, 3.0, set(Some(5.0)));
+    act(&mut e, ListAction::Go, 1.0);
+    run(&mut e, 1.025, 3.5);
+    near(&e, 21, 128, "half-way over 5 s");
+    run(&mut e, 3.525, 6.0);
+    near(&e, 21, 51, "down after 5 s");
+
+    change(&mut e, 3.0, set(None));
+    assert_eq!(e.playback(1).unwrap().cues[1].fade_out, None);
+    act(&mut e, ListAction::Goto(q(2.0)), 6.025);
+    near(&e, 21, 204, "Q2 snaps back up");
+    act(&mut e, ListAction::Go, 6.05);
+    run(&mut e, 6.075, 7.55);
+    near(&e, 21, 128, "half-way over 3 s again");
+}
+
+#[test]
+fn cue_56_a_typed_zero_snaps_down() {
+    let mut e = as_in_list();
+    change(
+        &mut e,
+        3.0,
+        CueChange {
+            fade_out: Some(Some(0.0)),
+            ..CueChange::default()
+        },
+    );
+    act(&mut e, ListAction::Go, 1.0);
+    near(&e, 21, 51, "a zero is not As In");
+}
+
+/// Q1: par 201 at 80 %, par 202 at 0, wash 101 Pan at 0. Q2 sets par 201 to 0, par 202 to full,
+/// Pan to full, with `delay` 1 and `fade_in` 2: only 201 falls.
+fn crossing(delay_out: Option<f32>, fade_out: Option<f32>) -> Engine {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            cue(1.0, &[(201, "Dimmer", 0.8), (101, "Pan", 0.0)]),
+            Cue {
+                delay: 1.0,
+                fade_in: 2.0,
+                delay_out,
+                fade_out,
+                ..cue(
+                    2.0,
+                    &[
+                        (201, "Dimmer", 0.0),
+                        (202, "Dimmer", 1.0),
+                        (101, "Pan", 1.0),
+                    ],
+                )
+            },
+        ],
+    );
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    tick(&mut e, 0.0);
+    e
+}
+
+#[test]
+fn cue_56_delay_out_as_in_is_the_delay() {
+    let mut e = crossing(None, None);
+    act(&mut e, ListAction::Go, 1.0);
+    run(&mut e, 1.025, 2.0);
+    near(&e, 21, 204, "holds for the delay");
+    run(&mut e, 2.025, 3.0);
+    near(&e, 21, 102, "half-way down: delay 1, fade 2");
+}
+
+#[test]
+fn cue_56_a_falling_htp_waits_delay_out_and_the_rest_keeps_delay_and_fade_in() {
+    let mut e = crossing(Some(3.0), Some(4.0));
+    act(&mut e, ListAction::Go, 1.0);
+    run(&mut e, 1.025, 3.0);
+    near(&e, 22, 128, "rising HTP: delay 1, fade in 2");
+    assert_eq!(dmx(&e, 2), 128, "LTP Pan: delay 1, fade in 2");
+    near(&e, 21, 204, "falling HTP still waits");
+    run(&mut e, 3.025, 4.0);
+    near(&e, 21, 204, "delay out 3 ends now");
+    run(&mut e, 4.025, 6.0);
+    near(&e, 21, 102, "half-way over fade out 4");
+    run(&mut e, 6.025, 8.0);
+    assert_eq!(dmx(&e, 21), 0);
+}
+
+#[test]
+fn cue_56_back_has_no_delay_out() {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            Cue {
+                delay: 5.0,
+                delay_out: Some(5.0),
+                fade_in: 2.0,
+                ..cue(1.0, &[(201, "Dimmer", 0.2)])
+            },
+            cue(2.0, &[(201, "Dimmer", 1.0)]),
+        ],
+    );
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 10.0);
+    act(&mut e, ListAction::Go, 10.0);
+    near(&e, 21, 255, "Q2 at once");
+    act(&mut e, ListAction::Back, 11.0);
+    run(&mut e, 11.025, 12.0);
+    near(&e, 21, 153, "half-way 100 → 20 %, started at once");
+}
+
+#[test]
+fn cue_56_the_duration_and_an_after_link_use_the_out_times() {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            cue(1.0, &[(201, "Dimmer", 1.0)]),
+            Cue {
+                fade_in: 1.0,
+                delay_out: Some(1.0),
+                fade_out: Some(3.0),
+                ..cue(2.0, &[(201, "Dimmer", 0.0)])
+            },
+            Cue {
+                link: Link::After { offset: 0.0 },
+                ..cue(3.0, &[(202, "Dimmer", 1.0)])
+            },
+        ],
+    );
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    tick(&mut e, 0.0);
+    act(&mut e, ListAction::Go, 1.0);
+    run(&mut e, 1.025, 3.0);
+    assert!(
+        (live(&e).progress - 0.5).abs() < 0.02,
+        "2 of 4 s: {}",
+        live(&e).progress
+    );
+    run(&mut e, 3.025, 4.9);
+    assert_eq!(current(&e), Some(2.0), "the fall of 1 + 3 s still runs");
+    run(&mut e, 4.925, 5.1);
+    assert_eq!(current(&e), Some(3.0), "Q3 follows the fall");
+}
+
+#[test]
+fn cue_56_group_times_replace_the_out_times() {
+    let mut e = crossing(Some(9.0), Some(9.0));
+    change(
+        &mut e,
+        2.0,
+        CueChange {
+            group_times: Some(BTreeMap::from([(
+                AttributeGroup::I,
+                GroupTime {
+                    delay: 0.0,
+                    fade: 2.0,
+                },
+            )])),
+            ..CueChange::default()
+        },
+    );
+    act(&mut e, ListAction::Go, 1.0);
+    run(&mut e, 1.025, 2.0);
+    near(&e, 21, 102, "half-way over the group's 2 s");
+}
+
+#[test]
+fn cue_56_a_chase_ignores_the_out_times() {
+    let mut e = common::church();
+    e.add_playback(Playback {
+        kind: Kind::Chase,
+        cues: vec![
+            Cue {
+                delay_out: Some(9.0),
+                fade_out: Some(9.0),
+                ..cue(1.0, &[(201, "Dimmer", 1.0)])
+            },
+            Cue {
+                delay_out: Some(9.0),
+                fade_out: Some(9.0),
+                ..cue(2.0, &[(202, "Dimmer", 1.0)])
+            },
+        ],
+        ..Playback::new(1, 1, 1, Values::new())
+    });
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    tick(&mut e, 0.0);
+    assert_eq!(dmx(&e, 21), 255);
+    act(&mut e, ListAction::Go, 0.1);
+    assert_eq!(
+        dmx(&e, 21),
+        0,
+        "a step falls with the crossfade (0), at once"
+    );
+    assert_eq!(dmx(&e, 22), 255);
+}
+
+#[test]
+fn cue_56_out_of_range_is_refused_as_a_whole() {
+    let mut e = as_in_list();
+    let before = e.playback(1).unwrap().clone();
+    for delay_out in [601.0, -1.0] {
+        let cue = CueChange {
+            legend: Some("changed".into()),
+            delay_out: Some(Some(delay_out)),
+            ..CueChange::default()
+        };
+        assert!(e.change_cue(1, q(3.0), &cue).is_err());
+        let playback = PlaybackChange {
+            delay_out: Some(Some(delay_out)),
+            ..PlaybackChange::default()
+        };
+        assert!(e.change_playback(1, &playback).is_err());
+    }
+    assert_eq!(e.playback(1).unwrap(), &before);
+}
+
+#[test]
+fn cue_56_a_recorded_cue_is_as_in() {
+    let mut e = common::church();
+    settings(
+        &mut e,
+        PlaybackSettingsChange {
+            fade_in: Some(3.0),
+            ..PlaybackSettingsChange::default()
+        },
+    );
+    program(&mut e, 201, "Dimmer", 0.8);
+    record_clean(&mut e, Some(2.0), RecordMode::Replace, None);
+    program(&mut e, 201, "Dimmer", 0.2);
+    record_clean(&mut e, Some(3.0), RecordMode::Replace, None);
+    let stored = e.playback(1).unwrap().cues[1].clone();
+    assert_eq!((stored.fade_out, stored.delay_out), (None, None));
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 4.0);
+    near(&e, 21, 204, "Q2 up over 3 s");
+    act(&mut e, ListAction::Go, 4.0);
+    run(&mut e, 4.025, 5.5);
+    near(&e, 21, 128, "Q3 down over the 3 s of fade in");
+}
+
+#[test]
+fn cue_57_the_new_cue_times_are_as_in_until_a_time_is_set() {
+    let mut e = common::church();
+    let s = e.settings();
+    assert_eq!((s.cue_fade_out, s.cue_delay_out), (None, None));
+    settings(
+        &mut e,
+        PlaybackSettingsChange {
+            fade_out: Some(Some(4.0)),
+            delay_out: Some(Some(1.0)),
+            ..PlaybackSettingsChange::default()
+        },
+    );
+    let s = e.settings();
+    assert_eq!((s.cue_fade_out, s.cue_delay_out), (Some(4.0), Some(1.0)));
+    program(&mut e, 201, "Dimmer", 0.8);
+    record_clean(&mut e, Some(1.0), RecordMode::Replace, None);
+    let stored = e.playback(1).unwrap().cues[0].clone();
+    assert_eq!((stored.fade_out, stored.delay_out), (Some(4.0), Some(1.0)));
+
+    settings(&mut e, PlaybackSettingsChange::default());
+    assert_eq!(
+        e.settings().cue_fade_out,
+        Some(4.0),
+        "absent changes nothing"
+    );
+    settings(
+        &mut e,
+        PlaybackSettingsChange {
+            fade_out: Some(None),
+            delay_out: Some(None),
+            ..PlaybackSettingsChange::default()
+        },
+    );
+    program(&mut e, 201, "Dimmer", 0.2);
+    record_clean(&mut e, Some(2.0), RecordMode::Replace, None);
+    let stored = e.playback(1).unwrap().cues[1].clone();
+    assert_eq!((stored.fade_out, stored.delay_out), (None, None));
+}
+
+#[test]
+fn cue_57_a_setting_out_of_range_is_refused_as_a_whole() {
+    let mut e = common::church();
+    let before = e.settings().clone();
+    let change = PlaybackSettingsChange {
+        fade_in: Some(2.0),
+        delay_out: Some(Some(601.0)),
+        ..PlaybackSettingsChange::default()
+    };
+    assert!(e.set_playback_settings(&change).is_err());
+    assert_eq!(e.settings(), &before);
 }

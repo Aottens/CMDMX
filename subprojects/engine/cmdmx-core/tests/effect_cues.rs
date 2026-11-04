@@ -625,7 +625,7 @@ fn list(e: &mut Engine, q1: impl FnOnce(&mut Engine), q2: impl FnOnce(&mut Engin
     clear(e);
     edit_playback(e, pb, |p| {
         p.cues[1].fade_in = 1.0;
-        p.cues[1].fade_out = 1.0;
+        p.cues[1].fade_out = Some(1.0);
     });
     assert!(e.playback(pb).unwrap().is_cue_list());
     pb
@@ -708,6 +708,59 @@ fn fx_26_an_effect_the_next_cue_lacks_fades_to_the_base() {
     assert_dmx(&e, 49, 115);
     tick_to(&mut e, 2.75, 3.5);
     assert_dmx(&e, 49, 128);
+}
+
+#[test]
+fn cue_56_an_effect_the_cue_lacks_waits_delay_out_and_falls_over_fade_out() {
+    let mut e = rig();
+    let pb = list(
+        &mut e,
+        |e| {
+            select(e, &[311]);
+            e.set_programmer_value(311, "Pan", 0.5).unwrap();
+            line_pan(e, &[311]);
+        },
+        |e| {
+            e.effect_stop(None).unwrap();
+        },
+    );
+    edit_playback(&mut e, pb, |p| {
+        p.list.tracking = false;
+        p.cues[1].delay_out = Some(0.5);
+    });
+    go_go(&mut e, pb);
+    tick_to(&mut e, 2.25, 2.75);
+    // θ 2.75: offset −0.1, nothing of it gone yet: the delay out has just ended.
+    assert_dmx(&e, 49, 102);
+    tick_to(&mut e, 2.75, 3.25);
+    // θ 3.25: offset +0.1, half of it left.
+    assert_dmx(&e, 49, 140);
+    tick_to(&mut e, 3.25, 4.0);
+    assert_dmx(&e, 49, 128);
+}
+
+#[test]
+fn cue_56_an_effect_fades_out_as_in_when_nothing_is_typed() {
+    let mut e = rig();
+    let pb = list(
+        &mut e,
+        |e| {
+            select(e, &[311]);
+            e.set_programmer_value(311, "Pan", 0.5).unwrap();
+            line_pan(e, &[311]);
+        },
+        |e| {
+            e.effect_stop(None).unwrap();
+        },
+    );
+    edit_playback(&mut e, pb, |p| {
+        p.list.tracking = false;
+        p.cues[1].fade_out = None; // follows its fade in of 1 s
+    });
+    go_go(&mut e, pb);
+    tick_to(&mut e, 2.25, 2.75);
+    // θ 2.75: offset −0.1, half of it left, as with a typed 1 s.
+    assert_dmx(&e, 49, 115);
 }
 
 // ---------- FX-27: tracking ----------
@@ -800,7 +853,7 @@ fn fx_28_a_malformed_entry_is_refused_at_load_and_the_rest_loads() {
 
 #[test]
 fn fx_29_schema_8_and_a_show_without_effects_has_no_effects_key() {
-    assert_eq!(SCHEMA_VERSION, 10);
+    assert_eq!(SCHEMA_VERSION, 11);
     let mut e = rig();
     select(&mut e, &[201]);
     e.set_programmer_value(201, "Dimmer", 0.7).unwrap();
@@ -808,12 +861,12 @@ fn fx_29_schema_8_and_a_show_without_effects_has_no_effects_key() {
     e.record_palette(&Record::at(Cell::new(Window::Beams, 1)))
         .unwrap();
     let json = e.to_show(meta()).to_json();
-    assert!(json.contains("\"schema_version\": 10"));
+    assert!(json.contains("\"schema_version\": 11"));
     assert!(!json.contains("\"effects\""), "{json}");
     assert!(!json.contains("\"palette\": null"));
 
     // The same show as schema 7 loads unchanged and saves byte-identical apart from the version.
-    let seven = json.replace("\"schema_version\": 10", "\"schema_version\": 7");
+    let seven = json.replace("\"schema_version\": 11", "\"schema_version\": 7");
     let (show, migrations) = Show::from_json(&seven).unwrap();
     assert!(
         migrations.iter().any(|m| m.starts_with("7 -> 8")),

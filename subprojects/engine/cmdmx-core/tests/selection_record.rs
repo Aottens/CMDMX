@@ -533,7 +533,7 @@ fn meta() -> Meta {
 
 #[test]
 fn prg_83_schema_9_round_trips_grid_order_and_flip() {
-    assert_eq!(SCHEMA_VERSION, 10);
+    assert_eq!(SCHEMA_VERSION, 11);
     let mut e = church();
     pars_outside_in(&mut e);
     e.select_group(5).unwrap();
@@ -544,7 +544,7 @@ fn prg_83_schema_9_round_trips_grid_order_and_flip() {
     let pb = record(&mut e, 1, 1);
 
     let json = e.to_show(meta()).to_json();
-    assert!(json.contains("\"schema_version\": 10"));
+    assert!(json.contains("\"schema_version\": 11"));
     assert!(json.contains("\"grid\""), "{json}");
     assert!(json.contains("\"order\""), "{json}");
     assert!(json.contains("\"flip\": true"), "{json}");
@@ -575,7 +575,7 @@ fn prg_83_a_show_without_them_saves_as_schema_8_did() {
         assert!(!json.contains(key), "{key} in {json}");
     }
 
-    let eight = json.replace("\"schema_version\": 10", "\"schema_version\": 8");
+    let eight = json.replace("\"schema_version\": 11", "\"schema_version\": 8");
     let (show, migrations) = Show::from_json(&eight).unwrap();
     assert!(
         migrations.iter().any(|m| m.starts_with("8 -> 9")),
@@ -593,13 +593,14 @@ fn prg_83_the_schema_8_church_show_loads_unchanged() {
         "/../../../tests/fixtures/shows/"
     );
     let v8 = std::fs::read_to_string(format!("{dir}church-demo-v8.cmdmx.json")).unwrap();
-    let v9 = std::fs::read_to_string(format!("{dir}church-demo.cmdmx.json")).unwrap();
+    let v10 = std::fs::read_to_string(format!("{dir}church-demo-v10.cmdmx.json")).unwrap();
+    let now = std::fs::read_to_string(format!("{dir}church-demo.cmdmx.json")).unwrap();
     assert_eq!(
         v8.replace("\"schema_version\": 8", "\"schema_version\": 10"),
-        v9
+        v10
     );
     let (show, _) = Show::from_json(&v8).unwrap();
     let (loaded, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
-    assert_eq!(loaded.to_show(show.meta.clone()).to_json(), v9);
+    assert_eq!(loaded.to_show(show.meta.clone()).to_json(), now);
 }

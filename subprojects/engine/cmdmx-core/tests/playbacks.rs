@@ -465,14 +465,14 @@ fn pbk_12_new_cues_take_the_time_settings() {
         (
             defaults.cue_delay,
             defaults.cue_fade_in,
-            defaults.cue_fade_out,
+            defaults.cue_fade_out.unwrap_or(defaults.cue_fade_in),
             defaults.cue_overlap
         ),
         (0.0, 0.0, 0.0, 100.0)
     );
     e.set_playback_settings(&PlaybackSettingsChange {
         fade_in: Some(3.0),
-        fade_out: Some(4.0),
+        fade_out: Some(Some(4.0)),
         delay: Some(0.5),
         overlap: Some(50.0),
         ..PlaybackSettingsChange::default()
@@ -483,7 +483,7 @@ fn pbk_12_new_cues_take_the_time_settings() {
     let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
     let cue = &e.playback(id).unwrap().cues[0];
     assert_eq!(
-        (cue.delay, cue.fade_in, cue.fade_out, cue.overlap),
+        (cue.delay, cue.fade_in, cue.fade_out_in_force(), cue.overlap),
         (0.5, 3.0, 4.0, 50.0)
     );
 }
@@ -498,7 +498,7 @@ fn pbk_12_out_of_range_settings_are_refused_as_a_whole() {
             ..PlaybackSettingsChange::default()
         },
         PlaybackSettingsChange {
-            fade_out: Some(2.0),
+            fade_out: Some(Some(2.0)),
             delay: Some(-1.0),
             ..PlaybackSettingsChange::default()
         },
@@ -808,7 +808,7 @@ fn pbk_24_change_sets_options_and_times() {
             release_time: Some(Some(0.5)),
             group: Some(Some(1)),
             fade_in: Some(3.0),
-            fade_out: Some(4.0),
+            fade_out: Some(Some(4.0)),
             delay: Some(1.0),
             overlap: Some(50.0),
             ..PlaybackChange::default()
@@ -822,7 +822,7 @@ fn pbk_24_change_sets_options_and_times() {
     assert_eq!((pb.release_time, pb.group), (Some(0.5), Some(1)));
     let cue = &pb.cues[0];
     assert_eq!(
-        (cue.delay, cue.fade_in, cue.fade_out, cue.overlap),
+        (cue.delay, cue.fade_in, cue.fade_out_in_force(), cue.overlap),
         (1.0, 3.0, 4.0, 50.0)
     );
     // Back to the global mask and time.
@@ -1005,7 +1005,7 @@ fn keys_in_order(text: &str, from: &str, keys: &[&str]) {
 
 #[test]
 fn pbk_34_schema_3_shape() {
-    assert_eq!(SCHEMA_VERSION, 10); // CUE-38, GRM-13 and OUT-13 add keys; this order still holds
+    assert_eq!(SCHEMA_VERSION, 11); // CUE-38, GRM-13 and OUT-13 add keys; this order still holds
     let mut e = styled();
     e.set_page_legend(2, "Service").unwrap();
     let text = e.to_show(meta()).to_json();
@@ -1034,7 +1034,6 @@ fn pbk_34_schema_3_shape() {
             "cues",
             "delay",
             "fade_in",
-            "fade_out",
             "overlap",
             "values",
         ],
@@ -1051,7 +1050,8 @@ fn pbk_34_schema_3_shape() {
             &s["cue_fade_out"],
             &s["cue_overlap"]
         ),
-        (&json!(0.0), &json!(0.0), &json!(0.0), &json!(100.0))
+        // CUE-57: `cue_fade_out` is As In, so the key is absent.
+        (&json!(0.0), &json!(0.0), &json!(null), &json!(100.0))
     );
     assert_eq!(
         (&s["release_mask"], &s["release_time"]),
@@ -1212,7 +1212,7 @@ fn pbk_44_values_for_unknown_fixtures_and_palettes() {
 fn pbk_45_a_schema_2_show_keeps_its_playbacks_where_pbk_01_put_them() {
     let file = std::fs::read_to_string(V2_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 8, "{migrations:?}");
+    assert_eq!(migrations.len(), 9, "{migrations:?}");
     assert!(migrations[0].starts_with("2 -> 3"), "{migrations:?}");
     assert!(migrations[1].starts_with("3 -> 4"), "{migrations:?}"); // CUE-38
     assert!(migrations[2].starts_with("4 -> 5"), "{migrations:?}"); // GRM-13
@@ -1229,7 +1229,7 @@ fn pbk_45_a_schema_2_show_keeps_its_playbacks_where_pbk_01_put_them() {
     );
     let cue = &one.cues[0];
     assert_eq!(
-        (cue.delay, cue.fade_in, cue.fade_out, cue.overlap),
+        (cue.delay, cue.fade_in, cue.fade_out_in_force(), cue.overlap),
         (0.0, 0.0, 0.0, 100.0)
     );
     let two = e.playback(2).unwrap();
@@ -1267,7 +1267,7 @@ fn pbk_45_ids_map_to_pages_with_the_shows_faders_per_page() {
 fn cue_new_has_zero_times_and_full_overlap() {
     let cue = Cue::new(dimmers(&[101], 1.0));
     assert_eq!(
-        (cue.delay, cue.fade_in, cue.fade_out, cue.overlap),
+        (cue.delay, cue.fade_in, cue.fade_out_in_force(), cue.overlap),
         (0.0, 0.0, 0.0, 100.0)
     );
     let pb = Playback::new(4, 2, 3, dimmers(&[101], 1.0));
@@ -1279,7 +1279,7 @@ fn cue_new_has_zero_times_and_full_overlap() {
 
 #[test]
 fn pbk_46_cues_recorded_after_the_setting_take_its_times_an_earlier_cue_keeps_its_own() {
-    let times = |c: &Cue| (c.delay, c.fade_in, c.fade_out, c.overlap);
+    let times = |c: &Cue| (c.delay, c.fade_in, c.fade_out_in_force(), c.overlap);
     let record = |e: &mut Engine, slot, add| {
         e.clear_selection();
         e.clear();
@@ -1308,7 +1308,7 @@ fn pbk_46_cues_recorded_after_the_setting_take_its_times_an_earlier_cue_keeps_it
     e.set_playback_settings(&PlaybackSettingsChange {
         delay: Some(0.5),
         fade_in: Some(3.0),
-        fade_out: Some(4.0),
+        fade_out: Some(Some(4.0)),
         overlap: Some(50.0),
         ..PlaybackSettingsChange::default()
     })

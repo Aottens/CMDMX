@@ -178,7 +178,9 @@ pub struct Settings {
     pub cue_record_by: RecordBy,
     pub cue_delay: f32,
     pub cue_fade_in: f32,
-    pub cue_fade_out: f32,
+    /// CUE-57: `None` = As In.
+    pub cue_fade_out: Option<f32>,
+    pub cue_delay_out: Option<f32>,
     pub cue_overlap: f32,
     /// The global release mask and time (PBK-20).
     pub release_mask: Vec<AttributeGroup>,
@@ -200,7 +202,9 @@ pub struct PlaybackSettingsChange {
     pub record_by: Option<RecordBy>,
     pub delay: Option<f32>,
     pub fade_in: Option<f32>,
-    pub fade_out: Option<f32>,
+    /// CUE-57: `Some(None)` = As In.
+    pub fade_out: Option<Option<f32>>,
+    pub delay_out: Option<Option<f32>>,
     pub overlap: Option<f32>,
     pub release_mask: Option<Vec<AttributeGroup>>,
     pub release_time: Option<f32>,
@@ -237,7 +241,8 @@ impl Default for Settings {
             cue_record_by: RecordBy::Channel,
             cue_delay: 0.0,
             cue_fade_in: 0.0,
-            cue_fade_out: 0.0,
+            cue_fade_out: None,
+            cue_delay_out: None,
             cue_overlap: 100.0,
             release_mask: Vec::new(),
             release_time: 2.0,
@@ -443,14 +448,20 @@ impl CueFx {
         now: Timestamp,
     ) {
         let fresh = self.cue.is_none();
+        // CUE-56: delay, fade in, delay out, fade out.
         let times = |group: AttributeGroup| match cue.group_times.get(&group) {
-            Some(g) => (g.delay, g.fade, g.fade),
-            None => (cue.delay, cue.fade_in, cue.fade_out),
+            Some(g) => (g.delay, g.fade, g.delay, g.fade),
+            None => (
+                cue.delay,
+                cue.fade_in,
+                cue.delay_out_in_force(),
+                cue.fade_out_in_force(),
+            ),
         };
         let mut before = std::mem::take(&mut self.runs);
         let mut runs: Vec<Run> = Vec::new();
         for entry in incoming {
-            let (delay, fade, _) = times(entry.group);
+            let (delay, fade, _, _) = times(entry.group);
             let start = now + f64::from(delay);
             let mut rest = entry;
             for a in &mut before {
@@ -492,7 +503,7 @@ impl CueFx {
                 continue;
             }
             if !a.leaving {
-                let (delay, _, fade) = times(a.entry.group);
+                let (_, _, delay, fade) = times(a.entry.group);
                 if fade <= 0.0 {
                     continue;
                 }
@@ -1792,6 +1803,7 @@ impl Engine {
                 cue_delay: s.cue_delay,
                 cue_fade_in: s.cue_fade_in,
                 cue_fade_out: s.cue_fade_out,
+                cue_delay_out: s.cue_delay_out,
                 cue_overlap: s.cue_overlap,
                 release_mask: s.release_mask.clone(),
                 release_time: s.release_time,
@@ -1882,6 +1894,7 @@ impl Engine {
             cue_delay: s.cue_delay,
             cue_fade_in: s.cue_fade_in,
             cue_fade_out: s.cue_fade_out,
+            cue_delay_out: s.cue_delay_out,
             cue_overlap: s.cue_overlap,
             release_mask: s.release_mask.clone(),
             release_time: s.release_time,
@@ -2224,7 +2237,6 @@ impl Engine {
             for (name, value, max, default) in [
                 ("delay", &mut cue.delay, 600.0, 0.0),
                 ("fade in", &mut cue.fade_in, 600.0, 0.0),
-                ("fade out", &mut cue.fade_out, 600.0, 0.0),
                 ("overlap", &mut cue.overlap, 100.0, 100.0),
             ] {
                 if !(0.0..=max).contains(value) {
@@ -2232,6 +2244,18 @@ impl Engine {
                         "playback {id}: {name} {value} is out of range, set to {default}"
                     ));
                     *value = default;
+                }
+            }
+            // CUE-56, 58: an out-of-range out time becomes As In.
+            for (name, value) in [
+                ("fade out", &mut cue.fade_out),
+                ("delay out", &mut cue.delay_out),
+            ] {
+                if let Some(v) = value.filter(|v| !(0.0..=600.0).contains(v)) {
+                    warnings.push(format!(
+                        "playback {id}: {name} {v} is out of range, set to As In"
+                    ));
+                    *value = None;
                 }
             }
             cue.values.retain(|item, _| {
@@ -3030,7 +3054,8 @@ impl Engine {
         for time in [
             change.delay,
             change.fade_in,
-            change.fade_out,
+            change.fade_out.flatten(),
+            change.delay_out.flatten(),
             change.release_time,
         ]
         .into_iter()
@@ -3068,6 +3093,9 @@ impl Engine {
         }
         if let Some(v) = change.fade_out {
             s.cue_fade_out = v;
+        }
+        if let Some(v) = change.delay_out {
+            s.cue_delay_out = v;
         }
         if let Some(v) = change.overlap {
             s.cue_overlap = v;
@@ -3338,6 +3366,7 @@ impl Engine {
             delay: s.cue_delay,
             fade_in: s.cue_fade_in,
             fade_out: s.cue_fade_out,
+            delay_out: s.cue_delay_out,
             overlap: s.cue_overlap,
             number,
             ..Cue::new(values)
@@ -3569,9 +3598,14 @@ impl Engine {
         if let Some(legend) = &change.legend {
             check_legend(legend)?;
         }
-        for time in [change.delay, change.fade_in, change.fade_out]
-            .into_iter()
-            .flatten()
+        for time in [
+            change.delay,
+            change.fade_in,
+            change.fade_out.flatten(),
+            change.delay_out.flatten(),
+        ]
+        .into_iter()
+        .flatten()
         {
             check_time(time)?;
         }
@@ -3598,6 +3632,9 @@ impl Engine {
         }
         if let Some(v) = change.fade_out {
             cue.fade_out = v;
+        }
+        if let Some(v) = change.delay_out {
+            cue.delay_out = v;
         }
         if let Some(v) = change.overlap {
             cue.overlap = v;
@@ -3793,7 +3830,8 @@ impl Engine {
         for time in [
             change.delay,
             change.fade_in,
-            change.fade_out,
+            change.fade_out.flatten(),
+            change.delay_out.flatten(),
             change.release_time.flatten(),
         ]
         .into_iter()
@@ -3883,6 +3921,9 @@ impl Engine {
             }
             if let Some(v) = change.fade_out {
                 cue.fade_out = v;
+            }
+            if let Some(v) = change.delay_out {
+                cue.delay_out = v;
             }
             if let Some(v) = change.overlap {
                 cue.overlap = v;

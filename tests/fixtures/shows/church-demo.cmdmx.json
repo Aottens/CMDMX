@@ -1,5 +1,5 @@
 {
-  "schema_version": 10,
+  "schema_version": 11,
   "meta": {
     "name": "Church demo",
     "created": "2026-10-18T09:00:00Z",
@@ -20,7 +20,6 @@
     "cue_record_by": "Channel",
     "cue_delay": 0.0,
     "cue_fade_in": 0.0,
-    "cue_fade_out": 0.0,
     "cue_overlap": 100.0,
     "release_mask": [],
     "release_time": 2.0,
@@ -577,7 +576,6 @@
           {
             "delay": 0.0,
             "fade_in": 0.0,
-            "fade_out": 0.0,
             "overlap": 100.0,
             "number": 1.0,
             "legend": "",
@@ -636,7 +634,6 @@
           {
             "delay": 0.0,
             "fade_in": 0.0,
-            "fade_out": 0.0,
             "overlap": 100.0,
             "number": 1.0,
             "legend": "",

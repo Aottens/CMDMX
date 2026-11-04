@@ -662,18 +662,19 @@ fn cue_09_change_cue_sets_times_link_track_group_times_and_legend() {
             legend: Some("Worship".into()),
             delay: Some(0.5),
             fade_in: Some(2.0),
-            fade_out: Some(4.0),
+            fade_out: Some(Some(4.0)),
             overlap: Some(50.0),
             link: Some(Link::With { offset: 2.0 }),
             track: Some(Track::CueOnly),
             group_times: Some(times.clone()),
+            ..CueChange::default()
         },
     )
     .unwrap();
     let c = cue_at(&e, 1, 3.0);
     assert_eq!(c.legend, "Worship");
     assert_eq!(
-        (c.delay, c.fade_in, c.fade_out, c.overlap),
+        (c.delay, c.fade_in, c.fade_out_in_force(), c.overlap),
         (0.5, 2.0, 4.0, 50.0)
     );
     assert_eq!(c.link, Link::With { offset: 2.0 });
@@ -700,7 +701,7 @@ fn cue_09_out_of_range_is_refused_as_a_whole() {
             ..CueChange::default()
         },
         CueChange {
-            fade_out: Some(601.0),
+            fade_out: Some(Some(601.0)),
             ..CueChange::default()
         },
         CueChange {
@@ -1096,11 +1097,11 @@ fn styled() -> Engine {
 
 #[test]
 fn cue_38_schema_4_shape() {
-    assert_eq!(SCHEMA_VERSION, 10); // PRG-52 groups store items; GRM-13 adds only the GroupMaster kind, OUT-13 the output key
+    assert_eq!(SCHEMA_VERSION, 11); // PRG-52 groups store items; GRM-13 adds only the GroupMaster kind, OUT-13 the output key
     let e = styled();
     let text = e.to_show(meta()).to_json();
     let v: Json = serde_json::from_str(&text).unwrap();
-    assert_eq!(v["schema_version"], json!(10));
+    assert_eq!(v["schema_version"], json!(11));
     keys_in_order(
         &text,
         "\"playbacks\": [",
@@ -1112,7 +1113,6 @@ fn cue_38_schema_4_shape() {
             "cues",
             "delay",
             "fade_in",
-            "fade_out",
             "overlap",
             "number",
             "legend",
@@ -1214,7 +1214,7 @@ fn cue_38_a_schema_3_show_is_migrated() {
         .unwrap()
         .push(second);
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 7, "{migrations:?}");
+    assert_eq!(migrations.len(), 8, "{migrations:?}");
     assert!(migrations[0].starts_with("3 -> 4"), "{migrations:?}");
     assert!(migrations[1].starts_with("4 -> 5"), "{migrations:?}"); // GRM-13
     assert!(migrations[2].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
