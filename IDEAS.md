@@ -61,7 +61,7 @@ the backlog, not the whole idea.
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
 | IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
-| IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | triaged; phase confirmed 2026-11-02 | 1 (owner 2026-11-02) | UI |
+| IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | spec P1-29 approved (UI-52) | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 | IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
@@ -785,7 +785,7 @@ showing 602 until the tab is reopened. `NumberField` shows what was sent (VS3-05
 the file's header says a refused value stays as it was. Every `NumberField` in Playback Options does this, also a cue's own times.
 **Triage:** phase 1 (owner, 2026-11-02); `ui.md`; its place in the order is still open. Nothing recorded wrong: the show holds the old value.
 **Third review (2026-11-04):** proposed in batch B, which changes times anyway.
-**Open question:** how the field learns of the refusal, since warnings carry no field; and whether it snaps back at once or on leaving the field.
+**Open question:** how the field learns of the refusal, since warnings carry no field; and whether it snaps back at once or on leaving the field. P1-29, approved by the owner 2026-11-04: it need not learn, half a second after sending it shows what the engine holds (UI-52).
 
 ### IDEA-37 — The app takes over when another engine goes away (2026-11-02)
 **Found in:** the DEF-03 run; not from the owner.

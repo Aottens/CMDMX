@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (cue lists, chases and masters are playbacks), `cmdmx-daemon`
 (IPC, tap timestamps), the Go block, Cue list window, strips and Playback Options in
 `subprojects/app`.
-Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.**
+Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.** CUE-56..62: approved by owner 2026-11-04 (IDEA-35 batch B, P1-29).
 Behavioural reference: Avolites Titan v19 manual, *Cue Lists* (https://manual.avolites.com/docs/cue-lists:
 Creating, Playback, Editing, Timing, Options), *Chases* (https://manual.avolites.com/docs/chases:
 Playback, Timing, Options) and *Running the Show → Playback controls* (speed masters, key
@@ -532,6 +532,27 @@ values.
   same timestamped actions (tap times included) → identical list state and frames (ENG-11). The
   core has no clock and no random source of its own (CUE-30, 33).
 
+### Changing what is recorded (IDEA-35 batch B, P1-29; approved by owner 2026-11-04)
+Titan pages used: *Cue List Timing*, *Creating a Cue List*, *Editing Cue Lists*, *Editing Cues*. What a page does not say is marked as our own choice.
+- **CUE-56** **As In** (I1; amends CUE-02, 09, 13, PBK-16; Titan: Fade Out and Delay Out default to *As In*, a typed value overrides, a blank box links them again). A cue's
+  `fade_out` and new `delay_out` are a time or **As In**, default As In: they then have the value of `fade_in` and `delay`. CUE-13's HTP attribute falling waits `delay_out` and
+  falls over `fade_out`; rising HTP and LTP keep `delay` and `fade_in`. The transition's duration (CUE definitions) and so the `After` link use these values. Back has no delay (CUE-11), out included.
+  Group times (CUE-14) still replace both; chases ignore all of them (CUE-29). A memory has only `fade_out` (PBK-16, mode 1; As In follows `fade_in`) and ignores `delay_out`: Titan's *Cue Timing* has no delay out, and as an own choice its fade out follows
+  as on a list, so one cue has one rule. Q2 pars 80 % → Q3 pars 20 %, `fade_in` 3 s, nothing else set: Go → down over 3 s; `fade_out` 5 → over 5 s; As In again → 3 s.
+  Tests `cue_56_…`, scenario `CUE-56-*.json`.
+- **CUE-57** New cues (amends PBK-12, PBK-46). The settings `cue_fade_out` and new `cue_delay_out` are a time or As In, default As In. *New cue times* gains Delay out, and both out rows show "as in" with an empty field: an empty field means As In. `cue_56_…` covers a recorded cue.
+- **CUE-58** Schema 11 (SHW-04 migration from 10; a show keeps its output on load). Each cue gains `delay_out` and `dormant` (CUE-61), both absent when As In or empty. A `fade_out` equal to its `fade_in` becomes As In, which changes no output; any other `fade_out` stays
+  the number it was, so a cue with `fade_in` 3 and `fade_out` 0 still snaps down, and shows that 0 in the Out column. Settings the same. Lenient load as CUE-39. An older engine refuses schema 11 (SHW-04), so a show saved with this release does not open on the church Mac until that Mac is updated. Test `cue_58_…`.
+- **CUE-59** **Effects in the Cue view** (B3; amends CUE-54; Titan: Cue View has a Shapes view). `cue.view` gains `effects: [{"entry":7,"look":"Sweep","shape":"Sine","attributes":["Pan"],"members":[301,302],"from":2.0}]`, the entries of the cue's state (FX-27), `from` as CUE-54, an entry tracked for only some members listed with
+  those members. App: one row per entry under the fixture rows: look or shape, attributes, member count, magenta when tracked. `cue.remove_effect {id, cue, entry}` takes a hard entry out, two-step as Remove (softkey *Remove*, a right-click picks the row), on stage on the next tick (CUE-53); a tracked one is refused ("Q3 holds no effect 7 of its own"). Changing parameters goes through Include (PBK-48). Test `cue_59_…`.
+- **CUE-60** **Remove a whole fixture** (B5; amends CUE-54; Titan: *Remove Fixtures* in Cue View). A right-click on the fixture number of a row picks the item; softkey *Remove* names it ("fixture 201", "901.2") and sends `cue.remove` without `attribute`. `cue.remove` of an item also takes it out of the members of the cue's own effect entries, and an entry left without members goes. It takes out hard values only, as CUE-54: what tracks from an earlier cue stays visible. Test `cue_60_…`.
+- **CUE-61** **Off and On** (B5; Titan: "Off" is not a recorded zero, the attribute is skipped when the cue fires; *Off*/*On* softkeys in Cue View). `cue.off {id, cue, fixture, attribute?, off}` moves a hard value (or all of an item's) between `values` and a new `dormant` map of the cue, so nothing that plays a cue sees a dormant value: the attribute
+  tracks from earlier cues as if the cue did not hold it, and a live cue shows that on the next tick (CUE-53). A tracked value, or one that is not there, is refused. Dormant values are kept through Copy, follow palette deletion (PAL-18), fixture removal (PAT-26) and mode change (PAT-27) as values do, and are counted by IPC-54. Record or Merge of that attribute stores the new value and drops the dormant one; Replace drops all of the cue's dormant values; Update and Include do not read them. `cue.view` gains `dormant` per fixture with `value`; the row shows it struck through and dim; softkeys *Off* and *On* act on the picked value. Test `cue_61_…`.
+- **CUE-62** **Stay in Record to build a list** (I3; amends CUE-45; Titan: Record, Create Cue List, the handle; each further press of its Select or Append Cue stores the next cue; Exit ends. It warns against Clear between cues). The Record context gains **Create List** and **Create Chase**. Then:
+  - A tap on a handle stores the programmer's contents and Record stays armed on that handle: an empty handle gets its first cue (`playback.record` gains `kind`, `Chase` or `Cues`, honoured only on a new playback), a used one takes an Append without the softkeys. A strip's Flash or Swop is that tap (UI-43); softkey *Append* does the same; a further tap appends. "Building 1.1: tap it or Append for the next cue, Exit ends."
+  - A tap on another handle, or Create Chase on a used handle that is not a chase, is refused and stays armed. An empty programmer is refused as PBK-09 and stays armed. A number on the line records to that number as CUE-45.
+  - Exit, Esc or a screen opening ends it (UI-44, 45). The programmer stays as it is between cues (PBK-09), each cue is one undo step, Go and Space stay live. The Options route to a chase stays. Test `cue_62_…` for `kind`; the rest by hand.
+
 ## Scenario test format
 Scenario playback entries gain the CUE-38 fields (`kind`, `list`, `chase`, `master`, and per cue
 `number`, `legend`, `link`, `track`, `group_times`; `number` may be left out and then counts 1, 2, 3 … in
@@ -573,13 +594,20 @@ tests on `cmdmx-core` (`tests/cuelists.rs`, `tests/showfile.rs`); everything tha
 Editing in a tracking view (turning hard values into tracked ones and back), Update on several
 cues at once, shape tracking (with shapes, phase 2); the manual crossfader fader mode (with fader
 mode 3, phase 2); a typed time on Go ("3 Go"); Snap / Snap Back and Cut Next Cue To Live; Move In
-Dark; Cue Release; disabling a cue; Cue Links Disabled; link offsets in %; Delay Out and
+Dark; Cue Release; disabling a cue; Cue Links Disabled; link offsets in %;
 per-attribute or per-fixture times; per-step times, fixture overlap and speed multipliers (×/÷)
 on chases; LocalClock and Edge Sync; Ableton or MIDI-clock sync (IDEA-16, phase 2); the Rate
 Grand Master; Size masters and shapes following masters (phase 2); key profiles per user and
 beyond the two handle buttons (CUE-25); a Cue / Connect key on the keypad; copying cues between
 lists; Quick Build and Record Stage; autoloads, macros and timecode / MIDI triggers in cues
 (phase 3 for timecode); Blind editing; the set list.
+
+## Owner decisions (P1-29, 2026-11-04: every recommendation accepted)
+1. **Third review:** K6, K11, I6 and IDEA-36 go in this batch. Not chosen: leaving them in I, B or their own place.
+2. **B7, Blind and Edit:** apart, in its own spec (P1-31). Not chosen: in this batch.
+3. **CUE-58, cues that exist:** a fade out that differs from the fade in stays the number it was, so a show keeps its output on load. Not chosen: a 0 becomes As In.
+4. **CUE-61, Off and On:** in this batch, as Titan. Not chosen: later.
+5. **PBK-49, Update's softkeys:** playbacks ticked, palettes unticked. Not chosen: both ticked, or both unticked.
 
 ## Owner decisions (2026-10-21, answers to the first gate-1 questions)
 1. **Go per fader and one Go block (A):** a cue list sits on any handle with its own Go

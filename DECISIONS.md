@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-04 — Batch B: As In without changing a show, Update does not touch palettes by itself (IDEA-35 B, P1-29; owner)
+
+**Decision:** The batch takes K6, K11, I6 and IDEA-36; Blind and Edit go apart (P1-31). As In is the default for new cues, while an existing fade out that differs from its fade in stays a number. Off and On are in. Update's softkeys start with playbacks ticked and palettes unticked. All five as recommended; `cuelists.md`, owner decisions.
+
+**Alternatives considered:** Blind in the batch; a stored 0 becoming As In on load; Off and On later; palettes ticked too.
+
+**Reasoning:** a show must keep its output when opened, and a palette reaches every cue that uses it, so that takes a deliberate tick. Titan's Blind page was not found, and it is the largest item.
+
+**Reversal trigger:** the gap review of 0.5.0 finds old cues snapping as a daily annoyance, or a Titan showing palettes ticked by default.
+
 ## 2026-11-04 — A small patch before batch B (owner)
 
 **Decision:** K1 (a plain dimmer in the library), K2's hint and manual line, and IDEA-40 go out as patch 0.4.1 before the spec of batch B (P1-30); the rest of the third review's order stays as proposed, subject to the owner's approval of the batches. As a patch it has no gap review (REL-26). Spec approved 2026-11-04: Keys stays off by default (a stray key cannot reach a running show), the dimmer has 8-bit and 16-bit modes, and UI-50 clears only what the app itself said.

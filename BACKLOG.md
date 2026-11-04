@@ -181,6 +181,25 @@ Builds: NEW-01; NEW-02 + NEW-03.
 | NEW-02 | App: with Keys off a key or a click on the line says how to turn it on; manual; checklist. | UI-49 | S | done (2026-11-04, #239) |
 | NEW-03 | App: an armed function's own message goes when it disarms; checklist and the run. | UI-50 | S | done (2026-11-04, #239) |
 
+### Changing what is recorded (IDEA-35 batch B, spec P1-29)
+Approved by the owner 2026-11-04. Sub-release 0.5.0 follows the batch, then a gap review with the app running; nothing goes on the church Mac before the service of 2026-11-08. Release alone: it may have to be reverted alone, as it changes what a running show does.
+Builds: REC-01 + REC-02; REC-03; REC-04; REC-05 + REC-06 + REC-07; REC-08 + REC-09; REC-10 + REC-11 + REC-12.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| REC-01 | Core and daemon: As In and delay out on the frame, schema 11 with migration; `cue_56_…`, `cue_57_…` (settings), `cue_58_…`, `ipc_55_…`, scenarios. | CUE-56..58, IPC-55 | M | todo |
+| REC-02 | App: As In in Times and *New cue times*, a refused number goes back; manual and run, read on Art-Net. Needs REC-01. | CUE-56, CUE-57, UI-52 | S | todo |
+| REC-03 | Core: Release fades HTP over the release time; scenario `PBK-47-*.json`; manual and run on Art-Net. | PBK-47 | S | todo |
+| REC-04 | Daemon and app: Times view in the Cue list window, `cue.times` with `cues`; `ipc_56_…`; manual and run. Needs REC-01. | UI-51, IPC-56 | M | todo |
+| REC-05 | App: a one-cue playback in the Cue window, View and ⋯ on each row; manual and run. | UI-53, UI-54 | S | todo |
+| REC-06 | Core and app: effects in the Cue view and their Remove, whole-fixture Remove; `cue_59_…`, `cue_60_…`; manual and run. | CUE-59, CUE-60 | S | todo |
+| REC-07 | Core and app: Off and On, `dormant` stored; `cue_61_…`; manual and run on Art-Net. Needs REC-01 (schema 11). | CUE-61, IPC-57 | M | todo |
+| REC-08 | Core and app: Include on a handle and a cue row; `pbk_48_…`; manual and run. | PBK-48, UI-42 | S | todo |
+| REC-09 | Core and app: Update lists and stores its targets; `pbk_49_…`, `ipc_57_…`; manual and run on Art-Net. | PBK-49, IPC-57 | M | todo |
+| REC-10 | Core and app: Record over a group asks Replace or Merge; `prg_97_…`; manual and run. | PRG-97, UI-42 | S | todo |
+| REC-11 | Core and app: a group master changes its group; `grm_21_…`; manual. | GRM-21 | S | todo |
+| REC-12 | Core and app: Create List and Create Chase stay in Record; `cue_62_…`; manual and run. | CUE-62 | S | todo |
+
 ### Functions and consequences (IDEA-35 batch H, spec P1-27)
 Order proposed with the spec: what can change the stage by surprise first. Sub-release 0.4.0 follows the batch, then a gap review with the app running; nothing from H goes on the church Mac before the service of 2026-11-08.
 Builds: FUN-01 + FUN-02; FUN-03 + FUN-04; FUN-05 + FUN-06.
@@ -248,8 +267,9 @@ after VS8-03, in any order.
 | P1-26 | Spec IDEA-35 batch A2, defects in what exists: each point checked in the code or a run (`tests/manual/runs/2026-11-02-A2-checks.md`; A2.5 does not happen), as PAT-26..28, IPC-53, UI-41, REL-26..28; build tasks DEF-01..05; approved by owner 2026-11-02. | PAT, IPC, UI, REL | S | done (2026-11-02, #225) |
 | P1-27 | Spec IDEA-35 batch H, functions and consequences: each point checked in the code (`tests/manual/runs/2026-11-03-H-checks.md`; all six still happen), as UI-42..48, IPC-54; build tasks FUN-01..06; five owner questions answered 2026-11-03, each as recommended. | UI, IPC | S | done (2026-11-03, #232) |
 | P1-28 | Gap review after v0.4.0 with the app running, one operator's evening (REL-26): third review in `docs/research/everyday-gaps.md`, run `tests/manual/runs/2026-11-04-gap-review.md`, proposals for B to G, I and J, and for IDEA-36..40. | REL-26 | S | done (2026-11-04, #237) |
-| P1-29 | Spec IDEA-35 batch B, changing what is recorded, with I1, I3 and what the owner approves from the third review. After the patch of P1-30. | PRG, CUE, PBK, UI | S | todo |
+| P1-29 | Spec IDEA-35 batch B, changing what is recorded, with I1, I3 and what the owner approves from the third review, as CUE-56..62, PBK-47..49, PRG-97, GRM-21, IPC-55..57, UI-51..54; build tasks REC-01..12; approved by owner 2026-11-04, the five questions as recommended (`cuelists.md`). | PRG, CUE, PBK, GRM, IPC, UI | S | done (2026-11-04, #241) |
 | P1-30 | Spec the patch before batch B (owner, 2026-11-04): LIB-40, UI-49, UI-50, build tasks NEW-01..03; approved by owner 2026-11-04. | LIB, UI | S | done (2026-11-04, #237) |
+| P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. | PRG, UI | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ## Phase 10 track — hardware (parallel to phase 1)
