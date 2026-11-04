@@ -1,5 +1,19 @@
 # Release notes
 
+## 0.4.1
+
+Published 4 November 2026 as "CMDMX 0.4.1".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.4.1)
+
+A small patch from the review of an operator's evening with 0.4.0.
+
+- **A built-in dimmer:** *Generic* / *Dimmer* is always in the library, with a 1-channel and a 16-bit mode, also
+  without QLC+.
+- **Keys off says so:** with **Keys** off, a Mac key the console would use or a click on the command line says how to
+  turn Keys on, or to use the keypad (see [the command line](programming.md)).
+- **A function's message goes with it:** the hint, refusal or delete text of an armed function goes when it disarms.
+  A warning from the engine stays until the next command, also through Cancel.
+
 ## 0.4.0
 
 Published 3 November 2026 as "CMDMX 0.4.0".
