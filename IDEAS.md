@@ -66,6 +66,7 @@ the backlog, not the whole idea.
 | IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 | IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
+| IDEA-41 | Our own built-in 3D visualiser, inside the app (owner 2026-11-04) | triaged | 4 (owner 2026-11-04) | new `visualiser.md`, PAT, LIB, IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -815,3 +816,19 @@ offline until it is restarted; it does not start its own bundled engine. Only re
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now.
 **Third review (2026-11-04):** seen again after Esc and through an engine restart. Owner: in a patch before B, so phase 1 (P1-30).
 **Open question:** clear only hints (`say`) on a disarm, so a warning from the engine stays?
+
+### IDEA-41 — Our own built-in 3D visualiser (2026-11-04)
+**Owner's intent:** phase 4 is our own 3D visualiser, built into CMDMX, not an outside program such as Capture.
+**Triage:**
+- Phase 4, confirmed by the owner. Module spec to write when the phase is planned (`visualiser.md`).
+- It draws the rig in 3D from the live output, so a show can be programmed without lamps. The engine holds
+  no 3D: the app draws what the engine sends, on the same feed as IDEA-10 and IDEA-25.
+- Builds on IDEA-25 (2D rig overview, phase 2): the same fixture positions, selecting in the view.
+**What it touches now:** nothing forced. When IDEA-25 is specced, the position on a patched fixture should
+leave room for height and orientation, so the 3D view does not need a second position model.
+**Open questions:**
+- What it must show: beams with zoom and gobo, or light on surfaces as well?
+- Where the stage comes from: simple shapes drawn in the app, or an imported model?
+- Where a fixture's size and beam angle come from: the profile (GDTF has them), or set per fixture?
+- A window in the app, on a user page (IDEA-26), or also a second screen?
+- On the Linux desk (IDEA-30), or macOS only? This weighs on the choice of rendering.
