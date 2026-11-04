@@ -194,8 +194,8 @@ Builds: REC-01 + REC-02; REC-03; REC-04; REC-05 + REC-06 + REC-07; REC-08 + REC-
 | REC-05 | App: a one-cue playback in the Cue window, View and ⋯ on each row; manual and run. | UI-53, UI-54 | S | done (2026-11-04, #246) |
 | REC-06 | Core and app: effects in the Cue view and their Remove, whole-fixture Remove; `cue_59_…`, `cue_60_…`; manual and run. | CUE-59, CUE-60 | S | done (2026-11-04, #246) |
 | REC-07 | Core and app: Off and On, `dormant` stored; `cue_61_…`; manual and run on Art-Net. Needs REC-01 (schema 11). | CUE-61, IPC-57 | M | done (2026-11-04, #246) |
-| REC-08 | Core and app: Include on a handle and a cue row; `pbk_48_…`; manual and run. | PBK-48, UI-42 | S | todo |
-| REC-09 | Core and app: Update lists and stores its targets; `pbk_49_…`, `ipc_57_…`; manual and run on Art-Net. | PBK-49, IPC-57 | M | todo |
+| REC-08 | Core and app: Include on a handle and a cue row; `pbk_48_…`; manual and run. | PBK-48, UI-42 | S | done (2026-11-04, #247) |
+| REC-09 | Core and app: Update lists and stores its targets; `pbk_49_…`, `ipc_57_…`; manual and run on Art-Net. | PBK-49, IPC-57 | M | done (2026-11-04, #247) |
 | REC-10 | Core and app: Record over a group asks Replace or Merge; `prg_97_…`; manual and run. | PRG-97, UI-42 | S | todo |
 | REC-11 | Core and app: a group master changes its group; `grm_21_…`; manual. | GRM-21 | S | todo |
 | REC-12 | Core and app: Create List and Create Chase stay in Record; `cue_62_…`; manual and run. | CUE-62 | S | todo |
