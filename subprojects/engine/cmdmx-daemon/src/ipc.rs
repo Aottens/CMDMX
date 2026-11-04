@@ -37,7 +37,8 @@ use cmdmx_core::playback::{
     AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Link,
     ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
-    PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, Values, PAGES,
+    PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, UpdateTarget, Values,
+    PAGES,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
@@ -419,6 +420,15 @@ pub enum Command {
     },
     /// IPC-54: handed to the tick as `Event::Usage`, never applied.
     Usage(Usage),
+    /// IPC-57: handed to the tick as `Event::UpdateTargets`, never applied.
+    UpdateTargets,
+    /// PBK-49, IPC-57: store into the ticked cues and palettes; both lists may be empty on the
+    /// wire, the engine refuses no targets.
+    Update {
+        playbacks: Vec<UpdateTarget>,
+        palettes: Vec<u32>,
+        update_mode: Option<UpdateMode>,
+    },
     /// IPC-37: handed to the tick as `Event::PatchProfile`, never applied.
     PatchProfile {
         profile: String,
@@ -686,6 +696,10 @@ pub enum Event {
         query: Usage,
         reply: SyncSender<String>,
     },
+    /// IPC-57: the answer goes to the asking client only.
+    UpdateTargets {
+        reply: SyncSender<String>,
+    },
     /// IPC-37: the answer goes to the asking client only.
     PatchProfile {
         key: String,
@@ -836,6 +850,24 @@ fn cue_number(v: &serde_json::Value, key: &str) -> Result<CueNumber, String> {
     (v.get(key).and_then(|n| n.as_f64()).and_then(CueNumber::new)).ok_or_else(|| {
         format!("missing or invalid \"{key}\" (expected a cue number, 0.001 to 9999.999)")
     })
+}
+
+/// IPC-57: the `playbacks` of `update`, each `{id, cue}`; absent is empty.
+fn update_playbacks(v: &serde_json::Value) -> Result<Vec<UpdateTarget>, String> {
+    let Some(list) = v.get("playbacks") else {
+        return Ok(Vec::new());
+    };
+    let list = list
+        .as_array()
+        .ok_or("invalid \"playbacks\" (expected an array of {id, cue})")?;
+    list.iter()
+        .map(|t| {
+            Ok(UpdateTarget {
+                id: uint(t, "id")?,
+                cue: cue_number(t, "cue")?,
+            })
+        })
+        .collect()
 }
 
 /// The time fields of `cue.times`, for one cue or several (IPC-56).
@@ -1794,6 +1826,13 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             ))),
             _ => Err("expected exactly one of \"palette\" and \"fixtures\"".into()),
         },
+        Some("update.targets") => Ok(Command::UpdateTargets),
+        Some("update") => Ok(Command::Update {
+            playbacks: update_playbacks(&v)?,
+            palettes: opt_field::<Vec<u32>>(&v, "palettes", "an array of palette numbers")?
+                .unwrap_or_default(),
+            update_mode: opt_field(&v, "update_mode", "Forwards, CueOnly, Backwards or Both")?,
+        }),
         Some("cue.remove") => Ok(Command::CueRemove {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
@@ -2852,6 +2891,16 @@ pub fn usage(engine: &Engine, query: &Usage) -> Result<String, CoreError> {
     }))
 }
 
+/// IPC-57: the answer to `update.targets`.
+pub fn update_targets(engine: &Engine) -> String {
+    let t = engine.update_targets();
+    let playbacks: Vec<_> = (t.playbacks.iter())
+        .map(|p| serde_json::json!({"id": p.id, "cue": p.cue}))
+        .collect();
+    to_json(&serde_json::json!({"v": PROTOCOL, "type": "update.targets",
+        "playbacks": playbacks, "palettes": t.palettes}))
+}
+
 pub fn error(msg: &str) -> String {
     to_json(&Text {
         v: PROTOCOL,
@@ -3574,6 +3623,12 @@ fn serve_client(
                 Ok(Command::Usage(query)) => {
                     let reply = reply.clone();
                     if events.send(Event::Usage { query, reply }).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::UpdateTargets) => {
+                    let reply = reply.clone();
+                    if events.send(Event::UpdateTargets { reply }).is_err() {
                         return;
                     }
                 }
@@ -7051,6 +7106,54 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn ipc_57_update_parses() {
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"update.targets"}"#),
+            Ok(Command::UpdateTargets)
+        ));
+        let full = parse_command(
+            r#"{"v":1,"cmd":"update","playbacks":[{"id":1,"cue":3.5}],"palettes":[12],"update_mode":"CueOnly"}"#,
+        );
+        let Ok(Command::Update {
+            playbacks,
+            palettes,
+            update_mode,
+        }) = full
+        else {
+            panic!("{full:?}");
+        };
+        assert_eq!(playbacks[0].id, 1);
+        assert_eq!(playbacks[0].cue.as_f64(), 3.5);
+        assert_eq!(palettes, [12]);
+        assert_eq!(update_mode, Some(UpdateMode::CueOnly));
+        let empty = parse_command(r#"{"v":1,"cmd":"update"}"#);
+        assert!(
+            matches!(empty, Ok(Command::Update { ref playbacks, ref palettes, update_mode: None })
+                if playbacks.is_empty() && palettes.is_empty()),
+            "the engine refuses no targets: {empty:?}"
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"update","playbacks":[{"id":1}]}"#,
+            r#"{"v":1,"cmd":"update","playbacks":[{"cue":1}]}"#,
+            r#"{"v":1,"cmd":"update","playbacks":1}"#,
+            r#"{"v":1,"cmd":"update","palettes":["x"]}"#,
+            r#"{"v":1,"cmd":"update","update_mode":"Sideways"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_57_update_targets_answer() {
+        let engine = Engine::new(Settings::default());
+        let got: serde_json::Value = serde_json::from_str(&update_targets(&engine)).unwrap();
+        assert_eq!(got["type"], "update.targets");
+        assert_eq!(got["v"], 1);
+        assert_eq!(got["playbacks"], serde_json::json!([]));
+        assert_eq!(got["palettes"], serde_json::json!([]));
     }
 
     #[test]

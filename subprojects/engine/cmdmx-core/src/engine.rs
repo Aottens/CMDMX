@@ -41,7 +41,7 @@ use crate::playback::{
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
     Kind as PlaybackKind, Link, ListAction, ListFader, ListLive, Master, MasterKind, Origin,
     Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority,
-    Release, SpeedSource, UpdateMode, Values, GROUP_SCALES, PAGES,
+    Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values, GROUP_SCALES, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -3196,6 +3196,15 @@ impl Engine {
     /// for a held one). Palette references stay references with the value they resolve to now
     /// as fallback (PBK-11). Refused records change nothing.
     pub fn record_playback(&mut self, record: &PlaybackRecord) -> Result<PlaybackId, CoreError> {
+        self.record_playback_except(record, &BTreeSet::new())
+    }
+
+    /// `record_playback` without the attributes `skip` names (PBK-49: a ticked palette takes them).
+    fn record_playback_except(
+        &mut self,
+        record: &PlaybackRecord,
+        skip: &BTreeSet<(Item, String)>,
+    ) -> Result<PlaybackId, CoreError> {
         let (page, slot) = (record.page, record.slot);
         let existing = self.handle_target(page, slot)?;
         let held = existing.and_then(|id| self.playbacks.get(&id));
@@ -3273,6 +3282,12 @@ impl Engine {
         let was_list = held.is_some_and(Playback::is_cue_list);
         let mask = (record.mask.clone()).unwrap_or_else(|| ALL_GROUPS.to_vec());
         let mut values = self.contents(&mask);
+        if !skip.is_empty() {
+            for (item, attrs) in &mut values {
+                attrs.retain(|name, _| !skip.contains(&(*item, name.clone())));
+            }
+            values.retain(|_, attrs| !attrs.is_empty());
+        }
         let effects = self.recorded_effects(&mask);
         for (&item, attrs) in &mut values {
             for (name, stored) in attrs {
@@ -3451,6 +3466,161 @@ impl Engine {
             }
         }
         Ok(id)
+    }
+
+    /// PBK-49: does the palette hold a value for this attribute of this item?
+    fn palette_resolves(&self, palette: &Palette, item: Item, name: &str) -> bool {
+        let (Some(fixture), Some(mode)) =
+            (self.fixtures.get(&item.fixture), self.mode_of(item.fixture))
+        else {
+            return false;
+        };
+        palette.resolve(item, fixture, mode, name).is_some()
+    }
+
+    /// PBK-49: the active playbacks whose current cue holds something the programmer touches, and
+    /// the palettes that hold it; those the listed cues reference come first. What the cue holds
+    /// is what Update would merge into it (CUE-52), so what is off is never read.
+    pub fn update_targets(&self) -> UpdateTargets {
+        let touched = self.contents(&ALL_GROUPS);
+        let mut out = UpdateTargets::default();
+        let mut referenced = BTreeSet::new();
+        let mut ordered: Vec<&Playback> = self.playbacks.values().collect();
+        ordered.sort_by_key(|p| (p.page, p.slot));
+        for p in ordered {
+            let state = self.states.get(&p.id);
+            if !state.is_some_and(PlaybackState::is_active) {
+                continue;
+            }
+            let Some((at, cue)) = cue_index(p, state).and_then(|at| Some((at, p.cues.get(at)?)))
+            else {
+                continue;
+            };
+            let held: Vec<(Item, String, Stored)> = if p.is_cue_list() && p.list.tracking {
+                (p.cue_state(at).into_iter())
+                    .flat_map(|(i, a)| a.into_iter().map(move |(n, (s, _))| (i, n, s)))
+                    .collect()
+            } else {
+                (cue.values.iter())
+                    .flat_map(|(i, a)| a.iter().map(|(n, s)| (*i, n.clone(), *s)))
+                    .collect()
+            };
+            if held
+                .iter()
+                .any(|(i, n, _)| touched.get(i).is_some_and(|a| a.contains_key(n)))
+            {
+                out.playbacks.push(UpdateTarget {
+                    id: p.id,
+                    cue: cue.number,
+                });
+                referenced.extend(held.iter().filter_map(|(_, _, s)| match s {
+                    Stored::Reference(r) => Some(r.palette),
+                    Stored::Value(_) => None,
+                }));
+            }
+        }
+        let mut palettes: Vec<&Palette> = (self.palettes.values())
+            .filter(|p| {
+                (touched.iter()).any(|(&i, a)| a.keys().any(|n| self.palette_resolves(p, i, n)))
+            })
+            .collect();
+        palettes.sort_by_key(|p| (!referenced.contains(&p.id), p.number));
+        out.palettes = palettes.into_iter().map(|p| p.number).collect();
+        out
+    }
+
+    /// PBK-49: store what the programmer holds into the ticked palettes (what each holds for
+    /// that fixture) and cues (QuickMerge, CUE-52), a palette first and its attributes left out of
+    /// the cues so a reference stays. One undo step; a refusal changes nothing.
+    pub fn update(
+        &mut self,
+        playbacks: &[UpdateTarget],
+        palettes: &[u32],
+        update_mode: Option<UpdateMode>,
+    ) -> Result<(), CoreError> {
+        let touched = self.contents(&ALL_GROUPS);
+        if touched.is_empty() && self.programmer.effects.is_empty() {
+            return Err(CoreError::NothingToRecordPlayback);
+        }
+        if playbacks.is_empty() && palettes.is_empty() {
+            return Err(CoreError::ListRefused("Update: no targets".into()));
+        }
+        for &n in palettes {
+            self.palette(n).ok_or(CoreError::UnknownPalette(n))?;
+        }
+        for t in playbacks {
+            let p = (self.playbacks.get(&t.id)).ok_or(CoreError::UnknownPlayback(t.id))?;
+            if !p.cues.iter().any(|c| c.number == t.cue) {
+                return Err(CoreError::UnknownCue(t.cue));
+            }
+        }
+        let mut taken = BTreeSet::new();
+        for palette in palettes.iter().filter_map(|&n| self.palette(n)) {
+            for (&item, attrs) in &touched {
+                for name in attrs.keys() {
+                    if self.palette_resolves(palette, item, name) {
+                        taken.insert((item, name.clone()));
+                    }
+                }
+            }
+        }
+        let before = self.edit_state();
+        let result = self.update_stores(playbacks, palettes, update_mode, &taken);
+        if result.is_err() {
+            self.restore_edit_state(before);
+        }
+        result
+    }
+
+    fn update_stores(
+        &mut self,
+        playbacks: &[UpdateTarget],
+        palettes: &[u32],
+        update_mode: Option<UpdateMode>,
+        taken: &BTreeSet<(Item, String)>,
+    ) -> Result<(), CoreError> {
+        let mut stored = false;
+        let mut nothing = CoreError::NothingToRecordPlayback;
+        let mut note = |r: Result<PlaybackId, CoreError>| match r {
+            Ok(_) => {
+                stored = true;
+                Ok(())
+            }
+            Err(e @ (CoreError::NothingToRecord(_) | CoreError::NothingToRecordPlayback)) => {
+                nothing = e;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        };
+        for &n in palettes {
+            let Some(cell) = self.palette(n).map(Palette::cell) else {
+                continue;
+            };
+            let record = Record {
+                mask: Some(ALL_GROUPS.to_vec()),
+                record_by: Some(RecordBy::Channel),
+                mode: Some(RecordMode::QuickMerge),
+                ..Record::at(cell)
+            };
+            note(self.record_palette_with(&record, true))?;
+        }
+        for t in playbacks {
+            let Some((page, slot)) = self.playbacks.get(&t.id).map(|p| (p.page, p.slot)) else {
+                continue;
+            };
+            let record = PlaybackRecord {
+                mode: Some(RecordMode::QuickMerge),
+                cue: Some(t.cue),
+                update_mode,
+                ..PlaybackRecord::at(page, slot)
+            };
+            note(self.record_playback_except(&record, taken))?;
+        }
+        if stored {
+            Ok(())
+        } else {
+            Err(nothing)
+        }
     }
 
     /// PBK-12: a new cue with the times of the settings and link `Wait`.
@@ -6254,6 +6424,16 @@ impl Engine {
     /// PAL-01: record the programmer's contents in the mask onto a cell. An empty cell gets a
     /// new palette; a used one needs `mode` (PAL-06). Refused records change nothing.
     pub fn record_palette(&mut self, record: &Record) -> Result<PaletteId, CoreError> {
+        self.record_palette_with(record, false)
+    }
+
+    /// `only_held` (PBK-49): a used palette takes only what it resolves for that fixture, and no
+    /// effects.
+    fn record_palette_with(
+        &mut self,
+        record: &Record,
+        only_held: bool,
+    ) -> Result<PaletteId, CoreError> {
         let cell = record.cell;
         let existing = self
             .palettes
@@ -6289,6 +6469,7 @@ impl Engine {
         // FX-22: the entries of the mask, without members, a pointer as its parameters.
         let effects: Vec<effect::Entry> = (self.recorded_effects(&mask))
             .into_iter()
+            .filter(|_| !only_held)
             .map(|mut e| {
                 e.palette = None;
                 e.members.clear();
@@ -6302,8 +6483,14 @@ impl Engine {
         let mode = existing.and(record.mode);
         if let (Some((id, ..)), Some(RecordMode::QuickMerge)) = (existing, mode) {
             if let Some(palette) = self.palettes.get(&id) {
-                for attrs in values.values_mut() {
-                    attrs.retain(|name, _| palette.holds(name));
+                for (item, attrs) in values.iter_mut() {
+                    attrs.retain(|name, _| {
+                        if only_held {
+                            self.palette_resolves(palette, *item, name)
+                        } else {
+                            palette.holds(name)
+                        }
+                    });
                 }
                 values.retain(|_, attrs| !attrs.is_empty());
             }

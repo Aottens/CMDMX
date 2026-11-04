@@ -285,6 +285,11 @@ fn main() {
                 ipc::Event::Usage { query, reply } => {
                     ipc::usage(&engine, &query).map(|msg| drop(reply.try_send(msg)))
                 }
+                // IPC-57: to the asking client only.
+                ipc::Event::UpdateTargets { reply } => {
+                    drop(reply.try_send(ipc::update_targets(&engine)));
+                    Ok(())
+                }
                 // IPC-37: an unknown key is an error to the asking client only.
                 ipc::Event::PatchProfile { key, reply } => {
                     let msg = ipc::patch_profile(&engine, &key)
@@ -880,7 +885,12 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         // Answered through `Event::CueView` (IPC-24).
         CueView { .. } => Ok(()),
         // Answered through `Event::Usage` (IPC-54).
-        Usage(_) => Ok(()),
+        Usage(_) | UpdateTargets => Ok(()),
+        Update {
+            playbacks,
+            palettes,
+            update_mode,
+        } => engine.update(&playbacks, &palettes, update_mode),
         // Answered through `Event::PatchProfile` (IPC-37).
         PatchProfile { .. } => Ok(()),
         ProfileSave(p) => engine
@@ -965,6 +975,7 @@ fn class(cmd: &ipc::Command) -> Class {
         Show(List | SaveAs { .. })
         | CueView { .. }
         | Usage(_)
+        | UpdateTargets
         | PatchProfile { .. }
         | Control(_)
         | LockSet { .. }
@@ -1044,6 +1055,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CueRemove { .. }
         | CueOff { .. }
         | PlaybackInclude { .. }
+        | Update { .. }
         | CueRemoveEffect { .. }
         | MasterRecord { .. }
         | GroupMasterRecord { .. } => Class::Edit,
@@ -1174,6 +1186,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         CueOff { .. } => ("Cue value on".into(), None),
         CueRemoveEffect { .. } => ("Remove cue effect".into(), None),
         PlaybackInclude { .. } => ("Include cue".into(), None),
+        Update { .. } => ("Update".into(), None),
         MasterRecord { .. } | GroupMasterRecord { .. } => ("Record master".into(), None),
         _ => ("Edit".into(), None),
     };
@@ -3040,6 +3053,8 @@ mod tests {
             Class::Edit,
         ),
         (r#"{"v":1,"cmd":"playback.include","id":2}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"update"}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"update.targets"}"#, Class::Neutral),
         (
             r#"{"v":1,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,
             Class::Edit,

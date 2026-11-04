@@ -621,6 +621,13 @@ struct CueViewReply: Decodable, Equatable {
     }
 }
 
+/// IPC-57: the answer to `update.targets` (this client only): what the Update softkeys offer.
+struct UpdateTargetsAnswer: Decodable, Equatable {
+    struct Playback: Decodable, Equatable { let id: Int; let cue: Double }
+    var playbacks: [Playback] = []
+    var palettes: [Int] = []
+}
+
 /// IPC-54: the answer to `usage` (this client only). The daemon counts; `patchText` only words it.
 struct UsageReply: Decodable, Equatable {
     var palette: Int?
@@ -1380,6 +1387,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var cueView: CueViewReply?
     /// IPC-54: the answer to the last `usage` ask.
     @Published private(set) var usage: UsageReply?
+    /// IPC-57: the answer to the last `update.targets` ask.
+    @Published private(set) var updateTargets: UpdateTargetsAnswer?
     /// UI-47: the palette delete message still waiting for its count, and the text it showed.
     private var pendingDelete: (palette: Int, shown: String)?
     @Published private(set) var storedRevision = 0
@@ -1987,6 +1996,12 @@ final class EngineClient: ObservableObject {
 
     func askUsage(fixtures: [Int]) { usage = nil; sendJSON("usage", ["fixtures": fixtures]) }
 
+    /// PBK-49, IPC-57: the reply lands in `updateTargets`.
+    func askUpdateTargets() { updateTargets = nil; sendJSON("update.targets", [:]) }
+    func update(playbacks: [(Int, Double)], palettes: [Int]) {
+        patch("update", ["playbacks": playbacks.map { ["id": $0.0, "cue": $0.1] as [String: Any] }, "palettes": palettes])
+    }
+
     /// UNDO-19: confirm with the label the key showed; a refusal arrives as a warning and overwrites.
     func undo() { lastMessage = undoLabel.map { "Undone: \($0)" }; sendJSON("undo") }
     func redo() { lastMessage = redoLabel.map { "Redone: \($0)" }; sendJSON("redo") }
@@ -2009,7 +2024,7 @@ final class EngineClient: ObservableObject {
     }
 
     /// The app's own reads, not the operator's commands (REL-27).
-    private static let asks: Set<String> = ["cue.view", "usage", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "control.mapping", "effect.wheels"]
+    private static let asks: Set<String> = ["cue.view", "usage", "update.targets", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "control.mapping", "effect.wheels"]
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
@@ -2160,6 +2175,7 @@ final class EngineClient: ObservableObject {
             connected = incoming.connected?.value
             cueView = nil
             usage = nil
+            updateTargets = nil
             grandMaster = (incoming.grandMaster ?? grandMaster).clamped01
             fixtures = incoming.fixtures?.value ?? []
             groups = incoming.groups?.value ?? []
@@ -2272,6 +2288,8 @@ final class EngineClient: ObservableObject {
             connected = incoming.id?.value
         case "cue.view":
             if let reply = try? JSONDecoder().decode(CueViewReply.self, from: data) { cueView = reply }
+        case "update.targets":
+            if let reply = try? JSONDecoder().decode(UpdateTargetsAnswer.self, from: data) { updateTargets = reply }
         case "usage":
             if let reply = try? JSONDecoder().decode(UsageReply.self, from: data) {
                 usage = reply

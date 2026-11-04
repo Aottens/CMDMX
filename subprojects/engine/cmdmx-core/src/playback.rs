@@ -967,6 +967,20 @@ pub struct CueEffect {
     pub from: CueNumber,
 }
 
+/// PBK-49: a cue Update can store into.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UpdateTarget {
+    pub id: PlaybackId,
+    pub cue: CueNumber,
+}
+
+/// PBK-49: what the Update softkeys offer.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct UpdateTargets {
+    pub playbacks: Vec<UpdateTarget>,
+    pub palettes: Vec<u32>,
+}
+
 /// CUE-54: the state of one cue per item (fixture or cell) and attribute.
 pub type CueView = BTreeMap<Item, BTreeMap<String, CueValue>>;
 
