@@ -183,7 +183,7 @@ What held, so no work needed: New asks before the output changes; next-free patc
 - IDEA-37 (take over when another engine goes): **[run]** when an engine came back on the port the app reconnected by itself. Only reachable with a second engine by hand, and a debug bundle holds no engine, so the takeover was not tried. Proposed **phase 2**, not phase 1. Owner confirms.
 - IDEA-38 (hidden workspaces in the accessibility tree): not seen with the real mouse, which is what the operator has. Reaches VoiceOver and background test runs. Proposed phase 1, **F**. Owner confirms.
 - IDEA-39 (strips cut off with the Dock): **[run]** the first screen had it, the green button cleared it. An operator in console mode does not meet it, **[read]**. Proposed phase 1, **F**. Owner confirms.
-- IDEA-40 (a hint stays after a disarm): **[run]** "Set Legend: tap…" stayed after Esc, as did "Group 3 Heads" through an engine restart. Small and seen daily. Proposed phase 1, **F**, or with K1 and K2 below. Owner confirms.
+- IDEA-40 (a hint stays after a disarm): **[run]** "Set Legend: tap…" stayed after Esc, as did "Group 3 Heads" through an engine restart. Small and seen daily. Owner: phase 1, in the patch before B.
 
 ## Proposed changes to the batches
 No criteria or code for these until the owner approves.
@@ -191,8 +191,8 @@ No criteria or code for these until the owner approves.
 - **C:** add K8.
 - **D:** no change.
 - **E:** K1 first, add K10.
-- **F:** add K9, K12's hint, IDEA-38, IDEA-39, IDEA-40.
+- **F:** add K9, K12's hint, IDEA-38, IDEA-39.
 - **G:** add K7, unless the owner wants it apart.
 - **I:** add K4 and K5; K6 goes with I1. I1 moves with B as agreed.
 - **J:** add K3; K2 with J3.
-- **Optional, before B:** K1 and K2's hint and manual line as a patch: they cost the first ten minutes of anyone new, are small, and do not change how an operator works.
+- **Before B (owner, 2026-11-04):** K1, K2's hint and manual line, and IDEA-40 as a patch, 0.4.1 (P1-30): they cost the first ten minutes of anyone new, are small, and do not change how an operator works.

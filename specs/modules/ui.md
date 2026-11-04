@@ -535,6 +535,12 @@ press and a surface keypad line go on as before (J4, J5).
   code, and a key that only opens a prompt on the Mac does not lock anything; it needs a saved code, as Titan's Set Saved Password.
 Checked by hand: `tests/manual/app-main-screen.md` gets one section per criterion, with the UI-42 table walked for each target. `swift build` is the app's gate (no Swift tests, `CLAUDE.md`).
 
+### Before batch B (P1-30)
+Proposed; awaits owner approval. From the third gap review (K2, IDEA-40).
+- **UI-49** With Keys off, a key that Keys would act on (UI-19), with no text field focused and no sheet or lock cover up, does nothing except say once in the message zone: "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad." A click on the command line says the same. Neither goes in the Messages sheet (UI-39). Chords and Esc are not concerned. `getting-started.md` step 3 and `programming.md` name Keys or the keypad.
+- **UI-50** A message the app said because of an armed function (its hint, a refusal, what a delete touches) goes when the function disarms, by Esc, Exit, Cancel, a screen opening (UI-45), or doing its job. A warning or notice from the engine (IPC-17, 49) stays until the next command, as UI-19; so does a message that came after the function's own. Nothing else about the message zone changes: a selection notice stays through an engine restart, which is not this criterion.
+Checked by hand: `tests/manual/app-main-screen.md` gets one section per criterion.
+
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
   zone against the sketch. `tests/manual/app-programmer.md` and `tests/manual/app-patch.md` keep
