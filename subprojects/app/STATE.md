@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-03 (FUN-06)_
+_Last updated: 2026-11-04 (NEW-01)_
 
 ## Current step
+NEW-01 (2026-11-04, LIB-40): `AddPanel.ModelRow` treats source `builtin` as stock like QLC+ (`isUser`) and `sourceLabel` gives "built in", "user profile" or "QLC+" for the line under the columns.
 FUN-06 (2026-11-03, UI-47): `EngineClient.sayDelete` holds the three messages; a palette's count replaces the first text through `pendingDelete`, only while that text still shows. `SelectedPanel` asks with `askUsage` on arming and shows `UsageReply.patchText` when the answer is for its ids. `Incoming.groups` is `Tolerant`, as a `usage` answer has a count there. Run `tests/manual/runs/2026-11-03-FUN-05-06.md`.
 FUN-04 (2026-11-03, UI-48): a `BarToggle` in `StatusBar` with ⌘L and the softkey both call `UIState.openLockPrompt`. `enabled` stops the shortcut offline, an open sheet stops it by itself, and the action checks `engine.locked`, as a chord passes the lock block and `allowsHitTesting` does not stop a shortcut.
 FUN-03 (2026-11-03, UI-44, UI-45): `MacKeys.escape` runs before the Keys guard and does the first that applies. The key window must be the main window, so sheets and alerts take Esc themselves. Patch and Control pass Esc on to a hidden `.cancelAction` button, so the profile editor (its Cancel) and a deck's focus go first. `UIState.fieldEscaped`, cleared by any key, tells the fields that commit on losing focus to restore instead. `screen`'s `didSet` disarms.

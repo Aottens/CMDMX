@@ -1,6 +1,6 @@
 # CMDMX — State
 
-_Last updated: 2026-11-04 (v0.4.0 out and its gap review done; next the builds of the patch before batch B (P1-30), then the spec of batch B; the church run is on 2026-11-08, on v0.3.1)_
+_Last updated: 2026-11-04 (v0.4.0 out and its gap review done; NEW-01 done, next NEW-02 + NEW-03 of the patch before batch B (P1-30), then the spec of batch B; the church run is on 2026-11-08, on v0.3.1)_
 
 This file is the handoff: where we are, what is next, what waits. It is not a log. What each task
 built lives in its `BACKLOG.md` row and in the subproject logs (`subprojects/engine/STATE.md`,
@@ -49,7 +49,7 @@ HWB-01, the USB-MIDI box firmware on a Pico 2, waits for parts and the owner's r
    SPF-01 (the Mac stays awake) and SPF-02 (a late tick does not catch up) are done; SPF-03 (display awake) is built and waits for `tests/hardware/sleep.md`; SPF-05 (an adopted engine comes back), SPF-06 (level bars never jump), SPF-07 (*New cue times*), SPF-08 (message history in the daemon) SPF-09 (the Messages sheet, dots that open their screen), SPF-10 (`lock.set` in the daemon) and SPF-11 (the Lock softkey, cover and keypad) are done; every build task of batch A is done. After `tests/hardware/sleep.md` (SPF-03): v0.3.0, then the new gap review.
 9. Defects in what exists (IDEA-35 batch A2): spec P1-26 approved by the owner 2026-11-02 (`patch.md` PAT-26..28, `ipc.md` IPC-53, `ui.md` UI-41, `release.md` REL-26..28); all three builds are done and released as v0.3.1 (2026-11-03).
 10. Functions and consequences (IDEA-35 batch H): spec P1-27 (`ui.md` UI-42..48, `ipc.md` IPC-54; `tests/manual/runs/2026-11-03-H-checks.md`), the owner's five answers in `ui.md`; FUN-01 to FUN-06 are done (`tests/manual/runs/2026-11-03-FUN-01-02.md`, `2026-11-03-FUN-03-04.md`, `2026-11-03-FUN-05-06.md`), released as v0.4.0 (2026-11-03); next its gap review with the app running. Nothing from H goes on the church Mac before the service of 2026-11-08: that Mac gets v0.3.1, though 0.4.0 is now the latest release.
-11. The gap review after v0.4.0 ran the app for one operator's evening (`docs/research/everyday-gaps.md`, third review; `tests/manual/runs/2026-11-04-gap-review.md`). Its points K1 to K12 are proposed into the batches. Owner, 2026-11-04: a small patch first (P1-30 approved: LIB-40, UI-49, UI-50; builds NEW-01, NEW-02 + NEW-03, then 0.4.1), then the spec of batch B (P1-29).
+11. The gap review after v0.4.0 ran the app for one operator's evening (`docs/research/everyday-gaps.md`, third review; `tests/manual/runs/2026-11-04-gap-review.md`). Its points K1 to K12 are proposed into the batches. Owner, 2026-11-04: a small patch first (P1-30 approved: LIB-40, UI-49, UI-50; builds NEW-01 (done), NEW-02 + NEW-03, then 0.4.1), then the spec of batch B (P1-29).
 
 ## Waiting for a hardware run (gate 3, owner)
 Rows with status `gate3` in `BACKLOG.md`:

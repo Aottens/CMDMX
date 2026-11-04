@@ -4555,6 +4555,32 @@ mod tests {
     }
 
     #[test]
+    fn lib_40_the_replies_name_the_dimmer_builtin() {
+        let lib = library("dimmer");
+        let v = ask(
+            &lib,
+            r#"{"v":1,"cmd":"library.search","query":"generic dimmer"}"#,
+        );
+        assert_eq!(
+            v,
+            json!({"v":1,"type":"library.results","items":[{"manufacturer":"Generic",
+                   "model":"Dimmer","modes":["1 channel","2 channel 16-bit"],"source":"builtin"}]})
+        );
+        let v = ask(
+            &lib,
+            r#"{"v":1,"cmd":"library.models","manufacturer":"Generic"}"#,
+        );
+        assert_eq!(v["items"][0]["source"], "builtin");
+        assert_eq!(v["items"][0]["modes"][1]["channels"], 2);
+        let v = ask(
+            &lib,
+            r#"{"v":1,"cmd":"library.profile","manufacturer":"Generic","model":"Dimmer"}"#,
+        );
+        assert_eq!(v["profile"]["source"], "builtin");
+        assert_eq!(v["profile"]["modes"][1]["footprint"], 2);
+    }
+
+    #[test]
     fn lib_14_search_answers_the_asking_client() {
         let lib = library("search");
         let v = ask(&lib, r#"{"v":1,"cmd":"library.search","query":"shehds"}"#);
@@ -4585,7 +4611,7 @@ mod tests {
         let v = ask(&lib, r#"{"v":1,"cmd":"library.manufacturers"}"#);
         assert_eq!(v["type"], "library.manufacturers");
         assert_eq!(v["query"], Value::Null);
-        assert_eq!(v["items"].as_array().unwrap().len(), 3);
+        assert_eq!(v["items"].as_array().unwrap().len(), 4);
         let loading = std::sync::RwLock::new(None);
         let v = ask(&loading, r#"{"v":1,"cmd":"library.manufacturers"}"#);
         assert_eq!(v["type"], "error");
@@ -4716,7 +4742,7 @@ mod tests {
             &lib,
             r#"{"v":1,"cmd":"library.models","manufacturer":"Generic"}"#,
         );
-        assert_eq!(found["items"][0]["source"], "user");
+        assert_eq!(found["items"][1]["source"], "user");
         let p = ask(
             &lib,
             r#"{"v":1,"cmd":"library.profile","manufacturer":"Generic","model":"Generic RGBW 8-bit"}"#,
