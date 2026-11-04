@@ -55,8 +55,13 @@ daemon's Art-Net on universe 1 during the run and reports the measured values an
       a lock mark and "page 2". A second Locked on slot 2 is refused with a message.
 
 ## Release, Latch, legends (PBK-38)
-- [ ] Release, tap a running playback: it goes out at once (amber while its masked attributes
-      fade back), its fader stays up and does not fire it again until it has been at 0.
+- [ ] Release, tap a running playback: its intensity falls over its release time, read on Art-Net
+      (PBK-47; amber while it falls and while its attributes fade back), its fader stays up and
+      does not fire it again until it has been at 0.
+- [ ] On Art-Net: release time 2 s, fader full, Release: 255 to 0 in 2 s; fader at 50 %: from 128;
+      release time 0: at once. A second playback on the fixture at 50 %: the fall stops at 128.
+      Fader to 0 and up to 25 % 1 s after the Release: the fall runs on to 64. Fader down or a
+      playback group: at once.
 - [ ] Latch, then Flash on 1.4: it stays full after letting go; Flash on 1.4 again unlatches it.
 - [ ] Set Legend, tap 3.1: the editor shows the text field, the icon library with Auto, and a
       halo row (Auto, colours, a picker). Type "Walk-in", pick an icon and a green halo: the strip

@@ -42,7 +42,7 @@ rig through the Eurolite interface: fades comparable with Lightkey, replugging t
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Next up: the church Mac (VS4-07), the first service run (VS4-03), and changing what is recorded,
-specified and going on with REC-03. Phase 2 features already work (see below); the
+specified and going on with REC-04. Phase 2 features already work (see below); the
 open-hardware desk (phase 10, [`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is
 in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manual are at
 [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -134,7 +134,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 
 **Playbacks, cue lists and chases**
 - Record the programmer onto a handle; Replace/Merge/Update, Copy/Move/Delete, Titan paging
-  locks, fader modes with fades and kill point, Flash/Swop/Latch, legends with icons, and DBO.
+  locks, fader modes with fades and kill point, Flash/Swop/Latch, legends with icons, and DBO. Release fades
+  intensity too, over the release time.
 - Level bars never jump: a click on a strip, group master or the Grand Master changes nothing, a drag
   moves the level by the distance dragged.
 - *New cue times* in Playback Options ▸ Settings: the delay, delay out, fade in, fade out and overlap that cues recorded
