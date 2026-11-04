@@ -476,9 +476,9 @@ press and a surface keypad line go on as before (J4, J5).
 
   | Armed | Group tile | Fixture tile, cell button | Palette cell | Handle legend | Cue row |
   | --- | --- | --- | --- | --- | --- |
-  | Record | records (UI-16) | refused | PAL-29 | PBK-38 | CUE-45 |
+  | Record | records (UI-16), used: PRG-97 | refused | PAL-29 | PBK-38 | CUE-45 |
   | Update | refused | refused | PAL-29 | PBK-38 | updates that cue, as Record's Update softkey (CUE-45) |
-  | Include | refused | refused | PAL-29 | refused | refused |
+  | Include | refused | refused | PAL-29 | PBK-48 | PBK-48 |
   | Copy | PRG-94 | refused | PAL-29 | PBK-38 | the Cue softkeys on that row (CUE-43), "Copy cue 3: type the number, then Copy." |
   | Move | PRG-94 | refused | PAL-29 | PBK-38 | the same, "Move cue 3: type the number, then Renumber." |
   | Delete | PRG-94 | refused | PAL-29 | PBK-38 | the Cue softkeys waiting on Confirm delete (CUE-07, UI-47) |
@@ -540,6 +540,14 @@ Approved by owner 2026-11-04, with Keys staying off by default. From the third g
 - **UI-49** With Keys off, a key that Keys would act on (UI-19), with no text field focused and no sheet or lock cover up, does nothing except say once in the message zone: "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad." A click on the command line says the same. Neither goes in the Messages sheet (UI-39). Chords and Esc are not concerned. `getting-started.md` step 3 and `programming.md` name Keys or the keypad.
 - **UI-50** A message the app said because of an armed function (its hint, a refusal, what a delete touches) goes when the function disarms, by Esc, Exit, Cancel, a screen opening (UI-45), or doing its job. A warning or notice from the engine (IPC-17, 49) stays until the next command, as UI-19; so does a message that came after the function's own. Nothing else about the message zone changes: a selection notice stays through an engine restart, which is not this criterion.
 Checked by hand: `tests/manual/app-main-screen.md` gets one section per criterion.
+
+### Changing what is recorded (IDEA-35 batch B, P1-29; proposed, approved when the spec PR merges)
+- **UI-51** **Times in the grid** (I6; Titan: tap a value in Playback View, or drag over several, type, Enter; a Times button leaves only the timing columns). The Cue list window gets a **Times** toggle (not on a chase, CUE-29): columns Q, Legend, Delay in, Delay out, Fade in, Fade out, Overlap, an As In value dim. In this view a tap selects a time cell and does not set Next; a drag or Shift-tap extends within that column. The softkeys show "Q2–Q5 · Fade out": **Set** (a number on the line; Enter on such a line does the same), **As In** (out columns only), **Done**. It sends one `cue.times` (IPC-56), so a running transition keeps its times (CUE-09). Arming a function clears the cells; Esc clears them, then leaves the view (UI-44). The plain view with Link, Track and Groups stays as it is, and a tap there still sets Next.
+- **UI-52** **A refused number goes back** (IDEA-36). Half a second after a `NumberField` sent a value, it shows what the engine holds, focused or not. Accepted, that is the same number; refused, the old number returns under the warning already shown. No warning needs to name its field, and the app does not know the range. Every `NumberField` of Playback Options, also in UI-51's route. Checked by typing fade in 602.
+- **UI-53** **One-cue playback in the Cue window** (B1; amends CUE-43, 44; Titan: touching the playback's display opens Playback View, whatever it holds). A plain tap on a memory's legend shows it in the Cue list window ("Cue · 1.2", one row), and changes nothing on stage, in the Go block or in what is connected: a memory has no Go (PBK out of scope). A row tap there does not set Next. Its softkeys are View Cue, Edit Times and Set Legend. It ends on a tap on a list's legend, a change of the connected list, or Esc. With no Cue window on show the message says: "1.2 holds one cue: the Playbacks workspace shows it."
+- **UI-54** **A row says what it can do** (K11; Titan: a View button at the end of each row). Each row of the Cue list window ends in **View** (opens the Cue view) and **⋯** (the Cue softkeys, as a right-click, which stays). Neither changes the stage: Go to Cue stays a softkey, one step further. With a function armed the whole row is the target (UI-42).
+- **UI-42 amended:** Include + handle or cue row: PBK-48; Record + used group tile: PRG-97; Update armed without a tap: PBK-49. The other cells stay.
+Checked by hand: `tests/manual/app-cuelists.md` gets one section per criterion of this batch, with fades read on Art-Net. The manual's `cuelists.md`, `playbacks.md`, `programming.md` and `release-notes.md` grow in each task's PR (WEB-33).
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each

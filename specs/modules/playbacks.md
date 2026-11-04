@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (pure: storage, recording, fader modes, release, flash/swop),
 `cmdmx-daemon` (IPC), the playback area and Playback Options in `subprojects/app`.
 Status: **PBK-01..05 approved by owner 2026-10-18 (VS1-06 subset); PBK-06..45 approved by owner
-2026-10-18 (P1-04), owner decisions at the end.** PBK-15 amended for P2-02 (cue `order`, approved by owner 2026-10-29). PBK-46: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
+2026-10-18 (P1-04), owner decisions at the end.** PBK-15 amended for P2-02 (cue `order`, approved by owner 2026-10-29). PBK-46: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25). PBK-47..49: proposed (IDEA-35 batch B, P1-29).
 Behavioural reference: Avolites Titan v19 manual, *Cues* (https://manual.avolites.com/docs/cues:
 Creating a Cue, Cue Playback, Cue Timing, Playback Options, Copying/Moving/Linking/Deleting) and
 the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1 (`specs/ux/main-screen.html`:
@@ -292,6 +292,15 @@ playback unless it says "per cue".
   change no existing cue. A new show keeps 0 s and 100 %, so no schema or migration change. Engine test
   `pbk_46_…`: a cue recorded on a memory, on a list and a chase step after `settings.playback` takes those times,
   an earlier cue keeps its own. The manual's "default times (0 s)" in `cuelists.md` names the setting.
+
+### Changing what is recorded (IDEA-35 batch B, P1-29; proposed, approved when the spec PR merges)
+- **PBK-47** **Release fades intensity too** (K6; makes PBK-22 true, amends PBK-21, CUE-17). PBK-22, PBK-23 and every Release of a list or chase: each HTP attribute the playback outputs falls linearly from its level at that moment (fader and *m* included) to 0 over the release time; the attributes merge HTP as ever, so nothing falls below another source. Release time 0 is at once.
+  The playback is off and shown as releasing, so the fader rule of PBK-22 and the reset of CUE-17 hold. Firing again meanwhile: the LTP release stops as PBK-21, the HTP fall runs on beside the new fire, so nothing jumps. A kill by the fader, the kill point or a playback group, and effects (FX-24), stay as they are. Titan: channels always release with a fade, default 2 s; the manual does not name HTP. Today's engine releases LTP only. Dimmer full, release time 2 s, Release at t = 1 → 128 at t = 2, 0 at t = 3. Scenario `PBK-47-*.json`.
+- **PBK-48** **Include a cue** (B2; Titan: Include, then a playback's Select reloads the cue, Include Cue a numbered one, Set Mask limits it, a softkey includes or excludes shapes). `playback.include {id, cue?, mask?}` loads the cue through PRG-16: its own hard values (references stay references, cells as PRG-47) and, with FX in the mask (default all groups), its effect entries. No `cue`: a memory's cue or a running list's current one; a list that is off is refused ("Name a cue: Service is not running"). Tracked and dormant values do not come along, so Record Merge turns nothing tracked into hard.
+  Values already in the programmer for those attributes are overwritten, others stay. The items become the selection in the cue's order (own choice: the values can be changed at once). Like any programmer value they are on stage at once. One undo step. App (UI-42): Include + a handle sends no `cue`, Include + a cue row names it; a *Mask* softkey as Record's. Test `pbk_48_…`.
+- **PBK-49** **Update chooses its targets** (B4; Titan: Update opens softkeys of the palettes and playbacks that can be updated; select or deselect, Enter stores; a manually set attribute takes the palette out of the cue). `update.targets` answers the sender only (IPC-57): the active playbacks whose current cue holds (by CUE-52, PBK-13) a touched programmer attribute, and the palettes that hold one for that fixture, referenced by those cues first. `update {playbacks, palettes, update_mode?}` stores into all of them as one undo step:
+  a ticked palette takes the attributes it holds for that fixture (PAL-06), and a ticked cue does not store those, so it keeps its reference and gets the new value through it; every other attribute goes to the ticked cues as PBK-13 or CUE-52 says, and overwrites a reference with a value. Empty programmer or no targets is refused.
+  App: Update armed shows one softkey per target, ticked for playbacks and unticked for palettes (own choice: a palette reaches every cue using it, so that takes a tick), *More* when they do not fit, and *Store*. Enter on an empty line is *Store*. A tap on a target stays one direct update (PBK-38, PAL-29). Test `pbk_49_…`.
 
 ### Safety and determinism
 - **PBK-43** Every refused playback action returns a warning and changes nothing (PRG-36); no

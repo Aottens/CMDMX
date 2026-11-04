@@ -26,6 +26,7 @@ only the screen is missing.
 6. Times default to 0 s, with no show-wide default in the Settings tab.
 
 ## B. Changing what is recorded
+Proposed 2026-11-04 (P1-29; build tasks REC-01..12): CUE-56..62, PBK-47..49, PRG-97, GRM-21, IPC-55..57, UI-51..54, with I1, I3, I6, K6, K11 and IDEA-36; B7 proposed apart. Checked in `tests/manual/runs/2026-11-04-B-checks.md`, which corrects I3 and K6.
 1. A playback with one cue cannot be opened: View Cue exists on cue list rows only, and such a
    playback cannot be connected. The way out is rebuild and Replace.
 2. Include on a cue or playback: palettes only (PRG-16 names PBK and CUE, neither has a criterion).
@@ -117,7 +118,7 @@ Specified as P1-27 (UI-42..48, IPC-54); all six still happened on 2026-11-03 (`t
 
 ## I. Behaviour that differs from Titan, no reason recorded
 1. Fade Out and Delay Out follow Fade In until set; here they are separate and 0, so a cue with only a
-   fade in snaps HTP down. Daily.
+   fade in snaps HTP down. Daily. (P1-29: CUE-56.)
 2. Keypad level: two digits as normal, a single-digit mode, `@ @` = 100 %; here `@ v` is v %. Daily.
 3. Building a list: Titan stays in Record (Record, fader, fader appends); here Record disarms each time
    and needs a tap and the Append softkey. A chase is made by changing the kind in Options. Daily.
@@ -166,7 +167,7 @@ which reading did not reach. A next review needs another angle: someone else's s
 3. **[run]** Colour and Playbacks have no Groups window. To take a group during a run: leave the workspace, or `Group`, a number and Enter on the keypad. `1 Group` is refused; the order is `Group 1`. Daily. → J, new point.
 4. **[run]** A second Go 0.4 s after the first skips a cue: Q2 with its 5 s fade was gone at once, Q3 snapped in, no warning. Space and a mouse both repeat easily in the dark. Whether Titan guards this is not checked. → I, new point.
 5. **[run]** A cue list and handles have no name unless you set one: Active Playbacks reads `1.1`, `1.2`. Nothing offers a legend at recording. → I, with the Auto Legend line.
-6. **[run]** Release with the fader up snaps: 18 channels went to 0 in one frame, because release time is 0 by default. A service does not end this way. → I, with I1.
+6. **[run]** Release with the fader up snaps: 18 channels went to 0 in one frame. A service does not end this way. Cause corrected in P1-29: the release time is 2 s, but HTP is left out of a release (PBK-47). → I, with I1.
 7. **[run]** After an engine crash and restart the show comes back, faders 0, list at the start, stage black (all channels 0 at the restart); nothing says where the run was. The bundled engine's own note (REL-25) says nothing is running, **[read]**: this run used an engine started by hand and saw "Engine offline", "Engine connected". As specified, but the worst moment of a service and there is no way back to where you were. Rare. → G, new point, or a batch of its own: owner.
 8. **[run]** A palette colour takes four lines per fixture in Programmer and Cue view: `#8349FF`, `Colour 2 · White 0 %`, `Colour 2`. Four fixtures fill the window; a 12-fixture cue does not fit, and `White 0 %` comes from a colour nobody set by hand. Daily. → C, new point.
 9. **[run]** Softkey *All* with nothing stepped selects what is in the programmer (as `programming.md` says), so with an empty programmer the selection is gone, the softkeys change, and a second tap in the same place arms Set Legend. → F.

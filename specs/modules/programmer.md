@@ -597,6 +597,7 @@ The selection and the programmer hold items too and are not changed either.
   `select_group` no longer says "unknown group id 7". Other empty lines (`999 Enter`,
   `Group 7 And 8 Enter`) keep "nothing is selected". A notice is no warning: it is not a `Warning`
   (PRG-36) and does not reach OSC `/cmdmx/message` (CTL-37). IPC: IPC-49.
+- **PRG-97** **Record over a group asks** (B6; amends PRG-07; own choice, Titan's group pages do not cover it, palettes here ask, PAL-29; proposed, IDEA-35 batch B, P1-29). `group.record {group, mode?}`: on a used group without `mode` it is refused ("Group 5 is used: Replace or Merge"). `Replace` stores the selection as today. `Merge` adds the selected items not in the group after its items and keeps its grid. Both keep the legend and are one undo step; group masters follow (GRM-02). App: Record + a used group tile or `Group n` Enter (UI-46) shows softkeys Replace, Merge, Cancel. Update + a group tile stays refused, its message naming Record and Merge. Test `prg_97_…`.
 
 ## Scenario test format
 Scenario files (`tests/scenarios/PRG-nn-*.json`, format of `engine-merge.md`) gain a `prg` action
