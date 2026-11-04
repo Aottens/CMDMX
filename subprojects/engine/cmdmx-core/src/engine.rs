@@ -3657,6 +3657,25 @@ impl Engine {
         Ok(())
     }
 
+    /// CUE-49, IPC-56: the same change to several cues; one unknown cue or bad value refuses all.
+    pub fn change_cues(
+        &mut self,
+        id: PlaybackId,
+        cues: &[CueNumber],
+        change: &CueChange,
+    ) -> Result<(), CoreError> {
+        let pb = self.playback(id).ok_or(CoreError::UnknownPlayback(id))?;
+        if let Some(n) = cues
+            .iter()
+            .find(|n| !pb.cues.iter().any(|c| c.number == **n))
+        {
+            return Err(CoreError::UnknownCue(*n));
+        }
+        // change_cue validates before it mutates and the change is the same each time, so a bad value refuses on the first cue.
+        cues.iter()
+            .try_for_each(|n| self.change_cue(id, *n, change))
+    }
+
     /// CUE-09, 51: change one cue's legend, times, link, tracking and group times; refused as a
     /// whole when one is out of range.
     pub fn change_cue(

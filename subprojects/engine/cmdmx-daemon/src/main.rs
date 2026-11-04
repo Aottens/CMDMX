@@ -872,6 +872,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             engine.change_playback(id, &change)
         }
         CueEdit { id, cue, change } => engine.change_cue(id, cue, &change),
+        CueTimes { id, cues, change } => engine.change_cues(id, &cues, &change),
         CueDelete { id, cue } => engine.delete_cue(id, cue),
         CueRenumber { id, cue, to } => engine.renumber_cue(id, cue, to),
         CueRenumberAll { id } => engine.renumber_cues(id),
@@ -1026,6 +1027,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | SettingsPlayback(_)
         | PlaybackOptions { .. }
         | CueEdit { .. }
+        | CueTimes { .. }
         | CueDelete { .. }
         | CueRenumber { .. }
         | CueRenumberAll { .. }
@@ -1150,6 +1152,8 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         PageLegend { page, .. } => (format!("Page {page} legend"), None),
         SettingsPlayback(_) => ("Playback settings".into(), None),
         CueEdit { .. } => ("Edit cue".into(), None),
+        CueTimes { cues, .. } if cues.len() > 1 => (format!("Edit {} cues", cues.len()), None),
+        CueTimes { .. } => ("Edit cue".into(), None),
         CueDelete { .. } => ("Delete cue".into(), None),
         CueRenumber { .. } | CueRenumberAll { .. } => ("Renumber cue".into(), None),
         CueCopy { .. } => ("Copy cue".into(), None),
@@ -2742,6 +2746,10 @@ mod tests {
         (
             r#"{"v":1,"cmd":"playback.bpm","id":3,"bpm":128}"#,
             Class::Live,
+        ),
+        (
+            r#"{"v":1,"cmd":"cue.times","id":3,"cues":[1,2],"fade_in":1}"#,
+            Class::Edit,
         ),
         (r#"{"v":1,"cmd":"cuelist.go"}"#, Class::Live),
         (r#"{"v":1,"cmd":"cuelist.back"}"#, Class::Live),
@@ -4760,6 +4768,83 @@ mod tests {
             r#"{"v":1,"cmd":"programmer.order","op":"Sort"}"#
         )
         .is_err());
+    }
+
+    /// A three-cue list on 3.1 (Q1, Q2, Q3) and an empty history; its id.
+    fn three_cues() -> (Engine, History, u32) {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        json_run(&mut e, &mut h, SELECT_101).unwrap();
+        for record in [
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+            r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+        ] {
+            json_run(&mut e, &mut h, record).unwrap();
+        }
+        let id = (e.playbacks())
+            .find(|p| p.page == 3 && p.slot == 1)
+            .unwrap()
+            .id;
+        (e, History::default(), id)
+    }
+
+    fn fades(e: &Engine, id: u32) -> Vec<(f32, Option<f32>)> {
+        (e.playbacks().find(|p| p.id == id).unwrap().cues.iter())
+            .map(|c| (c.fade_in, c.fade_out))
+            .collect()
+    }
+
+    #[test]
+    fn ipc_56_every_field_goes_to_every_named_cue_as_one_undo_step() {
+        let (mut e, mut h, id) = three_cues();
+        let before = e.edit_state();
+        json_run(
+            &mut e,
+            &mut h,
+            &format!(
+                r#"{{"v":1,"cmd":"cue.times","id":{id},"cues":[1,3],"fade_in":4,"fade_out":6}}"#
+            ),
+        )
+        .unwrap();
+        assert_eq!(
+            fades(&e, id),
+            vec![(4.0, Some(6.0)), (0.0, None), (4.0, Some(6.0))]
+        );
+        assert_eq!(h.len(), 1, "one undo step");
+        assert_eq!(h.undo_label(), Some("Edit 2 cues"));
+
+        // null sets As In on every named cue (IPC-55).
+        json_run(
+            &mut e,
+            &mut h,
+            &format!(r#"{{"v":1,"cmd":"cue.times","id":{id},"cues":[1,3],"fade_out":null}}"#),
+        )
+        .unwrap();
+        assert_eq!(fades(&e, id), vec![(4.0, None), (0.0, None), (4.0, None)]);
+
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        json_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.edit_state(), before);
+    }
+
+    #[test]
+    fn ipc_56_one_unknown_cue_or_bad_value_refuses_it_all() {
+        let (mut e, mut h, id) = three_cues();
+        let before = e.edit_state();
+        for refused in [
+            // The unknown cue comes last: the cues before it must not have changed.
+            format!(r#"{{"v":1,"cmd":"cue.times","id":{id},"cues":[1,2,9],"fade_in":4}}"#),
+            format!(r#"{{"v":1,"cmd":"cue.times","id":{id},"cues":[1,2],"fade_in":601}}"#),
+            format!(
+                r#"{{"v":1,"cmd":"cue.times","id":{id},"cues":[1,2],"fade_in":4,"overlap":101}}"#
+            ),
+            r#"{"v":1,"cmd":"cue.times","id":99,"cues":[1],"fade_in":4}"#.to_string(),
+        ] {
+            assert!(json_run(&mut e, &mut h, &refused).is_err(), "{refused}");
+            assert_eq!(e.edit_state(), before, "{refused}");
+        }
+        assert!(h.is_empty(), "a refused command adds no step");
     }
 
     #[test]

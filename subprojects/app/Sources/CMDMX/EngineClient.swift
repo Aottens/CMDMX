@@ -1849,6 +1849,10 @@ final class EngineClient: ObservableObject {
     func setCueTimes(_ id: Int, cue: Double, _ fields: [String: Any]) {
         patch("cue.times", fields.merging(["id": id, "cue": cue]) { a, _ in a })
     }
+    /// IPC-56: the same fields to every cue in `cues`, one undo step.
+    func setCueTimes(_ id: Int, cues: [Double], _ fields: [String: Any]) {
+        patch("cue.times", fields.merging(["id": id, "cues": cues]) { a, _ in a })
+    }
     /// UI-34, PRG-81: item → 0-based step; items left out follow after the given ones (the engine does that).
     func setCueOrder(_ id: Int, cue: Double, order: [Item: Int]) {
         let wire = Dictionary(uniqueKeysWithValues: order.map { item, step in

@@ -219,25 +219,39 @@ private struct CueListWindow: View {
 
     private static let widths: [CGFloat?] = [44, nil, 44, 56, 84, 36, 58]
     private static let titles = ["Q", "Legend", "Delay", "Fade", "Link", "Track", "Groups"]
+    /// UI-51: the Times view's columns after Q and Legend: `cue.times` key and title.
+    private static let timeColumns = [("delay", "Delay in"), ("delay_out", "Delay out"), ("fade_in", "Fade in"),
+                                      ("fade_out", "Fade out"), ("overlap", "Overlap")]
+    private static let timeWidths: [CGFloat?] = [36, nil, 58, 64, 54, 60, 54]
+    private static let rowHeight: CGFloat = 24
 
     var body: some View {
         let list = engine.connectedList
+        let times = ui.cueTimesView && list?.isChase != true   // UI-51
+        let titles = times ? ["Q", "Legend"] + Self.timeColumns.map(\.1) : Self.titles
+        let widths = times ? Self.timeWidths : Self.widths
         PanelWindow(title: list.map { "Cue list · \($0.shownLegend)" } ?? "Cue list",
                     info: list.map { "\($0.homeHandle) · \($0.stored.cues.count) cues" } ?? "No cue list connected",
-                    accessory: { EmptyView() }) {
+                    accessory: {
+                        if list?.isChase != true {
+                            Button("Times") { ui.cueTimesView.toggle(); ui.timeCells = nil }
+                                .buttonStyle(FlatButton(fill: ui.cueTimesView ? .blue : nil, compact: true))
+                        }
+                    }) {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
-                    ForEach(Array(Self.titles.enumerated()), id: \.offset) { index, name in
+                    ForEach(Array(titles.enumerated()), id: \.offset) { index, name in
                         Text(name.uppercased()).font(Typo.legend(Typo.small)).tracking(0.8).foregroundStyle(t.fg3)
-                            .frame(width: Self.widths[index], alignment: .leading)
-                            .frame(maxWidth: Self.widths[index] == nil ? .infinity : nil, alignment: .leading)
+                            .frame(width: widths[index], alignment: .leading)
+                            .frame(maxWidth: widths[index] == nil ? .infinity : nil, alignment: .leading)
                     }
                 }
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 HLine()
                 if let list {
                     ScrollView {
-                        VStack(spacing: 0) { ForEach(list.stored.cues) { row(list, $0) } }
+                        VStack(spacing: 0) { ForEach(list.stored.cues) { if times { timesRow(list, $0) } else { row(list, $0) } } }
+                            .coordinateSpace(name: "cueTimes")
                     }
                 } else {
                     Spacer(minLength: 0)
@@ -249,22 +263,35 @@ private struct CueListWindow: View {
     private func row(_ list: PlaybackInfo, _ cue: StoredCue) -> some View {
         let live = list.live.cue
         let current = live?.current == cue.number
-        let next = live?.next == cue.number
         let cells: [(String, Color)] = [
             (plain(cue.number), current ? t.green : t.fg2), (cue.legend, t.fg),
             (cue.delay == 0 ? "·" : seconds(cue.delay), t.fg2), (fadeText(cue), t.fg2),
             (linkText(cue.link), t.fg2), (trackText(cue.track), t.fg2),
             (attributeGroupOrder.filter(cue.groups.contains).joined(), t.fg2),
         ]
-        return HStack(spacing: 0) {
-            ForEach(Array(cells.enumerated()), id: \.offset) { index, cell in
-                Text(cell.0).font(index == 1 ? Typo.legend() : Typo.mono(Typo.body)).foregroundStyle(current && index == 1 ? t.green : cell.1)
-                    .lineLimit(1)
-                    .frame(width: Self.widths[index], alignment: .leading)
-                    .frame(maxWidth: Self.widths[index] == nil ? .infinity : nil, alignment: .leading)
+        return decorated(list, cue) {
+            HStack(spacing: 0) {
+                ForEach(Array(cells.enumerated()), id: \.offset) { index, cell in
+                    Text(cell.0).font(index == 1 ? Typo.legend() : Typo.mono(Typo.body)).foregroundStyle(current && index == 1 ? t.green : cell.1)
+                        .lineLimit(1)
+                        .frame(width: Self.widths[index], alignment: .leading)
+                        .frame(maxWidth: Self.widths[index] == nil ? .infinity : nil, alignment: .leading)
+                }
             }
         }
-        .padding(.horizontal, 7).frame(height: 24)
+        .contentShape(Rectangle())
+        .onTapGesture { tap(list, cue) }
+        .overlay { RightClickCatcher { rightClick(list, cue) } }
+        .help("Tap: next · right-click: cue softkeys")
+    }
+
+    /// The row frame both views share: current, next and progress (CUE-43).
+    private func decorated<Content: View>(_ list: PlaybackInfo, _ cue: StoredCue, @ViewBuilder _ content: () -> Content) -> some View {
+        let live = list.live.cue
+        let current = live?.current == cue.number
+        let next = live?.next == cue.number
+        return content()
+        .padding(.horizontal, 7).frame(height: Self.rowHeight)
         .background {
             if current {
                 // CUE-43: the running row shows its transition.
@@ -281,10 +308,65 @@ private struct CueListWindow: View {
         .overlay(alignment: .leading) { if current { Rectangle().fill(t.green).frame(width: 3) } }
         .overlay { if next { Rectangle().strokeBorder(t.fg2, lineWidth: 1) } }
         .overlay(alignment: .bottom) { HLine() }
-        .contentShape(Rectangle())
-        .onTapGesture { tap(list, cue) }
-        .overlay { RightClickCatcher { rightClick(list, cue) } }
-        .help("Tap: next · right-click: cue softkeys")
+    }
+
+    /// UI-51: a row of the Times view. A tap selects one time cell and never sets Next; armed, the whole row is the target (UI-42).
+    private func timesRow(_ list: PlaybackInfo, _ cue: StoredCue) -> some View {
+        let current = list.live.cue?.current == cue.number
+        let armed = ui.recordArmed || ui.function != nil
+        let values = [cue.delay, cue.delayOut, cue.fadeIn, cue.fadeOut, cue.overlap]
+        let dim = [false, cue.delayOutAsIn, false, cue.fadeOutAsIn, false]
+        let selected = ui.timeCells.flatMap { $0.playback == engine.connected && $0.cues.contains(cue.number) ? $0.column : nil }
+        return decorated(list, cue) {
+            HStack(spacing: 0) {
+                Text(plain(cue.number)).font(Typo.mono(Typo.body)).foregroundStyle(current ? t.green : t.fg2)
+                    .lineLimit(1).frame(width: Self.timeWidths[0], alignment: .leading).frame(maxHeight: .infinity)
+                    .contentShape(Rectangle()).onTapGesture { if armed { tap(list, cue) } }
+                Text(cue.legend).font(Typo.legend()).foregroundStyle(current ? t.green : t.fg)
+                    .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading).frame(maxHeight: .infinity)
+                    .contentShape(Rectangle()).onTapGesture { if armed { tap(list, cue) } }
+                ForEach(Array(Self.timeColumns.enumerated()), id: \.offset) { index, column in
+                    Text(plain((values[index] * 100).rounded() / 100)).font(Typo.mono(Typo.body))
+                        .foregroundStyle(dim[index] ? t.fg3 : t.fg2)
+                        .lineLimit(1).frame(width: Self.timeWidths[index + 2], alignment: .leading)
+                        .frame(maxHeight: .infinity)
+                        .background(selected == column.0 ? t.blue.opacity(0.35) : Color.clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { tapTime(list, cue, column) }
+                        .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named("cueTimes")).onChanged { drag in
+                            guard !armed else { return }
+                            dragTimes(list, from: cue, column, drag)
+                        })
+                }
+            }
+        }
+        .overlay { RightClickCatcher { ui.timeCells = nil; rightClick(list, cue) } }
+        .help("Tap a time · drag or Shift-tap: more in this column · right-click: cue softkeys")
+    }
+
+    /// UI-51: a tap selects this cell; Shift-tap in the same column extends from the anchor.
+    private func tapTime(_ list: PlaybackInfo, _ cue: StoredCue, _ column: (String, String)) {
+        if ui.recordArmed || ui.function != nil { return tap(list, cue) }
+        if NSApp.currentEvent?.modifierFlags.contains(.shift) == true, let cells = ui.timeCells, cells.playback == list.id, cells.column == column.0 {
+            select(list, column, from: cells.anchor, to: cue.number)
+        } else {
+            ui.timeCells = TimeCells(playback: list.id, column: column.0, title: column.1, cues: [cue.number], anchor: cue.number)
+        }
+    }
+
+    /// UI-51: a drag selects from the row it started on to the row under the pointer, in the start cell's column.
+    private func dragTimes(_ list: PlaybackInfo, from cue: StoredCue, _ column: (String, String), _ drag: DragGesture.Value) {
+        let rows = list.stored.cues
+        let index = min(max(Int(floor(drag.location.y / Self.rowHeight)), 0), rows.count - 1)
+        guard let to = rows[safe: index] else { return }
+        select(list, column, from: cue.number, to: to.number)
+    }
+
+    private func select(_ list: PlaybackInfo, _ column: (String, String), from: Double, to: Double) {
+        let numbers = list.stored.cues.map(\.number)
+        guard let a = numbers.firstIndex(of: from), let b = numbers.firstIndex(of: to) else { return }
+        ui.timeCells = TimeCells(playback: list.id, column: column.0, title: column.1,
+                                 cues: Array(numbers[min(a, b)...max(a, b)]), anchor: from)
     }
 
     /// CUE-43: a tap sets the cue next (CUE-19), so it never changes the stage; with Record armed it

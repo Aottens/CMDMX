@@ -81,6 +81,11 @@ final class TokenLine: ObservableObject {
     /// UI-46: Enter, and Locate on a non-empty line. An empty line confirms a waiting Delete. While Record or a
     /// function is armed, exactly `Group n` or `Palette n` is a tap on that cell; any other line is refused.
     func enter(_ engine: EngineClient, ui: UIState, end: String = "Enter") {
+        if end == "Enter", let n = onlyNumber, ui.liveTimeCells(engine) != nil {   // UI-51: Enter is Set
+            ui.setTimes(engine, n)
+            clear()
+            return
+        }
         if tokens.isEmpty {
             if end == "Enter" { ui.confirmDelete(engine) }
             ui.paletteMenu = false
@@ -152,6 +157,9 @@ enum MacKeys {
         if ui.screen != nil { ui.screen = nil; return true }
         if ui.cueView != nil, Workspace.all[safe: ui.workspace]?.windows.contains(.cues) == true {
             ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false   // same as "Back to List"
+        } else if Workspace.all[safe: ui.workspace]?.windows.contains(.cues) == true {
+            // UI-51: the selected time cells go first, then the Times view.
+            if ui.timeCells != nil { ui.timeCells = nil } else if ui.cueTimesView { ui.cueTimesView = false }
         }
         return true
     }
