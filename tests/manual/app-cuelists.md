@@ -182,7 +182,7 @@ Claude listens to Art-Net; what goes on stage is read there.
 Claude listens to Art-Net; what goes on stage is read there.
 - [ ] Include armed: softkey **Mask** "all". A tap on a group or a fixture is refused, naming palettes, playback handles and cues.
 - [ ] Include + the legend of a running list: its current cue's own values in the programmer, those fixtures selected in the cue's order, on stage at once. A tracked value is not in the programmer.
-- [ ] Include + the legend of a list that is off: "Name a cue: <legend> is not running", disarmed, nothing in the programmer. Include + a row of it: that cue.
+- [ ] Include + the legend of a list that is off: "Name a cue: <legend> is not running", still armed, nothing in the programmer, that list connected. Then a row of it: that cue.
 - [ ] Include + a memory's legend: its cue. A cue with a value off: that value does not come along.
 - [ ] Include + a cue with a palette reference: the programmer shows it as a reference. A cue with an effect: the effect runs from the programmer.
 - [ ] **Mask**: eight groups on, **Back**. I only: no Pan, no effect. FX only: the effect, no values. Nothing of the mask in the cue: "Q3 holds nothing to include".

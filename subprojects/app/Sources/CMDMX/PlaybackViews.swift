@@ -113,7 +113,12 @@ enum HandleTaps {
                 ui.playbackLegendEditing = PlaybackRef(id: info.id)
             case .include:
                 engine.includePlayback(info.id, mask: ui.orderedRecordMask)   // PBK-48
-                ui.cancelModes()
+                // PBK-48: the engine refuses a list that is off; stay armed with its rows on show.
+                if info.hasCues, info.live.cue?.current == nil {
+                    ui.endCueMemory(); engine.cuelist("connect", id: info.id)
+                } else {
+                    ui.cancelModes()
+                }
             case .copy, .move, .latch, .unfold:
                 break
             }

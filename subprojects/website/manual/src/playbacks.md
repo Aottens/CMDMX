@@ -77,7 +77,7 @@ the palette; everything else goes into the ticked cues as a value, also over a r
 
 **Include**, then a tap on a handle, puts the cue of a memory or the current cue of a running list in
 the programmer, its fixtures selected, so you can change them at once and record them back. On a list
-that is not running, tap a row in the Cue list window instead. Only what the cue holds itself comes
+that is not running, Include stays armed and that list comes up in the Cue list window: tap a row. Only what the cue holds itself comes
 along, palette references stay references, and its effects come too. The **Mask** softkey limits it to
 some attribute groups; **FX** in it stands for the effects. What is already in the programmer for those
 attributes is overwritten, the rest stays.
