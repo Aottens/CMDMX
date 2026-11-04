@@ -884,7 +884,8 @@ fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
         kind: opt_field::<Kind>(v, "kind", "Cues or Chase")?,
         delay: opt_f32(v, "delay")?,
         fade_in: opt_f32(v, "fade_in")?,
-        fade_out: opt_f32(v, "fade_out")?,
+        fade_out: nullable(v, "fade_out", "a number or null")?,
+        delay_out: nullable(v, "delay_out", "a number or null")?,
         overlap: opt_f32(v, "overlap")?,
         ..PlaybackChange::default()
     })
@@ -1626,7 +1627,8 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             record_by: opt_field(&v, "record_by", "Channel or Mixed")?,
             delay: opt_f32(&v, "delay")?,
             fade_in: opt_f32(&v, "fade_in")?,
-            fade_out: opt_f32(&v, "fade_out")?,
+            fade_out: nullable(&v, "fade_out", "a number or null")?,
+            delay_out: nullable(&v, "delay_out", "a number or null")?,
             overlap: opt_f32(&v, "overlap")?,
             release_mask: opt_field(&v, "release_mask", "an array of attribute groups")?,
             release_time: opt_f32(&v, "release_time")?,
@@ -1682,7 +1684,8 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             change: CueChange {
                 delay: opt_f32(&v, "delay")?,
                 fade_in: opt_f32(&v, "fade_in")?,
-                fade_out: opt_f32(&v, "fade_out")?,
+                fade_out: nullable(&v, "fade_out", "a number or null")?,
+                delay_out: nullable(&v, "delay_out", "a number or null")?,
                 overlap: opt_f32(&v, "overlap")?,
                 link: opt_field::<Link>(&v, "link", "{type: Wait, After or With, offset}")?,
                 group_times: opt_field(&v, "group_times", "{group: {delay, fade}}")?,
@@ -1819,7 +1822,11 @@ struct CueInfo {
     legend: String,
     delay: f32,
     fade_in: f32,
+    /// CUE-56, IPC-55: the value in force, and whether it is As In.
     fade_out: f32,
+    delay_out: f32,
+    fade_out_as_in: bool,
+    delay_out_as_in: bool,
     overlap: f32,
     link: Link,
     track: Track,
@@ -1845,6 +1852,9 @@ struct TimesInfo {
     delay: f32,
     fade_in: f32,
     fade_out: f32,
+    delay_out: f32,
+    fade_out_as_in: bool,
+    delay_out_as_in: bool,
     overlap: f32,
 }
 
@@ -1898,6 +1908,9 @@ struct PlaybackSettingsInfo {
     delay: f32,
     fade_in: f32,
     fade_out: f32,
+    delay_out: f32,
+    fade_out_as_in: bool,
+    delay_out_as_in: bool,
     overlap: f32,
     release_mask: Vec<AttributeGroup>,
     release_time: f32,
@@ -1913,7 +1926,10 @@ fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
         record_by: s.cue_record_by,
         delay: s.cue_delay,
         fade_in: s.cue_fade_in,
-        fade_out: s.cue_fade_out,
+        fade_out: s.cue_fade_out.unwrap_or(s.cue_fade_in),
+        delay_out: s.cue_delay_out.unwrap_or(s.cue_delay),
+        fade_out_as_in: s.cue_fade_out.is_none(),
+        delay_out_as_in: s.cue_delay_out.is_none(),
         overlap: s.cue_overlap,
         release_mask: s.release_mask.clone(),
         release_time: s.release_time,
@@ -1943,12 +1959,18 @@ fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
                     delay: 0.0,
                     fade_in: 0.0,
                     fade_out: 0.0,
+                    delay_out: 0.0,
+                    fade_out_as_in: true,
+                    delay_out_as_in: true,
                     overlap: 100.0,
                 },
                 |c| TimesInfo {
                     delay: c.delay,
                     fade_in: c.fade_in,
-                    fade_out: c.fade_out,
+                    fade_out: c.fade_out_in_force(),
+                    delay_out: c.delay_out_in_force(),
+                    fade_out_as_in: c.fade_out.is_none(),
+                    delay_out_as_in: c.delay_out.is_none(),
                     overlap: c.overlap,
                 },
             );
@@ -1978,7 +2000,10 @@ fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
                         legend: c.legend.clone(),
                         delay: c.delay,
                         fade_in: c.fade_in,
-                        fade_out: c.fade_out,
+                        fade_out: c.fade_out_in_force(),
+                        delay_out: c.delay_out_in_force(),
+                        fade_out_as_in: c.fade_out.is_none(),
+                        delay_out_as_in: c.delay_out.is_none(),
                         overlap: c.overlap,
                         link: c.link,
                         track: c.track,
@@ -5716,9 +5741,10 @@ mod tests {
                "groups":["I"],
                "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete",
                           "release_mask":null,"release_time":null,"paging":"Unlocked","group":null},
-               "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"overlap":100.0},
+               "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,
+                          "fade_out_as_in":true,"delay_out_as_in":true,"overlap":100.0},
                "kind":"Cues",
-               "cues":[{"number":1.0,"legend":"","delay":0.0,"fade_in":0.0,"fade_out":0.0,
+               "cues":[{"number":1.0,"legend":"","delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,"fade_out_as_in":true,"delay_out_as_in":true,
                         "overlap":100.0,"link":{"type":"Wait"},"track":"Track",
                         "group_times":{},"groups":["I"]}],
                "list":{"tracking":true,"fader":"KillWithOff","fire_first_cue":true,
@@ -5780,7 +5806,7 @@ mod tests {
         assert_eq!(v["dbo"], json!(false));
         assert_eq!(
             v["playback_settings"],
-            json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,
+            json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,"fade_out_as_in":true,"delay_out_as_in":true,
                    "overlap":100.0,"release_mask":[],"release_time":2.0,
                    "auto_connect":true,"cue_list_fader":"KillWithOff","update_mode":"Forwards",
                    "handle_buttons":"BestPractice"})
@@ -6092,7 +6118,7 @@ mod tests {
                 change: PlaybackChange {
                     delay: Some(1.0),
                     fade_in: Some(3.0),
-                    fade_out: Some(4.0),
+                    fade_out: Some(Some(4.0)),
                     overlap: Some(50.0),
                     ..PlaybackChange::default()
                 }
@@ -6253,6 +6279,102 @@ mod tests {
             .find(|p| p["id"] == json!(id))
             .cloned()
             .unwrap()
+    }
+
+    #[test]
+    fn ipc_55_null_sets_as_in_and_absent_changes_nothing() {
+        let change = |text: &str| match parse_command(text).unwrap() {
+            Command::CueEdit { change, .. } => change,
+            other => panic!("{other:?}"),
+        };
+        let c =
+            change(r#"{"v":1,"cmd":"cue.times","id":3,"cue":2,"fade_out":null,"delay_out":null}"#);
+        assert_eq!((c.fade_out, c.delay_out), (Some(None), Some(None)));
+        let c =
+            change(r#"{"v":1,"cmd":"cue.times","id":3,"cue":2,"fade_out":4.0,"delay_out":1.5}"#);
+        assert_eq!(
+            (c.fade_out, c.delay_out),
+            (Some(Some(4.0)), Some(Some(1.5)))
+        );
+        let c = change(r#"{"v":1,"cmd":"cue.times","id":3,"cue":2,"fade_in":4.0}"#);
+        assert_eq!((c.fade_out, c.delay_out), (None, None));
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"cue.times","id":3,"cue":2,"delay_out":"as in"}"#)
+                .is_err()
+        );
+
+        let Command::PlaybackChange { change: p, .. } = parse_command(
+            r#"{"v":1,"cmd":"playback.times","id":3,"fade_out":null,"delay_out":2.0}"#,
+        )
+        .unwrap() else {
+            panic!("not a playback change");
+        };
+        assert_eq!((p.fade_out, p.delay_out), (Some(None), Some(Some(2.0))));
+
+        let Command::SettingsPlayback(s) =
+            parse_command(r#"{"v":1,"cmd":"settings.playback","fade_out":3.0,"delay_out":null}"#)
+                .unwrap()
+        else {
+            panic!("not settings");
+        };
+        assert_eq!((s.fade_out, s.delay_out), (Some(Some(3.0)), Some(None)));
+    }
+
+    #[test]
+    fn ipc_55_the_snapshot_gives_the_time_in_force_and_says_which_are_as_in() {
+        let mut e = list_engine();
+        let change = CueChange {
+            delay: Some(1.0),
+            fade_in: Some(2.0),
+            ..CueChange::default()
+        };
+        e.change_cue(2, q(1.0), &change).unwrap();
+        e.change_cue(
+            2,
+            q(2.0),
+            &CueChange {
+                fade_out: Some(Some(0.0)),
+                delay_out: Some(Some(0.5)),
+                ..CueChange::default()
+            },
+        )
+        .unwrap();
+        e.set_playback_settings(&PlaybackSettingsChange {
+            delay: Some(3.0),
+            fade_in: Some(4.0),
+            delay_out: Some(Some(5.0)),
+            ..PlaybackSettingsChange::default()
+        })
+        .unwrap();
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+            &[],
+            false,
+        ));
+        assert_eq!(v["v"], 1, "IPC-41: v stays");
+        let pb = entry(&v, 2);
+        let as_in =
+            json!({"delay_out":1.0,"delay_out_as_in":true,"fade_out":2.0,"fade_out_as_in":true});
+        let typed =
+            json!({"delay_out":0.5,"delay_out_as_in":false,"fade_out":0.0,"fade_out_as_in":false});
+        for (got, want) in [
+            (&pb["cues"][0], &as_in),
+            (&pb["times"], &as_in),
+            (&pb["cues"][1], &typed),
+        ] {
+            for key in ["delay_out", "delay_out_as_in", "fade_out", "fade_out_as_in"] {
+                assert_eq!(got[key], want[key], "{key} in {got}");
+            }
+        }
+        let s = &v["playback_settings"];
+        assert_eq!(s["fade_out"], json!(4.0), "the setting in force: {s}");
+        assert_eq!(s["fade_out_as_in"], json!(true));
+        assert_eq!(s["delay_out"], json!(5.0));
+        assert_eq!(s["delay_out_as_in"], json!(false));
     }
 
     #[test]

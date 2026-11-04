@@ -42,7 +42,7 @@ rig through the Eurolite interface: fades comparable with Lightkey, replugging t
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Next up: the church Mac (VS4-07), the first service run (VS4-03), and changing what is recorded,
-specified and starting with REC-01. Phase 2 features already work (see below); the
+specified and going on with REC-03. Phase 2 features already work (see below); the
 open-hardware desk (phase 10, [`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is
 in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manual are at
 [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -137,8 +137,11 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
   locks, fader modes with fades and kill point, Flash/Swop/Latch, legends with icons, and DBO.
 - Level bars never jump: a click on a strip, group master or the Grand Master changes nothing, a drag
   moves the level by the distance dragged.
-- *New cue times* in Playback Options ▸ Settings: the delay, fade in, fade out and overlap that cues recorded from then
-  on start with; an existing cue keeps its own.
+- *New cue times* in Playback Options ▸ Settings: the delay, delay out, fade in, fade out and overlap that cues recorded
+  from then on start with; an existing cue keeps its own.
+- Delay out and fade out are *As In* until you type a time: empty, they follow the delay and fade in. A show saved
+  before this keeps its output; a show saved with this release does not open on an older engine.
+- A number the engine refuses goes back in its field half a second later.
 - Cue lists with Go, Back, Go to cue, links, loop and tracking (Block, Cue Only, Solo), times per
   attribute group, a Go block, a Cue list window and a Cue view that follows every change, Undo
   included. The current cue reads large and

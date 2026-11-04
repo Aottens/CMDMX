@@ -336,11 +336,11 @@ fn prg_91_each_action_is_one_step_and_a_refused_one_adds_none() {
 
 #[test]
 fn prg_92_schema_10_round_trips_a_legend() {
-    assert_eq!(SCHEMA_VERSION, 10);
+    assert_eq!(SCHEMA_VERSION, 11);
     let mut e = church();
     group_5(&mut e);
     let json = e.to_show(meta()).to_json();
-    assert!(json.contains("\"schema_version\": 10"));
+    assert!(json.contains("\"schema_version\": 11"));
     assert!(json.contains("\"legend\": \"Pars outside in\""), "{json}");
     let (show, migrations) = Show::from_json(&json).unwrap();
     assert!(migrations.is_empty(), "{migrations:?}");
@@ -361,9 +361,9 @@ fn prg_92_a_show_without_legends_saves_as_schema_9_did() {
     let groups = &json[json.find("\"groups\"").unwrap()..json.find("\"palettes\"").unwrap()];
     assert!(!groups.contains("legend"), "{groups}");
 
-    let nine = json.replace("\"schema_version\": 10", "\"schema_version\": 9");
+    let nine = json.replace("\"schema_version\": 11", "\"schema_version\": 9");
     let (show, migrations) = Show::from_json(&nine).unwrap();
-    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert_eq!(migrations.len(), 2, "{migrations:?}");
     assert!(migrations[0].starts_with("9 -> 10"), "{migrations:?}");
     let (loaded, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
@@ -377,7 +377,8 @@ fn prg_92_the_schema_9_church_show_loads_unchanged() {
         "/../../../tests/fixtures/shows/"
     );
     let v9 = std::fs::read_to_string(format!("{dir}church-demo-v9.cmdmx.json")).unwrap();
-    let v10 = std::fs::read_to_string(format!("{dir}church-demo.cmdmx.json")).unwrap();
+    let v10 = std::fs::read_to_string(format!("{dir}church-demo-v10.cmdmx.json")).unwrap();
+    let now = std::fs::read_to_string(format!("{dir}church-demo.cmdmx.json")).unwrap();
     assert_eq!(
         v9.replace("\"schema_version\": 9", "\"schema_version\": 10"),
         v10
@@ -385,7 +386,7 @@ fn prg_92_the_schema_9_church_show_loads_unchanged() {
     let (show, _) = Show::from_json(&v9).unwrap();
     let (loaded, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
-    assert_eq!(loaded.to_show(show.meta.clone()).to_json(), v10);
+    assert_eq!(loaded.to_show(show.meta.clone()).to_json(), now);
 }
 
 #[test]

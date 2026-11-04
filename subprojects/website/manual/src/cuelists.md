@@ -22,7 +22,7 @@ handle: `Record`, `4.5`, tap the handle records Q4.5. If that cue exists, the so
 
 Cue numbers go from 0.001 to 9999.999, with up to three decimals. The list always runs them in
 number order. A new cue gets the *New cue times* of the Settings tab in Playback Options (in a new
-show 0 s and overlap 100 %, see [Times and fader modes](playbacks.md#times-and-fader-modes)) and waits for Go.
+show 0 s, the out times As In and overlap 100 %, see [Times and fader modes](playbacks.md#times-and-fader-modes)) and waits for Go.
 
 You do not need to Clear between cues. With tracking on (the default), each cue stores only what
 you changed, and the rest carries on from the cues before it. See [Tracking](#tracking).
@@ -104,8 +104,14 @@ Every cue has its own times. Open **Playback Options** on the list (or **Edit Ti
 and go to the **Times** tab. The **Cue** menu at the top picks the cue; it starts on the current
 cue. For that cue you set:
 
-- **Delay**, **Fade in**, **Fade out** and **Overlap**. Intensity that goes up uses the fade in;
-  intensity that goes down uses the fade out. Colour, position and the rest use the fade in.
+- **Delay**, **Delay out**, **Fade in**, **Fade out** and **Overlap**. Intensity that goes up uses
+  the delay and the fade in; intensity that goes down uses the delay out and the fade out. Colour,
+  position and the rest use the delay and the fade in.
+- **As In**: an out field that says *as in* has no number of its own, and takes the delay or the fade
+  in, whatever you make those later. This is how a new cue starts. Type a number to give it its own
+  time; empty the field and press Return to link it again. A cue with fade in 3 and an empty fade
+  out goes down over 3 s, and with fade out 5 over 5 s. A 0 is a time: that intensity drops at once.
+  Back has no delay at all, out included. Group times replace all four, and a chase has neither.
 - **Link** (next part).
 - **Track** (see [Tracking](#tracking)).
 - **Group times**: a delay and fade of its own for any attribute group. Tap **—** under a group

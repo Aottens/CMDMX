@@ -536,7 +536,7 @@ values.
 Titan pages used: *Cue List Timing*, *Creating a Cue List*, *Editing Cue Lists*, *Editing Cues*. What a page does not say is marked as our own choice.
 - **CUE-56** **As In** (I1; amends CUE-02, 09, 13, PBK-16; Titan: Fade Out and Delay Out default to *As In*, a typed value overrides, a blank box links them again). A cue's
   `fade_out` and new `delay_out` are a time or **As In**, default As In: they then have the value of `fade_in` and `delay`. CUE-13's HTP attribute falling waits `delay_out` and
-  falls over `fade_out`; rising HTP and LTP keep `delay` and `fade_in`. The transition's duration (CUE definitions) and so the `After` link use these values. Back has no delay (CUE-11), out included.
+  falls over `fade_out`; rising HTP and LTP keep `delay` and `fade_in`; an effect the cue lacks leaves as a falling HTP does (FX-26). The transition's duration (CUE definitions) and so the `After` link use these values. Back has no delay (CUE-11), out included.
   Group times (CUE-14) still replace both; chases ignore all of them (CUE-29). A memory has only `fade_out` (PBK-16, mode 1; As In follows `fade_in`) and ignores `delay_out`: Titan's *Cue Timing* has no delay out, and as an own choice its fade out follows
   as on a list, so one cue has one rule. Q2 pars 80 % → Q3 pars 20 %, `fade_in` 3 s, nothing else set: Go → down over 3 s; `fade_out` 5 → over 5 s; As In again → 3 s.
   Tests `cue_56_…`, scenario `CUE-56-*.json`.

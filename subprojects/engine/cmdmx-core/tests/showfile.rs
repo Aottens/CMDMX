@@ -16,7 +16,9 @@ use cmdmx_core::colour::ColourModel;
 use cmdmx_core::engine::Engine;
 use cmdmx_core::output::NodeKind;
 use cmdmx_core::patch::{Fixture, PatchAdd};
-use cmdmx_core::playback::{FaderMode, GroupMaster, GroupMode, Master, Playback, Priority};
+use cmdmx_core::playback::{
+    FaderMode, GroupMaster, GroupMode, ListAction, Master, Playback, Priority,
+};
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::Item;
 use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
@@ -149,7 +151,7 @@ fn shw_01_top_level_keys_in_order() {
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
-    assert_eq!(SCHEMA_VERSION, 10); // OUT-13, PRG-52, FX-29
+    assert_eq!(SCHEMA_VERSION, 11); // OUT-13, PRG-52, FX-29, CUE-58
     assert_eq!(
         v["meta"],
         json!({"name": "Church demo", "created": "2026-10-18T09:00:00Z",
@@ -306,12 +308,15 @@ fn shw_03_fixture_show_is_the_church_rig() {
 #[test]
 fn shw_04_newer_schema_is_refused_with_a_clear_message() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["schema_version"] = json!(11);
+    v["schema_version"] = json!(SCHEMA_VERSION + 1);
     let err = Show::from_json(&v.to_string()).unwrap_err().to_string();
     assert!(err.contains("Church demo"), "{err}");
     assert!(err.contains("newer"), "{err}");
-    assert!(err.contains("schema 11"), "{err}");
-    assert!(err.contains("up to 10"), "{err}");
+    assert!(
+        err.contains(&format!("schema {}", SCHEMA_VERSION + 1)),
+        "{err}"
+    );
+    assert!(err.contains(&format!("up to {SCHEMA_VERSION}")), "{err}");
 }
 
 #[test]
@@ -531,7 +536,7 @@ fn group_master_of(e: &Engine, id: u32) -> GroupMaster {
 fn grm_13_a_group_master_is_saved_with_its_level() {
     let e = rig_with_group_master();
     let v = as_json(&e.to_show(meta()));
-    assert_eq!(v["schema_version"], json!(10));
+    assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
     let pb = &v["playbacks"]["playbacks"][2];
     assert_eq!(pb["kind"], json!("GroupMaster"));
     assert_eq!(
@@ -562,7 +567,7 @@ fn grm_13_a_restart_keeps_the_masters_level_and_the_stage() {
 fn grm_13_a_schema_4_show_is_migrated() {
     let file = std::fs::read_to_string(V4_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 6, "{migrations:?}");
+    assert_eq!(migrations.len(), 7, "{migrations:?}");
     assert!(migrations[0].starts_with("4 -> 5"), "{migrations:?}");
     assert!(migrations[1].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
     assert!(migrations[2].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
@@ -629,4 +634,194 @@ fn grm_14_a_group_master_with_cues_loads_without_them() {
     });
     assert_eq!(warnings.len(), 1, "{warnings:?}");
     assert!(e.playback(3).unwrap().cues.is_empty());
+}
+
+// ---- CUE-58: schema 11 ----------------------------------------------------------------------
+
+/// The fixture show as schema 10 with cue fields set by `edit` on its first cue, and its
+/// settings at `cue_fade_in` 2, `cue_fade_out` `out`.
+fn schema_10(out: Json, edit: impl FnOnce(&mut Json)) -> Json {
+    let mut v: Json =
+        serde_json::from_str(&std::fs::read_to_string(FIXTURE_SHOW).unwrap()).unwrap();
+    v["schema_version"] = json!(10);
+    v["settings"]["cue_fade_in"] = json!(2.0);
+    v["settings"]["cue_fade_out"] = out;
+    edit(&mut v["playbacks"]["playbacks"][0]["cues"][0]);
+    v
+}
+
+fn first_cue_of(v: &Json) -> (Show, cmdmx_core::playback::Cue) {
+    let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
+    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert!(migrations[0].starts_with("10 -> 11"), "{migrations:?}");
+    let (e, _) = Engine::from_show(&show);
+    let cue = e.playbacks().next().unwrap().cues[0].clone();
+    (show, cue)
+}
+
+#[test]
+fn cue_58_a_fade_out_equal_to_its_fade_in_becomes_as_in() {
+    let (_, cue) = first_cue_of(&schema_10(json!(2.0), |c| {
+        c["fade_in"] = json!(3.0);
+        c["fade_out"] = json!(3.0);
+    }));
+    assert_eq!(
+        (cue.fade_in, cue.fade_out, cue.delay_out),
+        (3.0, None, None)
+    );
+}
+
+#[test]
+fn cue_58_any_other_fade_out_stays_the_number_it_was() {
+    let (_, cue) = first_cue_of(&schema_10(json!(0.0), |c| {
+        c["fade_in"] = json!(3.0);
+        c["fade_out"] = json!(0.0);
+    }));
+    assert_eq!(cue.fade_out, Some(0.0), "still snaps down");
+    assert_eq!(cue.delay_out, None, "a falling HTP waited `delay`: As In");
+    let (_, cue) = first_cue_of(&schema_10(json!(0.0), |c| {
+        c["fade_in"] = json!(1.0);
+        c["fade_out"] = json!(4.0);
+    }));
+    assert_eq!(cue.fade_out, Some(4.0));
+}
+
+#[test]
+fn cue_58_a_missing_fade_out_was_a_zero() {
+    let (_, cue) = first_cue_of(&schema_10(json!(0.0), |c| {
+        c["fade_in"] = json!(3.0);
+        c.as_object_mut().unwrap().remove("fade_out");
+    }));
+    assert_eq!(cue.fade_out, Some(0.0));
+    let (_, cue) = first_cue_of(&schema_10(json!(0.0), |c| {
+        let c = c.as_object_mut().unwrap();
+        c.remove("fade_in");
+        c.remove("fade_out");
+    }));
+    assert_eq!(cue.fade_out, None, "both were 0");
+}
+
+#[test]
+fn cue_58_the_settings_migrate_the_same() {
+    let (show, _) = first_cue_of(&schema_10(json!(2.0), |_| {}));
+    let s = as_json(&show);
+    assert!(s["settings"].get("cue_fade_out").is_none(), "equal: As In");
+    let (e, _) = Engine::from_show(&show);
+    assert_eq!(e.settings().cue_fade_out, None);
+    assert_eq!(e.settings().cue_delay_out, None);
+    let (show, _) = first_cue_of(&schema_10(json!(0.0), |_| {}));
+    let (e, _) = Engine::from_show(&show);
+    assert_eq!(e.settings().cue_fade_out, Some(0.0), "differs: stays");
+    assert_eq!(e.settings().cue_delay_out, None);
+}
+
+#[test]
+fn cue_58_older_shows_step_through_to_11() {
+    let (_, migrations) = Show::from_json(&std::fs::read_to_string(V4_SHOW).unwrap()).unwrap();
+    assert!(
+        migrations.last().unwrap().starts_with("10 -> 11"),
+        "{migrations:?}"
+    );
+}
+
+/// `schema_10`, with playback 1 holding par 201 at 80 %, then at 20 % with delay 1, fade in 2.
+fn two_cues(fade_out: f32) -> String {
+    let mut v = schema_10(json!(0.0), |_| {});
+    let cue = |number: u32, level: f32, delay: f32, fade_in: f32, fade_out: f32| {
+        json!({"number": number, "delay": delay, "fade_in": fade_in, "fade_out": fade_out,
+               "overlap": 100.0, "legend": "", "link": {"type": "Wait"}, "track": "Track",
+               "group_times": {}, "values": {"201": {"Dimmer": level}}})
+    };
+    v["playbacks"]["playbacks"][0]["cues"] =
+        json!([cue(1, 0.8, 0.0, 0.0, 0.0), cue(2, 0.2, 1.0, 2.0, fade_out)]);
+    v.to_string()
+}
+
+#[test]
+fn cue_58_a_show_keeps_its_output_on_load() {
+    let (show, _) = Show::from_json(&two_cues(0.0)).unwrap();
+    let (mut e, warnings) = Engine::from_show(&show);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    assert_eq!(common::dmx(&e, 21), 204);
+    e.cuelist(Some(1), ListAction::Go, 1.0).unwrap();
+    e.tick(1.0);
+    assert_eq!(common::dmx(&e, 21), 204, "the delay of 1 s");
+    e.tick(2.0);
+    assert_eq!(common::dmx(&e, 21), 51, "a fade out of 0: at once");
+
+    let (show, _) = Show::from_json(&two_cues(2.0)).unwrap();
+    assert_eq!(show.playbacks.playbacks[0].cues[1].fade_out, None);
+    let (mut e, _) = Engine::from_show(&show);
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    e.cuelist(Some(1), ListAction::Go, 1.0).unwrap();
+    e.tick(1.0);
+    e.tick(3.0);
+    assert!(common::dmx(&e, 21).abs_diff(128) <= 1, "2 s as it was");
+}
+
+#[test]
+fn cue_58_as_in_and_empty_are_absent_in_the_file() {
+    let mut e = rig();
+    e.add_playback(Playback::new(9, 2, 1, BTreeMap::new()));
+    e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange::default())
+        .unwrap();
+    let v = as_json(&e.to_show(meta()));
+    assert_eq!(v["schema_version"], json!(11));
+    for pb in v["playbacks"]["playbacks"].as_array().unwrap() {
+        for cue in pb["cues"].as_array().unwrap() {
+            for key in ["fade_out", "delay_out", "dormant"] {
+                assert!(cue.get(key).is_none(), "{key} in {cue}");
+            }
+        }
+    }
+    for key in ["cue_fade_out", "cue_delay_out"] {
+        assert!(v["settings"].get(key).is_none(), "{key}");
+    }
+}
+
+#[test]
+fn cue_58_times_and_dormant_survive_save_and_load() {
+    let mut v = as_json(&rig().to_show(meta()));
+    let cue = &mut v["playbacks"]["playbacks"][0]["cues"][0];
+    cue["fade_out"] = json!(0.0);
+    cue["delay_out"] = json!(2.5);
+    cue["dormant"] = json!({"101": {"Pan": 0.25}});
+    v["settings"]["cue_fade_out"] = json!(1.5);
+    v["settings"]["cue_delay_out"] = json!(0.5);
+    let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
+    assert!(migrations.is_empty(), "{migrations:?}");
+    let (e, warnings) = Engine::from_show(&show);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    let saved = as_json(&e.to_show(meta()));
+    let cue = &saved["playbacks"]["playbacks"][0]["cues"][0];
+    assert_eq!(cue["fade_out"], json!(0.0));
+    assert_eq!(cue["delay_out"], json!(2.5));
+    assert_eq!(cue["dormant"], json!({"101": {"Pan": 0.25}}));
+    assert_eq!(saved["settings"]["cue_fade_out"], json!(1.5));
+    assert_eq!(saved["settings"]["cue_delay_out"], json!(0.5));
+}
+
+#[test]
+fn cue_58_out_times_out_of_range_load_as_as_in_with_one_warning_each() {
+    let mut v = as_json(&rig().to_show(meta()));
+    let cue = &mut v["playbacks"]["playbacks"][0]["cues"][0];
+    cue["fade_out"] = json!(601.0);
+    cue["delay_out"] = json!(-1.0);
+    let (show, _) = Show::from_json(&v.to_string()).unwrap();
+    let (e, warnings) = Engine::from_show(&show);
+    assert_eq!(warnings.len(), 2, "{warnings:?}");
+    assert!(warnings[0].contains("fade out 601"), "{warnings:?}");
+    assert!(warnings[1].contains("delay out -1"), "{warnings:?}");
+    let cue = &e.playback(1).unwrap().cues[0];
+    assert_eq!((cue.fade_out, cue.delay_out), (None, None));
+}
+
+#[test]
+fn cue_58_schema_12_is_refused() {
+    let mut v = as_json(&rig().to_show(meta()));
+    v["schema_version"] = json!(12);
+    assert!(Show::from_json(&v.to_string()).is_err());
 }

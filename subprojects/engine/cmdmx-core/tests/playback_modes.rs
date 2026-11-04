@@ -84,7 +84,7 @@ fn pbk_19_fade_out_complete_keeps_the_playback_active_until_it_is_out() {
         fader_mode: FaderMode::Mode1,
         ..Playback::new(1, 1, 1, values(&[(101, "Dimmer", 1.0)]))
     };
-    pb.cues[0].fade_out = 1.0;
+    pb.cues[0].fade_out = Some(1.0);
     e.add_playback(pb);
     e.set_fader(1, 1.0, 0.0).unwrap();
     run(&mut e, 0.0, 0.5);
@@ -105,7 +105,7 @@ fn pbk_19_fader_at_zero_kills_at_once() {
         kill_point: KillPoint::FaderAtZero,
         ..Playback::new(1, 1, 1, values(&[(101, "Dimmer", 1.0)]))
     };
-    pb.cues[0].fade_out = 4.0;
+    pb.cues[0].fade_out = Some(4.0);
     e.add_playback(pb);
     e.set_fader(1, 1.0, 0.0).unwrap();
     run(&mut e, 0.0, 0.5);
@@ -406,7 +406,7 @@ fn pbk_43_same_actions_same_frames() {
             ..Playback::new(1, 1, 1, values(&[(101, "Dimmer", 1.0), (101, "Zoom", 1.0)]))
         };
         pb.cues[0].fade_in = 1.0;
-        pb.cues[0].fade_out = 1.5;
+        pb.cues[0].fade_out = Some(1.5);
         pb.release_mask = Some(vec![B]);
         e.add_playback(pb);
         let mut frames = Vec::new();
@@ -424,4 +424,46 @@ fn pbk_43_same_actions_same_frames() {
         frames
     };
     assert_eq!(go(), go());
+}
+
+/// CUE-56 on a memory: As In follows `fade_in`, a typed `fade_out` overrides, `delay_out` is ignored.
+fn falling_memory(fade_out: Option<f32>, delay_out: Option<f32>) -> Engine {
+    let mut e = rig();
+    let mut pb = Playback {
+        fader_mode: FaderMode::Mode1,
+        ..Playback::new(1, 1, 1, values(&[(101, "Dimmer", 1.0)]))
+    };
+    pb.cues[0].fade_in = 2.0;
+    pb.cues[0].fade_out = fade_out;
+    pb.cues[0].delay_out = delay_out;
+    e.add_playback(pb);
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 3.0);
+    assert_eq!(ch(&e, 1), 255);
+    e.set_fader(1, 0.0, 3.0).unwrap();
+    e
+}
+
+#[test]
+fn cue_56_a_memory_fades_out_as_in_its_fade_in() {
+    let mut e = falling_memory(None, None);
+    run(&mut e, 3.0, 4.0);
+    assert_eq!(ch(&e, 1), 128, "half-way over the 2 s of fade in");
+}
+
+#[test]
+fn cue_56_a_memory_takes_a_typed_fade_out() {
+    let mut e = falling_memory(Some(4.0), None);
+    run(&mut e, 3.0, 4.0);
+    assert_eq!(ch(&e, 1), 191, "a quarter over 4 s");
+    let mut e = falling_memory(Some(0.0), None);
+    run(&mut e, 3.0, 3.025);
+    assert_eq!(ch(&e, 1), 0, "a typed 0 follows the fader");
+}
+
+#[test]
+fn cue_56_a_memory_ignores_delay_out() {
+    let mut e = falling_memory(None, Some(9.0));
+    run(&mut e, 3.0, 4.0);
+    assert_eq!(ch(&e, 1), 128, "falls at once");
 }

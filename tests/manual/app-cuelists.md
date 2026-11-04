@@ -114,13 +114,26 @@ universe 1 during the run and reports the measured values and times.
       Back to Best practice.
 
 ## New cue times (PBK-46)
-- [ ] Settings tab of any playback: *New cue times* shows delay 0, fade in 0, fade out 0, overlap 100 in a new show.
-- [ ] Set delay 0.5, fade in 3, fade out 4, overlap 50. Record a new memory: its Times tab shows those four.
+- [ ] Settings tab of any playback: *New cue times* shows delay 0, delay out and fade out empty with "as in", fade in 0, overlap 100 in a new show.
+- [ ] Set delay 0.5, fade in 3, fade out 4, overlap 50. Record a new memory: its Times tab shows those four, and no Delay out row.
 - [ ] Append a cue to the service list and a step to the chase: the new cue and step have those times; the
       earlier cues keep theirs.
 - [ ] Fade in 601 is refused, the warning shows under the tab without scrolling and the setting stays 3. Fire the new memory: the Art-Net level
       takes 3 s after 0.5 s delay.
-- [ ] Wait 5 s (autosave), restart the daemon: the four values are back. Set them to 0, 0, 0, 100.
+- [ ] Wait 5 s (autosave), restart the daemon: the four values are back. Set them to 0, 0, overlap 100, and empty fade out.
+
+## As In (CUE-56, 57, UI-52)
+Claude listens to Art-Net; the times below are read there, not on screen.
+- [ ] Cue list Q2 par at 80 %, Q3 the same par at 20 %. Q3's Times tab: delay out and fade out empty with "as in". Fade in 3, Go: down over 3 s.
+- [ ] Q3 fade out 5, Return: the field stays 5; back to Q2, Go: down over 5 s.
+- [ ] Empty the fade out field, Return: "as in" again; back to Q2, Go: down over 3 s.
+- [ ] Q3 delay out 2 with delay 0: Go: the fall waits 2 s; a par that rises in Q3 starts at once.
+- [ ] Fade out 0: Go: down at once, and the field shows 0, not "as in".
+- [ ] Back from Q3 with delay out 2: no wait.
+- [ ] Settings tab: fade in 2, fade out and delay out "as in". Record a cue: its Times tab shows "as in". Fade out 4 in the Settings tab, record another: it shows 4. Empty it again.
+- [ ] A memory in fader mode 1 with fade in 2, As In: pull the fader down: falls over 2 s. No Delay out row.
+- [ ] An old show (schema 10) with fade in 3 and fade out 0 opens: the Times tab shows 0, the cue still snaps down; save it: it stays that way on the next open.
+- [ ] Type fade in 602, Return: the warning shows, and half a second later the field shows the old number, focused or not. The same in delay out and in *New cue times*.
 
 ## Restart (CUE-24, SHW)
 - [ ] Wait 5 s (autosave), stop the daemon (Ctrl-C) and start it again with the same command:

@@ -204,8 +204,12 @@ pub struct Cue {
     pub delay: f32,
     #[serde(default)]
     pub fade_in: f32,
-    #[serde(default)]
-    pub fade_out: f32,
+    /// CUE-56: a time, or `None` = As In (the value of `fade_in`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fade_out: Option<f32>,
+    /// CUE-56: a time, or `None` = As In (the value of `delay`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delay_out: Option<f32>,
     #[serde(default = "full_overlap")]
     pub overlap: f32,
     #[serde(default)]
@@ -226,6 +230,9 @@ pub struct Cue {
     /// PRG-80: each item's position in the recorded selection order; empty = no order.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub order: BTreeMap<Item, u32>,
+    /// CUE-58: stored for CUE-61 (Off and On); nothing reads it yet.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dormant: Values,
 }
 
 fn full_overlap() -> f32 {
@@ -233,12 +240,23 @@ fn full_overlap() -> f32 {
 }
 
 impl Cue {
+    /// CUE-56: the fade out in force, As In = `fade_in`.
+    pub fn fade_out_in_force(&self) -> f32 {
+        self.fade_out.unwrap_or(self.fade_in)
+    }
+
+    /// CUE-56: the delay out in force, As In = `delay`.
+    pub fn delay_out_in_force(&self) -> f32 {
+        self.delay_out.unwrap_or(self.delay)
+    }
+
     /// Number 1, zero times, full overlap, link `Wait`, tracking.
     pub fn new(values: Values) -> Self {
         Cue {
             delay: 0.0,
             fade_in: 0.0,
-            fade_out: 0.0,
+            fade_out: None,
+            delay_out: None,
             overlap: full_overlap(),
             number: CueNumber::default(),
             legend: String::new(),
@@ -248,6 +266,7 @@ impl Cue {
             values,
             effects: Vec::new(),
             order: BTreeMap::new(),
+            dormant: BTreeMap::new(),
         }
     }
 }
@@ -955,7 +974,9 @@ pub struct PlaybackChange {
     pub group: Option<Option<u8>>,
     pub delay: Option<f32>,
     pub fade_in: Option<f32>,
-    pub fade_out: Option<f32>,
+    /// CUE-56: `Some(None)` = As In.
+    pub fade_out: Option<Option<f32>>,
+    pub delay_out: Option<Option<f32>>,
     pub overlap: Option<f32>,
     /// CUE-01: `Cues` or `Chase`, never to or from a master.
     pub kind: Option<Kind>,
@@ -971,7 +992,9 @@ pub struct CueChange {
     pub legend: Option<String>,
     pub delay: Option<f32>,
     pub fade_in: Option<f32>,
-    pub fade_out: Option<f32>,
+    /// CUE-56: `Some(None)` = As In.
+    pub fade_out: Option<Option<f32>>,
+    pub delay_out: Option<Option<f32>>,
     pub overlap: Option<f32>,
     pub link: Option<Link>,
     pub track: Option<Track>,
@@ -1070,7 +1093,7 @@ impl Playback {
             |c| Times {
                 delay: c.delay,
                 fade_in: c.fade_in,
-                fade_out: c.fade_out,
+                fade_out: c.fade_out_in_force(),
                 overlap: c.overlap,
             },
         )

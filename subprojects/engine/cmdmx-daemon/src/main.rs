@@ -2228,13 +2228,13 @@ mod tests {
                 id,
                 change: PlaybackChange {
                     fader_mode: Some(FaderMode::Mode1),
-                    fade_out: Some(2.0),
+                    fade_out: Some(Some(2.0)),
                     ..PlaybackChange::default()
                 },
             },
         );
         assert_eq!(engine.playback(id).unwrap().fader_mode, FaderMode::Mode1);
-        assert_eq!(engine.playback(id).unwrap().cues[0].fade_out, 2.0);
+        assert_eq!(engine.playback(id).unwrap().cues[0].fade_out, Some(2.0));
         run(
             &mut engine,
             ipc::Command::PlaybackLegend {
