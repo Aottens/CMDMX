@@ -577,3 +577,24 @@ fn cue_13_a_cell_value_at_0_coming_in_darkens_the_cell() {
     assert_eq!(rgb_t(&mut e, 2, 3.5), [0, 0, 0], "cell 2 dark");
     assert_eq!(rgb_t(&mut e, 1, 3.5), [255, 255, 255], "cell 1 follows 901");
 }
+
+// ---- PBK-47: a virtual cell Dimmer lets go towards full, its unproposed level ---------------
+
+#[test]
+fn pbk_47_a_virtual_cell_dimmer_falls_towards_full() {
+    let mut e = rig();
+    run(&mut e, "901 . 2 @ 50 Enter");
+    let id = record_cue(&mut e, 1.0);
+    run(&mut e, "901 @ 100 Enter");
+    e.set_fader(id, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    let full = rgb_t(&mut e, 1, 1.0);
+    assert_ne!(full, [0, 0, 0]);
+    let half = rgb_t(&mut e, 2, 1.0);
+    assert_ne!(half, full, "cell 2 at its own 50 %");
+    e.release_playback(id, 1.0).unwrap();
+    e.tick(1.0);
+    let at_two = rgb_t(&mut e, 2, 2.0);
+    assert!(at_two[0] > half[0] && at_two[0] < full[0], "{at_two:?}");
+    assert_eq!(rgb_t(&mut e, 2, 3.0), full, "no jump at the end");
+}

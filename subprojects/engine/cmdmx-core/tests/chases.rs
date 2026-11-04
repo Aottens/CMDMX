@@ -724,3 +724,18 @@ fn cue_34_typed_bpm_is_refused_on_a_memory_and_a_rate_master() {
     assert!(e.set_bpm(1, 120.0).is_err());
     assert!(e.set_bpm(rate, 120.0).is_err());
 }
+
+#[test]
+fn pbk_47_a_chase_falls_from_its_step() {
+    let mut e = chase(3, opts(0.0, Direction::Forward, LoopAction::Loop));
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.0, 1.0);
+    assert_eq!(step(&e), Some(1.0));
+    assert_eq!(common::dmx(&e, 21), 255);
+    act(&mut e, ListAction::Release, 1.0);
+    run(&mut e, 1.025, 2.0);
+    assert_eq!(common::dmx(&e, 21), 128, "the global release time, 2 s");
+    assert_eq!(step(&e), None, "the chase stopped");
+    run(&mut e, 2.025, 3.0);
+    assert_eq!(common::dmx(&e, 21), 0);
+}
