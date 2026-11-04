@@ -1,8 +1,10 @@
 # app — State
 
-_Last updated: 2026-11-04 (NEW-01)_
+_Last updated: 2026-11-04 (NEW-03)_
 
 ## Current step
+NEW-03 (2026-11-04, UI-50): `EngineClient.say` marks its text as `armedMessage` while `isArmed` (set by `Frame` to `ui.modesOpen`) holds; `endArmedMessage` clears the message only if it is still that text. `Frame` calls it when `modesOpen` goes false; the function keys and the Cancel softkeys call it directly, as switching functions leaves `modesOpen` true. Cancel no longer clears an engine warning.
+NEW-02 (2026-11-04, UI-49): `MacKeys.keysAct` and `token(for:)` are one list for typing and for the hint; `sayKeysOff` skips `addMessage`, so the Messages sheet stays out of it, and is not marked as armed.
 NEW-01 (2026-11-04, LIB-40): `AddPanel.ModelRow` treats source `builtin` as stock like QLC+ (`isUser`) and `sourceLabel` gives "built in", "user profile" or "QLC+" for the line under the columns.
 FUN-06 (2026-11-03, UI-47): `EngineClient.sayDelete` holds the three messages; a palette's count replaces the first text through `pendingDelete`, only while that text still shows. `SelectedPanel` asks with `askUsage` on arming and shows `UsageReply.patchText` when the answer is for its ids. `Incoming.groups` is `Tolerant`, as a `usage` answer has a count there. Run `tests/manual/runs/2026-11-03-FUN-05-06.md`.
 FUN-04 (2026-11-03, UI-48): a `BarToggle` in `StatusBar` with ⌘L and the softkey both call `UIState.openLockPrompt`. `enabled` stops the shortcut offline, an open sheet stops it by itself, and the action checks `engine.locked`, as a chord passes the lock block and `allowsHitTesting` does not stop a shortcut.
