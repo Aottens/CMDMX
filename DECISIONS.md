@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-04 — A small patch before batch B (owner)
+
+**Decision:** K1 (a plain dimmer in the library), K2's hint and manual line, and IDEA-40 go out as patch 0.4.1 before the spec of batch B (P1-30); the rest of the third review's order stays as proposed, subject to the owner's approval of the batches. As a patch it has no gap review (REL-26). Spec approved 2026-11-04: Keys stays off by default (a stray key cannot reach a running show), the dimmer has 8-bit and 16-bit modes, and UI-50 clears only what the app itself said.
+
+**Alternatives considered:** straight to batch B, with these points in E, J and F.
+
+**Reasoning:** they cost anyone new the first ten minutes, and they are small.
+
+**Reversal trigger:** a build turns out larger than its size; then what is left goes back to its batch.
+
+---
+
 ## 2026-11-03 — Batch H: an armed function has the console's attention, Esc goes one level up (IDEA-35 H, P1-27; owner)
 
 **Decision:** with Record or a function armed, a tap does what that function does on that target or is refused with a message, and never the normal action; Flash and Swop on a strip pick the target and change nothing on stage (UI-42, 43). `Group n` and `Palette n` with Enter act as a tap (UI-46). Esc goes one level up on every screen whatever Keys says, and opening a screen disarms (UI-44, 45). A delete says what it touches, counted in the daemon (UI-47, IPC-54); empty groups and cues stay. Lock is also a status bar button and ⌘L (UI-48). Arming stays view state in the app, so surfaces are unchanged.

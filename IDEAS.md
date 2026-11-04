@@ -60,12 +60,12 @@ the backlog, not the whole idea.
 | IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | done (2026-10-28, VS2-44..46: #159, #160, #161) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
-| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
+| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | triaged; phase confirmed 2026-11-02 | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 | IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
-| IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
+| IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -775,6 +775,7 @@ the app."
 **Outcome (2026-11-01):** owner: all of it in phase 1, worked through in order, A to G.
 **Owner's answer (2026-11-01):** when batch A is done, the version goes straight to 0.3.0, followed by a new gap review.
 **Second review (2026-11-02):** batches A2 (defects), H, I and J in `docs/research/everyday-gaps.md`; owner: A2 and H first, then B to G, I and J; I1 and I3 go with B as advised.
+**Third review (2026-11-04):** one operator's evening with the app running: batch K in `docs/research/everyday-gaps.md`, proposed into B to G, I and J; awaits the owner's approval of the order.
 **A2 (2026-11-02):** spec P1-26 approved by the owner, every recommendation accepted; build tasks DEF-01..05.
 
 ### IDEA-36 — A refused number stays in its field (2026-11-02)
@@ -783,6 +784,7 @@ the app."
 showing 602 until the tab is reopened. `NumberField` shows what was sent (VS3-05 run: the old value looked like a jump back), and
 the file's header says a refused value stays as it was. Every `NumberField` in Playback Options does this, also a cue's own times.
 **Triage:** phase 1 (owner, 2026-11-02); `ui.md`; its place in the order is still open. Nothing recorded wrong: the show holds the old value.
+**Third review (2026-11-04):** proposed in batch B, which changes times anyway.
 **Open question:** how the field learns of the refusal, since warnings carry no field; and whether it snaps back at once or on leaving the field.
 
 ### IDEA-37 — The app takes over when another engine goes away (2026-11-02)
@@ -790,22 +792,26 @@ the file's header says a refused value stays as it was. Every `NumberField` in P
 **What happens:** an app that found another engine on port 7319 (REL-11) connects to it and owns nothing. When that engine goes, the app says "Engine offline" and stays
 offline until it is restarted; it does not start its own bundled engine. Only reachable with a second engine by hand, so not in an ordinary show.
 **Triage:** proposed phase 1, after A2; `release.md`. Owner to confirm the phase. Nothing touched now.
+**Third review (2026-11-04):** proposed phase 2 instead of 1: only reachable with a second engine by hand. Owner to confirm.
 **Open question:** take over at once or ask, and with the same show?
 
 ### IDEA-38 — Workspaces that are not on show leave the accessibility tree (2026-11-03)
 **Found in:** the FUN-01 run; not from the owner.
 **What happens:** the workspaces stay built while hidden, and their buttons stay in the accessibility tree at their own positions. An accessibility click on a cue row in Playbacks landed on the Looks tile "Dimmer wave" of the hidden Shapes workspace and applied the effect; a real mouse does not. It reaches VoiceOver and anything that drives the app by accessibility, such as background runs.
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now.
+**Third review (2026-11-04):** proposed batch F; not met with a real mouse. Owner to confirm.
 **Open question:** hide them from accessibility, or stop keeping hidden workspaces built?
 
 ### IDEA-39 — Strips are cut off on a window with the Dock (2026-11-03)
 **Found in:** the FUN-01 run; not from the owner.
 **What happens:** on the owner's MacBook with the Dock showing the window is 832 pt high. The workspace layout then cuts off the strips below the fader readout, so the handle buttons are out of reach; empty bands stay above and below the window grid. On the screens that replace the grid (Patch, Playback Options) the upper button shows, the lower is cut off.
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now. Console mode may not have this; not tried in the run.
+**Third review (2026-11-04):** seen on the first screen, cleared by full screen; proposed batch F. Owner to confirm.
 **Open question:** the minimum height, and whether the bands can give their room to the strips.
 
 ### IDEA-40 — A function's hint stays after it is disarmed (2026-11-03)
 **Found in:** the FUN-03 run; not from the owner.
 **What happens:** the hint said on arming ("Unfold: tap a fixture to unfold or fold its cells.") stays in the message zone after Esc, Exit or a screen disarms the function, until the next message. Patch and Control show it too, with nothing armed. A delete's message does the same since UI-47, with its count and "Confirm on softkey A" (FUN-05 + FUN-06 run).
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now.
+**Third review (2026-11-04):** seen again after Esc and through an engine restart. Owner: in a patch before B, so phase 1 (P1-30).
 **Open question:** clear only hints (`say`) on a disarm, so a warning from the engine stays?

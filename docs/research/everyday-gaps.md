@@ -147,3 +147,52 @@ Mode, Auto Legend off, Always Merge, Attribute Overlap, Prev + Next cancels a sk
 7. Running playbacks on other pages have no mark on the page buttons.
 8. No "why is this lit": no view or IPC field gives the owner of an attribute or channel.
 9. The app cannot show why the engine died: a panic goes to `daemon.log`, and the app cannot reveal it.
+
+# Third review, 2026-11-04 (at v0.4.0)
+
+New angle: one operator's evening. From an empty show, patch a small rig, make groups and palettes, record a list, run it with
+surprises, all in the app as an operator would, at home without lamps, with Art-Net read for the output
+(`tests/manual/runs/2026-11-04-gap-review.md`). Each point is marked **[run]** (seen in the run) or **[read]** (by reading the spec or code).
+A claim about Titan is not checked here; check it when the batch is specified.
+
+The angle gave daily points, so it holds. What it found is mostly in the first ten minutes and in the moment of a late change,
+which reading did not reach. A next review needs another angle: someone else's show, or a much larger rig.
+
+## K. One evening
+1. **[run]** The library has no plain dimmer. `generic dimmer` finds nothing, `dimmer` only a Proel 6-channel, `generic` only RGB, RGBW and
+   Smoke. The most common fixture there is takes *New from channel list*: three fields and a menu. It stays for later shows. Daily. → E, first.
+2. **[run]** With Keys off, the default (UI-19), the Mac keyboard does nothing and says nothing, also after a click on the command line, which shows no
+   caret. Step 3 of *Your first show* (`getting-started.md`) says to type `1 @ 50`. With Keys on it is good: `g3`, `@50`, Return, Space, F3. Daily. → J3, the hint and manual earlier.
+3. **[run]** Colour and Playbacks have no Groups window. To take a group during a run: leave the workspace, or `Group`, a number and Enter on the keypad. `1 Group` is refused; the order is `Group 1`. Daily. → J, new point.
+4. **[run]** A second Go 0.4 s after the first skips a cue: Q2 with its 5 s fade was gone at once, Q3 snapped in, no warning. Space and a mouse both repeat easily in the dark. Whether Titan guards this is not checked. → I, new point.
+5. **[run]** A cue list and handles have no name unless you set one: Active Playbacks reads `1.1`, `1.2`. Nothing offers a legend at recording. → I, with the Auto Legend line.
+6. **[run]** Release with the fader up snaps: 18 channels went to 0 in one frame, because release time is 0 by default. A service does not end this way. → I, with I1.
+7. **[run]** After an engine crash and restart the show comes back, faders 0, list at the start, stage black (all channels 0 at the restart); nothing says where the run was. The bundled engine's own note (REL-25) says nothing is running, **[read]**: this run used an engine started by hand and saw "Engine offline", "Engine connected". As specified, but the worst moment of a service and there is no way back to where you were. Rare. → G, new point, or a batch of its own: owner.
+8. **[run]** A palette colour takes four lines per fixture in Programmer and Cue view: `#8349FF`, `Colour 2 · White 0 %`, `Colour 2`. Four fixtures fill the window; a 12-fixture cue does not fit, and `White 0 %` comes from a colour nobody set by hand. Daily. → C, new point.
+9. **[run]** Softkey *All* with nothing stepped selects what is in the programmer (as `programming.md` says), so with an empty programmer the selection is gone, the softkeys change, and a second tap in the same place arms Set Legend. → F.
+10. **[run]** Add keeps the typed Number: patching the next type gives "number 11 is already in use", clearly, but Address goes back to *next free* and Number does not. → E2.
+11. **[run]** View Cue and Go to Cue are behind a right-click on a cue row, with nothing on screen saying so; the armed functions on a row work without it **[read]** (FUN-01). → B.
+12. **[run]** Go with the fader at 0: the list runs, Art-Net stays dark, only a small amber "fader 0 %" explains it. This is the owner's decision (2026-10-21, CUE-15, CUE-42); not proposed for change, only noted because it was the first thing that went wrong in the run. A clearer hint would fit F.
+
+Seen again, already listed: B1 (a tap on one-cue playback 1.2 opens nothing, the window stays on 1.1), I6 (times one cue at a time through a menu), J7 (page 2 shows no mark that 1.1 runs), E2 (Auto Groups: three groups by hand), the two below.
+
+What held, so no work needed: New asks before the output changes; next-free patching and the virtual dimmer on RGBW; Update on a cue with one tap while it runs (front 153 to 133); Update on a palette reaches the running cue; Flash and HTP on top of a list; a fader to 0 and back keeps the list where it was; `kill -9` of the app keeps programmer and running list; the Go block stays on 1.1 from page 2; Messages holds what went wrong.
+
+## Open ideas, where they belong
+- IDEA-36 (a refused number stays): phase 1 is confirmed. Proposed in **B**, which changes times anyway. Not re-run.
+- IDEA-37 (take over when another engine goes): **[run]** when an engine came back on the port the app reconnected by itself. Only reachable with a second engine by hand, and a debug bundle holds no engine, so the takeover was not tried. Proposed **phase 2**, not phase 1. Owner confirms.
+- IDEA-38 (hidden workspaces in the accessibility tree): not seen with the real mouse, which is what the operator has. Reaches VoiceOver and background test runs. Proposed phase 1, **F**. Owner confirms.
+- IDEA-39 (strips cut off with the Dock): **[run]** the first screen had it, the green button cleared it. An operator in console mode does not meet it, **[read]**. Proposed phase 1, **F**. Owner confirms.
+- IDEA-40 (a hint stays after a disarm): **[run]** "Set Legend: tap…" stayed after Esc, as did "Group 3 Heads" through an engine restart. Small and seen daily. Owner: phase 1, in the patch before B.
+
+## Proposed changes to the batches
+No criteria or code for these until the owner approves.
+- **B:** add K11 and IDEA-36, keep I1 and I3. Also take I6 (times in the grid): with B it is one change to one screen.
+- **C:** add K8.
+- **D:** no change.
+- **E:** K1 first, add K10.
+- **F:** add K9, K12's hint, IDEA-38, IDEA-39.
+- **G:** add K7, unless the owner wants it apart.
+- **I:** add K4 and K5; K6 goes with I1. I1 moves with B as agreed.
+- **J:** add K3; K2 with J3.
+- **Before B (owner, 2026-11-04):** K1, K2's hint and manual line, and IDEA-40 as a patch, 0.4.1 (P1-30): they cost the first ten minutes of anyone new, are small, and do not change how an operator works.
