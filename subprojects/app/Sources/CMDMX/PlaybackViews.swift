@@ -65,8 +65,18 @@ enum HandleTaps {
         guard let function = ui.function else {
             // The Options screen follows the handle tapped.
             if ui.screen == .options, let info, used { ui.optionsFor = info.id; ui.optionsCue = nil }
+            // UI-53: a memory has no Go: its cue shows in the Cue list window, nothing goes to the engine.
+            else if let info, used, info.isMemory {
+                if ui.screen == nil, Workspace.all[safe: ui.workspace]?.windows.contains(.cues) == true {
+                    ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false; ui.timeCells = nil
+                    ui.cueMenu = nil; ui.cueDelete = false
+                    ui.cueMemory = info.id
+                } else {
+                    engine.say("\(info.homeHandle) holds one cue: the Playbacks workspace shows it.")
+                }
+            }
             // CUE-44: a plain tap on a list's or chase's legend connects it (CUE-26).
-            else if let info, used, info.hasCues { engine.cuelist("connect", id: info.id) }
+            else if let info, used, info.hasCues { ui.endCueMemory(); engine.cuelist("connect", id: info.id) }
             return
         }
         let name = function.rawValue

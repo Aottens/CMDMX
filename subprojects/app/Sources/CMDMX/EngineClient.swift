@@ -417,6 +417,8 @@ struct PlaybackInfo: Identifiable, Equatable {
     /// A cue list or a chase: the engine sends live cue state for these only (CUE-40).
     var hasCues: Bool { live.cue != nil }
     var isChase: Bool { stored.kind == "Chase" }
+    /// One cue, no Go: the Cue list window shows it on a tap (UI-53).
+    var isMemory: Bool { stored.kind == "Cues" && stored.cues.count == 1 }
     /// A cue list: kind Cues with two or more cues; fewer is a memory (CUE-46).
     var isCueList: Bool { stored.kind == "Cues" && stored.cues.count >= 2 }
     /// The stored cue with this number.
@@ -554,16 +556,47 @@ func cellsAfterFixtures<T>(_ rows: [T], _ fixtures: [FixtureInfo], item: (T) -> 
 struct CueViewFixture: Decodable, Identifiable, Equatable {
     let item: Item
     let values: [String: CueViewValue]
+    /// CUE-61: the cue's own values that are off.
+    let dormant: [String: CueViewDormant]
     var id: Item { item }
     var fixture: Int { item.fixture }
 
-    private enum CodingKeys: String, CodingKey { case fixture, values }
+    private enum CodingKeys: String, CodingKey { case fixture, values, dormant }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         item = try c.decode(Item.self, forKey: .fixture)
         values = ((try? c.decode([String: Tolerant<CueViewValue>].self, forKey: .values)) ?? [:]).compactMapValues(\.value)
+        dormant = ((try? c.decode([String: Tolerant<CueViewDormant>].self, forKey: .dormant)) ?? [:]).compactMapValues(\.value)
     }
+}
+
+/// CUE-61: a hard value the cue holds but does not play.
+struct CueViewDormant: Decodable, Equatable {
+    let value: ProgrammerValue
+    let palette: Int?
+}
+
+/// CUE-59: an effect entry of the cue's state; `from` is the cue it is hard in.
+struct CueViewEffect: Decodable, Identifiable, Equatable {
+    let entry: Int
+    let look: String?
+    let shape: EffectShape
+    let attributes: [String]
+    let members: [Item]
+    let from: Double
+    var id: Int { entry }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        entry = try c.decode(Int.self, forKey: .entry)
+        look = try? c.decode(String.self, forKey: .look)
+        shape = try c.decode(EffectShape.self, forKey: .shape)
+        attributes = (try? c.decode([String].self, forKey: .attributes)) ?? []
+        members = (try? c.decode([Item].self, forKey: .members)) ?? []
+        from = try c.decode(Double.self, forKey: .from)
+    }
+    private enum CodingKeys: String, CodingKey { case entry, look, shape, attributes, members, from }
 }
 
 /// CUE-54: the answer to `cue.view` (this client only).
@@ -571,16 +604,18 @@ struct CueViewReply: Decodable, Equatable {
     let playback: Int
     let cue: Double
     let fixtures: [CueViewFixture]
+    let effects: [CueViewEffect]
     /// UI-34: item → 0-based position in the cue's fixture order; empty when the cue has none.
     let order: [Item: Int]
 
-    private enum CodingKeys: String, CodingKey { case playback, cue, fixtures, order }
+    private enum CodingKeys: String, CodingKey { case playback, cue, fixtures, effects, order }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         playback = try c.decode(Int.self, forKey: .playback)
         cue = try c.decode(Double.self, forKey: .cue)
         fixtures = ((try? c.decode([Tolerant<CueViewFixture>].self, forKey: .fixtures)) ?? []).compactMap(\.value)
+        effects = ((try? c.decode([Tolerant<CueViewEffect>].self, forKey: .effects)) ?? []).compactMap(\.value)
         let wire = (try? c.decode([String: Tolerant<Int>].self, forKey: .order)) ?? [:]
         order = Dictionary(wire.compactMap { key, step in Item(key).flatMap { item in step.value.map { (item, $0) } } }, uniquingKeysWith: { a, _ in a })
     }
@@ -1874,6 +1909,14 @@ final class EngineClient: ObservableObject {
         if let attribute { fields["attribute"] = attribute }
         patch("cue.remove", fields)
     }
+    /// CUE-61: moves a hard value (or all of an item's) off the cue's output, or back on.
+    func setCueOff(_ id: Int, cue: Double, fixture: Int, cell: Int? = nil, attribute: String?, off: Bool) {
+        var fields: [String: Any] = ["id": id, "cue": cue, "fixture": cell.map { "\(fixture).\($0)" as Any } ?? fixture, "off": off]
+        if let attribute { fields["attribute"] = attribute }
+        patch("cue.off", fields)
+    }
+    /// CUE-59: takes a hard effect entry out of the cue.
+    func removeCueEffect(_ id: Int, cue: Double, entry: Int) { patch("cue.remove_effect", ["id": id, "cue": cue, "entry": entry]) }
     /// `settings.playback` (show-wide): only the given fields change.
     func setPlaybackSettings(_ fields: [String: Any]) { patch("settings.playback", fields) }
 

@@ -206,9 +206,13 @@ private struct BPMField: View {
 /// The Playbacks workspace's cue window: the Cue list, or the Cue view in its place (CUE-54).
 struct CueWindow: View {
     @EnvironmentObject private var ui: UIState
+    @EnvironmentObject private var engine: EngineClient
 
     var body: some View {
-        if let ref = ui.cueView { CueViewWindow(ref: ref) } else { CueListWindow() }
+        Group {
+            if let ref = ui.cueView { CueViewWindow(ref: ref) } else { CueListWindow() }
+        }
+        .onChange(of: engine.connected) { _, _ in ui.endCueMemory() }   // UI-53: another connected list ends the memory
     }
 }
 
@@ -217,23 +221,24 @@ private struct CueListWindow: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
 
-    private static let widths: [CGFloat?] = [44, nil, 44, 56, 84, 36, 58]
-    private static let titles = ["Q", "Legend", "Delay", "Fade", "Link", "Track", "Groups"]
+    private static let widths: [CGFloat?] = [44, nil, 44, 56, 84, 36, 58, 62]
+    private static let titles = ["Q", "Legend", "Delay", "Fade", "Link", "Track", "Groups", ""]
     /// UI-51: the Times view's columns after Q and Legend: `cue.times` key and title.
     private static let timeColumns = [("delay", "Delay in"), ("delay_out", "Delay out"), ("fade_in", "Fade in"),
                                       ("fade_out", "Fade out"), ("overlap", "Overlap")]
-    private static let timeWidths: [CGFloat?] = [36, nil, 58, 64, 54, 60, 54]
+    private static let timeWidths: [CGFloat?] = [36, nil, 58, 64, 54, 60, 54, 62]
     private static let rowHeight: CGFloat = 24
 
     var body: some View {
-        let list = engine.connectedList
-        let times = ui.cueTimesView && list?.isChase != true   // UI-51
-        let titles = times ? ["Q", "Legend"] + Self.timeColumns.map(\.1) : Self.titles
+        let memory = ui.liveCueMemory(engine)   // UI-53
+        let list = memory ?? engine.connectedList
+        let times = ui.cueTimesView && list?.isChase != true && memory == nil   // UI-51
+        let titles = times ? ["Q", "Legend"] + Self.timeColumns.map(\.1) + [""] : Self.titles
         let widths = times ? Self.timeWidths : Self.widths
-        PanelWindow(title: list.map { "Cue list · \($0.shownLegend)" } ?? "Cue list",
-                    info: list.map { "\($0.homeHandle) · \($0.stored.cues.count) cues" } ?? "No cue list connected",
+        PanelWindow(title: memory.map { "Cue · \($0.homeHandle)" } ?? list.map { "Cue list · \($0.shownLegend)" } ?? "Cue list",
+                    info: memory.map(\.shownLegend) ?? list.map { "\($0.homeHandle) · \($0.stored.cues.count) cues" } ?? "No cue list connected",
                     accessory: {
-                        if list?.isChase != true {
+                        if list?.isChase != true && memory == nil {
                             Button("Times") { ui.cueTimesView.toggle(); ui.timeCells = nil }
                                 .buttonStyle(FlatButton(fill: ui.cueTimesView ? .blue : nil, compact: true))
                         }
@@ -277,12 +282,30 @@ private struct CueListWindow: View {
                         .frame(width: Self.widths[index], alignment: .leading)
                         .frame(maxWidth: Self.widths[index] == nil ? .infinity : nil, alignment: .leading)
                 }
+                rowButtons(list, cue)
             }
         }
         .contentShape(Rectangle())
         .onTapGesture { tap(list, cue) }
         .overlay { RightClickCatcher { rightClick(list, cue) } }
-        .help("Tap: next · right-click: cue softkeys")
+        .help(list.isMemory ? "View: Cue view · ⋯ or right-click: cue softkeys" : "Tap: next · View: Cue view · ⋯ or right-click: cue softkeys")
+    }
+
+    /// UI-54: View (the Cue view) and ⋯ (the cue softkeys) on a row; armed, the whole row is the target (UI-42).
+    private func rowButtons(_ list: PlaybackInfo, _ cue: StoredCue) -> some View {
+        let armed = ui.recordArmed || ui.function != nil
+        return HStack(spacing: 2) {
+            Button("View") {
+                if armed { return tap(list, cue) }
+                ui.timeCells = nil; ui.cueView = CueRef(playback: list.id, cue: cue.number); ui.cueValue = nil; ui.cancelModes()
+            }
+            Button("⋯") {
+                if armed { return tap(list, cue) }
+                ui.timeCells = nil; rightClick(list, cue)
+            }
+        }
+        .buttonStyle(FlatButton(compact: true))
+        .frame(width: 62, alignment: .trailing)
     }
 
     /// The row frame both views share: current, next and progress (CUE-43).
@@ -338,10 +361,11 @@ private struct CueListWindow: View {
                             dragTimes(list, from: cue, column, drag)
                         })
                 }
+                rowButtons(list, cue)
             }
         }
         .overlay { RightClickCatcher { ui.timeCells = nil; rightClick(list, cue) } }
-        .help("Tap a time · drag or Shift-tap: more in this column · right-click: cue softkeys")
+        .help("Tap a time · drag or Shift-tap: more in this column · View: Cue view · ⋯ or right-click: cue softkeys")
     }
 
     /// UI-51: a tap selects this cell; Shift-tap in the same column extends from the anchor.
@@ -386,9 +410,13 @@ private struct CueListWindow: View {
             ui.source = nil; ui.handleSource = nil; ui.groupSource = nil
             ui.cueMenu = ref; ui.cueDelete = false; ui.lastHandle = list.id
         }
+        // UI-53: a memory's one cue is not copied, moved or deleted from its row.
+        if list.isMemory, let f = ui.function, [.copy, .move, .delete].contains(f) {
+            return engine.say("\(f.rawValue): \(list.homeHandle) holds one cue, tap its handle.")
+        }
         switch ui.function {
         case nil:
-            engine.cuelist("next", id: list.id, cue: cue.number)
+            if !list.isMemory { engine.cuelist("next", id: list.id, cue: cue.number) }
         case .update:
             engine.recordPlayback(page: list.stored.page, slot: list.stored.slot, mode: "Update", cue: cue.number)
             ui.cancelModes()
@@ -441,18 +469,20 @@ private struct CueViewWindow: View {
                         Button("Back to list") { ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false }
                             .buttonStyle(FlatButton(compact: true))
                     }) {
-            if let reply, !reply.fixtures.isEmpty {
+            if let reply, !(reply.fixtures.isEmpty && reply.effects.isEmpty) {
                 ScrollView {
                     LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
                         Section {
                             ForEach(cellsAfterFixtures(reply.fixtures, engine.fixtures) { $0.item }) { row in
                                 let fixture = fixtures[row.fixture]
-                                line(number: Text(ProgrammerWindow.number(row.item, fixture)).foregroundStyle(t.fg2),
+                                line(number: Text(ProgrammerWindow.number(row.item, fixture)).foregroundStyle(t.fg2)
+                                        .overlay { RightClickCatcher { pickItem(row.item, fixture) } },
                                      name: Text(row.item.cell == nil ? fixture.map(Self.title) ?? "" : "").foregroundStyle(t.fg)) { group in
                                     cell(row, fixture, group)
                                 }
                                 HLine()
                             }
+                            ForEach(reply.effects) { effectRow($0) }
                         } header: {
                             VStack(spacing: 0) {
                                 line(number: header("#"), name: header("Fixture")) { header($0) }
@@ -492,29 +522,79 @@ private struct CueViewWindow: View {
 
     @ViewBuilder private func cell(_ row: CueViewFixture, _ fixture: FixtureInfo?, _ group: String) -> some View {
         let mine = row.values.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
-        if mine.isEmpty {
+        let off = row.dormant.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
+        if mine.isEmpty && off.isEmpty {
             Text("·").foregroundStyle(t.fg3)
         } else {
             HStack(spacing: 4) {
                 ForEach(mine, id: \.key) { name, value in
                     item(row.fixture, name, value, named: mine.count > 1).overlay { RightClickCatcher { pick(row.item, name, value) } }
                 }
+                // CUE-61: what is off stays in sight, struck through and dim.
+                ForEach(off, id: \.key) { name, value in
+                    shown(name, value.value, named: Set(mine.map(\.key) + off.map(\.key)).count > 1, palette: value.palette)
+                        .strikethrough().foregroundStyle(t.fg3)
+                        .overlay { RightClickCatcher { pickDormant(row.item, name) } }
+                }
             }
         }
     }
 
     private func item(_ fixture: Int, _ name: String, _ v: CueViewValue, named: Bool) -> Text {
+        let text = shown(name, v.value, named: named, palette: v.palette)
+        if v.palette != nil { return text.foregroundStyle(t.cyan) }
+        return text.foregroundStyle(v.from == ref.cue ? t.fg : t.magenta)
+    }
+
+    /// The value as text, with the palette legend after a reference; the caller colours it.
+    private func shown(_ name: String, _ value: ProgrammerValue, named: Bool, palette: Int?) -> Text {
         let text: Text
-        switch v.value {
+        switch value {
         case .level(let level): text = Text(named ? "\(name) \(percent(level))" : percent(level))
         case .colour(let r, let g, let b):
             text = Text("\(Text(Image(systemName: "square.fill")).font(.system(size: 8)).foregroundStyle(Color(red: r, green: g, blue: b))) \(ProgrammerWindow.hex(r, g, b))")
         }
-        if let id = v.palette {
-            let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
-            return Text("\(text) \(legend)").foregroundStyle(t.cyan)
+        guard let id = palette else { return text }
+        let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
+        return Text("\(text) \(legend)")
+    }
+
+    /// CUE-59: look or shape, attributes, member count; magenta when it tracks from an earlier cue.
+    private func effectRow(_ e: CueViewEffect) -> some View {
+        let name = e.look ?? e.shape.title
+        let count = e.members.count
+        return VStack(spacing: 0) {
+            Text("\(name) · \(e.attributes.joined(separator: ", ")) · \(count) \(count == 1 ? "fixture" : "fixtures")")
+                .foregroundStyle(e.from == ref.cue ? t.fg : t.magenta)
+                .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                .font(Typo.mono(11))
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .overlay {
+                    RightClickCatcher {
+                        guard e.from == ref.cue else {
+                            return engine.say("\(name) tracks from \(cueName(e.from)): remove it there.")
+                        }
+                        ui.cueValue = .effect(entry: e.entry, name: name)
+                        ui.cueRemoveConfirm = false
+                        engine.say("\(name) picked: Remove on the softkeys takes it out of \(cueName(ref.cue)).")
+                    }
+                }
+            HLine()
         }
-        return text.foregroundStyle(v.from == ref.cue ? t.fg : t.magenta)
+    }
+
+    /// CUE-60: a right-click on the number picks the whole item; the engine refuses what is not hard here.
+    private func pickItem(_ item: Item, _ fixture: FixtureInfo?) {
+        ui.cueValue = .value(fixture: item.fixture, cell: item.cell, attribute: nil)
+        ui.cueRemoveConfirm = false
+        engine.say("\(ProgrammerWindow.number(item, fixture)) picked: Remove on the softkeys takes it out of \(cueName(ref.cue)).")
+    }
+
+    /// CUE-61: a value that is off is picked for On.
+    private func pickDormant(_ item: Item, _ name: String) {
+        ui.cueValue = .dormant(fixture: item.fixture, cell: item.cell, attribute: name)
+        ui.cueRemoveConfirm = false
+        engine.say("\(name) is off: On on the softkeys brings it back to \(cueName(ref.cue)).")
     }
 
     /// Only a value that is hard in this cue can be removed from it (CUE-54).
@@ -522,7 +602,7 @@ private struct CueViewWindow: View {
         guard v.from == ref.cue else {
             return engine.say("\(name) tracks from \(cueName(v.from)): remove it there.")
         }
-        ui.cueValue = CueValueRef(fixture: item.fixture, cell: item.cell, attribute: name)
+        ui.cueValue = .value(fixture: item.fixture, cell: item.cell, attribute: name)
         ui.cueRemoveConfirm = false
         engine.say("\(name) picked: Remove on the softkeys takes it out of \(cueName(ref.cue)).")
     }

@@ -145,7 +145,7 @@ enum MacKeys {
 
     /// UI-44: Esc, whatever the Keys toggle says: leaves a text field, else Exit (line and modes), else the screen, else Back to List.
     @MainActor
-    private static func escape(_ event: NSEvent, ui: UIState, line: TokenLine) -> Bool {
+    private static func escape(_ event: NSEvent, ui: UIState, line: TokenLine, engine: EngineClient) -> Bool {
         // A sheet, dialog, alert or panel has the key window and takes Esc itself.
         guard let window = NSApp.keyWindow, window.isMainWindow else { return false }
         if event.isARepeat { return true }   // a held key counts once
@@ -159,7 +159,8 @@ enum MacKeys {
             ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false   // same as "Back to List"
         } else if Workspace.all[safe: ui.workspace]?.windows.contains(.cues) == true {
             // UI-51: the selected time cells go first, then the Times view.
-            if ui.timeCells != nil { ui.timeCells = nil } else if ui.cueTimesView { ui.cueTimesView = false }
+            if ui.liveCueMemory(engine) != nil { ui.endCueMemory() }   // UI-53: the Cue view went first, now the memory
+            else if ui.timeCells != nil { ui.timeCells = nil } else if ui.cueTimesView { ui.cueTimesView = false }
         }
         return true
     }
@@ -217,7 +218,7 @@ enum MacKeys {
             ui.setLearnMode(false, engine)
             return true
         }
-        if event.keyCode == 53, chord.isEmpty { return escape(event, ui: ui, line: line) }
+        if event.keyCode == 53, chord.isEmpty { return escape(event, ui: ui, line: line, engine: engine) }
         // A shortcut chord, or a text field (Patch, Show) with focus: not ours.
         guard event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
               !(NSApp.keyWindow?.firstResponder is NSText)

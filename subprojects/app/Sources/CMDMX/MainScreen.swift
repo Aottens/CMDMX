@@ -60,11 +60,11 @@ struct CueRef: Equatable, Identifiable {
     var id: String { "\(playback)/\(cue)" }
 }
 
-/// The hard value last right-clicked in the Cue view (CUE-54): what Remove takes out.
-struct CueValueRef: Equatable {
-    let fixture: Int
-    let cell: Int?   // nil = the whole fixture
-    let attribute: String
+/// What was last right-clicked in the Cue view (CUE-54, 59, 60): what Remove takes out.
+enum CuePick: Equatable {
+    case value(fixture: Int, cell: Int?, attribute: String?)   // attribute nil = the whole item (CUE-60)
+    case effect(entry: Int, name: String)
+    case dormant(fixture: Int, cell: Int?, attribute: String)   // CUE-61: a value that is off
 }
 
 /// UI-51: cues (list order) selected in one time column; `column` is the `cue.times` key, `anchor` the Shift-tap start.
@@ -158,8 +158,19 @@ final class UIState: ObservableObject {
     @Published var cueView: CueRef?
     /// UI-51: the Cue list window shows the timing columns; the cells selected in one column of them.
     @Published var cueTimesView = false
+    /// UI-53: the memory (one-cue playback) the Cue list window shows in place of the connected list.
+    @Published var cueMemory: Int?
+    /// UI-53: the memory shown, while it still is one (deleted or appended into a list, it stops showing).
+    func liveCueMemory(_ engine: EngineClient) -> PlaybackInfo? {
+        cueMemory.flatMap { engine.playback($0) }.flatMap { $0.isMemory ? $0 : nil }
+    }
+    /// UI-53: leave the memory, and its Cue view with it.
+    func endCueMemory() {
+        if cueMemory != nil, cueView?.playback == cueMemory { cueView = nil; cueValue = nil; cueRemoveConfirm = false }
+        cueMemory = nil
+    }
     @Published var timeCells: TimeCells?
-    @Published var cueValue: CueValueRef?
+    @Published var cueValue: CuePick?
     @Published var cueRemoveConfirm = false
     @Published var cueLegendEditing: CueRef?
     /// The cue the Times tab opens on (Edit Times on a row).

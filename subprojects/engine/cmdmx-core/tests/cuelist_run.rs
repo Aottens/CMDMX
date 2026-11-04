@@ -1913,3 +1913,228 @@ fn pbk_47_a_list_falls_from_where_its_fade_is() {
     assert_eq!(dmx(&e, 21), 0);
     assert!(!e.playback_state(1).unwrap().is_releasing());
 }
+
+// ---- CUE-61: Off and On --------------------------------------------------------------------
+
+// API: `Engine::set_cue_off(id, cue, item: Item, attribute: Option<&str>, off: bool)` moves a hard
+// value (or all of an item's) between `Cue.values` and `Cue.dormant`; refused, changing nothing,
+// when the side it comes from does not hold it.
+
+fn dormant(e: &Engine, n: f64, fixture: u32, attribute: &str) -> Option<f32> {
+    let cue = (e.playback(1).unwrap().cues.iter())
+        .find(|c| c.number == q(n))
+        .unwrap();
+    cue.dormant
+        .get(&Item::fixture(fixture))
+        .and_then(|a| a.get(attribute))
+        .map(|s| match s {
+            Stored::Value(Value::Level(v)) => *v,
+            other => panic!("not a level: {other:?}"),
+        })
+}
+
+fn off(e: &mut Engine, n: f64, fixture: u32, attribute: Option<&str>, off: bool) {
+    e.set_cue_off(1, q(n), Item::fixture(fixture), attribute, off)
+        .unwrap();
+}
+
+#[test]
+fn cue_61_off_moves_a_hard_value_out_of_play_and_on_brings_it_back() {
+    let mut e = update_list();
+    off(&mut e, 4.0, 201, Some("Dimmer"), true);
+    assert_eq!(hard(&e, 4.0, 201, "Dimmer"), None);
+    assert_eq!(dormant(&e, 4.0, 201, "Dimmer"), Some(0.8));
+    assert_eq!(
+        viewed(&e, 4.0, 201, "Dimmer"),
+        Some((0.5, 1.0)),
+        "it tracks as if the cue did not hold it"
+    );
+    off(&mut e, 4.0, 201, Some("Dimmer"), false);
+    assert_eq!(hard(&e, 4.0, 201, "Dimmer"), Some(0.8));
+    assert_eq!(dormant(&e, 4.0, 201, "Dimmer"), None);
+    assert!(e.playback(1).unwrap().cues[3].dormant.is_empty());
+}
+
+#[test]
+fn cue_61_without_an_attribute_it_moves_all_of_the_item() {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            cue(
+                1.0,
+                &[(101, "Pan", 0.2), (101, "Tilt", 0.3), (201, "Dimmer", 0.5)],
+            ),
+            cue(2.0, &[(201, "Dimmer", 1.0)]),
+        ],
+    );
+    off(&mut e, 1.0, 101, None, true);
+    assert_eq!(hard(&e, 1.0, 101, "Pan"), None);
+    assert_eq!(dormant(&e, 1.0, 101, "Tilt"), Some(0.3));
+    assert_eq!(hard(&e, 1.0, 201, "Dimmer"), Some(0.5), "others stay");
+    off(&mut e, 1.0, 101, None, false);
+    assert_eq!(hard(&e, 1.0, 101, "Pan"), Some(0.2));
+    assert_eq!(hard(&e, 1.0, 101, "Tilt"), Some(0.3));
+}
+
+#[test]
+fn cue_61_a_tracked_value_or_one_that_is_not_there_is_refused() {
+    let mut e = update_list();
+    let before = e.playback(1).unwrap().clone();
+    let item = Item::fixture(201);
+    let tracked = e.set_cue_off(1, q(3.0), item, Some("Dimmer"), true);
+    assert!(tracked
+        .unwrap_err()
+        .to_string()
+        .contains("Q3 holds no Dimmer"));
+    assert!(e.set_cue_off(1, q(3.0), item, None, true).is_err());
+    assert!(e
+        .set_cue_off(1, q(4.0), item, Some("Dimmer"), false)
+        .is_err());
+    assert!(e.set_cue_off(1, q(4.0), item, None, false).is_err());
+    assert!(e.set_cue_off(1, q(9.0), item, None, true).is_err());
+    assert!(e.set_cue_off(9, q(4.0), item, None, true).is_err());
+    assert_eq!(e.playback(1).unwrap(), &before);
+}
+
+#[test]
+fn cue_61_on_the_live_cue_it_shows_on_the_next_tick() {
+    let mut e = on_q2();
+    assert_eq!(dmx(&e, 22), 255);
+    off(&mut e, 2.0, 202, Some("Dimmer"), true);
+    tick(&mut e, 7.025);
+    assert_eq!(dmx(&e, 22), 0);
+    assert_eq!(dmx(&e, 21), 128, "Q1 still tracks");
+    off(&mut e, 2.0, 202, Some("Dimmer"), false);
+    tick(&mut e, 7.05);
+    assert_eq!(dmx(&e, 22), 255);
+}
+
+#[test]
+fn cue_61_go_into_a_cue_skips_a_dormant_value() {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            cue(1.0, &[(201, "Dimmer", 0.5)]),
+            cue(2.0, &[(201, "Dimmer", 1.0), (202, "Dimmer", 1.0)]),
+        ],
+    );
+    off(&mut e, 2.0, 201, Some("Dimmer"), true);
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    tick(&mut e, 0.0);
+    assert_eq!(dmx(&e, 21), 128);
+    act(&mut e, ListAction::Go, 1.0);
+    run(&mut e, 1.0, 1.1);
+    assert_eq!(dmx(&e, 21), 128, "the attribute tracks from Q1");
+    assert_eq!(dmx(&e, 22), 255);
+}
+
+#[test]
+fn cue_61_record_or_merge_stores_the_new_value_and_drops_the_dormant_one() {
+    let mut e = update_list();
+    off(&mut e, 1.0, 201, Some("Dimmer"), true);
+    off(&mut e, 1.0, 101, Some("Pan"), true);
+    program(&mut e, 201, "Dimmer", 0.3);
+    record_clean(&mut e, Some(1.0), RecordMode::Merge, None);
+    assert_eq!(hard(&e, 1.0, 201, "Dimmer"), Some(0.3));
+    assert_eq!(dormant(&e, 1.0, 201, "Dimmer"), None);
+    assert_eq!(
+        dormant(&e, 1.0, 101, "Pan"),
+        Some(0.2),
+        "another attribute stays off"
+    );
+}
+
+#[test]
+fn cue_61_merge_on_a_list_without_tracking_drops_the_dormant_one_too() {
+    let mut e = update_list();
+    options(
+        &mut e,
+        1,
+        ListOptions {
+            tracking: false,
+            ..ListOptions::default()
+        },
+    );
+    off(&mut e, 4.0, 201, Some("Dimmer"), true);
+    program(&mut e, 201, "Dimmer", 0.3);
+    record_clean(&mut e, Some(4.0), RecordMode::Merge, None);
+    assert_eq!(hard(&e, 4.0, 201, "Dimmer"), Some(0.3));
+    assert_eq!(dormant(&e, 4.0, 201, "Dimmer"), None);
+}
+
+#[test]
+fn cue_61_replace_drops_all_of_the_cues_dormant_values() {
+    let mut e = update_list();
+    off(&mut e, 1.0, 101, Some("Pan"), true);
+    program(&mut e, 201, "Dimmer", 0.3);
+    record_clean(&mut e, Some(1.0), RecordMode::Replace, None);
+    assert_eq!(hard(&e, 1.0, 201, "Dimmer"), Some(0.3));
+    assert!(e.playback(1).unwrap().cues[0].dormant.is_empty());
+}
+
+#[test]
+fn cue_61_update_does_not_read_a_dormant_value() {
+    let mut e = update_list();
+    options(
+        &mut e,
+        1,
+        ListOptions {
+            tracking: false,
+            ..ListOptions::default()
+        },
+    );
+    off(&mut e, 4.0, 201, Some("Dimmer"), true);
+    program(&mut e, 201, "Dimmer", 0.3);
+    // Update stores only what the cue holds, and it does not hold this any more.
+    let _ = record(&mut e, Some(4.0), RecordMode::QuickMerge, None);
+    assert_eq!(hard(&e, 4.0, 201, "Dimmer"), None);
+    assert_eq!(dormant(&e, 4.0, 201, "Dimmer"), Some(0.8));
+}
+
+#[test]
+fn cue_61_copy_keeps_them_and_a_removed_fixture_takes_them_along() {
+    let mut e = update_list();
+    off(&mut e, 4.0, 201, Some("Dimmer"), true);
+    e.copy_cue(1, q(4.0), q(5.0)).unwrap();
+    assert_eq!(dormant(&e, 5.0, 201, "Dimmer"), Some(0.8));
+    let usage = e.fixture_usage(&[201]);
+    assert_eq!(usage.cues, 3, "Q1 and the dormant value in Q4 and Q5 count");
+    e.patch_remove(&[201]).unwrap();
+    assert_eq!(dormant(&e, 4.0, 201, "Dimmer"), None);
+    assert!(e.playback(1).unwrap().cues[3].dormant.is_empty());
+}
+
+#[test]
+fn cue_61_a_cue_left_with_only_a_dormant_value_of_a_gone_fixture_counts_as_empty() {
+    let mut e = common::church();
+    add(
+        &mut e,
+        1,
+        1,
+        1,
+        vec![
+            cue(1.0, &[(201, "Dimmer", 0.5)]),
+            cue(2.0, &[(202, "Dimmer", 1.0)]),
+        ],
+    );
+    off(&mut e, 2.0, 202, Some("Dimmer"), true);
+    assert_eq!(e.fixture_usage(&[202]).empty_cues, 1);
+    assert_eq!(e.fixture_usage(&[201]).empty_cues, 1);
+}
+
+#[test]
+fn cue_61_a_new_engine_keeps_them_through_save_and_load() {
+    let mut e = update_list();
+    off(&mut e, 4.0, 201, Some("Dimmer"), true);
+    let show = e.to_show(meta());
+    let (loaded, _) = Engine::from_show(&show);
+    assert_eq!(dormant(&loaded, 4.0, 201, "Dimmer"), Some(0.8));
+}

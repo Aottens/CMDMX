@@ -431,6 +431,20 @@ pub enum Command {
         item: Item,
         attribute: Option<String>,
     },
+    /// CUE-61, IPC-57: move a hard value (or all of an item's) off or back on.
+    CueOff {
+        id: PlaybackId,
+        cue: CueNumber,
+        item: Item,
+        attribute: Option<String>,
+        off: bool,
+    },
+    /// CUE-59: take a hard effect entry out of a cue.
+    CueRemoveEffect {
+        id: PlaybackId,
+        cue: CueNumber,
+        entry: effect::EntryId,
+    },
     /// IPC-26: `number` `None` is the lowest free one.
     MasterRecord {
         page: u16,
@@ -1780,6 +1794,18 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             item: wire_item(&v, "fixture")?,
             attribute: opt_field(&v, "attribute", "a string")?,
         }),
+        Some("cue.off") => Ok(Command::CueOff {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            item: wire_item(&v, "fixture")?,
+            attribute: opt_field(&v, "attribute", "a string")?,
+            off: (v.get("off").and_then(|b| b.as_bool())).ok_or("missing or invalid \"off\"")?,
+        }),
+        Some("cue.remove_effect") => Ok(Command::CueRemoveEffect {
+            id: uint(&v, "id")?,
+            cue: cue_number(&v, "cue")?,
+            entry: uint(&v, "entry")?,
+        }),
         Some("master.record") => {
             let (page, slot) = (uint(&v, "page")?, uint(&v, "slot")?);
             let kind = match v.get("kind").and_then(|k| k.as_str()) {
@@ -2683,6 +2709,30 @@ struct CueViewFixture {
     #[serde(serialize_with = "serialize_wire_item")]
     fixture: Item,
     values: BTreeMap<String, CueViewValue>,
+    /// CUE-61: the cue's own values that are off.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    dormant: BTreeMap<String, CueViewDormant>,
+}
+
+/// CUE-61: one value that is off.
+#[derive(Serialize)]
+struct CueViewDormant {
+    value: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    palette: Option<PaletteId>,
+}
+
+/// CUE-59: one effect entry of the cue's state and the cue it is hard in.
+#[derive(Serialize)]
+struct CueViewEffect {
+    entry: effect::EntryId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    look: Option<String>,
+    shape: effect::Shape,
+    attributes: Vec<String>,
+    #[serde(serialize_with = "serialize_wire_items")]
+    members: Vec<Item>,
+    from: CueNumber,
 }
 
 #[derive(Serialize)]
@@ -2693,6 +2743,8 @@ struct CueViewMessage {
     playback: PlaybackId,
     cue: CueNumber,
     fixtures: Vec<CueViewFixture>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    effects: Vec<CueViewEffect>,
     /// PRG-80: each item's position in the recorded order; absent when the cue has none.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     order: BTreeMap<Item, u32>,
@@ -2701,24 +2753,59 @@ struct CueViewMessage {
 /// CUE-54, IPC-24: the answer to `cue.view`, sorted by fixture; a palette reference shows what
 /// its palette resolves (as `contents`, IPC-21) with its id.
 pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<String, CoreError> {
-    let fixtures = (engine.cue_view(id, cue)?.into_iter())
-        .map(|(item, attributes)| CueViewFixture {
+    let mut rows = BTreeMap::new();
+    for (item, attributes) in engine.cue_view(id, cue)? {
+        let values = (attributes.into_iter())
+            .map(|(name, v)| {
+                let palette = match v.value {
+                    Stored::Reference(r) => Some(r.palette),
+                    Stored::Value(_) => None,
+                };
+                let value = engine.resolve_stored(item, &name, v.value);
+                let shown = CueViewValue {
+                    value,
+                    from: v.from,
+                    palette,
+                };
+                (name, shown)
+            })
+            .collect();
+        let row = CueViewFixture {
             fixture: item,
-            values: (attributes.into_iter())
-                .map(|(name, v)| {
-                    let palette = match v.value {
-                        Stored::Reference(r) => Some(r.palette),
-                        Stored::Value(_) => None,
-                    };
-                    let value = engine.resolve_stored(item, &name, v.value);
-                    let shown = CueViewValue {
-                        value,
-                        from: v.from,
-                        palette,
-                    };
-                    (name, shown)
-                })
-                .collect(),
+            values,
+            dormant: BTreeMap::new(),
+        };
+        rows.insert(item, row);
+    }
+    // CUE-61: what the cue holds off; an item with nothing else still gets its row.
+    let held = engine
+        .playback(id)
+        .and_then(|p| p.cues.iter().find(|c| c.number == cue));
+    for (item, attributes) in held.iter().flat_map(|c| &c.dormant) {
+        let row = rows.entry(*item).or_insert_with(|| CueViewFixture {
+            fixture: *item,
+            values: BTreeMap::new(),
+            dormant: BTreeMap::new(),
+        });
+        for (name, stored) in attributes {
+            let palette = match stored {
+                Stored::Reference(r) => Some(r.palette),
+                Stored::Value(_) => None,
+            };
+            let value = engine.resolve_stored(*item, name, *stored);
+            row.dormant
+                .insert(name.clone(), CueViewDormant { value, palette });
+        }
+    }
+    let fixtures: Vec<_> = rows.into_values().collect();
+    let effects = (engine.cue_effects(id, cue)?.into_iter())
+        .map(|v| CueViewEffect {
+            entry: v.entry.id,
+            look: v.entry.look,
+            shape: v.entry.shape,
+            attributes: v.entry.attributes,
+            members: v.entry.members,
+            from: v.from,
         })
         .collect();
     Ok(to_json(&CueViewMessage {
@@ -2727,6 +2814,7 @@ pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<Strin
         playback: id,
         cue,
         fixtures,
+        effects,
         order: (engine
             .playback(id)
             .and_then(|p| p.cues.iter().find(|c| c.number == cue)))
@@ -2786,6 +2874,8 @@ pub struct Published {
     stored: Vec<StoredInfo>,
     /// CUE-54 (VS2-39): every cue's values; `StoredInfo` carries none, so a change shows here.
     values: Vec<Values>,
+    /// CUE-59: the same for every cue's effect entries.
+    effects: Vec<Vec<effect::Entry>>,
     live: BTreeMap<PlaybackId, LiveInfo>,
     connected: Option<PlaybackId>,
     grand_master: f32,
@@ -2804,10 +2894,16 @@ pub struct Published {
     undo: UndoInfo,
 }
 
+fn cue_effects(engine: &Engine) -> impl Iterator<Item = &Vec<effect::Entry>> {
+    engine
+        .playbacks()
+        .flat_map(|p| p.cues.iter().map(|c| &c.effects))
+}
+
 fn cue_values(engine: &Engine) -> impl Iterator<Item = &Values> {
     engine
         .playbacks()
-        .flat_map(|p| p.cues.iter().map(|c| &c.values))
+        .flat_map(|p| p.cues.iter().flat_map(|c| [&c.values, &c.dormant]))
 }
 
 impl Published {
@@ -2815,6 +2911,7 @@ impl Published {
         Self {
             stored: stored_infos(engine),
             values: cue_values(engine).cloned().collect(),
+            effects: cue_effects(engine).cloned().collect(),
             live: engine
                 .playbacks()
                 .map(|p| (p.id, live_info(engine, p.id)))
@@ -2866,7 +2963,11 @@ impl Published {
         if values_changed {
             self.values = cue_values(engine).cloned().collect();
         }
-        if values_changed || stored_changed(&self.stored, &stored) {
+        let effects_changed = !self.effects.iter().eq(cue_effects(engine));
+        if effects_changed {
+            self.effects = cue_effects(engine).cloned().collect();
+        }
+        if values_changed || effects_changed || stored_changed(&self.stored, &stored) {
             out.push(to_json(&PlaybacksDelta {
                 v: PROTOCOL,
                 kind: "playbacks",
@@ -3523,6 +3624,7 @@ mod tests {
     use super::*;
     use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
     use cmdmx_core::colour::ColourModel;
+    use cmdmx_core::effect::{Shape, Wave};
     use cmdmx_core::engine::{Engine, Settings};
     use cmdmx_core::patch::Fixture;
     use cmdmx_core::playback::Playback;
@@ -6813,6 +6915,126 @@ mod tests {
         );
         assert!(cue_view(&e, 2, q(9.0)).is_err());
         assert!(cue_view(&e, 9, q(1.0)).is_err());
+    }
+
+    #[test]
+    fn cue_59_cue_view_lists_the_effects() {
+        let mut e = list_engine();
+        e.select_fixture(1).unwrap();
+        e.select_fixture(2).unwrap();
+        let entry = e
+            .effect_apply(&EffectApply::Shape {
+                shape: Shape::Wave(Wave::Sine),
+                attribute: None,
+            })
+            .unwrap();
+        let record = PlaybackRecord {
+            cue: Some(q(3.0)),
+            ..PlaybackRecord::at(1, 2)
+        };
+        e.record_playback(&record).unwrap();
+        e.clear();
+        e.clear();
+        let v = parse(&cue_view(&e, 2, q(3.0)).unwrap());
+        assert_eq!(
+            v["effects"],
+            json!([{"entry":entry,"shape":{"Wave":"Sine"},"attributes":["Dimmer"],
+                    "members":[1,2],"from":3.0}])
+        );
+        assert!(
+            parse(&cue_view(&e, 2, q(2.0)).unwrap())
+                .get("effects")
+                .is_none(),
+            "absent when the cue has none"
+        );
+    }
+
+    #[test]
+    fn cue_59_remove_effect_parses() {
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"cue.remove_effect","id":2,"cue":2,"entry":7}"#),
+            Ok(Command::CueRemoveEffect {
+                id: 2,
+                entry: 7,
+                ..
+            })
+        ));
+        assert!(parse_command(r#"{"v":1,"cmd":"cue.remove_effect","id":2,"cue":2}"#).is_err());
+    }
+
+    #[test]
+    fn cue_59_removing_an_effect_alone_sends_the_whole_list() {
+        // As VS2-39: the open Cue view asks again on the delta, also after Undo.
+        let mut e = list_engine();
+        e.select_fixture(1).unwrap();
+        let entry = e
+            .effect_apply(&EffectApply::Shape {
+                shape: Shape::Wave(Wave::Sine),
+                attribute: None,
+            })
+            .unwrap();
+        let record = PlaybackRecord {
+            cue: Some(q(3.0)),
+            ..PlaybackRecord::at(1, 2)
+        };
+        e.record_playback(&record).unwrap();
+        e.clear();
+        e.clear();
+        e.tick(0.0);
+        let mut history = cmdmx_core::undo::History::default();
+        let mut published = Published::new(&e, &[], &show_state());
+        (history.edit(&mut e, "Remove cue effect", None, |e| {
+            e.remove_cue_effect(2, q(3.0), entry)
+        }))
+        .unwrap();
+        e.tick(0.025);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(deltas(&d, "playbacks").len(), 1, "remove: {d:?}");
+        history.undo(&mut e).unwrap();
+        e.tick(0.05);
+        let d = published.diff(&e, &[], &show_state());
+        assert_eq!(deltas(&d, "playbacks").len(), 1, "undo: {d:?}");
+    }
+
+    #[test]
+    fn cue_61_cue_view_shows_what_is_off() {
+        let mut e = list_engine();
+        let item = cmdmx_core::programmer::Item::fixture(2);
+        e.set_cue_off(2, q(2.0), item, None, true).unwrap();
+        let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
+        assert_eq!(
+            v["fixtures"],
+            json!([{"fixture":1,"values":{"Dimmer":{"value":1.0,"from":1.0}}},
+                   {"fixture":2,"values":{},"dormant":{"Dimmer":{"value":0.5}}}]),
+            "an item holding only dormant values keeps its row"
+        );
+    }
+
+    #[test]
+    fn ipc_57_cue_off_parses() {
+        let on = parse_command(
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":"901.2","off":false}"#,
+        );
+        assert!(matches!(
+            on,
+            Ok(Command::CueOff {
+                id: 2,
+                attribute: None,
+                off: false,
+                ..
+            })
+        ));
+        let off = parse_command(
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":201,"attribute":"Dimmer","off":true}"#,
+        );
+        assert!(matches!(off, Ok(Command::CueOff { off: true, .. })));
+        for bad in [
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":201}"#,
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"off":true}"#,
+            r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":201,"off":1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

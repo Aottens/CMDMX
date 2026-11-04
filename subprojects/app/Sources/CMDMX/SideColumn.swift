@@ -581,7 +581,7 @@ private struct Softkeys: View {
                 ui.cancelModes()
             }
         }
-        return ("Cue · \(name)", [
+        let keys: [Softkey?] = [
             Softkey(name: "Go to Cue", sub: "runs it now") { engine.cuelist("goto", id: ref.playback, cue: ref.cue); ui.cancelModes() },
             Softkey(name: "View Cue", sub: "its whole state") { ui.cueView = ref; ui.cueValue = nil; ui.cancelModes() },
             Softkey(name: "Edit Times", sub: "Times tab") { ui.openOptions(ref.playback, tab: .times, cue: ref.cue) },
@@ -597,7 +597,12 @@ private struct Softkeys: View {
                 }
             },
             Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() }),
-        ])
+        ]
+        // UI-53: a memory has one cue, so only View Cue, Edit Times, Set Legend and Cancel stay (positions kept).
+        if engine.playback(ref.playback)?.isMemory == true {
+            return ("Cue · \(name)", keys.enumerated().map { [1, 2, 3, 7].contains($0.offset) ? $0.element : nil })
+        }
+        return ("Cue · \(name)", keys)
     }
 
     /// UI-51: Set, As In (out columns only) and Done for the selected time cells.
@@ -621,22 +626,56 @@ private struct Softkeys: View {
     private func cueViewContext(_ ref: CueRef) -> (name: String, keys: [Softkey?]) {
         let name = cueName(ref.cue)
         let target = ui.cueValue
-        let fixture = target.flatMap { t in engine.fixtures.first { $0.id == t.fixture }?.number }
-        let what = target.map { "\($0.attribute) of \(fixture ?? $0.fixture)\($0.cell.map { ".\($0)" } ?? "")" }
+        let what: String? = target.map {
+            switch $0 {
+            case let .value(id, cell, attribute):
+                let number = "\(engine.fixtures.first { $0.id == id }?.number ?? id)\(cell.map { ".\($0)" } ?? "")"
+                return attribute.map { "\($0) of \(number)" } ?? (cell == nil ? "fixture \(number)" : number)
+            case let .effect(_, name): return name
+            case let .dormant(id, cell, attribute):
+                let number = "\(engine.fixtures.first { $0.id == id }?.number ?? id)\(cell.map { ".\($0)" } ?? "")"
+                return "\(attribute) of \(number)"
+            }
+        }
         var keys: [Softkey?] = Array(repeating: nil, count: 7)
         if ui.cueRemoveConfirm, let target {
             keys[0] = Softkey(name: "Confirm remove", sub: what ?? "") {
-                engine.removeCueValue(ref.playback, cue: ref.cue, fixture: target.fixture, cell: target.cell, attribute: target.attribute)
+                switch target {
+                case let .value(fixture, cell, attribute):
+                    engine.removeCueValue(ref.playback, cue: ref.cue, fixture: fixture, cell: cell, attribute: attribute)
+                case let .effect(entry, _):
+                    engine.removeCueEffect(ref.playback, cue: ref.cue, entry: entry)
+                case .dormant: break   // never armed
+                }
                 ui.cueValue = nil; ui.cueRemoveConfirm = false
             }
             keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cueRemoveConfirm = false })
             return ("Cue view · \(name)", keys)
         }
         keys[0] = Softkey(name: "Back to List") { ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false }
-        keys[1] = Softkey(name: "Remove", sub: what ?? "right-click a value") {
-            guard target != nil else { return engine.say("Right-click a hard value in the Cue view first.") }
+        keys[1] = Softkey(name: "Remove", sub: what ?? "right-click a value, a fixture number or an effect") {
+            guard let target else { return engine.say("Right-click a hard value, a fixture number or an effect in the Cue view first.") }
+            if case .dormant = target { return engine.say("That value is off: On brings it back, then Remove.") }
             ui.cueRemoveConfirm = true
             engine.say("Remove \(what ?? "") from \(name)? Confirm on softkey A.")
+        }
+        // CUE-61: Off acts on a hard value or a whole item, On on a value that is off (or a whole item); one step, one Undo.
+        var offTarget: (fixture: Int, cell: Int?, attribute: String?)?
+        var onTarget: (fixture: Int, cell: Int?, attribute: String?)?
+        switch target {
+        case let .value(f, c, a)?: offTarget = (f, c, a); onTarget = a == nil ? (f, c, nil) : nil
+        case let .dormant(f, c, a)?: onTarget = (f, c, a)
+        default: break
+        }
+        keys[2] = Softkey(name: "Off", sub: offTarget != nil ? (what ?? "") : "right-click a hard value or a fixture number") {
+            guard let t = offTarget else { return engine.say("Off: right-click a hard value or a fixture number first.") }
+            engine.setCueOff(ref.playback, cue: ref.cue, fixture: t.fixture, cell: t.cell, attribute: t.attribute, off: true)
+            ui.cueValue = nil
+        }
+        keys[3] = Softkey(name: "On", sub: onTarget != nil ? (what ?? "") : "right-click a value that is off") {
+            guard let t = onTarget else { return engine.say("On: right-click a value that is off, or a fixture number, first.") }
+            engine.setCueOff(ref.playback, cue: ref.cue, fixture: t.fixture, cell: t.cell, attribute: t.attribute, off: false)
+            ui.cueValue = nil
         }
         return ("Cue view · \(name)", keys)
     }

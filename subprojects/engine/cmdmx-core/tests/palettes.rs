@@ -1049,6 +1049,22 @@ fn pal_18_delete_falls_back_to_the_values_at_record_time() {
 }
 
 #[test]
+fn cue_61_a_dormant_reference_counts_and_follows_palette_deletion() {
+    let mut e = rig();
+    set(&mut e, &[201], "Colour", rgb(0.0, 0.0, 1.0));
+    let id = channel_record(&mut e, Window::Colours, 1);
+    e.clear();
+    playback_with_reference(&mut e, id, red());
+    let cue = e.playback(1).unwrap().cues[0].number;
+    e.set_cue_off(1, cue, Item::fixture(201), Some("Colour"), true)
+        .unwrap();
+    assert_eq!(e.palette_usage(1).unwrap().cues, 1);
+    e.delete_palette(1).unwrap();
+    let dormant = &e.playback(1).unwrap().cues[0].dormant;
+    assert_eq!(dormant[&Item::fixture(201)]["Colour"], Stored::Value(red()));
+}
+
+#[test]
 fn pal_18_number_and_cell_are_free_again_the_id_is_never_reused() {
     let mut e = rig();
     set(&mut e, &[201], "Colour", rgb(1.0, 0.0, 0.0));

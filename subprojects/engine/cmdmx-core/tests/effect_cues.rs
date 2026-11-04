@@ -1205,6 +1205,29 @@ fn pat_27_a_mode_without_the_attribute_takes_the_fixture_out_of_cue_and_programm
 }
 
 #[test]
+fn cue_61_a_mode_without_the_attribute_drops_a_dormant_value_with_its_warning() {
+    let mut e = mover_rig("Big");
+    select(&mut e, &[402]);
+    e.set_programmer_value(402, "Pan", 0.2).unwrap();
+    let pb = record(&mut e, 1, 1);
+    let cue = e.playback(pb).unwrap().cues[0].number;
+    e.set_cue_off(pb, cue, Item::fixture(402), Some("Pan"), true)
+        .unwrap();
+    e.drain_warnings();
+    e.patch_change_mode(402, "Small").unwrap();
+    let dormant = &e.playback(pb).unwrap().cues[0].dormant;
+    let kept = dormant.get(&Item::fixture(402));
+    assert!(kept.is_none_or(|a| !a.contains_key("Pan")), "{dormant:?}");
+    let warnings = messages(&mut e);
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains(&format!("playback {pb} value 'Pan' dropped"))),
+        "{warnings:?}"
+    );
+}
+
+#[test]
 fn pat_27_an_entry_left_without_members_goes() {
     let mut e = mover_rig("Big");
     let id = line_pan(&mut e, &[402]);
@@ -1484,4 +1507,155 @@ fn ipc_54_an_effect_entry_counts_for_its_palette_and_its_members() {
         }
     );
     assert_eq!(e.fixture_usage(&[202]), FixtureUsage::default());
+}
+
+// ---- CUE-59, 60: effects in the Cue view, their Remove, a whole fixture's Remove ------------------
+
+/// Q1 a ramp on 201 and 202, Q2 a ramp on 202 of its own, Q3 a value on 203 and nothing else.
+/// API: `Engine::cue_effects(id, cue) -> Result<Vec<CueEffect>, CoreError>` with `CueEffect { entry:
+/// Entry, from: CueNumber }` (in `playback`): the cue's state of FX-27, `entry.members` only the
+/// members it still runs on there. `Engine::remove_cue_effect(id, cue, entry)` takes a hard entry out.
+fn effect_list() -> (Engine, u32, EntryId, EntryId) {
+    let mut e = rig();
+    let first = ramp(&mut e, &[201, 202]);
+    let pb = record_cue(&mut e, 1, 1, 1.0);
+    clear(&mut e);
+    let second = ramp(&mut e, &[202]);
+    record_cue(&mut e, 1, 1, 2.0);
+    clear(&mut e);
+    select(&mut e, &[203]);
+    e.set_programmer_value(203, "Dimmer", 1.0).unwrap();
+    record_cue(&mut e, 1, 1, 3.0);
+    clear(&mut e);
+    (e, pb, first, second)
+}
+
+/// The view of cue `n` as (entry id, members, from).
+fn viewed_effects(e: &Engine, pb: u32, n: f64) -> Vec<(EntryId, Vec<Item>, f64)> {
+    let view = e.cue_effects(pb, q(n)).unwrap();
+    view.into_iter()
+        .map(|v| (v.entry.id, v.entry.members, v.from.as_f64()))
+        .collect()
+}
+
+#[test]
+fn cue_59_the_view_lists_the_entries_with_the_cue_they_are_hard_in() {
+    let (e, pb, first, second) = effect_list();
+    assert_eq!(
+        viewed_effects(&e, pb, 1.0),
+        vec![(first, items(&[201, 202]), 1.0)]
+    );
+    // Tracked for only 201 from Q2 on: listed with that member.
+    let q2 = vec![(first, items(&[201]), 1.0), (second, items(&[202]), 2.0)];
+    assert_eq!(viewed_effects(&e, pb, 2.0), q2);
+    let q3 = vec![(first, items(&[201]), 1.0), (second, items(&[202]), 2.0)];
+    assert_eq!(viewed_effects(&e, pb, 3.0), q3);
+    assert!(e.cue_effects(pb, q(9.0)).is_err());
+    assert!(e.cue_effects(99, q(1.0)).is_err());
+}
+
+#[test]
+fn cue_59_remove_takes_a_hard_entry_out_and_a_tracked_one_is_refused() {
+    let (mut e, pb, first, second) = effect_list();
+    let before = e.playback(pb).unwrap().clone();
+    let refused = e.remove_cue_effect(pb, q(2.0), first).unwrap_err();
+    assert!(
+        refused
+            .to_string()
+            .contains(&format!("Q2 holds no effect {first} of its own")),
+        "{refused}"
+    );
+    assert!(e.remove_cue_effect(pb, q(9.0), second).is_err());
+    assert!(e.remove_cue_effect(99, q(2.0), second).is_err());
+    assert_eq!(e.playback(pb).unwrap(), &before);
+
+    e.remove_cue_effect(pb, q(2.0), second).unwrap();
+    assert!(cue_effects(&e, pb, 1).is_empty());
+    assert_eq!(cue_effects(&e, pb, 0).len(), 1, "Q1 keeps its own");
+    assert_eq!(
+        viewed_effects(&e, pb, 2.0),
+        vec![(first, items(&[201, 202]), 1.0)],
+        "Q1's entry tracks on 202 again"
+    );
+}
+
+#[test]
+fn cue_59_remove_on_the_running_cue_is_on_stage_on_the_next_tick() {
+    let (mut e, pb, first, _) = effect_list();
+    e.set_fader(pb, 1.0, 0.0).unwrap();
+    e.cuelist(Some(pb), ListAction::Go, 0.0).unwrap();
+    e.tick(0.0);
+    tick_to(&mut e, 0.0, 0.5);
+    assert_dmx(&e, 21, 128);
+    e.remove_cue_effect(pb, q(1.0), first).unwrap();
+    e.tick(0.525);
+    assert_eq!(dmx(&e, 21), 0);
+    assert_eq!(dmx(&e, 22), 0);
+}
+
+#[test]
+fn cue_60_remove_of_an_item_takes_it_out_of_the_cues_own_entries() {
+    let (mut e, pb, first, _) = effect_list();
+    e.remove_cue_value(pb, q(1.0), Item::fixture(201), None)
+        .unwrap();
+    assert_eq!(cue_effects(&e, pb, 0)[0].members, items(&[202]));
+    assert_eq!(cue_effects(&e, pb, 0)[0].id, first);
+    // The last member takes the entry with it, and nothing is left to refuse on.
+    e.remove_cue_value(pb, q(1.0), Item::fixture(202), None)
+        .unwrap();
+    assert!(cue_effects(&e, pb, 0).is_empty());
+    assert!(e
+        .remove_cue_value(pb, q(1.0), Item::fixture(202), None)
+        .is_err());
+}
+
+#[test]
+fn cue_60_values_and_members_go_together_and_tracked_ones_stay() {
+    let (mut e, pb, first, _) = effect_list();
+    // 202 in Q2: an entry of its own. 201 in Q2: only tracked, so nothing to take out.
+    let before = e.playback(pb).unwrap().clone();
+    assert!(e
+        .remove_cue_value(pb, q(2.0), Item::fixture(201), None)
+        .is_err());
+    // With an attribute it is a value's Remove (CUE-54): the entry is not touched.
+    assert!(e
+        .remove_cue_value(pb, q(2.0), Item::fixture(202), Some("Dimmer"))
+        .is_err());
+    assert_eq!(e.playback(pb).unwrap(), &before);
+
+    edit_playback(&mut e, pb, |p| {
+        p.cues[1].values.insert(
+            Item::fixture(202),
+            std::collections::BTreeMap::from([(
+                "Dimmer".to_string(),
+                cmdmx_core::value::Stored::Value(cmdmx_core::value::Value::Level(0.5)),
+            )]),
+        );
+    });
+    e.remove_cue_value(pb, q(2.0), Item::fixture(202), None)
+        .unwrap();
+    let q2 = &e.playback(pb).unwrap().cues[1];
+    assert!(q2.values.is_empty());
+    assert!(q2.effects.is_empty());
+    assert_eq!(
+        viewed_effects(&e, pb, 2.0),
+        vec![(first, items(&[201, 202]), 1.0)],
+        "what tracks from Q1 stays visible"
+    );
+}
+
+#[test]
+fn cue_60_remove_on_the_running_cue_is_on_stage_on_the_next_tick() {
+    let (mut e, pb, _, _) = effect_list();
+    e.set_fader(pb, 1.0, 0.0).unwrap();
+    e.cuelist(Some(pb), ListAction::Go, 0.0).unwrap();
+    e.tick(0.0);
+    tick_to(&mut e, 0.0, 0.5);
+    assert_dmx(&e, 21, 128);
+    assert_dmx(&e, 22, 128);
+    e.remove_cue_value(pb, q(1.0), Item::fixture(201), None)
+        .unwrap();
+    e.tick(0.525);
+    assert_eq!(dmx(&e, 21), 0);
+    assert_dmx(&e, 22, 134);
 }
