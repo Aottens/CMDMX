@@ -60,11 +60,10 @@ struct CueRef: Equatable, Identifiable {
     var id: String { "\(playback)/\(cue)" }
 }
 
-/// The hard value last right-clicked in the Cue view (CUE-54): what Remove takes out.
-struct CueValueRef: Equatable {
-    let fixture: Int
-    let cell: Int?   // nil = the whole fixture
-    let attribute: String
+/// What was last right-clicked in the Cue view (CUE-54, 59, 60): what Remove takes out.
+enum CuePick: Equatable {
+    case value(fixture: Int, cell: Int?, attribute: String?)   // attribute nil = the whole item (CUE-60)
+    case effect(entry: Int, name: String)
 }
 
 /// UI-51: cues (list order) selected in one time column; `column` is the `cue.times` key, `anchor` the Shift-tap start.
@@ -170,7 +169,7 @@ final class UIState: ObservableObject {
         cueMemory = nil
     }
     @Published var timeCells: TimeCells?
-    @Published var cueValue: CueValueRef?
+    @Published var cueValue: CuePick?
     @Published var cueRemoveConfirm = false
     @Published var cueLegendEditing: CueRef?
     /// The cue the Times tab opens on (Edit Times on a row).

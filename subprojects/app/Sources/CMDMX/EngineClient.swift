@@ -568,21 +568,45 @@ struct CueViewFixture: Decodable, Identifiable, Equatable {
     }
 }
 
+/// CUE-59: an effect entry of the cue's state; `from` is the cue it is hard in.
+struct CueViewEffect: Decodable, Identifiable, Equatable {
+    let entry: Int
+    let look: String?
+    let shape: EffectShape
+    let attributes: [String]
+    let members: [Item]
+    let from: Double
+    var id: Int { entry }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        entry = try c.decode(Int.self, forKey: .entry)
+        look = try? c.decode(String.self, forKey: .look)
+        shape = try c.decode(EffectShape.self, forKey: .shape)
+        attributes = (try? c.decode([String].self, forKey: .attributes)) ?? []
+        members = (try? c.decode([Item].self, forKey: .members)) ?? []
+        from = try c.decode(Double.self, forKey: .from)
+    }
+    private enum CodingKeys: String, CodingKey { case entry, look, shape, attributes, members, from }
+}
+
 /// CUE-54: the answer to `cue.view` (this client only).
 struct CueViewReply: Decodable, Equatable {
     let playback: Int
     let cue: Double
     let fixtures: [CueViewFixture]
+    let effects: [CueViewEffect]
     /// UI-34: item → 0-based position in the cue's fixture order; empty when the cue has none.
     let order: [Item: Int]
 
-    private enum CodingKeys: String, CodingKey { case playback, cue, fixtures, order }
+    private enum CodingKeys: String, CodingKey { case playback, cue, fixtures, effects, order }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         playback = try c.decode(Int.self, forKey: .playback)
         cue = try c.decode(Double.self, forKey: .cue)
         fixtures = ((try? c.decode([Tolerant<CueViewFixture>].self, forKey: .fixtures)) ?? []).compactMap(\.value)
+        effects = ((try? c.decode([Tolerant<CueViewEffect>].self, forKey: .effects)) ?? []).compactMap(\.value)
         let wire = (try? c.decode([String: Tolerant<Int>].self, forKey: .order)) ?? [:]
         order = Dictionary(wire.compactMap { key, step in Item(key).flatMap { item in step.value.map { (item, $0) } } }, uniquingKeysWith: { a, _ in a })
     }
@@ -1876,6 +1900,8 @@ final class EngineClient: ObservableObject {
         if let attribute { fields["attribute"] = attribute }
         patch("cue.remove", fields)
     }
+    /// CUE-59: takes a hard effect entry out of the cue.
+    func removeCueEffect(_ id: Int, cue: Double, entry: Int) { patch("cue.remove_effect", ["id": id, "cue": cue, "entry": entry]) }
     /// `settings.playback` (show-wide): only the given fields change.
     func setPlaybackSettings(_ fields: [String: Any]) { patch("settings.playback", fields) }
 

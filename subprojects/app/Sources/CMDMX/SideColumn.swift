@@ -626,20 +626,31 @@ private struct Softkeys: View {
     private func cueViewContext(_ ref: CueRef) -> (name: String, keys: [Softkey?]) {
         let name = cueName(ref.cue)
         let target = ui.cueValue
-        let fixture = target.flatMap { t in engine.fixtures.first { $0.id == t.fixture }?.number }
-        let what = target.map { "\($0.attribute) of \(fixture ?? $0.fixture)\($0.cell.map { ".\($0)" } ?? "")" }
+        let what: String? = target.map {
+            switch $0 {
+            case let .value(id, cell, attribute):
+                let number = "\(engine.fixtures.first { $0.id == id }?.number ?? id)\(cell.map { ".\($0)" } ?? "")"
+                return attribute.map { "\($0) of \(number)" } ?? (cell == nil ? "fixture \(number)" : number)
+            case let .effect(_, name): return name
+            }
+        }
         var keys: [Softkey?] = Array(repeating: nil, count: 7)
         if ui.cueRemoveConfirm, let target {
             keys[0] = Softkey(name: "Confirm remove", sub: what ?? "") {
-                engine.removeCueValue(ref.playback, cue: ref.cue, fixture: target.fixture, cell: target.cell, attribute: target.attribute)
+                switch target {
+                case let .value(fixture, cell, attribute):
+                    engine.removeCueValue(ref.playback, cue: ref.cue, fixture: fixture, cell: cell, attribute: attribute)
+                case let .effect(entry, _):
+                    engine.removeCueEffect(ref.playback, cue: ref.cue, entry: entry)
+                }
                 ui.cueValue = nil; ui.cueRemoveConfirm = false
             }
             keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cueRemoveConfirm = false })
             return ("Cue view · \(name)", keys)
         }
         keys[0] = Softkey(name: "Back to List") { ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false }
-        keys[1] = Softkey(name: "Remove", sub: what ?? "right-click a value") {
-            guard target != nil else { return engine.say("Right-click a hard value in the Cue view first.") }
+        keys[1] = Softkey(name: "Remove", sub: what ?? "right-click a value, a fixture number or an effect") {
+            guard target != nil else { return engine.say("Right-click a hard value, a fixture number or an effect in the Cue view first.") }
             ui.cueRemoveConfirm = true
             engine.say("Remove \(what ?? "") from \(name)? Confirm on softkey A.")
         }

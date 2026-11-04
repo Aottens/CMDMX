@@ -37,11 +37,11 @@ use crate::palette::{
 use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
     check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BpmFader, BpmMaster, Button,
-    ButtonKind, ChaseOptions, Cue, CueChange, CueNumber, CueValue, CueView, FaderMode, GroupMaster,
-    GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind as PlaybackKind, Link,
-    ListAction, ListFader, ListLive, Master, MasterKind, Origin, Origins, Paging, Playback,
-    PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority, Release, SpeedSource,
-    UpdateMode, Values, GROUP_SCALES, PAGES,
+    ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, FaderMode,
+    GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
+    Kind as PlaybackKind, Link, ListAction, ListFader, ListLive, Master, MasterKind, Origin,
+    Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority,
+    Release, SpeedSource, UpdateMode, Values, GROUP_SCALES, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -3614,6 +3614,53 @@ impl Engine {
         Ok(view)
     }
 
+    /// CUE-59: the effect entries of a cue's state (FX-27) with the cue each is hard in.
+    pub fn cue_effects(&self, id: PlaybackId, cue: CueNumber) -> Result<Vec<CueEffect>, CoreError> {
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        let at = (playback.cues.iter().position(|c| c.number == cue))
+            .ok_or(CoreError::UnknownCue(cue))?;
+        let hard = |entry: &effect::Entry| {
+            (playback.cues.iter().take(at + 1).rev())
+                .find(|c| c.effects.iter().any(|e| e.id == entry.id))
+                .map_or(cue, |c| c.number)
+        };
+        Ok(playback
+            .effect_state(at)
+            .into_iter()
+            .map(|entry| CueEffect {
+                from: hard(&entry),
+                entry,
+            })
+            .collect())
+    }
+
+    /// CUE-59: take a hard effect entry out of a cue; refused, changing nothing, when the cue
+    /// does not hold it. On stage at once (CUE-53).
+    pub fn remove_cue_effect(
+        &mut self,
+        id: PlaybackId,
+        cue: CueNumber,
+        entry: EntryId,
+    ) -> Result<(), CoreError> {
+        let playback = self.playback_mut(id)?;
+        let cue = (playback.cues.iter_mut())
+            .find(|c| c.number == cue)
+            .ok_or(CoreError::UnknownCue(cue))?;
+        let before = cue.effects.len();
+        cue.effects.retain(|e| e.id != entry);
+        if cue.effects.len() == before {
+            return Err(CoreError::InvalidCommand(format!(
+                "Q{} holds no effect {entry} of its own",
+                cue.number
+            )));
+        }
+        if let Some(state) = self.states.get_mut(&id) {
+            state.run.edited = true;
+        }
+        self.follow_cue_effects();
+        Ok(())
+    }
+
     /// CUE-54: take a hard value (or all of a fixture's) out of a cue so it tracks from earlier
     /// cues again; refused, changing nothing, when the cue does not hold it. On stage at once
     /// (CUE-53).
@@ -3640,7 +3687,12 @@ impl Engine {
             }
             (None, _) => false,
         };
-        if !removed {
+        // CUE-60: a whole item also leaves the members of the cue's own effect entries.
+        let member = attribute.is_none() && cue.effects.iter().any(|e| e.members.contains(&item));
+        if member {
+            effect::Entry::retire(&mut cue.effects, |m| *m == item);
+        }
+        if !(removed || member) {
             let what = match (attribute, item.cell) {
                 (Some(name), _) => name.to_string(),
                 (None, Some(_)) => item.to_string(),
@@ -3654,6 +3706,7 @@ impl Engine {
         if let Some(state) = self.states.get_mut(&id) {
             state.run.edited = true;
         }
+        self.follow_cue_effects();
         Ok(())
     }
 
@@ -5289,7 +5342,7 @@ impl Engine {
     /// FX-24, 26: before the merge, build the runs of every active playback's current cue when
     /// the cue changed, move the clocks of all of them by Δt · rate and drop what has faded out.
     /// Allocates only when a cue starts. ponytail: an edit to the running cue's entries shows at
-    /// its next start (a patch change is followed, PAT-26); a Back starts with the cue's delay.
+    /// its next start; a patch change (PAT-26) and a Remove (CUE-59, 60) are followed; a Back starts with the cue's delay.
     fn tick_cue_effects(&mut self, now: Timestamp) {
         let mut fx = std::mem::take(&mut self.cue_fx);
         fx.retain(|id, _| self.states.get(id).is_some_and(PlaybackState::is_active));

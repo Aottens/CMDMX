@@ -955,6 +955,13 @@ pub struct CueValue {
     pub from: CueNumber,
 }
 
+/// CUE-59: an effect entry of a cue's state and the cue it is hard in.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CueEffect {
+    pub entry: crate::effect::Entry,
+    pub from: CueNumber,
+}
+
 /// CUE-54: the state of one cue per item (fixture or cell) and attribute.
 pub type CueView = BTreeMap<Item, BTreeMap<String, CueValue>>;
 

@@ -237,6 +237,14 @@ Right-click a value the cue holds itself and press **Remove** (then confirm) to 
 cue, so it tracks from the cues before it again. A tracked value cannot be removed here: remove it
 from the cue it comes from. **Back to List** returns to the Cue list window.
 
+Under the fixtures, each effect of the cue has a row: its look or shape, its attributes and how many fixtures it
+runs on, **magenta** when it tracks from an earlier cue. Right-click an effect the cue holds itself and press
+**Remove**, then confirm: it stops on stage on the next tick when that cue is live.
+
+Right-click a fixture number to take the whole fixture out: **Remove** names it ("fixture 201", or "901.2" for a cell)
+and takes out what this cue holds of it, its values and its place in the cue's own effects. A cell row is taken out on
+its own. What tracks from an earlier cue stays visible.
+
 ## The connected list
 
 The Go block, Space and the Cue list window always work on one cue list or chase: the

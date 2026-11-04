@@ -160,6 +160,14 @@ Claude listens to Art-Net; the times below are read there, not on screen. Taps a
 - [ ] With Delete armed, **View** and **⋯** on a row: "Delete cue n? Confirm on softkey A", as a tap on the row. Cancel.
 - [ ] Times view with cells selected: **View** and **⋯** clear the cells.
 
+## Effects in the Cue view, a whole fixture out (CUE-59, 60)
+Claude listens to Art-Net for what goes on stage.
+- [ ] Q1 with an effect on two fixtures, Q2 with an effect of its own on one of them. Cue view of Q2: two rows under the fixtures, look or shape, attributes, member count; Q1's in magenta, with one member left.
+- [ ] A right-click on the magenta row: "tracks from Q1", nothing picked. A right-click on Q2's row, **Remove**, confirm: the row goes, Q1's shows two members again, one Undo brings it back.
+- [ ] A cue with only an effect shows its row, not "This cue holds no values."
+- [ ] Remove on the live cue: on Art-Net the channel stops on the next tick.
+- [ ] A right-click on a fixture number: **Remove** names "fixture 201"; on a cell row "901.2". Confirm: its values and its place in the cue's effects go; a tracked value of it stays, magenta. A fixture holding nothing of its own: the warning, nothing changes.
+
 ## Restart (CUE-24, SHW)
 - [ ] Wait 5 s (autosave), stop the daemon (Ctrl-C) and start it again with the same command:
       the app reconnects, the lists, cues, legends, tracking options, chase and masters are back;

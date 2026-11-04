@@ -469,18 +469,20 @@ private struct CueViewWindow: View {
                         Button("Back to list") { ui.cueView = nil; ui.cueValue = nil; ui.cueRemoveConfirm = false }
                             .buttonStyle(FlatButton(compact: true))
                     }) {
-            if let reply, !reply.fixtures.isEmpty {
+            if let reply, !(reply.fixtures.isEmpty && reply.effects.isEmpty) {
                 ScrollView {
                     LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
                         Section {
                             ForEach(cellsAfterFixtures(reply.fixtures, engine.fixtures) { $0.item }) { row in
                                 let fixture = fixtures[row.fixture]
-                                line(number: Text(ProgrammerWindow.number(row.item, fixture)).foregroundStyle(t.fg2),
+                                line(number: Text(ProgrammerWindow.number(row.item, fixture)).foregroundStyle(t.fg2)
+                                        .overlay { RightClickCatcher { pickItem(row.item, fixture) } },
                                      name: Text(row.item.cell == nil ? fixture.map(Self.title) ?? "" : "").foregroundStyle(t.fg)) { group in
                                     cell(row, fixture, group)
                                 }
                                 HLine()
                             }
+                            ForEach(reply.effects) { effectRow($0) }
                         } header: {
                             VStack(spacing: 0) {
                                 line(number: header("#"), name: header("Fixture")) { header($0) }
@@ -545,12 +547,43 @@ private struct CueViewWindow: View {
         return text.foregroundStyle(v.from == ref.cue ? t.fg : t.magenta)
     }
 
+    /// CUE-59: look or shape, attributes, member count; magenta when it tracks from an earlier cue.
+    private func effectRow(_ e: CueViewEffect) -> some View {
+        let name = e.look ?? e.shape.title
+        let count = e.members.count
+        return VStack(spacing: 0) {
+            Text("\(name) · \(e.attributes.joined(separator: ", ")) · \(count) \(count == 1 ? "fixture" : "fixtures")")
+                .foregroundStyle(e.from == ref.cue ? t.fg : t.magenta)
+                .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                .font(Typo.mono(11))
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .overlay {
+                    RightClickCatcher {
+                        guard e.from == ref.cue else {
+                            return engine.say("\(name) tracks from \(cueName(e.from)): remove it there.")
+                        }
+                        ui.cueValue = .effect(entry: e.entry, name: name)
+                        ui.cueRemoveConfirm = false
+                        engine.say("\(name) picked: Remove on the softkeys takes it out of \(cueName(ref.cue)).")
+                    }
+                }
+            HLine()
+        }
+    }
+
+    /// CUE-60: a right-click on the number picks the whole item; the engine refuses what is not hard here.
+    private func pickItem(_ item: Item, _ fixture: FixtureInfo?) {
+        ui.cueValue = .value(fixture: item.fixture, cell: item.cell, attribute: nil)
+        ui.cueRemoveConfirm = false
+        engine.say("\(ProgrammerWindow.number(item, fixture)) picked: Remove on the softkeys takes it out of \(cueName(ref.cue)).")
+    }
+
     /// Only a value that is hard in this cue can be removed from it (CUE-54).
     private func pick(_ item: Item, _ name: String, _ v: CueViewValue) {
         guard v.from == ref.cue else {
             return engine.say("\(name) tracks from \(cueName(v.from)): remove it there.")
         }
-        ui.cueValue = CueValueRef(fixture: item.fixture, cell: item.cell, attribute: name)
+        ui.cueValue = .value(fixture: item.fixture, cell: item.cell, attribute: name)
         ui.cueRemoveConfirm = false
         engine.say("\(name) picked: Remove on the softkeys takes it out of \(cueName(ref.cue)).")
     }
