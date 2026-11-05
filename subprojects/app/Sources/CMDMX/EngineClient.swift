@@ -1656,7 +1656,12 @@ final class EngineClient: ObservableObject {
     func ctStep(_ step: String) { sendJSON("programmer.ct_step", ["step": step]) }
     /// IPC-47: set the target colour to a LEE gel by number.
     func gel(_ number: Int) { sendJSON("programmer.gel", ["range": "Lee", "number": number]) }
-    func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
+    /// PRG-97: `mode` is Replace or Merge, needed when the group is used.
+    func recordGroup(_ id: Int, mode: String? = nil) {
+        var body: [String: Any] = ["group": id]
+        if let mode { body["mode"] = mode }
+        sendJSON("group.record", body)
+    }
     func deleteGroup(_ id: Int) { patch("group.delete", ["group": id]) }
     func copyGroup(_ id: Int, to: Int) { patch("group.copy", ["group": id, "to": to]) }
     func moveGroup(_ id: Int, to: Int) { patch("group.move", ["group": id, "to": to]) }

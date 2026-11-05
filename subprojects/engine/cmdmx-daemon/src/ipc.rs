@@ -42,8 +42,8 @@ use cmdmx_core::playback::{
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
-    serialize_wire_item, serialize_wire_items, ClearLtp, ClearPrecedence, FanCurve, GroupId, Item,
-    ProgrammerSettingsChange, ProgrammerView, Resolution,
+    serialize_wire_item, serialize_wire_items, ClearLtp, ClearPrecedence, FanCurve, GroupId,
+    GroupRecordMode, Item, ProgrammerSettingsChange, ProgrammerView, Resolution,
 };
 use cmdmx_core::value::{Stored, Value};
 use cmdmx_core::CoreError;
@@ -216,6 +216,7 @@ pub enum Command {
     },
     RecordGroup {
         group: GroupId,
+        mode: Option<GroupRecordMode>,
     },
     DeleteGroup {
         group: GroupId,
@@ -1406,6 +1407,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         }),
         Some("group.record") => Ok(Command::RecordGroup {
             group: uint(&v, "group")?,
+            mode: opt_field(&v, "mode", "Replace or Merge")?,
         }),
         Some("group.delete") => Ok(Command::DeleteGroup {
             group: uint(&v, "group")?,
@@ -4625,7 +4627,10 @@ mod tests {
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"group.record","group":3}"#),
-            Command::RecordGroup { group: 3 }
+            Command::RecordGroup {
+                group: 3,
+                mode: None
+            }
         );
     }
 
@@ -7154,6 +7159,35 @@ mod tests {
         assert_eq!(got["v"], 1);
         assert_eq!(got["playbacks"], serde_json::json!([]));
         assert_eq!(got["palettes"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn prg_97_group_record_takes_a_mode() {
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"group.record","group":5}"#),
+            Ok(Command::RecordGroup {
+                group: 5,
+                mode: None
+            })
+        ));
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":"Replace"}"#),
+            Ok(Command::RecordGroup {
+                group: 5,
+                mode: Some(GroupRecordMode::Replace)
+            })
+        ));
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":"Merge"}"#),
+            Ok(Command::RecordGroup {
+                group: 5,
+                mode: Some(GroupRecordMode::Merge)
+            })
+        ));
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":"Append"}"#).is_err()
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":1}"#).is_err());
     }
 
     #[test]

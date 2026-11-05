@@ -110,6 +110,9 @@ pub enum CoreError {
     GroupEmpty(u32),
     #[error("Group {0} is used")]
     GroupUsed(u32),
+    /// PRG-97: Record over a used group without a mode.
+    #[error("Group {0} is used: Replace or Merge")]
+    GroupUsedRecord(u32),
     #[error("Group {0} cannot go onto itself")]
     GroupOntoItself(u32),
     #[error("Group {group} is mastered by handle {page}.{slot}: delete the master first")]

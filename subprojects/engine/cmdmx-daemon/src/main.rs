@@ -732,7 +732,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             let tokens: Vec<&str> = tokens.iter().map(String::as_str).collect();
             engine.execute_command(&tokens)
         }
-        RecordGroup { group } => engine.record_group(group),
+        RecordGroup { group, mode } => engine.record_group_as(group, mode),
         DeleteGroup { group } => engine.delete_group(group),
         CopyGroup { group, to } => engine.copy_group(group, to),
         MoveGroup { group, to } => engine.move_group(group, to),
@@ -1140,7 +1140,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         EffectRestart => ("Restart effects".into(), None),
         ProfileSave(p) => (format!("Edit profile {}", p.model), None),
         Colour { .. } | CtStep { .. } | Gel { .. } => ("Colour".into(), Some("colour".into())),
-        RecordGroup { group } => (format!("Record group {group}"), None),
+        RecordGroup { group, .. } => (format!("Record group {group}"), None),
         DeleteGroup { group } => (format!("Delete group {group}"), None),
         CopyGroup { group, .. } => (format!("Copy group {group}"), None),
         MoveGroup { group, .. } => (format!("Move group {group}"), None),
@@ -3308,6 +3308,34 @@ mod tests {
                 "{json}"
             );
             assert_eq!(h.undo_label(), Some("Record group 50"), "one step: {json}");
+        }
+    }
+
+    #[test]
+    fn prg_97_record_over_a_group_is_refused_or_one_undo_step() {
+        let (mut e, mut h) = group_engine();
+        let err =
+            undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"group.record","group":50}"#).unwrap_err();
+        assert_eq!(err.to_string(), "Group 50 is used: Replace or Merge");
+        assert_eq!(
+            h.undo_label(),
+            Some("Record group 50"),
+            "a refusal adds no step"
+        );
+        let before = e.groups();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.select","fixture":102}"#,
+        )
+        .unwrap();
+        for mode in ["Replace", "Merge"] {
+            let json = format!(r#"{{"v":1,"cmd":"group.record","group":50,"mode":"{mode}"}}"#);
+            undo_run(&mut e, &mut h, &json).unwrap();
+            assert_ne!(e.groups(), before, "{mode}");
+            assert_eq!(h.undo_label(), Some("Record group 50"), "{mode}");
+            h.undo(&mut e).unwrap();
+            assert_eq!(e.groups(), before, "{mode}");
         }
     }
 

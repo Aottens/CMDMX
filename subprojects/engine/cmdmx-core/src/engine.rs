@@ -46,8 +46,9 @@ use crate::playback::{
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
     default_lowlight, fan_factors, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView,
-    EditPart, EffectView, Fade, FanCurve, FixtureValues, Grid, GridShortcut, GroupId, Item, Order,
-    PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView, Resolution, WheelState,
+    EditPart, EffectView, Fade, FanCurve, FixtureValues, Grid, GridShortcut, GroupId,
+    GroupRecordMode, Item, Order, PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView,
+    Resolution, WheelState,
 };
 use crate::show::{
     Meta, Show, ShowGroup, ShowNode, ShowOutput, ShowPage, ShowPalette, ShowPalettes, ShowPatch,
@@ -4952,6 +4953,30 @@ impl Engine {
             None => self.group_grids.remove(&id),
         };
         Ok(())
+    }
+
+    /// PRG-97: Record over a group. A used group needs a mode; `Replace` is `record_group`,
+    /// `Merge` appends the selected items it does not hold yet and keeps grid and legend.
+    pub fn record_group_as(
+        &mut self,
+        id: GroupId,
+        mode: Option<GroupRecordMode>,
+    ) -> Result<(), CoreError> {
+        if self.programmer.items().is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        match (self.groups.get_mut(&id), mode) {
+            (None, _) | (Some(_), Some(GroupRecordMode::Replace)) => self.record_group(id),
+            (Some(_), None) => Err(CoreError::GroupUsedRecord(id)),
+            (Some(items), Some(GroupRecordMode::Merge)) => {
+                for item in self.programmer.items() {
+                    if !items.contains(item) {
+                        items.push(*item);
+                    }
+                }
+                Ok(())
+            }
+        }
     }
 
     /// PRG-79: the grid a group was recorded with, `None` when it was recorded with the grid off.

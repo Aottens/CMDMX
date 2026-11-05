@@ -109,9 +109,11 @@ final class UIState: ObservableObject {
     /// Disarming forgets the record choices below (they hold for one record only, PAL-29).
     @Published var recordArmed = false { didSet { if recordArmed { timeCells = nil } else { resetRecord() } } }
     /// Record + tap on a used cell: waiting for Replace / Merge / Quick Merge (PAL-06).
-    @Published var usedCell: UsedCell? { didSet { if usedCell != nil { usedCue = nil } } }
+    @Published var usedCell: UsedCell? { didSet { if usedCell != nil { usedCue = nil; usedGroup = nil } } }
     /// Record + tap on a used handle: waiting for Replace / Merge (PBK-38).
-    @Published var usedHandle: UsedHandle? { didSet { if usedHandle != nil { usedCue = nil } } }
+    @Published var usedHandle: UsedHandle? { didSet { if usedHandle != nil { usedCue = nil; usedGroup = nil } } }
+    /// Record + tap on a used group: waiting for Replace / Merge (PRG-97).
+    @Published var usedGroup: Int?
     /// Record choices for this record only (PAL-29); nil = the window's mask / the engine's setting.
     @Published var recordMask: Set<String>?
     @Published var recordBy: String?
@@ -148,7 +150,7 @@ final class UIState: ObservableObject {
     /// mode (nil = the setting) and a master record armed ("Bpm" / "Rate").
     @Published var cueMenu: CueRef?
     @Published var cueDelete = false
-    @Published var usedCue: CueRef?
+    @Published var usedCue: CueRef? { didSet { if usedCue != nil { usedGroup = nil } } }
     @Published var updateMode: String?
     /// PBK-49: the Update softkeys; playback keys ("id/cue") unticked, palettes ticked, the softkey page.
     @Published var updateOff = Set<String>()
@@ -204,7 +206,7 @@ final class UIState: ObservableObject {
     }
 
     func resetRecord() {
-        usedCell = nil; usedHandle = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
+        usedCell = nil; usedHandle = nil; usedGroup = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
         usedCue = nil; updateMode = nil; recordMaster = nil; recordMasterGroup = nil
     }
 
@@ -237,7 +239,8 @@ final class UIState: ObservableObject {
         let names: [ArmedTarget: String] = [.group: "groups", .fixture: "fixtures", .palette: "palettes", .handle: "playback handles", .cue: "cues"]
         let list = places.compactMap { names[$0] }
         let joined = list.count > 1 ? list.dropLast().joined(separator: ", ") + " and " + list[list.count - 1] : list.joined()
-        return "\(name) works on \(joined)."
+        let hint = function == .update && target == .group ? " To add to a group: Record, then Merge." : ""
+        return "\(name) works on \(joined).\(hint)"
     }
 
     /// UI-42: true when the tap on `target` may go on. A refusal is said and nothing else happens. An allowed

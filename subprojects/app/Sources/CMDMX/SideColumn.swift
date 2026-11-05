@@ -500,6 +500,16 @@ private struct Softkeys: View {
                 maskKey, recordByKey, updateModeKey(list), cancelKey,
             ].compactMap { $0 })
         }
+        if let group = ui.usedGroup {
+            // PRG-97: a used group takes Replace or Merge.
+            let mode = { (name: String, sub: String, wire: String) -> Softkey in
+                Softkey(name: name, sub: sub) {
+                    engine.recordGroup(group, mode: wire)
+                    ui.recordArmed = false
+                }
+            }
+            return ("Record · Group \(group)", [mode("Replace", "new contents", "Replace"), mode("Merge", "add the selection", "Merge"), cancelKey])
+        }
         let mode = { (name: String, sub: String, wire: String) -> Softkey? in
             guard let used else { return nil }
             return Softkey(name: name, sub: sub) {

@@ -274,8 +274,18 @@ enum GroupTaps {
             ui.recordMasterGroup = id
             engine.say("Group Master: tap an empty handle.")
         } else if ui.recordArmed {
-            engine.recordGroup(id)
-            ui.recordArmed = false
+            // PRG-97: a used group asks Replace or Merge on the softkeys; a free one records at once.
+            guard group != nil else {
+                engine.recordGroup(id)
+                ui.recordArmed = false
+                return
+            }
+            ui.usedCell = nil
+            ui.usedHandle = nil
+            ui.usedCue = nil
+            ui.maskMenu = false
+            ui.usedGroup = id
+            engine.say("Group \(id) is used: Replace or Merge on the softkeys.")
         } else if !ui.armedAllows(.group, engine) {
             return
         } else if let function = ui.function, ui.groupFunctionArmed {
