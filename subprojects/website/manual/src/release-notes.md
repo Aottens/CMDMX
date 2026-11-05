@@ -1,5 +1,25 @@
 # Release notes
 
+## 0.5.0
+
+Published 5 November 2026 as "CMDMX 0.5.0".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.5.0)
+
+This release is about changing what is recorded. A show saved with it does not open on an older version.
+
+- **As In:** out times and delays can follow their in time, also in *New cue times* (see
+  [Times per cue](cuelists.md#times-per-cue)).
+- **Release fades intensity** over the release time.
+- **The Times view** in the Cue list window sets one time on many cues.
+- **The Cue view** shows effects and takes out a value, an effect or a whole fixture. **Off** and **On** take a value
+  out of play and bring it back. Each row has **View** and **⋯**, and a one-cue playback shows there too.
+- **Include** loads a cue back into the programmer, from a handle or a cue row.
+- **Update** offers what it can store into, cues and palettes, on softkeys.
+- **Record over a group** asks Replace, Merge or Cancel, and a group master can change its group
+  (see [Groups](programming.md#groups)).
+- **Create List and Create Chase** stay in Record, so you build a list by making a look and tapping its handle
+  (see [Stay in Record](cuelists.md#stay-in-record)).
+
 ## 0.4.1
 
 Published 4 November 2026 as "CMDMX 0.4.1".
