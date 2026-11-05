@@ -25,6 +25,12 @@ struct CMDMXApp: App {
                 .environmentObject(engine)
                 .frame(minWidth: 1280, minHeight: 800)
         }
+        .commands {
+            // UI-55: replaces the default "CMDMX Help".
+            CommandGroup(replacing: .help) {
+                Button("CMDMX Manual") { engine.openManual() }.keyboardShortcut("?", modifiers: .command)
+            }
+        }
         .defaultSize(width: 1440, height: 900)
         .windowResizability(.contentMinSize)
     }

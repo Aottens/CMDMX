@@ -15,6 +15,7 @@ These always work:
 | ⇧⌘Z | redo |
 | Esc | one level up, see below; it never changes the stage |
 | ⌘L | Lock: asks for a code (see [Locking the console](running.md#locking-the-console)); offline it does nothing |
+| ⌘? | open this manual: the copy inside the app, so it works without internet (see [Help](running.md#help)) |
 | ⌘Q | quit; it always asks first |
 
 These work while **Keys** is on in the status bar, and never while you are typing in a text field

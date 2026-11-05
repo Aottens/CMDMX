@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-05 — ⌘? opens the manual through the app's key handler, not its menu item (HLP-02 run)
+
+**Decision:** `MacKeys.handle` opens the manual on ⌘? (⌘ ⇧ and the `?` key), as it does ⌘Z; the menu item keeps its shortcut.
+
+**Alternatives considered:** only the menu item's shortcut, as SwiftUI offers it; another shortcut.
+
+**Reasoning:** in the run macOS took the item's ⌘? for its own Help search field, and in console mode, with the menu bar hidden, nothing showed at all. The key handler sees the chord first.
+
+**Reversal trigger:** a macOS version where the menu item's ⌘? reaches the app, or the key handler blocks the Help search someone wants.
+
+---
+
 ## 2026-11-05 — The church stays on Lightkey for now; the handoff is checked against the backlog (owner)
 
 **Decision:** The service of 2026-11-08 runs on Lightkey. The first service on CMDMX (VS4-03) has no date yet; the owner picks a Sunday, and the church Mac gets the DMG outside a service week. The earlier hold of the church Mac on an older release was only for that service and falls with it. `STATE.md` becomes one screen without history, and CI compares it with `BACKLOG.md` (TRK-01..03); sessions and a local dashboard read the state from `main` (TRK-04..08).

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # REL-08: check a release DMG (layout REL-06, versions REL-02, universal binaries REL-04,
-# signature REL-05, the bundled daemon runs REL-10, Local Network text REL-18). Unmounts in every case.
+# signature REL-05, the bundled daemon runs REL-10, Local Network text REL-18, the manual REL-29). Unmounts in every case.
 # --notarised adds REL-21: stapled tickets, Gatekeeper accepts, hardened runtime, Developer ID.
 # Usage: scripts/check-dmg.sh <dmg> <version> [--notarised]
 set -euo pipefail
@@ -32,6 +32,9 @@ done
 codesign --verify --deep --strict "$APP" || fail "codesign --verify failed"
 [ -n "$(find "$APP/Contents/Resources/qlcplus/fixtures" -name '*.qxf' -print -quit)" ] || fail "no QLC+ fixtures"
 for f in LICENSE NOTICE COMMIT; do [ -f "$APP/Contents/Resources/qlcplus/$f" ] || fail "no qlcplus/$f"; done
+M="$APP/Contents/Resources/manual/index.html"
+[ -f "$M" ] || fail "no manual in the app (REL-29)"
+grep -qF "CMDMX $VERSION" "$M" || fail "the manual does not name CMDMX $VERSION (REL-29)"
 
 PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
 HOME="$TMP" "$APP/Contents/MacOS/cmdmx-daemon" \

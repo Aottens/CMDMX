@@ -12,6 +12,7 @@
 - [Playbacks and cues](playbacks.md)
 - [Cue lists](cuelists.md)
 - [Running a show](running.md)
+- [Taking over a show](taking-over.md)
 - [Control surfaces](controls.md)
 - [Shows and files](shows.md)
 - [Reference](reference.md)

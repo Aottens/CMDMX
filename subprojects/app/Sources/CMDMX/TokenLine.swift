@@ -213,6 +213,11 @@ enum MacKeys {
             if chord == .command { engine.undo() } else { engine.redo() }
             return true
         }
+        // UI-55: ⌘?, also from a text field; macOS takes the menu item's ⌘? for its Help search (2026-11-05 run).
+        if chord == [.command, .shift], event.charactersIgnoringModifiers == "?" {
+            engine.openManual()
+            return true
+        }
         // UI-39: with the Messages sheet open the keypad stays out of it, so Esc reaches the sheet.
         if ui.messagesOpen { return false }
         // CTL-42: Esc ends Learn mode (and cancels an armed Learn), whatever the Keys toggle says.

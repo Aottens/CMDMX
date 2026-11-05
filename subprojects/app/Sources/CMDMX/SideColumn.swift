@@ -103,7 +103,7 @@ private struct FunctionButtons: View {
         ("Copy", ""), ("Move", ""),
         ("Include", ""), ("Release", ""),
         ("Patch", ""), ("Disk", ""),
-        ("Help", "later"), ("System", "later"),
+        ("Help", ""), ("System", "later"),
         ("Blind", "later"), ("Off", ""),
         ("Fan", ""), ("Options", ""),
         ("Latch", ""), ("Shape", "later"),
@@ -138,6 +138,7 @@ private struct FunctionButtons: View {
         case "Fan": ui.learnOrRun("fan", engine) { engine.fanToggle() }   // CTL-59
         case "Off": engine.programmerOff()   // UI-26: the active attribute group, as Titan's Off
         case "Disk": ui.screen = .show
+        case "Help": engine.openManual()   // UI-55: no target, what is armed stays armed
         default:
             if let function = PaletteFunction(rawValue: label) {   // PAL-29
                 engine.endArmedMessage()   // UI-50: the old function's hint goes, the new one is said below

@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# REL-07: build the release DMG (universal app + daemon, QLC+ fixtures).
+# REL-07: build the release DMG (universal app + daemon, QLC+ fixtures, the manual for offline use: REL-29).
 # Signing (REL-05, 17): ad hoc, or Developer ID when CMDMX_SIGN_IDENTITY is set (hardened runtime).
 # Notarising (REL-19): also needs CMDMX_NOTARY_KEY (.p8 path), CMDMX_NOTARY_KEY_ID, CMDMX_NOTARY_ISSUER;
 # the app is notarised and stapled, then the DMG built from it is notarised and stapled too.
 # Usage: scripts/make-dmg.sh <version> <build>   -> .build/CMDMX-<version>.dmg
-# Needs subprojects/engine/vendor/qlcplus (run subprojects/engine/scripts/fetch-qlcplus.sh first).
+# Needs subprojects/engine/vendor/qlcplus (run subprojects/engine/scripts/fetch-qlcplus.sh first)
+# and mdbook (subprojects/website/install-mdbook.sh).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION="$1" BUILD="$2"
 ENGINE=../engine
 VENDOR="$ENGINE/vendor/qlcplus"
 [ -d "$VENDOR/fixtures" ] || { echo "make-dmg: $VENDOR missing: run subprojects/engine/scripts/fetch-qlcplus.sh first" >&2; exit 1; }
+command -v mdbook >/dev/null || { echo "make-dmg: mdbook missing: run subprojects/website/install-mdbook.sh first" >&2; exit 1; }
 
 TARGETS=(aarch64-apple-darwin x86_64-apple-darwin)
 (cd "$ENGINE" && rustup target add "${TARGETS[@]}")
@@ -26,6 +28,7 @@ APP=.build/CMDMX.app
 cp "$DAEMON" "$APP/Contents/MacOS/cmdmx-daemon"
 mkdir -p "$APP/Contents/Resources/qlcplus"
 cp -R "$VENDOR/fixtures" "$VENDOR/LICENSE" "$VENDOR/NOTICE" "$VENDOR/COMMIT" "$APP/Contents/Resources/qlcplus/"
+../website/build-manual.sh "$PWD/$APP/Contents/Resources/manual" "CMDMX $VERSION" --release --bundle
 IDENTITY="${CMDMX_SIGN_IDENTITY:-}"
 NOTARISE=
 [ -n "$IDENTITY" ] && [ -n "${CMDMX_NOTARY_KEY:-}" ] && [ -n "${CMDMX_NOTARY_KEY_ID:-}" ] && [ -n "${CMDMX_NOTARY_ISSUER:-}" ] && NOTARISE=1

@@ -68,6 +68,7 @@ jobs:
       # subprojects/engine/rust-toolchain.toml says `stable`; make-dmg.sh runs rustup target add there too.
       - run: swift --version
       - run: subprojects/engine/scripts/fetch-qlcplus.sh
+      - run: subprojects/website/install-mdbook.sh
       - run: subprojects/app/scripts/make-dmg.sh "${{ steps.v.outputs.version }}" "${{ github.run_number }}"
       - run: subprojects/app/scripts/check-dmg.sh "subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg" "${{ steps.v.outputs.version }}" ${{ steps.sign.outputs.signed == 'true' && '--notarised' || '' }}
       - name: GitHub release (REL-09)

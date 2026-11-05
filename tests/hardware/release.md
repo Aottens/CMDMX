@@ -9,6 +9,8 @@ first notarised tag instead; its prerequisites come first. The REL-15 part below
 - [ ] GitHub › Actions › Release › Run workflow (branch `main`): the job is green and a workflow artifact `CMDMX-0.0.0.dmg` is there (REL-09)
 - [ ] Download and unzip it, open the DMG: it shows `CMDMX.app` and `Applications`, nothing else (REL-06)
 - [ ] `./subprojects/app/scripts/check-dmg.sh <path to dmg> 0.0.0` ends with `ok` (REL-08)
+- [ ] Wi-Fi off, the installed app: **Help** opens the manual inside the app, without a warning; it names the version, and
+      search and the chapter links work (REL-29, UI-55)
 - [ ] Rename (VS8-01): drag `CMDMX.app` to Applications and open it; CMDMX › About CMDMX shows `CMDMX`, the version line and `© 2026 Colourmotion`; the window title is CMDMX (BRD-02)
 - [ ] The shows from `~/Documents/ColourmotionDMX/Shows` are on the Show screen, now in `~/Documents/CMDMX/Shows`, and the old folder has no `Shows` left (BRD-07/08) <!-- brand: old-name -->
 

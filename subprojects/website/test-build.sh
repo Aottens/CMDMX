@@ -155,11 +155,24 @@ fi
 # WEB-31: the sections in order in SUMMARY.md.
 summary="$here/manual/src/SUMMARY.md"
 if [ -f "$summary" ]; then
-  want="Introduction|Getting started|Concepts|Patching|Programming|Palettes|Playbacks and cues|Cue lists|Running a show|Control surfaces|Shows and files|Reference|Release notes"
+  want="Introduction|Getting started|Concepts|Patching|Programming|Palettes|Playbacks and cues|Cue lists|Running a show|Taking over a show|Control surfaces|Shows and files|Reference|Release notes"
   got=$(grep -oE '\[[^]]+\]' "$summary" | tr -d '[]' | grep -xE "$want" | paste -sd'|' -)
   [ "$got" = "$want" ] || no "WEB-31: SUMMARY.md sections are '$got', want '$want'"
 else
   no "WEB-31: manual/src/SUMMARY.md missing"
+fi
+
+# WEB-36: the chapter answers its questions; why is it dark is in the order to check.
+over="$here/manual/src/taking-over.md"
+if [ -f "$over" ]; then
+  for s in "Why is it dark" "DBO" "Grand Master" "LOCKED" "Output" "Highlight" "Update" "Undo" "lock code" "View"; do
+    has "$over" "$s" "WEB-36 taking over"
+  done
+  order=$(sed -n '/[Ww]hy is it dark/,$p' "$over" | grep -oE 'DBO|Grand Master|LOCKED|Output' | awk '!seen[$0]++' | paste -sd' ' -)
+  [ "$order" = "DBO Grand Master LOCKED Output" ] || no "WEB-36: why is it dark checks '$order'"
+  [ "$(wc -w < "$over")" -le 1250 ] || no "WEB-36: more than five minutes to read"
+else
+  no "WEB-36: manual/src/taking-over.md missing"
 fi
 
 # WEB-34: a broken internal link, a missing image or a missing chapter fails the build.
@@ -175,11 +188,40 @@ build "$tmp/i" FAKE_GH_JSON="$release" && no "WEB-34: build passed with a broken
 copy j; echo '{{HOME}}' >> "$tmp/j/manual/src/README.md"
 build "$tmp/j" FAKE_GH_JSON="$release" && no "WEB-30: build passed with '{{' left in the manual"
 
+# REL-29: the copy in the bundle stands alone: the version on its front page, no banner, nothing outside itself.
+copy k
+if "$tmp/k/build-manual.sh" "$tmp/bundle/manual" "CMDMX 9.9.9" --release --bundle > "$tmp/out.log" 2>&1; then
+  b="$tmp/bundle/manual"
+  has "$b/index.html" "CMDMX 9.9.9" "REL-29 version on the front page"
+  ls "$b"/searchindex*.js >/dev/null 2>&1 || no "REL-29: no search index in the bundled manual"
+  grep -rqF "$banner" "$b"/*.html && no "REL-29: preview banner in the bundled manual"
+  grep -rqF '{{' --include='*.html' "$b" && no "REL-29: '{{' left in the bundled manual"
+  grep -lE '(src|href)="\.\./' "$b"/*.html && no "REL-29: a link out of the bundled manual (above)"
+  [ -e "$b/404.html" ] && no "REL-29: 404.html (root-absolute links) in the bundled manual"
+  grep -q 'src="brand/' "$b/index.html" || no "REL-29: the mark does not come from the manual's own brand/"
+  has "$b/index.html" 'href="https://aottens.github.io/CMDMX/"' "REL-29 the mark links the website"
+  [ -d "$b/brand" ] || no "REL-29: no brand/ in the bundled manual"
+else
+  no "REL-29: build of the bundled manual failed:"; cat "$tmp/out.log"
+fi
+copy l; echo '[gone](nowhere.md)' >> "$tmp/l/manual/src/concepts.md"
+"$tmp/l/build-manual.sh" "$tmp/bundle2/manual" "CMDMX 9.9.9" --release --bundle > "$tmp/out.log" 2>&1 \
+  && no "REL-29: bundled manual built with a broken link"
+# REL-29: the release builds it, fails without mdBook, and the check looks for it.
+appscripts="$root/subprojects/app/scripts"
+has "$appscripts/make-dmg.sh" "build-manual.sh" "REL-29 make-dmg.sh"
+has "$appscripts/make-dmg.sh" "command -v mdbook" "REL-29 make-dmg.sh fails without mdBook"
+has "$appscripts/check-dmg.sh" "Resources/manual/index.html" "REL-29 check-dmg.sh"
+has "$root/.github/workflows/release.yml" "subprojects/website/install-mdbook.sh" "REL-29 release.yml installs mdBook"
+
 # WEB-30: mdBook is pinned and checked in CI, as one binary.
 inst="$here/install-mdbook.sh"
 if [ -x "$inst" ]; then
   has "$inst" "v0.5.4" "WEB-30 pinned mdBook"
   grep -qE '[0-9a-f]{64}' "$inst" || no "WEB-30: install-mdbook.sh does not check a SHA-256"
+  # REL-29: the release job runs on a Mac, so the Mac builds are pinned too.
+  has "$inst" "aarch64-apple-darwin" "REL-29 mdBook for Apple Silicon"
+  has "$inst" "x86_64-apple-darwin" "REL-29 mdBook for Intel"
 else
   no "WEB-30: subprojects/website/install-mdbook.sh missing or not executable"
 fi

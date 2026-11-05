@@ -3,6 +3,8 @@
 This section covers the controls you use while the show is on: pages, the masters, undo, and what
 CMDMX does when something goes wrong.
 
+Taking over a show someone else made? Start with [Taking over a show](taking-over.md).
+
 ## Pages
 
 The page buttons on the left of the playback area switch between the ten pages. The current page
@@ -159,6 +161,13 @@ and DBO are not undo steps, so an undo during a show never changes what is runni
 
 The engine keeps the last 100 steps. The history is shared by everything connected to the engine
 and is gone when the engine restarts.
+
+## Help
+
+The **Help** function key, *Help › CMDMX Manual* and ⌘? open this manual in your browser. It is the
+copy inside the app, the one for your version, so it works without internet. A build you made
+yourself has no copy and opens the website instead. Help changes nothing on stage, and what is armed
+stays armed. While the console is locked it does nothing.
 
 ## When something goes wrong
 
