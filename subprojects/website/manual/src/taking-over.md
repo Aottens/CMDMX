@@ -95,10 +95,8 @@ Check in this order.
 3. **The playback's fader.** Go to the page of the playback that should be lit and look at its
    level bar. A level of 0 is dark. The **Go** block shows an amber `fader 40 %` for the connected list. Raise it. **(stage)**
 4. **Group masters, on every page.** A group master sits on a handle and darkens its group, whatever
-   else brings it up. While one does, the status bar shows an amber **GRP** tag: click it and the
-   message line says which, such as `Master Zaal (1.8) holds Group 3 at 0 %`. The same masters are
-   listed in amber at the bottom of **Active playbacks**; a tap on one goes to its page. Raise its
-   fader. When a show opens, each master that holds its group down says so in the message line.
+   else brings it up. The status bar then shows an amber **GRP** tag; click it to see which. A tap on
+   its amber row in **Active playbacks** goes to its page. Raise its fader.
    A strip that says `LOCKED` and its level in amber is disabled: its fader does nothing. To free
    it, press **Options**, tap the strip, and on the **Master** tab switch **Disabled** off. See
    [Group masters](running.md#group-masters).
