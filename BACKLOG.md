@@ -272,6 +272,14 @@ after VS8-03, in any order.
 | P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. | PRG, UI | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
+### Tracking: the state stays true (spec `tracking.md`)
+Builds: TRB-01 + TRB-02 (one question from the owner, how to see where the project stands).
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| TRB-01 | `STATE.md` is one screen; CI fails when it drifts from `BACKLOG.md`; every session start prints it from `main`; `scripts/test_tracking.py`. | TRK-01..04, TRK-09 | S | done (2026-11-05, #PR) |
+| TRB-02 | `scripts/dashboard.py`: a local page that follows `origin/main` by itself, with search and filters; run in the browser. | TRK-05..08 | S | done (2026-11-05, #PR) |
+
 ## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions
 and PRs, no changes under `subprojects/engine` or `subprojects/app`, never ahead of a phase-1 task.
@@ -324,7 +332,7 @@ steps are IDEA-33 (phases confirmed 2026-10-29).
 | SEL-09 | App: All, Next and Order reachable while Fan is on (Fan context keeps them or gets Back), and Next in the Pattern sub-context. From the SEL-07 run. | UI-33, PRG-76 | S | done (2026-11-01, #190) |
 | KERK-01 | The show *Kerk* (church patch, 56 fixtures, profiles inside) in `shows/Kerk.cmdmx.json`, so the church Mac can start from it; owner 2026-11-01, before the first church service run. | SHW | S | done (2026-11-01, #192) |
 | TRK-01 | `check-tracking.py`: README `## Status` has lines of at most 120 characters, no version number and names next by BACKLOG ids that are still open; `--summary` warns when a task finished and the status did not change; status rewritten. Owner, 2026-11-01. | CLAUDE.md step 5 | S | done (2026-11-01, #202) |
-| VS8-10 | Release notes on the site come from `main` (`website.yml` restores `release-notes.md` after checking out the tag's manual), so 0.2.5's notes show without a new release. | WEB-35 | S | done (2026-11-01, #193) |
+| VS8-12 | Release notes on the site come from `main` (`website.yml` restores `release-notes.md` after checking out the tag's manual), so 0.2.5's notes show without a new release. | WEB-35 | S | done (2026-11-01, #193) |
 
 ## Later phases
 Ideas waiting for their phase live in `IDEAS.md`. They get backlog rows when their phase is planned.
