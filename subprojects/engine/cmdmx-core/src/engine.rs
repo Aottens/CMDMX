@@ -46,8 +46,9 @@ use crate::playback::{
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
     default_lowlight, fan_factors, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView,
-    EditPart, EffectView, Fade, FanCurve, FixtureValues, Grid, GridShortcut, GroupId, Item, Order,
-    PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView, Resolution, WheelState,
+    EditPart, EffectView, Fade, FanCurve, FixtureValues, Grid, GridShortcut, GroupId,
+    GroupRecordMode, Item, Order, PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView,
+    Resolution, WheelState,
 };
 use crate::show::{
     Meta, Show, ShowGroup, ShowNode, ShowOutput, ShowPage, ShowPalette, ShowPalettes, ShowPatch,
@@ -3335,6 +3336,9 @@ impl Engine {
         let Some(id) = existing else {
             let number = record.cue.unwrap_or_default();
             let mut playback = Playback::new(self.playback_next_id, page, slot, Values::new());
+            if let Some(kind @ (PlaybackKind::Chase | PlaybackKind::Cues)) = record.kind {
+                playback.kind = kind;
+            }
             playback.cues = vec![Cue {
                 effects,
                 order,
@@ -3698,6 +3702,21 @@ impl Engine {
             ..Playback::new(id, page, slot, Values::new())
         });
         Ok(id)
+    }
+
+    /// GRM-21: point a group master at another group; everything else of it stays. Taken
+    /// fixtures outside the new group are let go by the next tick (`follow_take_over`).
+    pub fn set_master_group(&mut self, id: PlaybackId, group: GroupId) -> Result<(), CoreError> {
+        let known = self.groups.contains_key(&group);
+        let playback = self.playback_mut(id)?;
+        let Some(Master::Group(m)) = &mut playback.master else {
+            return Err(CoreError::NotAGroupMaster(id));
+        };
+        if !known {
+            return Err(CoreError::UnknownGroup(group));
+        }
+        m.group = group;
+        Ok(())
     }
 
     fn playback_mut(&mut self, id: PlaybackId) -> Result<&mut Playback, CoreError> {
@@ -4952,6 +4971,30 @@ impl Engine {
             None => self.group_grids.remove(&id),
         };
         Ok(())
+    }
+
+    /// PRG-97: Record over a group. A used group needs a mode; `Replace` is `record_group`,
+    /// `Merge` appends the selected items it does not hold yet and keeps grid and legend.
+    pub fn record_group_as(
+        &mut self,
+        id: GroupId,
+        mode: Option<GroupRecordMode>,
+    ) -> Result<(), CoreError> {
+        if self.programmer.items().is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        match (self.groups.get_mut(&id), mode) {
+            (None, _) | (Some(_), Some(GroupRecordMode::Replace)) => self.record_group(id),
+            (Some(_), None) => Err(CoreError::GroupUsedRecord(id)),
+            (Some(items), Some(GroupRecordMode::Merge)) => {
+                for item in self.programmer.items() {
+                    if !items.contains(item) {
+                        items.push(*item);
+                    }
+                }
+                Ok(())
+            }
+        }
     }
 
     /// PRG-79: the grid a group was recorded with, `None` when it was recorded with the grid off.

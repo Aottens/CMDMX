@@ -1656,7 +1656,12 @@ final class EngineClient: ObservableObject {
     func ctStep(_ step: String) { sendJSON("programmer.ct_step", ["step": step]) }
     /// IPC-47: set the target colour to a LEE gel by number.
     func gel(_ number: Int) { sendJSON("programmer.gel", ["range": "Lee", "number": number]) }
-    func recordGroup(_ id: Int) { sendJSON("group.record", ["group": id]) }
+    /// PRG-97: `mode` is Replace or Merge, needed when the group is used.
+    func recordGroup(_ id: Int, mode: String? = nil) {
+        var body: [String: Any] = ["group": id]
+        if let mode { body["mode"] = mode }
+        sendJSON("group.record", body)
+    }
     func deleteGroup(_ id: Int) { patch("group.delete", ["group": id]) }
     func copyGroup(_ id: Int, to: Int) { patch("group.copy", ["group": id, "to": to]) }
     func moveGroup(_ id: Int, to: Int) { patch("group.move", ["group": id, "to": to]) }
@@ -1843,8 +1848,9 @@ final class EngineClient: ObservableObject {
     /// `mode` is Replace, Merge, Update, Append or Insert; `cue` records onto that cue number
     /// (CUE-04, not with Append / Insert); `updateMode` is Forwards, CueOnly, Backwards or Both (CUE-52).
     func recordPlayback(page: Int, slot: Int, mask: [String]? = nil, recordBy: String? = nil, mode: String? = nil,
-                        cue: Double? = nil, updateMode: String? = nil) {
+                        cue: Double? = nil, updateMode: String? = nil, kind: String? = nil) {
         var fields: [String: Any] = ["page": page, "slot": slot]
+        if let kind { fields["kind"] = kind }
         if let mask { fields["mask"] = mask }
         if let recordBy { fields["record_by"] = recordBy }
         if let mode { fields["mode"] = mode }
@@ -1858,6 +1864,8 @@ final class EngineClient: ObservableObject {
         if let group { fields["group"] = group }
         patch("master.record", fields)
     }
+    /// GRM-21: point a group master at another group.
+    func setMasterGroup(id: Int, group: Int) { patch("master.group", ["id": id, "group": group]) }
     /// Press and hold: `on: true` on press, `false` on release (PBK-37).
     func flashPlayback(_ id: Int, on: Bool) { sendJSON("playback.flash", ["id": id, "on": on]) }
     func swopPlayback(_ id: Int, on: Bool) { sendJSON("playback.swop", ["id": id, "on": on]) }

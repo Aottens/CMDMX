@@ -10,6 +10,7 @@ mod common;
 
 use cmdmx_core::engine::Engine;
 use cmdmx_core::patch::FixtureId;
+use cmdmx_core::programmer::{Grid, GroupRecordMode};
 use cmdmx_core::value::Value;
 use cmdmx_core::CoreError;
 use common::{church, select};
@@ -293,6 +294,81 @@ fn prg_07_record_onto_a_used_group_replaces_it() {
     select(&mut e, &[101]);
     e.record_group(1).unwrap();
     assert_eq!(e.group(1), Some(vec![101]));
+}
+
+// ---- PRG-97 -----------------------------------------------------------------
+
+/// Group 5 = 301, 302 with a grid and a legend, 302 and 101 selected.
+fn used_group() -> (Engine, Grid) {
+    let mut e = church();
+    select(&mut e, &[301, 302]);
+    let grid = Grid {
+        wings: 2,
+        ..Grid::default()
+    };
+    e.set_grid(grid).unwrap();
+    e.record_group(5).unwrap();
+    e.set_group_legend(5, "Front").unwrap();
+    e.clear_selection();
+    e.set_grid(Grid::default()).unwrap();
+    select(&mut e, &[302, 101]);
+    (e, grid)
+}
+
+#[test]
+fn prg_97_without_a_mode_a_used_group_is_refused_and_keeps_everything() {
+    let (mut e, grid) = used_group();
+    let err = e.record_group_as(5, None).unwrap_err();
+    assert_eq!(err, CoreError::GroupUsedRecord(5));
+    assert_eq!(err.to_string(), "Group 5 is used: Replace or Merge");
+    assert_eq!(e.group(5), Some(vec![301, 302]));
+    assert_eq!(e.group_grid(5), Some(grid));
+}
+
+#[test]
+fn prg_97_without_a_mode_a_free_group_records() {
+    let (mut e, _) = used_group();
+    e.record_group_as(6, None).unwrap();
+    assert_eq!(e.group(6), Some(vec![302, 101]));
+}
+
+#[test]
+fn prg_97_replace_stores_the_selection_with_its_grid_and_keeps_the_legend() {
+    let (mut e, _) = used_group();
+    e.record_group_as(5, Some(GroupRecordMode::Replace))
+        .unwrap();
+    assert_eq!(e.group(5), Some(vec![302, 101]));
+    assert_eq!(e.group_grid(5), None, "as PRG-07 today");
+    assert_eq!(e.group_legend(5), Some("Front"));
+}
+
+#[test]
+fn prg_97_merge_adds_what_is_new_after_its_items_and_keeps_grid_and_legend() {
+    let (mut e, grid) = used_group();
+    e.record_group_as(5, Some(GroupRecordMode::Merge)).unwrap();
+    assert_eq!(e.group(5), Some(vec![301, 302, 101]));
+    assert_eq!(e.group_grid(5), Some(grid));
+    assert_eq!(e.group_legend(5), Some("Front"));
+}
+
+#[test]
+fn prg_97_an_empty_selection_is_refused_in_both_modes() {
+    let (mut e, _) = used_group();
+    e.clear_selection();
+    for mode in [GroupRecordMode::Replace, GroupRecordMode::Merge] {
+        assert_eq!(
+            e.record_group_as(5, Some(mode)),
+            Err(CoreError::EmptySelection)
+        );
+    }
+    assert_eq!(e.group(5), Some(vec![301, 302]));
+}
+
+#[test]
+fn prg_97_a_mode_on_a_free_group_just_records() {
+    let (mut e, _) = used_group();
+    e.record_group_as(7, Some(GroupRecordMode::Merge)).unwrap();
+    assert_eq!(e.group(7), Some(vec![302, 101]));
 }
 
 // ---- PRG-14 -----------------------------------------------------------------

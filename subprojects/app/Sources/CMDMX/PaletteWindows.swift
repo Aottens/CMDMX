@@ -89,7 +89,7 @@ struct PaletteWindow: View {
                                  faded: hasSelection && !relevant.contains(p.id),
                                  icon: AnyView(PaletteIconView(palette: p))) { tap(handle, p) }
                         } else {
-                            Cell(number: nil, empty: true, armed: ui.recordArmed) { tap(handle, nil) }
+                            Cell(number: nil, empty: true, armed: ui.recordTargets) { tap(handle, nil) }
                         }
                     }
                 }
@@ -100,7 +100,7 @@ struct PaletteWindow: View {
 
     /// What a tap on a cell sends, by what is armed (PAL-28, PAL-29).
     private func tap(_ handle: Int, _ p: PaletteInfo?) {
-        if ui.recordArmed || ui.function != nil {
+        if ui.recordTargets || ui.function != nil {
             guard ui.armedAllows(.palette, engine) else { return }   // UI-42
             lastTap = nil
             return PaletteTaps.armed(window: kind.wire, handle: handle, p, engine: engine, ui: ui)
@@ -130,7 +130,7 @@ struct PaletteWindow: View {
 enum PaletteTaps {
     /// The armed tap: Record records, a function performs.
     static func armed(window: String, handle: Int, _ p: PaletteInfo?, engine: EngineClient, ui: UIState) {
-        if ui.recordArmed { return record(window, handle, p, engine: engine, ui: ui) }
+        if ui.recordTargets { return record(window, handle, p, engine: engine, ui: ui) }
         if let function = ui.function { perform(function, window, handle, p, engine: engine, ui: ui) }
     }
 

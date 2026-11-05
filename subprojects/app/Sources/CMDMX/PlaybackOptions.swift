@@ -597,8 +597,11 @@ private struct MasterTab: View {
         let id = playback.id
         if let m = playback.stored.master, playback.stored.isGroupMaster {
             let mode = m.mode ?? "Scale"
-            OptionRow(label: "Master") {
-                Text(verbatim: engine.groups.first { $0.id == m.group }?.title ?? "Group \(m.group ?? 0)").font(Typo.mono())
+            OptionRow(label: "Group", note: "The group this master masters. A number that is no group goes back.") {   // GRM-21
+                HStack(spacing: 8) {
+                    NumberField(value: Double(m.group ?? 0), unit: "", width: 54) { if let group = Int(exactly: $0) { engine.setMasterGroup(id: id, group: group) } }
+                    Text(verbatim: engine.groups.first { $0.id == m.group }?.title ?? "Group \(m.group ?? 0)").font(Typo.mono())
+                }
             }
             OptionRow(label: "Mode", note: "Scale: the fader scales the group's intensity. HTP: it is a floor. Limit: it is a ceiling. Take Over: it puts a fixture in the programmer once the level reaches its intensity.") {
                 Choice(options: [("Scale", "Scale"), ("HTP", "Htp"), ("Limit", "Limit"), ("Take Over", "TakeOver")], selected: mode) {

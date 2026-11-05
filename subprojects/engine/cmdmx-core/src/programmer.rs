@@ -366,6 +366,13 @@ pub struct EffectView {
     pub dark: bool,
 }
 
+/// PRG-97: what Record does over a used group.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum GroupRecordMode {
+    Replace,
+    Merge,
+}
+
 /// PRG-56: the shape of a fan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum FanCurve {

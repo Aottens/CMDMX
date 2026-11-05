@@ -94,7 +94,7 @@ final class TokenLine: ObservableObject {
             ui.paletteMenu = false
             return
         }
-        guard ui.recordArmed || ui.function != nil else {
+        guard ui.recordTargets || ui.function != nil else {
             send(engine, end: end)
             ui.paletteMenu = false
             return

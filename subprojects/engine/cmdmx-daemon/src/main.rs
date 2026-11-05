@@ -732,7 +732,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             let tokens: Vec<&str> = tokens.iter().map(String::as_str).collect();
             engine.execute_command(&tokens)
         }
-        RecordGroup { group } => engine.record_group(group),
+        RecordGroup { group, mode } => engine.record_group_as(group, mode),
         DeleteGroup { group } => engine.delete_group(group),
         CopyGroup { group, to } => engine.copy_group(group, to),
         MoveGroup { group, to } => engine.move_group(group, to),
@@ -929,6 +929,8 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         GroupMasterRecord { page, slot, group } => {
             engine.record_group_master(page, slot, group).map(drop)
         }
+        // GRM-21
+        MasterGroup { id, group } => engine.set_master_group(id, group),
         // Handled by `run`.
         Undo | Redo => Ok(()),
     }
@@ -1058,7 +1060,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | Update { .. }
         | CueRemoveEffect { .. }
         | MasterRecord { .. }
-        | GroupMasterRecord { .. } => Class::Edit,
+        | GroupMasterRecord { .. }
+        | MasterGroup { .. } => Class::Edit,
     }
 }
 
@@ -1140,7 +1143,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         EffectRestart => ("Restart effects".into(), None),
         ProfileSave(p) => (format!("Edit profile {}", p.model), None),
         Colour { .. } | CtStep { .. } | Gel { .. } => ("Colour".into(), Some("colour".into())),
-        RecordGroup { group } => (format!("Record group {group}"), None),
+        RecordGroup { group, .. } => (format!("Record group {group}"), None),
         DeleteGroup { group } => (format!("Delete group {group}"), None),
         CopyGroup { group, .. } => (format!("Copy group {group}"), None),
         MoveGroup { group, .. } => (format!("Move group {group}"), None),
@@ -1188,6 +1191,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         PlaybackInclude { .. } => ("Include cue".into(), None),
         Update { .. } => ("Update".into(), None),
         MasterRecord { .. } | GroupMasterRecord { .. } => ("Record master".into(), None),
+        MasterGroup { .. } => ("Group master".into(), None),
         _ => ("Edit".into(), None),
     };
     (label, key)
@@ -2920,6 +2924,10 @@ mod tests {
             Class::Edit,
         ),
         (r#"{"v":1,"cmd":"group.record","group":3}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"master.group","id":1,"group":3}"#,
+            Class::Edit,
+        ),
         (r#"{"v":1,"cmd":"group.delete","group":3}"#, Class::Edit),
         (
             r#"{"v":1,"cmd":"group.copy","group":3,"to":4}"#,
@@ -3309,6 +3317,63 @@ mod tests {
             );
             assert_eq!(h.undo_label(), Some("Record group 50"), "one step: {json}");
         }
+    }
+
+    #[test]
+    fn prg_97_record_over_a_group_is_refused_or_one_undo_step() {
+        let (mut e, mut h) = group_engine();
+        let err =
+            undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"group.record","group":50}"#).unwrap_err();
+        assert_eq!(err.to_string(), "Group 50 is used: Replace or Merge");
+        assert_eq!(
+            h.undo_label(),
+            Some("Record group 50"),
+            "a refusal adds no step"
+        );
+        let before = e.groups();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"programmer.select","fixture":102}"#,
+        )
+        .unwrap();
+        for mode in ["Replace", "Merge"] {
+            let json = format!(r#"{{"v":1,"cmd":"group.record","group":50,"mode":"{mode}"}}"#);
+            undo_run(&mut e, &mut h, &json).unwrap();
+            assert_ne!(e.groups(), before, "{mode}");
+            assert_eq!(h.undo_label(), Some("Record group 50"), "{mode}");
+            h.undo(&mut e).unwrap();
+            assert_eq!(e.groups(), before, "{mode}");
+        }
+    }
+
+    #[test]
+    fn grm_21_changing_the_group_is_one_undo_step_and_refused_adds_none() {
+        let (mut e, mut h) = group_engine();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"group.record","group":51}"#).unwrap();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"master.record","page":9,"slot":8,"kind":"Group","group":50}"#,
+        )
+        .unwrap();
+        let id = (e.playbacks().find(|p| p.page == 9 && p.slot == 8))
+            .unwrap()
+            .id;
+        let group = |e: &Engine| match &e.playback(id).unwrap().master {
+            Some(cmdmx_core::playback::Master::Group(m)) => m.group,
+            other => panic!("not a group master: {other:?}"),
+        };
+        let refused = format!(r#"{{"v":1,"cmd":"master.group","id":{id},"group":99}}"#);
+        assert!(undo_run(&mut e, &mut h, &refused).is_err());
+        assert_eq!(h.undo_label(), Some("Record master"));
+        let change = format!(r#"{{"v":1,"cmd":"master.group","id":{id},"group":51}}"#);
+        undo_run(&mut e, &mut h, &change).unwrap();
+        assert_eq!(group(&e), 51);
+        assert_eq!(h.undo_label(), Some("Group master"));
+        h.undo(&mut e).unwrap();
+        assert_eq!(group(&e), 50);
+        assert_eq!(h.undo_label(), Some("Record master"));
     }
 
     #[test]

@@ -396,7 +396,7 @@ private struct CueListWindow: View {
     /// CUE-43: a tap sets the cue next (CUE-19), so it never changes the stage; with Record armed it
     /// picks the cue to record onto (CUE-45).
     private func tap(_ list: PlaybackInfo, _ cue: StoredCue) {
-        if ui.recordArmed {
+        if ui.recordArmed, ui.building == nil {   // CUE-62: while building, armedAllows says Building
             ui.usedHandle = nil; ui.usedCell = nil; ui.maskMenu = false
             ui.usedCue = CueRef(playback: list.id, cue: cue.number)
             engine.say("Record onto \(cueName(cue.number)): Replace, Merge or Update on the softkeys.")

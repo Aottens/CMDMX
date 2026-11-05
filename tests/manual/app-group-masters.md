@@ -77,6 +77,10 @@ hand, one per message, with Claude reading Art-Net.
       (Ctrl+C) and start it again: the app reconnects, 3.8 shows 50 %, 3.7 "GRP · LIMIT" at 30 %,
       3.6 and the list are back; Claude reads the stage as before the restart.
 
+## Change a master's group (GRM-21)
+- [ ] [Jij] Master tab, Group field: another group's number. The strip's legend follows; Claude reads the channels of the old group free and the new group mastered.
+- [ ] [Claude] 99: "unknown group id 99" and the field goes back. 2.5: nothing is sent, it goes back. Undo: the old group, one step.
+
 ## Result
 - [ ] Passed / findings recorded below.
 

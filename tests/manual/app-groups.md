@@ -69,5 +69,11 @@ Claude reading Art-Net. Every step message shows done/total ("Stap 3/8", the [Ji
 - [ ] [Claude] Wait for the autosave, stop the daemon, start it again on the same folder: the groups and
       their legends are back in the cells and on the strip.
 
+## Record over a group (PRG-97, UI-42)
+- [ ] [Claude] Group 5 holds 1 and 2, 2 and 3 selected. Record, `Group 5` Enter: softkeys Replace, Merge, Cancel under "Record · Group 5", the group is unchanged.
+- [ ] [Jij] Merge: the cell counts 3 (1, 2, 3), the legend and grid stay. One Undo brings it back.
+- [ ] [Jij] Record, tap group 5, Replace: it holds the selection. Record, tap a free cell: it records at once. Cancel leaves it.
+- [ ] [Claude] Update + group 5: "Update works on palettes, playback handles and cues. To add to a group: Record, then Merge.", still armed.
+
 ## Open points
 - none

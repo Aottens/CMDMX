@@ -1,8 +1,11 @@
 # app — State
 
-_Last updated: 2026-11-04 (REC-09)_
+_Last updated: 2026-11-05 (REC-12)_
 
 ## Current step
+REC-12 (2026-11-05, CUE-62): `UIState.building` holds the kind and, after the first tap, the handle; `resetRecord` clears it, so whatever disarms Record ends it. `recordTargets` is `recordArmed && building == nil`: the gates of groups, palettes and the line use it, `refusal(on:)` lets everything through but a cue row and an Active row. `HandleTaps.build` stores; Clear keeps Record armed only while building.
+REC-11 (2026-11-05, GRM-21): the Master tab's Group `NumberField` sends `master.group`; `Int(exactly:)` keeps a fraction or a huge number from being sent or trapping, and the field looks back as UI-52.
+REC-10 (2026-11-05, PRG-97): `usedGroup` on `UIState`, softkeys in `recordContext`; `GroupTaps.tap` asks only when the group exists, so `Group n` Enter asks too.
 REC-09 (2026-11-04, PBK-49): `Softkeys` asks `update.targets` on arming Update (`onChange` of `ui.function`), once: a programmer change while armed needs a new arm. `functionContext` draws them from `engine.updateTargets`; `updateOff` holds unticked playbacks, `updateOn` ticked palettes, both reset in `cancelModes`. `updateStore` is Store and Enter on an empty line.
 REC-08 (2026-11-04, PBK-48, UI-42): Include on a handle and a cue row sends `playback.include`. *Mask* reuses `recordMask` and `maskMenu`, over all eight groups with *Back*; `cancelModes` now resets both. Include no longer exempts a strip from `armed` (UI-43). On a list without a current cue the handle tap stays armed and connects it; the engine still does the refusal.
 REC-07 (2026-11-04, CUE-61): `CuePick.dormant` picks a struck value; `cueViewContext` works out one Off target and one On target from the pick (a fixture number is both). `CueViewWindow.shown` formats a value for `item` and the struck text alike.

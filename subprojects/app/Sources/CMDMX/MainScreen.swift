@@ -15,6 +15,13 @@ enum PaletteFunction: String {
 /// What a tap can land on while Record or a function is armed (UI-42).
 enum ArmedTarget { case group, fixture, cell, palette, handle, cue, effectCell, activeRow }
 
+/// CUE-62: Record stays armed while a list or chase is built; the handle is known after its first tap.
+struct Building: Equatable {
+    let kind: String   // "Cues" or "Chase"
+    var page: Int?
+    var slot: Int?
+}
+
 /// A used handle tapped while Record is armed (PBK-38): the softkeys ask how to record onto it.
 struct UsedHandle: Equatable {
     let page: Int
@@ -109,9 +116,15 @@ final class UIState: ObservableObject {
     /// Disarming forgets the record choices below (they hold for one record only, PAL-29).
     @Published var recordArmed = false { didSet { if recordArmed { timeCells = nil } else { resetRecord() } } }
     /// Record + tap on a used cell: waiting for Replace / Merge / Quick Merge (PAL-06).
-    @Published var usedCell: UsedCell? { didSet { if usedCell != nil { usedCue = nil } } }
+    @Published var usedCell: UsedCell? { didSet { if usedCell != nil { usedCue = nil; usedGroup = nil } } }
     /// Record + tap on a used handle: waiting for Replace / Merge (PBK-38).
-    @Published var usedHandle: UsedHandle? { didSet { if usedHandle != nil { usedCue = nil } } }
+    @Published var usedHandle: UsedHandle? { didSet { if usedHandle != nil { usedCue = nil; usedGroup = nil } } }
+    /// CUE-62: Create List / Create Chase; cleared with the rest of Record (resetRecord), so Exit, Esc and a screen end it.
+    @Published var building: Building?
+    /// CUE-62: Record's tap on a group, palette or the command line; while building those do their normal action.
+    var recordTargets: Bool { recordArmed && building == nil }
+    /// Record + tap on a used group: waiting for Replace / Merge (PRG-97).
+    @Published var usedGroup: Int?
     /// Record choices for this record only (PAL-29); nil = the window's mask / the engine's setting.
     @Published var recordMask: Set<String>?
     @Published var recordBy: String?
@@ -148,7 +161,7 @@ final class UIState: ObservableObject {
     /// mode (nil = the setting) and a master record armed ("Bpm" / "Rate").
     @Published var cueMenu: CueRef?
     @Published var cueDelete = false
-    @Published var usedCue: CueRef?
+    @Published var usedCue: CueRef? { didSet { if usedCue != nil { usedGroup = nil } } }
     @Published var updateMode: String?
     /// PBK-49: the Update softkeys; playback keys ("id/cue") unticked, palettes ticked, the softkey page.
     @Published var updateOff = Set<String>()
@@ -204,13 +217,19 @@ final class UIState: ObservableObject {
     }
 
     func resetRecord() {
-        usedCell = nil; usedHandle = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
-        usedCue = nil; updateMode = nil; recordMaster = nil; recordMasterGroup = nil
+        usedCell = nil; usedHandle = nil; usedGroup = nil; recordMask = nil; recordBy = nil; recordAs = "Auto"; maskMenu = false
+        usedCue = nil; updateMode = nil; recordMaster = nil; recordMasterGroup = nil; building = nil
     }
 
     /// UI-42: the one table. nil = the tap may go on (allowed, or nothing armed); else the message that
     /// names where the armed Record or function works.
     func refusal(on target: ArmedTarget) -> String? {
+        if recordArmed, let b = building {
+            // CUE-62: only a handle stores; a cue row is refused, everything else does its normal action.
+            guard target == .cue || target == .activeRow else { return nil }
+            let at = b.slot.map { " \(b.page ?? 0).\($0)" } ?? ""
+            return "Building\(at): tap a handle, Exit ends."
+        }
         if recordArmed {
             let ok: [ArmedTarget] = [.group, .palette, .handle, .cue]
             return ok.contains(target) ? nil : "Record: tap a group, palette, cue or handle."
@@ -237,7 +256,8 @@ final class UIState: ObservableObject {
         let names: [ArmedTarget: String] = [.group: "groups", .fixture: "fixtures", .palette: "palettes", .handle: "playback handles", .cue: "cues"]
         let list = places.compactMap { names[$0] }
         let joined = list.count > 1 ? list.dropLast().joined(separator: ", ") + " and " + list[list.count - 1] : list.joined()
-        return "\(name) works on \(joined)."
+        let hint = function == .update && target == .group ? " To add to a group: Record, then Merge." : ""
+        return "\(name) works on \(joined).\(hint)"
     }
 
     /// UI-42: true when the tap on `target` may go on. A refusal is said and nothing else happens. An allowed

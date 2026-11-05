@@ -1,8 +1,11 @@
 # engine — State
 
-_Last updated: 2026-11-04 (REC-09)_
+_Last updated: 2026-11-05 (REC-12)_
 
 ## Current step
+REC-12 (2026-11-05, CUE-62, IPC-57): `PlaybackRecord.kind`, set in the new-playback branch of `record_playback_except`; the daemon refuses master kinds. A chase born here is the same as one made in Options, which also only sets `kind`.
+REC-11 (2026-11-05, GRM-21, IPC-57): `Engine::set_master_group` sets only `m.group`. Nothing per group is cached; `follow_take_over` lets go of taken fixtures outside the new group on the next tick.
+REC-10 (2026-11-05, PRG-97, IPC-57): `Engine::record_group_as`; `record_group` stays the plain store scenarios and the demo use. `GroupUsedRecord` is apart from `GroupUsed`, which copy and move use.
 REC-09 (2026-11-04, PBK-49, IPC-57): `Engine::update_targets` and `update`. `update` validates, snapshots with `edit_state` and restores on an error. `record_playback_except` is `record_playback` with `(Item, attribute)` left out, so a ticked cue takes the CUE-52 store and the CUE-61 sweep; `record_palette_with(only_held)` filters on `Palette::resolve` per item and stores no effects. A target with nothing to store is skipped; none storing is the refusal. An effect-only programmer offers no targets (`update_targets` reads values); a direct tap still stores effects.
 REC-08 (2026-11-04, PBK-48, IPC-57): `Engine::include_playback` reads `cue.values` and `cue.effects` only, so nothing tracked or dormant comes along. `replace_selection` first, then `set_value`, so the next select starts a new selection (PRG-03). Effects get a new id and go through `effects_leave`; only `Fx` in the mask lets them in.
 REC-07 (2026-11-04, CUE-61, IPC-57): `Engine::set_cue_off` moves between `Cue.values` and `dormant`. `Cue::stored_items` chains both for the counts and checks; nothing that plays reads `dormant`. `record_playback` clears it on Replace and sweeps every cue after a store, so an attribute is never both. `Published` watches `dormant` with the values; `cue.view` gives an item with only dormant values a row.

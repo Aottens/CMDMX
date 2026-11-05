@@ -24,6 +24,17 @@ Cue numbers go from 0.001 to 9999.999, with up to three decimals. The list alway
 number order. A new cue gets the *New cue times* of the Settings tab in Playback Options (in a new
 show 0 s, the out times As In and overlap 100 %, see [Times and fader modes](playbacks.md#times-and-fader-modes)) and waits for Go.
 
+### Stay in Record
+
+To build a list in one go, press **Record**, then softkey **Create List**, or **Create Chase** for a chase. Tap an
+empty handle: the programmer becomes the first cue and Record stays armed on that handle. Make the next look, then tap
+the handle or press softkey **Append** for the next cue. A number on the keypad before the tap records to that number.
+
+While you build, fixtures, groups, palettes and the command line do their normal work, so you can make the look; only
+the handle stores. Another handle and a cue row are refused. Tapping a used handle first appends to it; Create Chase
+refuses one that is not a chase. Softkey **Exit**, Esc or opening a screen ends it. Each cue is one undo step. Go and
+Space stay live.
+
 You do not need to Clear between cues. With tracking on (the default), each cue stores only what
 you changed, and the rest carries on from the cues before it. See [Tracking](#tracking).
 

@@ -65,6 +65,9 @@ The strip shows the group and what the master does, such as `GRP·SCALE 100%`. I
 the level where it changes nothing, so making a master never changes the stage. Its level is saved
 with the show. Re-record the group and the master follows the new fixtures.
 
+The **Group** field on the **Master** tab of its Playback Options points the master at another group. Level and mode
+stay. A number that is no group goes back.
+
 The **Master** tab of its Playback Options sets the **Mode**:
 
 - **Scale** (the default): the fader scales the group's intensity. Full is unchanged, 0 is out.

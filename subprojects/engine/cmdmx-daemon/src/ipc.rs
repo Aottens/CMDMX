@@ -42,8 +42,8 @@ use cmdmx_core::playback::{
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
-    serialize_wire_item, serialize_wire_items, ClearLtp, ClearPrecedence, FanCurve, GroupId, Item,
-    ProgrammerSettingsChange, ProgrammerView, Resolution,
+    serialize_wire_item, serialize_wire_items, ClearLtp, ClearPrecedence, FanCurve, GroupId,
+    GroupRecordMode, Item, ProgrammerSettingsChange, ProgrammerView, Resolution,
 };
 use cmdmx_core::value::{Stored, Value};
 use cmdmx_core::CoreError;
@@ -216,6 +216,7 @@ pub enum Command {
     },
     RecordGroup {
         group: GroupId,
+        mode: Option<GroupRecordMode>,
     },
     DeleteGroup {
         group: GroupId,
@@ -472,6 +473,11 @@ pub enum Command {
     GroupMasterRecord {
         page: u16,
         slot: u16,
+        group: GroupId,
+    },
+    /// GRM-21 (IPC-57): change the group of a group master.
+    MasterGroup {
+        id: PlaybackId,
         group: GroupId,
     },
     /// IPC-30: handled by the tick's `run`, never by `apply`.
@@ -1406,6 +1412,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         }),
         Some("group.record") => Ok(Command::RecordGroup {
             group: uint(&v, "group")?,
+            mode: opt_field(&v, "mode", "Replace or Merge")?,
         }),
         Some("group.delete") => Ok(Command::DeleteGroup {
             group: uint(&v, "group")?,
@@ -1609,7 +1616,12 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             if add.is_some() && cue.is_some() {
                 return Err("\"cue\" cannot go with the mode Append or Insert".into());
             }
+            let kind: Option<Kind> = opt_field(&v, "kind", "Chase or Cues")?;
+            if kind.is_some_and(Kind::is_master) {
+                return Err("invalid \"kind\" (expected Chase or Cues)".into());
+            }
             Ok(Command::PlaybackRecord(PlaybackRecord {
+                kind,
                 page: uint(&v, "page")?,
                 slot: uint(&v, "slot")?,
                 mask: opt_field(&v, "mask", "an array of attribute groups")?,
@@ -1881,6 +1893,11 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 number: opt_uint(&v, "number")?,
             })
         }
+        // IPC-57
+        Some("master.group") => Ok(Command::MasterGroup {
+            id: uint(&v, "id")?,
+            group: uint(&v, "group")?,
+        }),
         // IPC-50
         Some("lock.set") => Ok(Command::LockSet {
             on: boolean(&v, "on")?,
@@ -4625,7 +4642,10 @@ mod tests {
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"group.record","group":3}"#),
-            Command::RecordGroup { group: 3 }
+            Command::RecordGroup {
+                group: 3,
+                mode: None
+            }
         );
     }
 
@@ -7157,6 +7177,52 @@ mod tests {
     }
 
     #[test]
+    fn prg_97_group_record_takes_a_mode() {
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"group.record","group":5}"#),
+            Ok(Command::RecordGroup {
+                group: 5,
+                mode: None
+            })
+        ));
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":"Replace"}"#),
+            Ok(Command::RecordGroup {
+                group: 5,
+                mode: Some(GroupRecordMode::Replace)
+            })
+        ));
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":"Merge"}"#),
+            Ok(Command::RecordGroup {
+                group: 5,
+                mode: Some(GroupRecordMode::Merge)
+            })
+        ));
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":"Append"}"#).is_err()
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":1}"#).is_err());
+    }
+
+    #[test]
+    fn cue_62_ipc_57_playback_record_takes_a_kind() {
+        for (kind, want) in [("Chase", Kind::Chase), ("Cues", Kind::Cues)] {
+            let json =
+                format!(r#"{{"v":1,"cmd":"playback.record","page":1,"slot":2,"kind":"{kind}"}}"#);
+            let Ok(Command::PlaybackRecord(record)) = parse_command(&json) else {
+                panic!("{json}");
+            };
+            assert_eq!(record.kind, Some(want));
+        }
+        for bad in ["BpmMaster", "RateMaster", "GroupMaster", "Memory"] {
+            let json =
+                format!(r#"{{"v":1,"cmd":"playback.record","page":1,"slot":2,"kind":"{bad}"}}"#);
+            assert!(parse_command(&json).is_err(), "{json}");
+        }
+    }
+
+    #[test]
     fn ipc_57_cue_off_parses() {
         let on = parse_command(
             r#"{"v":1,"cmd":"cue.off","id":2,"cue":2,"fixture":"901.2","off":false}"#,
@@ -7311,6 +7377,21 @@ mod tests {
             false,
         ));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
+    }
+
+    #[test]
+    fn grm_21_ipc_57_master_group_parses() {
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"master.group","id":4,"group":6}"#),
+            Ok(Command::MasterGroup { id: 4, group: 6 })
+        ));
+        for bad in [
+            r#"{"v":1,"cmd":"master.group","id":4}"#,
+            r#"{"v":1,"cmd":"master.group","group":6}"#,
+            r#"{"v":1,"cmd":"master.group","id":4,"group":"six"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

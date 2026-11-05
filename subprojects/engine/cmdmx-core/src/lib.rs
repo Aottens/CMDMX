@@ -110,6 +110,9 @@ pub enum CoreError {
     GroupEmpty(u32),
     #[error("Group {0} is used")]
     GroupUsed(u32),
+    /// PRG-97: Record over a used group without a mode.
+    #[error("Group {0} is used: Replace or Merge")]
+    GroupUsedRecord(u32),
     #[error("Group {0} cannot go onto itself")]
     GroupOntoItself(u32),
     #[error("Group {group} is mastered by handle {page}.{slot}: delete the master first")]
@@ -225,6 +228,9 @@ pub enum CoreError {
     NoCueListConnected,
     #[error("playback {0} is not a cue list")]
     NotACueList(u32),
+    /// GRM-21: `master.group` on a playback that is no group master.
+    #[error("Playback {0} is not a group master")]
+    NotAGroupMaster(u32),
     /// A list action that does not apply now, e.g. "Q3 is the last cue" (CUE-10, CUE-11).
     #[error("{0}")]
     ListRefused(String),

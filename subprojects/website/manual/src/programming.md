@@ -226,8 +226,10 @@ A group is a saved selection, with its order. The Groups window shows each group
 ("Group 5" when it has none) and its number of fixtures.
 
 - **Record a group:** select fixtures in the order you want, press **Record**, then tap a group
-  cell. An empty cell gets a new group; a used one is replaced and keeps its legend. With nothing
-  selected the record is refused.
+  cell. An empty cell gets a new group. A used one asks on the softkeys: **Replace** stores the selection,
+  **Merge** adds the selected fixtures it does not hold after its own and keeps its grid, **Cancel**
+  leaves it. Both keep the legend. With nothing selected the record is refused. **Update** does not
+  work on a group: use Record and Merge.
 - **Use a group:** tap it, type `Group 3 Enter` or press its button on a control surface. Each shows
   the group on the message line ("Group 5 Pars outside in"); an empty group says "Group 7 is empty"
   and the selection stays.

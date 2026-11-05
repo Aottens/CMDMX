@@ -1081,6 +1081,8 @@ pub struct PlaybackRecord {
     pub add: Option<AddCue>,
     /// CUE-52: for Merge and Update on a tracking list.
     pub update_mode: Option<UpdateMode>,
+    /// CUE-62: `Chase` or `Cues`, honoured only on a new playback.
+    pub kind: Option<Kind>,
 }
 
 impl PlaybackRecord {
@@ -1094,6 +1096,7 @@ impl PlaybackRecord {
             cue: None,
             add: None,
             update_mode: None,
+            kind: None,
         }
     }
 }
