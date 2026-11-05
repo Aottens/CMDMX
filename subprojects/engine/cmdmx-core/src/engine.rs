@@ -608,10 +608,103 @@ pub struct EditState {
 type PalettePlan = Vec<(Item, String, Value)>;
 
 /// A candidate value for one attribute from one source, during a merge.
+#[derive(Clone, Copy)]
 struct Candidate {
     priority: Priority,
     activated: u64,
     value: Value,
+    via: Via,
+}
+
+/// ENG-25: where a candidate came from. `Copy`, so the merge carries it at no cost.
+#[derive(Clone, Copy, Default)]
+struct Via {
+    /// The playback and whether it is a list; `None`: the programmer.
+    playback: Option<(PlaybackId, bool)>,
+    /// The palette the stored value referred to.
+    palette: Option<PaletteId>,
+    /// The programmer's winning value was a located one (PRG-25).
+    located: bool,
+}
+
+/// ENG-25: what the shared attribute code reports to `explain` (the tick passes none).
+#[derive(Default)]
+struct Trace {
+    /// The merge winner, `None` when nobody proposed.
+    winner: Option<Candidate>,
+    /// The HTP proposals that lost.
+    others: Vec<Candidate>,
+    /// What the attribute gives while nobody proposes: the held value or default (LTP), 0 (HTP).
+    unproposed: Option<Value>,
+    modifiers: Vec<Modifier>,
+}
+
+/// ENG-25: the value `explain` gives for one attribute and how it got there.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Explanation {
+    pub name: String,
+    /// `Some(n)` for the attribute of cell `n` (LIB-07), `None` for the fixture's own.
+    pub cell: Option<u16>,
+    /// What the tick writes for the attribute (before a virtual dimmer scales it).
+    pub value: Value,
+    pub base: Base,
+    /// HTP sources that proposed a value and lost.
+    pub others: Vec<Proposal>,
+    pub modifiers: Vec<Modifier>,
+}
+
+/// ENG-25: the merge winner (ENG-01..10) and its value before any modifier.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Base {
+    pub source: Source,
+    pub value: Value,
+    /// The value is not hard in the list's current cue (CUE-50); false for anything but a list.
+    pub tracked: bool,
+    /// The palette the value refers to (PAL-07).
+    pub palette: Option<PaletteId>,
+}
+
+/// ENG-25: who gave a value.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Source {
+    Programmer,
+    /// A playback; `cue` is the current cue of a list or chase, `None` for a memory.
+    Playback {
+        id: PlaybackId,
+        cue: Option<CueNumber>,
+    },
+    /// An LTP attribute nobody proposes keeps its last value.
+    Held,
+    /// An HTP attribute nobody proposes is 0.
+    Default,
+}
+
+/// ENG-25: an HTP source that proposed a value and lost.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Proposal {
+    pub source: Source,
+    pub value: Value,
+}
+
+/// ENG-25: what changed the value after the merge, in the order the tick applies it.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Modifier {
+    Effect,
+    /// A group master holding the fixture (GRM-06..10), also at full; `level` is what it applies.
+    Master {
+        playback: PlaybackId,
+        mode: GroupMode,
+        level: f32,
+        enabled: bool,
+    },
+    /// The Grand Master, below full only.
+    GrandMaster(f32),
+    Dbo,
+    /// The programmer's value is a located one (PRG-25).
+    Locate,
+    Highlight,
+    /// ENG-21: the colour mix wrote this emitter or RGB attribute.
+    AutoMix,
 }
 
 /// A programmer or located value that was taken out (Off, Clear), for PRG-43 and ENG-10.
@@ -6051,7 +6144,9 @@ impl Engine {
                 l,
                 self.last_tick.unwrap_or_default(),
                 item.cell,
+                None,
             )
+            .map(|c| c.value)
         })
         .or_else(|| held_value(&self.held, item, l.name))
         .unwrap_or(match l.kind {
@@ -7332,8 +7427,6 @@ impl Engine {
         self.update_playbacks(now);
         self.tick_effects(now);
         self.tick_cue_effects(now);
-        // PBK-30: DBO is a Grand Master of 0 for the HTP output, whoever proposes it.
-        let grand_master = if self.dbo { 0.0 } else { self.grand_master };
         let sources = MergeSources {
             playbacks: &self.playbacks,
             states: &self.states,
@@ -7364,6 +7457,15 @@ impl Engine {
             states: &self.states,
             cue_fx: &self.cue_fx,
         };
+        let pass = Pass {
+            sources: &sources,
+            masters: &masters,
+            highlight: &highlight,
+            effects: &effects,
+            grand_master: self.grand_master,
+            dbo: self.dbo,
+            now,
+        };
         // GRM-10: (Take Over master, fixture, level) of the passes this tick.
         let mut pickups: Vec<(PlaybackId, FixtureId, f32)> = Vec::new();
         for (fixture_id, fixture) in &self.fixtures {
@@ -7387,40 +7489,20 @@ impl Engine {
             let mut scale = 1.0;
             let mut mix = Mix::default();
             for l in mode.logical_attributes() {
-                let merged = merge_attribute(&sources, fixture, mode, &l, now, None);
-                // PRG-26 (ENG-14): Highlight replaces the merged value, never the held one.
-                let lit = highlight.value(Item::fixture(*fixture_id), mode, &l);
-                // ENG-14: the programmer effect sits on the base value, before the masters.
-                let fx = |base: Value| {
-                    let item = Item::fixture(*fixture_id);
-                    let htp = l.kind == AttributeKind::Htp;
-                    with_effect(&effects, item, l.name, htp, base, round, now)
-                };
-                // ENG-07: an HTP attribute nobody proposes is 0; LTP holds its last value (LIB-03).
-                let value = match (merged, l.kind) {
-                    (Some(v), AttributeKind::Ltp) => {
-                        match held.get_mut(l.name) {
-                            Some(slot) => *slot = v,
-                            None => {
-                                held.insert(l.name.to_string(), v);
-                            }
+                let out = pass.fixture_value(fixture, mode, &l, round, held, None);
+                if let Some(v) = out.held {
+                    // ENG-18: `held` keeps the base, not base + offset.
+                    match held.get_mut(l.name) {
+                        Some(slot) => *slot = v,
+                        None => {
+                            held.insert(l.name.to_string(), v);
                         }
-                        // ENG-18: `held` keeps the base, not base + offset.
-                        lit.unwrap_or_else(|| fx(v))
                     }
-                    (merged, AttributeKind::Htp) => {
-                        // ENG-07: nobody proposing is 0. GRM-06: the group masters, then the GM.
-                        let base = lit.unwrap_or_else(|| fx(merged.unwrap_or(Value::Level(0.0))));
-                        let v = masters.apply(*fixture_id, base);
-                        if l.name == DIMMER {
-                            masters.pickups(*fixture_id, v.level(), &mut pickups);
-                        }
-                        v.scaled(grand_master)
-                    }
-                    (None, AttributeKind::Ltp) => {
-                        lit.unwrap_or_else(|| fx(held.get(l.name).copied().unwrap_or(l.default)))
-                    }
-                };
+                }
+                if let Some(level) = out.after_masters.filter(|_| l.name == DIMMER) {
+                    masters.pickups(*fixture_id, level, &mut pickups);
+                }
+                let value = out.value;
                 if virtual_dimmer && l.name == DIMMER {
                     scale = value.level();
                 }
@@ -7467,30 +7549,11 @@ impl Engine {
                 let mut cell_mix = Mix::default();
                 for l in mode.cell_attributes(c) {
                     let virtual_dimmer = l.name == DIMMER && mode.virtual_cell_dimmer(c);
-                    let merged = merge_attribute(&sources, fixture, mode, &l, now, Some(c));
-                    // A fixture's highlight counts for every cell but its own virtual Dimmer.
-                    let lit = highlight.value(item, mode, &l).or_else(|| {
-                        let fixture_l = mode.logical(l.name).filter(|_| !virtual_dimmer)?;
-                        highlight.value(Item::fixture(*fixture_id), mode, &fixture_l)
-                    });
-                    let value = match (merged, l.kind) {
-                        (Some(v), AttributeKind::Ltp) => {
-                            (self.held.entry(item).or_default()).insert(l.name.to_string(), v);
-                            lit.unwrap_or(v)
-                        }
-                        // The virtual cell Dimmer is no master: no group masters, no Grand
-                        // Master (they scale the master Dimmer), and full while nobody proposes.
-                        (merged, AttributeKind::Htp) if virtual_dimmer => {
-                            lit.or(merged).unwrap_or(l.default)
-                        }
-                        (merged, AttributeKind::Htp) => {
-                            let base = lit.or(merged).unwrap_or(Value::Level(0.0));
-                            masters.apply(*fixture_id, base).scaled(grand_master)
-                        }
-                        (None, AttributeKind::Ltp) => lit
-                            .or_else(|| held_value(&self.held, item, l.name))
-                            .unwrap_or(l.default),
-                    };
+                    let out = pass.cell_value(fixture, mode, &l, c, &self.held, None);
+                    if let Some(v) = out.held {
+                        (self.held.entry(item).or_default()).insert(l.name.to_string(), v);
+                    }
+                    let value = out.value;
                     if virtual_dimmer {
                         cell_scale = value.level();
                     }
@@ -7604,6 +7667,140 @@ impl Engine {
     }
 
     // ---- queries ---------------------------------------------------------
+
+    /// ENG-25: why each attribute of the fixture (and each cell in play) is what it is, as of
+    /// the last tick: the value the tick writes, the merge winner and the HTP sources that
+    /// lost, and what changed the value after. `None` for an unknown fixture. It runs the same
+    /// code as the tick ([`Pass`]) and changes nothing.
+    pub fn explain(&self, id: FixtureId) -> Option<Vec<Explanation>> {
+        let fixture = self.fixtures.get(&id)?;
+        let mode = resolve_mode(&self.profiles, fixture)?;
+        let sources = MergeSources {
+            playbacks: &self.playbacks,
+            states: &self.states,
+            programmer: &self.programmer,
+            palettes: &self.palettes,
+            swop_owner: self.swop_owner,
+        };
+        let masters = GroupMasters {
+            sources: &sources,
+            groups: &self.groups,
+            any: (self.playbacks.values()).any(|p| p.kind == PlaybackKind::GroupMaster),
+        };
+        let highlight = Highlight::new(
+            self.highlight,
+            &self.programmer,
+            self.settings.lowlight_level,
+        );
+        let effects = EffectSources {
+            programmer: &self.programmer.effects,
+            live: &self.effect_live,
+            programmer_activated: self.programmer.activated(),
+            palettes: &self.palettes,
+            playbacks: &self.playbacks,
+            states: &self.states,
+            cue_fx: &self.cue_fx,
+        };
+        let pass = Pass {
+            sources: &sources,
+            masters: &masters,
+            highlight: &highlight,
+            effects: &effects,
+            grand_master: self.grand_master,
+            dbo: self.dbo,
+            now: self.last_tick.unwrap_or(0.0),
+        };
+        let round = effect::round_factor(mode.pan_degrees, mode.tilt_degrees);
+        let none = BTreeMap::new();
+        let held = self.held.get(&Item::fixture(id)).unwrap_or(&none);
+        let mut out = Vec::new();
+        for l in mode.logical_attributes() {
+            let mut trace = Trace::default();
+            let value = pass.fixture_value(fixture, mode, &l, round, held, Some(&mut trace));
+            out.push(self.explanation(&l, Item::fixture(id), value.value, trace));
+        }
+        let cells = self.cells_in_play(&highlight);
+        let own = cells.range(Item::cell(id, 0)..=Item::cell(id, u16::MAX));
+        for &item in own {
+            let Some(c) = item.cell.filter(|&c| mode.cell(c).is_some()) else {
+                continue;
+            };
+            for l in mode.cell_attributes(c) {
+                let mut trace = Trace::default();
+                let value = pass.cell_value(fixture, mode, &l, c, &self.held, Some(&mut trace));
+                out.push(self.explanation(&l, item, value.value, trace));
+            }
+        }
+        Some(out)
+    }
+
+    fn explanation(
+        &self,
+        l: &LogicalAttribute,
+        item: Item,
+        value: Value,
+        trace: Trace,
+    ) -> Explanation {
+        let source = |via: Via| match via.playback {
+            None => Source::Programmer,
+            Some((id, list)) => Source::Playback {
+                id,
+                cue: self
+                    .list_live(id)
+                    .filter(|_| list)
+                    .and_then(|live| live.current),
+            },
+        };
+        let base = match trace.winner {
+            Some(c) => Base {
+                source: source(c.via),
+                value: c.value,
+                tracked: self.tracked(c.via, item, l.name),
+                palette: c.via.palette,
+            },
+            None => Base {
+                source: match l.kind {
+                    AttributeKind::Htp => Source::Default,
+                    AttributeKind::Ltp => Source::Held,
+                },
+                value: trace.unproposed.unwrap_or(l.default),
+                tracked: false,
+                palette: None,
+            },
+        };
+        Explanation {
+            name: l.name.to_string(),
+            cell: item.cell,
+            value,
+            base,
+            others: (trace.others.iter())
+                .map(|c| Proposal {
+                    source: source(c.via),
+                    value: c.value,
+                })
+                .collect(),
+            modifiers: trace.modifiers,
+        }
+    }
+
+    /// ENG-25, CUE-50: a list's value that is not hard in its current cue.
+    fn tracked(&self, via: Via, item: Item, name: &str) -> bool {
+        let Some((id, true)) = via.playback else {
+            return false;
+        };
+        let current = self.list_live(id).and_then(|live| live.current);
+        let Some((playback, current)) = self.playbacks.get(&id).zip(current) else {
+            return false;
+        };
+        let Some(at) = playback.cues.iter().position(|c| c.number == current) else {
+            return false;
+        };
+        let state = playback.cue_state(at);
+        [item, Item::fixture(item.fixture)]
+            .iter()
+            .find_map(|i| state.get(i)?.get(name))
+            .is_some_and(|&(_, hard)| hard != at)
+    }
 
     pub fn frame(&self, universe: UniverseId) -> Option<&Frame> {
         self.frames.get(&universe)
@@ -8118,6 +8315,30 @@ impl GroupMasters<'_> {
         Value::Level(limit.fold(level, |l, (_, g)| l.min(g)))
     }
 
+    /// ENG-25: the masters holding `fixture` in the order `apply` uses them, also at full.
+    /// ponytail: an HTP master silenced by another playback's Swop (GRM-08) is still listed.
+    fn describe(&self, fixture: FixtureId, out: &mut Vec<Modifier>) {
+        if !self.any {
+            return;
+        }
+        for mode in [GroupMode::Scale, GroupMode::Htp, GroupMode::Limit] {
+            for (playback, level) in self.holding(fixture, mode) {
+                let master =
+                    (self.sources.playbacks.get(&playback)).and_then(|p| p.master.as_ref());
+                let enabled = match master {
+                    Some(Master::Group(m)) => m.enabled,
+                    _ => true,
+                };
+                out.push(Modifier::Master {
+                    playback,
+                    mode,
+                    level,
+                    enabled,
+                });
+            }
+        }
+    }
+
     /// GRM-10: the Take Over masters whose level just passed `output` (the fixture's Dimmer
     /// after the masters, before the Grand Master). Only a pass allocates.
     fn pickups(
@@ -8143,6 +8364,189 @@ impl GroupMasters<'_> {
     }
 }
 
+/// ENG-25: what the value of one attribute needs, for the tick and for `explain` alike, so the
+/// two cannot drift apart.
+struct Pass<'a> {
+    sources: &'a MergeSources<'a>,
+    masters: &'a GroupMasters<'a>,
+    highlight: &'a Highlight,
+    effects: &'a EffectSources<'a>,
+    grand_master: f32,
+    dbo: bool,
+    now: Timestamp,
+}
+
+/// What the tick takes from one attribute.
+struct Out {
+    value: Value,
+    /// LTP: the merged value `held` keeps (ENG-18).
+    held: Option<Value>,
+    /// HTP: the level after the group masters, before the Grand Master (GRM-10).
+    after_masters: Option<f32>,
+}
+
+impl Pass<'_> {
+    /// One logical attribute of a fixture: merge, Highlight, effect, masters, Grand Master. With a
+    /// `trace` it also says how (ENG-25); the tick passes `None` and allocates nothing for it.
+    fn fixture_value(
+        &self,
+        fixture: &Fixture,
+        mode: &Mode,
+        l: &LogicalAttribute,
+        round: f32,
+        held: &BTreeMap<String, Value>,
+        mut trace: Option<&mut Trace>,
+    ) -> Out {
+        let item = Item::fixture(fixture.id);
+        let others = trace.as_deref_mut().map(|t| &mut t.others);
+        let merged = merge_attribute(self.sources, fixture, mode, l, self.now, None, others);
+        // PRG-26 (ENG-14): Highlight replaces the merged value, never the held one.
+        let lit = self.highlight.value(item, mode, l);
+        // ENG-14: the programmer effect sits on the base value, before the masters.
+        let effected = std::cell::Cell::new(false);
+        let fx = |base: Value| {
+            let htp = l.kind == AttributeKind::Htp;
+            let v = with_effect(self.effects, item, l.name, htp, base, round, self.now);
+            effected.set(v.is_some());
+            v.unwrap_or(base)
+        };
+        let winner = merged.map(|c| c.value);
+        // ENG-07: an HTP attribute nobody proposes is 0; LTP holds its last value (LIB-03).
+        let held_or_default = held.get(l.name).copied().unwrap_or(l.default);
+        let out = match (winner, l.kind) {
+            (Some(v), AttributeKind::Ltp) => Out {
+                value: lit.unwrap_or_else(|| fx(v)),
+                held: Some(v),
+                after_masters: None,
+            },
+            (winner, AttributeKind::Htp) => {
+                // ENG-07: nobody proposing is 0. GRM-06: the group masters, then the GM.
+                let base = lit.unwrap_or_else(|| fx(winner.unwrap_or(Value::Level(0.0))));
+                let v = self.masters.apply(fixture.id, base);
+                Out {
+                    value: v.scaled(self.grand_master()),
+                    held: None,
+                    after_masters: Some(v.level()),
+                }
+            }
+            (None, AttributeKind::Ltp) => Out {
+                value: lit.unwrap_or_else(|| fx(held_or_default)),
+                held: None,
+                after_masters: None,
+            },
+        };
+        if let Some(t) = trace {
+            t.winner = merged;
+            t.unproposed = Some(match l.kind {
+                AttributeKind::Htp => Value::Level(0.0),
+                AttributeKind::Ltp => held_or_default,
+            });
+            let htp = l.kind == AttributeKind::Htp;
+            self.modifiers(t, fixture.id, mode, l, lit.is_some(), effected.get(), htp);
+        }
+        out
+    }
+
+    /// PRG-51: one attribute of a cell, merged on its own. No effect step (see the tick).
+    fn cell_value(
+        &self,
+        fixture: &Fixture,
+        mode: &Mode,
+        l: &LogicalAttribute,
+        c: u16,
+        held: &BTreeMap<Item, BTreeMap<String, Value>>,
+        mut trace: Option<&mut Trace>,
+    ) -> Out {
+        let item = Item::cell(fixture.id, c);
+        let virtual_dimmer = l.name == DIMMER && mode.virtual_cell_dimmer(c);
+        let others = trace.as_deref_mut().map(|t| &mut t.others);
+        let merged = merge_attribute(self.sources, fixture, mode, l, self.now, Some(c), others);
+        // A fixture's highlight counts for every cell but its own virtual Dimmer.
+        let lit = self.highlight.value(item, mode, l).or_else(|| {
+            let fixture_l = mode.logical(l.name).filter(|_| !virtual_dimmer)?;
+            self.highlight
+                .value(Item::fixture(fixture.id), mode, &fixture_l)
+        });
+        let winner = merged.map(|c| c.value);
+        let held_or_default = held_value(held, item, l.name).unwrap_or(l.default);
+        let (value, held, unproposed, masters) = match (winner, l.kind) {
+            (Some(v), AttributeKind::Ltp) => (lit.unwrap_or(v), Some(v), held_or_default, false),
+            // The virtual cell Dimmer is no master: no group masters, no Grand Master (they
+            // scale the master Dimmer), and full while nobody proposes.
+            (winner, AttributeKind::Htp) if virtual_dimmer => {
+                let value = lit.or(winner).unwrap_or(l.default);
+                (value, None, l.default, false)
+            }
+            (winner, AttributeKind::Htp) => {
+                let base = lit.or(winner).unwrap_or(Value::Level(0.0));
+                let value = self.masters.apply(fixture.id, base);
+                (
+                    value.scaled(self.grand_master()),
+                    None,
+                    Value::Level(0.0),
+                    true,
+                )
+            }
+            (None, AttributeKind::Ltp) => {
+                (lit.unwrap_or(held_or_default), None, held_or_default, false)
+            }
+        };
+        if let Some(t) = trace {
+            t.winner = merged;
+            t.unproposed = Some(unproposed);
+            self.modifiers(t, fixture.id, mode, l, lit.is_some(), false, masters);
+        }
+        Out {
+            value,
+            held,
+            after_masters: None,
+        }
+    }
+
+    /// PBK-30: DBO is a Grand Master of 0 for the HTP output, whoever proposes it.
+    fn grand_master(&self) -> f32 {
+        if self.dbo {
+            0.0
+        } else {
+            self.grand_master
+        }
+    }
+
+    /// ENG-25: what changed the merged value, in the order it is applied.
+    #[allow(clippy::too_many_arguments)]
+    fn modifiers(
+        &self,
+        t: &mut Trace,
+        fixture: FixtureId,
+        mode: &Mode,
+        l: &LogicalAttribute,
+        highlighted: bool,
+        effected: bool,
+        masters: bool,
+    ) {
+        if t.winner.is_some_and(|c| c.via.located) {
+            t.modifiers.push(Modifier::Locate);
+        }
+        if highlighted {
+            t.modifiers.push(Modifier::Highlight);
+        }
+        if effected {
+            t.modifiers.push(Modifier::Effect);
+        }
+        if masters {
+            self.masters.describe(fixture, &mut t.modifiers);
+            if self.dbo {
+                t.modifiers.push(Modifier::Dbo);
+            } else if self.grand_master < 1.0 {
+                t.modifiers.push(Modifier::GrandMaster(self.grand_master));
+            }
+        }
+        if mode.automix && (l.emitter || l.is_colour()) {
+            t.modifiers.push(Modifier::AutoMix);
+        }
+    }
+}
+
 /// What the effect layer reads while a tick merges (ENG-14, 15).
 struct EffectSources<'a> {
     programmer: &'a [effect::Entry],
@@ -8154,9 +8558,9 @@ struct EffectSources<'a> {
     cue_fx: &'a BTreeMap<PlaybackId, CueFx>,
 }
 
-/// ENG-14..16: `base` with the effect on `item`'s `attribute`, if any: at most one source acts
-/// (ENG-15): the highest priority, then the latest activation; the programmer sits at
-/// `Priority::Programmer`. The programmer's fades out while a timed Clear runs (FX-19). A
+/// ENG-14..16: `base` with the effect on `item`'s `attribute`, `None` when none acts: at most
+/// one source acts (ENG-15): the highest priority, then the latest activation; the programmer
+/// sits at `Priority::Programmer`. The programmer's fades out while a timed Clear runs (FX-19). A
 /// playback's follows its master *m* (FX-25). ponytail: O(playbacks × runs × members) per
 /// attribute and tick, no allocation; index the members per tick if 500 members ever show it
 /// (FX-13).
@@ -8168,7 +8572,7 @@ fn with_effect(
     base: Value,
     round: f32,
     now: Timestamp,
-) -> Value {
+) -> Option<Value> {
     let mut best: Option<((Priority, u64), &CueFx, f32)> = None;
     for (id, fx) in src.cue_fx {
         let (Some(playback), Some(state)) = (src.playbacks.get(id), src.states.get(id)) else {
@@ -8192,21 +8596,25 @@ fn with_effect(
             && (priority < Priority::Programmer
                 || (priority == Priority::Programmer && activated <= src.programmer_activated));
         if !programmer_wins {
-            return playback_effect(src, fx, m, (item, attribute, htp), base, round, now);
+            return Some(playback_effect(
+                src,
+                fx,
+                m,
+                (item, attribute, htp),
+                base,
+                round,
+                now,
+            ));
         }
     }
-    let Some((entry, i)) = found else {
-        return base;
-    };
-    let Some(live) = src.live.get(&entry.id) else {
-        return base;
-    };
+    let (entry, i) = found?;
+    let live = src.live.get(&entry.id)?;
     let p = pointed(src.palettes, entry);
     let v = entry.at(&p, i, live.clock.theta(), attribute, base, round);
-    match &live.fade {
+    Some(match &live.fade {
         Some(fade) => base.lerp(v, 1.0 - fade.progress(now)),
         None => v,
-    }
+    })
 }
 
 /// FX-25, 26: a playback's effect on one attribute: an absolute effect on an `Htp` attribute
@@ -8330,7 +8738,9 @@ fn merge_attribute(
     attr: &LogicalAttribute,
     now: Timestamp,
     cell: Option<u16>,
-) -> Option<Value> {
+    // ENG-25: the losing HTP proposals go here when `explain` asks; the tick passes `None`.
+    mut others: Option<&mut Vec<Candidate>>,
+) -> Option<Candidate> {
     let mut best: Option<Candidate> = None;
     let own_only = cell.is_some_and(|c| attr.name == DIMMER && mode.virtual_cell_dimmer(c));
     // The items that speak for this attribute in every source, the most specific first.
@@ -8338,7 +8748,14 @@ fn merge_attribute(
         .chain((!own_only).then_some(Item::fixture(fixture.id)));
     // A reference gives what its palette resolves for the item, else its fallback (PAL-07,
     // PAL-11, PRG-52); a value of the wrong kind (a level for Colour, say) is ignored, not output.
+    // ENG-25: the palette of the last reference resolved. ponytail: a fade between two
+    // references reports the palette it resolved last (the target); fine for a label.
+    let palette: std::cell::Cell<Option<PaletteId>> = std::cell::Cell::new(None);
     let resolve_for = |item: Item, stored: Stored| {
+        palette.set(match stored {
+            Stored::Reference(r) => Some(r.palette),
+            Stored::Value(_) => None,
+        });
         resolve_stored(src.palettes, item, fixture, mode, attr.name, stored)
     };
 
@@ -8350,6 +8767,7 @@ fn merge_attribute(
             continue;
         };
         // A cue list or chase proposes what its fades give now (CUE-13); anything else its first cue.
+        palette.set(None);
         let raw = if is_list(playback) {
             items.clone().find_map(|item| {
                 (state.run).fade_value(item, attr.name, now, |s| resolve_for(item, s))
@@ -8408,12 +8826,13 @@ fn merge_attribute(
             priority: playback.priority,
             activated: order,
             value,
+            via: Via {
+                playback: Some((*id, is_list(playback))),
+                palette: palette.get(),
+                located: false,
+            },
         };
-
-        best = Some(match best {
-            None => candidate,
-            Some(current) => pick(attr.kind, current, candidate),
-        });
+        offer(&mut best, attr.kind, candidate, &mut others);
     }
 
     // PBK-47: a Released playback's HTP levels fall to 0 (the virtual cell Dimmer towards full,
@@ -8440,40 +8859,44 @@ fn merge_attribute(
                     priority: (src.playbacks.get(id)).map_or(Priority::Normal, |p| p.priority),
                     activated: 0,
                     value: from.lerp(to, fall.progress(now)),
+                    via: Via {
+                        playback: src.playbacks.get(id).map(|p| (*id, is_list(p))),
+                        ..Via::default()
+                    },
                 };
-                best = Some(match best {
-                    None => candidate,
-                    Some(current) => pick(attr.kind, current, candidate),
-                });
+                offer(&mut best, attr.kind, candidate, &mut others);
             }
         }
     }
 
     // ENG-04: manual values are absolute and sit at Priority::Programmer.
+    palette.set(None);
     let proposal = items.clone().find_map(|item| {
         (src.programmer.stored_item(item, attr.name))
             .map(|s| resolve_for(item, s))
             .filter(|v| v.same_kind(&attr.default))
             .map(|to| match src.programmer.fade(item, attr.name) {
-                Some(fade) => fade.at(to, now), // PAL-13
-                None => to,
+                Some(fade) => (fade.at(to, now), false), // PAL-13
+                None => (to, false),
             })
             // PRG-25: a located value sits under the programmer value, at the same priority.
             .or_else(|| {
                 let located = src.programmer.located_value(item, attr.name)?;
-                Some(located).filter(|v| v.same_kind(&attr.default))
+                Some((located, true)).filter(|(v, _)| v.same_kind(&attr.default))
             })
     });
-    if let Some(value) = proposal {
+    if let Some((value, located)) = proposal {
         let candidate = Candidate {
             priority: Priority::Programmer,
             activated: src.programmer.activated(),
             value,
+            via: Via {
+                playback: None,
+                palette: palette.get().filter(|_| !located),
+                located,
+            },
         };
-        best = Some(match best {
-            None => candidate,
-            Some(current) => pick(attr.kind, current, candidate),
-        });
+        offer(&mut best, attr.kind, candidate, &mut others);
     }
 
     // ENG-10: a value a timed Clear removed fades out. HTP: from its value to 0, the highest of it
@@ -8503,6 +8926,7 @@ fn merge_attribute(
                 (kind, None) => Candidate {
                     priority: Priority::Programmer,
                     activated: src.programmer.activated(),
+                    via: Via::default(),
                     value: match kind {
                         // PRG-47: the virtual cell Dimmer lets go towards full, its unproposed level.
                         AttributeKind::Htp if own_only => fade.at(attr.default, now),
@@ -8545,12 +8969,36 @@ fn merge_attribute(
                     priority,
                     activated: 0,
                     value,
+                    via: Via {
+                        playback: src.playbacks.get(id).map(|p| (*id, is_list(p))),
+                        ..Via::default()
+                    },
                 },
             });
         }
     }
 
-    best.map(|c| c.value)
+    best
+}
+
+/// ENG-25: `candidate` against the best so far; an HTP loser is handed to `others`.
+fn offer(
+    best: &mut Option<Candidate>,
+    kind: AttributeKind,
+    candidate: Candidate,
+    others: &mut Option<&mut Vec<Candidate>>,
+) {
+    let (won, lost) = match *best {
+        None => (candidate, None),
+        Some(current) => {
+            let (won, lost) = pick(kind, current, candidate);
+            (won, Some(lost))
+        }
+    };
+    if let (AttributeKind::Htp, Some(lost), Some(others)) = (kind, lost, others) {
+        others.push(lost);
+    }
+    *best = Some(won);
 }
 
 /// A stored value, or what its palette resolves for this fixture and attribute (PAL-07),
@@ -8574,29 +9022,20 @@ pub(crate) fn resolve_stored(
 
 /// ENG-01..03: higher priority always wins; at equal priority HTP takes the
 /// highest value and LTP the latest activation.
-fn pick(kind: AttributeKind, current: Candidate, candidate: Candidate) -> Candidate {
-    if candidate.priority != current.priority {
-        return if candidate.priority > current.priority {
-            candidate
-        } else {
-            current
-        };
-    }
-    match kind {
-        AttributeKind::Htp => {
-            if candidate.value.level() > current.value.level() {
-                candidate
-            } else {
-                current
-            }
+/// Returns the winner and the loser.
+fn pick(kind: AttributeKind, current: Candidate, candidate: Candidate) -> (Candidate, Candidate) {
+    let candidate_wins = if candidate.priority != current.priority {
+        candidate.priority > current.priority
+    } else {
+        match kind {
+            AttributeKind::Htp => candidate.value.level() > current.value.level(),
+            AttributeKind::Ltp => candidate.activated > current.activated,
         }
-        AttributeKind::Ltp => {
-            if candidate.activated > current.activated {
-                candidate
-            } else {
-                current
-            }
-        }
+    };
+    if candidate_wins {
+        (candidate, current)
+    } else {
+        (current, candidate)
     }
 }
 
