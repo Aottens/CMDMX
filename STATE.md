@@ -7,7 +7,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Now
 - Phase 1: a well-working general DMX console. Its finish line is a real Sunday service on CMDMX (VS4-03).
 - The church keeps running on Lightkey (owner, 2026-11-05). The first service on CMDMX has no date yet.
-- IDEA-35 batch B, changing what is recorded, is released. A gap review with the app running comes before the next batch.
+- IDEA-35 batch B, changing what is recorded, is released. A gap review with the app running comes next.
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
