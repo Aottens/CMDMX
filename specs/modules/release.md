@@ -54,6 +54,7 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
   - `Contents/Info.plist` as REL-02.
   Both binaries are universal (arm64 and x86_64), so the DMG runs on any Mac with macOS 14 or
   later (`LSMinimumSystemVersion` 14.0, as today).
+- **REL-29** (P1-32, amends REL-04, REL-07, REL-08) The bundle holds `Contents/Resources/manual/`, the manual built by mdBook from the tagged commit (WEB-30, with that version on its front page), so it works without internet. `make-dmg.sh` builds it with the pinned mdBook (`subprojects/website/install-mdbook.sh`) and fails without it; `check-dmg.sh` fails unless `manual/index.html` is there and names the version. A local build (REL-03) has none.
 - **REL-05** (amended by REL-17) Without a signing identity, the bundle is signed ad hoc (`codesign --sign -`), the daemon first, then the app;
   `codesign --verify --deep --strict` passes. This is the local build; a release is signed and notarised as REL-17..20.
 - **REL-06** (amended by BRD-04) The DMG is `CMDMX-<version>.dmg`, compressed (UDZO), volume name

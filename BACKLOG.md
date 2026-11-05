@@ -181,6 +181,16 @@ Builds: NEW-01; NEW-02 + NEW-03.
 | NEW-02 | App: with Keys off a key or a click on the line says how to turn it on; manual; checklist. | UI-49 | S | done (2026-11-04, #239) |
 | NEW-03 | App: an armed function's own message goes when it disarms; checklist and the run. | UI-50 | S | done (2026-11-04, #239) |
 
+### Help at hand (fourth gap review, spec P1-32)
+Approved when the spec PR merges. Patch follows; it does not change how an operator works. One build: the key needs the bundle, and the chapter is what it opens.
+Builds: HLP-01 + HLP-02 + HLP-03.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| HLP-01 | Scripts: the manual in the bundle, `check-dmg.sh` checks it; a test release on the branch. | REL-29 | S | todo |
+| HLP-02 | App: the Help key, menu item and ⌘? open the manual; manual and checklist. Needs HLP-01. | UI-55 | S | todo |
+| HLP-03 | Manual: the chapter *Taking over a show*; a walk on a show not programmed by the reader. | WEB-36 | S | todo |
+
 ### Changing what is recorded (IDEA-35 batch B, spec P1-29)
 Approved by the owner 2026-11-04. Sub-release 0.5.0 follows the batch, then a gap review with the app running; nothing goes on the church Mac before the service of 2026-11-08. Release alone: it may have to be reverted alone, as it changes what a running show does.
 Builds: REC-01 + REC-02; REC-03; REC-04; REC-05 + REC-06 + REC-07; REC-08 + REC-09; REC-10 + REC-11 + REC-12.
@@ -270,6 +280,7 @@ after VS8-03, in any order.
 | P1-29 | Spec IDEA-35 batch B, changing what is recorded, with I1, I3 and what the owner approves from the third review, as CUE-56..62, PBK-47..49, PRG-97, GRM-21, IPC-55..57, UI-51..54; build tasks REC-01..12; approved by owner 2026-11-04, the five questions as recommended (`cuelists.md`). | PRG, CUE, PBK, GRM, IPC, UI | S | done (2026-11-04, #241) |
 | P1-30 | Spec the patch before batch B (owner, 2026-11-04): LIB-40, UI-49, UI-50, build tasks NEW-01..03; approved by owner 2026-11-04. | LIB, UI | S | done (2026-11-04, #237) |
 | P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. | PRG, UI | S | todo |
+| P1-32 | Spec the Help patch (L6, F7; owner 2026-11-05): UI-55, REL-29, WEB-36, build tasks HLP-01..03; approved by the owner when this PR merges. | UI, REL, WEB | S | done (2026-11-05, #252) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ### Tracking: the state stays true (spec `tracking.md`)
