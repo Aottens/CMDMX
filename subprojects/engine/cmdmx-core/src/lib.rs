@@ -228,6 +228,9 @@ pub enum CoreError {
     NoCueListConnected,
     #[error("playback {0} is not a cue list")]
     NotACueList(u32),
+    /// GRM-21: `master.group` on a playback that is no group master.
+    #[error("Playback {0} is not a group master")]
+    NotAGroupMaster(u32),
     /// A list action that does not apply now, e.g. "Q3 is the last cue" (CUE-10, CUE-11).
     #[error("{0}")]
     ListRefused(String),

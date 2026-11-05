@@ -475,6 +475,11 @@ pub enum Command {
         slot: u16,
         group: GroupId,
     },
+    /// GRM-21 (IPC-57): change the group of a group master.
+    MasterGroup {
+        id: PlaybackId,
+        group: GroupId,
+    },
     /// IPC-30: handled by the tick's `run`, never by `apply`.
     Undo,
     Redo,
@@ -1883,6 +1888,11 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 number: opt_uint(&v, "number")?,
             })
         }
+        // IPC-57
+        Some("master.group") => Ok(Command::MasterGroup {
+            id: uint(&v, "id")?,
+            group: uint(&v, "group")?,
+        }),
         // IPC-50
         Some("lock.set") => Ok(Command::LockSet {
             on: boolean(&v, "on")?,
@@ -7345,6 +7355,21 @@ mod tests {
             false,
         ));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
+    }
+
+    #[test]
+    fn grm_21_ipc_57_master_group_parses() {
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"master.group","id":4,"group":6}"#),
+            Ok(Command::MasterGroup { id: 4, group: 6 })
+        ));
+        for bad in [
+            r#"{"v":1,"cmd":"master.group","id":4}"#,
+            r#"{"v":1,"cmd":"master.group","group":6}"#,
+            r#"{"v":1,"cmd":"master.group","id":4,"group":"six"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

@@ -3701,6 +3701,21 @@ impl Engine {
         Ok(id)
     }
 
+    /// GRM-21: point a group master at another group; everything else of it stays. Taken
+    /// fixtures outside the new group are let go by the next tick (`follow_take_over`).
+    pub fn set_master_group(&mut self, id: PlaybackId, group: GroupId) -> Result<(), CoreError> {
+        let known = self.groups.contains_key(&group);
+        let playback = self.playback_mut(id)?;
+        let Some(Master::Group(m)) = &mut playback.master else {
+            return Err(CoreError::NotAGroupMaster(id));
+        };
+        if !known {
+            return Err(CoreError::UnknownGroup(group));
+        }
+        m.group = group;
+        Ok(())
+    }
+
     fn playback_mut(&mut self, id: PlaybackId) -> Result<&mut Playback, CoreError> {
         self.playbacks
             .get_mut(&id)

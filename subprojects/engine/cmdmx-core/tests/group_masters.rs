@@ -40,6 +40,7 @@ use cmdmx_core::playback::{
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::value::{Stored, Value};
+use cmdmx_core::CoreError;
 
 use common::dmx;
 
@@ -104,6 +105,61 @@ fn change(e: &mut Engine, id: u32, f: impl FnOnce(&mut GroupMaster)) -> Result<(
 
 fn level(e: &Engine, id: u32) -> f32 {
     e.playback_state(id).map_or(0.0, |s| s.level)
+}
+
+#[test]
+fn grm_21_a_master_changes_its_group_and_keeps_the_rest() {
+    let mut e = church();
+    record_group(&mut e, 7, &[201]);
+    let id = e.record_group_master(1, 8, 6).unwrap();
+    change(&mut e, id, |m| m.mode = GroupMode::Htp).unwrap();
+    e.set_fader(id, 0.5, 0.0).unwrap();
+    e.tick(0.0);
+    let before = group_master(&e, id);
+    let handle = (e.playback(id).unwrap().page, e.playback(id).unwrap().slot);
+    e.set_master_group(id, 7).unwrap();
+    let after = group_master(&e, id);
+    assert_eq!(after.group, 7);
+    assert_eq!(after.mode, before.mode);
+    assert_eq!(after.scale, before.scale);
+    assert_eq!(after.enabled, before.enabled);
+    assert_eq!(level(&e, id), 0.5);
+    assert_eq!(
+        (e.playback(id).unwrap().page, e.playback(id).unwrap().slot),
+        handle
+    );
+}
+
+#[test]
+fn grm_21_it_applies_from_the_next_tick() {
+    let mut e = church();
+    record_group(&mut e, 7, &[201]);
+    let id = e.record_group_master(1, 8, 6).unwrap();
+    e.set_fader(id, 0.0, 0.0).unwrap();
+    e.tick(0.0);
+    assert_eq!(dmx(&e, addr(301)), 0);
+    assert_eq!(dmx(&e, addr(201)), 204);
+    e.set_master_group(id, 7).unwrap();
+    e.tick(0.025);
+    assert_eq!(dmx(&e, addr(301)), 204, "the spots are free again");
+    assert_eq!(dmx(&e, addr(201)), 0, "201 is mastered now");
+}
+
+#[test]
+fn grm_21_a_missing_group_or_another_playback_is_refused() {
+    let mut e = church();
+    let id = e.record_group_master(1, 8, 6).unwrap();
+    assert_eq!(e.set_master_group(id, 99), Err(CoreError::UnknownGroup(99)));
+    assert_eq!(group_master(&e, id).group, 6);
+    assert_eq!(
+        e.set_master_group(1, 6),
+        Err(CoreError::NotAGroupMaster(1)),
+        "playback 1 is a memory"
+    );
+    assert_eq!(
+        e.set_master_group(77, 6),
+        Err(CoreError::UnknownPlayback(77))
+    );
 }
 
 // ---- GRM-01: a group master on a handle -------------------------------------------------------

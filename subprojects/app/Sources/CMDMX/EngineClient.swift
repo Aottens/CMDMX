@@ -1863,6 +1863,8 @@ final class EngineClient: ObservableObject {
         if let group { fields["group"] = group }
         patch("master.record", fields)
     }
+    /// GRM-21: point a group master at another group.
+    func setMasterGroup(id: Int, group: Int) { patch("master.group", ["id": id, "group": group]) }
     /// Press and hold: `on: true` on press, `false` on release (PBK-37).
     func flashPlayback(_ id: Int, on: Bool) { sendJSON("playback.flash", ["id": id, "on": on]) }
     func swopPlayback(_ id: Int, on: Bool) { sendJSON("playback.swop", ["id": id, "on": on]) }
