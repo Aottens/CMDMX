@@ -11,9 +11,9 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. Tag the Help patch once it merges: the DMG that brings the manual inside the app, Help and ⌘?.
-2. The batches after B, in the owner's order: C to G, then I and J (same file). Each needs its spec approved first.
-   P1-31 (Blind and Edit) stays apart from them. C now starts with L1 and J8.
+1. Batch C, seeing what the rig does, is approved: SEE-01..10, L1 and J8 first (SEE-01 + SEE-02).
+2. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
+   P1-31 (Blind and Edit) stays apart from them.
 3. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
 ## Waiting on the owner

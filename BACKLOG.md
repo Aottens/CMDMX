@@ -210,6 +210,23 @@ Builds: REC-01 + REC-02; REC-03; REC-04; REC-05 + REC-06 + REC-07; REC-08 + REC-
 | REC-11 | Core and app: a group master changes its group; `grm_21_…`; manual. | GRM-21 | S | done (2026-11-05, #249) |
 | REC-12 | Core and app: Create List and Create Chase stay in Record; `cue_62_…`; manual and run. | CUE-62 | S | done (2026-11-05, #249) |
 
+### Seeing what the rig does (IDEA-35 batch C, spec P1-33)
+Approved by the owner 2026-11-05, in the owner's order: L1 with J8 first, then L2, L3, L5, then C1 to C3 and K8. Sub-release 0.6.0 follows the batch; the next gap review waits for the first service on CMDMX.
+Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08; SEE-09 + SEE-10.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| SEE-01 | Core and daemon: `holding` on a group master and its notice when a show opens; `grm_22_…`, `grm_23_…`. | GRM-22, GRM-23 | S | todo |
+| SEE-02 | App: the GRP tag and holding masters in Active playbacks; manual (*Taking over a show*, why is it dark) and run with a master at 0 seen from page 2. Needs SEE-01. | UI-56 | S | todo |
+| SEE-03 | Core and daemon: `Engine::explain`, `why` and `usage` with `detail`; `eng_25_…` (explain equals the frame), `ipc_60_…`. | ENG-25, IPC-60 | M | todo |
+| SEE-04 | App: the Fixture info sheet with type, groups, cues and palettes, and why each value is what it is; manual and run on Art-Net with a master down. Needs SEE-03. | UI-57 | M | todo |
+| SEE-05 | App: the selection stays in sight in the Fixtures window, dots on page tabs; manual and run. | UI-58 | S | todo |
+| SEE-06 | App: the model under a named tile and the find field; manual and run. | UI-59 | S | todo |
+| SEE-07 | Daemon: `output` per fixture and `output.watch` for grid and DMX, made outside the tick; `ipc_58_…`, `ipc_59_…`. Needs SEE-03. | IPC-58, IPC-59 | M | todo |
+| SEE-08 | App: live output on the tile stripe; manual and run against Art-Net. Needs SEE-07. | UI-60 | S | todo |
+| SEE-09 | App: the Views screen with Intensity, Grid and DMX; manual and run, the screen against an Art-Net listener. Needs SEE-07. | UI-61 | M | todo |
+| SEE-10 | App: a palette value on one line in Programmer, Cue view and Grid; manual and run with a 12-fixture cue. | UI-62 | S | todo |
+
 ### Functions and consequences (IDEA-35 batch H, spec P1-27)
 Order proposed with the spec: what can change the stage by surprise first. Sub-release 0.4.0 follows the batch, then a gap review with the app running; nothing from H goes on the church Mac before the service of 2026-11-08.
 Builds: FUN-01 + FUN-02; FUN-03 + FUN-04; FUN-05 + FUN-06.
@@ -281,6 +298,7 @@ after VS8-03, in any order.
 | P1-30 | Spec the patch before batch B (owner, 2026-11-04): LIB-40, UI-49, UI-50, build tasks NEW-01..03; approved by owner 2026-11-04. | LIB, UI | S | done (2026-11-04, #237) |
 | P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. | PRG, UI | S | todo |
 | P1-32 | Spec the Help patch (L6, F7; owner 2026-11-05): UI-55, REL-29, WEB-36, build tasks HLP-01..03; approved by the owner when this PR merges. | UI, REL, WEB | S | done (2026-11-05, #252) |
+| P1-33 | Spec IDEA-35 batch C, seeing what the rig does (L1, J8, L2, L3, L5, C1..C3, K8), as GRM-22..23, ENG-25, IPC-58..60, UI-56..62; build tasks SEE-01..10; approved by owner 2026-11-05, the five questions as recommended (`ui.md`). | GRM, ENG, IPC, UI | S | done (2026-11-05, #254) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ### Tracking: the state stays true (spec `tracking.md`)

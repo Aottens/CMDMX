@@ -553,6 +553,23 @@ From the fourth gap review (L6, F7).
 - **UI-42 amended:** Include + handle or cue row: PBK-48; Record + used group tile: PRG-97; Update armed without a tap: PBK-49.; Record while building a list: CUE-62. The other cells stay.
 Checked by hand: `tests/manual/app-cuelists.md` gets one section per criterion of this batch, with fades read on Art-Net. The manual's `cuelists.md`, `playbacks.md`, `programming.md` and `release-notes.md` grow in each task's PR (WEB-33).
 
+### Seeing what the rig does (IDEA-35 batch C, P1-33; approved by owner 2026-11-05)
+From `docs/research/everyday-gaps.md` C, K8 and the fourth review (L1, J8, L2, L3, L5); checked in `tests/manual/runs/2026-11-05-C-checks.md`. Titan pages used: *Viewing and editing fixture values* (Channel Grid, Intensity View), *Changing the patch* (DMX View), *Playback controls*, *Editing cue lists*. What a page does not say is marked as our own choice.
+- **UI-56** **A master that holds its group down is seen everywhere** (L1; amends UI-06, PBK-40). While any group master is holding (GRM-22):
+  - the status bar shows a **GRP** tag in amber beside DBO; a click lists them in the message line ("Master Zaal (1.8) holds Group 3 at 0 %");
+  - Active playbacks lists each holding master in amber after the running playbacks: home handle, legend, "GRP · 0 %" or "LOCKED 0 %". A tap on its row does not release it (a master is not released, PBK-22) but goes to its page, so its strip is in reach (own choice).
+  The show-open notice is GRM-23. Checked by hand: Master Zaal at 0 % and disabled, seen from page 2.
+- **UI-57** **Fixture info** (J8, L3, L5). A right-click on a fixture tile, or on an Intensity block (UI-61), opens a sheet for that fixture: number, name, manufacturer, model and mode, universe and address; the groups it is in, the cues and palettes that use it (IPC-60 `usage` detail; Titan's *Select If* goes the other way only); and **Now**: one row per attribute with its value and, in words, why (IPC-60 `why`): "Dimmer 0 %: Dienst Q4 gives 100 %, Master Zaal (1.8) scales it to 0 %". It asks again every second while open. A row with a playback or a master goes to its page on a tap. Checked by hand on Art-Net with a master down, a tracked value and an effect.
+- **UI-58** **The selection stays in sight** (L2; amends UI-11). When the selection changes by anything but a tap in the Fixtures window (a group, the command line, a surface, Next), the Fixtures window shows the page of the first fixture in the selection order and scrolls it into view. Page tabs that hold a selected fixture carry a blue dot, and the title info says "6 selected · 4 on page 2" when not all are on the page shown. Titan says nothing on this; own choice. Checked by hand with a group spread over two pages.
+- **UI-59** **A tile says what it is, and can be found** (L3; amends UI-11). A tile with a name shows the profile's model on a second small line under it (the model alone stays one line). The Fixtures window's title row gains a find field: typing matches number, name and model as the operator types (Titan's Intensity View search, legend or user number); tiles that do not match dim, the window goes to the first match's page, and Return selects the matches in number order, as taps would. Esc empties the field. Checked by hand.
+- **UI-60** **Live output on the tiles** (C3, IDEA-10; amends UI-11, makes FX-41 true). The bottom stripe of a fixture tile shows what the fixture outputs (IPC-58): its colour at its intensity, dark grey outline at 0; a cell's tile shows the cell. The app draws what the engine sends and animates nothing (FX-41). Checked by hand against Art-Net with a list, a chase and a master at 0.
+- **UI-61** **Views: Intensity, Grid and DMX** (C1, C2; owner decision 1). A **Views** item on the rail opens a screen in place of the window grid, side column and attribute bar, as Patch does (UI-10); the playback area and status bar stay. Its tabs:
+  - **Intensity** (Titan's Intensity View): one block per fixture with number, legend, intensity in % and a bar, and the source label (IPC-58); a tracked intensity carries "=" in magenta, one from an effect "~" in yellow; blue header when selected, red when in the programmer. Filters All, Stage (intensity above 0), Programmer, Selected; the find field of UI-59. A tap selects as a tile does; a right-click opens Fixture info (UI-57).
+  - **Grid** (Titan's Channel Grid): a row per fixture, a column per attribute, the attribute group tabs I P C G B E S FX as filter, the same four fixture filters. A cell shows the value as the Programmer window does (UI-62), a palette as its legend when *Palettes* is on; the *Sources* toggle shows each cell's source label instead (IPC-59). Read only: typing values in the grid is not in this batch (owner decision 4).
+  - **DMX** (Titan's DMX View): a line picker with every output line (OUT-13), the 512 channels as 0–255 (owner decision 2), each run of channels tinted per fixture with the fixture number at its first channel; a tap on a channel names fixture and attribute in the message line.
+  Each tab watches its view (IPC-59) while open and stops when left. Checked by hand on Art-Net: the values on screen equal what a listener reads.
+- **UI-62** **A palette value on one line** (K8; amends UI-14, CUE-54 in the app). In the Programmer window, the Cue view and the Grid, when every value of a fixture in one attribute group refers to the same palette, the cell shows that once: the palette's legend in cyan, with a swatch for colour, and no hex or per-attribute lines ("■ Warm"). Values set by hand, or from different palettes, show as today. Titan's Cue View toggles between the palette and its value (*View Palettes*); here a right-click on the cell shows the values. Checked by hand: a 12-fixture cue with a colour palette fits the Cue view.
+
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
   zone against the sketch. `tests/manual/app-programmer.md` and `tests/manual/app-patch.md` keep
@@ -561,9 +578,15 @@ Checked by hand: `tests/manual/app-cuelists.md` gets one section per criterion o
 
 ## Out of scope (this spec)
 Palette, cue and playback behaviour (their own specs fill in the disabled controls), Blind, undo
-(P1-10), freely configurable workspaces, legends and halos, picture legends, the fixture output
-lamps (IDEA-10), a remote/touch layout
-(IDEA-06), and the narrow single-column layout of the sketch (below 900 px).
+(P1-10), freely configurable workspaces, legends and halos, picture legends, a remote/touch layout
+(IDEA-06), and the narrow single-column layout of the sketch (below 900 px). Not in batch C (P1-33): editing values in the Grid, Titan's *View If* and *Frozen* filters, the DMX View's input column, a fixture's position on a rig plan (IDEA-25).
+
+## Owner decisions (P1-33, 2026-11-05: every recommendation accepted)
+1. **Where the views live (UI-61):** a Views screen on the rail with Intensity, Grid and DMX tabs, as Patch? Recommended: yes, they need the width. Not chosen: windows inside a workspace (UI-08 would change), or three rail items.
+2. **DMX values (UI-61):** 0–255? Recommended: yes, it is the DMX view; % is in Intensity and Grid. Not chosen: %, or a toggle.
+3. **Find (UI-59):** Return selects the matches? Recommended: yes, so a stand-in can take `P29` by name. Not chosen: find only dims and jumps.
+4. **Typing in the Grid (UI-61):** later, not in batch C? Recommended: later; the batch is about seeing, and the Programmer and command line already set values. Not chosen: in C, as Titan's Channel Grid.
+5. **After the batch:** sub-release 0.6.0, and a gap review only after the first service on CMDMX? Recommended: yes, the fourth review said a fifth needs another angle or real use. Not chosen: a gap review straight after 0.6.0.
 
 ## Owner decisions (P1-27, 2026-11-03: every recommendation accepted)
 1. **UI-43, Flash or Swop while armed:** it picks the target and the stage does not change. Not chosen: doing nothing with a message, or staying live.
