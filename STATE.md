@@ -21,7 +21,7 @@ Runs only the owner can do (gate 3):
 - VS4-03 the first service on CMDMX, Lightkey as fallback: pick a Sunday. It needs VS4-07 first and the programming
   below (`tests/hardware/church.md`).
 - VS4-07 the DMG on the church Mac, not in the week of a service; VS8-01 the DMG on the owner's own Mac, which still
-  has the old `ColourmotionDMX.app` (`tests/hardware/release.md`).
+  has the app from before the rename (`tests/hardware/release.md`).
 - SPF-03 a real sleep during a running fade on the Eurolite and Art-Net (`tests/hardware/sleep.md`).
 - VS1-07 the BCF2000 (`tests/hardware/bcf2000.md`): postponed until it is found.
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.

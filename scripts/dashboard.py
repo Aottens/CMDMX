@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 REPO = "https://github.com/Aottens/CMDMX"
 REFRESH_SECONDS = 20
-APPS = ("/Applications/CMDMX.app", "/Applications/ColourmotionDMX.app")
+APPS = ("/Applications/CMDMX.app", "/Applications/ColourmotionDMX.app")  # brand: old-name, installs from before the rename
 
 
 def run(*cmd):
