@@ -42,6 +42,8 @@ Specified 2026-11-04, approved by the owner (P1-29; build tasks REC-01..12): CUE
 2. DMX View, per-channel output.
 3. Live output on fixture tiles (IDEA-10).
 
+Added by the fourth review (L, owner 2026-11-05): L1 first, with J8, then L2, L3, L5.
+
 ## D. Working on many at once
 1. Copy, Move and Delete take one handle, cell or cue; Retain Layout and Bunch Up; Menu Latch.
 2. No clear-all: page, pool, or a wipe that keeps the patch. No copy of a page.
@@ -65,6 +67,8 @@ Specified 2026-11-04, approved by the owner (P1-29; build tasks REC-01..12): CUE
 6. Dimmer wheel: 1/255 per 4 pt, about 1020 pt from 0 to full without Shift. Relative level (`@ +10`).
 7. Help key is dead. Manual: `running.md` says Command-1 to 4 (there are five); it calls
    `faders_per_page` a setting, but no control or IPC command was found.
+
+Added by the fourth review (L, owner 2026-11-05): L7, L8.
 
 ## G. Show files
 1. No reveal, delete or rename in the app ("Finder", `showfile.md`), and the app cannot reveal the file.
@@ -134,6 +138,8 @@ link for new cues; time in the programmer for the next cue; Options on several p
 Temporary Speed; per-playback Key Profile; effect Speed Multiplier; Referencing Playbacks list; Unassign to
 the Show Library; gobo image as palette legend. Rarely: Copy Legends, Add Channels on Update, Minimum Palette
 Mode, Auto Legend off, Always Merge, Attribute Overlap, Prev + Next cancels a skip, Bunch Up With Offset.
+
+Added by the fourth review (L, owner 2026-11-05): L4.
 
 ## J. Input paths and what you can see
 1. Attribute values cannot be typed: the command grammar has level, palette and gel only (`command.rs`).
@@ -218,9 +224,9 @@ Seen again, already listed: J7 (page 2 shows nothing of what runs on page 1), J8
 
 What held, so no work needed: the real schema 6 show opens and migrates; Open names the show and warns that output changes before the second click; a show from a newer version is refused with a clear message, and the running show carries on; a show file dropped in the folder appears in the list; Update on the running cue offers the right target and the stage follows (channel 187 from 255 to 153, kept after Clear); DBO shows in the status bar; the Cue view is readable; the master code for a forgotten lock is in the manual (`running.md`).
 
-## Proposed changes, fourth review
-No criteria or code for these until the owner approves.
-- **C:** L1 first, then L2, L3, L5.
+## Changes to the batches, fourth review
+Approved by the owner, 2026-11-05. Each batch still needs its spec approved before it has criteria or code.
+- **C:** L1 first, with J8, then L2, L3, L5.
 - **F:** add L7, L8.
 - **I:** add L4.
 - **Patch (no batch):** L6, as it does not change how an operator works.

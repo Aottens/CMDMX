@@ -7,14 +7,15 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Now
 - Phase 1: a well-working general DMX console. Its finish line is a real Sunday service on CMDMX (VS4-03).
 - The church keeps running on Lightkey (owner, 2026-11-05). The first service on CMDMX has no date yet.
-- IDEA-35 batch B, changing what is recorded, is released. The gap review after it is written; its proposals wait.
+- IDEA-35 batch B, changing what is recorded, is released, and its gap review is taken into the batches.
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. The proposals of the third and fourth gap reviews wait for approval (`docs/research/everyday-gaps.md`, *Proposed
-   changes*).
+1. A small patch: the Help menu opens the manual, and a chapter on taking over a show (L6 in
+   `docs/research/everyday-gaps.md`). Its spec needs approval first.
 2. The batches after B, in the owner's order: C to G, then I and J (same file). Each needs its spec approved first.
-   P1-31 (Blind and Edit) stays apart from them.
+   P1-31 (Blind and Edit) stays apart from them. C now starts with L1 and J8.
+3. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
