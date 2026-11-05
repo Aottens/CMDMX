@@ -196,9 +196,9 @@ Builds: REC-01 + REC-02; REC-03; REC-04; REC-05 + REC-06 + REC-07; REC-08 + REC-
 | REC-07 | Core and app: Off and On, `dormant` stored; `cue_61_…`; manual and run on Art-Net. Needs REC-01 (schema 11). | CUE-61, IPC-57 | M | done (2026-11-04, #246) |
 | REC-08 | Core and app: Include on a handle and a cue row; `pbk_48_…`; manual and run. | PBK-48, UI-42 | S | done (2026-11-04, #247) |
 | REC-09 | Core and app: Update lists and stores its targets; `pbk_49_…`, `ipc_57_…`; manual and run on Art-Net. | PBK-49, IPC-57 | M | done (2026-11-04, #247) |
-| REC-10 | Core and app: Record over a group asks Replace or Merge; `prg_97_…`; manual and run. | PRG-97, UI-42 | S | todo |
-| REC-11 | Core and app: a group master changes its group; `grm_21_…`; manual. | GRM-21 | S | todo |
-| REC-12 | Core and app: Create List and Create Chase stay in Record; `cue_62_…`; manual and run. | CUE-62 | S | todo |
+| REC-10 | Core and app: Record over a group asks Replace or Merge; `prg_97_…`; manual and run. | PRG-97, UI-42 | S | done (2026-11-05, #249) |
+| REC-11 | Core and app: a group master changes its group; `grm_21_…`; manual. | GRM-21 | S | done (2026-11-05, #249) |
+| REC-12 | Core and app: Create List and Create Chase stay in Record; `cue_62_…`; manual and run. | CUE-62 | S | done (2026-11-05, #249) |
 
 ### Functions and consequences (IDEA-35 batch H, spec P1-27)
 Order proposed with the spec: what can change the stage by surprise first. Sub-release 0.4.0 follows the batch, then a gap review with the app running; nothing from H goes on the church Mac before the service of 2026-11-08.
