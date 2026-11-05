@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Combine
 
@@ -1993,6 +1994,14 @@ final class EngineClient: ObservableObject {
 
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
     func say(_ text: String) { lastMessage = text; armedMessage = isArmed() ? text : nil }
+
+    /// UI-55: the copy inside the app (REL-29), else the website (a local build). Changes nothing on stage.
+    func openManual() {
+        guard !locked else { return }
+        let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "manual")
+            ?? URL(string: "https://aottens.github.io/CMDMX/manual/")
+        guard let url, NSWorkspace.shared.open(url) else { say("The manual could not be opened."); return }
+    }
     /// UI-50: set by the Frame; whether a function is armed when the app says something.
     var isArmed: () -> Bool = { false }
     /// UI-50: the text the app said because a function was armed.

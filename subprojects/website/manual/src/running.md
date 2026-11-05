@@ -160,6 +160,13 @@ and DBO are not undo steps, so an undo during a show never changes what is runni
 The engine keeps the last 100 steps. The history is shared by everything connected to the engine
 and is gone when the engine restarts.
 
+## Help
+
+The **Help** function key, *Help › CMDMX Manual* and ⌘? open this manual in your browser. It is the
+copy inside the app, the one for your version, so it works without internet. A build you made
+yourself has no copy and opens the website instead. Help changes nothing on stage, and what is armed
+stays armed. While the console is locked it does nothing.
+
 ## When something goes wrong
 
 CMDMX is built to keep the light on.

@@ -171,6 +171,21 @@ Keys off unless a line says otherwise. A warning: `Fixture 999 Enter` on the key
 
 ## UX-02c — side column, token command line, Mac keys
 
+### Help opens the manual (UI-55)
+Bundled = the app from a test release (REL-29); local = `scripts/bundle-app.sh`. Keys off and Keys on; console mode too.
+
+- [ ] Bundled: the Help key opens the copy inside the app in the default browser (a `file://` address ending in
+      `Contents/Resources/manual/index.html`); its front page names the version; search and the mark work with the
+      network off. On an app from a DMG with the quarantine flag it opens without a warning.
+- [ ] Local build: the Help key opens `https://aottens.github.io/CMDMX/manual/`.
+- [ ] The menu has *Help › CMDMX Manual* and no *CMDMX Help*; the item and ⌘? do the same as the key, also in console
+      mode where the menu bar is hidden.
+- [ ] Select fixtures and listen to Art-Net: Help changes neither the output nor the programmer.
+- [ ] Record armed, Help: still armed, the ring stays. The same with Copy armed, and with Copy while building a list.
+- [ ] Locked: the key is under the cover; ⌘? and the menu item do nothing.
+- [ ] A failing browser (not reachable by hand; read in the code): the message zone says "The manual could not be
+      opened." and the app goes on.
+
 ### Function buttons (UI-16)
 - [ ] Two columns in Titan order: Record, Update, Edit, Select If, Delete, Unfold, Copy, Move,
       Include, Release, Patch, Disk, Help, System, Blind, Off, Fan, Options, Latch, Shape

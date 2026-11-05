@@ -167,7 +167,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     handles as PBK-38/39 describe (VS2-22).
   - Every other button is disabled with its spec in the tooltip: Edit "phase 2" (palettes
     decision 4); Off from VS2-05 (UI-26); Help
-    and System later; Select If, Unfold, Blind and Shape "later" as in the
+    opens the manual (UI-55); System later; Select If, Unfold, Blind and Shape "later" as in the
     sketch; Fan from UI-30.
 - **UI-17 [now]** The keypad has the sketch's 30 keys in its order. Keys that work now:
   - The digits, `.`, Fixture, Group, Thro, And and `@`, which add a token to the command line.
