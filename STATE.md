@@ -11,7 +11,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. Batch C, seeing what the rig does: its spec P1-33 waits for the owner, then builds SEE-01..10, L1 and J8 first.
+1. Batch C, seeing what the rig does, is approved: builds SEE-01..10, L1 and J8 first (SEE-01 + SEE-02), then a sub-release.
 2. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
    P1-31 (Blind and Edit) stays apart from them.
 3. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
@@ -26,9 +26,6 @@ Runs only the owner can do (gate 3):
 - VS1-07 the BCF2000 (`tests/hardware/bcf2000.md`): postponed until it is found.
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): order the parts first.
-
-Gate 1:
-- P1-33, the spec of batch C: approve it and answer its five questions (`specs/modules/ui.md`, *Owner questions*).
 
 Programming and small checks:
 - Program the service in *Kerk* at home on Art-Net as `tests/hardware/church.md` asks (steady looks, *Front band*,

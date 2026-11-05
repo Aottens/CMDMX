@@ -211,7 +211,7 @@ Builds: REC-01 + REC-02; REC-03; REC-04; REC-05 + REC-06 + REC-07; REC-08 + REC-
 | REC-12 | Core and app: Create List and Create Chase stay in Record; `cue_62_…`; manual and run. | CUE-62 | S | done (2026-11-05, #249) |
 
 ### Seeing what the rig does (IDEA-35 batch C, spec P1-33)
-Proposed with the spec, in the owner's order (2026-11-05): L1 with J8 first, then L2, L3, L5, then C1 to C3 and K8. Sub-release 0.6.0 follows the batch (owner question 5).
+Approved by the owner 2026-11-05, in the owner's order: L1 with J8 first, then L2, L3, L5, then C1 to C3 and K8. Sub-release 0.6.0 follows the batch; the next gap review waits for the first service on CMDMX.
 Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08; SEE-09 + SEE-10.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
@@ -298,7 +298,7 @@ after VS8-03, in any order.
 | P1-30 | Spec the patch before batch B (owner, 2026-11-04): LIB-40, UI-49, UI-50, build tasks NEW-01..03; approved by owner 2026-11-04. | LIB, UI | S | done (2026-11-04, #237) |
 | P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. | PRG, UI | S | todo |
 | P1-32 | Spec the Help patch (L6, F7; owner 2026-11-05): UI-55, REL-29, WEB-36, build tasks HLP-01..03; approved by the owner when this PR merges. | UI, REL, WEB | S | done (2026-11-05, #252) |
-| P1-33 | Spec IDEA-35 batch C, seeing what the rig does (L1, J8, L2, L3, L5, C1..C3, K8), as GRM-22..23, ENG-25, IPC-58..60, UI-56..62; build tasks SEE-01..10; five owner questions (`ui.md`); owner approves. | GRM, ENG, IPC, UI | S | todo |
+| P1-33 | Spec IDEA-35 batch C, seeing what the rig does (L1, J8, L2, L3, L5, C1..C3, K8), as GRM-22..23, ENG-25, IPC-58..60, UI-56..62; build tasks SEE-01..10; approved by owner 2026-11-05, the five questions as recommended (`ui.md`). | GRM, ENG, IPC, UI | S | done (2026-11-05, #254) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ### Tracking: the state stays true (spec `tracking.md`)
