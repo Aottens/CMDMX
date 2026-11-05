@@ -26,8 +26,8 @@ To see everything that is running, on any page, open the **Active playbacks** wi
 
 What a handle holds depends on its strip:
 
-- **A single look** has one cue. Tap its legend to see that cue in the Cue list window. It changes
-  nothing on stage.
+- **A single look** has one cue. The **Playbacks** workspace (F4) shows it under **Active
+  playbacks** once it runs; a tap on its legend only tells you so and changes nothing on stage.
 - **A cue list** shows the cue it is on and the next one, such as `Q3 › 4`. Tap its legend to
   connect it: the **Go** block and the Cue list window follow it. This does not change the stage.
   Tap a row to make that cue next. Nothing happens until you press **Go**.
