@@ -216,8 +216,8 @@ Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08; SEE-
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| SEE-01 | Core and daemon: `holding` on a group master and its notice when a show opens; `grm_22_…`, `grm_23_…`. | GRM-22, GRM-23 | S | done (2026-11-05, #PR) |
-| SEE-02 | App: the GRP tag and holding masters in Active playbacks; manual (*Taking over a show*, why is it dark) and run with a master at 0 seen from page 2. Needs SEE-01. | UI-56 | S | done (2026-11-05, #PR) |
+| SEE-01 | Core and daemon: `holding` on a group master and its notice when a show opens; `grm_22_…`, `grm_23_…`. | GRM-22, GRM-23 | S | done (2026-11-05, #255) |
+| SEE-02 | App: the GRP tag and holding masters in Active playbacks; manual (*Taking over a show*, why is it dark) and run with a master at 0 seen from page 2. Needs SEE-01. | UI-56 | S | done (2026-11-05, #255) |
 | SEE-03 | Core and daemon: `Engine::explain`, `why` and `usage` with `detail`; `eng_25_…` (explain equals the frame), `ipc_60_…`. | ENG-25, IPC-60 | M | todo |
 | SEE-04 | App: the Fixture info sheet with type, groups, cues and palettes, and why each value is what it is; manual and run on Art-Net with a master down. Needs SEE-03. | UI-57 | M | todo |
 | SEE-05 | App: the selection stays in sight in the Fixtures window, dots on page tabs; manual and run. | UI-58 | S | todo |
