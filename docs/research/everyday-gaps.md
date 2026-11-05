@@ -197,3 +197,31 @@ No criteria or code for these until the owner approves.
 - **I:** add K4 and K5; K6 goes with I1. I1 moves with B as agreed.
 - **J:** add K3; K2 with J3.
 - **Before B (owner, 2026-11-04):** K1, K2's hint and manual line, and IDEA-40 as a patch, 0.4.1 (P1-30): they cost the first ten minutes of anyone new, are small, and do not change how an operator works.
+
+# Fourth review, 2026-11-05 (at v0.5.0)
+
+New angle: the stand-in. Someone who never saw the show takes over shortly before it starts, on a copy of the real *Kerk* patch (56 fixtures, schema 6) with groups, palettes, a list, a chase and a master programmed by someone else, read on Art-Net (`tests/manual/runs/2026-11-05-gap-review.md`). Each point is marked **[run]** or **[read]**. A claim about Titan is not checked here.
+
+The angle gave points for the first hour with a show, few for every day. A next review needs another angle, or can be dropped until the first service on CMDMX has given real use.
+
+## L. Taking over a show
+1. **[run]** A group master left down darkens its group with no hint away from its strip. Master Zaal on 1.8 at 0 % and Disabled: Dienst runs, the pars stay at 0, and Active Playbacks does not list masters (seen with this one at 100 %). Only the strip says `LOCKED 0%`, and on page 2 nothing does. It is saved, so opening the show brings it back without a word. DBO and the Grand Master do warn. First in **C**, with J8.
+2. **[run]** A selection can be out of sight. Group Fresnels: "6 selected", but 401 to 406 sit further down page 1 of the Fixtures window, which shows about 18 of its 40 tiles; nothing scrolls or jumps. So a group's contents cannot be read from its tile. **C**.
+3. **[run]** A fixture tile says who, not what: `P29`, `MH6`. The type is in Patch only, and there is no find by name. **C**.
+4. **[run]** A playback or cue without a legend says nothing about what it does. `1.3 DIM 100%`, `Next: Q5`: learning it takes a tap, View and reading fixture numbers, one cue at a time. Goes with K5. **I**.
+5. **[read]** Which cues and palettes use a fixture is shown only under *Confirm remove* in Patch. The earlier list has *Referencing Playbacks* as absent. **C**.
+6. **[run]** No help at hand. The Help menu says "Help isn't available for CMDMX", the Help key is dead (F7), the manual is on the web only, and it has no chapter on taking over a show. **Patch**: the menu opens the manual, a short chapter.
+7. **[run]** The first Undo a stand-in sees can be the last operator's: with the engine still running, the softkey read "Undo Edit cue" on a freshly opened app (UNDO-13, as specified). **F**.
+8. **[run]** A notice stays: "Group 3 Fresnels" remained through Clear and a change of workspace. IDEA-40 covers a function's message, not a notice. **F**.
+
+Seen again, already listed: J7 (page 2 shows nothing of what runs on page 1), J8 (no "why is this lit"), C3 (no live output on tiles), K5 (no legend offered), G1 (no reveal in the app), G2 (the show brings its outputs).
+
+What held, so no work needed: the real schema 6 show opens and migrates; Open names the show and warns that output changes before the second click; a show from a newer version is refused with a clear message, and the running show carries on; a show file dropped in the folder appears in the list; Update on the running cue offers the right target and the stage follows (channel 187 from 255 to 153, kept after Clear); DBO shows in the status bar; the Cue view is readable; the master code for a forgotten lock is in the manual (`running.md`).
+
+## Proposed changes, fourth review
+No criteria or code for these until the owner approves.
+- **C:** L1 first, then L2, L3, L5.
+- **F:** add L7, L8.
+- **I:** add L4.
+- **Patch (no batch):** L6, as it does not change how an operator works.
+
