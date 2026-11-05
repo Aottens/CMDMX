@@ -37,6 +37,9 @@ enum HandleTaps {
         if let info { ui.lastHandle = info.id }
 
         if ui.recordArmed {
+            if let building = ui.building {
+                return build(building, page: page, slot: slot, info: info, used: used, engine: engine, ui: ui, line: line)
+            }
             // CUE-45: BPM Master / Rate Master armed: an empty handle gets the master (IPC-26).
             if let kind = ui.recordMaster {
                 guard !(info != nil && used) else { return engine.say("Pick an empty handle for the master.") }
@@ -123,6 +126,33 @@ enum HandleTaps {
                 break
             }
         }
+    }
+
+    /// CUE-62: a handle tap (or the Append softkey) while building. The first tap on an empty handle stores
+    /// the first cue as `kind`; the same handle again appends, or records to the number on the line (CUE-45).
+    /// Record stays armed. The engine's refusals (PBK-09, master handle) arrive as warnings after the hint.
+    static func build(_ b: Building, page: Int, slot: Int, info: PlaybackInfo?, used: Bool, engine: EngineClient, ui: UIState, line: TokenLine) {
+        let hint = "Building \(page).\(slot): tap it or Append for the next cue, Exit ends."
+        if let bp = b.page, let bs = b.slot, bp != page || bs != slot {
+            return engine.say("Building \(bp).\(bs): tap it or Append for the next cue, Exit ends.")
+        }
+        let cue = line.onlyNumber
+        var chosen = b
+        if let info, used {
+            if b.slot == nil, b.kind == "Chase", !info.isChase, !info.stored.isMaster {
+                return engine.say("Create Chase: \(page).\(slot) is not a chase. Tap an empty handle or a chase.")
+            }
+            engine.recordPlayback(page: page, slot: slot, mask: ui.orderedRecordMask, recordBy: ui.recordBy,
+                                  mode: cue == nil ? "Append" : nil, cue: cue, updateMode: ui.updateMode)
+            if !info.stored.isMaster { chosen.page = page; chosen.slot = slot }
+        } else {
+            engine.recordPlayback(page: page, slot: slot, mask: ui.orderedRecordMask, recordBy: ui.recordBy,
+                                  cue: cue, updateMode: ui.updateMode, kind: b.kind)
+            chosen.page = page; chosen.slot = slot
+        }
+        if cue != nil { line.clear() }
+        ui.building = chosen
+        if chosen.slot != nil { engine.say(hint) }
     }
 
     /// UI-18: a right-click on a strip's legend opens Playback Options.

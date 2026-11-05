@@ -1317,3 +1317,65 @@ fn cue_39_a_custom_button_a_kind_cannot_have_falls_back_to_best_practice() {
     fixed.insert(ButtonKind::Memory, [Button::Swop, Button::Flash]);
     assert_eq!(e.settings().handle_buttons, HandleButtons::Custom(fixed));
 }
+
+// ---- CUE-62: kind on a new playback -----------------------------------------------------------
+
+fn new_as(kind: Option<Kind>) -> PlaybackRecord {
+    PlaybackRecord {
+        kind,
+        ..PlaybackRecord::at(5, 1)
+    }
+}
+
+fn append_as(kind: Kind) -> PlaybackRecord {
+    PlaybackRecord {
+        kind: Some(kind),
+        add: Some(AddCue::Append),
+        ..PlaybackRecord::at(5, 1)
+    }
+}
+
+#[test]
+fn cue_62_kind_makes_a_new_playback_a_chase_or_cues() {
+    for (kind, want) in [
+        (Some(Kind::Chase), Kind::Chase),
+        (Some(Kind::Cues), Kind::Cues),
+        (None, Kind::Cues),
+    ] {
+        let mut e = service();
+        program(&mut e, 301, "Dimmer", 0.5);
+        let id = e.record_playback(&new_as(kind)).unwrap();
+        assert_eq!(e.playback(id).unwrap().kind, want, "{kind:?}");
+        assert_eq!(numbers(&e, id), vec![1.0], "{kind:?}");
+    }
+}
+
+#[test]
+fn cue_62_kind_is_honoured_only_on_a_new_playback() {
+    let mut e = service();
+    program(&mut e, 301, "Dimmer", 0.5);
+    let id = e.record_playback(&new_as(None)).unwrap();
+    e.record_playback(&append_as(Kind::Chase)).unwrap();
+    assert_eq!(e.playback(id).unwrap().kind, Kind::Cues);
+    assert_eq!(numbers(&e, id), vec![1.0, 2.0]);
+
+    let mut e = service();
+    program(&mut e, 301, "Dimmer", 0.5);
+    let id = e.record_playback(&new_as(Some(Kind::Chase))).unwrap();
+    e.record_playback(&append_as(Kind::Cues)).unwrap();
+    assert_eq!(e.playback(id).unwrap().kind, Kind::Chase);
+    assert_eq!(numbers(&e, id), vec![1.0, 2.0]);
+}
+
+#[test]
+fn cue_62_appending_keeps_the_programmer_and_an_empty_one_is_refused() {
+    let mut e = service();
+    program(&mut e, 301, "Dimmer", 0.5);
+    let id = e.record_playback(&new_as(Some(Kind::Chase))).unwrap();
+    assert!(!e.programmer().is_empty(), "PBK-09: it stays between cues");
+    e.clear(); // the selection
+    e.clear(); // the values (PRG clear precedence)
+    let before = numbers(&e, id);
+    assert!(e.record_playback(&append_as(Kind::Chase)).is_err());
+    assert_eq!(numbers(&e, id), before);
+}

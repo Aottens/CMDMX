@@ -3336,6 +3336,9 @@ impl Engine {
         let Some(id) = existing else {
             let number = record.cue.unwrap_or_default();
             let mut playback = Playback::new(self.playback_next_id, page, slot, Values::new());
+            if let Some(kind @ (PlaybackKind::Chase | PlaybackKind::Cues)) = record.kind {
+                playback.kind = kind;
+            }
             playback.cues = vec![Cue {
                 effects,
                 order,

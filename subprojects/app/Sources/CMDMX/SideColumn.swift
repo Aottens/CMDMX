@@ -244,7 +244,7 @@ private struct Keypad: View {
             if line.tokens.isEmpty { engine.locate() } else { line.enter(engine, ui: ui, end: "Locate") }
             ui.paletteMenu = false
         case "Highlight": engine.setHighlight(!engine.programmer.highlight)
-        case "Clear": line.clearProgrammer(engine); ui.cancelModes(); ui.pendingOverlap = nil
+        case "Clear": line.clearProgrammer(engine); if ui.building == nil { ui.cancelModes() }; ui.pendingOverlap = nil
         case "Set": ui.arm(.legend)   // Set Legend, as the softkey
         case "Fix -1": engine.step(-1)
         case "Fix +1": engine.step(1)
@@ -442,7 +442,7 @@ private struct Softkeys: View {
     /// Record armed. After a tap on a used cell, A–C pick the mode; D–F are for this record only.
     private var recordContext: (name: String, keys: [Softkey?]) {
         let used = ui.usedCell, handle = ui.usedHandle, cue = ui.usedCue
-        let onPlayback = handle != nil || cue != nil
+        let onPlayback = handle != nil || cue != nil || ui.building != nil
         if ui.maskMenu {
             let base = used.flatMap { PaletteWindowKind.of(wire: $0.window) }?.mask
                 ?? (onPlayback ? attributeGroupOrder : workspaceMaskBase)
@@ -468,6 +468,19 @@ private struct Softkeys: View {
                 let order = Self.updateOrder
                 ui.updateMode = order[((order.firstIndex(of: current) ?? -1) + 1) % order.count]
             }
+        }
+        if let b = ui.building {
+            // CUE-62: Append (once a handle is chosen), Mask, Record By and Exit; Exit is the only way out but Esc.
+            let append = b.slot.map { slot in
+                Softkey(name: "Append", sub: "next cue") {
+                    let page = b.page ?? engine.page.number
+                    let info = engine.playbacks.first { $0.stored.page == page && $0.stored.slot == slot }
+                    HandleTaps.build(b, page: page, slot: slot, info: info, used: info != nil, engine: engine, ui: ui, line: line)
+                }
+            }
+            let exit = Softkey(name: "Exit", sub: "ends building", action: { engine.endArmedMessage(); ui.recordArmed = false })
+            let title = b.slot.map { "Building \(b.page ?? 0).\($0)" } ?? (b.kind == "Chase" ? "Create Chase" : "Create List")
+            return (title, [append, maskKey, recordByKey, exit])
         }
         if let handle {
             // PBK-38, CUE-45: a used handle takes Replace, Merge, Append or Insert; Mask, Record By
@@ -541,10 +554,20 @@ private struct Softkeys: View {
                 }
             }
         }
+        // CUE-62: Create List / Create Chase keep Record armed; the next handle tap stores the first cue.
+        let building = { (name: String, kind: String) -> Softkey in
+            Softkey(name: name, sub: "tap a handle") {
+                ui.recordMaster = nil; ui.recordMasterGroup = nil
+                ui.building = Building(kind: kind)
+                engine.say("\(name): tap a handle.")
+            }
+        }
         return (used.map { "Record · \($0.number)" } ?? "Record", [
             used == nil ? master("BPM Master", "Bpm") : mode("Replace", "new contents", "Replace"),
             used == nil ? master("Rate Master", "Rate") : mode("Merge", "add and overwrite", "Merge"),
             used == nil ? master("Group Master", "Group") : mode("Quick Merge", "held attributes", "QuickMerge"),
+            used == nil ? building("Create List", "Cues") : nil,
+            used == nil ? building("Create Chase", "Chase") : nil,
             maskKey,
             recordByKey,
             Softkey(name: "Record as", sub: ui.recordAs) {
@@ -557,7 +580,7 @@ private struct Softkeys: View {
     /// This record's Record By: the operator's choice, else the engine's setting (PAL-25).
     /// For a playback record (a used handle tapped) the default is the cue setting (PBK-10).
     private var recordBy: String {
-        ui.recordBy ?? (ui.usedHandle != nil || ui.usedCue != nil ? engine.playbackSettings?.recordBy ?? "Channel" : engine.paletteSettings?.recordBy ?? "Mixed")
+        ui.recordBy ?? (ui.usedHandle != nil || ui.usedCue != nil || ui.building != nil ? engine.playbackSettings?.recordBy ?? "Channel" : engine.paletteSettings?.recordBy ?? "Mixed")
     }
 
     /// Where the Mask toggles start before a cell is tapped: the first palette window of the workspace,

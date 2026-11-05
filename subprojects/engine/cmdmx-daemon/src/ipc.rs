@@ -1616,7 +1616,12 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             if add.is_some() && cue.is_some() {
                 return Err("\"cue\" cannot go with the mode Append or Insert".into());
             }
+            let kind: Option<Kind> = opt_field(&v, "kind", "Chase or Cues")?;
+            if kind.is_some_and(Kind::is_master) {
+                return Err("invalid \"kind\" (expected Chase or Cues)".into());
+            }
             Ok(Command::PlaybackRecord(PlaybackRecord {
+                kind,
                 page: uint(&v, "page")?,
                 slot: uint(&v, "slot")?,
                 mask: opt_field(&v, "mask", "an array of attribute groups")?,
@@ -7198,6 +7203,23 @@ mod tests {
             parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":"Append"}"#).is_err()
         );
         assert!(parse_command(r#"{"v":1,"cmd":"group.record","group":5,"mode":1}"#).is_err());
+    }
+
+    #[test]
+    fn cue_62_ipc_57_playback_record_takes_a_kind() {
+        for (kind, want) in [("Chase", Kind::Chase), ("Cues", Kind::Cues)] {
+            let json =
+                format!(r#"{{"v":1,"cmd":"playback.record","page":1,"slot":2,"kind":"{kind}"}}"#);
+            let Ok(Command::PlaybackRecord(record)) = parse_command(&json) else {
+                panic!("{json}");
+            };
+            assert_eq!(record.kind, Some(want));
+        }
+        for bad in ["BpmMaster", "RateMaster", "GroupMaster", "Memory"] {
+            let json =
+                format!(r#"{{"v":1,"cmd":"playback.record","page":1,"slot":2,"kind":"{bad}"}}"#);
+            assert!(parse_command(&json).is_err(), "{json}");
+        }
     }
 
     #[test]

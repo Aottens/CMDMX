@@ -1848,8 +1848,9 @@ final class EngineClient: ObservableObject {
     /// `mode` is Replace, Merge, Update, Append or Insert; `cue` records onto that cue number
     /// (CUE-04, not with Append / Insert); `updateMode` is Forwards, CueOnly, Backwards or Both (CUE-52).
     func recordPlayback(page: Int, slot: Int, mask: [String]? = nil, recordBy: String? = nil, mode: String? = nil,
-                        cue: Double? = nil, updateMode: String? = nil) {
+                        cue: Double? = nil, updateMode: String? = nil, kind: String? = nil) {
         var fields: [String: Any] = ["page": page, "slot": slot]
+        if let kind { fields["kind"] = kind }
         if let mask { fields["mask"] = mask }
         if let recordBy { fields["record_by"] = recordBy }
         if let mode { fields["mode"] = mode }

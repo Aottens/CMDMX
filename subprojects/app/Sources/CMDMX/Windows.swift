@@ -253,9 +253,9 @@ struct GroupsWindow: View {
                     } else {
                         // Empty cells only react while Record or a group function is armed; any other
                         // armed function gets its refusal said (UI-42).
-                        let reacts = ui.recordArmed || ui.groupFunctionArmed
+                        let reacts = ui.recordTargets || ui.groupFunctionArmed
                         Cell(number: id, empty: true, armed: reacts,
-                             action: ui.recordArmed || ui.function != nil ? { GroupTaps.tap(id, nil, engine: engine, ui: ui) } : nil)
+                             action: ui.recordTargets || ui.function != nil ? { GroupTaps.tap(id, nil, engine: engine, ui: ui) } : nil)
                     }
                 }
             }
@@ -268,12 +268,12 @@ struct GroupsWindow: View {
 enum GroupTaps {
     /// While armed, the next group tap records instead of selecting.
     static func tap(_ id: Int, _ group: GroupInfo?, engine: EngineClient, ui: UIState) {
-        if ui.recordArmed, ui.recordMaster == "Group" {
+        if ui.recordTargets, ui.recordMaster == "Group" {
             // GRM-15: this tap picks the group of a group master; the handle tap records it.
             guard group != nil else { return engine.say("Group Master: tap an existing group.") }
             ui.recordMasterGroup = id
             engine.say("Group Master: tap an empty handle.")
-        } else if ui.recordArmed {
+        } else if ui.recordTargets {
             // PRG-97: a used group asks Replace or Merge on the softkeys; a free one records at once.
             guard group != nil else {
                 engine.recordGroup(id)
