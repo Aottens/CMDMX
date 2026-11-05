@@ -140,6 +140,8 @@ final class UIState: ObservableObject {
     /// Delete: the palette number waiting for the confirmation on softkey A (two-step, PAT-10).
     @Published var deleteTarget: Int?
     @Published var legendEditing: PaletteRef?
+    /// UI-57: the fixture whose info sheet is open.
+    @Published var fixtureInfo: FixtureRef?
     /// Copy / Move on handles: the source playback's id (PBK-38).
     @Published var handleSource: Int?
     /// Delete on handles: the playback waiting for the confirmation on softkey A.
@@ -460,6 +462,12 @@ private struct Frame: View {
         }
         .sheet(item: $ui.cueLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
             CueLegendEditor(ref: ref)
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
+        .sheet(item: $ui.fixtureInfo) { ref in
+            FixtureInfoSheet(id: ref.id)
                 .environmentObject(engine).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)

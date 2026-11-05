@@ -206,6 +206,8 @@ struct FixturesWindow: View {
                             tap(fixture)
                         }
                     }
+                    // UI-57: a right-click on a whole-fixture tile opens Fixture info.
+                    .overlay { if item.cell == nil { SecondaryClick { ui.fixtureInfo = FixtureRef(id: fixture.id) } } }
                 }
             }
         }

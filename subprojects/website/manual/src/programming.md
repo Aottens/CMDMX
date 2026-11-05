@@ -248,6 +248,18 @@ While one of these is armed a tap on a group does not select it, and neither doe
 as a Copy onto a used cell, shows its warning on the message line and changes nothing. Each action
 is one Undo step.
 
+## Fixture info
+
+Right-click a fixture tile in the **Fixtures** window (Control-click works too). A sheet opens with the
+fixture's number, name, model, mode, universe and address, then the groups it is in and the cues and
+palettes that use it.
+
+Under **Now** there is one row per attribute (a cell's rows say which cell) with its value and, in words,
+why: `Dimmer 0 %` and below it `Dienst Q4 gives 100 %, Master Zaal (1.8) scales it to 0 %`. It names what
+gives the value (the Programmer, a cue, a palette, a value held from an earlier look, or nothing), and
+what then changes it: a group master, the Grand Master, DBO, an effect, Locate or Highlight. The sheet
+updates every second. Tap a row that names a playback to go to its page; the sheet closes.
+
 ## Undo
 
 Command-Z undoes the last change, and Shift-Command-Z redoes it. The Undo and Redo buttons next to
