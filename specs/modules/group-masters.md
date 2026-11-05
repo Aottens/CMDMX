@@ -150,6 +150,11 @@ does; a group master can also take them down.)
 
 - **GRM-21** A group master can change its group (B6; own choice, Titan's group pages do not cover it; approved by owner 2026-11-04, IDEA-35 batch B, P1-29). `master.group {id, group}`: a group that does not exist, or a playback that is not a group master, is refused. Level, mode and handle stay; it applies from the next tick; one undo step. The Master tab (GRM-17) gains a Group number field. Test `grm_21_…`.
 
+### Seeing what the rig does (IDEA-35 batch C, P1-33; proposed, awaiting the owner)
+Titan pages used: *Playback controls* (Fixture Group Masters, Viewing active playbacks). Titan flashes a handle's LED at zero and says nothing elsewhere; whether its Active Playbacks lists masters is not stated. What follows is our own choice, from the fourth review (L1): a master left down darkened its group with no hint away from its strip.
+- **GRM-22** **A master that holds its group down** (L1). A group master is *holding* when it can take its group below what the playbacks and programmer give: `Scale` or `Limit` with an effective level below 1.0 (the fader, or the locked level while disabled, GRM-11; a `Scale` above 100 % at full is not holding), and not `Htp` or `TakeOver`. A master whose group is gone or empty is not holding. The snapshot `playbacks` entry of a group master gains `holding` (bool), sent in the small `playback` delta when it changes. Computed in `cmdmx-core`, the app decides nothing. Test `grm_22_…` (Scale 0 %, Limit 50 %, Scale 200 % at full, disabled at 0 % with the fader up, HTP at 0, a master on an empty group).
+- **GRM-23** **Said when a show opens** (L1). When a show is loaded or the engine starts, each holding master gives one notice (IPC-49), kept in the history (IPC-51): "Master Zaal (1.8) holds Group 3 at 0 %", with "locked" added while disabled. Nothing else changes: the level stays as saved (GRM-13). Test `grm_23_…`.
+
 ### Safety and determinism
 - **GRM-19** Every refused group-master action returns a warning and changes nothing (PBK-43);
   nothing a group master does can stop the tick or the output (ENG-12); same patch and same

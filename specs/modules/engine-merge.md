@@ -103,6 +103,14 @@ examples: 201 (RGBW) and 211 (RGB+Lime) with auto-mix on, White and Lime at thei
   any target colour in 0.0–1.0 and any profile LIB-02 accepts (a property test over a grid of
   colours and the church profiles). Same inputs, same bytes (ENG-11).
 
+### Why a value is what it is (IDEA-35 batch C, P1-33; proposed, awaiting the owner)
+Titan has no single "why is this lit" view (checked 2026-11-05: *Viewing and editing fixture values*, *Playback controls*); its Intensity View names the cue that controls a fixture's intensity and marks tracked and effect values. J8 asks for that per attribute.
+- **ENG-25** **Explain** (J8). `Engine::explain(fixture)` returns, per attribute of the fixture (and per cell, LIB-07), the value it gives on the next frame and how it got there, in order:
+  - the **base**: the source that won ENG-01..10 (`Programmer`, a playback with its id and, for a list or chase, the cue number; `Held` for an LTP value nobody proposes, `Default` for an HTP 0), with whether the value is tracked from an earlier cue (CUE-50) and the palette it refers to (PAL-07);
+  - for an HTP attribute, the other sources that propose a value and lost, with their values;
+  - each **modifier** that changed it: an effect (FX), each group master (id, mode, level, GRM-06..10), the Grand Master, DBO, Locate, Highlight, Rem Dim, Off, and auto-mix for an emitter (ENG-21).
+  It reads the engine's state and changes nothing. It is not called by the tick: the daemon calls it between ticks (IPC-58..60), so it may allocate. A test asserts, for every case below, that the value `explain` gives equals the channel in the next frame: programmer, a memory, a running list with a tracked value, two HTP playbacks, a Scale master at 0 %, a disabled master, an effect, GM at 50 %, DBO. Test `eng_25_…`.
+
 ### Determinism and safety
 - **ENG-11** Two engines fed the same scenario (same patch, same timestamped actions) produce byte-identical frames at every sampled timestamp.
 - **ENG-12** No input combination makes `tick` return an error that stops output: invalid actions are rejected with a `Warning` and the previous frame is retained.

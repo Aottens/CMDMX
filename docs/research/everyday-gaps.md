@@ -44,6 +44,8 @@ Specified 2026-11-04, approved by the owner (P1-29; build tasks REC-01..12): CUE
 
 Added by the fourth review (L, owner 2026-11-05): L1 first, with J8, then L2, L3, L5.
 
+Specified 2026-11-05, awaiting the owner (P1-33; build tasks SEE-01..10): GRM-22..23, ENG-25, IPC-58..60, UI-56..62, with C1..C3, K8, J8, L1..L3 and L5. Checked in `tests/manual/runs/2026-11-05-C-checks.md`.
+
 ## D. Working on many at once
 1. Copy, Move and Delete take one handle, cell or cue; Retain Layout and Bunch Up; Menu Latch.
 2. No clear-all: page, pool, or a wipe that keeps the patch. No copy of a page.

@@ -35,7 +35,7 @@ the backlog, not the whole idea.
 | IDEA-07 | Double-click a wheel to take that one attribute out of the programmer (release instead of recording 0) | done (VS2-05, #66) | 1 | PRG, IPC, app |
 | IDEA-08 | Browse the library by manufacturer, then model | done (P1-14; VS2-23 #86, VS2-25 #88) | 1 | LIB, IPC, app |
 | IDEA-09 | Multi-select in the patch table: every edit on a range | done (P1-15; VS2-27 #94, VS2-28 #96) | 1 | PAT, app |
-| IDEA-10 | Output lamps on fixture buttons (what each fixture outputs now) | triaged (owner to confirm the phase) | 1 (later, proposed) | IPC, UI |
+| IDEA-10 | Output lamps on fixture buttons (what each fixture outputs now) | in IDEA-35 batch C (C3); spec P1-33 proposed (UI-60, IPC-58) | 1, with batch C | IPC, UI |
 | IDEA-11 | Tap a selected group again to deselect it | done (VS2-15) | 1 | PRG |
 | IDEA-12 | Command history with the arrow keys | done (UX-02c, #33) | 1 | UI |
 | IDEA-13 | Easy editing of wheel and slot names, and attribute defaults | done (P1-14; VS2-24 #87, VS2-26 #91) | 1 | LIB, app |
@@ -60,7 +60,7 @@ the backlog, not the whole idea.
 | IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | done (2026-10-28, VS2-44..46: #159, #160, #161) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
-| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
+| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches; batch C proposed (P1-33) | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | REC-02 done (UI-52) | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 | IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
@@ -175,7 +175,7 @@ outputs right now (intensity × colour), so the screen shows the stage at a glan
 - Touches now: only a disabled stripe on the fixture cells (UI-11).
 - FXB-06 run (2026-10-29): FX-41 (the fixture tiles show a chase run) waits for this; the run
   judged effects on a stage view Claude drew from the Art-Net frames.
-**Open questions:** the owner confirms the phase.
+**Open questions:** the owner confirms the phase. Batch C (P1-33, 2026-11-05) takes it as C3: UI-60 on the feed of IPC-58.
 
 ### IDEA-11 — Tap a selected group again to deselect it (2026-10-17, UX-02a run)
 **Owner's intent:** clicking the group you just selected a second time should deselect it, as a
@@ -778,6 +778,7 @@ the app."
 **Second review (2026-11-02):** batches A2 (defects), H, I and J in `docs/research/everyday-gaps.md`; owner: A2 and H first, then B to G, I and J; I1 and I3 go with B as advised.
 **Third review (2026-11-04):** one operator's evening with the app running: batch K in `docs/research/everyday-gaps.md`, proposed into B to G, I and J; awaits the owner's approval of the order.
 **A2 (2026-11-02):** spec P1-26 approved by the owner, every recommendation accepted; build tasks DEF-01..05.
+**C (2026-11-05):** spec P1-33 proposed: L1 and J8 first, then L2, L3, L5, C1..C3 (IDEA-10) and K8; build tasks SEE-01..10; five owner questions in `ui.md`.
 
 ### IDEA-36 — A refused number stays in its field (2026-11-02)
 **Found in:** the SPF-07 run; not from the owner.
