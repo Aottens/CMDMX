@@ -41,7 +41,7 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up: batch C, seeing what the rig does (SEE-01..10), then the church Mac (VS4-07) and the first service
+Next up: batch C, seeing what the rig does (SEE-03..10), then the church Mac (VS4-07) and the first service
 (VS4-03). Phase 2 features already work (see below); the open-hardware desk (phase 10,
 [`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is in [`STATE.md`](STATE.md), the plan in
 [`BACKLOG.md`](BACKLOG.md); site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -152,7 +152,8 @@ Next up: batch C, seeing what the rig does (SEE-01..10), then the church Mac (VS
 - Chases at a BPM with crossfade and direction, Tap tempo, and BPM and Rate masters that drive
   several chases at once.
 - Group masters: a group on a fader masters its fixtures' intensity (Scale, HTP, Limit or Take
-  Over), whatever puts them there.
+  Over), whatever puts them there. A master that holds its group down shows an amber GRP tag from any
+  page, is listed in Active playbacks and is named when a show opens.
 
 **Control**
 - Any MIDI device: enable it, press Learn, click a fader or key on screen, move the hardware

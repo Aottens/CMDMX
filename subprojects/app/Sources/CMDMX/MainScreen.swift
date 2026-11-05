@@ -594,6 +594,17 @@ private struct StatusBar: View {
                     .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.amber, lineWidth: 1))
             }
 
+            // UI-56: a group master holds its group; a click says which.
+            if !engine.holdingMasters.isEmpty {
+                Button { engine.say(engine.holdingMasters.map(engine.holdingText).joined(separator: " · ")) } label: {
+                    Text("GRP").font(Typo.ui(11, .semibold)).foregroundStyle(t.amber)
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.amber, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help("A group master holds its group: click to see which")
+            }
+
             Spacer(minLength: 0)
             BarToggle(title: "Lock", on: false, enabled: engine.connection == .online) {
                 if !engine.locked { ui.openLockPrompt(engine) }   // UI-48: ⌘ chords pass the lock block

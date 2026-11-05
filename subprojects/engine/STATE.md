@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-11-05 (REC-12)_
+_Last updated: 2026-11-05 (SEE-01)_
 
 ## Current step
+SEE-01 (2026-11-05, GRM-22, 23): `Engine::holding` (Scale with its scale or Limit below 1.0, disabled at its saved level, group in the patch) reads *g* through `group_master_level`, the same read as `GroupMasters::holding`, which keeps its own copy for the per-tick path. `from_show` ends in `notice_holding_masters`, by handle; the daemon drains them on its first tick, so the history keeps them before any client connects. `LiveInfo.holding` is `Some` for group masters only.
 REC-12 (2026-11-05, CUE-62, IPC-57): `PlaybackRecord.kind`, set in the new-playback branch of `record_playback_except`; the daemon refuses master kinds. A chase born here is the same as one made in Options, which also only sets `kind`.
 REC-11 (2026-11-05, GRM-21, IPC-57): `Engine::set_master_group` sets only `m.group`. Nothing per group is cached; `follow_take_over` lets go of taken fixtures outside the new group on the next tick.
 REC-10 (2026-11-05, PRG-97, IPC-57): `Engine::record_group_as`; `record_group` stays the plain store scenarios and the demo use. `GroupUsedRecord` is apart from `GroupUsed`, which copy and move use.

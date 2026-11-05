@@ -2055,6 +2055,7 @@ impl Engine {
             }
         }
         engine.playback_next_id = engine.playback_next_id.max(show.playbacks.next_id);
+        engine.notice_holding_masters();
         (engine, warnings)
     }
 
@@ -4438,11 +4439,76 @@ impl Engine {
 
     /// PRG-96: tell the clients which group was selected, with its legend.
     fn group_notice(&mut self, id: GroupId) {
-        let text = match self.group_legend(id) {
+        let text = self.group_name(id);
+        self.notices.push(text);
+    }
+
+    /// `Group 6` or `Group 6 Front`.
+    fn group_name(&self, id: GroupId) -> String {
+        match self.group_legend(id) {
             Some(l) => format!("Group {id} {l}"),
             None => format!("Group {id}"),
+        }
+    }
+
+    /// GRM-22: a Scale or Limit master whose group is in the patch and whose level, with its
+    /// scale, is below full. Disabled counts at its saved level.
+    pub fn holding(&self, id: PlaybackId) -> bool {
+        let Some(Master::Group(m)) = self.playbacks.get(&id).and_then(|p| p.master.as_ref()) else {
+            return false;
         };
-        self.notices.push(text);
+        let g = self.group_master_level(id, m);
+        let level = match m.mode {
+            GroupMode::Scale => g * f32::from(m.scale) / 100.0,
+            GroupMode::Limit => g,
+            _ => return false,
+        };
+        level < 1.0 && self.group_members(m.group).is_some_and(|f| !f.is_empty())
+    }
+
+    /// GRM-22: the level *g* of a group master, as `GroupMasters::holding` reads it.
+    fn group_master_level(&self, id: PlaybackId, m: &GroupMaster) -> f32 {
+        let fader = self
+            .states
+            .get(&id)
+            .map_or(m.level, PlaybackState::effective_level);
+        if m.enabled {
+            fader
+        } else {
+            m.level
+        }
+    }
+
+    /// GRM-23: one notice per holding master as a show opens, by handle.
+    fn notice_holding_masters(&mut self) {
+        let mut held: Vec<_> = self
+            .playbacks
+            .values()
+            .filter(|p| self.holding(p.id))
+            .collect();
+        held.sort_by_key(|p| (p.page, p.slot));
+        let texts: Vec<String> = held
+            .iter()
+            .filter_map(|p| {
+                let Some(Master::Group(m)) = &p.master else {
+                    return None;
+                };
+                let label = if p.legend.is_empty() {
+                    "Master"
+                } else {
+                    &p.legend
+                };
+                let lock = if m.enabled { "" } else { ", locked" };
+                let pct = (self.group_master_level(p.id, m) * 100.0).round();
+                Some(format!(
+                    "{label} ({}.{}) holds {} at {pct} %{lock}",
+                    p.page,
+                    p.slot,
+                    self.group_name(m.group)
+                ))
+            })
+            .collect();
+        self.notices.extend(texts);
     }
 
     /// PRG-08: a typed selection.

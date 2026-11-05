@@ -2000,6 +2000,9 @@ struct LiveInfo {
     bpm: Option<f32>,
     /// CUE-44, IPC-28: the effective multiplier of a BPM master.
     multiplier: Option<f32>,
+    /// GRM-22: a group master that can take its group down; `None` for any other playback.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    holding: Option<bool>,
 }
 
 /// CUE-40: `ListLive` on the wire.
@@ -2179,6 +2182,10 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
     });
     let bpm = engine.effective_bpm(id);
     let multiplier = engine.effective_multiplier(id);
+    let holding = engine
+        .playback(id)
+        .is_some_and(|p| p.kind == cmdmx_core::playback::Kind::GroupMaster)
+        .then(|| engine.holding(id));
     let Some(s) = engine.playback_state(id) else {
         return LiveInfo {
             level: 0.0,
@@ -2189,6 +2196,7 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
             cue,
             bpm,
             multiplier,
+            holding,
         };
     };
     LiveInfo {
@@ -2206,6 +2214,7 @@ fn live_info(engine: &Engine, id: PlaybackId) -> LiveInfo {
         cue,
         bpm,
         multiplier,
+        holding,
     }
 }
 
@@ -7377,6 +7386,37 @@ mod tests {
             false,
         ));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
+    }
+
+    #[test]
+    fn grm_22_holding_rides_on_the_entry_and_the_small_delta() {
+        let (mut e, id) = group_master_engine();
+        let mut published = Published::new(&e, &[], &show_state());
+        let snap = |e: &Engine| {
+            parse(&snapshot(
+                e,
+                &[],
+                &show_state(),
+                &UndoInfo::default(),
+                &serde_json::Value::Null,
+                &[],
+                false,
+            ))
+        };
+        assert_eq!(entry(&snap(&e), u64::from(id))["holding"], json!(false));
+        e.set_fader(id, 0.0, 0.0).unwrap();
+        let d = published.diff(&e, &[], &show_state());
+        assert!(deltas(&d, "playbacks").is_empty(), "{d:?}");
+        assert_eq!(deltas(&d, "playback")[0]["holding"], json!(true));
+        assert_eq!(entry(&snap(&e), u64::from(id))["holding"], json!(true));
+        let others = snap(&e)["playbacks"].as_array().unwrap().clone();
+        assert!(
+            others
+                .iter()
+                .filter(|p| p["kind"] != json!("GroupMaster"))
+                .all(|p| p.get("holding").is_none()),
+            "only a group master carries it"
+        );
     }
 
     #[test]
