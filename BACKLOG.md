@@ -277,8 +277,8 @@ Builds: TRB-01 + TRB-02 (one question from the owner, how to see where the proje
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| TRB-01 | `STATE.md` is one screen; CI fails when it drifts from `BACKLOG.md`; every session start prints it from `main`; `scripts/test_tracking.py`. | TRK-01..04, TRK-09 | S | done (2026-11-05, #PR) |
-| TRB-02 | `scripts/dashboard.py`: a local page that follows `origin/main` by itself, with search and filters; run in the browser. | TRK-05..08 | S | done (2026-11-05, #PR) |
+| TRB-01 | `STATE.md` is one screen; CI fails when it drifts from `BACKLOG.md`; every session start prints it from `main`; `scripts/test_tracking.py`. | TRK-01..04, TRK-09 | S | done (2026-11-05, #248) |
+| TRB-02 | `scripts/dashboard.py`: a local page that follows `origin/main` by itself, with search and filters; run in the browser. | TRK-05..08 | S | done (2026-11-05, #248) |
 
 ## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions
