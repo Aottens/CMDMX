@@ -187,9 +187,9 @@ Builds: HLP-01 + HLP-02 + HLP-03.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| HLP-01 | Scripts: the manual in the bundle, `check-dmg.sh` checks it; a test release on the branch. | REL-29 | S | todo |
-| HLP-02 | App: the Help key, menu item and ⌘? open the manual; manual and checklist. Needs HLP-01. | UI-55 | S | todo |
-| HLP-03 | Manual: the chapter *Taking over a show*; a walk on a show not programmed by the reader. | WEB-36 | S | todo |
+| HLP-01 | Scripts: the manual in the bundle, `check-dmg.sh` checks it; a test release on the branch. | REL-29 | S | done (2026-11-05, #253) |
+| HLP-02 | App: the Help key, menu item and ⌘? open the manual; manual and checklist. Needs HLP-01. | UI-55 | S | done (2026-11-05, #253) |
+| HLP-03 | Manual: the chapter *Taking over a show*; a walk on a show not programmed by the reader. | WEB-36 | S | done (2026-11-05, #253) |
 
 ### Changing what is recorded (IDEA-35 batch B, spec P1-29)
 Approved by the owner 2026-11-04. Sub-release 0.5.0 follows the batch, then a gap review with the app running; nothing goes on the church Mac before the service of 2026-11-08. Release alone: it may have to be reverted alone, as it changes what a running show does.

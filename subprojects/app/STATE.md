@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-05 (REC-12)_
+_Last updated: 2026-11-05 (HLP-02)_
 
 ## Current step
+HLP-02 (2026-11-05, UI-55): `EngineClient.openManual` opens the bundled `manual/index.html`, else the website; the Help key and *Help › CMDMX Manual* call it. ⌘? goes through `MacKeys.handle`, as ⌘Z does: macOS takes the menu item's own ⌘? for its Help search
 REC-12 (2026-11-05, CUE-62): `UIState.building` holds the kind and, after the first tap, the handle; `resetRecord` clears it, so whatever disarms Record ends it. `recordTargets` is `recordArmed && building == nil`: the gates of groups, palettes and the line use it, `refusal(on:)` lets everything through but a cue row and an Active row. `HandleTaps.build` stores; Clear keeps Record armed only while building.
 REC-11 (2026-11-05, GRM-21): the Master tab's Group `NumberField` sends `master.group`; `Int(exactly:)` keeps a fraction or a huge number from being sent or trapping, and the field looks back as UI-52.
 REC-10 (2026-11-05, PRG-97): `usedGroup` on `UIState`, softkeys in `recordContext`; `GroupTaps.tap` asks only when the group exists, so `Group n` Enter asks too.

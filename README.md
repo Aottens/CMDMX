@@ -191,9 +191,10 @@ already work (see below); the open-hardware desk (phase 10,
   SHA-256 and the install steps; GitHub Pages rebuilds it after every release.
 - A user manual on the website (`manual/`, mdBook with search and a print page): introduction,
   getting started, concepts, patching, programming, palettes, playbacks and cues, cue lists,
-  running a show, control surfaces, shows and files, a reference and release notes, with
+  running a show, taking over a show someone else programmed, control surfaces, shows and files, a reference and release notes, with
   screenshots from the app; it is the manual of the latest release, or a
-  marked preview while that release has none.
+  marked preview while that release has none. The app carries the manual of its own version: the
+  **Help** key, *Help › CMDMX Manual* and ⌘? open it in the browser, without internet.
 
 ## Build and run
 

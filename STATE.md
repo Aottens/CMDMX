@@ -11,7 +11,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. HLP-01, HLP-02, HLP-03: Help opens the manual, offline, and a chapter on taking over a show.
+1. Tag the Help patch once it merges: the DMG that brings the manual inside the app, Help and ⌘?.
 2. The batches after B, in the owner's order: C to G, then I and J (same file). Each needs its spec approved first.
    P1-31 (Blind and Edit) stays apart from them. C now starts with L1 and J8.
 3. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
