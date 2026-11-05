@@ -202,3 +202,10 @@ Claude listens to Art-Net; what goes on stage is read there.
 - [ ] Wait 5 s (autosave), stop the daemon (Ctrl-C) and start it again with the same command:
       the app reconnects, the lists, cues, legends, tracking options, chase and masters are back;
       every list is off with Q1 next.
+
+## Stay in Record (CUE-62)
+- [ ] [Jij] Record, **Create List**, tap an empty handle: its first cue, "Building p.s: tap it or Append for the next cue, Exit ends.", Record still armed.
+- [ ] [Jij] Tap a group and a palette, change a value on the line: they act as normal, nothing is recorded. Tap the handle, then **Append**: Q2, Q3. Type a number and tap: that cue.
+- [ ] [Claude] Another handle and a cue row: refused, still armed. One Clear, then a second: still armed; Append with the programmer empty is refused and stays armed.
+- [ ] [Claude] **Create Chase** on a list: refused, still armed. On an empty handle: a chase on the strip. Flash or Swop on the strip is the tap (UI-43).
+- [ ] [Claude] **Exit**, Esc and opening a screen each end it; each cue was one undo step.

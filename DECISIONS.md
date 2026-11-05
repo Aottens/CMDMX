@@ -842,6 +842,16 @@ a fan and an effect over the same selection always agree, and costs one function
 
 **Reversal trigger:** none expected; the setting covers it.
 
+## 2026-11-05 — While building a list, the stage's tools do their normal work
+
+**Decision:** From Create List or Create Chase until it ends, fixture tiles, group tiles, palette cells and the command line do their normal action; only a handle stores, a cue row is refused (CUE-62, amends UI-42).
+
+**Alternatives considered:** keep UI-42 as it is (fixtures refused, a palette tap records), or let any other tap end the building.
+
+**Reasoning:** Titan's flow changes the programmer between cues; the spec left open how the next look is made. Owner's choice in the REC-12 build.
+
+**Reversal trigger:** operators store into a handle by accident because a tile no longer looks armed.
+
 ## 2026-10-16 — Repo language English, conversation Dutch
 
 **Decision:** All files in the repo are English (open-source audience). Conversations with the owner are Dutch; CLAUDE.md says so.
