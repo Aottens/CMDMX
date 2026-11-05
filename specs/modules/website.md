@@ -106,12 +106,14 @@ nothing to run or patch on a server.
   8. **Cue lists**: Go/Back, times per cue and per attribute group, link and follow, tracking modes.
   9. **Running a show**: pages, Grand Master and DBO, group masters, the BPM master, undo, what
      happens when something fails (output holds, autosave, the fallback).
+  9a. **Taking over a show** (WEB-36).
   10. **Control surfaces**: MIDI Learn and mappings, Mackie Control (BCF2000, X-Touch), OSC and
       the TouchOSC layout, Stream Deck.
   11. **Shows and files**: where shows live, autosave, backup, moving a show to another Mac.
   12. **Reference**: keyboard shortcuts, the `/cmdmx` OSC addresses, daemon flags, file locations,
       troubleshooting (no output, port in use, Gatekeeper), glossary.
   13. **Release notes**: one entry per release, newest first, linking to the GitHub release.
+- **WEB-36** (P1-32) **Taking over a show** is a chapter for someone who did not program the show, readable in five minutes, each step naming what to press: which show is open and how to open another; what is on the handles, pages and in a list (tap, View); what a group holds; which lamp a fixture is (Patch, Highlight); running it and a late change with Update; **why is it dark**, in the order to check: DBO, Grand Master, the playback's fader, group masters on every page (`LOCKED`), the Output screen; what Undo can reach (the last operator's edits while the engine ran on); a forgotten lock code. It describes today's console (WEB-32) and changes when batch C does. Checked by a walk on a show the reader did not program: `tests/manual/app-show.md`.
 - **WEB-32** The manual describes only what works in the version it is for; it is written from the
   app and the specs, in its own words: no text, screenshots or diagrams copied from the Avolites
   manual (IDEA-21). Screenshots come from the real app (`docs/screenshots/`, or new ones under
