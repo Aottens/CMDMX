@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-05 — The church stays on Lightkey for now; the handoff is checked against the backlog (owner)
+
+**Decision:** The service of 2026-11-08 runs on Lightkey. The first service on CMDMX (VS4-03) has no date yet; the owner picks a Sunday, and the church Mac gets the DMG outside a service week. The earlier hold of the church Mac on an older release was only for that service and falls with it. `STATE.md` becomes one screen without history, and CI compares it with `BACKLOG.md` (TRK-01..03); sessions and a local dashboard read the state from `main` (TRK-04..08).
+
+**Alternatives considered:** the service on CMDMX on 2026-11-08, with the install and the programming in its own week; rewriting `STATE.md` by hand again without a check; the dashboard as a hosted artifact.
+
+**Reasoning:** the install, the programming and the fallback rehearsal were all still open three days before the service. `STATE.md` had grown into a log because only a sentence in `CLAUDE.md` said it should not, and a session on a lagging checkout read an old state. A check that fails is what kept README's status honest; the same rule works here. A local page reads `main` directly, so it cannot lag.
+
+**Reversal trigger:** the check blocks PRs for wording rather than for drift, or the owner stops using the dashboard.
+
+---
+
 ## 2026-11-04 — Batch B: As In without changing a show, Update does not touch palettes by itself (IDEA-35 B, P1-29; owner)
 
 **Decision:** The batch takes K6, K11, I6 and IDEA-36; Blind and Edit go apart (P1-31). As In is the default for new cues, while an existing fade out that differs from its fade in stays a number. Off and On are in. Update's softkeys start with playbacks ticked and palettes unticked. All five as recommended; `cuelists.md`, owner decisions.

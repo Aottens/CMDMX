@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check that BACKLOG.md, IDEAS.md and the run files are kept up to date (run by CI, also locally).
 
+- Every BACKLOG id is used once.
 - Every BACKLOG row's Status starts with todo, doing, done, gate3 or blocked.
 - A gate3 status names a checklist path (in backticks) that exists.
 - Every `### IDEA-nn` section in IDEAS.md has an index row, and every row a section.
@@ -9,6 +10,9 @@
   `→ <where it went>` (a BACKLOG id, an IDEA id or an existing file in backticks).
 - README.md's `## Status` has at most STATUS_MAX_LINES lines of STATUS_MAX_WIDTH characters, no version
   number (link the latest release), and names a not-yet-done BACKLOG id (what is next), none done.
+- STATE.md (TRK-01..03): exactly STATE_SECTIONS, at most STATE_MAX_LINES lines of STATUS_MAX_WIDTH characters, no
+  version number, no done task named; ## Next names an open task; every gate3 task is under
+  ## Waiting on the owner, every blocked task under ## Blocked and only those there.
 - With PR_TITLE set: every backlog task id in the title is not `todo` (the PR updates its row), and
   PR_BODY has a `## Tracking` section.
 
@@ -24,6 +28,7 @@ import os
 import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +37,8 @@ TASK = r"[A-Z][A-Z0-9]*-[0-9A-Za-z.]+"
 RUNS_FROM = "2026-10-24"
 STATUS_MAX_LINES = 8
 STATUS_MAX_WIDTH = 120
+STATE_MAX_LINES = 70
+STATE_SECTIONS = ["Now", "Next", "Waiting on the owner", "Blocked", "Owner to decide", "Good to know"]
 errors = []
 
 
@@ -62,7 +69,11 @@ def status_text(readme):
     return m.group(1) if m else ""
 
 
-backlog = backlog_rows((ROOT / "BACKLOG.md").read_text())
+backlog_text = (ROOT / "BACKLOG.md").read_text()
+backlog = backlog_rows(backlog_text)
+for task, count in Counter(re.findall(r"^\| ([^|]+?) \|", backlog_text, re.M)).items():
+    if count > 1 and task not in ("Id", "---"):
+        errors.append(f"BACKLOG.md: {task} is used by {count} rows; one row would hide the other's status")
 status = {task: cell.split(":")[0].split(" ")[0] for task, (_, _, cell) in backlog.items()}
 for task, (n, _, cell) in backlog.items():
     if status[task] not in STATUSES:
@@ -117,6 +128,40 @@ if not status_ids:
 for task in dict.fromkeys(status_ids):
     if status[task] == "done":
         errors.append(f"README.md: ## Status names {task}, which is done; rewrite the status")
+
+
+def named(text):
+    """The BACKLOG ids named in text."""
+    return {t for t in (i.rstrip(".,") for i in re.findall(TASK, text)) if t in status}
+
+
+def state_section(text, title):
+    m = re.search(rf"^## {title}\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+    return m.group(1) if m else ""
+
+
+state = (ROOT / "STATE.md").read_text()
+if re.findall(r"^## (.+)$", state, re.M) != STATE_SECTIONS:
+    errors.append(f"STATE.md: its sections must be exactly: {', '.join(STATE_SECTIONS)}")
+if len(state.splitlines()) > STATE_MAX_LINES:
+    errors.append(f"STATE.md: {len(state.splitlines())} lines, at most {STATE_MAX_LINES}; it is the handoff, not a log")
+for n, line in enumerate(state.splitlines(), 1):
+    if len(line) > STATUS_MAX_WIDTH:
+        errors.append(f"STATE.md:{n}: {len(line)} characters, at most {STATUS_MAX_WIDTH}")
+if re.search(r"\bv?\d+\.\d+\.\d+\b", state):
+    errors.append("STATE.md: names a version number; a version there is stale once a tag is pushed")
+for task in sorted(named(state)):
+    if status[task] == "done":
+        errors.append(f"STATE.md: names {task}, which is done; rewrite the handoff")
+if not any(status[t] != "done" for t in named(state_section(state, "Next"))):
+    errors.append("STATE.md: ## Next names no open BACKLOG task; say what is next")
+waiting, blocked = named(state_section(state, "Waiting on the owner")), named(state_section(state, "Blocked"))
+for task in sorted(t for t in status if status[t] == "gate3" and t not in waiting):
+    errors.append(f"STATE.md: {task} is gate3 in BACKLOG but not under ## Waiting on the owner")
+for task in sorted(t for t in status if status[t] == "blocked" and t not in blocked):
+    errors.append(f"STATE.md: {task} is blocked in BACKLOG but not under ## Blocked")
+for task in sorted(t for t in blocked if status[t] != "blocked"):
+    errors.append(f"STATE.md: {task} is under ## Blocked but {status[task]} in BACKLOG")
 
 if os.environ.get("PR_TITLE") and "## Tracking" not in os.environ.get("PR_BODY", ""):
     errors.append("PR description: add a `## Tracking` section with `scripts/check-tracking.py --summary origin/main`")

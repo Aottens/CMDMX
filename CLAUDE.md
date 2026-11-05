@@ -1,7 +1,8 @@
 # CLAUDE.md — how to work in this repo
 
 CMDMX is a show-proof, open-source macOS lighting console modelled on Avolites Titan.
-Read `PROJECT.md`, `STATE.md`, `ARCHITECTURE.md` and `DECISIONS.md` before doing anything.
+Read `PROJECT.md`, `STATE.md`, `ARCHITECTURE.md` and `DECISIONS.md` before doing anything. A checkout can lag: the
+session start prints `STATE.md` from `main`, and that one counts.
 Talk to the owner in **Dutch**; write code, comments, specs and commits in **English**.
 
 ## The loop: spec → test → code → review
@@ -30,7 +31,9 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
    `gate3: <checklist path>` when only the owner's hardware run is left; never `review`/`merged`.
    Open points found in a run go under `## Open points` in the run file, each ending in `→` its
    backlog row, IDEA or checklist, made in that PR. Root `STATE.md` is the handoff (focus, next,
-   gate 3, blocked, owner decisions), not a log. `scripts/check-tracking.py` checks this in CI.
+   gate 3, blocked, owner decisions), not a log: rewrite it, never append, and name no finished task or version
+   (`tracking.md`). `scripts/check-tracking.py` checks this in CI. The owner sees the state live with
+   `scripts/dashboard.py`.
    A PR that changes user-visible behaviour updates the manual section it touches
    (`subprojects/website/manual/src/`) in the same PR (WEB-33); `check-tracking.py` warns when
    `subprojects/app/Sources` changes without the manual.

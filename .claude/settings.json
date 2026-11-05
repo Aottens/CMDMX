@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ \"$(git branch --show-current)\" = main ]; then git pull --ff-only -q; else git fetch -q origin main:main; fi 2>/dev/null && echo \"local main synced to $(git rev-parse --short main)\" || echo \"local main NOT synced (diverged or offline); check before branching\"",
+            "command": "if [ \"$(git branch --show-current)\" = main ]; then git pull --ff-only -q; else git fetch -q origin main:main; fi 2>/dev/null && echo \"local main synced to $(git rev-parse --short main)\" || echo \"local main NOT synced (diverged or offline); check before branching\"; echo '--- STATE.md on main (a checkout can lag) ---'; git show main:STATE.md",
             "timeout": 30,
             "statusMessage": "Syncing local main"
           }
