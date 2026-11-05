@@ -699,3 +699,92 @@ fn grm_19_same_actions_give_the_same_frames() {
     };
     assert_eq!(run(), run());
 }
+
+// ---- GRM-22: holding -----------------------------------------------------------------------------
+
+#[test]
+fn grm_22_holding_is_any_master_that_can_take_its_group_down() {
+    let mut e = church();
+    let id = e.record_group_master(1, 8, 6).unwrap();
+    assert!(!e.holding(id), "Scale 100 % at full changes nothing");
+    e.set_fader(id, 0.0, 0.0).unwrap();
+    assert!(e.holding(id), "Scale at 0 %");
+
+    change(&mut e, id, |m| m.mode = GroupMode::Limit).unwrap();
+    e.set_fader(id, 0.5, 0.0).unwrap();
+    assert!(e.holding(id), "Limit at 50 %");
+    e.set_fader(id, 1.0, 0.0).unwrap();
+    assert!(!e.holding(id), "Limit at full");
+
+    change(&mut e, id, |m| {
+        m.mode = GroupMode::Scale;
+        m.scale = 200;
+    })
+    .unwrap();
+    assert!(!e.holding(id), "Scale 200 % at full only lifts");
+    e.set_fader(id, 0.4, 0.0).unwrap();
+    assert!(e.holding(id), "Scale 200 % at 40 % is 80 %");
+
+    change(&mut e, id, |m| m.scale = 100).unwrap();
+    e.set_fader(id, 0.0, 0.0).unwrap();
+    change(&mut e, id, |m| m.enabled = false).unwrap();
+    e.set_fader(id, 1.0, 0.0).unwrap();
+    assert!(e.holding(id), "disabled at 0 % with the fader up");
+
+    change(&mut e, id, |m| {
+        m.enabled = true;
+        m.mode = GroupMode::Htp;
+    })
+    .unwrap();
+    e.set_fader(id, 0.0, 0.0).unwrap();
+    assert!(!e.holding(id), "HTP at 0 only adds");
+    change(&mut e, id, |m| m.mode = GroupMode::TakeOver).unwrap();
+    assert!(!e.holding(id), "Take Over is not holding");
+
+    let other = e.record_group_master(1, 7, 6).unwrap();
+    e.set_fader(other, 0.0, 0.0).unwrap();
+    assert!(e.holding(other));
+    e.patch_remove(&SPOTS).unwrap();
+    assert!(
+        !e.holding(other),
+        "a master on an empty group holds nothing"
+    );
+    assert!(!e.holding(1), "a playback is no master");
+    assert!(!e.holding(999), "no such playback");
+}
+
+// ---- GRM-23: said when a show opens --------------------------------------------------------------
+
+#[test]
+fn grm_23_each_holding_master_gives_one_notice_when_the_show_opens() {
+    let mut e = church();
+    e.set_group_legend(6, "Front").unwrap();
+    let zaal = e.record_group_master(1, 8, 6).unwrap();
+    e.set_playback_legend(zaal, "Master Zaal", None, None)
+        .unwrap();
+    e.set_fader(zaal, 0.0, 0.0).unwrap();
+    let locked = e.record_group_master(1, 7, 6).unwrap();
+    e.set_fader(locked, 0.25, 0.0).unwrap();
+    change(&mut e, locked, |m| m.enabled = false).unwrap();
+    e.record_group_master(1, 6, 6).unwrap(); // at full: not holding
+    let _ = e.drain_notices();
+
+    let meta = cmdmx_core::show::Meta {
+        name: "Kerk".into(),
+        created: "2026-11-05T09:00:00Z".into(),
+        modified: "2026-11-05T09:00:00Z".into(),
+        app_version: "0.5.1".into(),
+    };
+    let (mut opened, warnings) = Engine::from_show(&e.to_show(meta));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(
+        opened.drain_notices(),
+        vec![
+            "Master (1.7) holds Group 6 Front at 25 %, locked".to_string(),
+            "Master Zaal (1.8) holds Group 6 Front at 0 %".to_string(),
+        ]
+    );
+    assert_eq!(group_master(&opened, zaal).level, 0.0, "the level stays");
+    opened.tick(0.0);
+    assert!(opened.drain_notices().is_empty(), "once");
+}
