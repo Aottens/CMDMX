@@ -68,6 +68,20 @@ Tap a handle that already holds a playback and the softkeys ask what to do:
 **Update**, then a tap on a handle, stores what is in the programmer only for the attributes and
 fixtures the playback already holds.
 
+**Update** without a tap offers what can be updated, one softkey each: the running playbacks whose
+current cue holds something you changed, ticked, and the palettes holding it for those fixtures, not
+ticked (a palette reaches every cue using it, so that takes a tick; those the cues use come first).
+**More** shows the rest. **Store**, or Enter on an empty line, stores into all that are ticked as one
+undo step. A ticked palette takes what it holds and the cue keeps its reference, so the cue follows
+the palette; everything else goes into the ticked cues as a value, also over a reference.
+
+**Include**, then a tap on a handle, puts the cue of a memory or the current cue of a running list in
+the programmer, its fixtures selected, so you can change them at once and record them back. On a list
+that is not running, Include stays armed and that list comes up in the Cue list window: tap a row. Only what the cue holds itself comes
+along, palette references stay references, and its effects come too. The **Mask** softkey limits it to
+some attribute groups; **FX** in it stands for the effects. What is already in the programmer for those
+attributes is overwritten, the rest stays.
+
 A running playback that you record into changes on stage straight away, without a fade.
 
 ## Managing playbacks

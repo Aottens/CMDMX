@@ -42,7 +42,7 @@ rig through the Eurolite interface: fades comparable with Lightkey, replugging t
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Next up: the church Mac (VS4-07), the first service run (VS4-03), and changing what is recorded,
-specified and going on with REC-08. Phase 2 features already work (see below); the
+specified and going on with REC-10. Phase 2 features already work (see below); the
 open-hardware desk (phase 10, [`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is
 in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manual are at
 [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -146,7 +146,8 @@ in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md); site and manu
 - Cue lists with Go, Back, Go to cue, links, loop and tracking (Block, Cue Only, Solo), times per
   attribute group, a Go block, a Cue list window with a Times view that sets one time on many cues, View and ⋯ on
   each row, a one-cue playback shown on a tap, and a Cue view that follows every change, Undo included, where you take out a
-  value, an effect or a whole fixture, or set a value Off and On again. The current cue reads large and
+  value, an effect or a whole fixture, or set a value Off and On again. Include loads a cue back into the programmer,
+  and Update offers what it can store into, cues and palettes, on softkeys. The current cue reads large and
   green, the next small and grey. Playback Options shows only what applies to the playback type.
 - Chases at a BPM with crossfade and direction, Tap tempo, and BPM and Rate masters that drive
   several chases at once.

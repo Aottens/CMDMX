@@ -87,7 +87,10 @@ final class TokenLine: ObservableObject {
             return
         }
         if tokens.isEmpty {
-            if end == "Enter" { ui.confirmDelete(engine) }
+            if end == "Enter" {
+                if ui.function == .update { ui.updateStore(engine); return }   // PBK-49
+                ui.confirmDelete(engine)
+            }
             ui.paletteMenu = false
             return
         }

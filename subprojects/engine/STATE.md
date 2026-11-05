@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-04 (REC-07)_
+_Last updated: 2026-11-04 (REC-09)_
 
 ## Current step
+REC-09 (2026-11-04, PBK-49, IPC-57): `Engine::update_targets` and `update`. `update` validates, snapshots with `edit_state` and restores on an error. `record_playback_except` is `record_playback` with `(Item, attribute)` left out, so a ticked cue takes the CUE-52 store and the CUE-61 sweep; `record_palette_with(only_held)` filters on `Palette::resolve` per item and stores no effects. A target with nothing to store is skipped; none storing is the refusal. An effect-only programmer offers no targets (`update_targets` reads values); a direct tap still stores effects.
+REC-08 (2026-11-04, PBK-48, IPC-57): `Engine::include_playback` reads `cue.values` and `cue.effects` only, so nothing tracked or dormant comes along. `replace_selection` first, then `set_value`, so the next select starts a new selection (PRG-03). Effects get a new id and go through `effects_leave`; only `Fx` in the mask lets them in.
 REC-07 (2026-11-04, CUE-61, IPC-57): `Engine::set_cue_off` moves between `Cue.values` and `dormant`. `Cue::stored_items` chains both for the counts and checks; nothing that plays reads `dormant`. `record_playback` clears it on Replace and sweeps every cue after a store, so an attribute is never both. `Published` watches `dormant` with the values; `cue.view` gives an item with only dormant values a row.
 REC-06 (2026-11-04, CUE-59, 60): `Engine::cue_effects` (`CueEffect`, `from` = the last cue up to this one holding the id) and `remove_cue_effect`; `remove_cue_value` without an attribute also calls `Entry::retire`. Both end in `follow_cue_effects`, so a Remove is on stage on the next tick; other edits of a running cue's entries still show at its next start. `Published.effects` sends the `playbacks` delta for an effects-only change.
 REC-04 (2026-11-04, IPC-56): `Command::CueTimes` for `cue.times` with `cues`; `cue` alone stays `CueEdit`. `Engine::change_cues` checks every number, then runs `change_cue`, which validates before it mutates, so a bad value refuses on the first cue. Undo label "Edit n cues".

@@ -150,6 +150,10 @@ final class UIState: ObservableObject {
     @Published var cueDelete = false
     @Published var usedCue: CueRef?
     @Published var updateMode: String?
+    /// PBK-49: the Update softkeys; playback keys ("id/cue") unticked, palettes ticked, the softkey page.
+    @Published var updateOff = Set<String>()
+    @Published var updateOn = Set<Int>()
+    @Published var updatePage = 0
     @Published var recordMaster: String?
     /// The group picked for a Group master record (GRM-15), waiting for an empty handle.
     @Published var recordMasterGroup: Int?
@@ -218,7 +222,7 @@ final class UIState: ObservableObject {
         let places: [ArmedTarget]
         switch function {
         case .update: places = [.palette, .handle, .cue]
-        case .include: places = [.palette]
+        case .include: places = [.palette, .handle, .cue]
         case .copy, .move, .delete, .legend: places = [.group, .palette, .handle, .cue]
         case .options: places = [.handle, .cue]
         case .release: places = [.handle]
@@ -296,6 +300,21 @@ final class UIState: ObservableObject {
         cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
         paletteMenu = false
         selectionMenu = nil
+        recordMask = nil; maskMenu = false
+        updateOff = []; updateOn = []; updatePage = 0
+    }
+
+    /// PBK-49: Store on the Update softkeys sends the ticked targets.
+    func updateStore(_ engine: EngineClient) {
+        let targets = engine.updateTargets
+        let playbacks = (targets?.playbacks ?? []).filter { !updateOff.contains("\($0.id)/\($0.cue)") }.map { ($0.id, $0.cue) }
+        let palettes = (targets?.palettes ?? []).filter(updateOn.contains)
+        if playbacks.isEmpty && palettes.isEmpty {
+            engine.say("Update: no targets; tap a palette, playback handle or cue.")
+            return
+        }
+        engine.update(playbacks: playbacks, palettes: palettes)
+        cancelModes()
     }
 
     /// PBK-39: open the Playback Options screen on a playback.

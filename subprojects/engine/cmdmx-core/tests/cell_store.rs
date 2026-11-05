@@ -598,3 +598,19 @@ fn pbk_47_a_virtual_cell_dimmer_falls_towards_full() {
     assert!(at_two[0] > half[0] && at_two[0] < full[0], "{at_two:?}");
     assert_eq!(rgb_t(&mut e, 2, 3.0), full, "no jump at the end");
 }
+
+#[test]
+fn pbk_48_include_keeps_cells_as_cells() {
+    let mut e = rig();
+    red_901_blue_cell_2(&mut e);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    let stored = e.playback(id).unwrap().cues[0].values.clone();
+    e.clear_selection();
+    e.clear();
+    e.include_playback(id, None, None).unwrap();
+    let got = e.contents(&[C, I]);
+    assert_eq!(got.keys().copied().collect::<Vec<_>>(), [f(901), c(901, 2)]);
+    assert_eq!(got[&c(901, 2)], stored[&c(901, 2)]);
+    // The cell was selected when it was recorded, the whole fixture comes after it.
+    assert_eq!(e.programmer().items(), [c(901, 2), f(901)]);
+}

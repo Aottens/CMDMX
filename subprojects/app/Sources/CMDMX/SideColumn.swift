@@ -84,8 +84,8 @@ private struct FunctionButtons: View {
 
     /// What an armed palette function waits for (the sketch's MODE_HINT).
     private static let hints = [
-        "Update": "Update: tap the palette, playback handle or cue to update with what is in the programmer.",
-        "Include": "Include: tap a palette; its values go into the programmer.",
+        "Update": "Update: tick targets on the softkeys and Store, or tap the palette, playback handle or cue to update with what is in the programmer.",
+        "Include": "Include: tap a palette, playback handle or cue; its values go into the programmer.",
         "Delete": "Delete: tap the group, palette, playback handle or cue to delete. You confirm on softkey A.",
         "Copy": "Copy: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
         "Move": "Move: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
@@ -683,6 +683,18 @@ private struct Softkeys: View {
     // MARK: Update, Include, Copy, Move, Delete, Set Legend (PAL-29)
 
     private func functionContext(_ function: PaletteFunction) -> (name: String, keys: [Softkey?]) {
+        // PBK-48: Include's Mask covers all eight groups, FX too, and starts all on; a palette tap ignores it (PAL-12).
+        if function == .include, ui.maskMenu {
+            let mask = ui.recordMask ?? Set(attributeGroupOrder)
+            let groups = attributeGroupOrder.map { group in
+                Softkey(name: group, sub: mask.contains(group) ? "on" : "off", on: mask.contains(group)) {
+                    var m = mask
+                    if m.contains(group) { m.remove(group) } else { m.insert(group) }
+                    ui.recordMask = m
+                }
+            }
+            return ("Include · Mask", groups + [Softkey(name: "Back", action: { ui.maskMenu = false })])
+        }
         var keys: [Softkey?] = Array(repeating: nil, count: 7)
         if function == .delete, let number = ui.deleteTarget {
             keys[0] = Softkey(name: "Confirm delete", sub: "palette \(number)") {
@@ -707,6 +719,39 @@ private struct Softkeys: View {
                 ui.cancelModes()
             }
             keys[1] = Softkey(name: "Exit Unfold") { ui.unfolded = []; ui.cancelModes() }
+        }
+        if function == .include {
+            keys[0] = Softkey(name: "Mask", sub: ui.recordMask.map { attributeGroupOrder.filter($0.contains).joined() } ?? "all") {
+                ui.maskMenu = true
+            }
+        }
+        if function == .update {
+            // ponytail: the targets are asked once on arming; a programmer or stage change while armed needs a new arm.
+            let targets = engine.updateTargets
+            var all: [Softkey] = (targets?.playbacks ?? []).map { t in
+                let key = "\(t.id)/\(t.cue)"
+                let info = engine.playback(t.id)
+                let name = info.map { $0.stored.legend.isEmpty ? $0.homeHandle : $0.stored.legend } ?? "Playback \(t.id)"
+                let on = !ui.updateOff.contains(key)
+                return Softkey(name: name, sub: cueName(t.cue), on: on) {
+                    if on { ui.updateOff.insert(key) } else { ui.updateOff.remove(key) }
+                }
+            }
+            all += (targets?.palettes ?? []).map { n in
+                let on = ui.updateOn.contains(n)
+                let name = engine.palettes.first { $0.number == n }?.shownLegend ?? "Palette \(n)"
+                return Softkey(name: name, sub: "palette \(n)", on: on) {
+                    if on { ui.updateOn.remove(n) } else { ui.updateOn.insert(n) }
+                }
+            }
+            let pages = all.count > 5 ? (all.count + 3) / 4 : 1
+            let page = min(ui.updatePage, pages - 1)
+            let shown = pages > 1 ? Array(all.dropFirst(page * 4).prefix(4)) : all
+            for (i, key) in shown.enumerated() { keys[i] = key }
+            if pages > 1 {
+                keys[4] = Softkey(name: "More", sub: "\(page + 1)/\(pages)") { ui.updatePage = (page + 1) % pages }
+            }
+            keys[5] = Softkey(name: "Store") { ui.updateStore(engine) }
         }
         keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
         return (function.rawValue, keys)
@@ -778,5 +823,6 @@ private struct Softkeys: View {
         .frame(width: 120)
         .background(t.panel)
         .onChange(of: engine.programmer.selection.isEmpty) { _, empty in if empty { ui.selectionMenu = nil } }
+        .onChange(of: ui.function) { _, f in if f == .update { engine.askUpdateTargets() } }
     }
 }

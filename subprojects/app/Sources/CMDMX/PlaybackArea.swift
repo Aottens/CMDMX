@@ -113,7 +113,7 @@ private struct StripCell: View {
         FaderStrip(slot: slot, page: engine.page.number,
                    selected: slot.playback.map { ui.handleSource == $0 || ui.deletePlayback == $0 } ?? false,
                    connected: slot.playback != nil && slot.playback == engine.connected,
-                   armed: ui.recordArmed || (ui.function != nil && ui.function != .include && ui.function != .latch),
+                   armed: ui.recordArmed || (ui.function != nil && ui.function != .latch),
                    onChange: { level in
                        if let id = slot.playback, !ui.learnMode { engine.setFader(playback: id, level: level) }
                    },

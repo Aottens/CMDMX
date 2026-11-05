@@ -1,8 +1,10 @@
 # app — State
 
-_Last updated: 2026-11-04 (REC-07)_
+_Last updated: 2026-11-04 (REC-09)_
 
 ## Current step
+REC-09 (2026-11-04, PBK-49): `Softkeys` asks `update.targets` on arming Update (`onChange` of `ui.function`), once: a programmer change while armed needs a new arm. `functionContext` draws them from `engine.updateTargets`; `updateOff` holds unticked playbacks, `updateOn` ticked palettes, both reset in `cancelModes`. `updateStore` is Store and Enter on an empty line.
+REC-08 (2026-11-04, PBK-48, UI-42): Include on a handle and a cue row sends `playback.include`. *Mask* reuses `recordMask` and `maskMenu`, over all eight groups with *Back*; `cancelModes` now resets both. Include no longer exempts a strip from `armed` (UI-43). On a list without a current cue the handle tap stays armed and connects it; the engine still does the refusal.
 REC-07 (2026-11-04, CUE-61): `CuePick.dormant` picks a struck value; `cueViewContext` works out one Off target and one On target from the pick (a fixture number is both). `CueViewWindow.shown` formats a value for `item` and the struck text alike.
 REC-06 (2026-11-04, CUE-59, 60): `CuePick` replaces `CueValueRef`, and `ui.cueValue` keeps its name so every clearing stays. `effectRow` under the fixture rows; a `RightClickCatcher` on the number column picks the whole item.
 REC-05 (2026-11-04, UI-53, 54): `UIState.cueMemory` names the memory on show, `liveCueMemory` is the one read (a memory deleted or appended into a list stops showing), `endCueMemory` the one end. `CueWindow` ends it on a change of `connected`, `CueListWindow` draws it in the plain `row`. `rowButtons` is the last column of both views; armed it calls `tap`. `cueContext` keeps its softkey positions for a memory.

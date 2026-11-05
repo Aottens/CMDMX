@@ -420,6 +420,9 @@ private struct CueListWindow: View {
         case .update:
             engine.recordPlayback(page: list.stored.page, slot: list.stored.slot, mode: "Update", cue: cue.number)
             ui.cancelModes()
+        case .include:
+            engine.includePlayback(list.id, cue: cue.number, mask: ui.orderedRecordMask)   // PBK-48
+            ui.cancelModes()
         case .copy:
             openCueMenu()
             engine.say("Copy cue \(plain(cue.number)): type the number, then Copy.")

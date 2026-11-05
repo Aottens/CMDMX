@@ -178,6 +178,26 @@ Claude listens to Art-Net; what goes on stage is read there.
 - [ ] Merge the attribute into the cue from the programmer: the new value, the struck one gone. Replace: all struck ones gone.
 - [ ] Save, reopen: the struck value is still there and still off on Art-Net.
 
+## Include a cue (PBK-48, UI-42)
+Claude listens to Art-Net; what goes on stage is read there.
+- [ ] Include armed: softkey **Mask** "all". A tap on a group or a fixture is refused, naming palettes, playback handles and cues.
+- [ ] Include + the legend of a running list: its current cue's own values in the programmer, those fixtures selected in the cue's order, on stage at once. A tracked value is not in the programmer.
+- [ ] Include + the legend of a list that is off: "Name a cue: <legend> is not running", still armed, nothing in the programmer, that list connected. Then a row of it: that cue.
+- [ ] Include + a memory's legend: its cue. A cue with a value off: that value does not come along.
+- [ ] Include + a cue with a palette reference: the programmer shows it as a reference. A cue with an effect: the effect runs from the programmer.
+- [ ] **Mask**: eight groups on, **Back**. I only: no Pan, no effect. FX only: the effect, no values. Nothing of the mask in the cue: "Q3 holds nothing to include".
+- [ ] Change a value at once, Record Merge on that cue: only what the cue held and the change; tracked values stay magenta.
+- [ ] One Undo takes it all out of the programmer. A Flash button with Include armed is a tap on the legend, no flash on Art-Net.
+
+## Update chooses its targets (PBK-49, IPC-57)
+Claude listens to Art-Net; what goes on stage is read there.
+- [ ] A value changed, two playbacks up, one holding it: Update armed shows that one ticked, the palette holding it unticked, **Store**, **Cancel**. No **More**.
+- [ ] Ticks toggle. More than five targets: **More** "1/2" pages on, ticks stay.
+- [ ] **Store** with the playback ticked: the cue has the value, the palette has not; the cue's reference is now a value. One Undo brings it back.
+- [ ] Palette ticked too: the palette has the value, the cue keeps its reference; with the programmer cleared the channel reads the new value. Another attribute in the programmer goes into the cue. One Undo brings back both.
+- [ ] Enter on an empty line is **Store**. All unticked or no targets: "Update: no targets; tap a palette, playback handle or cue.", still armed. A tap on a target stays one direct update.
+- [ ] A value off in the current cue: not a target without tracking. With tracking, Store stores it and the struck value is gone.
+
 ## Restart (CUE-24, SHW)
 - [ ] Wait 5 s (autosave), stop the daemon (Ctrl-C) and start it again with the same command:
       the app reconnects, the lists, cues, legends, tracking options, chase and masters are back;
