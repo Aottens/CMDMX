@@ -1,4 +1,4 @@
-# App show checklist (SHW-16, SHW-17) — template
+# App show checklist (SHW-16, SHW-17, WEB-36) — template
 
 No Swift test target exists (CLAUDE.md), so the status bar and Show screen of
 `specs/modules/showfile.md` SHW-16/17 are checked by hand. Copy to
@@ -48,6 +48,19 @@ Optional: an Art-Net monitor on universe 1.
       - In Terminal, run `sed 's/"schema_version": 1/"schema_version": 9/' /tmp/cmdmx-shw-c/Kerk.cmdmx.json > /tmp/cmdmx-shw-c/Toekomst.cmdmx.json`.
       - Leave the Show screen and come back. The list shows Toekomst.
       - Open it. The warning says it was made by a newer CMDMX, and Kerk stays open.
+
+## Taking over a show (WEB-36)
+A walk on a show the reader did not program, with only the chapter *Taking over a show* open: *Demo* or a show someone
+else made, in a temp `--show-dir`. Note what the chapter did not answer.
+
+- [ ] Reads in five minutes.
+- [ ] Which show is open, and open another, from the chapter's steps.
+- [ ] What is on the handles and pages, and what a list holds (tap, View); what a group holds.
+- [ ] Which lamp a fixture is (Patch, Highlight).
+- [ ] Run it; a late change with Update.
+- [ ] Make it dark five ways, one at a time, and find each by the chapter's order: DBO, Grand Master, the playback's
+      fader, a group master on another page (`LOCKED`), an output off on the Output screen.
+- [ ] What Undo reaches after another operator's edits; what to do about a forgotten lock code.
 
 ## Restart (SHW-10)
 - [ ] Stop the daemon (Ctrl+C) and start it again with the same command. The app reconnects, the

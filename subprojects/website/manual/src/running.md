@@ -3,6 +3,8 @@
 This section covers the controls you use while the show is on: pages, the masters, undo, and what
 CMDMX does when something goes wrong.
 
+Taking over a show someone else made? Start with [Taking over a show](taking-over.md).
+
 ## Pages
 
 The page buttons on the left of the playback area switch between the ten pages. The current page

@@ -155,11 +155,24 @@ fi
 # WEB-31: the sections in order in SUMMARY.md.
 summary="$here/manual/src/SUMMARY.md"
 if [ -f "$summary" ]; then
-  want="Introduction|Getting started|Concepts|Patching|Programming|Palettes|Playbacks and cues|Cue lists|Running a show|Control surfaces|Shows and files|Reference|Release notes"
+  want="Introduction|Getting started|Concepts|Patching|Programming|Palettes|Playbacks and cues|Cue lists|Running a show|Taking over a show|Control surfaces|Shows and files|Reference|Release notes"
   got=$(grep -oE '\[[^]]+\]' "$summary" | tr -d '[]' | grep -xE "$want" | paste -sd'|' -)
   [ "$got" = "$want" ] || no "WEB-31: SUMMARY.md sections are '$got', want '$want'"
 else
   no "WEB-31: manual/src/SUMMARY.md missing"
+fi
+
+# WEB-36: the chapter answers its questions; why is it dark is in the order to check.
+over="$here/manual/src/taking-over.md"
+if [ -f "$over" ]; then
+  for s in "Why is it dark" "DBO" "Grand Master" "LOCKED" "Output" "Highlight" "Update" "Undo" "lock code" "View"; do
+    has "$over" "$s" "WEB-36 taking over"
+  done
+  order=$(sed -n '/[Ww]hy is it dark/,$p' "$over" | grep -oE 'DBO|Grand Master|LOCKED|Output' | awk '!seen[$0]++' | paste -sd' ' -)
+  [ "$order" = "DBO Grand Master LOCKED Output" ] || no "WEB-36: why is it dark checks '$order'"
+  [ "$(wc -w < "$over")" -le 1250 ] || no "WEB-36: more than five minutes to read"
+else
+  no "WEB-36: manual/src/taking-over.md missing"
 fi
 
 # WEB-34: a broken internal link, a missing image or a missing chapter fails the build.
