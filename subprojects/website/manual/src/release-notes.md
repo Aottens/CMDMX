@@ -1,5 +1,17 @@
 # Release notes
 
+## 0.5.1
+
+Published 5 November 2026 as "CMDMX 0.5.1".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.5.1)
+
+Help at hand, from the review of a stand-in taking over a show.
+
+- **Help opens this manual:** the **Help** key, *Help › CMDMX Manual* and ⌘? open the copy inside the app, the
+  one for your version, so it works without internet (see [Help](running.md#help)).
+- **Taking over a show:** a new chapter for someone who did not program the show, with what to check when the
+  stage is dark (see [Taking over a show](taking-over.md)).
+
 ## 0.5.0
 
 Published 5 November 2026 as "CMDMX 0.5.0".
