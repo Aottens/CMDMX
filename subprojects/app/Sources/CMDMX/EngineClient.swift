@@ -56,10 +56,12 @@ struct PlaybackLive: Decodable, Equatable {
     var bpm: Double?
     /// CUE-44: the effective multiplier of a BPM master (the fader's zone included).
     var multiplier: Double?
+    /// UI-56: a group master that holds its group; the engine decides, the app only reads it.
+    var holding: Bool?
 
     init() {}
 
-    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired, cue, bpm, multiplier }
+    private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired, cue, bpm, multiplier, holding }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -71,6 +73,7 @@ struct PlaybackLive: Decodable, Equatable {
         cue = try? c.decode(CueLive.self, forKey: .cue)
         bpm = try? c.decode(Double.self, forKey: .bpm)
         multiplier = try? c.decode(Double.self, forKey: .multiplier)
+        holding = try? c.decode(Bool.self, forKey: .holding)
     }
 }
 
@@ -396,6 +399,9 @@ struct PlaybackInfo: Identifiable, Equatable {
 
     var id: Int { stored.id }
     var homeHandle: String { "\(stored.page).\(stored.slot)" }
+    /// UI-56: a disabled group master, and the level it masters at (the saved one while disabled).
+    var locked: Bool { stored.master?.enabled == false }
+    var masterLevel: Double { locked ? (stored.master?.level ?? live.level) : live.level }
     /// PBK-37: the legend, else the home handle ("2.3").
     /// GRM-16: a group master without a legend is "Group 6".
     var shownLegend: String {
@@ -1992,6 +1998,17 @@ final class EngineClient: ObservableObject {
         if let name { sendJSON("control.mapping", ["name": name]) }
     }
 
+    /// UI-56: the group masters that hold their group, by page and slot.
+    var holdingMasters: [PlaybackInfo] {
+        playbacks.filter { $0.live.holding == true }.sorted { ($0.stored.page, $0.stored.slot) < ($1.stored.page, $1.stored.slot) }
+    }
+
+    /// UI-56: what the GRP tag says for one holding master.
+    func holdingText(_ p: PlaybackInfo) -> String {
+        "\(p.stored.legend.isEmpty ? "Master" : p.stored.legend) (\(p.homeHandle)) holds Group \(p.stored.master?.group ?? 0) at \(percent(p.masterLevel))"
+            + (p.locked ? ", locked" : "")
+    }
+
     /// A hint for the operator in the message zone (the app's own, not an engine warning).
     func say(_ text: String) { lastMessage = text; armedMessage = isArmed() ? text : nil }
 
@@ -2346,7 +2363,7 @@ final class EngineClient: ObservableObject {
         var state = playbackLive[id] ?? PlaybackLive()
         state.flash = new.flash; state.latched = new.latched; state.fired = new.fired
         state.state = new.state
-        state.cue = new.cue; state.bpm = new.bpm; state.multiplier = new.multiplier
+        state.cue = new.cue; state.bpm = new.bpm; state.multiplier = new.multiplier; state.holding = new.holding
         if heldFaders[id] != nil {
             heldFaders[id] = .some(new.level.clamped01)
         } else {

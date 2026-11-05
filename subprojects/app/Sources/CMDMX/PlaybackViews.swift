@@ -398,6 +398,7 @@ struct ActivePlaybacksWindow: View {
         // PBK-40: fire order; releasing ones (no `fired`) after the active ones, in engine order.
         // `sorted` is stable, so equal keys keep the engine's order.
         let running = engine.playbacks.filter(\.isRunning).sorted { ($0.live.fired ?? .max) < ($1.live.fired ?? .max) }
+        let holding = engine.holdingMasters   // UI-56
         PanelWindow(title: "Active playbacks", info: "\(running.count) running", accessory: { EmptyView() }) {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
@@ -409,17 +410,40 @@ struct ActivePlaybacksWindow: View {
                 }
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 HLine()
-                if running.isEmpty {
+                if running.isEmpty && holding.isEmpty {
                     Text("Nothing running. Raise a fader.").font(Typo.ui(11)).foregroundStyle(t.fg2)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(8)
                 }
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(running) { row($0) }
+                        ForEach(holding) { holdingRow($0) }
                     }
                 }
             }
         }
+    }
+
+    /// UI-56: a master that holds its group; a tap goes to its page, it never releases.
+    private func holdingRow(_ p: PlaybackInfo) -> some View {
+        Button {
+            guard ui.armedAllows(.activeRow, engine) else { return }
+            engine.setPage(p.stored.page)
+        } label: {
+            HStack(spacing: 0) {
+                Text(p.homeHandle).font(Typo.mono(Typo.body)).frame(width: Self.widths[0], alignment: .leading)
+                Text(engine.shownLegend(p)).font(Typo.legend()).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                Text(p.locked ? "LOCKED \(percent(p.masterLevel))" : "GRP · \(percent(p.masterLevel))").font(Typo.mono(Typo.small))
+                    .frame(width: (Self.widths[2] ?? 0) + (Self.widths[3] ?? 0), alignment: .leading)
+                Spacer().frame(width: Self.widths[4])
+            }
+            .foregroundStyle(t.amber)
+            .padding(.horizontal, 7).frame(height: 26)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) { HLine() }
+        .help("Tap to go to its page")
     }
 
     private func row(_ p: PlaybackInfo) -> some View {

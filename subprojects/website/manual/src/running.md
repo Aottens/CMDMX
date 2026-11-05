@@ -40,6 +40,10 @@ groups. The title says how many are running. A tap on a row releases that playba
 [Release](playbacks.md#release)). It is the quickest way to find and stop something you cannot see
 on the current page.
 
+Group masters that hold their group down (see [Group masters](#group-masters)) follow the running
+playbacks, in amber: handle, legend and `GRP · 0 %`, or `LOCKED 0 %` while disabled. A master is
+never released: a tap on its row goes to its page, so its strip is under your hand.
+
 ## Grand Master and DBO
 
 The **GM** fader on the far right scales the intensity of everything: every playback, the
@@ -85,6 +89,12 @@ The **Master** tab of its Playback Options sets the **Mode**:
 **Disabled** locks the master at the level it had: fader moves and Flash are ignored, and the strip
 shows `LOCKED` and the level in amber. When a master darkens or lights its group (Scale or Limit
 below 100 %, HTP above 0), its level is amber too.
+
+A master that holds its group down (Scale or Limit below full, also while disabled) is also seen
+away from its page: the status bar shows an amber **GRP** tag, and a click on it lists the masters
+in the message line, such as `Master Zaal (1.8) holds Group 3 at 0 %`. They are listed in
+[Active playbacks](#active-playbacks) too. When a show opens, each one says so once in the message
+line, so a show saved with a master at 0 does not open dark without a word.
 
 Its lower button is **Flash**: the master is at full while you hold it. Group masters are never
 released or stopped, and have no priority or release options.
