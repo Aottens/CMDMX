@@ -134,6 +134,10 @@ struct FixturesWindow: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
     @State private var page = 0
+    @Environment(\.theme) private var t
+    /// UI-58: the item a tap in this window last selected; the engine's reply arrives a moment later.
+    @State private var lastTap: Item?
+    @State private var scrollTarget: Item?
 
     // ponytail: `handles_per_page` is a setting (PAT-14) that is not on the wire yet; 40 is its default.
     private let handlesPerPage = 40
@@ -170,20 +174,30 @@ struct FixturesWindow: View {
         let pageCount = max(1, (sorted.count + handlesPerPage - 1) / handlesPerPage)
         let shown = min(page, pageCount - 1)
         let visible = sorted.dropFirst(shown * handlesPerPage).prefix(handlesPerPage)
+        // UI-58: the page each selected fixture sits on.
+        let pageOf = Dictionary(sorted.enumerated().map { ($1.id, $0 / handlesPerPage) }, uniquingKeysWith: { a, _ in a })
+        let selectedPages = Set(programmer.selection.compactMap { pageOf[$0.fixture] })
+        let onShown = programmer.selection.filter { pageOf[$0.fixture] == shown }.count
 
         PanelWindow(
             title: "Fixtures",
-            info: programmer.selection.isEmpty ? "\(sorted.count) fixtures" : "\(programmer.selection.count) selected · order shown",
+            info: programmer.selection.isEmpty ? "\(sorted.count) fixtures"
+                : onShown == programmer.selection.count ? "\(programmer.selection.count) selected · order shown"
+                : "\(programmer.selection.count) selected · \(onShown) on page \(shown + 1)",
             accessory: {
                 if pageCount > 1 {
                     HStack(spacing: 2) {
                         ForEach(0..<pageCount, id: \.self) { p in
                             Button(String(p + 1)) { page = p }.buttonStyle(FlatButton(fill: p == shown ? .blue : nil, compact: true))
+                                .overlay(alignment: .topTrailing) {
+                                    if selectedPages.contains(p) { Circle().fill(p == shown ? Color.white : t.blue).frame(width: 5, height: 5).padding(1) }   // UI-58
+                                }
                         }
                     }
                 }
             }
         ) {
+            ScrollViewReader { proxy in
             CellScroll {
                 // UI-29: one button per item, the cells of an unfolded fixture right after it. A flat
                 // list, so the lazy grid sees every button as its own element.
@@ -201,8 +215,10 @@ struct FixturesWindow: View {
                          inProgrammer: inProgrammer.contains(item),
                          lamp: true) {
                         if let n = item.cell {
+                            lastTap = item
                             if ui.armedAllows(.cell, engine) { engine.selectCell(fixture.id, cell: n) }
                         } else {
+                            lastTap = item
                             tap(fixture)
                         }
                     }
@@ -210,6 +226,15 @@ struct FixturesWindow: View {
                     .overlay { if item.cell == nil { SecondaryClick { ui.fixtureInfo = FixtureRef(id: fixture.id) } } }
                 }
             }
+            .onChange(of: scrollTarget) { _, t in if let t { proxy.scrollTo(t, anchor: .center); scrollTarget = nil } }
+            }
+        }
+        // UI-58: a selection change that did not come from a tap here brings the first fixture into view.
+        // A change of only the tapped item is that tap.
+        .onChange(of: programmer.selection) { old, sel in
+            guard lastTap.map({ Set(old).symmetricDifference(sel) != [$0] }) ?? true, let first = sel.first, let p = pageOf[first.fixture] else { return }
+            page = p
+            scrollTarget = Item(fixture: first.fixture)
         }
     }
 }

@@ -20,6 +20,11 @@ Tap a fixture button to select it; it turns blue. Tap it again to deselect it. T
 you tap counts: each selected button shows its place in the selection, and stepping, patterns and
 Fan follow that order.
 
+When a group, the command line or a control surface changes the selection, the Fixtures window jumps
+to the page of the first selected fixture and scrolls it into view. A page tab with a blue dot holds
+a selected fixture, and the title says, for example, "6 selected · 4 on page 2" when some of them
+are on other pages. Tapping in the Fixtures window itself never moves the page.
+
 Tap a group to add its fixtures in the group's own order. Fixtures that are already selected keep
 their place. Tapping a group whose fixtures are all selected deselects them.
 
