@@ -285,6 +285,10 @@ fn main() {
                 ipc::Event::Usage { query, reply } => {
                     ipc::usage(&engine, &query).map(|msg| drop(reply.try_send(msg)))
                 }
+                // IPC-60: to the asking client only; an unknown fixture is a warning.
+                ipc::Event::Why { fixture, reply } => {
+                    ipc::why(&engine, fixture).map(|msg| drop(reply.try_send(msg)))
+                }
                 // IPC-57: to the asking client only.
                 ipc::Event::UpdateTargets { reply } => {
                     drop(reply.try_send(ipc::update_targets(&engine)));
@@ -885,7 +889,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         // Answered through `Event::CueView` (IPC-24).
         CueView { .. } => Ok(()),
         // Answered through `Event::Usage` (IPC-54).
-        Usage(_) | UpdateTargets => Ok(()),
+        Usage(_) | Why(_) | UpdateTargets => Ok(()),
         Update {
             playbacks,
             palettes,
@@ -977,6 +981,7 @@ fn class(cmd: &ipc::Command) -> Class {
         Show(List | SaveAs { .. })
         | CueView { .. }
         | Usage(_)
+        | Why(_)
         | UpdateTargets
         | PatchProfile { .. }
         | Control(_)
@@ -2821,6 +2826,11 @@ mod tests {
         (r#"{"v":1,"cmd":"cue.view","id":2,"cue":2}"#, Class::Neutral),
         (r#"{"v":1,"cmd":"usage","palette":12}"#, Class::Neutral),
         (r#"{"v":1,"cmd":"usage","fixtures":[1,2]}"#, Class::Neutral),
+        (r#"{"v":1,"cmd":"why","fixture":1}"#, Class::Neutral),
+        (
+            r#"{"v":1,"cmd":"usage","fixtures":[1],"detail":true}"#,
+            Class::Neutral,
+        ),
         (
             r#"{"v":1,"cmd":"patch.profile","profile":"Showtec/Phantom 25 LED Spot"}"#,
             Class::Neutral,

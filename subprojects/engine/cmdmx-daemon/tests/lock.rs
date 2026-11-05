@@ -676,3 +676,38 @@ fn ipc_54_usage_answers_the_sender_only_and_while_locked() {
     send(&mut app, json!({"cmd": "usage", "palette": "x"}));
     until(&mut app, "the error", |m| m["type"] == "error");
 }
+
+#[test]
+fn ipc_60_why_and_usage_detail_answer_the_sender_only_and_while_locked() {
+    let dir = folder("ipc60-why");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    let mut other = connect(port);
+    recv(&mut app);
+    recv(&mut other);
+    lock_set(&mut app, true, "1234");
+    saw_locked(&mut app, true);
+    saw_locked(&mut other, true);
+
+    // An unknown fixture is a warning, and locked it still answers.
+    send(&mut app, json!({"cmd": "why", "fixture": 99991}));
+    saw_warning(&mut app, "unknown fixture id 99991");
+    send(
+        &mut app,
+        json!({"cmd": "usage", "fixtures": [99991], "detail": true}),
+    );
+    saw_warning(&mut app, "unknown fixture id 99991");
+
+    // The other client sees neither answer before its own.
+    send(&mut other, json!({"cmd": "output.ports"}));
+    until(&mut other, "the ports, with no why before them", |m| {
+        assert_ne!(m["type"], "why", "{m}");
+        assert_ne!(m["type"], "usage", "{m}");
+        m["type"] == "ports"
+    });
+
+    // Ill-typed: an error to the sender.
+    send(&mut app, json!({"cmd": "why", "fixture": "x"}));
+    until(&mut app, "the error", |m| m["type"] == "error");
+}

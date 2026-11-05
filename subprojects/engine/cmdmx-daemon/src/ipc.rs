@@ -26,7 +26,7 @@ use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::colour::ColourModel;
 use cmdmx_core::colour::TargetColour;
 use cmdmx_core::effect::{self, EffectApply};
-use cmdmx_core::engine::{Engine, PlaybackSettingsChange};
+use cmdmx_core::engine::{Engine, Modifier, PlaybackSettingsChange, Source};
 use cmdmx_core::library::channel_list::ChannelList;
 use cmdmx_core::output::{Node, NodeId, NodeKind};
 use cmdmx_core::palette::{
@@ -70,6 +70,8 @@ pub const PROTOCOL: u64 = 1;
 pub enum Usage {
     Palette(u32),
     Fixtures(Vec<FixtureId>),
+    /// IPC-60: one fixture, with the cues, palettes and groups listed instead of counted.
+    Detail(FixtureId),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -421,6 +423,8 @@ pub enum Command {
     },
     /// IPC-54: handed to the tick as `Event::Usage`, never applied.
     Usage(Usage),
+    /// IPC-60: handed to the tick as `Event::Why`, never applied.
+    Why(FixtureId),
     /// IPC-57: handed to the tick as `Event::UpdateTargets`, never applied.
     UpdateTargets,
     /// PBK-49, IPC-57: store into the ticked cues and palettes; both lists may be empty on the
@@ -700,6 +704,11 @@ pub enum Event {
     /// IPC-54: the answer goes to `reply`, the asking client's own queue.
     Usage {
         query: Usage,
+        reply: SyncSender<String>,
+    },
+    /// IPC-60: the answer goes to the asking client only.
+    Why {
+        fixture: FixtureId,
         reply: SyncSender<String>,
     },
     /// IPC-57: the answer goes to the asking client only.
@@ -1829,13 +1838,24 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
         }),
+        Some("why") => Ok(Command::Why(uint(&v, "fixture")?)),
         Some("usage") => match (v.get("palette"), v.get("fixtures")) {
-            (Some(_), None) => Ok(Command::Usage(Usage::Palette(uint(&v, "palette")?))),
-            (None, Some(f)) => Ok(Command::Usage(Usage::Fixtures(
-                f.as_array()
+            (Some(_), None) if v.get("detail").is_none() => {
+                Ok(Command::Usage(Usage::Palette(uint(&v, "palette")?)))
+            }
+            (None, Some(f)) => {
+                let ids: Vec<FixtureId> = f
+                    .as_array()
                     .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
-                    .ok_or("invalid \"fixtures\" (expected an array of fixture ids)")?,
-            ))),
+                    .ok_or("invalid \"fixtures\" (expected an array of fixture ids)")?;
+                // IPC-60: `"detail":true` asks for the lists, for exactly one fixture.
+                match (v.get("detail").map(|d| d.as_bool()), ids.as_slice()) {
+                    (None | Some(Some(false)), _) => Ok(Command::Usage(Usage::Fixtures(ids))),
+                    (Some(Some(true)), [one]) => Ok(Command::Usage(Usage::Detail(*one))),
+                    (Some(Some(true)), _) => Err("\"detail\" takes exactly one fixture".into()),
+                    (Some(None), _) => Err("invalid \"detail\" (expected true or false)".into()),
+                }
+            }
             _ => Err("expected exactly one of \"palette\" and \"fixtures\"".into()),
         },
         Some("update.targets") => Ok(Command::UpdateTargets),
@@ -2914,6 +2934,186 @@ pub fn usage(engine: &Engine, query: &Usage) -> Result<String, CoreError> {
                 "palettes": u.palettes, "empty_groups": u.empty_groups,
                 "empty_cues": u.empty_cues})
         }
+        Usage::Detail(id) => usage_detail(engine, *id)?,
+    }))
+}
+
+/// IPC-60: the counts of `usage` for one fixture, with cues, palettes and groups listed.
+fn usage_detail(engine: &Engine, id: FixtureId) -> Result<serde_json::Value, CoreError> {
+    if engine.fixture(id).is_none() {
+        return Err(CoreError::UnknownFixture(id));
+    }
+    let u = engine.fixture_usage(&[id]);
+    let gone = |i: &cmdmx_core::programmer::Item| i.fixture == id;
+    let mut cues = Vec::new();
+    for pb in engine.playbacks() {
+        for cue in &pb.cues {
+            if (cue.values.keys().chain(cue.dormant.keys())).any(gone)
+                || cue.effects.iter().any(|e| e.members.iter().any(gone))
+            {
+                cues.push(
+                    serde_json::json!({"playback": pb.id, "cue": f64::from(cue.number),
+                    "legend": cue.legend}),
+                );
+            }
+        }
+    }
+    let palettes: Vec<_> = (engine.palettes())
+        .filter(|p| {
+            p.fixtures.keys().any(gone) || p.effects.iter().any(|e| e.members.iter().any(gone))
+        })
+        .map(|p| serde_json::json!({"id": p.number, "legend": p.legend}))
+        .collect();
+    let groups: Vec<_> = (engine.groups().into_iter())
+        .filter(|(_, members)| members.iter().any(gone))
+        .map(|(g, _)| serde_json::json!({"id": g, "legend": engine.group_legend(g).unwrap_or("")}))
+        .collect();
+    Ok(
+        serde_json::json!({"v": PROTOCOL, "type": "usage", "fixtures": [id],
+        "groups": groups, "cues": cues, "playbacks": u.playbacks, "palettes": palettes,
+        "empty_groups": u.empty_groups, "empty_cues": u.empty_cues}),
+    )
+}
+
+/// IPC-60: how a playback is named to the operator: its legend, else its handle "page.slot".
+fn playback_label(engine: &Engine, id: PlaybackId) -> Option<String> {
+    let p = engine.playback(id)?;
+    Some(if p.legend.is_empty() {
+        format!("{}.{}", p.page, p.slot)
+    } else {
+        p.legend.clone()
+    })
+}
+
+#[derive(Serialize)]
+struct WhySource {
+    source: Option<String>,
+    playback: Option<PlaybackId>,
+    cue: Option<f64>,
+}
+
+fn why_source(engine: &Engine, s: &Source) -> WhySource {
+    let (source, playback, cue) = match s {
+        Source::Programmer => (Some("Programmer".to_string()), None, None),
+        Source::Held => (Some("Held".to_string()), None, None),
+        Source::Default => (None, None, None),
+        Source::Playback { id, cue } => (playback_label(engine, *id), Some(*id), *cue),
+    };
+    WhySource {
+        source,
+        playback,
+        cue: cue.map(f64::from),
+    }
+}
+
+#[derive(Serialize)]
+struct WhyBase {
+    #[serde(flatten)]
+    from: WhySource,
+    value: Value,
+    tracked: bool,
+    palette: Option<u32>,
+}
+
+#[derive(Serialize)]
+struct WhyOther {
+    source: Option<String>,
+    value: Value,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum WhyModifier {
+    Master {
+        playback: PlaybackId,
+        legend: Option<String>,
+        mode: GroupMode,
+        level: f32,
+        enabled: bool,
+    },
+    GrandMaster {
+        level: f32,
+    },
+    Dbo,
+    Effect,
+    Locate,
+    Highlight,
+    AutoMix,
+}
+
+#[derive(Serialize)]
+struct WhyAttribute {
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cell: Option<u16>,
+    value: Value,
+    base: WhyBase,
+    others: Vec<WhyOther>,
+    modifiers: Vec<WhyModifier>,
+}
+
+/// IPC-60: the answer to `why`, built from the core's `explain` (ENG-25).
+pub fn why(engine: &Engine, fixture: FixtureId) -> Result<String, CoreError> {
+    let list = engine
+        .explain(fixture)
+        .ok_or(CoreError::UnknownFixture(fixture))?;
+    let attributes: Vec<_> = list
+        .into_iter()
+        .map(|x| WhyAttribute {
+            name: x.name,
+            cell: x.cell,
+            value: x.value,
+            base: WhyBase {
+                from: why_source(engine, &x.base.source),
+                value: x.base.value,
+                tracked: x.base.tracked,
+                palette: (x.base.palette)
+                    .and_then(|id| engine.palettes().find(|p| p.id == id))
+                    .map(|p| p.number),
+            },
+            others: (x.others.iter())
+                .map(|o| WhyOther {
+                    source: why_source(engine, &o.source).source,
+                    value: o.value,
+                })
+                .collect(),
+            modifiers: (x.modifiers.iter())
+                .map(|m| match *m {
+                    Modifier::Master {
+                        playback,
+                        mode,
+                        level,
+                        enabled,
+                    } => WhyModifier::Master {
+                        playback,
+                        legend: playback_label(engine, playback),
+                        mode,
+                        level,
+                        enabled,
+                    },
+                    Modifier::GrandMaster(level) => WhyModifier::GrandMaster { level },
+                    Modifier::Dbo => WhyModifier::Dbo,
+                    Modifier::Effect => WhyModifier::Effect,
+                    Modifier::Locate => WhyModifier::Locate,
+                    Modifier::Highlight => WhyModifier::Highlight,
+                    Modifier::AutoMix => WhyModifier::AutoMix,
+                })
+                .collect(),
+        })
+        .collect();
+    // A struct, not `json!`: that would widen the f32 levels (0.4 would print as 0.4000000059).
+    #[derive(Serialize)]
+    struct Why {
+        v: u64,
+        r#type: &'static str,
+        fixture: FixtureId,
+        attributes: Vec<WhyAttribute>,
+    }
+    Ok(to_json(&Why {
+        v: PROTOCOL,
+        r#type: "why",
+        fixture,
+        attributes,
     }))
 }
 
@@ -3649,6 +3849,12 @@ fn serve_client(
                 Ok(Command::Usage(query)) => {
                     let reply = reply.clone();
                     if events.send(Event::Usage { query, reply }).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::Why(fixture)) => {
+                    let reply = reply.clone();
+                    if events.send(Event::Why { fixture, reply }).is_err() {
                         return;
                     }
                 }
@@ -6996,6 +7202,116 @@ mod tests {
             (&json!(1), &json!(1), &json!(1)),
             "{v}"
         );
+    }
+
+    #[test]
+    fn ipc_60_why_and_usage_detail_parse() {
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"why","fixture":201}"#).unwrap(),
+            Command::Why(201)
+        );
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"usage","fixtures":[9],"detail":true}"#).unwrap(),
+            Command::Usage(Usage::Detail(9))
+        );
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"usage","fixtures":[9],"detail":false}"#).unwrap(),
+            Command::Usage(Usage::Fixtures(vec![9]))
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"why"}"#,
+            r#"{"v":1,"cmd":"why","fixture":"201"}"#,
+            r#"{"v":1,"cmd":"usage","fixtures":[1,2],"detail":true}"#,
+            r#"{"v":1,"cmd":"usage","palette":12,"detail":true}"#,
+            r#"{"v":1,"cmd":"usage","fixtures":[1],"detail":"yes"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_60_the_why_message() {
+        let mut e = engine(); // fixture 1, playback 1 on 1.1 at Dimmer 1.0
+        e.add_playback(Playback::new(
+            2,
+            1,
+            2,
+            BTreeMap::from([(
+                cmdmx_core::programmer::Item::fixture(1),
+                BTreeMap::from([("Dimmer".to_string(), 0.4.into())]),
+            )]),
+        ));
+        e.set_playback_legend(1, "Dienst", None, None).unwrap();
+        e.set_fader(1, 1.0, 0.0).unwrap();
+        e.set_fader(2, 1.0, 0.0).unwrap();
+        e.select_fixture(1).unwrap();
+        e.record_group(3).unwrap();
+        e.clear_selection();
+        let master = e.record_group_master(1, 8, 3).unwrap();
+        e.set_playback_legend(master, "Zaal", None, None).unwrap();
+        e.set_fader(master, 0.0, 0.0).unwrap();
+        e.tick(0.0);
+        let v = parse(&why(&e, 1).unwrap());
+        assert_eq!(
+            v,
+            json!({"v":1,"type":"why","fixture":1,"attributes":[{"name":"Dimmer","value":0.0,
+                "base":{"source":"Dienst","playback":1,"cue":null,"value":1.0,"tracked":false,
+                    "palette":null},
+                "others":[{"source":"1.2","value":0.4}],
+                "modifiers":[{"kind":"master","playback":master,"legend":"Zaal","mode":"Scale",
+                    "level":0.0,"enabled":true}]}]})
+        );
+        assert_eq!(
+            why(&e, 999).unwrap_err(),
+            cmdmx_core::CoreError::UnknownFixture(999)
+        );
+    }
+
+    #[test]
+    fn ipc_60_why_names_programmer_held_default_and_the_grand_master() {
+        let mut e = engine();
+        e.set_grand_master(0.5).unwrap();
+        e.set_fader(1, 1.0, 0.0).unwrap();
+        e.tick(0.0);
+        let v = parse(&why(&e, 1).unwrap());
+        assert_eq!(
+            v["attributes"][0]["modifiers"],
+            json!([{"kind":"grand_master","level":0.5}])
+        );
+        e.set_fader(1, 0.0, 0.0).unwrap();
+        e.tick(0.025);
+        let v = parse(&why(&e, 1).unwrap());
+        assert_eq!(
+            v["attributes"][0]["base"]["source"],
+            json!(null),
+            "dark by default"
+        );
+        e.select_fixture(1).unwrap();
+        e.set_programmer_value(1, "Dimmer", 0.6).unwrap();
+        e.tick(0.05);
+        let v = parse(&why(&e, 1).unwrap());
+        assert_eq!(v["attributes"][0]["base"]["source"], "Programmer");
+        assert_eq!(v["attributes"][0]["base"]["playback"], json!(null));
+    }
+
+    #[test]
+    fn ipc_60_usage_detail_lists_cues_palettes_and_groups() {
+        let mut e = list_engine(); // list 2 on 1.2: Q1 fixture 1, Q2 "Welcome" fixture 2
+        e.select_fixture(2).unwrap();
+        e.record_group(3).unwrap();
+        e.set_group_legend(3, "Fresnels").unwrap();
+        e.clear_selection();
+        let v = parse(&usage(&e, &Usage::Detail(2)).unwrap());
+        assert_eq!(v["type"], "usage");
+        assert_eq!(v["fixtures"], json!([2]));
+        assert_eq!(
+            v["cues"],
+            json!([{"playback":2,"cue":2.0,"legend":"Welcome"}])
+        );
+        assert_eq!(v["groups"], json!([{"id":3,"legend":"Fresnels"}]));
+        assert_eq!(v["palettes"], json!([]));
+        assert_eq!(v["playbacks"], 1);
+        assert!(usage(&e, &Usage::Detail(999)).is_err());
     }
 
     #[test]

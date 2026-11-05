@@ -109,6 +109,9 @@ Titan has no single "why is this lit" view (checked 2026-11-05: *Viewing and edi
   - the **base**: the source that won ENG-01..10 (`Programmer`, a playback with its id and, for a list or chase, the cue number; `Held` for an LTP value nobody proposes, `Default` for an HTP 0), with whether the value is tracked from an earlier cue (CUE-50) and the palette it refers to (PAL-07);
   - for an HTP attribute, the other sources that propose a value and lost, with their values;
   - each **modifier** that changed it: an effect (FX), each group master (id, mode, level, GRM-06..10), the Grand Master, DBO, Locate, Highlight, Rem Dim, Off, and auto-mix for an emitter (ENG-21).
+  Every group master that holds the fixture is listed, also at full; the Grand Master below full only. Rem Dim and Off put
+  programmer values, so they show as the `Programmer` base. The values are those of the time of the last tick (the
+  core has no clock of its own).
   It reads the engine's state and changes nothing. It is not called by the tick: the daemon calls it between ticks (IPC-58..60), so it may allocate. A test asserts, for every case below, that the value `explain` gives equals the channel in the next frame: programmer, a memory, a running list with a tracked value, two HTP playbacks, a Scale master at 0 %, a disabled master, an effect, GM at 50 %, DBO. Test `eng_25_…`.
 
 ### Determinism and safety
