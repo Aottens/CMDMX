@@ -238,7 +238,7 @@ Builds: RMB-01 + RMB-03; RMB-02; RMB-04; PRK-01; PRK-02.
 | RMB-03 | App: Settings › Remote with username, password, port, on/off, the address and its QR code; manual. Needs RMB-01. | RMT-15 | S | done (2026-11-06, #259) |
 | RMB-02 | Daemon: the built-in page (login, list, card, walking with Highlight, offline and locked); manual section and `tests/manual/remote-patch.md` run on a real phone against Art-Net. Needs RMB-01. | RMT-09..12, RMT-14, RMT-16 | M | done (2026-11-06, #260) |
 | RMB-04 | Daemon: find why the RMB-02 run's remote login stopped taking the password it was set with (`tests/manual/runs/2026-11-06-RMB-02.md`), or close it with a restart-and-login test that shows it cannot. | RMT-01, RMT-04 | S | todo |
-| PRK-01 | Core and daemon: `patch.park`, `patch.unpark`, `park_conflicting`, skipped live, what is kept, `parked` on the wire and the schema step; `pat_29_…` to `pat_34_…`. | PAT-29..34 | M | todo |
+| PRK-01 | Core and daemon: `patch.park`, `patch.unpark`, `park_conflicting`, skipped live, what is kept, `parked` on the wire and the schema step; `pat_29_…` to `pat_34_…`. | PAT-29..34 | M | done (2026-11-06, #261) |
 | PRK-02 | App and page: Park and Unpark on the Patch screen, greyed `PARK` tiles, Park conflicting and move; Park, Unpark and Park and move on the phone card; manual and run on Art-Net. Needs PRK-01 and RMB-02. | PAT-35, PAT-36, RMT-13 | S | todo |
 
 ### Functions and consequences (IDEA-35 batch H, spec P1-27)
