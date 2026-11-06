@@ -1315,6 +1315,15 @@ private func parseISODate(_ text: String) -> Date? {
     (try? Date(text, strategy: .iso8601)) ?? (try? Date(text, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
 }
 
+/// RMT-15: the phone remote's state as the engine reports it; the password is never part of it.
+struct RemoteState: Decodable, Equatable {
+    var on = false
+    var username: String?
+    var port = 7320
+    var addresses: [String] = []
+    var clients = 0
+}
+
 /// The open show (SHW-15): name, last successful autosave and whether autosave works. An empty
 /// name means no snapshot has arrived yet.
 struct ShowState: Decodable, Equatable {
@@ -1467,6 +1476,8 @@ final class EngineClient: ObservableObject {
     /// last `show.list` (this client only).
     @Published private(set) var show = ShowState()
     @Published private(set) var shows: [ShowEntry] = []
+    /// RMT-15: the phone remote; default off until the snapshot says otherwise.
+    @Published private(set) var remote = RemoteState()
 
     /// UI-22 / IPC-05 "touch": playback ids and the GM held by this client's pointer. While held,
     /// engine levels are parked here (not shown) so the bar follows the finger. After release the
@@ -2059,6 +2070,12 @@ final class EngineClient: ObservableObject {
     /// UI-38: the engine checks the code; a wrong one comes back as a warning.
     func setLock(_ on: Bool, code: String) { lastMessage = nil; sendJSON("lock.set", ["on": on, "code": code]) }
 
+    /// RMT-15: the engine validates (1-64 characters, port 1024-65535) and refuses with a message.
+    func setRemoteLogin(username: String, password: String, port: Int) {
+        patch("remote.set_login", ["username": username, "password": password, "port": port])
+    }
+    func remoteOff() { patch("remote.off", [:]) }
+
     private func patch(_ cmd: String, _ fields: [String: Any]) {
         lastMessage = nil
         sendJSON(cmd, fields)
@@ -2114,7 +2131,7 @@ final class EngineClient: ObservableObject {
             }
             connection = .offline
             outputs = []
-            control = ControlState(); controlMapping = nil
+            control = ControlState(); controlMapping = nil; remote = RemoteState()
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
     }
@@ -2171,10 +2188,11 @@ final class EngineClient: ObservableObject {
         fileprivate let control: Tolerant<ControlState>?
         fileprivate let ports: Tolerant<[Tolerant<SerialPort>]>?
         fileprivate let show: Tolerant<ShowState>?
+        fileprivate let remote: Tolerant<RemoteState>?
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows
+            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, remote
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -2231,6 +2249,7 @@ final class EngineClient: ObservableObject {
             control = incoming.control?.value ?? ControlState()
             if let name = shownMapping { sendJSON("control.mapping", ["name": name]) }
             if let show = incoming.show?.value { self.show = show }
+            remote = incoming.remote?.value ?? RemoteState()
             let labels = (try? JSONDecoder().decode(SnapshotUndo.self, from: data))?.undo?.value
             undoLabel = labels?.undo; redoLabel = labels?.redo
             // UI-39: merge, the app keeps earlier lines across a daemon restart; known lines are skipped.
@@ -2276,6 +2295,9 @@ final class EngineClient: ObservableObject {
             // list too, so ask again.
             if let state = try? JSONDecoder().decode(ShowState.self, from: data) { show = state }
             listShows()
+        case "remote":
+            // RMT-15: the delta carries the whole section under `remote`.
+            if let state = incoming.remote?.value { remote = state }
         case "show.list":
             if let shows = incoming.shows?.value { self.shows = shows.compactMap(\.value) }
         case "library.manufacturers":

@@ -40,6 +40,7 @@ mod migrate;
 mod osc_io;
 mod output;
 mod power;
+mod remote;
 mod sacn_out;
 mod serial_out;
 mod shows;
@@ -203,6 +204,12 @@ fn main() {
         eprintln!("library: cannot start the loader thread: {e}");
     }
     let mut clients = ipc::Clients::default();
+    // RMT-01: the saved login and, when it was on, the listener.
+    let (mut remote, remote_warnings) = remote::Remote::load(shows.state_file().to_path_buf());
+    for w in &remote_warnings {
+        eprintln!("warning: {w}");
+    }
+    pending.extend(remote_warnings);
     let (library_tx, library_warnings) = std::sync::mpsc::channel::<String>();
     let mut history = History::default();
     let mut published = ipc::Published::new(&engine, outputs.statuses(), &autosave.state());
@@ -231,6 +238,8 @@ fn main() {
                     }
                     continue;
                 }
+                // RMT-01: the login and Off come from the app and pass the lock.
+                ipc::Event::Remote(_) => {}
                 // IPC-53: the release of a held button passes.
                 ipc::Event::Command(c) if lock.is_on() && lets_go(&engine, c) => {}
                 ipc::Event::Command(_)
@@ -255,6 +264,7 @@ fn main() {
                             &control.snapshot(),
                             clients.messages(),
                             lock.is_on(),
+                            &remote.info(),
                         ),
                     );
                     for w in std::mem::take(&mut pending) {
@@ -264,6 +274,13 @@ fn main() {
                 }
                 ipc::Event::Warning(e) => {
                     warn(&mut clients, &e);
+                    continue;
+                }
+                // RMT-01, 02: a refused start is a warning for the app.
+                ipc::Event::Remote(req) => {
+                    if let Some(w) = remote.request(req) {
+                        warn(&mut clients, &w);
+                    }
                     continue;
                 }
                 // CTL-40: a refusal is a warning for every client, like a failed command.
@@ -395,6 +412,7 @@ fn main() {
                             &control.snapshot(),
                             clients.messages(),
                             lock.is_on(),
+                            &remote.info(),
                         ));
                         for w in &next.warnings {
                             warn(&mut clients, w);
@@ -407,6 +425,26 @@ fn main() {
             if let Err(e) = result {
                 eprintln!("warning: {e}");
                 clients.warning(&e.to_string());
+            }
+        }
+        // RMT-04, 07: phones that logged in, and their commands; they run like the app's.
+        while let Some(event) = remote.next_event() {
+            match event {
+                remote::RemoteEvent::Connected(tx) => {
+                    let snap = remote::snapshot(&engine, &autosave.state().name, lock.is_on());
+                    remote.connect(tx, &snap);
+                }
+                remote::RemoteEvent::Command { cmd, reply } => {
+                    let result = if lock.is_on() {
+                        Err(ipc::LOCKED.to_string())
+                    } else {
+                        run(&mut engine, &mut history, cmd, now).map_err(|e| e.to_string())
+                    };
+                    if let Err(e) = result {
+                        warn(&mut clients, &e);
+                        drop(reply.try_send(ipc::warning(&e, &wall)));
+                    }
+                }
             }
         }
         // CTL-14: every MIDI message waiting is decoded now; commands go out coalesced (CTL-06).
@@ -496,6 +534,17 @@ fn main() {
             clients.broadcast(&msg);
         }
         for msg in published.diff(&engine, outputs.statuses(), &autosave.state()) {
+            clients.broadcast(&msg);
+        }
+        // RMT-06: the phones' snapshot, only on change; the app's `remote` delta (RMT-02).
+        if remote.has_phones() {
+            remote.publish(remote::snapshot(
+                &engine,
+                &autosave.state().name,
+                lock.is_on(),
+            ));
+        }
+        if let Some(msg) = remote.delta(Instant::now()) {
             clients.broadcast(&msg);
         }
         for text in control.take_messages() {
@@ -747,6 +796,18 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         Show(_) => Ok(()),
         // Handled by the control layer on the tick (CTL-40).
         Control(_) | LockSet { .. } | ControlMapping { .. } => Ok(()),
+        // RMT-01, 02: hashed and handled before the tick; they never get here.
+        RemoteSetLogin { .. } | RemoteOff => Ok(()),
+        // RMT-08: the phone's pick replaces the selection; the parked refusal comes with PRK-01.
+        RemoteHighlight { id: Some(id) } => {
+            if engine.fixture(id).is_none() {
+                return Err(CoreError::UnknownFixture(id));
+            }
+            engine.clear_selection();
+            engine.select_item(Item::fixture(id))?;
+            engine.set_highlight(true)
+        }
+        RemoteHighlight { id: None } => engine.set_highlight(false),
         PatchAdd { add, profile } => {
             if let Some(p) = profile.filter(|_| !engine.has_profile(&add.profile)) {
                 // ponytail: a refused add leaves the installed profile unused in the show.
@@ -975,6 +1036,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CuelistConnect { .. }
         | AttributeGroup { .. }
         | Highlight { .. }
+        | RemoteHighlight { .. }
         | Fan { .. }
         | ColourModel { .. } => Class::Live,
         Show(New { .. } | Open { .. }) => Class::Reset,
@@ -986,6 +1048,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | PatchProfile { .. }
         | Control(_)
         | LockSet { .. }
+        | RemoteSetLogin { .. }
+        | RemoteOff
         | ControlMapping { .. }
         | Library(_)
         | OutputPorts
@@ -2809,6 +2873,11 @@ mod tests {
         (r#"{"v":1,"cmd":"show.new","name":"Kerst"}"#, Class::Reset),
         (r#"{"v":1,"cmd":"show.open","name":"Kerk"}"#, Class::Reset),
         (r#"{"v":1,"cmd":"show.list"}"#, Class::Neutral),
+        (
+            r#"{"v":1,"cmd":"remote.set_login","username":"a","password":"b"}"#,
+            Class::Neutral,
+        ),
+        (r#"{"v":1,"cmd":"remote.off"}"#, Class::Neutral),
         (
             r#"{"v":1,"cmd":"output.add","line":2,"kind":"sacn"}"#,
             Class::Edit,
@@ -4750,6 +4819,7 @@ mod tests {
                 &serde_json::Value::Null,
                 &[],
                 false,
+                &serde_json::Value::Null,
             );
             serde_json::from_str::<serde_json::Value>(&s).unwrap()["palettes"].clone()
         };

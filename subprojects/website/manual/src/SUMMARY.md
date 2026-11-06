@@ -6,6 +6,7 @@
 - [Getting started](getting-started.md)
 - [Concepts](concepts.md)
 - [Patching](patching.md)
+- [The phone remote](remote.md)
 - [Programming](programming.md)
 - [Palettes](palettes.md)
 - [Shapes and effects](effects.md)
