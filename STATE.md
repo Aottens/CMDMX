@@ -13,8 +13,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Next
 1. Before Christmas: the phone patch page and parking (`remote.md`, PAT-29..36), RMB-01 + RMB-03 first, then
    RMB-02, PRK-01 and PRK-02.
-2. Batch C, seeing what the rig does: SEE-04 + SEE-05 + SEE-06 (the Fixture info sheet first), then SEE-07..10
-   in their builds.
+2. Batch C, seeing what the rig does: SEE-07 + SEE-08 (live output on the tiles), then SEE-09 + SEE-10.
 3. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
    P1-31 (Blind and Edit) stays apart from them.
 4. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).

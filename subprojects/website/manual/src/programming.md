@@ -20,6 +20,17 @@ Tap a fixture button to select it; it turns blue. Tap it again to deselect it. T
 you tap counts: each selected button shows its place in the selection, and stepping, patterns and
 Fan follow that order.
 
+When a group, the command line or a control surface changes the selection, the Fixtures window jumps
+to the page of the first selected fixture and scrolls it into view. A page tab with a blue dot holds
+a selected fixture, and the title says, for example, "6 selected · 4 on page 2" when some of them
+are on other pages. Tapping in the Fixtures window itself never moves the page.
+
+A fixture with a name shows its model on a second, smaller line under the name. The Find field in the
+Fixtures title row matches the number (from its start), the name and the model as you type: buttons
+that do not match dim and the window goes to the page of the first match. Return selects the matches
+in number order, skipping any that are already selected, then empties the field and gives the keys back to the
+command line; Esc empties the field without selecting.
+
 Tap a group to add its fixtures in the group's own order. Fixtures that are already selected keep
 their place. Tapping a group whose fixtures are all selected deselects them.
 
@@ -247,6 +258,18 @@ While one of these is armed a tap on a group does not select it, and neither doe
 [What an armed function does](reference.md#what-an-armed-function-does). **Clear** disarms. A refusal, such
 as a Copy onto a used cell, shows its warning on the message line and changes nothing. Each action
 is one Undo step.
+
+## Fixture info
+
+Right-click a fixture tile in the **Fixtures** window (Control-click works too). A sheet opens with the
+fixture's number, name, model, mode, universe and address, then the groups it is in and the cues and
+palettes that use it.
+
+Under **Now** there is one row per attribute (a cell's rows say which cell) with its value and, in words,
+why: `Dimmer 0 %` and below it `Dienst Q4 gives 100 %, Master Zaal (1.8) scales it to 0 %`. It names what
+gives the value (the Programmer, a cue, a palette, a value held from an earlier look, or nothing), and
+what then changes it: a group master, the Grand Master, DBO, an effect, Locate or Highlight. The sheet
+updates every second. Tap a row that names a playback to go to its page; the sheet closes.
 
 ## Undo
 

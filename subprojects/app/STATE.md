@@ -1,8 +1,11 @@
 # app — State
 
-_Last updated: 2026-11-05 (SEE-02)_
+_Last updated: 2026-11-06 (SEE-04..06)_
 
 ## Current step
+SEE-06 (2026-11-06, UI-59): `Cell.model` is the line under a named tile (`FixturesWindow.model`). `find` and `matches()` dim the rest and jump and scroll (`scrollTarget`) to the first match; `selectMatches` selects in number order, then empties the field and drops focus. Esc goes through `ui.fieldEscaped`.
+SEE-05 (2026-11-06, UI-58): `FixturesWindow` follows `programmer.selection` unless the change is exactly `lastTap` (a tile tap), via `pageOf` and `scrollTarget` in a `ScrollViewReader`; `selectedPages` puts a dot on the tabs, white on the tab shown.
+SEE-04 (2026-11-06, UI-57): `FixtureInfo.swift` holds `FixtureInfoSheet`, `WhyReply`, `UsageDetail` and `SecondaryClick` (right-click or ctrl-click on a tile). The sheet asks `why` every second and `usage` detail once; `reason()` and `modifier()` put IPC-60 in words; a row with a playback sends `page.set`. Run `tests/manual/runs/2026-11-06-SEE-04-06.md`.
 SEE-02 (2026-11-05, UI-56): `PlaybackLive.holding`, read only; `EngineClient.holdingMasters` (by page and slot) and `holdingText` feed the status bar's GRP tag and `ActivePlaybacksWindow.holdingRow`, whose tap sends `page.set`. `PlaybackInfo.locked` and `masterLevel` give the saved level while disabled.
 HLP-02 (2026-11-05, UI-55): `EngineClient.openManual` opens the bundled `manual/index.html`, else the website; the Help key and *Help › CMDMX Manual* call it. ⌘? goes through `MacKeys.handle`, as ⌘Z does: macOS takes the menu item's own ⌘? for its Help search
 REC-12 (2026-11-05, CUE-62): `UIState.building` holds the kind and, after the first tap, the handle; `resetRecord` clears it, so whatever disarms Record ends it. `recordTargets` is `recordArmed && building == nil`: the gates of groups, palettes and the line use it, `refusal(on:)` lets everything through but a cue row and an Active row. `HandleTaps.build` stores; Clear keeps Record armed only while building.
