@@ -41,10 +41,10 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up, before the church runs on CMDMX at Christmas: the phone page for walking the patch (RMB-02) and
-parking (PRK-01..02), with the rest of batch C (SEE-07..10); then the church Mac (VS4-07) and the first service
-(VS4-03). Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs
-beside it. Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
+Next up, before the church runs on CMDMX at Christmas: parking (PRK-01, PRK-02) on the phone page that now walks
+the patch, with the rest of batch C (SEE-07..10); then the church Mac (VS4-07) and the first service (VS4-03).
+Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
+Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
 
 ## What works today
@@ -89,9 +89,9 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   channel became.
 - The church rig (56 fixtures from the owner's Lightkey patch) is patched by a one-off into the
   show *Kerk*.
-- A phone remote behind a login set on the Remote screen: the engine listens on the network (port 7320), shows
-  the address and a QR code, and lets a logged-in phone rename, readdress and highlight fixtures; the page
-  itself comes next.
+- A phone remote behind a login set on the Remote screen: the engine serves a patch page on the network (port 7320),
+  shown as an address and a QR code. On the phone: the fixtures in number order with search, a card to rename and
+  readdress, and Previous / Next with Highlight following, so walking the rig is one tap per lamp.
 
 **Programmer**
 - Groups with legends: Record, Copy, Move, Delete and Set Legend on the Groups window, group masters

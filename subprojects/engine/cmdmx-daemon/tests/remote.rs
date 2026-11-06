@@ -697,3 +697,42 @@ fn rmt_08_remote_highlight_uses_the_console_selection_and_highlight() {
     assert_eq!(p["highlight"], true);
     assert_eq!(p["selection"], json!([a]));
 }
+
+#[test]
+fn rmt_09_the_page_is_served_whole_inline_and_without_outside_resources() {
+    let dir = folder("rmt09");
+    let (ipc, port) = (free_port(), free_port());
+    let _daemon = daemon(&dir, ipc);
+    let mut app = connect(ipc);
+    recv(&mut app);
+    turn_on(&mut app, port);
+
+    let answer = get(port, "/");
+    let (head, body) = answer.split_once("\r\n\r\n").unwrap();
+    let head = head.to_lowercase();
+    assert!(head.starts_with("http/1.1 200"), "{head}");
+    assert!(
+        head.contains("content-type: text/html; charset=utf-8"),
+        "{head}"
+    );
+    // Served whole: the length the head announces is the body that arrives, and it ends the page.
+    assert!(
+        head.contains(&format!("content-length: {}", body.len())),
+        "{head} vs {} bytes",
+        body.len()
+    );
+    assert!(body.trim_end().ends_with("</html>"), "{body}");
+
+    // One page, script and style inline, laid out for a phone.
+    let page = body.to_lowercase();
+    assert!(page.starts_with("<!doctype html>"));
+    assert!(page.contains("<meta name=\"viewport\""));
+    assert!(page.contains("<style>") && page.contains("<script>"));
+
+    // Nothing from outside: no URL, no external script, sheet, import or font.
+    for outside in [
+        "http:", "https:", "src=", "href=", "<link", "@import", "url(", "//cdn",
+    ] {
+        assert!(!page.contains(outside), "the page holds {outside:?}");
+    }
+}

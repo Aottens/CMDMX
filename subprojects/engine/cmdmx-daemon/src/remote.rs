@@ -45,8 +45,8 @@ static LOGIN_GENERATION: AtomicU64 = AtomicU64::new(0);
 const WRONG: &str = "Wrong username or password";
 const TOO_MANY: &str = "Too many tries, wait 30 s";
 
-/// RMT-03: until the patch page (RMB-02).
-const PAGE: &str = "<!doctype html>\n<html><head><meta charset=\"utf-8\"><title>CMDMX remote</title></head>\n<body><p>The patch page comes with RMB-02.</p></body></html>\n";
+/// RMT-09: the phone page, style and script inline, built into the binary.
+const PAGE: &str = include_str!("remote.html");
 
 /// RMT-02: a login as it is kept: username, salt and hash, never the password.
 #[derive(Debug, Clone, PartialEq)]
