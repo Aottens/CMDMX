@@ -11,8 +11,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. Before Christmas: the phone patch page itself (RMB-02, on the remote listener the console now has), then
-   parking (PRK-01, PRK-02; `patch.md` PAT-29..36).
+1. Before Christmas: parking (PRK-01, PRK-02; `patch.md` PAT-29..36), which puts Park on the phone page; RMB-04
+   checks the remote login after the page's run.
 2. Batch C, seeing what the rig does: SEE-07 + SEE-08 (live output on the tiles), then SEE-09 + SEE-10.
 3. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
    P1-31 (Blind and Edit) stays apart from them.

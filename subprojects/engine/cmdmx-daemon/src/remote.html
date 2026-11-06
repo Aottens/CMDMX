@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>CMDMX remote</title>
+<style>
+:root { --bg:#000; --panel:#16181c; --line:#2c3038; --text:#f2f2f2; --dim:#9aa0aa; --amber:#ffb300; --red:#ff4d4d; --green:#4dd97a; }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+body { margin:0; background:var(--bg); color:var(--text); font:17px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.wrap { max-width:640px; margin:0 auto; padding:0 16px; }
+header { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:56px; border-bottom:1px solid var(--line); }
+header h1 { margin:0; font-size:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#conn { font-size:14px; color:var(--dim); white-space:nowrap; }
+#conn.on { color:var(--green); }
+#banner { position:sticky; top:0; z-index:5; padding:14px 16px; text-align:center; font-weight:700; font-size:18px; background:var(--amber); color:#000; }
+#banner.off { background:var(--red); color:#fff; }
+main { padding:16px 0 24px; }
+body.offline main { opacity:.35; pointer-events:none; }
+body.card-open main { padding-bottom:110px; }
+input { width:100%; min-height:48px; padding:10px 12px; font:inherit; font-size:18px; color:var(--text); background:var(--panel); border:2px solid var(--line); border-radius:10px; }
+input:focus { outline:none; border-color:var(--amber); }
+input:disabled { opacity:.5; }
+label { display:block; margin:14px 0 0; color:var(--dim); font-size:14px; }
+label input { margin-top:4px; }
+button { min-height:48px; padding:10px 16px; font:inherit; font-weight:600; color:var(--text); background:var(--panel); border:2px solid var(--line); border-radius:10px; }
+button:disabled { opacity:.4; }
+button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--amber); border-color:var(--amber); color:#000; font-size:18px; }
+.err, .warn { color:var(--red); }
+.ok { color:var(--green); }
+.dim { color:var(--dim); }
+#lerr { min-height:1.4em; margin:12px 0 0; }
+#search { position:sticky; top:0; z-index:4; margin-bottom:8px; box-shadow:0 0 0 8px var(--bg); }
+#lmsg { margin:4px 0 8px; }
+.fx { display:block; width:100%; min-height:56px; margin:0 0 6px; text-align:left; font-weight:400; }
+.fx.hit { border-color:var(--amber); }
+.fx.parked { color:var(--dim); background:transparent; border-style:dashed; }
+#cnum { margin:12px 0 0; font-size:34px; }
+.two { display:flex; gap:12px; }
+.two label { flex:1; }
+#crange { margin:14px 0 0; font-size:26px; font-weight:700; color:var(--amber); }
+#cmsg { min-height:1.4em; margin:8px 0 0; }
+#bar { position:fixed; left:0; right:0; bottom:0; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); background:var(--bg); border-top:1px solid var(--line); }
+#bar .in { display:flex; gap:10px; max-width:640px; margin:0 auto; }
+#bar button { flex:1; min-height:64px; padding:10px 6px; font-size:18px; white-space:nowrap; }
+#hl { flex:1.2; }
+#hl.on { background:var(--amber); border-color:var(--amber); color:#000; box-shadow:0 0 18px var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap"><header><h1 id="show">CMDMX remote</h1><span id="conn"></span></header></div>
+<div id="banner" hidden></div>
+<div class="wrap"><main>
+
+<section id="login" hidden>
+  <form id="lf">
+    <label>Username<input id="lu" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+    <label>Password<input id="lp" type="password" autocomplete="current-password"></label>
+    <button id="lb" class="primary" type="submit">Log in</button>
+    <p id="lerr" class="err" role="alert"></p>
+  </form>
+</section>
+
+<section id="list" hidden>
+  <input id="search" type="search" placeholder="Number or name" autocomplete="off" autocapitalize="none" autocorrect="off" enterkeyhint="go">
+  <p id="lmsg" class="warn" role="status"></p>
+  <div id="rows"></div>
+</section>
+
+<section id="card" hidden>
+  <button id="back" type="button">&larr; List</button>
+  <h2 id="cnum"></h2>
+  <label>Name<input id="cname" type="text" autocomplete="off" autocorrect="off" enterkeyhint="done"></label>
+  <p id="cmodel" class="dim"></p>
+  <div class="two">
+    <label>Universe<input id="cuni" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></label>
+    <label>Address<input id="caddr" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></label>
+  </div>
+  <p id="crange"></p>
+  <p id="cmsg" role="status"></p>
+  <button id="save" class="primary" type="button">Save</button>
+</section>
+
+</main></div>
+
+<nav id="bar" hidden><div class="in">
+  <button id="prev" type="button">&lsaquo; Previous</button>
+  <button id="hl" type="button" aria-pressed="false">Highlight</button>
+  <button id="next" type="button">Next &rsaquo;</button>
+</div></nav>
+
+<script>
+(function () {
+  'use strict';
+  var TOKEN_KEY = 'cmdmx-token';
+  var S = {
+    status: 'login',      // login | connecting | online | offline
+    token: null, ws: null, retry: null, busy: false, loginErr: '',
+    snap: null, query: '', scrollTo: null, listMsg: '',
+    cardId: null, dirty: {}, saving: null, nameSent: null, cardMsg: null,
+    hl: false, hlAt: 0     // page-local Highlight flag and when the last highlight command went out
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var DOT = ' · ', DASH = '–';
+
+  function stored() { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } }
+  function store(t) {
+    try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+  }
+
+  // ---- connection -------------------------------------------------------------------------
+  function connect(login) {
+    clearTimeout(S.retry);
+    if (S.ws) { S.ws.onclose = null; try { S.ws.close(); } catch (e) {} }
+    var ws = new WebSocket('ws://' + location.host + '/ws');
+    S.ws = ws;
+    ws.onopen = function () { ws.send(JSON.stringify(Object.assign({ v: 1, cmd: 'login' }, login))); };
+    ws.onmessage = function (e) { if (ws === S.ws) onMessage(ws, e.data, login); };
+    ws.onclose = function () { if (ws === S.ws) onClose(ws); };
+  }
+
+  function onMessage(ws, data, login) {
+    var m;
+    try { m = JSON.parse(data); } catch (e) { return; }
+    if (m.type === 'login') {
+      if (m.error) {   // the server closes after this; a dead token means the engine restarted
+        ws.failed = true;
+        if (login.token) { S.token = null; store(null); }
+        // A token only dies when the engine restarts or the login is changed (RMT-04).
+        S.loginErr = login.token && !/Too many/.test(m.error) ? 'Log in again: the console restarted or its login changed' : m.error; S.status = 'login'; S.busy = false;
+      } else {
+        S.token = m.token; store(m.token);
+      }
+    } else if (m.type === 'snapshot') {
+      S.status = 'online'; S.busy = false; S.loginErr = '';
+      onSnapshot(m);
+    } else if (m.type === 'warning' || m.type === 'error') {
+      if (S.hl && /parked/.test(m.message)) S.hl = false;
+      showMsg(m.message, 'warn');
+      S.saving = null;
+    }
+    render();
+  }
+
+  function onClose(ws) {
+    if (ws.failed) return;
+    S.busy = false;
+    if (S.token) { S.status = 'offline'; S.retry = setTimeout(retryNow, 2000); }
+    else { S.status = 'login'; S.loginErr = 'Cannot reach the console'; }
+    render();
+  }
+
+  function retryNow() {
+    if (S.token && S.status === 'offline') connect({ token: S.token });
+  }
+
+  function wake() {
+    if (document.visibilityState === 'hidden') return;
+    if (S.status === 'online' && S.ws && S.ws.readyState !== 1) { S.status = 'offline'; render(); }
+    retryNow();
+  }
+  document.addEventListener('visibilitychange', wake);
+  window.addEventListener('online', wake);
+
+  function cmd(name, data) {
+    var ws = S.ws;
+    if (S.status !== 'online' || !ws || ws.readyState !== 1) { showMsg('Console offline', 'warn'); return false; }
+    ws.send(JSON.stringify(Object.assign({ v: 1, cmd: name }, data)));
+    return true;
+  }
+
+  function highlight(id) { if (cmd('remote.highlight', { id: id })) S.hlAt = Date.now(); }
+
+  // ---- snapshot ---------------------------------------------------------------------------
+  function fixtures() { return S.snap ? S.snap.fixtures : []; }
+  function cardFix() {
+    var fx = fixtures();
+    for (var i = 0; i < fx.length; i++) if (fx[i].id === S.cardId) return fx[i];
+    return null;
+  }
+
+  function onSnapshot(m) {
+    S.snap = m;
+    if (m.locked) S.hl = false;   // the console refuses highlight while locked
+    if (S.cardId === null) return;
+    var f = cardFix();
+    if (!f) { S.cardId = null; S.hl = false; S.cardMsg = null; return; }   // another show: back to the list
+    // The console took the highlight away (not our own command still on its way).
+    // and the other way: the console highlights the card's fixture (after an unlock, a reconnect).
+    var settled = Date.now() - S.hlAt > 1500;
+    if (S.hl && m.highlight !== S.cardId && settled) S.hl = false;
+    if (!S.hl && !m.locked && m.highlight === S.cardId && settled) S.hl = true;
+    if (S.cardMsg && S.cardMsg.at && (f.universe !== S.cardMsg.at.u || f.address !== S.cardMsg.at.a)) S.cardMsg = null;
+    if (S.nameSent !== null && f.name === S.nameSent) { S.dirty.name = false; S.nameSent = null; }
+    if (S.saving && f.universe === S.saving.u && f.address === S.saving.a) {
+      S.cardMsg = { text: 'Saved', kind: 'ok', at: S.saving };
+      S.dirty.uni = S.dirty.addr = false; S.saving = null;
+    }
+  }
+
+  function showMsg(text, kind) {
+    if (S.cardId !== null) S.cardMsg = { text: text, kind: kind };
+    else S.listMsg = text;
+  }
+
+  // ---- helpers ----------------------------------------------------------------------------
+  function range(u, a, fp) { return u + '.' + a + (fp > 1 ? DASH + u + '.' + (a + fp - 1) : ''); }
+  // The profile key is `<manufacturer>/<model>`; the list and card show the model.
+  function model(f) { var i = f.profile.indexOf('/'); return i < 0 ? f.profile : f.profile.slice(i + 1); }
+  function editable() { return S.status === 'online' && !(S.snap && S.snap.locked); }
+  function num(s) { return /^\d+$/.test(s.trim()) ? parseInt(s, 10) : NaN; }
+
+  function neighbour(dir) {
+    var fx = fixtures(), i = -1, k;
+    for (k = 0; k < fx.length; k++) if (fx[k].id === S.cardId) i = k;
+    for (k = i + dir; i >= 0 && k >= 0 && k < fx.length; k += dir) {
+      if (!(S.hl && fx[k].parked)) return fx[k];   // Next/Previous skip parked ones while Highlight is on
+    }
+    return null;
+  }
+
+  // ---- list -------------------------------------------------------------------------------
+  function listFor() {
+    var q = S.query.trim().toLowerCase(), fx = fixtures(), hit = null, rows = fx;
+    if (/^\d+$/.test(q)) {
+      // The jump: the list starts at the number. Scrolling instead loses to iOS keeping the
+      // focused search field in view.
+      var n = parseInt(q, 10), i = 0;
+      while (i < fx.length && fx[i].number < n) i++;
+      hit = fx[i] || null;
+      rows = fx.slice(i);
+    } else if (q) {
+      rows = fx.filter(function (f) {
+        return (f.name || '').toLowerCase().indexOf(q) >= 0 || String(f.number).indexOf(q) >= 0;
+      });
+    }
+    return { rows: rows, hit: hit };
+  }
+
+  function rowText(f) {
+    var parts = [String(f.number)];
+    if (f.name) parts.push(f.name);
+    parts.push(model(f));
+    parts.push(f.parked ? 'parked (was ' + range(f.universe, f.address, 0) + ')' : range(f.universe, f.address, f.footprint));
+    return parts.join(DOT);
+  }
+
+  function renderList() {
+    var r = listFor(), box = $('rows'), frag = document.createDocumentFragment(), target = null;
+    r.rows.forEach(function (f) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'fx' + (f.parked ? ' parked' : '') + (r.hit && r.hit.id === f.id ? ' hit' : '');
+      b.textContent = rowText(f);
+      b.addEventListener('click', function () { openCard(f.id); });
+      if (f.id === S.scrollTo) target = b;
+      frag.appendChild(b);
+    });
+    if (!r.rows.length) {
+      var p = document.createElement('p');
+      p.className = 'dim';
+      p.textContent = fixtures().length ? 'No match' : 'No fixtures in this show';
+      frag.appendChild(p);
+    }
+    box.textContent = '';
+    box.appendChild(frag);
+    if (target) target.scrollIntoView({ block: 'center' });
+    S.scrollTo = null;
+    $('lmsg').textContent = S.listMsg;
+  }
+
+  $('search').addEventListener('input', function () {
+    S.query = this.value;
+    S.listMsg = '';
+    window.scrollTo(0, 0);
+    render();
+  });
+  $('search').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var r = listFor(), f = r.hit || r.rows[0];
+    if (f) openCard(f.id);
+  });
+
+  // ---- card -------------------------------------------------------------------------------
+  function openCard(id) {
+    if (S.cardId !== null) commitName();
+    S.cardId = id; S.dirty = {}; S.saving = null; S.nameSent = null; S.cardMsg = null; S.listMsg = '';
+    var f = cardFix();
+    if (f) {
+      $('cname').value = f.name; $('cuni').value = f.universe; $('caddr').value = f.address;
+    }
+    window.scrollTo(0, 0);
+    render();
+  }
+
+  function closeCard() {
+    commitName();
+    if (S.hl) { S.hl = false; highlight(null); }
+    S.scrollTo = S.cardId; S.cardId = null; S.cardMsg = null;
+    render();
+  }
+
+  // Never overwrite a field the user is typing in or has changed since the card opened.
+  function fill(el, key, value) {
+    if (!S.dirty[key] && document.activeElement !== el) el.value = value;
+  }
+
+  function renderCard() {
+    var f = cardFix();
+    if (!f) return;
+    var ed = editable();
+    $('cnum').textContent = String(f.number);
+    $('cmodel').textContent = model(f) + (f.mode ? DOT + f.mode : '');
+    fill($('cname'), 'name', f.name);
+    fill($('cuni'), 'uni', f.universe);
+    fill($('caddr'), 'addr', f.address);
+    var u = num($('cuni').value), a = num($('caddr').value);
+    $('crange').textContent = range(isNaN(u) ? f.universe : u, isNaN(a) ? f.address : a, f.footprint);
+    var m = S.cardMsg;
+    $('cmsg').textContent = m ? m.text : '';
+    $('cmsg').className = m ? m.kind : '';
+    ['cname', 'cuni', 'caddr', 'save'].forEach(function (id) { $(id).disabled = !ed; });
+    var on = S.status === 'online';
+    $('prev').disabled = !on || !neighbour(-1);
+    $('next').disabled = !on || !neighbour(1);
+    $('hl').disabled = !on || f.parked || !!(S.snap && S.snap.locked);
+    $('hl').className = S.hl ? 'on' : '';
+    $('hl').textContent = S.hl ? 'Highlight ON' : 'Highlight';
+    $('hl').setAttribute('aria-pressed', S.hl ? 'true' : 'false');
+  }
+
+  function commitName() {
+    var f = cardFix();
+    if (!f || !editable() || !S.dirty.name) return;
+    var v = $('cname').value.trim();
+    if (v === f.name) { S.dirty.name = false; return; }
+    if (v === S.nameSent) return;   // blur and change both fire: one undo step, not two
+    if (cmd('patch.name', { id: f.id, name: v })) S.nameSent = v;
+  }
+
+  function save() {
+    commitName();
+    var f = cardFix();
+    if (!f || !editable()) return;
+    var u = num($('cuni').value), a = num($('caddr').value);
+    if (isNaN(u) || u < 1) { S.cardMsg = { text: 'Universe must be 1 or higher', kind: 'warn' }; render(); return; }
+    if (isNaN(a) || a < 1 || a > 512) { S.cardMsg = { text: 'Address must be 1 to 512', kind: 'warn' }; render(); return; }
+    if (u === f.universe && a === f.address) {
+      // Save with only a new name: the name went out above, so there is nothing to say.
+      S.cardMsg = S.nameSent !== null ? null : { text: 'Nothing changed', kind: 'dim' };
+      render(); return;
+    }
+    S.cardMsg = null;
+    if (cmd('patch.move', { id: f.id, universe: u, address: a })) S.saving = { u: u, a: a };
+    render();
+  }
+
+  function walk(dir) {
+    var n = neighbour(dir);
+    if (!n) return;
+    openCard(n.id);
+    if (S.hl) highlight(n.id);
+  }
+
+  ['cname', 'cuni', 'caddr'].forEach(function (id) {
+    var key = id.slice(1);
+    $(id).addEventListener('input', function () { S.dirty[key] = true; renderCard(); });
+  });
+  // iOS Safari does not blur a field on a tap elsewhere or on a button, so the name is also
+  // saved on change, before every card switch and Save, and a tap outside a field blurs it.
+  $('cname').addEventListener('blur', commitName);
+  $('cname').addEventListener('change', commitName);
+  document.addEventListener('touchstart', function (e) {
+    var a = document.activeElement;
+    if (a && a.tagName === 'INPUT' && e.target !== a && e.target.tagName !== 'INPUT') a.blur();
+  }, { passive: true });
+  $('cname').addEventListener('keydown', function (e) { if (e.key === 'Enter') this.blur(); });
+  $('save').addEventListener('click', save);
+  $('back').addEventListener('click', closeCard);
+  $('prev').addEventListener('click', function () { walk(-1); });
+  $('next').addEventListener('click', function () { walk(1); });
+  $('hl').addEventListener('click', function () {
+    if (S.cardId === null) return;
+    if (S.hl) { S.hl = false; highlight(null); }
+    else { S.hl = true; highlight(S.cardId); }
+    render();
+  });
+
+  // ---- login ------------------------------------------------------------------------------
+  $('lf').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var u = $('lu').value.trim(), p = $('lp').value;
+    if (!u || !p) { S.loginErr = 'Enter username and password'; render(); return; }
+    S.loginErr = ''; S.busy = true;
+    connect({ username: u, password: p });
+    render();
+  });
+
+  // ---- render -----------------------------------------------------------------------------
+  function render() {
+    var st = S.status, snap = S.snap, locked = !!(snap && snap.locked);
+    var showCard = S.cardId !== null && st !== 'login' && !!snap;
+    var showList = (st === 'online' || st === 'offline') && !!snap && !showCard;
+    $('show').textContent = snap && st !== 'login' ? snap.show : 'CMDMX remote';
+    $('conn').textContent = st === 'online' ? 'Online' : st === 'offline' ? 'Offline' : st === 'connecting' ? 'Connecting…' : '';
+    $('conn').className = st === 'online' ? 'on' : '';
+    var b = $('banner');
+    b.hidden = !(st === 'offline' || (st === 'online' && locked));
+    b.className = st === 'offline' ? 'off' : '';
+    b.textContent = st === 'offline' ? 'Console offline – retrying' : 'Console locked – editing is off';
+    document.body.classList.toggle('offline', st === 'offline');
+    document.body.classList.toggle('card-open', showCard);
+    $('login').hidden = st !== 'login';
+    $('list').hidden = !showList;
+    $('card').hidden = !showCard;
+    $('bar').hidden = !showCard;
+    if (st === 'login') {
+      $('lerr').textContent = S.loginErr;
+      $('lb').disabled = S.busy;
+      $('lb').textContent = S.busy ? 'Logging in…' : 'Log in';
+    } else {
+      $('lp').value = '';
+    }
+    if (showList) renderList();
+    if (showCard) renderCard();
+  }
+
+  // ---- start ------------------------------------------------------------------------------
+  S.token = stored();
+  if (S.token) { S.status = 'connecting'; connect({ token: S.token }); }
+  render();
+})();
+</script>
+</body>
+</html>
