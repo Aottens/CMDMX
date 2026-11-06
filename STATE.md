@@ -11,8 +11,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. Before Christmas: the phone patch page and parking (`remote.md`, PAT-29..36), RMB-01 + RMB-03 first, then
-   RMB-02, PRK-01 and PRK-02.
+1. Before Christmas: the phone patch page itself (RMB-02, on the remote listener the console now has), then
+   parking (PRK-01, PRK-02; `patch.md` PAT-29..36).
 2. Batch C, seeing what the rig does: SEE-07 + SEE-08 (live output on the tiles), then SEE-09 + SEE-10.
 3. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
    P1-31 (Blind and Edit) stays apart from them.
@@ -41,6 +41,7 @@ Programming and small checks:
 
 ## Owner to decide
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
+- The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).
 - Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-38 and IDEA-39.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).

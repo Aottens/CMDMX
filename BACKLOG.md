@@ -234,8 +234,8 @@ Builds: RMB-01 + RMB-03; RMB-02; PRK-01; PRK-02.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| RMB-01 | Daemon: the remote listener on its own port, the login as a salted hash in `state.json`, tokens, the `Origin` check, five tries, the allow-list, the remote snapshot and `remote.highlight`; `rmt_01_…` to `rmt_08_…`. The park commands join the allow-list in PRK-02. | RMT-01..08 | M | todo |
-| RMB-03 | App: Settings › Remote with username, password, port, on/off, the address and its QR code; manual. Needs RMB-01. | RMT-15 | S | todo |
+| RMB-01 | Daemon: the remote listener on its own port, the login as a salted hash in `state.json`, tokens, the `Origin` check, five tries, the allow-list, the remote snapshot and `remote.highlight`; `rmt_01_…` to `rmt_08_…`. The park commands join the allow-list in PRK-02. | RMT-01..08 | M | done (2026-11-06, #PR) |
+| RMB-03 | App: Settings › Remote with username, password, port, on/off, the address and its QR code; manual. Needs RMB-01. | RMT-15 | S | done (2026-11-06, #PR) |
 | RMB-02 | Daemon: the built-in page (login, list, card, walking with Highlight, offline and locked); manual section and `tests/manual/remote-patch.md` run on a real phone against Art-Net. Needs RMB-01. | RMT-09..12, RMT-14, RMT-16 | M | todo |
 | PRK-01 | Core and daemon: `patch.park`, `patch.unpark`, `park_conflicting`, skipped live, what is kept, `parked` on the wire and the schema step; `pat_29_…` to `pat_34_…`. | PAT-29..34 | M | todo |
 | PRK-02 | App and page: Park and Unpark on the Patch screen, greyed `PARK` tiles, Park conflicting and move; Park, Unpark and Park and move on the phone card; manual and run on Art-Net. Needs PRK-01 and RMB-02. | PAT-35, PAT-36, RMT-13 | S | todo |
@@ -323,6 +323,7 @@ Builds: TRB-01 + TRB-02 (one question from the owner, how to see where the proje
 |---|---|---|---|---|
 | TRB-01 | `STATE.md` is one screen; CI fails when it drifts from `BACKLOG.md`; every session start prints it from `main`; `scripts/test_tracking.py`. | TRK-01..04, TRK-09 | S | done (2026-11-05, #248) |
 | TRB-02 | `scripts/dashboard.py`: a local page that follows `origin/main` by itself, with search and filters; run in the browser. | TRK-05..08 | S | done (2026-11-05, #248) |
+| TRB-03 | `scripts/dashboard.py` moves its default port off 7320, the remote's port (RMT-01), and the LaunchAgent follows; owner picks the port. | TRK-05 | S | todo |
 
 ## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions
