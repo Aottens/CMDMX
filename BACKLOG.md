@@ -234,8 +234,8 @@ Builds: RMB-01 + RMB-03; RMB-02; PRK-01; PRK-02.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| RMB-01 | Daemon: the remote listener on its own port, the login as a salted hash in `state.json`, tokens, the `Origin` check, five tries, the allow-list, the remote snapshot and `remote.highlight`; `rmt_01_…` to `rmt_08_…`. The park commands join the allow-list in PRK-02. | RMT-01..08 | M | done (2026-11-06, #PR) |
-| RMB-03 | App: Settings › Remote with username, password, port, on/off, the address and its QR code; manual. Needs RMB-01. | RMT-15 | S | done (2026-11-06, #PR) |
+| RMB-01 | Daemon: the remote listener on its own port, the login as a salted hash in `state.json`, tokens, the `Origin` check, five tries, the allow-list, the remote snapshot and `remote.highlight`; `rmt_01_…` to `rmt_08_…`. The park commands join the allow-list in PRK-02. | RMT-01..08 | M | done (2026-11-06, #259) |
+| RMB-03 | App: Settings › Remote with username, password, port, on/off, the address and its QR code; manual. Needs RMB-01. | RMT-15 | S | done (2026-11-06, #259) |
 | RMB-02 | Daemon: the built-in page (login, list, card, walking with Highlight, offline and locked); manual section and `tests/manual/remote-patch.md` run on a real phone against Art-Net. Needs RMB-01. | RMT-09..12, RMT-14, RMT-16 | M | todo |
 | PRK-01 | Core and daemon: `patch.park`, `patch.unpark`, `park_conflicting`, skipped live, what is kept, `parked` on the wire and the schema step; `pat_29_…` to `pat_34_…`. | PAT-29..34 | M | todo |
 | PRK-02 | App and page: Park and Unpark on the Patch screen, greyed `PARK` tiles, Park conflicting and move; Park, Unpark and Park and move on the phone card; manual and run on Art-Net. Needs PRK-01 and RMB-02. | PAT-35, PAT-36, RMT-13 | S | todo |
