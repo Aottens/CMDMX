@@ -67,8 +67,8 @@ the backlog, not the whole idea.
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 | IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
 | IDEA-41 | Our own built-in 3D visualiser, inside the app (owner 2026-11-04) | triaged | 4 (owner 2026-11-04) | new `visualiser.md`, PAT, LIB, IPC, UI |
-| IDEA-42 | A phone page the console serves on the network, with a login set in the console: walk the patch fixture by fixture, readdress, highlight to check | triaged; spec P1-34 todo | 1 (owner 2026-11-06, before Christmas) | new `remote.md`, PAT, PRG, IPC, daemon |
-| IDEA-43 | Park fixtures: the rig on paper is bigger than what hangs; a parked fixture leaves output, groups and selection, its programming kept | triaged; spec P1-35 todo | 1 (owner 2026-11-06) | PAT, PRG, GRM, IPC, UI |
+| IDEA-42 | A phone page the console serves on the network, with a login set in the console: walk the patch fixture by fixture, readdress, highlight to check | spec P1-34 proposed (`remote.md` RMT-01..16; RMB-01..03 todo) | 1 (owner 2026-11-06, before Christmas) | new `remote.md`, PAT, PRG, IPC, daemon |
+| IDEA-43 | Park fixtures: the rig on paper is bigger than what hangs; a parked fixture leaves output, groups and selection, its programming kept | spec P1-35 proposed (`patch.md` PAT-29..36; PRK-01..02 todo) | 1 (owner 2026-11-06) | PAT, PRG, GRM, IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.

@@ -227,6 +227,19 @@ Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08; SEE-
 | SEE-09 | App: the Views screen with Intensity, Grid and DMX; manual and run, the screen against an Art-Net listener. Needs SEE-07. | UI-61 | M | todo |
 | SEE-10 | App: a palette value on one line in Programmer, Cue view and Grid; manual and run with a 12-fixture cue. | UI-62 | S | todo |
 
+### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
+Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
+park buttons on the phone come with PRK-02.
+Builds: RMB-01 + RMB-03; RMB-02; PRK-01; PRK-02.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| RMB-01 | Daemon: the remote listener on its own port, the login as a salted hash in `state.json`, tokens, the `Origin` check, five tries, the allow-list, the remote snapshot and `remote.highlight`; `rmt_01_…` to `rmt_08_…`. The park commands join the allow-list in PRK-02. | RMT-01..08 | M | todo |
+| RMB-03 | App: Settings › Remote with username, password, port, on/off, the address and its QR code; manual. Needs RMB-01. | RMT-15 | S | todo |
+| RMB-02 | Daemon: the built-in page (login, list, card, walking with Highlight, offline and locked); manual section and `tests/manual/remote-patch.md` run on a real phone against Art-Net. Needs RMB-01. | RMT-09..12, RMT-14, RMT-16 | M | todo |
+| PRK-01 | Core and daemon: `patch.park`, `patch.unpark`, `park_conflicting`, skipped live, what is kept, `parked` on the wire and the schema step; `pat_29_…` to `pat_34_…`. | PAT-29..34 | M | todo |
+| PRK-02 | App and page: Park and Unpark on the Patch screen, greyed `PARK` tiles, Park conflicting and move; Park, Unpark and Park and move on the phone card; manual and run on Art-Net. Needs PRK-01 and RMB-02. | PAT-35, PAT-36, RMT-13 | S | todo |
+
 ### Functions and consequences (IDEA-35 batch H, spec P1-27)
 Order proposed with the spec: what can change the stage by surprise first. Sub-release 0.4.0 follows the batch, then a gap review with the app running; nothing from H goes on the church Mac before the service of 2026-11-08.
 Builds: FUN-01 + FUN-02; FUN-03 + FUN-04; FUN-05 + FUN-06.

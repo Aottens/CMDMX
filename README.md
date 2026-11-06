@@ -41,10 +41,11 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up: batch C, seeing what the rig does (SEE-04..10), then the church Mac (VS4-07) and the first service
-(VS4-03). Phase 2 features already work (see below); the open-hardware desk (phase 10,
-[`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is in [`STATE.md`](STATE.md), the plan in
-[`BACKLOG.md`](BACKLOG.md); site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
+Next up, before the church runs on CMDMX at Christmas: a phone page for walking the patch (RMB-01..03) and
+parking (PRK-01..02), with batch C (SEE-04..10); then the church Mac (VS4-07) and the first service (VS4-03).
+Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
+Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
+site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
 
 ## What works today
 
