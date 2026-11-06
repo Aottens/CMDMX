@@ -76,6 +76,19 @@ pub enum Usage {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
+    /// RMT-02: hashed by the client thread (`remote::hash_login`) and sent as `Event::Remote`;
+    /// the tick never sees the password.
+    RemoteSetLogin {
+        username: String,
+        password: String,
+        port: u16,
+    },
+    /// RMT-01: stop the listener, keep the login.
+    RemoteOff,
+    /// RMT-08: from a phone only (`remote::parse_phone_command`); `None` switches Highlight off.
+    RemoteHighlight {
+        id: Option<FixtureId>,
+    },
     /// IPC-50: lock or unlock the console; handled on the tick, never by the engine.
     LockSet {
         on: bool,
@@ -731,6 +744,8 @@ pub enum Event {
         name: String,
         reply: SyncSender<String>,
     },
+    /// RMT-01, 02: the remote's login (already hashed) or off; allowed while locked.
+    Remote(crate::remote::Request),
 }
 
 /// An unsigned integer field that fits `T`.
@@ -1918,6 +1933,24 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             id: uint(&v, "id")?,
             group: uint(&v, "group")?,
         }),
+        // RMT-01, 02
+        Some("remote.set_login") => {
+            let (username, password) = (string(&v, "username")?, string(&v, "password")?);
+            let port = opt_uint::<u16>(&v, "port")?.unwrap_or(crate::remote::DEFAULT_PORT);
+            let len_ok = |s: &str| (1..=64).contains(&s.chars().count());
+            if !len_ok(&username) || !len_ok(&password) {
+                return Err("username and password must be 1-64 characters".into());
+            }
+            if port < 1024 {
+                return Err("port must be 1024-65535".into());
+            }
+            Ok(Command::RemoteSetLogin {
+                username,
+                password,
+                port,
+            })
+        }
+        Some("remote.off") => Ok(Command::RemoteOff),
         // IPC-50
         Some("lock.set") => Ok(Command::LockSet {
             on: boolean(&v, "on")?,
@@ -2436,6 +2469,8 @@ struct Snapshot<'a> {
     messages: &'a [HistoryMessage],
     /// IPC-50
     locked: bool,
+    /// RMT-02: `Remote::info`; never the salt, the hash or the password.
+    remote: &'a serde_json::Value,
 }
 
 /// OUT-33: one output node with its fields, state and detail.
@@ -2696,6 +2731,7 @@ pub fn locked_delta(on: bool) -> String {
 }
 
 /// IPC-03/10/20: full state for a freshly connected client.
+#[allow(clippy::too_many_arguments)]
 pub fn snapshot(
     engine: &Engine,
     outputs: &[OutputStatus],
@@ -2704,6 +2740,7 @@ pub fn snapshot(
     control: &serde_json::Value,
     messages: &[HistoryMessage],
     locked: bool,
+    remote: &serde_json::Value,
 ) -> String {
     let stored = stored_infos(engine);
     to_json(&Snapshot {
@@ -2730,6 +2767,7 @@ pub fn snapshot(
         control,
         messages,
         locked,
+        remote,
     })
 }
 
@@ -3870,6 +3908,28 @@ fn serve_client(
                         return;
                     }
                 }
+                // RMT-02: hashed here; only the hash goes to the tick.
+                Ok(Command::RemoteSetLogin {
+                    username,
+                    password,
+                    port,
+                }) => {
+                    let event = match crate::remote::hash_login(&username, &password, port) {
+                        Ok(login) => Event::Remote(crate::remote::Request::Login(login)),
+                        Err(w) => Event::Warning(w),
+                    };
+                    if events.send(event).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::RemoteOff) => {
+                    if events
+                        .send(Event::Remote(crate::remote::Request::Off))
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
                 Ok(cmd) => {
                     let cmd = stamp(cmd, started.elapsed().as_secs_f64());
                     if events
@@ -3985,6 +4045,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "snapshot");
@@ -4066,6 +4127,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["outputs"],
@@ -4095,6 +4157,7 @@ mod tests {
                 &serde_json::Value::Null,
                 &[],
                 false,
+                &serde_json::Value::Null,
             ))["outputs"],
             json!([])
         );
@@ -4302,6 +4365,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
@@ -4349,6 +4413,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["fixtures"],
@@ -4388,6 +4453,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let wash = &v["fixtures"][1];
         assert_eq!(wash["mode"], "24 Channel");
@@ -4629,6 +4695,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let c = &v["effect_catalogue"];
         let looks = c["looks"].as_array().unwrap();
@@ -4723,6 +4790,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["programmer"],
@@ -4744,6 +4812,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["programmer"]["wheels"],
@@ -5388,6 +5457,7 @@ mod tests {
             &serde_json::Value::Null,
             clients.messages(),
             false,
+            &serde_json::Value::Null,
         ));
         let m = v["messages"].as_array().unwrap();
         assert_eq!(m.len(), 2);
@@ -5437,6 +5507,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ))
     }
 
@@ -5655,6 +5726,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ))
         .unwrap();
         let msg = ws.read().unwrap();
@@ -5725,6 +5797,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["show"],
@@ -5743,6 +5816,7 @@ mod tests {
                 &serde_json::Value::Null,
                 &[],
                 false,
+                &serde_json::Value::Null,
             ))["show"]["saved_at"],
             Value::Null
         );
@@ -5839,6 +5913,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let slots: Vec<Value> = (1..=8)
             .map(|s| json!({"slot": s, "playback": if s == 1 { json!(1) } else { Value::Null }}))
@@ -5936,6 +6011,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["palettes"],
@@ -5990,6 +6066,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["palette_settings"],
@@ -6018,6 +6095,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["programmer"]["palettes"],
@@ -6035,6 +6113,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ))["programmer"];
         assert_eq!(p["palettes"], json!({"in_use":[7],"relevant":[7]}));
         assert_eq!(
@@ -6213,6 +6292,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let mut want = playback_entry();
         want["legend"] = json!("Walk-in");
@@ -6233,6 +6313,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let pages: Vec<Value> = (1..=10)
             .map(|n| json!({"number": n, "legend": if n == 2 { "Service" } else { "" }}))
@@ -6304,6 +6385,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let fired = |i: usize| v["playbacks"][i]["fired"].as_u64().unwrap();
         assert!(fired(1) < fired(0), "playback 2 fired first");
@@ -6317,6 +6399,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert!(v["playbacks"][0]["fired"].is_null(), "off again");
     }
@@ -6819,6 +6902,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(v["v"], 1, "IPC-41: v stays");
         let pb = entry(&v, 2);
@@ -6853,6 +6937,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let p = entry(&v, 2);
         assert_eq!(p["kind"], json!("Cues"));
@@ -6887,6 +6972,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(v["connected"], json!(null));
     }
@@ -6957,6 +7043,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let chase = entry(&v, 3);
         assert_eq!(chase["kind"], json!("Chase"));
@@ -7004,6 +7091,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let m = entry(&v, u64::from(master));
         assert_eq!(
@@ -7643,6 +7731,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         let m = entry(&v, u64::from(id));
         assert_eq!(m["kind"], json!("GroupMaster"));
@@ -7700,6 +7789,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
     }
@@ -7717,6 +7807,7 @@ mod tests {
                 &serde_json::Value::Null,
                 &[],
                 false,
+                &serde_json::Value::Null,
             ))
         };
         assert_eq!(entry(&snap(&e), u64::from(id))["holding"], json!(false));
@@ -7801,6 +7892,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(v["undo"], json!({"undo": null, "redo": null}));
         let some = UndoInfo {
@@ -7815,6 +7907,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(v["undo"], json!({"undo": "Clear", "redo": "Wheel Pan"}));
     }
@@ -7865,6 +7958,7 @@ mod tests {
             &serde_json::Value::Null,
             &[],
             false,
+            &serde_json::Value::Null,
         ));
         assert_eq!(
             v["programmer_settings"],
@@ -8119,6 +8213,7 @@ mod tests {
                 &serde_json::Value::Null,
                 &[],
                 false,
+                &serde_json::Value::Null,
             ))["programmer"]
                 .clone()
         };

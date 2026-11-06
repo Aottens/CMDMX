@@ -723,6 +723,7 @@ fn ctl_39_snapshot_has_the_control_section() {
         &c.snapshot(),
         &[],
         false,
+        &serde_json::Value::Null,
     ))
     .unwrap();
     let control = &s["control"];

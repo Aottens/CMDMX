@@ -17,6 +17,9 @@ serialport = { version = "4.10.1", default-features = false }
 tungstenite = "0.30"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+# RMT-02: the remote password as a salted hash.
+pbkdf2 = { version = "0.13", default-features = false, features = ["hmac"] }
+sha2 = { version = "0.11", default-features = false }
 
 # CTL-08: CoreMIDI. Only on macOS, so CI on Linux needs no ALSA headers.
 [target.'cfg(target_os = "macos")'.dependencies]

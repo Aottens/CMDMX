@@ -1,7 +1,7 @@
 # Module spec: remote (RMT)
 
 Owner: `cmdmx-daemon` (listener, login, the page built into the binary) and `subprojects/app` (the login in
-Settings). Status: **RMT-01..16 proposed (P1-34, IDEA-42), awaiting the owner's approval.** Builds on
+Settings). Status: **RMT-01..16 approved (P1-34, IDEA-42, 2026-11-06).** Builds on
 `patch.md` (PAT-04, 23, 29..33), `programmer.md` (PRG-26, 39) and `ipc.md` (IPC-06, 50).
 Behavioural reference: Titan Remote (phone or tablet on the console's Wi-Fi) shows the DMX address patch
 but does not edit it; Titan's Web API is plain HTTP on the console. This page goes further: it edits.
@@ -31,6 +31,8 @@ first slice of the web remote (IDEA-06, phase 2), which later adds faders and cu
 - **RMT-02** The password is stored as a salted hash, never as itself, and never leaves the daemon: the
   snapshot carries `remote: {"on":true,"username":"aernout","port":7320,"addresses":["192.168.1.20"],"clients":1}`,
   no password. `addresses` are the Mac's IPv4 addresses on the network, so the app can show the URL.
+  A change to any of them reaches every app client as `{"v":1,"type":"remote","remote":{…}}`. In `state.json`
+  the login is `remote: {on, username, salt, hash, port}`: PBKDF2-HMAC-SHA256, a 16-byte salt from `/dev/urandom`.
 - **RMT-03** On the remote listener a plain HTTP `GET /` answers the page (RMT-09); any other path is
   404; a WebSocket handshake on `/ws` is accepted only when its `Origin` is the listener's own
   `http://<host>:<port>` (a page on another site cannot drive the console through the phone, as IPC-02
