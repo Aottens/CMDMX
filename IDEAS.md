@@ -68,7 +68,7 @@ the backlog, not the whole idea.
 | IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
 | IDEA-41 | Our own built-in 3D visualiser, inside the app (owner 2026-11-04) | triaged | 4 (owner 2026-11-04) | new `visualiser.md`, PAT, LIB, IPC, UI |
 | IDEA-42 | A phone page the console serves on the network, with a login set in the console: walk the patch fixture by fixture, readdress, highlight to check | triaged; spec P1-34 todo | 1 (owner 2026-11-06, before Christmas) | new `remote.md`, PAT, PRG, IPC, daemon |
-| IDEA-43 | Park fixtures: the rig on paper is bigger than what hangs; a parked fixture leaves output, groups and selection, its programming kept | triaged; awaiting phase confirmation | 1 proposed | PAT, PRG, GRM, IPC, UI |
+| IDEA-43 | Park fixtures: the rig on paper is bigger than what hangs; a parked fixture leaves output, groups and selection, its programming kept | triaged; spec P1-35 todo | 1 (owner 2026-11-06) | PAT, PRG, GRM, IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -864,6 +864,8 @@ not edit it; Titan's Web API is HTTP on the console. Patch editing from a phone 
 - Plain HTTP on the LAN (the password crosses the Wi-Fi readable) or HTTPS with a self-signed
   certificate (the phone warns once)? Where the login lives: the console's settings, not the show.
 - Does the page also show the DMX values going out on the fixture's channels, as the address check?
+**Owner's answers (2026-11-06):** universe, address and name of existing fixtures (adding and removing
+stay on the console); highlight through the console's own selection and programmer.
 
 ### IDEA-43 — Park fixtures (2026-11-06)
 **Owner's intent:** the church rig is bigger on paper than what really hangs, which makes programming
@@ -889,3 +891,4 @@ says nothing about groups or the selection.
   removed from the groups?
 - Park only from the console, or also on the phone page (IDEA-42) while walking the rig?
 - Does Unpark go back to the old address, or refuse when that address is taken by now?
+**Owner's answers (2026-11-06):** phase 1, spec P1-35 beside P1-34; skipped while parked and kept for Unpark.
