@@ -213,6 +213,7 @@ fn lib_01_fixture_uses_its_patched_mode() {
     let mut e = Engine::new(Settings::default());
     e.add_profile("shehds", shehds()).unwrap();
     let fx = |id, mode: Option<&str>, address| Fixture {
+        parked: false,
         id,
         number: 0,
         name: String::new(),
@@ -387,6 +388,7 @@ fn lib_02_rejected_profile_never_reaches_the_patch() {
     ));
     assert_eq!(
         e.patch(Fixture {
+            parked: false,
             id: 1,
             number: 0,
             name: String::new(),
@@ -411,6 +413,7 @@ fn lib_03_defaults_are_on_the_frame_from_the_first_tick() {
     let mut e = Engine::new(Settings::default());
     e.add_profile("shehds", shehds()).unwrap();
     e.patch(Fixture {
+        parked: false,
         id: 1,
         number: 0,
         name: String::new(),
@@ -436,6 +439,7 @@ fn lib_03_released_ltp_holds_its_last_value_not_the_default() {
     let mut e = Engine::new(Settings::default());
     e.add_profile("shehds", shehds()).unwrap();
     e.patch(Fixture {
+        parked: false,
         id: 1,
         number: 0,
         name: String::new(),

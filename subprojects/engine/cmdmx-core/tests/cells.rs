@@ -49,6 +49,7 @@ fn rig() -> Engine {
         (201, "dimmer", 97),
     ] {
         e.patch(Fixture {
+            parked: false,
             id,
             number: 0,
             name: String::new(),

@@ -928,13 +928,22 @@ impl Engine {
         }
         let footprint =
             lookup_mode(&self.profiles, &fixture.profile, fixture.mode.as_deref())?.footprint;
-        self.check_place(
-            fixture.number,
-            fixture.universe,
-            u32::from(fixture.address),
-            footprint,
-            &[],
-        )?;
+        // PAT-34: a parked fixture holds no channels, so it has no clash to check.
+        if !fixture.parked {
+            self.check_place(
+                fixture.number,
+                fixture.universe,
+                u32::from(fixture.address),
+                footprint,
+                &[],
+            )?;
+        } else if fixture.address == 0 || u32::from(fixture.address) > UNIVERSE_SIZE as u32 {
+            return Err(CoreError::AddressOutOfRange {
+                fixture: fixture.number,
+                universe: fixture.universe,
+                address: fixture.address,
+            });
+        }
         if self.numbers.contains_key(&fixture.number) {
             return Err(CoreError::NumberInUse(fixture.number));
         }
@@ -944,6 +953,16 @@ impl Engine {
     /// PAT-01..03, 07: patch `count` fixtures back to back. The whole placement is computed and
     /// checked first; a refused add changes nothing. Returns the new ids in patch order.
     pub fn patch_add(&mut self, add: &PatchAdd) -> Result<Vec<FixtureId>, CoreError> {
+        self.add_fixtures(add, false)
+    }
+
+    /// PAT-32: as [`Engine::patch_add`], but the fixtures the new ones overlap are parked in the
+    /// same command and a notice names them; a used number still refuses with nothing parked.
+    pub fn patch_add_parking(&mut self, add: &PatchAdd) -> Result<Vec<FixtureId>, CoreError> {
+        self.add_fixtures(add, true)
+    }
+
+    fn add_fixtures(&mut self, add: &PatchAdd, park: bool) -> Result<Vec<FixtureId>, CoreError> {
         if add.count == 0 {
             return Err(CoreError::InvalidCount(0));
         }
@@ -978,17 +997,28 @@ impl Engine {
             let number = first_number
                 .checked_add(i)
                 .ok_or(CoreError::NoFreeNumbers)?;
-            self.check_place(number, add.universe, address, footprint, &[])?;
+            if park {
+                self.check_range(number, add.universe, address, footprint)?;
+            } else {
+                self.check_place(number, add.universe, address, footprint, &[])?;
+            }
             if self.numbers.contains_key(&number) {
                 return Err(CoreError::NumberInUse(number));
             }
             placed.push((first_id + i, number, address));
             address += u32::from(footprint);
         }
+        let clashing = if park {
+            self.overlapped(add.universe, first_address, address, &[])
+        } else {
+            Vec::new()
+        };
+        self.park_ids(&clashing);
         let first_on_universe = self.universe_is_empty(add.universe);
         let mut ids = Vec::new();
         for (id, number, address) in placed {
             self.install(Fixture {
+                parked: false,
                 id,
                 number,
                 name: String::new(),
@@ -1001,6 +1031,18 @@ impl Engine {
             ids.push(id);
         }
         self.add_default_nodes(add.universe, first_on_universe);
+        if let (Some(first), false) = (ids.first(), clashing.is_empty()) {
+            let parked = self.numbers_of(&clashing);
+            let place = self.fixtures.get(first).map_or(0, |f| f.address);
+            let what = match ids.len() {
+                1 => format!("Added {}", self.fixtures.get(first).map_or(0, |f| f.number)),
+                many => format!("Added {many} fixtures"),
+            };
+            self.notices.push(format!(
+                "{what} at {}.{place}, parked {parked}",
+                add.universe
+            ));
+        }
         Ok(ids)
     }
 
@@ -1106,16 +1148,179 @@ impl Engine {
             footprint,
             &[id],
         )?;
-        let (old_universe, old_address) = (fixture.universe, fixture.address);
-        self.clear_channels(old_universe, old_address, footprint);
+        let (old_universe, old_address, was_parked) =
+            (fixture.universe, fixture.address, fixture.parked);
+        if !was_parked {
+            self.clear_channels(old_universe, old_address, footprint);
+        }
         self.frames.entry(universe).or_default();
         let was_empty = self.universe_is_empty(universe);
         if let Some(f) = self.fixtures.get_mut(&id) {
             f.universe = universe;
             f.address = address;
+            f.parked = false; // PAT-31
+        }
+        if was_parked {
+            self.parking_changed();
         }
         self.add_default_nodes(universe, was_empty);
         Ok(())
+    }
+
+    /// PAT-29: take fixtures off the output map; the place is remembered. A range command
+    /// (PAT-19); one already parked stays as it is. They leave the selection, the programmer, the
+    /// located set and the programmer's effects as in PAT-05; groups, palettes and cues are
+    /// untouched and their channels drop to 0.
+    pub fn patch_park(&mut self, ids: &[FixtureId]) -> Result<(), CoreError> {
+        self.range_ids(ids)?;
+        self.park_ids(ids);
+        Ok(())
+    }
+
+    fn park_ids(&mut self, ids: &[FixtureId]) {
+        for &id in ids {
+            let Some(f) = self.fixtures.get(&id).filter(|f| !f.parked) else {
+                continue;
+            };
+            let (universe, address) = (f.universe, f.address);
+            let footprint = self.footprint_of(f).unwrap_or(0);
+            if let Some(f) = self.fixtures.get_mut(&id) {
+                f.parked = true;
+            }
+            self.clear_channels(universe, address, footprint);
+            self.programmer.remove_fixture(id);
+        }
+        self.parking_changed();
+        self.follow_active_group();
+    }
+
+    /// PAT-30: after a fixture was parked or unparked, effect positions are worked out over the
+    /// members that hang, in every cue and palette, and the running cues follow.
+    fn parking_changed(&mut self) {
+        let parked: BTreeSet<FixtureId> = (self.fixtures.values())
+            .filter(|f| f.parked)
+            .map(|f| f.id)
+            .collect();
+        let is_parked = |m: &Item| parked.contains(&m.fixture);
+        let cue_effects = (self.playbacks.values_mut())
+            .flat_map(|pb| &mut pb.cues)
+            .flat_map(|c| &mut c.effects);
+        let palette_effects = (self.palettes.values_mut()).flat_map(|p| &mut p.effects);
+        for e in cue_effects.chain(palette_effects) {
+            e.refresh_over(is_parked);
+        }
+        self.follow_cue_effects();
+    }
+
+    /// PAT-31: put parked fixtures back at their remembered place. Each is checked against the
+    /// fixtures that hang (and against the others being unparked); the first clash refuses the
+    /// whole command. One already unparked stays as it is.
+    pub fn patch_unpark(&mut self, ids: &[FixtureId]) -> Result<(), CoreError> {
+        let wake: Vec<&Fixture> = (self.range_ids(ids)?.iter())
+            .filter_map(|id| self.fixtures.get(id))
+            .filter(|f| f.parked)
+            .collect();
+        for (i, f) in wake.iter().enumerate() {
+            let footprint = self.footprint_of(f)?;
+            let clash = match self.check_place(
+                f.number,
+                f.universe,
+                u32::from(f.address),
+                footprint,
+                &[],
+            ) {
+                Err(CoreError::PatchOverlap {
+                    number,
+                    other,
+                    universe,
+                    address,
+                }) => Some((number, other, universe, address)),
+                Err(e) => return Err(e),
+                Ok(()) => wake.iter().take(i).find_map(|o| {
+                    let (a, b) = (u32::from(f.address), u32::from(o.address));
+                    let (wa, wb) = (footprint, self.footprint_of(o).ok()?);
+                    (o.universe == f.universe && a < b + u32::from(wb) && b < a + u32::from(wa))
+                        .then_some((f.number, o.number, f.universe, f.address.max(o.address)))
+                }),
+            };
+            if let Some((number, other, universe, address)) = clash {
+                return Err(CoreError::UnparkOverlap {
+                    number,
+                    other,
+                    universe,
+                    address,
+                });
+            }
+        }
+        let wake: Vec<FixtureId> = wake.iter().map(|f| f.id).collect();
+        for id in wake {
+            if let Some(f) = self.fixtures.get_mut(&id) {
+                f.parked = false;
+            }
+        }
+        self.parking_changed();
+        Ok(())
+    }
+
+    /// PAT-32: as [`Engine::patch_move_range`], but a fixture outside the range whose channels
+    /// the new places overlap is parked in the same command and a notice says so. A move past
+    /// slot 512 is still refused, with nothing parked.
+    pub fn patch_move_parking(
+        &mut self,
+        ids: &[FixtureId],
+        universe: UniverseId,
+        address: u16,
+    ) -> Result<(), CoreError> {
+        let sorted = self.range_ids(ids)?;
+        let mut end = u32::from(address);
+        for f in sorted.iter().filter_map(|id| self.fixtures.get(id)) {
+            let footprint = self.footprint_of(f)?;
+            self.check_range(f.number, universe, end, footprint)?;
+            end += u32::from(footprint.max(1));
+        }
+        let clashing = self.overlapped(universe, u32::from(address), end, &sorted);
+        self.park_ids(&clashing);
+        self.patch_move_range(&sorted, universe, address)?;
+        if !clashing.is_empty() {
+            let what = match sorted[..] {
+                [id] => format!("Moved {}", self.fixtures.get(&id).map_or(0, |f| f.number)),
+                _ => format!("Moved {} fixtures", sorted.len()),
+            };
+            let parked = self.numbers_of(&clashing);
+            self.notices
+                .push(format!("{what} to {universe}.{address}, parked {parked}"));
+        }
+        Ok(())
+    }
+
+    /// The non-parked fixtures outside `own` with a channel in `first..end` on `universe`.
+    fn overlapped(
+        &self,
+        universe: UniverseId,
+        first: u32,
+        end: u32,
+        own: &[FixtureId],
+    ) -> Vec<FixtureId> {
+        (self.fixtures.values())
+            .filter(|f| f.universe == universe && !f.parked && !own.contains(&f.id))
+            .filter(|f| {
+                let at = u32::from(f.address);
+                let width = self.footprint_of(f).map_or(0, u32::from);
+                at < end && first < at + width
+            })
+            .map(|f| f.id)
+            .collect()
+    }
+
+    /// The user numbers of `ids` in number order, for a notice.
+    fn numbers_of(&self, ids: &[FixtureId]) -> String {
+        let mut numbers: Vec<u32> = (ids.iter())
+            .filter_map(|id| self.fixtures.get(id))
+            .map(|f| f.number)
+            .collect();
+        numbers.sort_unstable();
+        let words: Vec<String> = numbers.iter().map(u32::to_string).collect();
+        words.join(", ")
     }
 
     /// PAT-05: remove fixtures from the patch, the selection, the programmer, every group and
@@ -1133,7 +1338,9 @@ impl Engine {
             let Some(fixture) = self.fixtures.remove(&id) else {
                 continue;
             };
-            self.clear_channels(fixture.universe, fixture.address, footprint);
+            if !fixture.parked {
+                self.clear_channels(fixture.universe, fixture.address, footprint);
+            }
             self.numbers.remove(&fixture.number);
             self.held.retain(|i, _| i.fixture != id);
             self.programmer.remove_fixture(id);
@@ -1152,7 +1359,7 @@ impl Engine {
                 effect::Entry::retire(&mut cue.effects, |m| m.fixture == id); // PAT-26
             }
         }
-        self.follow_cue_effects();
+        self.parking_changed(); // PAT-30: positions over the members that hang; runs follow
         self.follow_active_group();
         Ok(())
     }
@@ -1236,6 +1443,7 @@ impl Engine {
         let old_footprint = self.footprint_of(fixture)?;
         let new = lookup_mode(&self.profiles, &fixture.profile, Some(mode))?;
         let (number, universe, address) = (fixture.number, fixture.universe, fixture.address);
+        let parked = fixture.parked;
         // A value stays only when the new mode has that attribute with the same kind of value.
         let keeps = |name: &str, value: &Stored| {
             new.logical(name)
@@ -1336,7 +1544,9 @@ impl Engine {
             self.programmer.remove_value(Item::fixture(id), &name);
         }
         self.held.insert(Item::fixture(id), held);
-        self.clear_channels(universe, address, old_footprint);
+        if !parked {
+            self.clear_channels(universe, address, old_footprint);
+        }
         if let Some(f) = self.fixtures.get_mut(&id) {
             f.mode = Some(mode.to_string());
         }
@@ -1443,12 +1653,21 @@ impl Engine {
         }
         self.frames.entry(universe).or_default();
         let was_empty = self.universe_is_empty(universe);
+        let mut unparked = false;
         for (id, new_address, old_universe, old_address, footprint) in places {
-            self.clear_channels(old_universe, old_address, footprint);
+            if self.fixtures.get(&id).is_some_and(|f| f.parked) {
+                unparked = true; // PAT-31: its remembered channels are not its own now
+            } else {
+                self.clear_channels(old_universe, old_address, footprint);
+            }
             if let Some(f) = self.fixtures.get_mut(&id) {
                 f.universe = universe;
                 f.address = u16::try_from(new_address).unwrap_or(f.address);
+                f.parked = false;
             }
+        }
+        if unparked {
+            self.parking_changed();
         }
         self.add_default_nodes(universe, was_empty);
         Ok(())
@@ -1642,7 +1861,9 @@ impl Engine {
             .filter(|l| l.kind == AttributeKind::Ltp)
         {
             held.insert(l.name.to_string(), l.default);
-            write_value(frame, fixture.address, mode, &l, l.default, scale);
+            if !fixture.parked {
+                write_value(frame, fixture.address, mode, &l, l.default, scale);
+            }
         }
         Ok(())
     }
@@ -1661,13 +1882,32 @@ impl Engine {
     fn spans(&self, universe: UniverseId, own: &[FixtureId]) -> Vec<(u32, u32, u32)> {
         self.fixtures
             .values()
-            .filter(|f| f.universe == universe && !own.contains(&f.id))
+            .filter(|f| f.universe == universe && !f.parked && !own.contains(&f.id))
             .filter_map(|f| {
                 let first = u32::from(f.address);
                 let width = u32::from(self.footprint_of(f).ok()?);
                 Some((first, (first + width).saturating_sub(1), f.number))
             })
             .collect()
+    }
+
+    /// PAT-02: `footprint` channels from `address` must lie within 1..=512.
+    fn check_range(
+        &self,
+        number: u32,
+        universe: UniverseId,
+        address: u32,
+        footprint: u16,
+    ) -> Result<(), CoreError> {
+        let end = address.saturating_add(u32::from(footprint)); // first channel after
+        if address == 0 || end > UNIVERSE_SIZE as u32 + 1 {
+            return Err(CoreError::AddressOutOfRange {
+                fixture: number,
+                universe,
+                address: u16::try_from(address).unwrap_or(u16::MAX),
+            });
+        }
+        Ok(())
     }
 
     /// PAT-02: `footprint` channels from `address` must lie within 1..=512 and clear every other
@@ -1680,15 +1920,9 @@ impl Engine {
         footprint: u16,
         own: &[FixtureId],
     ) -> Result<(), CoreError> {
+        self.check_range(number, universe, address, footprint)?;
         let at = u16::try_from(address).unwrap_or(u16::MAX);
         let end = address.saturating_add(u32::from(footprint)); // first channel after
-        if address == 0 || end > UNIVERSE_SIZE as u32 + 1 {
-            return Err(CoreError::AddressOutOfRange {
-                fixture: number,
-                universe,
-                address: at,
-            });
-        }
         let clash = self
             .spans(universe, own)
             .into_iter()
@@ -1774,14 +2008,14 @@ impl Engine {
     /// LTP value the restored programmer no longer holds is let go of as Clear does.
     pub(crate) fn restore_edit_state(&mut self, s: EditState) {
         let same_place = |a: &Fixture, b: &Fixture| {
-            (a.universe, a.address, &a.profile, &a.mode)
-                == (b.universe, b.address, &b.profile, &b.mode)
+            (a.universe, a.address, &a.profile, &a.mode, a.parked)
+                == (b.universe, b.address, &b.profile, &b.mode, b.parked)
         };
         // Old channels of removed or changed fixtures go dark (old profiles still in place).
         let gone: Vec<(UniverseId, u16, u16)> = self
             .fixtures
             .values()
-            .filter(|f| s.fixtures.get(&f.id).is_none_or(|n| !same_place(f, n)))
+            .filter(|f| !f.parked && s.fixtures.get(&f.id).is_none_or(|n| !same_place(f, n)))
             .map(|f| (f.universe, f.address, self.footprint_of(f).unwrap_or(0)))
             .collect();
         for (universe, address, footprint) in gone {
@@ -2148,6 +2382,7 @@ impl Engine {
             }
         }
         engine.playback_next_id = engine.playback_next_id.max(show.playbacks.next_id);
+        engine.parking_changed();
         engine.notice_holding_masters();
         (engine, warnings)
     }
@@ -3503,8 +3738,18 @@ impl Engine {
             } else if let Some(cue) = target.and_then(|at| playback.cues.get_mut(at)) {
                 match record.mode {
                     Some(RecordMode::Replace) | None => {
+                        // PAT-33: a parked fixture is not in the programmer; its data stays.
+                        let parked =
+                            |i: &Item| self.fixtures.get(&i.fixture).is_some_and(|f| f.parked);
+                        let kept: Vec<_> = (cue.values.iter())
+                            .filter(|(i, _)| parked(i))
+                            .map(|(i, v)| (*i, v.clone()))
+                            .collect();
                         cue.values = values;
-                        cue.dormant.clear(); // CUE-61
+                        for (item, attrs) in kept {
+                            cue.values.entry(item).or_insert(attrs);
+                        }
+                        cue.dormant.retain(|i, _| parked(i)); // CUE-61
                     }
                     Some(RecordMode::Merge | RecordMode::QuickMerge) => {
                         for (fixture, attrs) in values {
@@ -4496,8 +4741,10 @@ impl Engine {
 
     /// PRG-46: toggle a whole fixture or one of its cells; a cell the mode lacks is refused.
     pub fn select_item(&mut self, item: Item) -> Result<(), CoreError> {
-        if !self.fixtures.contains_key(&item.fixture) {
-            return Err(CoreError::UnknownFixture(item.fixture));
+        match self.fixtures.get(&item.fixture) {
+            None => return Err(CoreError::UnknownFixture(item.fixture)),
+            Some(f) if f.parked => return Err(CoreError::Parked(f.number)), // PAT-30
+            Some(_) => {}
         }
         if let Some(cell) = item.cell {
             if cell == 0 || usize::from(cell) > self.cell_count(item.fixture) {
@@ -4517,10 +4764,21 @@ impl Engine {
     /// PRG-02/03: append a group's fixtures, keeping the ones already selected in place;
     /// a fully selected group is removed instead (IDEA-11). Typed `Group n` replaces, see PRG-08.
     pub fn select_group(&mut self, id: GroupId) -> Result<(), CoreError> {
-        let members = self
-            .group_members(id)
-            .filter(|m| !m.is_empty())
-            .ok_or(CoreError::GroupEmpty(id))?;
+        let members = self.group_members(id).unwrap_or_default();
+        if members.is_empty() {
+            // PAT-30: a group of only parked fixtures selects nothing and says so.
+            let hung_up = (self.groups.get(&id).into_iter().flatten())
+                .any(|i| self.fixtures.get(&i.fixture).is_some_and(|f| f.parked));
+            if !hung_up {
+                return Err(CoreError::GroupEmpty(id));
+            }
+            let at = self.last_tick.unwrap_or(0.0);
+            self.warnings.push(Warning {
+                at,
+                message: format!("Group {id}: every fixture is parked"),
+            });
+            return Ok(());
+        }
         self.fan = None; // PRG-56
         self.programmer
             .add_group(&members, self.group_grids.get(&id).copied());
@@ -4632,9 +4890,14 @@ impl Engine {
     /// PRG-53: a group's items that exist now; a cell the mode lacks is kept in the group but
     /// not selected.
     fn group_members(&self, id: GroupId) -> Option<Vec<Item>> {
-        let exists = |i: &Item| match i.cell {
-            None => self.fixtures.contains_key(&i.fixture),
-            Some(c) => self.mode_of(i.fixture).is_some_and(|m| m.cell(c).is_some()),
+        // PAT-30: a parked fixture is left out of every live list.
+        let exists = |i: &Item| {
+            let hangs = self.fixtures.get(&i.fixture).is_some_and(|f| !f.parked);
+            hangs
+                && match i.cell {
+                    None => true,
+                    Some(c) => self.mode_of(i.fixture).is_some_and(|m| m.cell(c).is_some()),
+                }
         };
         Some(
             self.groups
@@ -4989,7 +5252,8 @@ impl Engine {
         // PRG-54: a fixture with any selected item, a cell included, keeps its intensity.
         let selection: Vec<FixtureId> = self.programmer.items().iter().map(|i| i.fixture).collect();
         let mut put = Vec::new();
-        for &id in self.fixtures.keys().filter(|id| !selection.contains(id)) {
+        let hanging = self.fixtures.values().filter(|f| !f.parked).map(|f| &f.id);
+        for &id in hanging.filter(|id| !selection.contains(id)) {
             let Some(mode) = self.mode_of(id) else {
                 continue;
             };
@@ -5123,6 +5387,14 @@ impl Engine {
         let items = self.programmer.items().to_vec();
         if items.is_empty() {
             return Err(CoreError::EmptySelection);
+        }
+        let mut items = items;
+        // PAT-33: the group's parked fixtures stay, after the selection, in their old order.
+        for old in self.groups.get(&id).into_iter().flatten() {
+            let parked = self.fixtures.get(&old.fixture).is_some_and(|f| f.parked);
+            if parked && !items.contains(old) {
+                items.push(*old);
+            }
         }
         self.groups.insert(id, items);
         match self.programmer.grid() {
@@ -6446,6 +6718,22 @@ impl Engine {
                 }
             }
             if list.is_empty() {
+                // PAT-30: a line naming one parked fixture is refused with its number.
+                if let [(false, one)] = &cmd.selection[..] {
+                    let parked = (one.kind == Kind::Fixture && one.from == one.to)
+                        .then(|| self.numbers.get(&one.from))
+                        .flatten()
+                        .and_then(|id| self.fixtures.get(id))
+                        .filter(|f| f.parked);
+                    if let Some(f) = parked {
+                        return Err(CoreError::Parked(f.number));
+                    }
+                }
+                // PAT-30: a group of only parked fixtures selects nothing and warns.
+                if let Some(g) = group.filter(|g| self.groups.get(g).is_some_and(|m| !m.is_empty()))
+                {
+                    return self.select_group(g);
+                }
                 // PRG-96: a line naming one group says so when that group has no fixtures.
                 return Err(group.map_or(CoreError::EmptySelection, CoreError::GroupEmpty));
             }
@@ -6542,7 +6830,12 @@ impl Engine {
         };
         let fixtures: Vec<FixtureId> = match item.kind {
             Kind::Selected => selected.to_vec(),
-            Kind::Fixture => ordered(self.numbers.range(lo..=hi).map(|(_, id)| *id).collect()),
+            Kind::Fixture => ordered(
+                (self.numbers.range(lo..=hi))
+                    .map(|(_, id)| *id)
+                    .filter(|id| self.fixtures.get(id).is_some_and(|f| !f.parked)) // PAT-30
+                    .collect(),
+            ),
             Kind::Group => {
                 let ids = ordered(self.groups.range(lo..=hi).map(|(id, _)| *id).collect());
                 return ids
@@ -6740,7 +7033,17 @@ impl Engine {
                             palette.global = detected.global;
                             palette.shared = detected.shared;
                             palette.shared_cells = detected.shared_cells;
+                            // PAT-33: a parked fixture's value stays.
+                            let kept: Vec<_> = (palette.fixtures.iter())
+                                .filter(|(i, _)| {
+                                    (self.fixtures.get(&i.fixture)).is_some_and(|f| f.parked)
+                                })
+                                .map(|(i, v)| (*i, v.clone()))
+                                .collect();
                             palette.fixtures = detected.fixtures;
+                            for (item, attrs) in kept {
+                                palette.fixtures.entry(item).or_insert(attrs);
+                            }
                             palette.effects = effects;
                         }
                         Some(_) => {
@@ -7469,6 +7772,9 @@ impl Engine {
         // GRM-10: (Take Over master, fixture, level) of the passes this tick.
         let mut pickups: Vec<(PlaybackId, FixtureId, f32)> = Vec::new();
         for (fixture_id, fixture) in &self.fixtures {
+            if fixture.parked {
+                continue; // PAT-29: off the output map
+            }
             let Some(mode) = resolve_mode(&self.profiles, fixture) else {
                 self.warnings.push(Warning {
                     at: now,
@@ -9076,6 +9382,7 @@ mod tests {
         let mut e = Engine::new(Settings::default());
         assert_eq!(e.add_profile("dimmer", dimmer_profile()), Ok(()));
         let patched = e.patch(Fixture {
+            parked: false,
             id: 1,
             number: 0,
             name: String::new(),
@@ -9093,6 +9400,7 @@ mod tests {
     fn patch_rejects_unknown_profile_without_panicking() {
         let mut e = Engine::new(Settings::default());
         let r = e.patch(Fixture {
+            parked: false,
             id: 1,
             number: 0,
             name: String::new(),
@@ -9110,6 +9418,7 @@ mod tests {
         let mut e = Engine::new(Settings::default());
         assert_eq!(e.add_profile("dimmer", dimmer_profile()), Ok(()));
         let r = e.patch(Fixture {
+            parked: false,
             id: 1,
             number: 0,
             name: String::new(),

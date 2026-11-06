@@ -418,6 +418,7 @@ fn pat_12_low_level_patch_numbers_fixtures_by_id() {
     // Scenario files and test rigs patch with an explicit id and no number.
     let mut e = engine();
     e.patch(cmdmx_core::patch::Fixture {
+        parked: false,
         id: 201,
         number: 0,
         name: String::new(),
@@ -565,6 +566,7 @@ fn pat_09_name_sets_the_legend_only() {
     assert_eq!(after.name, "Front left");
     assert_eq!(
         cmdmx_core::patch::Fixture {
+            parked: false,
             name: String::new(),
             ..after
         },

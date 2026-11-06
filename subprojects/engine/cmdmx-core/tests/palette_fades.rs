@@ -61,6 +61,7 @@ fn rig_with(settings: Settings) -> Engine {
         (201, "rgbw", 17),
     ] {
         e.patch(Fixture {
+            parked: false,
             id,
             number: 0,
             name: String::new(),

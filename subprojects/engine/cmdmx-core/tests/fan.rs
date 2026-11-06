@@ -35,6 +35,7 @@ use FanCurve::*;
 
 fn patch(e: &mut Engine, id: FixtureId, profile: &str, address: u16) {
     e.patch(Fixture {
+        parked: false,
         id,
         number: 0,
         name: String::new(),

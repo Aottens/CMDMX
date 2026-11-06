@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). PAT-29..36 (parking, IDEA-43, P1-35): proposed, awaiting the owner's approval. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). PAT-29..36 (parking, IDEA-43, P1-35): approved by owner 2026-11-06. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -170,7 +170,7 @@ is PAT-32 (P1-35).
   as FX-22 records it, is the same (DEF-05, see `DECISIONS.md`). A change that loses nothing
   says nothing. Tests `pat_28_…`.
 
-### Parking (P1-35, IDEA-43; proposed, awaiting the owner's approval)
+### Parking (P1-35, IDEA-43; approved by owner 2026-11-06)
 Titan reference (*Changing the Patch*): Park "removes the fixture from the DMX output map, but all
 programming is retained"; the old line and address are remembered and Unpark restores them; Patch View can
 show parked fixtures greyed where they were patched; a repatch onto used channels offers *Park Conflicting
@@ -286,8 +286,8 @@ visual plot (with the visualiser).
 1. Phase 1, beside the phone page (P1-34).
 2. A parked fixture is skipped live and kept in groups, palettes and cues for Unpark (PAT-30, 33). Not
    chosen: taking it out of its groups, which Unpark could not undo.
-3. Proposed, to approve with this spec: Unpark onto taken channels is refused, not re-placed elsewhere
-   (PAT-31); the tile stays greyed in the Fixtures window rather than disappearing (PAT-35).
+3. Both proposals approved with this spec on 2026-11-06: Unpark onto taken channels is refused, not re-placed
+   elsewhere (PAT-31); the tile stays greyed in the Fixtures window rather than disappearing (PAT-35).
 
 ## Owner decisions (P1-15, 2026-10-24: every recommendation accepted)
 1. **Move: back to back or keep the spacing?** Titan's repatch keeps the address gaps between the

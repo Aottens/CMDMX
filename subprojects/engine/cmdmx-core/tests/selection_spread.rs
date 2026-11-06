@@ -41,6 +41,7 @@ fn rig() -> Engine {
     let mut e = church();
     for (id, address) in [(105, 41), (106, 46)] {
         e.patch(Fixture {
+            parked: false,
             id,
             number: 0,
             name: String::new(),

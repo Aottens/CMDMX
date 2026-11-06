@@ -798,7 +798,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         Control(_) | LockSet { .. } | ControlMapping { .. } => Ok(()),
         // RMT-01, 02: hashed and handled before the tick; they never get here.
         RemoteSetLogin { .. } | RemoteOff => Ok(()),
-        // RMT-08: the phone's pick replaces the selection; the parked refusal comes with PRK-01.
+        // RMT-08: the phone's pick replaces the selection; `select_item` refuses a parked one (PAT-30).
         RemoteHighlight { id: Some(id) } => {
             if engine.fixture(id).is_none() {
                 return Err(CoreError::UnknownFixture(id));
@@ -808,18 +808,35 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             engine.set_highlight(true)
         }
         RemoteHighlight { id: None } => engine.set_highlight(false),
-        PatchAdd { add, profile } => {
+        PatchAdd {
+            add,
+            profile,
+            park_conflicting,
+        } => {
             if let Some(p) = profile.filter(|_| !engine.has_profile(&add.profile)) {
                 // ponytail: a refused add leaves the installed profile unused in the show.
                 engine.add_profile(add.profile.clone(), p)?;
             }
-            engine.patch_add(&add).map(drop)
+            if park_conflicting {
+                engine.patch_add_parking(&add).map(drop)
+            } else {
+                engine.patch_add(&add).map(drop)
+            }
         }
         PatchMove {
             ids,
             universe,
             address,
+            park_conflicting: true,
+        } => engine.patch_move_parking(&ids, universe, address),
+        PatchMove {
+            ids,
+            universe,
+            address,
+            park_conflicting: false,
         } => engine.patch_move_range(&ids, universe, address),
+        PatchPark { ids } => engine.patch_park(&ids),
+        PatchUnpark { ids } => engine.patch_unpark(&ids),
         OutputAdd {
             line,
             enabled,
@@ -1094,6 +1111,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | OutputRemove { .. }
         | PatchAdd { .. }
         | PatchMove { .. }
+        | PatchPark { .. }
+        | PatchUnpark { .. }
         | PatchRemove { .. }
         | PatchRenumber { .. }
         | PatchName { .. }
@@ -1148,6 +1167,15 @@ fn range_label(verb: &str, ids: &[u32]) -> String {
         [id] => format!("Patch {verb} {id}"),
         [] => format!("Patch {verb}"),
         _ => format!("Patch {verb} {} fixtures", ids.len()),
+    }
+}
+
+/// PAT-29, 31: `Park 301` or `Park 4 fixtures`.
+fn park_label(verb: &str, ids: &[u32]) -> String {
+    match ids {
+        [id] => format!("{verb} {id}"),
+        [] => verb.to_string(),
+        _ => format!("{verb} {} fixtures", ids.len()),
     }
 }
 
@@ -1222,6 +1250,8 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         OutputRemove { .. } => ("Remove output".into(), None),
         PatchAdd { .. } => ("Patch add".into(), None),
         PatchMove { ids, .. } => (range_label("move", ids), None),
+        PatchPark { ids } => (park_label("Park", ids), None),
+        PatchUnpark { ids } => (park_label("Unpark", ids), None),
         PatchRemove { ids } if ids.len() > 1 => (range_label("remove", ids), None),
         PatchRemove { .. } => ("Patch remove".into(), None),
         PatchRenumber { ids, .. } => (range_label("renumber", ids), None),
@@ -1442,6 +1472,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     // IPC-09: one dimmer per fader, playback n -> fixture n at address n.
     for n in 1..=u32::from(Settings::default().faders_per_page) {
         engine.patch(Fixture {
+            parked: false,
             id: n,
             number: 0,
             name: String::new(),
@@ -1482,6 +1513,7 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
         };
         for id in ids {
             engine.patch(Fixture {
+                parked: false,
                 id,
                 number: 0,
                 name: String::new(),
@@ -1919,6 +1951,7 @@ mod tests {
         let mut engine = demo_engine().unwrap();
         let profile = Profile::from_json(RGB_PAR).unwrap();
         let cmd = ipc::Command::PatchAdd {
+            park_conflicting: false,
             add: add("Showtec/LED Par 56", "default", 6, Some(201), Some(1221)),
             profile: Some(profile),
         };
@@ -1941,6 +1974,7 @@ mod tests {
         );
         // A second add reuses the show's copy; no profile needed. PAT-03: first free run.
         let cmd = ipc::Command::PatchAdd {
+            park_conflicting: false,
             add: add("Showtec/LED Par 56", "default", 1, None, None),
             profile: None,
         };
@@ -1953,6 +1987,7 @@ mod tests {
         let mut engine = demo_engine().unwrap();
         // A different profile under the demo's "Demo/RGBW Par" key must not replace the show's copy.
         let cmd = ipc::Command::PatchAdd {
+            park_conflicting: false,
             add: add("Demo/RGBW Par", "default", 1, None, Some(2001)),
             profile: Some(Profile::from_json(RGB_PAR).unwrap()),
         };
@@ -1964,6 +1999,7 @@ mod tests {
             "first free run after the spots, RGBW footprint"
         );
         let next = ipc::Command::PatchAdd {
+            park_conflicting: false,
             add: add("Demo/RGBW Par", "default", 1, None, None),
             profile: None,
         };
@@ -1980,6 +2016,7 @@ mod tests {
         let mut engine = demo_engine().unwrap();
         let before: Vec<_> = engine.fixtures().cloned().collect();
         let unknown = ipc::Command::PatchAdd {
+            park_conflicting: false,
             add: add("Nope/Nope", "default", 1, None, None),
             profile: None,
         };
@@ -1989,6 +2026,7 @@ mod tests {
         );
         // PAT-02: 2 RGBW pars at 140 would overlap 226 at 140.
         let clash = ipc::Command::PatchAdd {
+            park_conflicting: false,
             add: add("Demo/RGBW Par", "default", 2, Some(140), Some(900)),
             profile: None,
         };
@@ -2005,6 +2043,7 @@ mod tests {
         let mut engine = demo_engine().unwrap();
         let mut run = |cmd| apply(&mut engine, cmd, 0.0).unwrap();
         run(ipc::Command::PatchMove {
+            park_conflicting: false,
             ids: vec![301],
             universe: 2,
             address: 1,
@@ -2041,6 +2080,7 @@ mod tests {
         let mut engine = demo_engine().unwrap();
         // 301..306 are one-channel dimmers.
         let cmd = ipc::Command::PatchMove {
+            park_conflicting: false,
             ids: vec![303, 301, 302],
             universe: 2,
             address: 101,
@@ -2073,6 +2113,84 @@ mod tests {
         assert_eq!(before, after);
     }
 
+    /// PAT-29, 31 (PRK-01): park and unpark are edit commands, one undo step each.
+    #[test]
+    fn pat_29_31_park_and_unpark_are_one_undo_step_each() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let before = e.edit_state();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"patch.park","ids":[201,202,203,204]}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Park 4 fixtures"));
+        assert!((201..=204).all(|id| e.fixture(id).unwrap().parked));
+        let parked = e.edit_state();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.edit_state(), before);
+        assert!(!e.fixture(201).unwrap().parked);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"redo"}"#).unwrap();
+        assert_eq!(e.edit_state(), parked);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"patch.unpark","ids":[202]}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Unpark 202"));
+        assert!(!e.fixture(202).unwrap().parked);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert!(e.fixture(202).unwrap().parked);
+    }
+
+    /// PAT-32 (PRK-01): a move that parks what it overlaps is one undo step for both.
+    #[test]
+    fn pat_32_park_conflicting_move_is_one_undo_step() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let (universe, address) = {
+            let f = e.fixture(202).unwrap();
+            (f.universe, f.address)
+        };
+        let before = e.edit_state();
+        let json = format!(
+            r#"{{"v":1,"cmd":"patch.move","id":301,"universe":{universe},"address":{address},"park_conflicting":true}}"#
+        );
+        undo_run(&mut e, &mut h, &json).unwrap();
+        assert!(e.fixture(202).unwrap().parked);
+        assert_eq!(e.fixture(301).unwrap().address, address);
+        assert_eq!(h.undo_label(), Some("Patch move 301"));
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.edit_state(), before);
+        // Without the flag the clash still refuses.
+        let json = format!(
+            r#"{{"v":1,"cmd":"patch.move","id":301,"universe":{universe},"address":{address}}}"#
+        );
+        assert!(matches!(
+            undo_run(&mut e, &mut h, &json),
+            Err(CoreError::PatchOverlap { .. })
+        ));
+    }
+
+    /// PAT-30 (PRK-01): the phone cannot pick a parked fixture (RMT-08).
+    #[test]
+    fn pat_30_remote_highlight_refuses_a_parked_fixture() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"patch.park","ids":[202]}"#).unwrap();
+        assert_eq!(
+            run(
+                &mut e,
+                &mut h,
+                ipc::Command::RemoteHighlight { id: Some(202) },
+                0.0
+            ),
+            Err(CoreError::Parked(202))
+        );
+    }
+
     #[test]
     fn pat_19_range_undo_labels_carry_the_count() {
         use ipc::Command::*;
@@ -2080,6 +2198,7 @@ mod tests {
         let cases = [
             (
                 PatchMove {
+                    park_conflicting: false,
                     ids: six(),
                     universe: 2,
                     address: 1,
@@ -2110,6 +2229,7 @@ mod tests {
             (PatchRemove { ids: six() }, "Patch remove 6 fixtures"),
             (
                 PatchMove {
+                    park_conflicting: false,
                     ids: vec![301],
                     universe: 2,
                     address: 1,
@@ -2117,6 +2237,10 @@ mod tests {
                 "Patch move 301",
             ),
             (PatchRemove { ids: vec![301] }, "Patch remove"),
+            (PatchPark { ids: six() }, "Park 6 fixtures"),
+            (PatchPark { ids: vec![301] }, "Park 301"),
+            (PatchUnpark { ids: six() }, "Unpark 6 fixtures"),
+            (PatchUnpark { ids: vec![301] }, "Unpark 301"),
         ];
         for (cmd, want) in cases {
             assert_eq!(label(&cmd).0, want);
@@ -3029,6 +3153,8 @@ mod tests {
             Class::Edit,
         ),
         (r#"{"v":1,"cmd":"patch.remove","ids":[3,4]}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"patch.park","ids":[3,4]}"#, Class::Edit),
+        (r#"{"v":1,"cmd":"patch.unpark","ids":[3,4]}"#, Class::Edit),
         (
             r#"{"v":1,"cmd":"patch.renumber","id":3,"number":1201}"#,
             Class::Edit,
@@ -3769,6 +3895,7 @@ mod tests {
         )
         .unwrap();
         e.patch(cmdmx_core::patch::Fixture {
+            parked: false,
             id: 999,
             number: 0,
             name: String::new(),
@@ -4011,6 +4138,7 @@ mod tests {
         e.add_profile("auto", Profile::from_json(json).unwrap())
             .unwrap();
         e.patch(Fixture {
+            parked: false,
             id: 1,
             number: 0,
             name: String::new(),

@@ -73,6 +73,7 @@ fn rig() -> Engine {
     fixtures.push((301, "dimmer", 41));
     for (id, profile, address) in fixtures {
         e.patch(Fixture {
+            parked: false,
             id,
             number: 0,
             name: String::new(),

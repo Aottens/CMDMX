@@ -77,6 +77,7 @@ fn church() -> Engine {
     e.add_profile(KEY, phantom()).unwrap();
     for (i, id) in (201..=204).enumerate() {
         e.patch(Fixture {
+            parked: false,
             id,
             number: 0,
             name: String::new(),

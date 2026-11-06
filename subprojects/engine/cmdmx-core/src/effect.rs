@@ -550,9 +550,20 @@ fn clamp01(v: Value) -> Value {
 impl Entry {
     /// FX-07: recompute *k* and *N* after the members or the parameters changed.
     pub(crate) fn refresh(&mut self) {
+        self.refresh_over(|_| false);
+    }
+
+    /// PAT-30: as [`Entry::refresh`], worked out over the members `parked` does not accept; those
+    /// stay in the entry at position 0 and output nothing.
+    pub(crate) fn refresh_over(&mut self, parked: impl Fn(&Item) -> bool) {
         let p = &self.params;
-        (self.positions, self.count) =
-            positions(self.members.len(), p.wings, p.groups, p.blocks, p.flip);
+        let live = self.members.iter().filter(|m| !parked(m)).count();
+        let (k, count) = positions(live, p.wings, p.groups, p.blocks, p.flip);
+        let mut k = k.into_iter();
+        self.positions = (self.members.iter())
+            .map(|m| if parked(m) { 0 } else { k.next().unwrap_or(0) })
+            .collect();
+        self.count = count;
     }
 
     /// Take the members `gone` accepts out, with their positions (*N* stays: the others keep
