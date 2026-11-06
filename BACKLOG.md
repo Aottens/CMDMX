@@ -299,6 +299,7 @@ after VS8-03, in any order.
 | P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. | PRG, UI | S | todo |
 | P1-32 | Spec the Help patch (L6, F7; owner 2026-11-05): UI-55, REL-29, WEB-36, build tasks HLP-01..03; approved by the owner when this PR merges. | UI, REL, WEB | S | done (2026-11-05, #252) |
 | P1-33 | Spec IDEA-35 batch C, seeing what the rig does (L1, J8, L2, L3, L5, C1..C3, K8), as GRM-22..23, ENG-25, IPC-58..60, UI-56..62; build tasks SEE-01..10; approved by owner 2026-11-05, the five questions as recommended (`ui.md`). | GRM, ENG, IPC, UI | S | done (2026-11-05, #254) |
+| P1-34 | Spec the phone patch page (IDEA-42, owner 2026-11-06: phase 1, before Christmas): new `remote.md` with RMT criteria (LAN listener, login set in the console, the page, highlight while walking), build tasks; owner approves. | RMT, PAT, PRG, IPC | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ### Tracking: the state stays true (spec `tracking.md`)

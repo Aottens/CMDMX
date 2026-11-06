@@ -6,16 +6,17 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 
 ## Now
 - Phase 1: a well-working general DMX console. Its finish line is a real Sunday service on CMDMX (VS4-03).
-- The church keeps running on Lightkey (owner, 2026-11-05). The first service on CMDMX has no date yet.
+- The church keeps running on Lightkey until Christmas, then on CMDMX (owner, 2026-11-06).
 - IDEA-35 batch B, changing what is recorded, is released, and its gap review is taken into the batches.
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. Batch C, seeing what the rig does: SEE-04 + SEE-05 + SEE-06 next (the Fixture info sheet first), then SEE-07..10
+1. P1-34, the phone patch page (IDEA-42), in phase 1 before Christmas: spec after the owner's answers.
+2. Batch C, seeing what the rig does: SEE-04 + SEE-05 + SEE-06 next (the Fixture info sheet first), then SEE-07..10
    in their builds.
-2. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
+3. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
    P1-31 (Blind and Edit) stays apart from them.
-3. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
+4. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):

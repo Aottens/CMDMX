@@ -67,6 +67,8 @@ the backlog, not the whole idea.
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
 | IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
 | IDEA-41 | Our own built-in 3D visualiser, inside the app (owner 2026-11-04) | triaged | 4 (owner 2026-11-04) | new `visualiser.md`, PAT, LIB, IPC, UI |
+| IDEA-42 | A phone page the console serves on the network, with a login set in the console: walk the patch fixture by fixture, readdress, highlight to check | triaged; spec P1-34 todo | 1 (owner 2026-11-06, before Christmas) | new `remote.md`, PAT, PRG, IPC, daemon |
+| IDEA-43 | Park fixtures: the rig on paper is bigger than what hangs; a parked fixture leaves output, groups and selection, its programming kept | triaged; awaiting phase confirmation | 1 proposed | PAT, PRG, GRM, IPC, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -833,3 +835,57 @@ leave room for height and orientation, so the 3D view does not need a second pos
 - Where a fixture's size and beam angle come from: the profile (GDTF has them), or set per fixture?
 - A window in the app, on a user page (IDEA-26), or also a second screen?
 - On the Linux desk (IDEA-30), or macOS only? This weighs on the choice of rendering.
+
+### IDEA-42 — A phone page for walking the patch (2026-11-06)
+**Owner's intent:** alone on a stage with the console somewhere at the back and no printed patch. A
+mobile web page that the console serves on the network as soon as the show is up: click through the
+fixtures, patch them and go on to the next. Ideally a highlight, or something basic to see whether
+the address was entered right. Behind a username and password set in the console. Wanted in phase 1:
+at Christmas the church runs on this console.
+**Titan reference:** the Titan Remote app (phone/tablet over Wi-Fi) shows the DMX address patch but does
+not edit it; Titan's Web API is HTTP on the console. Patch editing from a phone goes past Titan.
+**Triage:**
+- Phase 1 (owner 2026-11-06). A first slice of IDEA-06 (web remote, phase 2): the LAN listener, the
+  login and one page. IDEA-06 later adds faders and cues to the same listener.
+- The daemon serves it (the only crate with I/O): one page built into the binary, over the WebSocket
+  it already speaks (`tungstenite`), no web framework. The app's own port stays as it is: loopback only
+  and `Origin` refused (IPC-01, IPC-02). The page gets its own port on the LAN, off until a username
+  and password are set in the console.
+- The page: fixtures in number order (number, name, type, mode, universe.address, footprint), jump by
+  number; a fixture's card edits universe and address through the existing patch commands (PAT-04,
+  clashes refused as today); Previous / Next walks on. Highlight follows the card: the shown fixture
+  is highlighted (PRG Highlight, `programmer.highlight`), Next moves it on, so a wrong lamp lighting up
+  shows a wrong address.
+**What it touches now:** IPC-01/02 stay; a new module spec (`remote.md`, RMT) that IDEA-06 extends later.
+**Open questions:**
+- Only readdress existing fixtures, or also name, renumber, add and remove from the phone?
+- Highlight through the console's own selection and programmer (simple, as a remote does), or apart
+  from it, so someone programming at the console is not disturbed?
+- Plain HTTP on the LAN (the password crosses the Wi-Fi readable) or HTTPS with a self-signed
+  certificate (the phone warns once)? Where the login lives: the console's settings, not the show.
+- Does the page also show the DMX values going out on the fixture's channels, as the address check?
+
+### IDEA-43 — Park fixtures (2026-11-06)
+**Owner's intent:** the church rig is bigger on paper than what really hangs, which makes programming
+hard. Parking a fixture should take it out of groups and the selection as well. How does Titan do it?
+**Titan reference** (*Changing the Patch*): Park (Patch › Repatch Fixtures › Park) takes the fixture off
+the DMX output map; all its programming is kept and its old line and address are remembered, so
+Unpark puts it back. Patch View can show parked fixtures greyed out where they were patched. A repatch
+onto a used address offers *Park Conflicting Fixtures* (and a user setting to always do so). Titan's
+Park is not the Park of other consoles (holding an output value): that is Titan's Freeze. The manual
+says nothing about groups or the selection.
+**Triage:**
+- Proposed phase 1: programming the church for Christmas needs it, and the church notes already list
+  what is parked in Lightkey (`tests/hardware/church.md`).
+- Proposed behaviour, Titan's park plus the owner's wish: a parked fixture outputs nothing, cannot be
+  selected, and is skipped wherever fixtures are taken live (a group's selection, All, selection order,
+  Fan, effect spread, recording). The show still holds it in its groups, palettes and cues, so Unpark
+  gives everything back. Parked fixtures show greyed in the patch and are left out of the fixture window.
+- With park, a range clash in the patch (patch.md, P1-15: "CMDMX has no parking, so every clash
+  refuses") can offer Park Conflicting, as Titan does.
+**What it touches now:** nothing forced; PAT-05 (remove) stays as it is.
+**Open questions:**
+- The owner said "out of the group": skipped while parked but kept for Unpark (proposed), or really
+  removed from the groups?
+- Park only from the console, or also on the phone page (IDEA-42) while walking the rig?
+- Does Unpark go back to the old address, or refuse when that address is taken by now?
