@@ -235,9 +235,9 @@ struct FixturesWindow: View {
                 // list, so the lazy grid sees every button as its own element.
                 ForEach(rows, id: \.1) { fixture, item in
                     let model: String = item.cell == nil && !fixture.name.isEmpty ? Self.model(fixture) : ""   // UI-59
-                    let faded: Bool = !matches(fixture)   // UI-59
+                    let faded: Bool = !matches(fixture) || fixture.parked   // UI-59, PAT-35
                     Cell(number: item.cell == nil ? fixture.number : nil,
-                         tag: item.cell == nil && fixture.cells > 0 ? "\(fixture.cells)" : nil,
+                         tag: fixture.parked ? "PARK" : item.cell == nil && fixture.cells > 0 ? "\(fixture.cells)" : nil,   // PAT-35
                          legend: item.cell.map { "\(fixture.number).\($0)" } ?? Self.legend(fixture),
                          model: model,
                          order: order[item],
@@ -248,7 +248,9 @@ struct FixturesWindow: View {
                          inProgrammer: inProgrammer.contains(item),
                          lamp: true,
                          faded: faded) {
-                        if let n = item.cell {
+                        if fixture.parked {
+                            return   // PAT-35: a parked fixture is not selectable
+                        } else if let n = item.cell {
                             lastTap = item
                             if ui.armedAllows(.cell, engine) { engine.selectCell(fixture.id, cell: n) }
                         } else {

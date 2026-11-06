@@ -441,6 +441,8 @@ fn serve_phone(mut ws: WebSocket<TcpStream>, ip: IpAddr, shared: &Shared) {
                     Ok(
                         cmd @ (Command::PatchMove { .. }
                         | Command::PatchName { .. }
+                        | Command::PatchPark { .. }
+                        | Command::PatchUnpark { .. }
                         | Command::RemoteHighlight { .. }),
                     ) => {
                         let event = RemoteEvent::Command {

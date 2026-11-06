@@ -49,7 +49,12 @@ and the remote stays off: choose another port.
 5. Put it right on the card: type the universe and address with the number keypad and tap **Save**. The card shows
    the new channels, or the console's refusal in the card itself, such as `201 would overlap 301 at 1.45`. Type a
    name in the name field; it is saved when you leave the field. Each change is one undo step at the console.
-6. **Back** to the list, or turning Highlight off, switches the highlight off again; the selection stays.
+   When the warning names a fixture in the way, **Park 301 and move** parks it and moves this one.
+6. A lamp that does not hang: tap **Park** on its card. It stays in the list, greyed as *parked (was 1.37)*,
+   keeps its groups and cues and frees its channels; Next skips it while Highlight is on. **Unpark** puts it back at
+   its old address; when that address is taken by now the card shows the clash and the address fields to give it
+   a new one.
+7. **Back** to the list, or turning Highlight off, switches the highlight off again; the selection stays.
 
 When the connection drops the page says **Console offline** and tries again every 2 seconds, so walk back into
 range or wait for the engine to come back. While the console is locked the page says **Console locked** and its

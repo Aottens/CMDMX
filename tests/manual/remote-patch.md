@@ -1,4 +1,4 @@
-# Walking the patch from a phone (RMT-09..12, RMT-14, RMT-16) — template
+# Walking the patch from a phone (RMT-09..14, RMT-16) — template
 
 The phone page on a real phone on the owner's network, checked by hand: the page has no test target of its own
 (the daemon tests only check that it is served whole and without outside resources). Copy to
@@ -40,6 +40,15 @@ Setup (Claude), at home without lamps; never the Demo show on the real rig:
       nothing moved (Claude checks the patch).
 - [ ] Save a free address (universe 2, address 1): the card shows the new range `2.1–2.n`, the console's patch too;
       Undo at the console puts it back and the phone's card follows.
+
+## Park and Unpark (RMT-11, RMT-13, PAT-36)
+- [ ] On 203, Park: the card and the list show *parked (was 1.x)*; Art-Net shows 203's channels at 0 and the
+      console's patch row is greyed (Claude checks).
+- [ ] With Highlight on at 202, Next goes to 204, skipping 203.
+- [ ] On 202, Save an address inside 204's channels: the warning and a button **Park 204 and move**; tap it: 202 moves,
+      204 is parked (Claude checks the patch); Undo at the console puts both back.
+- [ ] Move 205 onto 203's old address at the console (Claude), then Unpark 203 on the phone: the card shows the
+      clash and the address fields; give it universe 2 address 1 and Save: 203 is unparked at 2.1.
 
 ## Lock, another show, offline (RMT-14)
 - [ ] Lock the console (Claude): the page says "Console locked", the fields, Save and Highlight are greyed. Unlock:

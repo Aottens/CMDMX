@@ -1,4 +1,4 @@
-# App patch checklist (PAT-09, PAT-10, PAT-25, LIB-22, LIB-35) — template
+# App patch checklist (PAT-09, PAT-10, PAT-25, PAT-35, LIB-22, LIB-35) — template
 
 No Swift test target exists (CLAUDE.md), so the Patch screen of `specs/modules/patch.md` PAT-10
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
@@ -142,6 +142,17 @@ LED Par 56, 6 Channel) at 1.201 as in *Add*.
 - [ ] Select three pars, Remove reads "Remove 3 fixtures", asks to confirm; after confirming the
       three rows are gone and the panel says "Select a row"; Undo brings all three back in one step
       (PAT-24)
+
+## Parking (PAT-35)
+From a fresh Demo, with an Art-Net monitor on universe 1.
+- [ ] Select 203, Park: the row is greyed and reads *parked (was 1.x)*; Art-Net shows its channels at 0; in the
+      Fixtures window (Program) 203's tile stays at its place, greyed with `PARK`, and a tap does not select it
+- [ ] Select 201–208 and Park: one undo step ("Park 7 fixtures" or similar, 203 already parked); Undo; then
+      Unpark 203: back at its old address, its tile normal and selectable again
+- [ ] Park 204, Move 205 onto 204's old address, then Unpark 204: refused with the overlap warning, nothing changes;
+      Move 204 to 2.1: unparked there
+- [ ] Select 202, Move into 203's channels: the warning shows **Park conflicting and move**; click it: 202 moves,
+      203 is parked, the panel says so; Undo brings both back in one step
 
 ## Still works
 - [ ] A second app window (or a restart of the app) shows the same patch: the table comes from the

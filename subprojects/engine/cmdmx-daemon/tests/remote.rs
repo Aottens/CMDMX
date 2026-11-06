@@ -736,3 +736,65 @@ fn rmt_09_the_page_is_served_whole_inline_and_without_outside_resources() {
         assert!(!page.contains(outside), "the page holds {outside:?}");
     }
 }
+
+/// The phone's view of one fixture in a remote snapshot.
+fn fixture(snap: &Value, id: u64) -> Value {
+    snap["fixtures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["id"] == id)
+        .cloned()
+        .unwrap_or(Value::Null)
+}
+
+#[test]
+fn rmt_13_park_unpark_and_park_and_move_from_the_phone() {
+    let dir = folder("rmt13");
+    let (ipc, port) = (free_port(), free_port());
+    let _daemon = daemon(&dir, ipc);
+    let mut app = connect(ipc);
+    recv(&mut app);
+    turn_on(&mut app, port);
+    let (mut ws, _, snap) = logged_in(port);
+    let fixtures = snap["fixtures"].as_array().unwrap();
+    let (a, b) = (&fixtures[0], &fixtures[1]);
+    let (ida, idb) = (a["id"].as_u64().unwrap(), b["id"].as_u64().unwrap());
+
+    // Park: the fixture stays in the list, parked, with its remembered address.
+    send(&mut ws, json!({"cmd": "patch.park", "ids": [ida]}));
+    let s = until(&mut ws, "parked", |m| {
+        m["type"] == "snapshot" && fixture(m, ida)["parked"] == true
+    });
+    assert_eq!(fixture(&s, ida)["address"], a["address"]);
+
+    // Unpark: back where it was.
+    send(&mut ws, json!({"cmd": "patch.unpark", "ids": [ida]}));
+    until(&mut ws, "unparked", |m| {
+        m["type"] == "snapshot" && fixture(m, ida)["parked"] == false
+    });
+
+    // Park and move (RMT-11): a move onto b with park_conflicting parks b.
+    send(
+        &mut ws,
+        json!({"cmd": "patch.move", "id": ida, "universe": b["universe"],
+               "address": b["address"], "park_conflicting": true}),
+    );
+    until(&mut ws, "moved, b parked", |m| {
+        m["type"] == "snapshot"
+            && fixture(m, idb)["parked"] == true
+            && fixture(m, ida)["address"] == b["address"]
+    });
+
+    // Unpark b while a holds its channels: refused, the warning reaches the phone.
+    send(&mut ws, json!({"cmd": "patch.unpark", "ids": [idb]}));
+    until(&mut ws, "the clash warning", |m| {
+        m["type"] == "warning" && m["message"].as_str().unwrap_or("").contains("overlap")
+    });
+
+    // The page carries the buttons that send these commands.
+    let page = get(port, "/");
+    for cmd in ["patch.park", "patch.unpark", "park_conflicting"] {
+        assert!(page.contains(cmd), "the page lacks {cmd}");
+    }
+}

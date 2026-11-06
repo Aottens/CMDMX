@@ -719,6 +719,8 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     let universe: Int
     let address: Int
     let footprint: Int
+    /// PAT-29: parked fixtures keep their number and remembered address but make no output.
+    let parked: Bool
     /// IPC-42: the mode's cell count, 0 without cells.
     let cells: Int
     let virtualDimmer: Bool
@@ -731,7 +733,7 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     let modes: [String]
 
     private enum CodingKeys: String, CodingKey {
-        case id, number, name, profile, mode, universe, address, footprint, cells, handle, attributes, modes
+        case id, number, name, profile, mode, universe, address, footprint, parked, cells, handle, attributes, modes
         case virtualDimmer = "virtual_dimmer"
         case cellAttributes = "cell_attributes"
     }
@@ -746,6 +748,7 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
         universe = (try? c.decode(Int.self, forKey: .universe)) ?? 0
         address = (try? c.decode(Int.self, forKey: .address)) ?? 0
         footprint = (try? c.decode(Int.self, forKey: .footprint)) ?? 0
+        parked = (try? c.decode(Bool.self, forKey: .parked)) ?? false
         cells = (try? c.decode(Int.self, forKey: .cells)) ?? 0
         virtualDimmer = (try? c.decode(Bool.self, forKey: .virtualDimmer)) ?? false
         handle = try? c.decode(Handle.self, forKey: .handle)
@@ -1812,7 +1815,13 @@ final class EngineClient: ObservableObject {
         if let number { fields["number"] = number }
         patch("patch.add", fields)
     }
-    func patchMove(ids: [Int], universe: Int, address: Int) { patch("patch.move", ["ids": ids, "universe": universe, "address": address]) }
+    func patchMove(ids: [Int], universe: Int, address: Int, parkConflicting: Bool = false) {
+        var fields: [String: Any] = ["ids": ids, "universe": universe, "address": address]
+        if parkConflicting { fields["park_conflicting"] = true }
+        patch("patch.move", fields)
+    }
+    func patchPark(ids: [Int]) { patch("patch.park", ["ids": ids]) }
+    func patchUnpark(ids: [Int]) { patch("patch.unpark", ["ids": ids]) }
     func patchRemove(ids: [Int]) { patch("patch.remove", ["ids": ids]) }
     func patchRenumber(ids: [Int], number: Int) { patch("patch.renumber", ["ids": ids, "number": number]) }
     func patchName(ids: [Int], name: String) { patch("patch.name", ["ids": ids, "name": name]) }
