@@ -41,7 +41,7 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up: batch C, seeing what the rig does (SEE-04..10), then the church Mac (VS4-07) and the first service
+Next up: the rest of batch C, seeing what the rig does (SEE-07..10), then the church Mac (VS4-07) and the first service
 (VS4-03). Phase 2 features already work (see below); the open-hardware desk (phase 10,
 [`hardware.md`](specs/modules/hardware.md)) runs beside it. Progress is in [`STATE.md`](STATE.md), the plan in
 [`BACKLOG.md`](BACKLOG.md); site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -100,6 +100,12 @@ Next up: batch C, seeing what the rig does (SEE-04..10), then the church Mac (VS
   buttons right after it (`901.1`, `901.2`, …), and the Programmer and cue view list cell rows; Remove in the cue view takes a single cell's
   value out of a cue, and a cell value a cue list lets go fades back to its fixture (and one coming in fades from
   where the cell is).
+- The Fixtures window: a named button shows its model under the name, Find matches number, name and model and Return
+  selects the matches, and a selection made elsewhere (a group, the command line) brings its page and fixtures into
+  view, with a dot on each page tab that holds a selected fixture.
+- Fixture info: a right-click on a fixture button shows its type, address, groups, cues and palettes, and for each
+  attribute why it has its value ("Dienst Q2 gives 100 %, tracked from an earlier cue, Master Zaal (3.8) scales it to
+  0 %"), live while open; a tap on a row goes to that playback's page.
 - Fan: the Fan key (lit while on) makes a wheel spread its change over the selection order as a
   Line, Mirror, Wings or Arrow curve, picked on the Fan softkeys and shown as `FAN <CURVE>` next
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.
