@@ -14,6 +14,8 @@ struct Cell: View {
     let number: Int?
     var tag: String?
     var legend = ""
+    /// UI-59: the profile's model on a second small line under the legend.
+    var model = ""
     /// 1-based selection order, shown top-right in blue (replaces the tag).
     var order: Int?
     /// UI-26: fixture is located; `LOC` shows under the order number, whatever the order/tag shows.
@@ -55,9 +57,14 @@ struct Cell: View {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     Text(legend).font(Typo.legend()).foregroundStyle(t.fg)
-                        .lineLimit(2).multilineTextAlignment(.leading)
+                        .lineLimit(model.isEmpty ? 2 : 1).multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4).padding(.bottom, 10)
+                        .padding(.horizontal, 4).padding(.bottom, model.isEmpty ? 10 : 0)
+                    if !model.isEmpty {
+                        Text(model).font(Typo.mono(9)).foregroundStyle(t.fg2).lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4).padding(.bottom, 10)
+                    }
                 }
             }
             if lamp {
@@ -134,6 +141,13 @@ struct FixturesWindow: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
     @State private var page = 0
+    @Environment(\.theme) private var t
+    /// UI-58: the item a tap in this window last selected; the engine's reply arrives a moment later.
+    @State private var lastTap: Item?
+    @State private var scrollTarget: Item?
+    /// UI-59: the find field.
+    @State private var find = ""
+    @FocusState private var findFocused: Bool
 
     // ponytail: `handles_per_page` is a setting (PAT-14) that is not on the wire yet; 40 is its default.
     private let handlesPerPage = 40
@@ -149,10 +163,19 @@ struct FixturesWindow: View {
     }
 
     /// The legend is the fixture's name, else the model part of `manufacturer/model`.
-    static func legend(_ f: FixtureInfo) -> String {
-        if !f.name.isEmpty { return f.name }
+    static func legend(_ f: FixtureInfo) -> String { f.name.isEmpty ? model(f) : f.name }
+
+    /// The model part of `manufacturer/model`.
+    static func model(_ f: FixtureInfo) -> String {
         guard let slash = f.profile.firstIndex(of: "/") else { return f.profile }
         return String(f.profile[f.profile.index(after: slash)...])
+    }
+
+    /// UI-59: number (prefix), name or model (contains, case-insensitive); an empty query matches all.
+    private func matches(_ f: FixtureInfo) -> Bool {
+        let q = find.trimmingCharacters(in: .whitespaces)
+        return q.isEmpty || String(f.number).hasPrefix(q)
+            || f.name.localizedCaseInsensitiveContains(q) || Self.model(f).localizedCaseInsensitiveContains(q)
     }
 
     var body: some View {
@@ -170,49 +193,97 @@ struct FixturesWindow: View {
         let pageCount = max(1, (sorted.count + handlesPerPage - 1) / handlesPerPage)
         let shown = min(page, pageCount - 1)
         let visible = sorted.dropFirst(shown * handlesPerPage).prefix(handlesPerPage)
+        // UI-58: the page each selected fixture sits on.
+        let pageOf = Dictionary(sorted.enumerated().map { ($1.id, $0 / handlesPerPage) }, uniquingKeysWith: { a, _ in a })
+        let selectedPages = Set(programmer.selection.compactMap { pageOf[$0.fixture] })
+        let onShown = programmer.selection.filter { pageOf[$0.fixture] == shown }.count
+
+        let rows: [(FixtureInfo, Item)] = visible.flatMap { f -> [(FixtureInfo, Item)] in
+            let cells = ui.unfolded.contains(f.id) ? (0..<f.cells).map { (f, Item(fixture: f.id, cell: $0 + 1)) } : []
+            return [(f, Item(fixture: f.id))] + cells
+        }
 
         PanelWindow(
             title: "Fixtures",
-            info: programmer.selection.isEmpty ? "\(sorted.count) fixtures" : "\(programmer.selection.count) selected · order shown",
+            info: programmer.selection.isEmpty ? "\(sorted.count) fixtures"
+                : onShown == programmer.selection.count ? "\(programmer.selection.count) selected · order shown"
+                : "\(programmer.selection.count) selected · \(onShown) on page \(shown + 1)",
             accessory: {
+                TextField("Find", text: $find).textFieldStyle(.plain).font(Typo.mono(Typo.small))
+                    .frame(width: 110).focused($findFocused)
+                    .onSubmit { selectMatches(sorted) }
+                    .onChange(of: find) { _, _ in
+                        // UI-59: the window goes to the first match's page, in display order, and scrolls it into view.
+                        if !find.isEmpty, let i = sorted.firstIndex(where: matches) { page = i / handlesPerPage; scrollTarget = Item(fixture: sorted[i].id) }
+                    }
+                    .onChange(of: findFocused) { _, now in if !now, ui.fieldEscaped { find = "" } }   // UI-44: Esc empties it
                 if pageCount > 1 {
                     HStack(spacing: 2) {
                         ForEach(0..<pageCount, id: \.self) { p in
                             Button(String(p + 1)) { page = p }.buttonStyle(FlatButton(fill: p == shown ? .blue : nil, compact: true))
+                                .overlay(alignment: .topTrailing) {
+                                    if selectedPages.contains(p) { Circle().fill(p == shown ? Color.white : t.blue).frame(width: 5, height: 5).padding(1) }   // UI-58
+                                }
                         }
                     }
                 }
             }
         ) {
+            ScrollViewReader { proxy in
             CellScroll {
                 // UI-29: one button per item, the cells of an unfolded fixture right after it. A flat
                 // list, so the lazy grid sees every button as its own element.
-                ForEach(visible.flatMap { f in
-                    [(f, Item(fixture: f.id))] + (ui.unfolded.contains(f.id) ? (0..<f.cells).map { (f, Item(fixture: f.id, cell: $0 + 1)) } : [])
-                }, id: \.1) { fixture, item in
+                ForEach(rows, id: \.1) { fixture, item in
+                    let model: String = item.cell == nil && !fixture.name.isEmpty ? Self.model(fixture) : ""   // UI-59
+                    let faded: Bool = !matches(fixture)   // UI-59
                     Cell(number: item.cell == nil ? fixture.number : nil,
                          tag: item.cell == nil && fixture.cells > 0 ? "\(fixture.cells)" : nil,
                          legend: item.cell.map { "\(fixture.number).\($0)" } ?? Self.legend(fixture),
+                         model: model,
                          order: order[item],
                          located: programmer.located[item] != nil,   // UI-26
                          selected: order[item] != nil,
                          current: subSelection && targets.contains(item),
                          dimmed: subSelection && order[item] != nil && !targets.contains(item),
                          inProgrammer: inProgrammer.contains(item),
-                         lamp: true) {
+                         lamp: true,
+                         faded: faded) {
                         if let n = item.cell {
+                            lastTap = item
                             if ui.armedAllows(.cell, engine) { engine.selectCell(fixture.id, cell: n) }
                         } else {
+                            lastTap = item
                             tap(fixture)
                         }
                     }
+                    // UI-57: a right-click on a whole-fixture tile opens Fixture info.
+                    .overlay { if item.cell == nil { SecondaryClick { ui.fixtureInfo = FixtureRef(id: fixture.id) } } }
                 }
             }
+            .onChange(of: scrollTarget) { _, t in if let t { proxy.scrollTo(t, anchor: .center); scrollTarget = nil } }
+            }
+        }
+        // UI-58: a selection change that did not come from a tap here brings the first fixture into view.
+        // A change of only the tapped item is that tap.
+        .onChange(of: programmer.selection) { old, sel in
+            guard lastTap.map({ Set(old).symmetricDifference(sel) != [$0] }) ?? true, let first = sel.first, let p = pageOf[first.fixture] else { return }
+            page = p
+            scrollTarget = Item(fixture: first.fixture)
         }
     }
 }
 
 extension FixturesWindow {
+    /// UI-59: Return selects the matches in number order; one already selected is skipped (a tap would deselect it).
+    fileprivate func selectMatches(_ fixtures: [FixtureInfo]) {
+        defer { find = ""; findFocused = false }   // done: the field empties and the keys go back to the console
+        guard !find.isEmpty, ui.armedAllows(.fixture, engine) else { return }
+        let selected = Set(engine.programmer.selection)
+        for f in fixtures.filter(matches).sorted(by: { $0.number < $1.number }) where !selected.contains(Item(fixture: f.id)) {
+            engine.selectFixture(f.id)
+        }
+    }
+
     /// While Unfold is armed a tap folds or unfolds instead of selecting (UI-29), then disarms.
     fileprivate func tap(_ fixture: FixtureInfo) {
         guard ui.armedAllows(.fixture, engine) else { return }   // UI-42

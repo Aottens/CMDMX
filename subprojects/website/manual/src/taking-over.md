@@ -105,6 +105,8 @@ Check in this order.
    `Universe 2: 6 fixtures, no output` is amber when none is. Amber or red means a cable or
    network problem.
 
+For one fixture, right-click its tile: [Fixture info](programming.md#fixture-info) says why.
+
 Still dark? The rest of the checks are in [Troubleshooting](reference.md#no-light).
 
 ## What Undo can reach

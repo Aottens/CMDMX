@@ -1394,6 +1394,9 @@ final class EngineClient: ObservableObject {
     @Published private(set) var cueView: CueViewReply?
     /// IPC-54: the answer to the last `usage` ask.
     @Published private(set) var usage: UsageReply?
+    /// UI-57, IPC-60: the answers to the last `why` and `usage` detail asks.
+    @Published private(set) var why: WhyReply?
+    @Published private(set) var usageDetail: UsageDetail?
     /// IPC-57: the answer to the last `update.targets` ask.
     @Published private(set) var updateTargets: UpdateTargetsAnswer?
     /// UI-47: the palette delete message still waiting for its count, and the text it showed.
@@ -2030,6 +2033,10 @@ final class EngineClient: ObservableObject {
 
     func askUsage(fixtures: [Int]) { usage = nil; sendJSON("usage", ["fixtures": fixtures]) }
 
+    /// UI-57: asked again every second while Fixture info is open, so the answer is not cleared between asks.
+    func askWhy(fixture: Int) { sendJSON("why", ["fixture": fixture]) }
+    func askUsageDetail(fixture: Int) { usageDetail = nil; sendJSON("usage", ["fixtures": [fixture], "detail": true]) }
+
     /// PBK-49, IPC-57: the reply lands in `updateTargets`.
     func askUpdateTargets() { updateTargets = nil; sendJSON("update.targets", [:]) }
     func update(playbacks: [(Int, Double)], palettes: [Int]) {
@@ -2058,7 +2065,7 @@ final class EngineClient: ObservableObject {
     }
 
     /// The app's own reads, not the operator's commands (REL-27).
-    private static let asks: Set<String> = ["cue.view", "usage", "update.targets", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "control.mapping", "effect.wheels"]
+    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "control.mapping", "effect.wheels"]
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
@@ -2324,7 +2331,11 @@ final class EngineClient: ObservableObject {
             if let reply = try? JSONDecoder().decode(CueViewReply.self, from: data) { cueView = reply }
         case "update.targets":
             if let reply = try? JSONDecoder().decode(UpdateTargetsAnswer.self, from: data) { updateTargets = reply }
+        case "why":
+            if let reply = try? JSONDecoder().decode(WhyReply.self, from: data) { why = reply }
         case "usage":
+            // UI-57: the detail answer has lists where the plain one has counts.
+            if let detail = try? JSONDecoder().decode(UsageDetail.self, from: data) { usageDetail = detail; break }
             if let reply = try? JSONDecoder().decode(UsageReply.self, from: data) {
                 usage = reply
                 if let p = pendingDelete, p.palette == reply.palette {
