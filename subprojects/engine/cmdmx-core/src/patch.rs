@@ -39,6 +39,10 @@ pub struct Fixture {
     /// `None` on input gets the first free slot (PAT-14).
     #[serde(default)]
     pub handle: Option<Handle>,
+    /// PAT-29: off the output map and out of every live list; `universe` and `address` stay
+    /// the remembered place.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub parked: bool,
 }
 
 /// PAT-01: `count` fixtures of one profile and mode, patched back to back.

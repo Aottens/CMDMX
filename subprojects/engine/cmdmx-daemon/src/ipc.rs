@@ -257,11 +257,23 @@ pub enum Command {
     PatchAdd {
         add: PatchAdd,
         profile: Option<Profile>,
+        /// PAT-32: park the fixtures the new ones overlap instead of refusing.
+        park_conflicting: bool,
     },
     PatchMove {
         ids: Vec<FixtureId>,
         universe: UniverseId,
         address: u16,
+        /// PAT-32.
+        park_conflicting: bool,
+    },
+    /// PAT-29.
+    PatchPark {
+        ids: Vec<FixtureId>,
+    },
+    /// PAT-31.
+    PatchUnpark {
+        ids: Vec<FixtureId>,
     },
     PatchRemove {
         ids: Vec<FixtureId>,
@@ -832,6 +844,16 @@ fn opt_uint<T: TryFrom<u64>>(v: &serde_json::Value, key: &str) -> Result<Option<
     match v.get(key) {
         None => Ok(None),
         Some(_) => uint(v, key).map(Some),
+    }
+}
+
+/// An optional flag: absent is `false`, present but not a bool is an error.
+fn opt_bool(v: &serde_json::Value, key: &str) -> Result<bool, String> {
+    match v.get(key) {
+        None => Ok(false),
+        Some(b) => b
+            .as_bool()
+            .ok_or_else(|| format!("invalid \"{key}\" (expected true or false)")),
     }
 }
 
@@ -1539,11 +1561,19 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 number: opt_uint(&v, "number")?,
             },
             profile: None,
+            park_conflicting: opt_bool(&v, "park_conflicting")?,
         }),
         Some("patch.move") => Ok(Command::PatchMove {
             ids: ids_or_id(&v)?,
             universe: uint(&v, "universe")?,
             address: uint(&v, "address")?,
+            park_conflicting: opt_bool(&v, "park_conflicting")?,
+        }),
+        Some("patch.park") => Ok(Command::PatchPark {
+            ids: ids_or_id(&v)?,
+        }),
+        Some("patch.unpark") => Ok(Command::PatchUnpark {
+            ids: ids_or_id(&v)?,
         }),
         Some("patch.remove") => Ok(Command::PatchRemove {
             ids: v
@@ -2311,6 +2341,8 @@ struct FixtureInfo<'a> {
     cells: usize,
     virtual_dimmer: bool,
     handle: Option<Handle>,
+    /// PAT-34: off the output map; `universe` and `address` are the remembered place.
+    parked: bool,
     /// IPC-21: attribute name to group, for placing programmer values.
     attributes: BTreeMap<&'a str, AttributeGroup>,
     /// IPC-42: attribute name to group over all the mode's cells; absent without cells.
@@ -2666,6 +2698,7 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
                 cells: mode.map_or(0, |m| m.cells.len()),
                 virtual_dimmer: mode.is_some_and(|m| m.has_virtual_dimmer()),
                 handle: f.handle,
+                parked: f.parked,
                 attributes: (mode.iter())
                     .flat_map(|m| m.logical_attributes())
                     .map(|l| (l.name, l.group))
@@ -3774,13 +3807,22 @@ fn refuse_origin(req: &Request, resp: Response) -> Result<Response, ErrorRespons
 /// PAT-09: a `patch.add` of a library type (`"<manufacturer>/<model>"`) takes the library's
 /// profile along; any other command, or a key the library does not have, goes on unchanged.
 pub fn attach_profile(lib: &RwLock<Option<Library>>, cmd: Command) -> Command {
-    let Command::PatchAdd { add, profile: None } = cmd else {
+    let Command::PatchAdd {
+        add,
+        profile: None,
+        park_conflicting,
+    } = cmd
+    else {
         return cmd;
     };
     let profile = add.profile.split_once('/').zip(lib.read().ok()).and_then(
         |((manufacturer, model), guard)| guard.as_ref()?.profile(manufacturer, model).ok(),
     );
-    Command::PatchAdd { add, profile }
+    Command::PatchAdd {
+        add,
+        profile,
+        park_conflicting,
+    }
 }
 
 fn serve_client(
@@ -4009,6 +4051,7 @@ mod tests {
         )
         .unwrap();
         e.patch(Fixture {
+            parked: false,
             id: 1,
             number: 0,
             name: String::new(),
@@ -4384,7 +4427,7 @@ mod tests {
     fn dimmer_entry() -> Value {
         json!({"id":1,"number":1,"name":"","profile":"dimmer","mode":"default","universe":1,
                "address":1,"footprint":1,"cells":0,"virtual_dimmer":false,"handle":{"page":1,"slot":1},
-               "attributes":{"Dimmer":"I"},"modes":["default"]})
+               "attributes":{"Dimmer":"I"},"modes":["default"],"parked":false})
     }
 
     /// Showtec LED Par 56 "6 Channel" with a virtual dimmer (PAT-01's example).
@@ -4422,7 +4465,7 @@ mod tests {
                     "mode":"6 Channel","universe":1,"address":37,"footprint":6,"cells":0,
                     "virtual_dimmer":true,"handle":{"page":1,"slot":2},
                     "attributes":{"Dimmer":"I","Colour":"C","Mode":"S","Speed":"S","Strobe":"I"},
-                    "modes":["6 Channel"]}])
+                    "modes":["6 Channel"],"parked":false}])
         );
     }
 
@@ -4489,6 +4532,72 @@ mod tests {
         assert_eq!(parse(&d[0])["fixtures"][0]["address"], 100);
     }
 
+    /// PAT-29, 31, 32 (PRK-01): park, unpark and `park_conflicting` (absent = false).
+    #[test]
+    fn pat_29_32_park_commands_parse() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"patch.park","ids":[3,4]}"#),
+            Command::PatchPark { ids: vec![3, 4] }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"patch.unpark","id":3}"#),
+            Command::PatchUnpark { ids: vec![3] }
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"patch.park"}"#).is_err());
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"patch.move","ids":[3,4],"universe":2,"address":101,"park_conflicting":true}"#
+            ),
+            Command::PatchMove {
+                ids: vec![3, 4],
+                universe: 2,
+                address: 101,
+                park_conflicting: true,
+            }
+        );
+        assert!(matches!(
+            ok(r#"{"v":1,"cmd":"patch.move","id":3,"universe":2,"address":101}"#),
+            Command::PatchMove {
+                park_conflicting: false,
+                ..
+            }
+        ));
+        assert!(matches!(
+            ok(
+                r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1,"park_conflicting":true}"#
+            ),
+            Command::PatchAdd {
+                park_conflicting: true,
+                ..
+            }
+        ));
+        assert!(parse_command(
+            r#"{"v":1,"cmd":"patch.move","id":3,"universe":2,"address":101,"park_conflicting":1}"#
+        )
+        .is_err());
+    }
+
+    /// PAT-34 (PRK-01): a snapshot entry says `parked`; the place stays the remembered one.
+    #[test]
+    fn pat_34_snapshot_entries_say_parked() {
+        let mut e = engine();
+        e.patch_park(&[1]).unwrap();
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+            &[],
+            false,
+            &serde_json::Value::Null,
+        ));
+        let mut entry = dimmer_entry();
+        entry["parked"] = json!(true);
+        assert_eq!(v["fixtures"], json!([entry]));
+    }
+
     #[test]
     fn pat_09_patch_commands_parse() {
         use cmdmx_core::patch::{Handle, PatchAdd};
@@ -4498,6 +4607,7 @@ mod tests {
                 r#"{"v":1,"cmd":"patch.add","profile":"Showtec/LED Par 56","mode":"6 Channel","count":6,"universe":1,"address":37,"number":221}"#
             ),
             Command::PatchAdd {
+                park_conflicting: false,
                 add: PatchAdd {
                     profile: "Showtec/LED Par 56".into(),
                     mode: Some("6 Channel".into()),
@@ -4515,6 +4625,7 @@ mod tests {
                 r#"{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1}"#
             ),
             Command::PatchAdd {
+                park_conflicting: false,
                 add: PatchAdd {
                     profile: "rgbw".into(),
                     mode: Some("default".into()),
@@ -4529,6 +4640,7 @@ mod tests {
         assert_eq!(
             ok(r#"{"v":1,"cmd":"patch.move","id":3,"universe":2,"address":101}"#),
             Command::PatchMove {
+                park_conflicting: false,
                 ids: vec![3],
                 universe: 2,
                 address: 101
@@ -4574,6 +4686,7 @@ mod tests {
         assert_eq!(
             ok(r#"{"v":1,"cmd":"patch.move","ids":[3,4,5],"universe":2,"address":101}"#),
             Command::PatchMove {
+                park_conflicting: false,
                 ids: vec![3, 4, 5],
                 universe: 2,
                 address: 101
@@ -5485,6 +5598,7 @@ mod tests {
         e.add_profile("cells", Profile::from_json(cells).unwrap())
             .unwrap();
         e.patch(Fixture {
+            parked: false,
             id: 9,
             number: 0,
             name: String::new(),
@@ -6418,6 +6532,7 @@ mod tests {
         )
         .unwrap();
         e.patch(Fixture {
+            parked: false,
             id: 2,
             number: 0,
             name: String::new(),
@@ -6765,6 +6880,7 @@ mod tests {
     fn list_engine() -> Engine {
         let mut e = engine();
         e.patch(Fixture {
+            parked: false,
             id: 2,
             number: 0,
             name: String::new(),

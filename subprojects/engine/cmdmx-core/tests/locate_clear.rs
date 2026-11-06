@@ -94,6 +94,7 @@ fn rig() -> Engine {
         (303, "dimmer", 28),
     ] {
         e.patch(Fixture {
+            parked: false,
             id,
             number: 0,
             name: String::new(),
@@ -940,6 +941,7 @@ fn strobe_rig() -> Engine {
         .unwrap();
     for (id, address) in [(401, 31), (402, 34)] {
         e.patch(Fixture {
+            parked: false,
             id,
             number: 0,
             name: String::new(),

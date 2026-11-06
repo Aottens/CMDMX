@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up, before the church runs on CMDMX at Christmas: parking (PRK-01, PRK-02) on the phone page that now walks
-the patch, with the rest of batch C (SEE-07..10); then the church Mac (VS4-07) and the first service (VS4-03).
+Next up, before the church runs on CMDMX at Christmas: Park and Unpark in the app and on the phone page (PRK-02),
+with the rest of batch C (SEE-07..10); then the church Mac (VS4-07) and the first service (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -81,6 +81,9 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   it, name it ("Par 1…6"), change its mode or remove it in one checked step.
 - Removing a fixture or changing its mode also reaches effects, in cues, palettes and a cue running now, and
   a warning names each palette that holds something the new mode cannot do; Undo brings it all back.
+- Park a fixture that is not hung: it keeps its place, groups, palettes and cues but is dark, cannot be selected and
+  frees its channels; Unpark puts it back. A move or add onto used channels can park what it covers (engine and
+  wire; the buttons come next).
 - A profile editor for channels, defaults, wheel slots and emitter auto-mix (CIE colour and
   output per emitter); profiles are saved into the show.
 - GDTF files (the manufacturers' own format) convert into profiles in the engine, with cells

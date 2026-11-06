@@ -596,7 +596,7 @@ fn local_addresses() -> Vec<String> {
 }
 
 /// RMT-06: what a phone sees: the show, the lock, the highlighted fixture and the patch in number
-/// order. `parked` is false until PRK-01.
+/// order; `parked` as PAT-34 has it.
 pub fn snapshot(engine: &Engine, show: &str, locked: bool) -> String {
     let mut fixtures: Vec<_> = engine.fixtures().collect();
     fixtures.sort_by_key(|f| (f.number, f.id));
@@ -613,7 +613,7 @@ pub fn snapshot(engine: &Engine, show: &str, locked: bool) -> String {
                 "universe": f.universe,
                 "address": f.address,
                 "footprint": mode.map_or(0, |m| m.footprint),
-                "parked": false,
+                "parked": f.parked,
             })
         })
         .collect();

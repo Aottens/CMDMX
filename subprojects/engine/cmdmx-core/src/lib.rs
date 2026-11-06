@@ -84,6 +84,17 @@ pub enum CoreError {
         universe: UniverseId,
         address: u16,
     },
+    /// PAT-30: a parked fixture cannot be selected (the user number).
+    #[error("{0} is parked")]
+    Parked(u32),
+    /// PAT-31: the remembered place is taken by now.
+    #[error("{number} would overlap {other} at {universe}.{address}: give it a free address")]
+    UnparkOverlap {
+        number: u32,
+        other: u32,
+        universe: UniverseId,
+        address: u16,
+    },
     #[error("number {0} is already in use")]
     NumberInUse(u32),
     #[error("user numbers start at 1")]
