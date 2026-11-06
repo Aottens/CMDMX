@@ -158,7 +158,7 @@ set per show on the **Output** screen.
 | A show's copy before an update | `~/Documents/CMDMX/Shows/<name>.cmdmx.json.bak` |
 | Your fixture profiles | `~/Library/Application Support/CMDMX/profiles/` |
 | Control surface mappings | `~/Library/Application Support/CMDMX/control/` |
-| Last show, enabled devices, OSC settings | `~/Library/Application Support/CMDMX/state.json` |
+| Last show, enabled devices, OSC settings, the phone remote's login (its password as a hash) | `~/Library/Application Support/CMDMX/state.json` |
 | Engine log | `~/Library/Logs/CMDMX/daemon.log` (moved to `daemon.log.1` at 10 MB) |
 
 `~/Library` is hidden in Finder: choose **Go › Go to Folder…** and type the path.
@@ -207,6 +207,8 @@ Hints such as "tap the source group" stay on the line only.
   if that is not what you want.
 - **The OSC port (8000)**: another program (for example another lighting program) has it. The OSC
   panel shows the error in amber. Choose another port, or quit the other program.
+- **The remote's port (7320)**: another program has it. The message line says `Remote: port 7320 is in use`
+  and the remote stays off. Choose another port on the **Remote** screen.
 - **The USB interface**: only one program can use it. Quit the other lighting program, or quit
   CMDMX before you start the other one.
 

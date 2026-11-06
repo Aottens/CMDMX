@@ -5,6 +5,19 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-06 — The remote's login is a screen on the rail, not a Settings window (RMB-03)
+
+**Decision:** RMT-15's *Settings › Remote* is the **Remote** screen on the rail, beside Output and Control.
+
+**Alternatives considered:** a macOS Settings window (⌘,) with a Remote tab.
+
+**Reasoning:** the app has no Settings window; network and device set-up already live as screens on the rail, and
+console mode hides the menu bar a Settings window would hang from.
+
+**Reversal trigger:** a Settings window for other preferences; the remote then moves into it.
+
+---
+
 ## 2026-11-06 — A phone page on its own LAN port, and parking that keeps everything (IDEA-42, IDEA-43; owner)
 
 **Decision:** the daemon serves a patch page on a second port (7320) on every interface, off until a login is set in

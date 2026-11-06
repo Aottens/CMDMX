@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-06 (SEE-04..06)_
+_Last updated: 2026-11-06 (RMB-03)_
 
 ## Current step
+RMB-03 (2026-11-06, RMT-15): `RemoteView.swift`, the **Remote** screen on the rail (`UIState.Screen.remote`), since the app has no Settings window. `EngineClient.remote` (`RemoteState`) comes from the snapshot's `remote` and the `remote` delta, reset offline; `setRemoteLogin` and `remoteOff` send the commands. The password is a `SecureField` that is cleared after Turn on; username and port follow the engine when they change and are prefilled only while empty otherwise. The QR code is `CIFilter.qrCodeGenerator`, scaled 8× without interpolation, black on white. Checked with `swift build` and the app on a test engine (the QR read back with `CIDetector`).
 SEE-06 (2026-11-06, UI-59): `Cell.model` is the line under a named tile (`FixturesWindow.model`). `find` and `matches()` dim the rest and jump and scroll (`scrollTarget`) to the first match; `selectMatches` selects in number order, then empties the field and drops focus. Esc goes through `ui.fieldEscaped`.
 SEE-05 (2026-11-06, UI-58): `FixturesWindow` follows `programmer.selection` unless the change is exactly `lastTap` (a tile tap), via `pageOf` and `scrollTarget` in a `ScrollViewReader`; `selectedPages` puts a dot on the tabs, white on the tab shown.
 SEE-04 (2026-11-06, UI-57): `FixtureInfo.swift` holds `FixtureInfoSheet`, `WhyReply`, `UsageDetail` and `SecondaryClick` (right-click or ctrl-click on a tile). The sheet asks `why` every second and `usage` detail once; `reason()` and `modifier()` put IPC-60 in words; a row with a playback sends `page.set`. Run `tests/manual/runs/2026-11-06-SEE-04-06.md`.
