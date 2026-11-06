@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). PAT-29..36 (parking, IDEA-43, P1-35): proposed, awaiting the owner's approval. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -105,7 +105,8 @@ Titan reference (*Changing the Patch*, *Copying, moving and deleting fixtures*):
 together are repatched from one start address, get user numbers counting up from the one typed,
 can share one legend, and are deleted in one go; a clash is refused or the clashing fixtures are
 parked. Titan exchanges fixture types one fixture at a time and has no multi-fixture mode change.
-CMDMX has no parking (a removed fixture is gone, PAT-05), so every clash refuses.
+CMDMX had no parking then (a removed fixture is gone, PAT-05), so every clash refuses; Park Conflicting
+is PAT-32 (P1-35).
 
 - **Range:** the fixtures one range command acts on, given as a list of ids (`ids`). A range is
   worked in **number order** (ascending user number), whatever order the list or the clicks came
@@ -169,6 +170,56 @@ CMDMX has no parking (a removed fixture is gone, PAT-05), so every clash refuses
   as FX-22 records it, is the same (DEF-05, see `DECISIONS.md`). A change that loses nothing
   says nothing. Tests `pat_28_…`.
 
+### Parking (P1-35, IDEA-43; proposed, awaiting the owner's approval)
+Titan reference (*Changing the Patch*): Park "removes the fixture from the DMX output map, but all
+programming is retained"; the old line and address are remembered and Unpark restores them; Patch View can
+show parked fixtures greyed where they were patched; a repatch onto used channels offers *Park Conflicting
+Fixtures*. Titan's Park is not the Park of other consoles (an output value held): that is Freeze. The manual
+says nothing about groups or the selection; the owner wants a parked fixture out of them (IDEA-43), so
+CMDMX skips it everywhere live and keeps it in the show for Unpark (owner decision 2026-11-06).
+
+- **Parked:** a fixture that stays in the show (id, number, name, profile, mode, handle, its universe and
+  address remembered, every group, palette and cue it is in) but is off the output map and out of every
+  live list. Its channels are free for other fixtures.
+
+- **PAT-29** `patch.park {ids}` parks fixtures; a range command under PAT-19 (an unknown or repeated id
+  refuses all; a fixture already parked stays as it is). In the same command the fixtures leave the
+  selection, the programmer, the located set and Highlight, as PAT-05 does for a removal, and their
+  frame channels drop to 0 at the next tick. Nothing recorded changes. One undo step ("Park 4
+  fixtures"), an edit command (UNDO-04), refused while locked (IPC-50).
+- **PAT-30** Skipped live. A parked fixture cannot be selected: a tap on its tile or `201 Enter` is refused
+  with "201 is parked"; a group (PRG-02), `Thro`, `And`, All and Rem Dim (PRG-28) leave it out without a word.
+  A group whose fixtures are all parked selects nothing and warns "Group 3: every fixture is parked". So
+  selection order, the grid, Fan and Fix ±1 count only what hangs. In effects (FX-07) member positions are
+  worked out over the members that are not parked, so a chase over a group runs over the lamps that hang;
+  the parked members stay in the entry.
+- **PAT-31** `patch.unpark {ids}` puts fixtures back at their remembered universe and address under the
+  PAT-02 checks as a range (PAT-19): when another fixture holds those channels by now, the whole command is
+  refused naming the first clash ("201 would overlap 1201 at 1.37: give it a free address") and nothing
+  changes. `patch.move` on a parked fixture (PAT-04, 20) unparks it at the new address (Titan: give it a new
+  address). An unparked fixture is selectable again and plays its recorded data from the next tick.
+  One undo step.
+- **PAT-32** Park Conflicting. `patch.move` (one fixture or a range) and `patch.add` take
+  `park_conflicting: true`: every fixture outside the move whose channels it would overlap is parked in
+  the same command instead of refusing it, and the result says so ("Moved 201 to 1.37, parked 301, 302").
+  A move past slot 512 or onto a used number is still refused. One undo step for the move and the parks.
+- **PAT-33** What is kept. Recorded data for a parked fixture is kept as it is by every record, update and
+  merge (cues, palettes, PBK-49): it outputs nothing and records nothing new while parked, because it
+  cannot be in the programmer. Recording onto a used group (PRG-07) keeps the group's parked fixtures,
+  after the recorded selection in their old order, so a group re-recorded while the stage is half hung
+  still has them after Unpark. Removing a parked fixture (PAT-05) removes it as any other.
+- **PAT-34** Wire and show. Snapshot `fixtures` entries (PAT-09) gain `parked` (bool); `universe` and
+  `address` stay the remembered ones. IPC-58's `output` has no entry for a parked fixture. The show file's
+  patch entry gains `parked: true` (absent = false), a schema step under SHW-04 with a migration that
+  parks nothing. Loading a show leaves parked fixtures out of the PAT-08 clash checks.
+- **PAT-35** In the app. The Patch screen shows a parked row greyed, its address column "parked (was
+  1.37)"; the Selected panel has **Park** and **Unpark** for one row or a range (PAT-25), and Move with
+  a clash offers **Park conflicting and move** under the warning. In the Fixtures window a parked
+  fixture's tile stays at its handle, greyed with a `PARK` tag and not tappable (UI-11), so the layout does
+  not shift and Unpark brings it back where it was. Verified by `tests/manual/app-patch.md` (amended).
+- **PAT-36** The phone page (`remote.md` RMT-13) offers Park and Unpark on a fixture's card, and Park and
+  move after a clash (RMT-11), through these same commands.
+
 ### The church
 - **PAT-11** The church rig from the owner's Lightkey export is patched once through these commands
   (or a one-off script that calls them) into the church show; the result is listed in
@@ -230,6 +281,13 @@ slot names for now (the Lightkey show has them; adding them is a LIB-12 edit lat
 Per-cell selection and Unfold (cells exist in the model, LIB-07; selecting them is PRG-46..55),
 a fixture spanning several universes (pixel products, with the pixel mapper), patching from a
 visual plot (with the visualiser).
+
+## Owner decisions (P1-35, 2026-11-06, IDEA-43)
+1. Phase 1, beside the phone page (P1-34).
+2. A parked fixture is skipped live and kept in groups, palettes and cues for Unpark (PAT-30, 33). Not
+   chosen: taking it out of its groups, which Unpark could not undo.
+3. Proposed, to approve with this spec: Unpark onto taken channels is refused, not re-placed elsewhere
+   (PAT-31); the tile stays greyed in the Fixtures window rather than disappearing (PAT-35).
 
 ## Owner decisions (P1-15, 2026-10-24: every recommendation accepted)
 1. **Move: back to back or keep the spacing?** Titan's repatch keeps the address gaps between the

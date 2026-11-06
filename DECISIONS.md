@@ -5,6 +5,25 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-06 — A phone page on its own LAN port, and parking that keeps everything (IDEA-42, IDEA-43; owner)
+
+**Decision:** the daemon serves a patch page on a second port (7320) on every interface, off until a login is set in
+the console; plain HTTP, a salted hash in `state.json`, a token per phone, only patch and highlight commands. The app's
+port stays loopback only with `Origin` refused (IPC-01, IPC-02). A parked fixture is off the output and skipped live,
+and stays in its groups, palettes and cues for Unpark (`remote.md`, PAT-29..36).
+
+**Alternatives considered:** opening the app's own port to the network; HTTPS with a self-signed certificate; taking a
+parked fixture out of its groups.
+
+**Reasoning:** the app's port speaks the whole contract and must not reach the Wi-Fi; a second listener with an allow-list
+keeps the phone to what it needs, and IDEA-06 grows on it. A self-signed certificate makes every phone warn. Titan's Park
+keeps all programming; skipping live gives the owner's "out of the group" without losing anything on Unpark.
+
+**Reversal trigger:** the page is used on networks strangers share (then HTTPS); an operator who expects a parked fixture
+gone from a group for good.
+
+---
+
 ## 2026-11-05 — ⌘? opens the manual through the app's key handler, not its menu item (HLP-02 run)
 
 **Decision:** `MacKeys.handle` opens the manual on ⌘? (⌘ ⇧ and the `?` key), as it does ⌘Z; the menu item keeps its shortcut.
