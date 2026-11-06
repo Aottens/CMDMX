@@ -142,6 +142,21 @@ press Command-A for all of them. The panel then reads *Selected · 6 fixtures*.
 
 Each of these is one step for Undo, and each is refused as a whole when one fixture would clash.
 
+### Parking a fixture that does not hang
+
+A lamp that is in the show but not on the rig today (in for repair, not hung for this service) can be
+**parked** instead of removed. Select its row (or a range) and click **Park**. The fixture keeps its
+number, name, groups, palettes and cues, but outputs nothing and frees its channels for another fixture.
+Its row is greyed and its address reads *parked (was 1.37)*; in the Fixtures window its tile stays where
+it is, greyed with a `PARK` tag, and cannot be selected. Groups, Thro, All and effects simply leave it out.
+
+**Unpark** puts it back at its old address and it plays its cues again. When another fixture holds those
+channels by now, Unpark is refused with the clash (`201 would overlap 1201 at 1.37`); give it a new
+address with **Move**, which also unparks it.
+
+When a **Move** clashes, the warning in the panel offers **Park conflicting and move**: the fixtures in
+the way are parked and the move goes through, as one step for Undo.
+
 ## Universes and output nodes
 
 A **universe** is one set of 512 DMX channels. An **output node** sends a universe somewhere: as

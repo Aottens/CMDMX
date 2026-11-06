@@ -82,7 +82,9 @@ button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--
   </div>
   <p id="crange"></p>
   <p id="cmsg" role="status"></p>
+  <button id="pm" class="primary" type="button" hidden></button>
   <button id="save" class="primary" type="button">Save</button>
+  <button id="park" type="button" style="width:100%;margin-top:12px;min-height:48px"></button>
 </section>
 
 </main></div>
@@ -102,6 +104,7 @@ button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--
     token: null, ws: null, retry: null, busy: false, loginErr: '',
     snap: null, query: '', scrollTo: null, listMsg: '',
     cardId: null, dirty: {}, saving: null, nameSent: null, cardMsg: null,
+    pending: null, clash: null,
     hl: false, hlAt: 0     // page-local Highlight flag and when the last highlight command went out
   };
   var $ = function (id) { return document.getElementById(id); };
@@ -141,6 +144,12 @@ button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--
     } else if (m.type === 'warning' || m.type === 'error') {
       if (S.hl && /parked/.test(m.message)) S.hl = false;
       showMsg(m.message, 'warn');
+      // RMT-11: a move or unpark refused for an overlap offers the way out.
+      if (S.pending && /overlap/.test(m.message)) {
+        if (S.pending.kind === 'move') S.clash = { u: S.pending.u, a: S.pending.a };
+        else $('cuni').focus();   // unpark refused: give a new address, Save moves and unparks
+      }
+      S.pending = null;
       S.saving = null;
     }
     render();
@@ -288,7 +297,7 @@ button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--
   // ---- card -------------------------------------------------------------------------------
   function openCard(id) {
     if (S.cardId !== null) commitName();
-    S.cardId = id; S.dirty = {}; S.saving = null; S.nameSent = null; S.cardMsg = null; S.listMsg = '';
+    S.cardId = id; S.dirty = {}; S.clash = null; S.pending = null; S.saving = null; S.nameSent = null; S.cardMsg = null; S.listMsg = '';
     var f = cardFix();
     if (f) {
       $('cname').value = f.name; $('cuni').value = f.universe; $('caddr').value = f.address;
@@ -319,11 +328,24 @@ button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--
     fill($('cuni'), 'uni', f.universe);
     fill($('caddr'), 'addr', f.address);
     var u = num($('cuni').value), a = num($('caddr').value);
-    $('crange').textContent = range(isNaN(u) ? f.universe : u, isNaN(a) ? f.address : a, f.footprint);
+    $('crange').textContent = f.parked && !S.dirty.uni && !S.dirty.addr   // RMT-13: until a new address is typed
+      ? 'parked (was ' + range(f.universe, f.address, 0) + ')'
+      : range(isNaN(u) ? f.universe : u, isNaN(a) ? f.address : a, f.footprint);
     var m = S.cardMsg;
     $('cmsg').textContent = m ? m.text : '';
     $('cmsg').className = m ? m.kind : '';
-    ['cname', 'cuni', 'caddr', 'save'].forEach(function (id) { $(id).disabled = !ed; });
+    ['cname', 'cuni', 'caddr', 'save', 'park', 'pm'].forEach(function (id) { $(id).disabled = !ed; });
+    $('park').textContent = f.parked ? 'Unpark' : 'Park';
+    var c = S.clash;
+    $('pm').hidden = !c;
+    if (c) {
+      // Every fixture the move would overlap is parked (PAT-32), not only the one the warning names.
+      var hit = fixtures().filter(function (o) {
+        return o.id !== f.id && !o.parked && o.universe === c.u &&
+          o.address < c.a + f.footprint && c.a < o.address + o.footprint;
+      }).map(function (o) { return o.number; });
+      $('pm').textContent = hit.length ? 'Park ' + hit.join(', ') + ' and move' : 'Park conflicting and move';
+    }
     var on = S.status === 'online';
     $('prev').disabled = !on || !neighbour(-1);
     $('next').disabled = !on || !neighbour(1);
@@ -354,8 +376,24 @@ button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--
       S.cardMsg = S.nameSent !== null ? null : { text: 'Nothing changed', kind: 'dim' };
       render(); return;
     }
-    S.cardMsg = null;
-    if (cmd('patch.move', { id: f.id, universe: u, address: a })) S.saving = { u: u, a: a };
+    S.cardMsg = null; S.clash = null;
+    if (cmd('patch.move', { id: f.id, universe: u, address: a })) { S.saving = { u: u, a: a }; S.pending = { kind: 'move', u: u, a: a }; }
+    render();
+  }
+
+  function parkMove() {
+    var f = cardFix(), c = S.clash;
+    if (!f || !c || !editable()) return;
+    S.clash = null; S.cardMsg = null;
+    if (cmd('patch.move', { id: f.id, universe: c.u, address: c.a, park_conflicting: true })) S.saving = { u: c.u, a: c.a };
+    render();
+  }
+
+  function togglePark() {
+    var f = cardFix();
+    if (!f || !editable()) return;
+    S.clash = null; S.cardMsg = null;
+    if (cmd(f.parked ? 'patch.unpark' : 'patch.park', { ids: [f.id] }) && f.parked) S.pending = { kind: 'unpark' };
     render();
   }
 
@@ -368,7 +406,7 @@ button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--
 
   ['cname', 'cuni', 'caddr'].forEach(function (id) {
     var key = id.slice(1);
-    $(id).addEventListener('input', function () { S.dirty[key] = true; renderCard(); });
+    $(id).addEventListener('input', function () { S.dirty[key] = true; if (key !== 'name') S.clash = null; renderCard(); });
   });
   // iOS Safari does not blur a field on a tap elsewhere or on a button, so the name is also
   // saved on change, before every card switch and Save, and a tap outside a field blurs it.
@@ -380,6 +418,8 @@ button.primary { width:100%; margin-top:16px; min-height:56px; background:var(--
   }, { passive: true });
   $('cname').addEventListener('keydown', function (e) { if (e.key === 'Enter') this.blur(); });
   $('save').addEventListener('click', save);
+  $('pm').addEventListener('click', parkMove);
+  $('park').addEventListener('click', togglePark);
   $('back').addEventListener('click', closeCard);
   $('prev').addEventListener('click', function () { walk(-1); });
   $('next').addEventListener('click', function () { walk(1); });

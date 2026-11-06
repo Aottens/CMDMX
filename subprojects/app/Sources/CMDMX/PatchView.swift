@@ -44,14 +44,17 @@ struct PatchView: View {
             HStack(spacing: 8) {
                 PanelWindow(title: "Patch", info: "\(rows.count) fixtures", framed: true, accessory: { EmptyView() }) {
                     Table(rows, selection: $selection) {
-                        TableColumn("No") { Text(String($0.number)).monospacedDigit() }.width(min: 40, ideal: 50, max: 70)
-                        TableColumn("Name") { Text($0.name) }.width(min: 60, ideal: 120)
-                        TableColumn("Fixture") { Text($0.profile) }.width(min: 100, ideal: 200)
-                        TableColumn("Mode") { Text($0.virtualDimmer ? "\($0.mode) · virtual dimmer" : $0.mode) }
+                        TableColumn("No") { Text(String($0.number)).monospacedDigit().opacity($0.parked ? 0.45 : 1) }.width(min: 40, ideal: 50, max: 70)
+                        TableColumn("Name") { Text($0.name).opacity($0.parked ? 0.45 : 1) }.width(min: 60, ideal: 120)
+                        TableColumn("Fixture") { Text($0.profile).opacity($0.parked ? 0.45 : 1) }.width(min: 100, ideal: 200)
+                        TableColumn("Mode") { Text($0.virtualDimmer ? "\($0.mode) · virtual dimmer" : $0.mode).opacity($0.parked ? 0.45 : 1) }
                             .width(min: 100, ideal: 180)
-                        TableColumn("Address") { Text(verbatim: "\($0.universe).\($0.address)").monospacedDigit() }
-                            .width(min: 50, ideal: 70, max: 90)
-                        TableColumn("Ch") { Text(String($0.footprint)).monospacedDigit() }.width(min: 30, ideal: 40, max: 60)
+                        TableColumn("Address") {
+                            Text(verbatim: $0.parked ? "parked (was \($0.universe).\($0.address))" : "\($0.universe).\($0.address)")
+                                .monospacedDigit().opacity($0.parked ? 0.45 : 1)
+                        }
+                        .width(min: 50, ideal: 70, max: 130)
+                        TableColumn("Ch") { Text(String($0.footprint)).monospacedDigit().opacity($0.parked ? 0.45 : 1) }.width(min: 30, ideal: 40, max: 60)
                     }
                 }
                 VStack(spacing: 8) {
@@ -445,6 +448,8 @@ private struct SelectedPanel: View {
     @State private var mode = ""
     /// Which destructive button has been clicked once; reset when the selection changes.
     @State private var armed: Armed?
+    /// The last Move sent, so a refused overlap can be resent with `park_conflicting` (PAT-35).
+    @State private var lastMove: (ids: [Int], universe: Int, address: Int)?
 
     private enum Armed { case remove, mode }
 
@@ -471,8 +476,23 @@ private struct SelectedPanel: View {
                         TextField("univ", text: $universe).textFieldStyle(.roundedBorder).frame(width: 50)
                         TextField("address", text: $address).textFieldStyle(.roundedBorder)
                         Button("Move") {
-                            if let u = Int(universe), let a = Int(address) { engine.patchMove(ids: ids, universe: u, address: a) }
+                            if let u = Int(universe), let a = Int(address) {
+                                lastMove = (ids, u, a)
+                                engine.patchMove(ids: ids, universe: u, address: a)
+                            }
                         }.buttonStyle(FlatButton())
+                    }
+                    if engine.lastMessage?.contains("overlap") == true, let m = lastMove {
+                        Button("Park conflicting and move") {
+                            engine.patchMove(ids: m.ids, universe: m.universe, address: m.address, parkConflicting: true)
+                            lastMove = nil
+                        }.buttonStyle(FlatButton())
+                    }
+                    labelled("Park") {
+                        Button("Park") { lastMove = nil; engine.patchPark(ids: fixtures.filter { !$0.parked }.map(\.id)) }
+                            .buttonStyle(FlatButton()).disabled(fixtures.allSatisfy(\.parked))
+                        Button("Unpark") { lastMove = nil; engine.patchUnpark(ids: fixtures.filter(\.parked).map(\.id)) }
+                            .buttonStyle(FlatButton()).disabled(!fixtures.contains(where: \.parked))
                     }
                     labelled("Renumber") {
                         TextField("number", text: $number).textFieldStyle(.roundedBorder)
@@ -536,7 +556,7 @@ private struct SelectedPanel: View {
     /// Prefill the fields from the engine's values for the first selected fixture.
     private func load(_ f: FixtureInfo) {
         universe = "\(f.universe)"; address = "\(f.address)"; number = "\(f.number)"
-        name = f.name; mode = sharedMode; armed = nil
+        name = f.name; mode = sharedMode; armed = nil; lastMove = nil
     }
 }
 
