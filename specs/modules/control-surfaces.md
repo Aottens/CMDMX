@@ -505,7 +505,7 @@ feedback is a **key image** instead of an LED or a motor.
     same key on another page. `control.binding` with a `deck_page` and no stored binding on that
     page adds one (it needs an `action`).
 
-### Working on many at once (IDEA-35 batch D, P1-36; proposed, awaiting the owner)
+### Working on many at once (IDEA-35 batch D, P1-36; approved by owner 2026-11-07)
 - **CTL-68** **Release all, or the page** (D3; adds to CTL-05). Actions `release all` → `playback.release {"scope":"all"}` and `release page` → `{"scope":"page"}` with the page shown at that moment (PBK-52). Button, on press; no feedback. Bindable on MIDI, OSC and the Stream Deck like any action. Test `ctl_68_…`.
 
 ## Where the code lives

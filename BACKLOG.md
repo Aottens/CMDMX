@@ -238,7 +238,7 @@ Builds: FIT-01.
 | FIT-01 | App: status bar, attribute bar and playback area always whole from 1280 × 800 pt up and in console mode, the rail scrolls and the side column keys shrink; checklist, checked on the owner's MacBook. | UI-63 | S | done (2026-11-07, #265) |
 
 ### Working on many at once (IDEA-35 batch D, spec P1-36)
-Proposed 2026-11-07, awaiting the owner. Unfold and the linked copy wait for owner questions 3 and 4 (`ui.md`).
+Approved by the owner 2026-11-07, every recommendation accepted (`ui.md`). Unfold and the linked copy are IDEA-46 and IDEA-47.
 Builds: MUL-01 + MUL-02; MUL-03; MUL-04; MUL-05.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
@@ -336,7 +336,7 @@ after VS8-03, in any order.
 | P1-32 | Spec the Help patch (L6, F7; owner 2026-11-05): UI-55, REL-29, WEB-36, build tasks HLP-01..03; approved by the owner when this PR merges. | UI, REL, WEB | S | done (2026-11-05, #252) |
 | P1-33 | Spec IDEA-35 batch C, seeing what the rig does (L1, J8, L2, L3, L5, C1..C3, K8), as GRM-22..23, ENG-25, IPC-58..60, UI-56..62; build tasks SEE-01..10; approved by owner 2026-11-05, the five questions as recommended (`ui.md`). | GRM, ENG, IPC, UI | S | done (2026-11-05, #254) |
 | P1-34 | Spec the phone patch page (IDEA-42, owner 2026-11-06: phase 1, before Christmas): new `remote.md` with RMT criteria (LAN listener, login set in the console, the page, highlight while walking), build tasks; approved by the owner when this PR merges. | RMT, PAT, PRG, IPC | S | done (2026-11-06, #258) |
-| P1-36 | Spec IDEA-35 batch D, working on many at once (D1..D4), as PBK-50..52, PAL-34, PRG-98, CUE-63, SHW-19, IPC-61, CTL-68, UI-64..67; checks in `tests/manual/runs/2026-11-07-D-checks.md`; build tasks MUL-01..05; owner approves, with the five questions in `ui.md`. | PBK, PAL, PRG, CUE, SHW, IPC, CTL, UI | S | todo |
+| P1-36 | Spec IDEA-35 batch D, working on many at once (D1..D4), as PBK-50..52, PAL-34, PRG-98, CUE-63, SHW-19, IPC-61, CTL-68, UI-64..67; checks in `tests/manual/runs/2026-11-07-D-checks.md`; build tasks MUL-01..05; approved by owner 2026-11-07, the five questions as recommended (`ui.md`); Unfold and the linked copy became IDEA-46, IDEA-47. | PBK, PAL, PRG, CUE, SHW, IPC, CTL, UI | S | done (2026-11-07, #269) |
 | P1-35 | Spec parking (IDEA-43, owner 2026-11-06: phase 1; a parked fixture is skipped live and kept in groups, palettes and cues for Unpark): PAT/PRG criteria checked against Titan's Park, build tasks; approved by the owner when this PR merges. | PAT, PRG, GRM, IPC, UI | S | done (2026-11-06, #258) |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
