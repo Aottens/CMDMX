@@ -35,6 +35,7 @@ mod control;
 mod deck_io;
 mod ipc;
 mod library;
+mod live;
 mod midi_io;
 mod migrate;
 mod osc_io;
@@ -213,6 +214,8 @@ fn main() {
     let (library_tx, library_warnings) = std::sync::mpsc::channel::<String>();
     let mut history = History::default();
     let mut published = ipc::Published::new(&engine, outputs.statuses(), &autosave.state());
+    let mut feed = live::Feed::new(&engine);
+    let mut watchers = live::Watchers::default();
 
     eprintln!("cmdmx-daemon 0.1.0 — 40 Hz tick loop running.");
     let mut next = started;
@@ -305,6 +308,18 @@ fn main() {
                 // IPC-60: to the asking client only; an unknown fixture is a warning.
                 ipc::Event::Why { fixture, reply } => {
                     ipc::why(&engine, fixture).map(|msg| drop(reply.try_send(msg)))
+                }
+                // IPC-59: passes the lock (it changes nothing); an unknown line is a warning.
+                ipc::Event::Watch {
+                    client,
+                    view,
+                    reply,
+                } => {
+                    let lines: Vec<_> = outputs.statuses().iter().map(|s| s.node.line).collect();
+                    if let Err(e) = watchers.set(client, reply, view, &engine, &lines) {
+                        warn(&mut clients, &e);
+                    }
+                    continue;
                 }
                 // IPC-57: to the asking client only.
                 ipc::Event::UpdateTargets { reply } => {
@@ -402,6 +417,7 @@ fn main() {
                         }
                         let state = autosave.state();
                         published = ipc::Published::new(&engine, outputs.statuses(), &state);
+                        feed = live::Feed::new(&engine);
                         // The snapshot below carries the labels; no `undo` delta for them.
                         let _ = published.undo_delta(&undo_info(&history));
                         clients.broadcast(&ipc::snapshot(
@@ -536,6 +552,11 @@ fn main() {
         for msg in published.diff(&engine, outputs.statuses(), &autosave.state()) {
             clients.broadcast(&msg);
         }
+        // IPC-58, IPC-59: the output, outside the tick, at most 10 per second.
+        if let Some(msg) = feed.delta(&engine, now) {
+            clients.broadcast(&msg);
+        }
+        watchers.send(&engine, now);
         // RMT-06: the phones' snapshot, only on change; the app's `remote` delta (RMT-02).
         if remote.has_phones() {
             remote.publish(remote::snapshot(
@@ -967,7 +988,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         // Answered through `Event::CueView` (IPC-24).
         CueView { .. } => Ok(()),
         // Answered through `Event::Usage` (IPC-54).
-        Usage(_) | Why(_) | UpdateTargets => Ok(()),
+        Usage(_) | Why(_) | OutputWatch(_) | UpdateTargets => Ok(()),
         Update {
             playbacks,
             palettes,
@@ -1061,6 +1082,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CueView { .. }
         | Usage(_)
         | Why(_)
+        | OutputWatch(_)
         | UpdateTargets
         | PatchProfile { .. }
         | Control(_)
@@ -3020,6 +3042,10 @@ mod tests {
         (r#"{"v":1,"cmd":"usage","palette":12}"#, Class::Neutral),
         (r#"{"v":1,"cmd":"usage","fixtures":[1,2]}"#, Class::Neutral),
         (r#"{"v":1,"cmd":"why","fixture":1}"#, Class::Neutral),
+        (
+            r#"{"v":1,"cmd":"output.watch","view":"grid"}"#,
+            Class::Neutral,
+        ),
         (
             r#"{"v":1,"cmd":"usage","fixtures":[1],"detail":true}"#,
             Class::Neutral,

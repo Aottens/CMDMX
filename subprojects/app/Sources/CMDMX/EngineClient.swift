@@ -941,6 +941,40 @@ private struct UndoLabels: Decodable {
 
 private struct SnapshotUndo: Decodable { let undo: Tolerant<UndoLabels>? }
 
+/// IPC-58 / UI-60: what one fixture (or cell) outputs now. `rgb` is linear 0..1, nil without colour.
+struct FixtureOutput: Decodable {
+    let item: Item
+    let i: Double
+    let rgb: [Double]?
+    let source: String?
+    let tracked: Bool
+    let effect: Bool
+
+    private enum CodingKeys: String, CodingKey { case id, i, rgb, source, tracked, effect }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let n = try? c.decode(Int.self, forKey: .id) {
+            item = Item(fixture: n)
+        } else if let t = try? c.decode(String.self, forKey: .id), let it = Item(t) {
+            item = it
+        } else {
+            throw DecodingError.dataCorruptedError(forKey: .id, in: c, debugDescription: "bad output id")
+        }
+        i = try c.decode(Double.self, forKey: .i)
+        rgb = try? c.decode([Double].self, forKey: .rgb)
+        source = try? c.decode(String.self, forKey: .source)
+        tracked = (try? c.decode(Bool.self, forKey: .tracked)) ?? false
+        effect = (try? c.decode(Bool.self, forKey: .effect)) ?? false
+    }
+}
+
+/// The snapshot carries `output`, the delta `fixtures` (changed entries only).
+private struct OutputEntries: Decodable {
+    let output: [Tolerant<FixtureOutput>]?
+    let fixtures: [Tolerant<FixtureOutput>]?
+}
+
 /// One recorded group; `fixtures` are in group order (IPC-10).
 struct GroupInfo: Decodable, Identifiable, Equatable {
     let id: Int
@@ -1436,6 +1470,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var redoLabel: String?
     /// IPC-10..12: all straight from the snapshot / deltas.
     @Published private(set) var fixtures: [FixtureInfo] = []
+    /// IPC-58 / UI-60: live output per fixture or cell; the app draws it and animates nothing (FX-41).
+    @Published private(set) var output: [Item: FixtureOutput] = [:]
     @Published private(set) var groups: [GroupInfo] = []
     /// PAL-25: all palettes, sorted by number.
     @Published private(set) var palettes: [PaletteInfo] = []
@@ -2261,6 +2297,8 @@ final class EngineClient: ObservableObject {
             remote = incoming.remote?.value ?? RemoteState()
             let labels = (try? JSONDecoder().decode(SnapshotUndo.self, from: data))?.undo?.value
             undoLabel = labels?.undo; redoLabel = labels?.redo
+            let entries = (try? JSONDecoder().decode(OutputEntries.self, from: data))?.output ?? []
+            output = Dictionary(entries.compactMap(\.value).map { ($0.item, $0) }, uniquingKeysWith: { _, b in b })
             // UI-39: merge, the app keeps earlier lines across a daemon restart; known lines are skipped.
             var known = Set(messageLog.map { "\($0.at.timeIntervalSince1970)|\($0.level)|\($0.message)" })
             var added = false
@@ -2284,6 +2322,9 @@ final class EngineClient: ObservableObject {
             if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }
         case "fixtures":
             if let fixtures = incoming.fixtures?.value { self.fixtures = fixtures }
+        case "output":
+            // IPC-58: changed entries only, merged; an entry is never removed by a delta.
+            for e in ((try? JSONDecoder().decode(OutputEntries.self, from: data))?.fixtures ?? []).compactMap(\.value) { output[e.item] = e }
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
         case "control":

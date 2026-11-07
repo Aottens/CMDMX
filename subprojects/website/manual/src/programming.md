@@ -31,6 +31,12 @@ that do not match dim and the window goes to the page of the first match. Return
 in number order, skipping any that are already selected, then empties the field and gives the keys back to the
 command line; Esc empties the field without selecting.
 
+The stripe along the bottom of a fixture button shows what that fixture sends out right now: its
+colour at its intensity, with masters, the Grand Master, DBO and running effects already in. A
+fixture at 0 shows a dark stripe with a grey outline, so a chase runs across the buttons and a
+master at 0 turns its fixtures' stripes dark. An unfolded cell's button shows that cell. The
+stripe follows the engine about twenty times a second; it is what leaves the console, not a preview.
+
 Tap a group to add its fixtures in the group's own order. Fixtures that are already selected keep
 their place. Tapping a group whose fixtures are all selected deselects them.
 

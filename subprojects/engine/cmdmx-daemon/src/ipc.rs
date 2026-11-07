@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender, TryRecvError};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
@@ -450,6 +450,8 @@ pub enum Command {
     Usage(Usage),
     /// IPC-60: handed to the tick as `Event::Why`, never applied.
     Why(FixtureId),
+    /// IPC-59: handed to the tick as `Event::Watch`, never applied.
+    OutputWatch(Option<crate::live::View>),
     /// IPC-57: handed to the tick as `Event::UpdateTargets`, never applied.
     UpdateTargets,
     /// PBK-49, IPC-57: store into the ticked cues and palettes; both lists may be empty on the
@@ -734,6 +736,12 @@ pub enum Event {
     /// IPC-60: the answer goes to the asking client only.
     Why {
         fixture: FixtureId,
+        reply: SyncSender<String>,
+    },
+    /// IPC-59: what this client watches from now on; `None` ends it.
+    Watch {
+        client: u64,
+        view: Option<crate::live::View>,
         reply: SyncSender<String>,
     },
     /// IPC-57: the answer goes to the asking client only.
@@ -1884,6 +1892,18 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             cue: cue_number(&v, "cue")?,
         }),
         Some("why") => Ok(Command::Why(uint(&v, "fixture")?)),
+        Some("output.watch") => Ok(Command::OutputWatch(match v.get("view") {
+            Some(serde_json::Value::Null) => None,
+            Some(serde_json::Value::String(s)) if s == "grid" => Some(crate::live::View::Grid),
+            Some(serde_json::Value::String(s)) if s == "dmx" => {
+                let line: u16 = uint(&v, "line")?;
+                if line == 0 {
+                    return Err("\"line\" starts at 1".into());
+                }
+                Some(crate::live::View::Dmx(line))
+            }
+            _ => return Err("\"view\" is \"grid\", \"dmx\" or null".into()),
+        })),
         Some("usage") => match (v.get("palette"), v.get("fixtures")) {
             (Some(_), None) if v.get("detail").is_none() => {
                 Ok(Command::Usage(Usage::Palette(uint(&v, "palette")?)))
@@ -2493,6 +2513,8 @@ struct Snapshot<'a> {
     /// FX-32: the look gallery and the shapes; constant, so never in a delta.
     effect_catalogue: EffectCatalogue,
     outputs: Vec<OutputJson>,
+    /// IPC-58: what each fixture and cell outputs; deltas follow as `output`.
+    output: Vec<crate::live::Entry>,
     show: &'a ShowState,
     undo: &'a UndoInfo,
     /// CTL-39
@@ -2795,6 +2817,7 @@ pub fn snapshot(
         programmer: &engine.programmer_view(),
         effect_catalogue: effect_catalogue(),
         outputs: output_jsons(outputs),
+        output: crate::live::entries(engine),
         show,
         undo,
         control,
@@ -3047,7 +3070,7 @@ fn usage_detail(engine: &Engine, id: FixtureId) -> Result<serde_json::Value, Cor
 }
 
 /// IPC-60: how a playback is named to the operator: its legend, else its handle "page.slot".
-fn playback_label(engine: &Engine, id: PlaybackId) -> Option<String> {
+pub(crate) fn playback_label(engine: &Engine, id: PlaybackId) -> Option<String> {
     let p = engine.playback(id)?;
     Some(if p.legend.is_empty() {
         format!("{}.{}", p.page, p.slot)
@@ -3825,6 +3848,9 @@ pub fn attach_profile(lib: &RwLock<Option<Library>>, cmd: Command) -> Command {
     }
 }
 
+/// IPC-59: a number per connection, for the view it watches.
+static CLIENTS: AtomicU64 = AtomicU64::new(1);
+
 fn serve_client(
     stream: TcpStream,
     events: &Sender<Event>,
@@ -3843,6 +3869,7 @@ fn serve_client(
     // IPC-24: the tick answers `cue.view` into this queue. It is not `tx`, because a sender kept
     // here would stop `out` from reporting that the tick dropped this client (IPC-07).
     let (reply, replies) = sync_channel::<String>(QUEUE);
+    let client = CLIENTS.fetch_add(1, Ordering::Relaxed);
     // After the handshake: short timeouts so one thread can both read and write.
     let tcp = ws.get_mut();
     if tcp
@@ -3935,6 +3962,19 @@ fn serve_client(
                 Ok(Command::Why(fixture)) => {
                     let reply = reply.clone();
                     if events.send(Event::Why { fixture, reply }).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::OutputWatch(view)) => {
+                    let reply = reply.clone();
+                    if events
+                        .send(Event::Watch {
+                            client,
+                            view,
+                            reply,
+                        })
+                        .is_err()
+                    {
                         return;
                     }
                 }
@@ -7428,6 +7468,52 @@ mod tests {
             r#"{"v":1,"cmd":"usage","fixtures":[1,2],"detail":true}"#,
             r#"{"v":1,"cmd":"usage","palette":12,"detail":true}"#,
             r#"{"v":1,"cmd":"usage","fixtures":[1],"detail":"yes"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_58_the_snapshot_carries_the_output() {
+        let mut e = engine();
+        e.set_fader(1, 1.0, 0.0).unwrap();
+        e.tick(0.0);
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+            &[],
+            false,
+            &serde_json::Value::Null,
+        ));
+        assert_eq!(
+            v["output"],
+            json!([{"id":1,"i":1.0,"rgb":null,"source":"1.1","tracked":false,"effect":false}])
+        );
+    }
+
+    #[test]
+    fn ipc_59_output_watch_parses() {
+        use crate::live::View;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"output.watch","view":"grid"}"#).unwrap(),
+            Command::OutputWatch(Some(View::Grid))
+        );
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"output.watch","view":"dmx","line":2}"#).unwrap(),
+            Command::OutputWatch(Some(View::Dmx(2)))
+        );
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"output.watch","view":null}"#).unwrap(),
+            Command::OutputWatch(None)
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"output.watch"}"#,
+            r#"{"v":1,"cmd":"output.watch","view":"dmx"}"#,
+            r#"{"v":1,"cmd":"output.watch","view":"dmx","line":0}"#,
+            r#"{"v":1,"cmd":"output.watch","view":"stage"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
