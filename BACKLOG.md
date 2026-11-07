@@ -234,7 +234,7 @@ Builds: FIT-01.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| FIT-01 | App: status bar, attribute bar and playback area always whole from 1280 × 800 pt up and in console mode, the rail scrolls and the side column keys shrink; checklist, checked on the owner's MacBook. | UI-63 | S | todo |
+| FIT-01 | App: status bar, attribute bar and playback area always whole from 1280 × 800 pt up and in console mode, the rail scrolls and the side column keys shrink; checklist, checked on the owner's MacBook. | UI-63 | S | done (2026-11-07, #265) |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
