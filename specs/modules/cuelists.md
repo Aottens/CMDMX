@@ -554,6 +554,9 @@ Titan pages used: *Cue List Timing*, *Creating a Cue List*, *Editing Cue Lists*,
   - From Create List or Create Chase until it ends, a fixture tile, group tile, palette cell (effect palettes too) and the command line do their normal action, so the next look can be made; only a handle stores, and a cue row is refused with the Building message (amends UI-42; owner's answer 2026-11-05: Titan's flow changes the programmer between cues). A Clear does not end it.
   - Exit, Esc or a screen opening ends it (UI-44, 45). The programmer stays as it is between cues (PBK-09), each cue is one undo step, Go and Space stay live. The Options route to a chase stays. Test `cue_62_…` for `kind`; the rest by hand.
 
+### Working on many at once (IDEA-35 batch D, P1-36; proposed, awaiting the owner)
+- **CUE-63** **Delete several cues** (D1; amends CUE-07; Titan: hold the first cue, press the last, *Not* takes one out). `cue.delete {id, cues: [2, 3, 3.5]}`: each cue goes as CUE-07, and tracking afterwards is as if they were deleted one by one in number order (CUE-51). Deleting every cue of the playback is refused ("Delete the playback instead", PBK-14). An unknown cue refuses it all. One undo step. Copying or moving several cues stays out, as copying cues between lists does. Test `cue_63_…`: three cues out of five, tracking after, all cues refused, one undo.
+
 ## Scenario test format
 Scenario playback entries gain the CUE-38 fields (`kind`, `list`, `chase`, `master`, and per cue
 `number`, `legend`, `link`, `track`, `group_times`; `number` may be left out and then counts 1, 2, 3 … in

@@ -599,6 +599,9 @@ The selection and the programmer hold items too and are not changed either.
   (PRG-36) and does not reach OSC `/cmdmx/message` (CTL-37). IPC: IPC-49.
 - **PRG-97** **Record over a group asks** (B6; amends PRG-07; own choice, Titan's group pages do not cover it, palettes here ask, PAL-29; approved by owner 2026-11-04, IDEA-35 batch B, P1-29). `group.record {group, mode?}`: on a used group without `mode` it is refused ("Group 5 is used: Replace or Merge"). `Replace` stores the selection as today. `Merge` adds the selected items not in the group after its items and keeps its grid. Both keep the legend and are one undo step; group masters follow (GRM-02). App: Record + a used group tile or `Group n` Enter (UI-46) shows softkeys Replace, Merge, Cancel. Update + a group tile stays refused, its message naming Record and Merge. Test `prg_97_…`.
 
+### Working on many at once (IDEA-35 batch D, P1-36; proposed, awaiting the owner)
+- **PRG-98** **Copy, Move and Delete several groups** (D1, D2; amends PRG-94; Titan *Organising the console*). `group.copy` and `group.move` take `groups` in place of `group`, with `layout` and, for Move, `swap`, placed from `to` by group number as PBK-50 and PBK-51 place handles. `group.delete` takes `groups`; each goes as a single delete does today, its group masters included (GRM). A single `group` stays as today. One refused group refuses the whole command; one undo step. Test `prg_98_…`: retain with a gap, bunch, swap, delete of a group with a master, one undo.
+
 ## Scenario test format
 Scenario files (`tests/scenarios/PRG-nn-*.json`, format of `engine-merge.md`) gain a `prg` action
 and a `programmer` expectation:

@@ -581,6 +581,13 @@ From `docs/research/everyday-gaps.md` C, K8 and the fourth review (L1, J8, L2, L
   MacBook's full screen leaves it. Checked by hand: `tests/manual/app-main-screen.md`, in console mode and in a
   window with the Dock, on two workspaces and on the Patch screen.
 
+### Working on many at once (IDEA-35 batch D, P1-36; proposed, awaiting the owner)
+From `docs/research/everyday-gaps.md` D; checked in `tests/manual/runs/2026-11-07-D-checks.md`. Behaviour in PBK-50..52, PAL-34, PRG-98, CUE-63 and SHW-19. Titan pages used: as PBK-50, and *Clearing the Console*.
+- **UI-64** **Picking several** (D1, D2; amends UI-42, PBK-38, PAL-29, PRG-94; owner question 5). With Copy, Move or Delete armed, the first tap on a used handle legend, palette cell or group tile picks it, outlined in the function's colour. A ⇧-tap on another of the same window picks the range between them (Titan: hold the first, press the last); a ⌘-tap adds or drops one (Titan *And*). The softkey **All** picks every used item on the page or in the window of the first pick, so a page or a pool is cleared or copied in three taps. Handle picks stay through a page change. The message zone counts ("Copy 4 playbacks: tap the target"). Copy and Move then take a tap on the target slot or cell; Delete waits on its confirm softkey naming the count ("Delete 8 playbacks on page 2", two-step, UI-47). While Copy or Move is armed, softkeys **Retain layout** / **Bunch up** (one toggle, as last used, Retain when the app starts) and, for Move, **Swap if required** (off when armed). A refusal keeps the picks, so another target can be tried. One pick behaves as today. In the Cue list window, ⇧ and ⌘ pick cue rows for Delete (CUE-63). Checked by hand on Art-Net.
+- **UI-65** **Menu latch** (D1; Titan *Menu Latch*: Copy, Move or Delete stay active until pressed again). A **Menu latch** softkey, shown while Copy, Move or Delete is armed, keeps the function armed after each action, with the picks cleared, until the function button again, Clear or Esc. It is lit while on, not saved, off when the app starts. Checked by hand.
+- **UI-66** **Release all, or a page** (D3; amends UI-42: a page button is a target while Release is armed). Release armed and Release pressed again sends Release all (Titan: Release twice). Release armed and a tap on a page button shows the softkeys **Release page 2** and **Release all but page 2** (Titan has a third for fader groups, which we do not have). The message zone names how many playbacks go ("Release all: 5 playbacks"). Checked by hand on Art-Net with a release time of 2 s.
+- **UI-67** **New show from this patch** (D2; amends SHW-17). The Show screen's New gets a **Keep the patch** toggle, off when the screen opens. The two-step confirm names what goes: "New show Kerk kerst with the patch of Kerk: groups, palettes and playbacks start empty". Checked by hand.
+
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
   zone against the sketch. `tests/manual/app-programmer.md` and `tests/manual/app-patch.md` keep
@@ -590,7 +597,14 @@ From `docs/research/everyday-gaps.md` C, K8 and the fourth review (L1, J8, L2, L
 ## Out of scope (this spec)
 Palette, cue and playback behaviour (their own specs fill in the disabled controls), Blind, undo
 (P1-10), freely configurable workspaces, legends and halos, picture legends, a remote/touch layout
-(IDEA-06), and the narrow single-column layout of the sketch (below 900 px). Not in batch C (P1-33): editing values in the Grid, Titan's *View If* and *Frozen* filters, the DMX View's input column, a fixture's position on a rig plan (IDEA-25).
+(IDEA-06), and the narrow single-column layout of the sketch (below 900 px). Not in batch C (P1-33): editing values in the Grid, Titan's *View If* and *Frozen* filters, the DMX View's input column, a fixture's position on a rig plan (IDEA-25). Not in batch D (P1-36): Unfold of a cue list or chase onto faders and a linked playback copy (owner questions 3 and 4), copying or moving several cues, Titan's *Copy Legends* option and *Unassign*, the Release Priority setting and *Release all Masters*.
+
+## Owner questions (P1-36, batch D; open)
+1. **Layout by default (PBK-50, UI-64):** Retain layout, so a copied page looks like the page? Recommended: yes. Not chosen: Bunch up first, which closes gaps nobody asked to close.
+2. **Clearing a show (SHW-19, UI-67):** a new show under a new name that keeps the patch, leaving the old file as it was? Recommended: yes, it can never lose a show. Not chosen: a wipe of the open show in place (one wrong click empties the Sunday show; Undo history goes with it), or Titan's New Show only.
+3. **Unfold a cue list or chase onto the faders (D4):** Titan's Unfold is an editing view: each cue on its own fader, run by raising it, changed with Record Step, left with Unfold again. Recommended: not in batch D, a spec of its own later in phase 1 (an idea now). It is as large as the rest of D together, and the Cue list window already edits every cue. Not chosen: in D as a sixth task.
+4. **A linked playback copy (D4):** Titan's Link shows the same cues on another handle with its own times and options. Recommended: not in batch D, an idea for later: cues shared between playbacks change the show file and every cue edit. Not chosen: in D.
+5. **How to pick several (UI-64):** ⇧ for a range, ⌘ to add one, and an **All** softkey, as on the Mac? Recommended: yes, it needs one hand on a touch screen with All. Not chosen: Titan's hold-the-first-and-press-the-last, which needs two fingers on a trackpad.
 
 ## Owner decisions (P1-33, 2026-11-05: every recommendation accepted)
 1. **Where the views live (UI-61):** a Views screen on the rail with Intensity, Grid and DMX tabs, as Patch? Recommended: yes, they need the width. Not chosen: windows inside a workspace (UI-08 would change), or three rail items.

@@ -113,6 +113,9 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
   output changes now"). A refusal shows the warning on the screen. Verified by
   `tests/manual/app-show.md`.
 
+### Working on many at once (IDEA-35 batch D, P1-36; proposed, awaiting the owner)
+- **SHW-19** **A new show from this patch** (D2; amends SHW-15; Titan's New Show can only keep the DMX settings, the rest is our own choice, owner question 2). `show.new {"name":"Kerk kerst","keep":"patch"}` saves the current show, then starts a show under the new name with the current patch: the fixtures with their numbers, names, addresses, modes and parked state, the show's own profiles, the output lines and the show settings. Groups, palettes, effect palettes, playbacks, cue lists, masters and the programmer start empty, the page is 1, and the undo history empties (UNDO-13). The old show's file is not touched, so nothing is lost. An existing name is refused as SHW-15. Without `keep` it stays SHW-15. Test `shw_19_…`.
+
 ## Schema sketch (v1)
 
 ```json
