@@ -28,7 +28,8 @@ the rename; the app is now called CMDMX.
 ## First launch
 
 The app opens full screen. You will see a status bar at the top, a rail of workspaces on the left,
-a grid of windows, and the playback faders at the bottom. The first time, CMDMX opens a show called
+a grid of windows, and the playback faders at the bottom. On a small screen, such as a MacBook with the Dock, the faders
+stay whole: the rail scrolls and the keys on the right get a little smaller. The first time, CMDMX opens a show called
 *Demo*, a built-in rig for trying things out. Do not run the Demo show on a real rig: its fixtures
 sit at addresses where real lamps may be connected.
 
