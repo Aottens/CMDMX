@@ -52,6 +52,8 @@ Specified 2026-11-05, approved by the owner (P1-33; build tasks SEE-01..10): GRM
 3. Release a page of playbacks. Release All (`playbacks`, later).
 4. Unfold a cue list or chase onto faders. Linked playback copy. Swap Items on a used handle.
 
+Specified 2026-11-07, approved by the owner (P1-36; build tasks MUL-01..05): PBK-50..52, PAL-34, PRG-98, CUE-63, SHW-19, IPC-61, CTL-68, UI-64..67, with D1..D3 and Swap from D4; Unfold and the linked copy went to IDEA-46 and IDEA-47. Checked in `tests/manual/runs/2026-11-07-D-checks.md`.
+
 ## E. Patch and profiles
 1. Invert attribute, Swap Pan/Tilt, Fixture Offset, Attribute Limits, output curves, Freeze, Flip.
 2. Copy a patched fixture, Fixture Exchange, Swap Addresses, Update Personality, Auto Groups.

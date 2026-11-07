@@ -283,6 +283,9 @@ back from the colour (PRG-69), so it survives without being stored and the show 
   201–208 after `Lee 201`, record Colours 4 → palette 4 legend "L201 Full C.T. Blue"; 201 at
   LEE 201 and 202 at LEE 106 → empty legend ("Colour 4").
 
+### Working on many at once (IDEA-35 batch D, P1-36; approved by owner 2026-11-07)
+- **PAL-34** **Copy, Move and Delete several palettes** (D1, D2; amends PAL-27; Titan *Copying, Moving and Deleting Palettes*). `palette.copy` and `palette.move` take `numbers` in place of `number`, with `layout` (`retain` by default, or `bunch`) and, for Move, `swap`, placed from `to.handle` in the target window by cell order as PBK-50 and PBK-51 place handles. A window grows as PAL-28, so a block never runs past its end. A used target cell refuses Copy, and Move without `swap`. `palette.delete` takes `numbers`; each palette goes as PAL-18 (its references become their fallback values). A single `number` stays as today. One refused palette refuses the whole command; one undo step ("Delete 12 palettes"). Test `pal_34_…`: retain, bunch, swap, delete with a palette used in a cue, one undo.
+
 ## Scenario test format
 Scenario files (`engine-merge.md`) gain an optional `palettes` list (palette entries as in
 PAL-23) and a `pal` action (`record` with the `palette.record` fields, `apply {number}`,

@@ -60,7 +60,7 @@ the backlog, not the whole idea.
 | IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | done (2026-10-28, VS2-44..46: #159, #160, #161) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
-| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches; batch C specified (P1-33) | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
+| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches; batch C specified (P1-33); batch D specified (P1-36) | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | REC-02 done (UI-52) | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 | IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
@@ -71,6 +71,8 @@ the backlog, not the whole idea.
 | IDEA-43 | Park fixtures: the rig on paper is bigger than what hangs; a parked fixture leaves output, groups and selection, its programming kept | spec P1-35 proposed (`patch.md` PAT-29..36; PRK-01..02 todo) | 1 (owner 2026-11-06) | PAT, PRG, GRM, IPC, UI |
 | IDEA-44 | The live stripes on the fixture tiles step visibly during a fade or a fader move | done (IPC-58, IPC-59 at 25 a second; SEE-11 done) | 1 (owner 2026-11-07) | IPC, UI |
 | IDEA-45 | A tracked value's source names the cue running now, not the cue it came from (SEE-09 run, 2026-11-07) | triaged | 1 proposed, owner to confirm | IPC, ENG, UI |
+| IDEA-46 | Unfold a cue list or chase onto the faders: each cue on its own fader, edited there (Titan's Unfold) | triaged; out of batch D (owner decision 3, P1-36) | 1, later, its own spec | CUE, PBK, UI |
+| IDEA-47 | A linked playback copy: the same cues on another handle, with its own times and options (Titan's Link) | triaged; out of batch D (owner decision 4, P1-36) | later, phase to confirm | PBK, CUE, SHW |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -921,3 +923,21 @@ tracked value's label names the cue that stored it ("3.1 · Q1"), as Titan's tra
 source cue; `why` (IPC-60) already carries a `cue`.
 **What it touches now:** nothing forced; the label is made by the daemon outside the tick.
 **Open question:** the cue that stored it, or both ("3.1 · Q1 → Q2")?
+
+### IDEA-46 — Unfold a cue list onto the faders (2026-11-07)
+**Found in:** IDEA-35 batch D (D4), from Titan's *Editing Cue Lists* and *Editing a Chase*.
+**Intent:** Unfold, then a list's handle, puts each cue on its own fader, page by page; raising a fader runs that cue
+with its times, Record Step changes it, Unfold again leaves. An editing view, not copies.
+**Triage:** phase 1, later, with a spec of its own (owner decision 3, P1-36, 2026-11-07): it is as large as the rest of
+batch D, and the Cue list window already edits every cue.
+**What it touches now:** nothing; the app's Unfold folds a fixture's cells only (UI-29).
+**Open questions:** what the faders' own playbacks do meanwhile; whether it runs on the surfaces' faders.
+
+### IDEA-47 — A linked playback copy (2026-11-07)
+**Found in:** IDEA-35 batch D (D4), from Titan's *Copying, Moving, Linking and Deleting a Cue List*.
+**Intent:** Copy twice (or Link) makes a playback on another handle that shows the same cues, with its own times and
+playback options; a change to a cue shows on both.
+**Triage:** later (owner decision 4, P1-36, 2026-11-07); the phase is to be confirmed. Cues shared between playbacks
+change the show file and every cue edit.
+**What it touches now:** nothing; `copy_playback` clones the cues.
+**Open question:** which phase.
