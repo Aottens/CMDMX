@@ -11,14 +11,16 @@ Quality before price (HW-03); part numbers are suggestions, check the datasheet 
       (micro-USB to the Mac; a charge-only cable will not enumerate)
 - [ ] 2 × **plain 100 mm linear slide potentiometer, 10 kΩ linear (B10K)**, e.g. ALPS RSA0N
       series or Bourns PSL series, with two fader knobs
-- [ ] 1 × **optical incremental encoder, smooth (no detents), 5 V, open-collector or push-pull
-      quadrature A/B**, e.g. Bourns ENA1J-B28 (128 PPR), with a knob. A mechanical EC11 works for
-      a first try (the firmware does not care), but the desk wants optical (HW-07)
+- [ ] 1 × **optical incremental encoder, smooth (no detents), 5 V, quadrature A/B, panel mount**:
+      Bourns EM14 with 64 PPR, e.g. EM14A0D-B28-L064N (about €28 at Mouser), with a knob for its
+      shaft. Check in the datasheet that the code means no detent and no switch. It is the encoder
+      the four wheels of the programmer panel get (HW-07, DECISIONS 2026-11-07)
 - [ ] 4 × **MX-compatible switch** (e.g. Cherry MX or Gateron, any feel) with clear caps
 - [ ] 4 × **SK6812 RGB LED** in a chain: a strip cut to 4 LEDs (5 V, 60/m) or 4 breakout boards
 - [ ] 1 × **74AHCT125** (or 74HCT245) level shifter for the LED data line (3.3 V → 5 V), plus a
       330 Ω resistor in the data line and a 470 µF capacitor across the LED supply
-- [ ] Breadboard, jumper wires, 2 × 2.2 kΩ pull-ups if the encoder datasheet asks for them
+- [ ] Breadboard, jumper wires, and for the encoder's 5 V outputs a divider per channel: 2 × 10 kΩ
+      and 2 × 20 kΩ (an open-collector encoder needs 2 × 2.2 kΩ pull-ups to 3V3 instead)
 
 ## Wiring (pin table at the top of `box/src/main.rs`)
 | Pico 2 pin | Connects to |
@@ -26,7 +28,7 @@ Quality before price (HW-03); part numbers are suggestions, check the datasheet 
 | GP26 (ADC0) | fader 1 wiper; fader ends to 3V3 (pin 36) and AGND (pin 33) |
 | GP27 (ADC1) | fader 2 wiper; ends like fader 1 |
 | GP2, GP3, GP4, GP5 | key 1 (`upper 1`), key 2 (`upper 2`), key 3 (`lower 1`), key 4 (`lower 2`), other side to GND |
-| GP6, GP7 | encoder A, B (encoder at 5 V from VBUS pin 40, its outputs pulled up to **3V3**, never to 5 V) |
+| GP6, GP7 | encoder A, B (encoder at 5 V from VBUS pin 40; each output through 10 kΩ to the pin, 20 kΩ from the pin to GND, so the pin sees at most 3.3 V) |
 | GP16 | 74AHCT125 input; its output through 330 Ω to the first SK6812 DIN; LEDs in key order 1–4 |
 | VBUS (pin 40), GND | 5 V and ground for the LEDs, the level shifter and the encoder |
 
@@ -76,7 +78,8 @@ an attribute on wheel 1, e.g. a dimmer). Output visible on Art-Net (Claude liste
 - [ ] With the fixture selected, turning right raises wheel 1's attribute, left lowers it (if the
       direction is wrong, swap A and B)
 - [ ] A slow turn changes the value step by step; a fast spin moves it far without skipping back
-- [ ] One full turn of the knob gives about ______ steps (128 PPR encoder: about 128)
+- [ ] One full turn of the knob gives about ______ steps (64 PPR encoder: about 64). Too
+      sensitive or too coarse: change `ENCODER_DIVIDER` in `box/src/main.rs`; value used: ______
 
 ## Show-proof (HW-30, 32)
 - [ ] Quit the daemon with the box plugged in: the keys keep their last state or go dim red; start

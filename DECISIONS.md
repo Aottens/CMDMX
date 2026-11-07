@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-07 — The wheels are Bourns EM14 optical encoders (HW-07, HWB-01; owner)
+
+**Decision:** The desk's smooth wheels use the Bourns EM14 optical encoder with 64 PPR and no detent (about €28 each, four for about €110); the USB-MIDI box gets one of them. Its 5 V outputs reach the RP2350 through a resistor divider.
+
+**Alternatives considered:** Bourns ENA1J (about €45, too expensive); LPD3806-600BM (a motor-shaft encoder, 38 mm, no manufacturer datasheet); Bourns EMS22Q magnetic (€35–50); a smooth mechanical PEC11R (about €2, wears); an AS5600/AS5601 magnet under a knob of our own design.
+
+**Reasoning:** The cheapest panel-mount optical encoder with a datasheet; the owner keeps quality on wheels and motor faders and accepts this price.
+
+**Reversal trigger:** the EM14 feels wrong in the box run, or a cheaper optical panel encoder with a datasheet turns up.
+
+---
+
 ## 2026-11-06 — The remote's login is a screen on the rail, not a Settings window (RMB-03)
 
 **Decision:** RMT-15's *Settings › Remote* is the **Remote** screen on the rail, beside Output and Control.
