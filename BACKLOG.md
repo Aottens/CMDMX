@@ -212,7 +212,7 @@ Builds: REC-01 + REC-02; REC-03; REC-04; REC-05 + REC-06 + REC-07; REC-08 + REC-
 
 ### Seeing what the rig does (IDEA-35 batch C, spec P1-33)
 Approved by the owner 2026-11-05, in the owner's order: L1 with J8 first, then L2, L3, L5, then C1 to C3 and K8. Sub-release 0.6.0 follows the batch; the next gap review waits for the first service on CMDMX.
-Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08; SEE-09 + SEE-10.
+Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08 + SEE-11; SEE-09 + SEE-10.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
@@ -224,6 +224,7 @@ Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08; SEE-
 | SEE-06 | App: the model under a named tile and the find field; manual and run. | UI-59 | S | done (2026-11-06, #257) |
 | SEE-07 | Daemon: `output` per fixture and `output.watch` for grid and DMX, made outside the tick; `ipc_58_…`, `ipc_59_…`. Needs SEE-03. | IPC-58, IPC-59 | M | done (2026-11-07, #266) |
 | SEE-08 | App: live output on the tile stripe; manual and run against Art-Net. Needs SEE-07. | UI-60 | S | done (2026-11-07, #266) |
+| SEE-11 | Daemon: live output and `output.watch` at most 25 a second instead of 10, the cost of a look measured on a big show; `ipc_58_the_rate_cap`, `ipc_59_…`; manual. IDEA-44, owner 2026-11-07. | IPC-58, IPC-59 | S | done (2026-11-07, #266) |
 | SEE-09 | App: the Views screen with Intensity, Grid and DMX; manual and run, the screen against an Art-Net listener. Needs SEE-07. | UI-61 | M | todo |
 | SEE-10 | App: a palette value on one line in Programmer, Cue view and Grid; manual and run with a 12-fixture cue. | UI-62 | S | todo |
 

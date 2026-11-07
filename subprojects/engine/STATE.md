@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-07 (SEE-07)_
+_Last updated: 2026-11-07 (SEE-11)_
 
 ## Current step
+SEE-11 (2026-11-07, IPC-58, IPC-59, IDEA-44): `live::EVERY` is 0.04 s, so the feed and each watcher look at most 25 times a second, every other tick on the 40 Hz loop. Measured with 1024 dimmers all changing: a look plus its tick costs 1.9 ms in release (about 4 % of the loop at 20 a second), 54 ms in a debug build, so profile in release.
+
 SEE-07 (2026-11-07, IPC-58, IPC-59): new `cmdmx-daemon/src/live.rs`. `entries` gives one `Entry` per hanging fixture (id, `i`, `rgb`, `source`, `tracked`, `effect`), each followed by its cells (`"201.3"`), built from `Engine::explain` on the daemon loop after the tick, never inside it. `rgb` is the Colour plus each emitter's level × its `rgb_equivalent`; a cell's `i` is its Dimmer × the fixture's. `source` is the base's playback and cue, "Programmer", "Held", or what holds it down ("Master Zaal 0 %", "Grand Master 50 %", "DBO"). `Feed` sends `{"type":"output"}` with the changed entries, at most every `EVERY` (0.1 s); the snapshot carries all of them. `Watchers` holds one `output.watch` view per connection (`CLIENTS` gives each connection an id): grid rows whole then changed, or a line's 512 channels on change, to that client's `reply` only; a full queue skips, a closed one drops the watcher. Feed and watchers each call explain and compare in O(n²) (`ponytail:` note).
 
 RMB-04 (2026-11-07, RMT-01, RMT-04): the RMB-02 run's refused password is not a daemon fault. Every writer of `state.json` (`remember`, `Control` save, `Remote::save`) is a read-modify-write on the tick thread and the saver thread only writes show files, so no key can overwrite another; the stored hash was most likely of a later `remote.set_login` with another password. `rmt_04_the_password_survives_other_state_writes_and_restarts` walks the run's steps (login, another show, the same login again with a new salt, two restarts with a dead token, refused once) and logs in with the first password each time. Note for tests: `turn_on` can return on an older queued `remote` message, so read `state.json` by polling after it.

@@ -1,8 +1,8 @@
 //! IPC-58, IPC-59: the live output for the app. Made on the daemon loop between ticks from
-//! `Engine::explain` (ENG-25), never inside `Engine::tick`, at most 10 times per second.
+//! `Engine::explain` (ENG-25), never inside `Engine::tick`, at most 25 times per second.
 //!
 //! ponytail: the feed and every watcher each call `explain` per fixture (ceiling: many fixtures
-//! x watchers at 10 Hz). Upgrade: explain once per look and share it.
+//! x watchers at 25 Hz). Upgrade: explain once per look and share it.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::mpsc::{SyncSender, TrySendError};
@@ -17,8 +17,8 @@ use serde::Serialize;
 
 use crate::ipc::{playback_label, PROTOCOL};
 
-/// IPC-58, IPC-59: the rate cap, 10 per second.
-pub const EVERY: f64 = 0.1;
+/// IPC-58, IPC-59: the rate cap, 25 per second.
+pub const EVERY: f64 = 0.04;
 
 /// IPC-58: a fixture id is a number, a cell's `"201.3"`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -571,6 +571,7 @@ mod tests {
 
     #[test]
     fn ipc_58_the_rate_cap() {
+        // At most 25 a second (IDEA-44): every other 25 ms tick.
         let mut e = engine();
         let mut feed = Feed::new(&e);
         e.set_fader(1, 0.5, 0.0).unwrap();
@@ -581,14 +582,17 @@ mod tests {
         assert_eq!(
             feed.delta(&e, 0.025),
             None,
-            "less than 0.1 s after the last"
+            "less than 0.04 s after the last"
         );
         e.set_fader(1, 0.3, 0.05).unwrap();
         e.tick(0.05);
-        assert_eq!(feed.delta(&e, 0.05), None);
-        e.tick(0.1);
-        let d = parse(&feed.delta(&e, 0.1).unwrap());
+        let d = parse(&feed.delta(&e, 0.05).unwrap());
         assert_eq!(d["fixtures"][0]["i"], json!(0.3), "the newest value");
+        e.set_fader(1, 0.2, 0.075).unwrap();
+        e.tick(0.075);
+        assert_eq!(feed.delta(&e, 0.075), None);
+        e.tick(0.1);
+        assert!(feed.delta(&e, 0.1).is_some(), "20 a second on a 40 Hz tick");
     }
 
     #[test]
@@ -606,16 +610,16 @@ mod tests {
                 {"id":1,"values":{"Dimmer":{"v":1.0,"palette":null,"source":"Dienst","tracked":false}}},
                 {"id":2,"values":{"Dimmer":{"v":1.0,"palette":null,"source":"Dienst","tracked":false}}}]})
         );
-        w.send(&e, 0.1);
+        w.send(&e, 0.05);
         assert!(drain(&rx).is_empty(), "nothing changed");
         e.set_programmer_value(2, "Dimmer", 0.5).unwrap();
-        e.tick(0.15);
-        w.send(&e, 0.15);
+        e.tick(0.075);
+        w.send(&e, 0.075);
         assert!(
             drain(&rx).is_empty(),
-            "at most one look per 0.1 s, also a quiet one"
+            "at most one look per 0.04 s, also a quiet one"
         );
-        w.send(&e, 0.2);
+        w.send(&e, 0.1);
         assert_eq!(
             drain(&rx),
             vec![json!({"v":1,"type":"output_grid","fixtures":[
@@ -636,8 +640,8 @@ mod tests {
         e.set_programmer_value(2, "Dimmer", 0.5).unwrap();
         e.tick(0.025);
         w.send(&e, 0.025);
-        assert!(drain(&rx).is_empty(), "less than 0.1 s after the last");
-        w.send(&e, 0.1);
+        assert!(drain(&rx).is_empty(), "less than 0.04 s after the last");
+        w.send(&e, 0.05);
         let m = drain(&rx);
         assert_eq!(m.len(), 1);
         assert_eq!(

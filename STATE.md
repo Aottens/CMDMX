@@ -12,7 +12,6 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 
 ## Next
 1. The rest of batch C, seeing what the rig does: SEE-09 + SEE-10 (the Views screen, palette values on one line).
-   IDEA-44 (the live stripes step during a fade) waits for the owner to confirm its phase.
 2. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
    P1-31 (Blind and Edit) stays apart from them.
 3. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
