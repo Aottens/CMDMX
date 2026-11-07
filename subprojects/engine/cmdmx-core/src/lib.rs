@@ -204,6 +204,9 @@ pub enum CoreError {
     /// PBK-50: Retain needs the sources on one page.
     #[error("Sources on {0} pages: use Bunch Up")]
     SourcesOnPages(usize),
+    /// PAL-34: Retain needs the sources in one window.
+    #[error("Sources in {0} windows: use Bunch Up")]
+    SourcesInWindows(usize),
     /// PBK-51: a `Locked` playback of another handle sits on the target; swap cannot move it.
     #[error("Handle {page}.{slot} is locked by {by_page}.{by_slot}")]
     HandleLocked {
