@@ -26,6 +26,8 @@ struct ProgrammerWindow: View {
     @EnvironmentObject private var engine: EngineClient
 
     private static let columns = ["I", "P", "C", "B"]
+    /// UI-62: the cells ("item+group") a right-click opened to show their values.
+    @State private var open: Set<String> = []
 
     var body: some View {
         let rows = cellsAfterFixtures(engine.programmer.contents, engine.fixtures) { $0.item }
@@ -91,8 +93,19 @@ struct ProgrammerWindow: View {
     /// The values of one row that the fixture's `attributes` map places in `group`; "·" if none.
     @ViewBuilder private func cell(_ row: ProgrammerContent, _ fixture: FixtureInfo?, _ group: String) -> some View {
         let mine = row.values.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
+        let key = "\(row.item.fixture).\(row.item.cell ?? 0)\(group)"
         if mine.isEmpty {
             Text("·").foregroundStyle(t.fg3)
+        } else if !open.contains(key), let id = Self.onePalette(mine.map { row.palettes[$0.key] }) {
+            // UI-62: one palette for the whole group shows once; a right-click shows the values.
+            let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
+            let line = Self.paletteLine(mine.map(\.value), legend, t)
+            // A fade still running adds the amber bar of the lowest progress.
+            if let progress = mine.compactMap({ row.fading[$0.key] }).min() {
+                Text("\(line) \(Text(Self.bar(progress)).foregroundStyle(t.amber))").overlay { RightClickCatcher { open.insert(key) } }
+            } else {
+                line.overlay { RightClickCatcher { open.insert(key) } }
+            }
         } else {
             // Red = touched by hand; cyan + the palette's legend = referenced from a palette (PAL-30).
             let items = mine.map { name, value -> Text in
@@ -108,12 +121,31 @@ struct ProgrammerWindow: View {
                 let target = Text("\(text) \(legend)").foregroundStyle(t.cyan)
                 // A fade still running keeps its target and adds an amber bar filling up (PAL-30).
                 guard let progress = row.fading[name] else { return target }
-                let filled = Int((progress.clamped01 * 5).rounded(.down))
-                let bar = String(repeating: "▰", count: filled) + String(repeating: "▱", count: 5 - filled)
-                return Text("\(target) \(Text(bar).foregroundStyle(t.amber))")
+                return Text("\(target) \(Text(Self.bar(progress)).foregroundStyle(t.amber))")
             }
             items.dropFirst().reduce(items[0]) { Text("\($0) · \($1)") }
+                .overlay { if Self.onePalette(mine.map { row.palettes[$0.key] }) != nil { RightClickCatcher { open.remove(key) } } }
         }
+    }
+
+    /// The amber fade bar, ▰▰▱▱▱.
+    static func bar(_ progress: Double) -> String {
+        let filled = Int((progress.clamped01 * 5).rounded(.down))
+        return String(repeating: "▰", count: filled) + String(repeating: "▱", count: 5 - filled)
+    }
+
+    /// UI-62: the palette all of a group's values refer to; nil without values, by hand, or with different palettes.
+    static func onePalette<P: Hashable>(_ refs: [P?]) -> P? {
+        guard let first = refs.first, let p = first, refs.allSatisfy({ $0 == p }) else { return nil }
+        return p
+    }
+
+    /// UI-62: the palette's legend in cyan, a swatch first when one of the values is a colour ("■ Warm").
+    static func paletteLine(_ values: [ProgrammerValue], _ legend: String, _ t: Theme) -> Text {
+        for case .colour(let r, let g, let b) in values {
+            return Text("\(Text(Image(systemName: "square.fill")).font(.system(size: 8)).foregroundStyle(Color(red: r, green: g, blue: b))) \(legend)").foregroundStyle(t.cyan)
+        }
+        return Text(legend).foregroundStyle(t.cyan)
     }
 
     /// #RRGGBB from sRGB 0...1; formatting only.

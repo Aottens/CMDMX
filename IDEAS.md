@@ -70,6 +70,7 @@ the backlog, not the whole idea.
 | IDEA-42 | A phone page the console serves on the network, with a login set in the console: walk the patch fixture by fixture, readdress, highlight to check | spec P1-34 approved (`remote.md` RMT-01..16); RMB-01, RMB-02 and RMB-03 done; parking on the phone with PRK-02 | 1 (owner 2026-11-06, before Christmas) | new `remote.md`, PAT, PRG, IPC, daemon |
 | IDEA-43 | Park fixtures: the rig on paper is bigger than what hangs; a parked fixture leaves output, groups and selection, its programming kept | spec P1-35 proposed (`patch.md` PAT-29..36; PRK-01..02 todo) | 1 (owner 2026-11-06) | PAT, PRG, GRM, IPC, UI |
 | IDEA-44 | The live stripes on the fixture tiles step visibly during a fade or a fader move | done (IPC-58, IPC-59 at 25 a second; SEE-11 done) | 1 (owner 2026-11-07) | IPC, UI |
+| IDEA-45 | A tracked value's source names the cue running now, not the cue it came from (SEE-09 run, 2026-11-07) | triaged | 1 proposed, owner to confirm | IPC, ENG, UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -909,3 +910,14 @@ the app adds nothing in between (FX-41), so a fade or a fader move shows in step
 **What it touches now:** nothing forced; the cap is one constant (`live::EVERY`).
 **Open question:** 25 a second enough, or should the app ease between two values after all (FX-41 says no)?
 **Owner's answer (2026-11-07):** phase 1, the cap at 25 a second (SEE-11, in the SEE-07 + SEE-08 build).
+
+### IDEA-45 — A tracked value names the cue it came from (2026-11-07)
+**Found in:** the SEE-09 + SEE-10 run.
+**What happens:** after GO from Q1 to Q2, the pars that track their Q1 values show "3.1 · Q2" as source in the
+Intensity view and the Grid's *Sources*, with the magenta `=` for tracked. The label names the playback's current cue
+(IPC-58, ENG-25's base), so the operator cannot see that Q1 set the value.
+**Triage:** proposed phase 1, `ipc.md` (IPC-58, IPC-59) and `engine.md` (ENG-25); owner to confirm. Proposed: a
+tracked value's label names the cue that stored it ("3.1 · Q1"), as Titan's tracking display points back to the
+source cue; `why` (IPC-60) already carries a `cue`.
+**What it touches now:** nothing forced; the label is made by the daemon outside the tick.
+**Open question:** the cue that stored it, or both ("3.1 · Q1 → Q2")?

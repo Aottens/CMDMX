@@ -182,8 +182,10 @@ struct FixturesWindow: View {
     }
 
     /// UI-59: number (prefix), name or model (contains, case-insensitive); an empty query matches all.
-    private func matches(_ f: FixtureInfo) -> Bool {
-        let q = find.trimmingCharacters(in: .whitespaces)
+    private func matches(_ f: FixtureInfo) -> Bool { Self.matches(f, find) }
+
+    static func matches(_ f: FixtureInfo, _ query: String) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespaces)
         return q.isEmpty || String(f.number).hasPrefix(q)
             || f.name.localizedCaseInsensitiveContains(q) || Self.model(f).localizedCaseInsensitiveContains(q)
     }

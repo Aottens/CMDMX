@@ -86,7 +86,7 @@ struct TimeCells: Equatable {
 /// UI-only state shared by the zones. None of this reaches the engine.
 @MainActor
 final class UIState: ObservableObject {
-    enum Screen { case patch, output, control, show, remote, options }
+    enum Screen { case patch, views, output, control, show, remote, options }
 
     @Published var workspace = 0
     /// UI-39: the Messages sheet.
@@ -406,6 +406,7 @@ private struct Frame: View {
                             VLine()
                             switch screen {
                             case .patch: PatchView()
+                            case .views: ViewsScreen()
                             case .output: OutputView()
                             case .control: ControlView()
                             case .show: ShowView()
@@ -716,6 +717,7 @@ private struct Rail: View {
                 }
                 divider
                 RailItem(title: "Patch", small: "screen", on: ui.screen == .patch) { ui.screen = ui.screen == .patch ? nil : .patch }
+                RailItem(title: "Views", small: "screen", on: ui.screen == .views) { ui.screen = ui.screen == .views ? nil : .views }
                 RailItem(title: "Output", small: "screen", on: ui.screen == .output) { ui.screen = ui.screen == .output ? nil : .output }
                 RailItem(title: "Control", small: "screen", on: ui.screen == .control) { ui.screen = ui.screen == .control ? nil : .control }
                 RailItem(title: "Macros", small: "later")

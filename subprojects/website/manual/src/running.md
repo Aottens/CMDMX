@@ -44,6 +44,28 @@ Group masters that hold their group down (see [Group masters](#group-masters)) f
 playbacks, in amber: handle, legend and `GRP · 0 %`, or `LOCKED 0 %` while disabled. A master is
 never released: a tap on its row goes to its page, so its strip is under your hand.
 
+## Views: Intensity, Grid and DMX
+
+**Views** on the rail opens a screen that shows what leaves the console right now, with masters, the Grand Master,
+DBO and effects in. The playbacks and the status bar stay, so you can run the show and watch. It has three tabs:
+
+- **Intensity**: a block per fixture with its number, name, intensity in % and a bar, and what gives it
+  (`Dienst · Q4`, `Programmer`, `Master Zaal 0 %`). A `=` in magenta means the intensity tracks from an earlier
+  cue, a `~` in amber that an effect moves it. The block's top is blue when the fixture is selected, red when it is
+  in the programmer.
+- **Grid**: a row per fixture (an unfolded cell under it), a column per attribute. **I P C G B E S FX** choose the
+  attribute group. **Palettes** shows a value from a palette as the palette's legend, once for the whole group
+  when all its values come from one palette (`■ Warm`). **Sources** shows in each cell what gives that value.
+  The Grid only shows: set values in the Programmer or on the command line.
+- **DMX**: the 512 channels of one line, as 0–255, exactly what is sent. Pick the line at the top. Each fixture's
+  channels are tinted, with its number on its first channel. Tap a channel and the message line names the fixture
+  and the attribute (`201 Par links: Red (channel 2 of 4)`).
+
+In Intensity and Grid, **All**, **Stage** (above 0), **Programmer** and **Selected** filter the fixtures, and
+**Find** narrows them by number, name or model; Return selects what it found. A tap on a block or a row selects
+that fixture, as a tap on its fixture button does; a right-click opens [Fixture info](programming.md#fixture-info).
+Parked fixtures are left out. The values follow the stage up to 25 times a second.
+
 ## Grand Master and DBO
 
 The **GM** fader on the far right scales the intensity of everything: every playback, the

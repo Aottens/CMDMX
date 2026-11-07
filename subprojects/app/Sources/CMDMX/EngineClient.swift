@@ -969,6 +969,43 @@ struct FixtureOutput: Decodable {
     }
 }
 
+/// IPC-59: one attribute of one grid row: the value, the palette's number if it is a reference, the source label.
+struct GridValue: Decodable {
+    let v: ProgrammerValue
+    let palette: Int?
+    let source: String?
+    let tracked: Bool
+
+    private enum CodingKeys: String, CodingKey { case v, palette, source, tracked }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        v = try c.decode(ProgrammerValue.self, forKey: .v)
+        palette = try? c.decode(Int.self, forKey: .palette)
+        source = try? c.decode(String.self, forKey: .source)
+        tracked = (try? c.decode(Bool.self, forKey: .tracked)) ?? false
+    }
+}
+
+/// IPC-59: the one view this client watches (UI-61).
+enum OutputWatch: Equatable {
+    case grid
+    case dmx(Int)
+}
+
+private struct GridMessage: Decodable {
+    struct Entry: Decodable {
+        let id: Item
+        let values: [String: Tolerant<GridValue>]
+    }
+    let fixtures: [Tolerant<Entry>]
+}
+
+private struct DMXMessage: Decodable {
+    let line: Int
+    let channels: [Int]
+}
+
 /// The snapshot carries `output`, the delta `fixtures` (changed entries only).
 private struct OutputEntries: Decodable {
     let output: [Tolerant<FixtureOutput>]?
@@ -1472,6 +1509,12 @@ final class EngineClient: ObservableObject {
     @Published private(set) var fixtures: [FixtureInfo] = []
     /// IPC-58 / UI-60: live output per fixture or cell; the app draws it and animates nothing (FX-41).
     @Published private(set) var output: [Item: FixtureOutput] = [:]
+    /// IPC-59 / UI-61: the watched view's last replies, cleared when the watch changes and when offline.
+    @Published private(set) var outputGrid: [Item: [String: GridValue]] = [:]
+    @Published private(set) var outputDMX: (line: Int, channels: [Int])?
+    private var watching: OutputWatch?
+    /// `patch.profile` replies in full, by profile key: the DMX view names a channel from them (UI-61).
+    @Published private(set) var profileDocs: [String: ProfileDoc] = [:]
     @Published private(set) var groups: [GroupInfo] = []
     /// PAL-25: all palettes, sorted by number.
     @Published private(set) var palettes: [PaletteInfo] = []
@@ -1791,6 +1834,17 @@ final class EngineClient: ObservableObject {
         var fields: [String: Any] = ["name": name]
         if let cie { fields["cie"] = cie }
         sendJSON("profile.emitter", fields)
+    }
+
+    /// UI-61, IPC-59: watch one view, or none (nil); the daemon forgets it with the connection, so views send it again once online.
+    func watchOutput(_ view: OutputWatch?) {
+        watching = view
+        outputGrid = [:]; outputDMX = nil
+        switch view {
+        case .grid?: sendJSON("output.watch", ["view": "grid"])
+        case .dmx(let line)?: sendJSON("output.watch", ["view": "dmx", "line": line])
+        case nil: sendJSON("output.watch", ["view": NSNull()])
+        }
     }
 
     func requestProfile(key: String) { sendJSON("patch.profile", ["profile": key]) }
@@ -2127,7 +2181,7 @@ final class EngineClient: ObservableObject {
     }
 
     /// The app's own reads, not the operator's commands (REL-27).
-    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "control.mapping", "effect.wheels"]
+    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "output.watch", "control.mapping", "effect.wheels"]
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
@@ -2175,7 +2229,7 @@ final class EngineClient: ObservableObject {
                 DaemonLauncher.shared.engineLost()   // REL-27
             }
             connection = .offline
-            outputs = []
+            outputs = []; outputGrid = [:]; outputDMX = nil
             control = ControlState(); controlMapping = nil; remote = RemoteState()
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
@@ -2325,6 +2379,11 @@ final class EngineClient: ObservableObject {
         case "output":
             // IPC-58: changed entries only, merged; an entry is never removed by a delta.
             for e in ((try? JSONDecoder().decode(OutputEntries.self, from: data))?.fixtures ?? []).compactMap(\.value) { output[e.item] = e }
+        case "output_grid":
+            guard watching == .grid, let msg = try? JSONDecoder().decode(GridMessage.self, from: data) else { break }
+            for e in msg.fixtures.compactMap(\.value) { outputGrid[e.id] = e.values.compactMapValues(\.value) }   // each changed row comes whole
+        case "output_dmx":
+            if let msg = try? JSONDecoder().decode(DMXMessage.self, from: data), watching == .dmx(msg.line) { outputDMX = (msg.line, msg.channels) }
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
         case "control":
@@ -2361,6 +2420,9 @@ final class EngineClient: ObservableObject {
             }
         case "patch.profile":
             if let reply = try? JSONDecoder().decode(ProfileReply.self, from: data) { profileCache[reply.profileKey] = reply.profile }
+            if let doc = try? JSONDecoder().decode(DocReply.self, from: data) {
+                profileDocs[doc.profileKey ?? "\(doc.profile.manufacturer)/\(doc.profile.model)"] = doc.profile
+            }
             acceptEditorProfile(data)
         case "library.profile":
             acceptEditorProfile(data)

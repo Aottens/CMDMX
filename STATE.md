@@ -7,14 +7,13 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Now
 - Phase 1: a well-working general DMX console. Its finish line is a real Sunday service on CMDMX (VS4-03).
 - The church keeps running on Lightkey until Christmas, then on CMDMX (owner, 2026-11-06).
-- IDEA-35 batch B, changing what is recorded, is released, and its gap review is taken into the batches.
+- IDEA-35 batch C, seeing what the rig does, is complete: live output, Fixture info and the Views screen.
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. The rest of batch C, seeing what the rig does: SEE-09 + SEE-10 (the Views screen, palette values on one line).
-2. Then D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first.
-   P1-31 (Blind and Edit) stays apart from them.
-3. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
+1. Batches D to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first,
+   starting with D, working on many at once. P1-31 (Blind and Edit) stays apart from them.
+2. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
@@ -41,7 +40,7 @@ Programming and small checks:
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).
-- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37 and IDEA-38.
+- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-38 and IDEA-45.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
 
 ## Good to know
