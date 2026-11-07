@@ -570,6 +570,17 @@ From `docs/research/everyday-gaps.md` C, K8 and the fourth review (L1, J8, L2, L
   Each tab watches its view (IPC-59) while open and stops when left. Checked by hand on Art-Net: the values on screen equal what a listener reads.
 - **UI-62** **A palette value on one line** (K8; amends UI-14, CUE-54 in the app). In the Programmer window, the Cue view and the Grid, when every value of a fixture in one attribute group refers to the same palette, the cell shows that once: the palette's legend in cyan, with a swatch for colour, and no hex or per-attribute lines ("■ Warm"). Values set by hand, or from different palettes, show as today. Titan's Cue View toggles between the palette and its value (*View Palettes*); here a right-click on the cell shows the values. Checked by hand: a 12-fixture cue with a colour palette fits the Cue view.
 
+### The screen fits (IDEA-39; the owner asked for the fix on 2026-11-07)
+- **UI-63** **The bottom zones always show whole** (amends UI-01). At every window size from UI-01's minimum
+  (1280 × 800 pt of content, which also covers a MacBook window with the Dock, 832 pt with its title bar) and in
+  console mode, the status bar, the attribute bar and the playback area show whole: every strip's fader and its
+  buttons are on screen. The row between them (rail, window grid and side column, or the screen that replaces them,
+  UI-10) takes the height that is left and never pushes the zones below it off screen. When the rail's items do not
+  fit, the rail scrolls; the function keys and softkeys shrink to no less than 34 pt, so all of them show at 800 pt;
+  the windows of the grid scroll as they do now. Found because the rail grew (Remote, RMT-15) past the height a
+  MacBook's full screen leaves it. Checked by hand: `tests/manual/app-main-screen.md`, in console mode and in a
+  window with the Dock, on two workspaces and on the Patch screen.
+
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
   zone against the sketch. `tests/manual/app-programmer.md` and `tests/manual/app-patch.md` keep

@@ -413,6 +413,7 @@ private struct Frame: View {
                             case .options: PlaybackOptionsView()
                             }
                         }
+                        .frame(minHeight: 0, maxHeight: .infinity).clipped()   // UI-63: the row takes what is left; it never pushes the zones below off screen
                     } else {
                         HStack(spacing: 0) {
                             Rail().frame(width: 78)
@@ -421,6 +422,7 @@ private struct Frame: View {
                             VLine()
                             SideColumn(showKeypad: keypad && geo.size.width >= 1440)
                         }
+                        .frame(minHeight: 0, maxHeight: .infinity).clipped()   // UI-63
                         HLine()
                         AttributeBar().frame(height: 96)
                     }
@@ -703,27 +705,29 @@ private struct Rail: View {
     @EnvironmentObject private var ui: UIState
 
     var body: some View {
-        VStack(spacing: 1) {
-            ForEach(Array(Workspace.all.enumerated()), id: \.offset) { index, workspace in
-                RailItem(title: workspace.name, small: "F\(index + 1)", on: ui.screen == nil && ui.workspace == index) {
-                    ui.show(workspace: index)
+        ScrollView(.vertical, showsIndicators: false) {   // UI-63: scrolls when the items do not fit
+            VStack(spacing: 1) {
+                ForEach(Array(Workspace.all.enumerated()), id: \.offset) { index, workspace in
+                    RailItem(title: workspace.name, small: "F\(index + 1)", on: ui.screen == nil && ui.workspace == index) {
+                        ui.show(workspace: index)
+                    }
+                    // F1–F5 follow the Keys toggle (MacKeys); ⌘1–⌘5 always work (UI-19).
+                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                 }
-                // F1–F5 follow the Keys toggle (MacKeys); ⌘1–⌘5 always work (UI-19).
-                .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                divider
+                RailItem(title: "Patch", small: "screen", on: ui.screen == .patch) { ui.screen = ui.screen == .patch ? nil : .patch }
+                RailItem(title: "Output", small: "screen", on: ui.screen == .output) { ui.screen = ui.screen == .output ? nil : .output }
+                RailItem(title: "Control", small: "screen", on: ui.screen == .control) { ui.screen = ui.screen == .control ? nil : .control }
+                RailItem(title: "Macros", small: "later")
+                RailItem(title: "Show", small: "screen", on: ui.screen == .show) { ui.screen = ui.screen == .show ? nil : .show }
+                RailItem(title: "Remote", small: "screen", on: ui.screen == .remote) { ui.screen = ui.screen == .remote ? nil : .remote }
+                divider
+                RailItem(title: "Pixelmapper", small: "later")
+                RailItem(title: "Keystone", small: "later")
+                Spacer(minLength: 0)
             }
-            divider
-            RailItem(title: "Patch", small: "screen", on: ui.screen == .patch) { ui.screen = ui.screen == .patch ? nil : .patch }
-            RailItem(title: "Output", small: "screen", on: ui.screen == .output) { ui.screen = ui.screen == .output ? nil : .output }
-            RailItem(title: "Control", small: "screen", on: ui.screen == .control) { ui.screen = ui.screen == .control ? nil : .control }
-            RailItem(title: "Macros", small: "later")
-            RailItem(title: "Show", small: "screen", on: ui.screen == .show) { ui.screen = ui.screen == .show ? nil : .show }
-            RailItem(title: "Remote", small: "screen", on: ui.screen == .remote) { ui.screen = ui.screen == .remote ? nil : .remote }
-            divider
-            RailItem(title: "Pixelmapper", small: "later")
-            RailItem(title: "Keystone", small: "later")
-            Spacer(minLength: 0)
+            .padding(4)
         }
-        .padding(4)
         .background(t.bg)
     }
 

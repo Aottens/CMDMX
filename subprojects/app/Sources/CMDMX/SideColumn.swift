@@ -112,13 +112,19 @@ private struct FunctionButtons: View {
     var body: some View {
         VStack(spacing: 0) {
             ColumnHeader(text: "Functions")
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(68), spacing: 2), count: 2), spacing: 2) {
-                ForEach(Self.keys, id: \.0) { label, spec in
-                    FunctionKey(label: label, spec: spec,
-                                ring: label == "Record" ? ui.recordArmed : ui.function?.rawValue == label,
-                                lit: label == "Fan" && engine.programmer.fan != nil,
-                                tip: label == "Off" ? "Off: takes the active attribute group out of the programmer for the targets (PRG-27)" : "",
-                                action: spec.isEmpty ? { press(label) } : nil)
+            // UI-63: plain rows, so the keys can shrink from 40 to 34 pt when the column is short.
+            VStack(spacing: 2) {
+                ForEach(Array(stride(from: 0, to: Self.keys.count, by: 2)), id: \.self) { start in
+                    HStack(spacing: 2) {
+                        ForEach(Self.keys.dropFirst(start).prefix(2), id: \.0) { label, spec in
+                            FunctionKey(label: label, spec: spec,
+                                        ring: label == "Record" ? ui.recordArmed : ui.function?.rawValue == label,
+                                        lit: label == "Fan" && engine.programmer.fan != nil,
+                                        tip: label == "Off" ? "Off: takes the active attribute group out of the programmer for the targets (PRG-27)" : "",
+                                        action: spec.isEmpty ? { press(label) } : nil)
+                                .frame(width: 68)
+                        }
+                    }
                 }
             }
             Spacer(minLength: 0)
@@ -172,7 +178,7 @@ private struct FunctionKey: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(height: 40)
+        .frame(minHeight: 34, maxHeight: 40)
         .disabled(action == nil)
         .opacity(action == nil ? t.disabled : 1)
         .help(spec.isEmpty ? tip : spec)
@@ -845,8 +851,8 @@ private struct Softkeys: View {
                         .contentShape(SoftkeyShape())
                     }
                     .buttonStyle(.plain)
-                    // 10 keys (Pattern with Next) at 40 pt fit the 446 pt available at the 800 pt window minimum.
-                    .frame(maxHeight: .infinity).frame(minHeight: context.keys.count > 9 ? 40 : 44)
+                    // UI-63: 10 keys at 34 pt fit the 443 pt row of the 800 pt window.
+                    .frame(maxHeight: .infinity).frame(minHeight: 34)
                     .disabled(key?.action == nil)
                     .opacity(key?.action == nil ? t.disabled : 1)
                     .help(key?.spec ?? "")

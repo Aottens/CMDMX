@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-07 (PRK-02)_
+_Last updated: 2026-11-07 (FIT-01)_
 
 ## Current step
+FIT-01 (2026-11-07, UI-63): `Frame` gives both middle rows (the workspace row and a screen's row) `.frame(minHeight: 0, maxHeight: .infinity).clipped()`, so status bar, attribute bar and playback area keep their heights whatever the rail or side column ask for. `Rail` sits in a `ScrollView`; `FunctionButtons` is a `VStack` of key pairs, as a `LazyVGrid` does not share out height, and its keys and the softkeys are 34–40 pt. Checked with `swift build` and on the owner's MacBook.
 PRK-02 (2026-11-07, PAT-35): `FixtureInfo.parked` (default false). `PatchView` greys a parked row and writes "parked (was u.a)"; the Selected panel's Park and Unpark send only the ids that change (`patchPark`, `patchUnpark`). `lastMove` keeps the last Move so *Park conflicting and move* (shown while `lastMessage` holds "overlap") resends it with `parkConflicting`; it is dropped on a selection change, after that move and after Park or Unpark. `Windows.swift` fades a parked tile, tags it `PARK` and ignores its tap. Run `tests/manual/runs/2026-11-06-PRK-02.md`.
 RMB-03 (2026-11-06, RMT-15): `RemoteView.swift`, the **Remote** screen on the rail (`UIState.Screen.remote`), since the app has no Settings window. `EngineClient.remote` (`RemoteState`) comes from the snapshot's `remote` and the `remote` delta, reset offline; `setRemoteLogin` and `remoteOff` send the commands. The password is a `SecureField` that is cleared after Turn on; username and port follow the engine when they change and are prefilled only while empty otherwise. The QR code is `CIFilter.qrCodeGenerator`, scaled 8× without interpolation, black on white. Checked with `swift build` and the app on a test engine (the QR read back with `CIDetector`).
 SEE-06 (2026-11-06, UI-59): `Cell.model` is the line under a named tile (`FixturesWindow.model`). `find` and `matches()` dim the rest and jump and scroll (`scrollTarget`) to the first match; `selectMatches` selects in number order, then empties the field and drops focus. Esc goes through `ui.fieldEscaped`.
