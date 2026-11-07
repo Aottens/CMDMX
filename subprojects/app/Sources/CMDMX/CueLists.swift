@@ -459,6 +459,8 @@ private struct CueViewWindow: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
     let ref: CueRef
+    /// UI-62: the collapsed cells ("item+group") a right-click opened; reset when the cue changes.
+    @State private var open: Set<String> = []
 
     private static let columns = ["I", "P", "C", "B"]
 
@@ -500,6 +502,7 @@ private struct CueViewWindow: View {
             }
         }
         .task(id: "\(ref.id)-\(engine.storedRevision)") { engine.viewCue(ref.playback, cue: ref.cue) }
+        .onChange(of: ref.id) { _, _ in open = [] }
     }
 
     private func header(_ s: String) -> some View {
@@ -526,8 +529,13 @@ private struct CueViewWindow: View {
     @ViewBuilder private func cell(_ row: CueViewFixture, _ fixture: FixtureInfo?, _ group: String) -> some View {
         let mine = row.values.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
         let off = row.dormant.filter { (row.item.cell == nil ? fixture?.attributes : fixture?.cellAttributes)?[$0.key] == group }.sorted { $0.key < $1.key }
+        let key = "\(row.item.fixture).\(row.item.cell ?? 0)\(group)"
         if mine.isEmpty && off.isEmpty {
             Text("·").foregroundStyle(t.fg3)
+        } else if off.isEmpty, !open.contains(key), let id = ProgrammerWindow.onePalette(mine.map(\.value.palette)) {
+            // UI-62: one palette for the whole group shows once; a right-click shows the values.
+            let legend = engine.palettes.first { $0.id == id }?.shownLegend ?? "palette"
+            ProgrammerWindow.paletteLine(mine.map(\.value.value), legend, t).overlay { RightClickCatcher { open.insert(key) } }
         } else {
             HStack(spacing: 4) {
                 ForEach(mine, id: \.key) { name, value in

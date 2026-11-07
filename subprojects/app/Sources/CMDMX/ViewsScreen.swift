@@ -142,9 +142,17 @@ struct ViewsScreen: View {
                     HStack(spacing: 0) {
                         Text(item.cell.map { "\(f.number).\($0)" } ?? String(f.number)).font(Typo.mono())
                             .foregroundStyle(item.cell == nil ? t.fg : t.fg2).frame(width: 56, alignment: .leading)
-                        ForEach(columns, id: \.self) { name in
-                            Self.cell(values[name], palettes: showPalettes, sources: showSources, engine: engine, t: t)
-                                .frame(width: Self.columnWidth, alignment: .leading).lineLimit(1)
+                        // UI-62: with Palettes on, a row whose values all refer to one palette shows it once across the columns.
+                        let shown = columns.compactMap { values[$0] }
+                        if showPalettes && !showSources, let n = ProgrammerWindow.onePalette(shown.map(\.palette)) {
+                            ProgrammerWindow.paletteLine(shown.map(\.v), engine.palettes.first { $0.number == n }?.shownLegend ?? "Palette \(n)", t)
+                                .font(Typo.ui(Typo.small))
+                                .frame(width: Self.columnWidth * CGFloat(columns.count), alignment: .leading).lineLimit(1)
+                        } else {
+                            ForEach(columns, id: \.self) { name in
+                                Self.cell(values[name], palettes: showPalettes, sources: showSources, engine: engine, t: t)
+                                    .frame(width: Self.columnWidth, alignment: .leading).lineLimit(1)
+                            }
                         }
                     }
                     .padding(.vertical, 2)
