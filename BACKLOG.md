@@ -222,8 +222,8 @@ Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08; SEE-
 | SEE-04 | App: the Fixture info sheet with type, groups, cues and palettes, and why each value is what it is; manual and run on Art-Net with a master down. Needs SEE-03. | UI-57 | M | done (2026-11-06, #257) |
 | SEE-05 | App: the selection stays in sight in the Fixtures window, dots on page tabs; manual and run. | UI-58 | S | done (2026-11-06, #257) |
 | SEE-06 | App: the model under a named tile and the find field; manual and run. | UI-59 | S | done (2026-11-06, #257) |
-| SEE-07 | Daemon: `output` per fixture and `output.watch` for grid and DMX, made outside the tick; `ipc_58_…`, `ipc_59_…`. Needs SEE-03. | IPC-58, IPC-59 | M | todo |
-| SEE-08 | App: live output on the tile stripe; manual and run against Art-Net. Needs SEE-07. | UI-60 | S | todo |
+| SEE-07 | Daemon: `output` per fixture and `output.watch` for grid and DMX, made outside the tick; `ipc_58_…`, `ipc_59_…`. Needs SEE-03. | IPC-58, IPC-59 | M | done (2026-11-07, #266) |
+| SEE-08 | App: live output on the tile stripe; manual and run against Art-Net. Needs SEE-07. | UI-60 | S | done (2026-11-07, #266) |
 | SEE-09 | App: the Views screen with Intensity, Grid and DMX; manual and run, the screen against an Art-Net listener. Needs SEE-07. | UI-61 | M | todo |
 | SEE-10 | App: a palette value on one line in Programmer, Cue view and Grid; manual and run with a 12-fixture cue. | UI-62 | S | todo |
 
