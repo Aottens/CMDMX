@@ -41,7 +41,7 @@ Programming and small checks:
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).
-- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-38 and IDEA-39.
+- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37 and IDEA-38.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
 
 ## Good to know

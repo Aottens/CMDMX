@@ -227,6 +227,15 @@ Builds: SEE-01 + SEE-02; SEE-03; SEE-04 + SEE-05 + SEE-06; SEE-07 + SEE-08; SEE-
 | SEE-09 | App: the Views screen with Intensity, Grid and DMX; manual and run, the screen against an Art-Net listener. Needs SEE-07. | UI-61 | M | todo |
 | SEE-10 | App: a palette value on one line in Programmer, Cue view and Grid; manual and run with a 12-fixture cue. | UI-62 | S | todo |
 
+### The screen fits (IDEA-39)
+Asked for by the owner 2026-11-07, in the middle of the SEE-08 run: the playback strips fell off the bottom in console
+mode on every workspace. The owner's ask is the approval of UI-63.
+Builds: FIT-01.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| FIT-01 | App: status bar, attribute bar and playback area always whole from 1280 × 800 pt up and in console mode, the rail scrolls and the side column keys shrink; checklist, checked on the owner's MacBook. | UI-63 | S | done (2026-11-07, #265) |
+
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
 park buttons on the phone come with PRK-02.

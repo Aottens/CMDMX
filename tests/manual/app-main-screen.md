@@ -333,6 +333,12 @@ At home, no lamps: `--show-dir` in a temp folder. Each line with Keys on and wit
 - [ ] A function armed, then a screen: the same.
 - [ ] Record armed, another workspace by the rail, F-key and ⌘-key: stays armed, and a tap there records. A page button: stays armed.
 
+## The bottom zones always show whole (UI-63)
+- [ ] Console mode on the MacBook, *Groups + Palettes*, *Fixtures + Groups* and *Shapes*: the status bar, the attribute bar and every strip whole, fader and the buttons under it included; the rail scrolls to Keystone.
+- [ ] The Patch screen and Playback Options in console mode: both buttons under each fader show.
+- [ ] Console off, a window with the Dock (832 pt high), then dragged to its minimum (1280 × 800 pt of content): the same; the function keys and the ten Pattern softkeys all show, none cut.
+- [ ] A big window (1440 × 900 or larger): the keys are 40 pt as before and the rail does not scroll.
+
 ## Keys off says so (UI-49)
 - [ ] Keys off, the workspace, nothing focused: a digit, `f`, Return, Backspace, Up: the line stays empty, and the message zone says "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad."
 - [ ] Keys off: F2 does not change workspace and Space runs no Go; both say the same, also on a screen (Output). A digit on a screen says nothing.

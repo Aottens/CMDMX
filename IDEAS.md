@@ -64,7 +64,7 @@ the backlog, not the whole idea.
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | REC-02 done (UI-52) | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 | IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
-| IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
+| IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | spec UI-63, build FIT-01 | 1 (owner 2026-11-07) | UI |
 | IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
 | IDEA-41 | Our own built-in 3D visualiser, inside the app (owner 2026-11-04) | triaged | 4 (owner 2026-11-04) | new `visualiser.md`, PAT, LIB, IPC, UI |
 | IDEA-42 | A phone page the console serves on the network, with a login set in the console: walk the patch fixture by fixture, readdress, highlight to check | spec P1-34 approved (`remote.md` RMT-01..16); RMB-01, RMB-02 and RMB-03 done; parking on the phone with PRK-02 | 1 (owner 2026-11-06, before Christmas) | new `remote.md`, PAT, PRG, IPC, daemon |
@@ -812,6 +812,12 @@ offline until it is restarted; it does not start its own bundled engine. Only re
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now. Console mode may not have this; not tried in the run.
 **Third review (2026-11-04):** seen on the first screen, cleared by full screen; proposed batch F. Owner to confirm.
 **Open question:** the minimum height, and whether the bands can give their room to the strips.
+**Outcome (2026-11-07):** seen in console mode on every workspace in the SEE-08 run; the owner asked for the fix now
+(phase 1). Cause: the rail's items (at least 44 pt each) set the height of the middle row, so the stack grew past the
+screen and the playback area fell off. It grew with every rail item; the Remote screen (RMT-15, #259, 2026-11-06)
+took it past a MacBook's full screen, a window with the Dock was past it before. UI-63: the minimum is UI-01's
+1280 × 800 pt of content (832 pt with the title bar); the middle row takes what is left, the rail scrolls and the side
+column keys shrink to 34 pt. FIT-01 builds it.
 
 ### IDEA-40 — A function's hint stays after it is disarmed (2026-11-03)
 **Found in:** the FUN-03 run; not from the owner.

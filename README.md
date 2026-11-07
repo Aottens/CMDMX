@@ -195,7 +195,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - Undo and redo of every edit, 100 steps, while live playing (Go, faders, Flash) is never
   touched; ⌘Z and ⇧⌘Z.
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four
-  workspaces, Patch, Output, Control and Show screens, and a dark and a day theme.
+  workspaces, Patch, Output, Control and Show screens, and a dark and a day theme. The playback strips stay whole on
+  a MacBook, full screen or in a window with the Dock: the rail scrolls and the side column keys shrink instead.
 - App and engine check each other's protocol version and say plainly which versions differ.
 - Installs from a versioned DMG that GitHub builds from a `v*` tag (universal; signed with a
   Developer ID and notarised by Apple once the signing secrets are set, ad hoc before that):
