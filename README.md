@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up, before the church runs on CMDMX at Christmas: the rest of batch C (SEE-09, SEE-10), what the rig does;
-then the church Mac (VS4-07) and the first service (VS4-03).
+Batch C, seeing what the rig does, is complete: live output on the buttons, the Views screen, Fixture info.
+Next: the church Mac (VS4-07) and the first service at Christmas (VS4-03), beside batches D to G, I and J.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -116,6 +116,11 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   0 %"), live while open; a tap on a row goes to that playback's page.
 - Live output on the fixture buttons: the stripe along the bottom shows each fixture's colour at its intensity as it
   leaves the console, masters, Grand Master, DBO and effects included, so a chase runs across the buttons.
+- The Views screen: Intensity (a block per fixture with its level and what gives it, `=` tracked, `~` effect), Grid
+  (a row per fixture, a column per attribute, with palettes or sources) and DMX (a line's 512 channels as 0–255,
+  each fixture tinted, a tap names the attribute), live while it is open.
+- A palette on one line: when a fixture's values in one attribute group all come from one palette, the Programmer,
+  the Cue view and the Grid show it once (`■ Warm`); a right-click shows the values.
 - Fan: the Fan key (lit while on) makes a wheel spread its change over the selection order as a
   Line, Mirror, Wings or Arrow curve, picked on the Fan softkeys and shown as `FAN <CURVE>` next
   to the wheels (Pan spread, a rainbow on Hue); a `fan` control action puts it on a button.

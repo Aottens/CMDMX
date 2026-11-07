@@ -245,7 +245,9 @@ off, every mode stores in the cue itself.
 **View Cue** shows the whole state of a cue in place of the Cue list window: a row per fixture,
 with columns for intensity, position, colour and beam. Values the cue holds itself are in normal
 text, tracked values are **magenta**, and palette references are **cyan** with the palette's
-name.
+name. When a fixture's values in one column all come from the same palette, the cell shows the palette once:
+`■ Warm` for a colour palette, so a cue of twelve pars in one colour stays one line per fixture. Right-click such a
+cell to see its values; then a right-click on a value picks it as below.
 
 Right-click a value the cue holds itself and press **Remove** (then confirm) to take it out of the
 cue, so it tracks from the cues before it again. A tracked value cannot be removed here: remove it

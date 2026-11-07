@@ -78,7 +78,10 @@ attributes and fixtures it does not fit are left alone. If it fits none of them,
 with a message.
 
 In the programmer the values are *references* to the palette. The Programmer window shows them in
-cyan with the palette's legend, instead of red.
+cyan with the palette's legend, instead of red. When all of a fixture's values in one attribute group come from the
+same palette, the cell shows only that once, with a swatch for a colour: `■ Warm`, not three lines of RGB.
+Right-click the cell to see the values; right-click again to fold them back. The Cue view and the Grid view do the
+same (see [The Cue view](cuelists.md#the-cue-view) and [Views](running.md#views-intensity-grid-and-dmx)).
 
 You can also type `Palette 6 Enter` on the command line, or put a selection in front of it:
 `201 Thro 208 Palette 6 Enter`.
