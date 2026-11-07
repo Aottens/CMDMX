@@ -1,5 +1,47 @@
 # Release notes
 
+## 0.5.4
+
+Published 7 November 2026 as "CMDMX 0.5.4".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.5.4)
+
+Seeing what the rig does, and a screen that fits.
+
+- **Live output on the fixture buttons:** the stripe along the bottom of a fixture button shows the colour and
+  intensity that leave the console right now, with masters, the Grand Master, DBO and effects in, so a chase runs
+  across the buttons (see [Tapping](programming.md#tapping)).
+- **The faders stay whole on a small screen,** such as a MacBook with the Dock: the rail scrolls and the keys on the
+  right get a little smaller (see [First launch](getting-started.md#first-launch)).
+
+## 0.5.3
+
+Published 7 November 2026 as "CMDMX 0.5.3".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.5.3)
+
+Knowing a fixture, walking the rig with a phone, and parking what does not hang.
+
+- **Fixture info:** a right-click on a fixture button shows its type, address, groups, cues and palettes, and why
+  each value is what it is (see [Fixture info](programming.md#fixture-info)).
+- **The selection stays in sight:** the Fixtures window goes to the page of what you select, with a dot on each page
+  tab that holds a selected fixture; a named button shows its model, and **Find** looks up a fixture by number, name
+  or model (see [Tapping](programming.md#tapping)).
+- **The phone remote:** the **Remote** screen sets a login and shows a QR code; a phone on the same network walks the
+  patch fixture by fixture, readdresses, names and highlights (see [The phone remote](remote.md)).
+- **Park:** a fixture that does not hang leaves the output, the selection and live groups, and keeps its programming
+  for when it is unparked, from the console or the phone (see
+  [Parking a fixture that does not hang](patching.md#parking-a-fixture-that-does-not-hang)).
+
+## 0.5.2
+
+Published 5 November 2026 as "CMDMX 0.5.2".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.5.2)
+
+Why is it dark?
+
+- **Masters that hold the stage down:** a group master at 0 or disabled, also on another page, shows an amber
+  **GRP** tag in the status bar and a row in Active playbacks; a tap goes to its page (see
+  [Why is it dark?](taking-over.md#why-is-it-dark)).
+
 ## 0.5.1
 
 Published 5 November 2026 as "CMDMX 0.5.1".
