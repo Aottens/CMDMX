@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Next up, before the church runs on CMDMX at Christmas: the remote login check (RMB-04) and the rest of batch C
-(SEE-07..10); then the church Mac (VS4-07) and the first service (VS4-03).
+Next up, before the church runs on CMDMX at Christmas: the rest of batch C (SEE-07..10), what the rig does;
+then the church Mac (VS4-07) and the first service (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).

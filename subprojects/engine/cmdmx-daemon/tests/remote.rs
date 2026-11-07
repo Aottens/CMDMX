@@ -437,6 +437,57 @@ fn rmt_04_login_with_a_password_or_a_token_and_nothing_before_it() {
     assert_eq!(recv(&mut ws)["error"], "Wrong username or password");
 }
 
+/// RMB-04: the RMB-02 run once refused the password it was set with after a restart. Its steps: a
+/// login, other writes to `state.json` (another show), the same login set again, and restarts with
+/// a phone whose token died. The password must keep working through all of it.
+#[test]
+fn rmt_04_the_password_survives_other_state_writes_and_restarts() {
+    let dir = folder("rmt04-restart");
+    let port = free_port();
+    let ipc = free_port();
+    let mut daemon_now = daemon(&dir, ipc);
+    let mut app = connect(ipc);
+    recv(&mut app);
+    turn_on(&mut app, port);
+    logged_in(port);
+
+    // Other keys of `state.json` are written after the login and keep it.
+    send(&mut app, json!({"cmd": "show.new", "name": "Kerst"}));
+    until(&mut app, "the new show", |m| {
+        m["type"] == "snapshot" && m["show"]["name"] == "Kerst"
+    });
+    assert_eq!(state_json(&dir)["last_show"], "Kerst");
+    let salt = state_json(&dir)["remote"]["salt"].clone();
+
+    // The same login again: a new salt, the same password.
+    turn_on(&mut app, port);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while state_json(&dir)["remote"]["salt"] == salt {
+        assert!(
+            Instant::now() < deadline,
+            "the new login never reached state.json"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let (_ws, mut token, _) = logged_in(port);
+    drop(app);
+
+    for _restart in 0..2 {
+        drop(daemon_now);
+        let ipc = free_port();
+        daemon_now = daemon(&dir, ipc);
+        assert_eq!(remote_info(ipc)["on"], true);
+        // The phone's token died with the daemon: refused once, the page then asks to log in.
+        let mut ws = phone(port);
+        send(&mut ws, json!({"cmd": "login", "token": token}));
+        assert_eq!(recv(&mut ws)["error"], "Wrong username or password");
+        assert!(closed(&mut ws));
+        // The password from the start, from the same address.
+        let (_ws, fresh, _) = logged_in(port);
+        token = fresh;
+    }
+}
+
 #[test]
 fn rmt_05_five_wrong_logins_lock_the_address_out_and_a_silent_phone_never_slows_the_tick() {
     let dir = folder("rmt05");
