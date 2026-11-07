@@ -201,6 +201,17 @@ pub enum CoreError {
     HandleUsedRecord { page: u16, slot: u16 },
     #[error("Handle {page}.{slot} is used")]
     HandleUsed { page: u16, slot: u16 },
+    /// PBK-50: Retain needs the sources on one page.
+    #[error("Sources on {0} pages: use Bunch Up")]
+    SourcesOnPages(usize),
+    /// PBK-51: a `Locked` playback of another handle sits on the target; swap cannot move it.
+    #[error("Handle {page}.{slot} is locked by {by_page}.{by_slot}")]
+    HandleLocked {
+        page: u16,
+        slot: u16,
+        by_page: u16,
+        by_slot: u16,
+    },
     #[error("Nothing in the programmer to record")]
     NothingToRecordPlayback,
     #[error("Off: nothing of the selection is in the programmer")]

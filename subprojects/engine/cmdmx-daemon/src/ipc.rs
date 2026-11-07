@@ -35,7 +35,7 @@ use cmdmx_core::palette::{
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{
     AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
-    GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Link,
+    GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Layout, Link,
     ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
     PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, UpdateTarget, Values,
     PAGES,
@@ -355,18 +355,22 @@ pub enum Command {
         icon: Option<String>,
         halo: Option<TargetColour>,
     },
+    /// IPC-61: one or several playbacks.
     PlaybackCopy {
-        id: PlaybackId,
+        ids: Vec<PlaybackId>,
         page: u16,
         slot: u16,
+        layout: Layout,
     },
     PlaybackMove {
-        id: PlaybackId,
+        ids: Vec<PlaybackId>,
         page: u16,
         slot: u16,
+        layout: Layout,
+        swap: bool,
     },
     PlaybackDelete {
-        id: PlaybackId,
+        ids: Vec<PlaybackId>,
     },
     PageLegend {
         page: u16,
@@ -821,6 +825,19 @@ fn ids_or_id(v: &serde_json::Value) -> Result<Vec<FixtureId>, String> {
             .as_array()
             .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
             .ok_or_else(|| "invalid \"ids\" (expected an array of fixture ids)".to_string()),
+        _ => Err("expected exactly one of \"id\" or \"ids\"".to_string()),
+    }
+}
+
+/// IPC-61: exactly one of `id` or a non-empty `ids` array of playback ids.
+fn playback_ids(v: &serde_json::Value) -> Result<Vec<PlaybackId>, String> {
+    match (v.get("id"), v.get("ids")) {
+        (Some(_), None) => Ok(vec![uint(v, "id")?]),
+        (None, Some(t)) => t
+            .as_array()
+            .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
+            .filter(|ids: &Vec<PlaybackId>| !ids.is_empty())
+            .ok_or_else(|| "invalid \"ids\" (expected a non-empty array of playback ids)".into()),
         _ => Err("expected exactly one of \"id\" or \"ids\"".to_string()),
     }
 }
@@ -1746,21 +1763,24 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("playback.copy") => {
             let (page, slot) = target_handle(&v)?;
             Ok(Command::PlaybackCopy {
-                id: uint(&v, "id")?,
+                ids: playback_ids(&v)?,
                 page,
                 slot,
+                layout: opt_field(&v, "layout", "\"retain\" or \"bunch\"")?.unwrap_or_default(),
             })
         }
         Some("playback.move") => {
             let (page, slot) = target_handle(&v)?;
             Ok(Command::PlaybackMove {
-                id: uint(&v, "id")?,
+                ids: playback_ids(&v)?,
                 page,
                 slot,
+                layout: opt_field(&v, "layout", "\"retain\" or \"bunch\"")?.unwrap_or_default(),
+                swap: opt_bool(&v, "swap")?,
             })
         }
         Some("playback.delete") => Ok(Command::PlaybackDelete {
-            id: uint(&v, "id")?,
+            ids: playback_ids(&v)?,
         }),
         Some("page.legend") => Ok(Command::PageLegend {
             page: uint(&v, "page")?,
@@ -6830,22 +6850,25 @@ mod tests {
         assert_eq!(
             ok(r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#),
             Command::PlaybackCopy {
-                id: 3,
+                ids: vec![3],
                 page: 2,
-                slot: 4
+                slot: 4,
+                layout: Layout::Retain
             }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#),
             Command::PlaybackMove {
-                id: 3,
+                ids: vec![3],
                 page: 2,
-                slot: 4
+                slot: 4,
+                layout: Layout::Retain,
+                swap: false
             }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"playback.delete","id":3}"#),
-            Command::PlaybackDelete { id: 3 }
+            Command::PlaybackDelete { ids: vec![3] }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"page.legend","page":2,"legend":"Service"}"#),
@@ -8457,5 +8480,79 @@ mod tests {
             .unwrap();
         let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
         assert_eq!(v["order"], json!({"2":0}));
+    }
+
+    // ---- IDEA-35 batch D: list forms (MUL-01: IPC-61) ----------------------------------------
+
+    #[test]
+    fn ipc_61_playback_list_forms_parse() {
+        use cmdmx_core::playback::Layout;
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.copy","ids":[1,2],"to":{"page":2,"slot":1}}"#),
+            Command::PlaybackCopy {
+                ids: vec![1, 2],
+                page: 2,
+                slot: 1,
+                layout: Layout::Retain
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4},"layout":"bunch"}"#),
+            Command::PlaybackCopy {
+                ids: vec![3],
+                page: 2,
+                slot: 4,
+                layout: Layout::Bunch
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"playback.move","ids":[1,2],"to":{"page":2,"slot":1},
+                   "layout":"retain","swap":true}"#
+            ),
+            Command::PlaybackMove {
+                ids: vec![1, 2],
+                page: 2,
+                slot: 1,
+                layout: Layout::Retain,
+                swap: true
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#),
+            Command::PlaybackMove {
+                ids: vec![3],
+                page: 2,
+                slot: 4,
+                layout: Layout::Retain,
+                swap: false
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.delete","ids":[4,5,6]}"#),
+            Command::PlaybackDelete { ids: vec![4, 5, 6] }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.delete","id":3}"#),
+            Command::PlaybackDelete { ids: vec![3] }
+        );
+    }
+
+    #[test]
+    fn ipc_61_bad_playback_list_forms_are_errors() {
+        for bad in [
+            r#"{"v":1,"cmd":"playback.copy","id":1,"ids":[1,2],"to":{"page":2,"slot":1}}"#,
+            r#"{"v":1,"cmd":"playback.copy","to":{"page":2,"slot":1}}"#,
+            r#"{"v":1,"cmd":"playback.copy","ids":[],"to":{"page":2,"slot":1}}"#,
+            r#"{"v":1,"cmd":"playback.copy","ids":[1],"to":{"page":2,"slot":1},"layout":"tidy"}"#,
+            r#"{"v":1,"cmd":"playback.move","ids":[1],"to":{"page":2,"slot":1},"swap":"yes"}"#,
+            r#"{"v":1,"cmd":"playback.move","ids":"1","to":{"page":2,"slot":1}}"#,
+            r#"{"v":1,"cmd":"playback.delete","ids":[]}"#,
+            r#"{"v":1,"cmd":"playback.delete","id":1,"ids":[1]}"#,
+            r#"{"v":1,"cmd":"playback.delete","ids":[-1]}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 }

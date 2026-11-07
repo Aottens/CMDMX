@@ -39,9 +39,10 @@ use crate::playback::{
     check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BpmFader, BpmMaster, Button,
     ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
-    Kind as PlaybackKind, Link, ListAction, ListFader, ListLive, Master, MasterKind, Origin,
-    Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority,
-    Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values, GROUP_SCALES, PAGES,
+    Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master, MasterKind,
+    Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
+    Priority, Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values, GROUP_SCALES,
+    PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -4529,6 +4530,150 @@ impl Engine {
             .remove(&id)
             .ok_or(CoreError::UnknownPlayback(id))?;
         self.states.remove(&id);
+        Ok(())
+    }
+
+    /// PBK-50: the sources in handle order with the handle each lands on. Refuses an empty or
+    /// unknown list, `Retain` over several pages and any target outside the pages.
+    fn playback_block(
+        &self,
+        ids: &[PlaybackId],
+        page: u16,
+        slot: u16,
+        layout: Layout,
+    ) -> Result<Vec<(PlaybackId, u16, u16)>, CoreError> {
+        let mut src = Vec::new();
+        for &id in ids {
+            let p = self
+                .playbacks
+                .get(&id)
+                .ok_or(CoreError::UnknownPlayback(id))?;
+            src.push((p.page, p.slot, id));
+        }
+        src.sort_unstable();
+        src.dedup_by_key(|s| s.2);
+        let first = src.first().ok_or_else(|| {
+            CoreError::InvalidCommand("expected at least one playback".to_string())
+        })?;
+        let pages = src.iter().map(|s| s.0).collect::<BTreeSet<_>>().len();
+        if layout == Layout::Retain && pages > 1 {
+            return Err(CoreError::SourcesOnPages(pages));
+        }
+        let lowest = first.1;
+        let mut block = Vec::new();
+        for (i, &(_, s, id)) in src.iter().enumerate() {
+            let offset = match layout {
+                Layout::Retain => s.saturating_sub(lowest),
+                Layout::Bunch => u16::try_from(i).unwrap_or(u16::MAX),
+            };
+            let target = slot.saturating_add(offset);
+            self.handle_target(page, target)?;
+            block.push((id, page, target));
+        }
+        Ok(block)
+    }
+
+    /// PBK-50: copy several playbacks onto empty handles; the new ids come back in handle
+    /// order. All or nothing.
+    pub fn copy_playbacks(
+        &mut self,
+        ids: &[PlaybackId],
+        page: u16,
+        slot: u16,
+        layout: Layout,
+    ) -> Result<Vec<PlaybackId>, CoreError> {
+        let block = self.playback_block(ids, page, slot, layout)?;
+        for &(_, p, s) in &block {
+            self.check_empty_handle(p, s)?;
+        }
+        let next = self.playback_next_id;
+        let mut new = Vec::new();
+        for (id, p, s) in block {
+            match self.copy_playback(id, p, s) {
+                Ok(n) => new.push(n),
+                Err(e) => {
+                    for n in new {
+                        self.playbacks.remove(&n);
+                        self.states.remove(&n);
+                    }
+                    self.playback_next_id = next;
+                    return Err(e);
+                }
+            }
+        }
+        Ok(new)
+    }
+
+    /// PBK-50, 51: move several playbacks (ids and running state kept). With `swap` a playback
+    /// in the way takes a handle the block leaves free. All or nothing.
+    pub fn move_playbacks(
+        &mut self,
+        ids: &[PlaybackId],
+        page: u16,
+        slot: u16,
+        layout: Layout,
+        swap: bool,
+    ) -> Result<(), CoreError> {
+        let block = self.playback_block(ids, page, slot, layout)?;
+        let moving: BTreeSet<_> = block.iter().map(|b| b.0).collect();
+        let mut in_way = Vec::new();
+        for &(_, p, s) in &block {
+            let Some(o) = self.handle_target(p, s)?.filter(|o| !moving.contains(o)) else {
+                continue;
+            };
+            let home = self.playbacks.get(&o).map_or((p, s), |x| (x.page, x.slot));
+            if !swap {
+                return Err(CoreError::HandleUsed { page: p, slot: s });
+            }
+            if home != (p, s) {
+                return Err(CoreError::HandleLocked {
+                    page: p,
+                    slot: s,
+                    by_page: home.0,
+                    by_slot: home.1,
+                });
+            }
+            in_way.push((home, o));
+        }
+        in_way.sort_unstable();
+        let mut freed = Vec::new();
+        for id in &moving {
+            if let Some(h) = self.playbacks.get(id).map(|x| (x.page, x.slot)) {
+                if !block.iter().any(|&(_, p, s)| (p, s) == h) {
+                    freed.push(h);
+                }
+            }
+        }
+        freed.sort_unstable();
+        if in_way.len() > freed.len() {
+            let ((p, s), _) = in_way.get(freed.len()).copied().unwrap_or_default();
+            return Err(CoreError::HandleUsed { page: p, slot: s });
+        }
+        let moves = block.into_iter().map(|(id, p, s)| (id, (p, s)));
+        let swaps = in_way.into_iter().map(|(_, o)| o).zip(freed);
+        for (id, (p, s)) in moves.chain(swaps) {
+            if let Some(pb) = self.playbacks.get_mut(&id) {
+                pb.page = p;
+                pb.slot = s;
+            }
+        }
+        Ok(())
+    }
+
+    /// PBK-50: delete several playbacks; refused as a whole when one is unknown.
+    pub fn delete_playbacks(&mut self, ids: &[PlaybackId]) -> Result<(), CoreError> {
+        let ids: BTreeSet<_> = ids.iter().copied().collect();
+        if ids.is_empty() {
+            return Err(CoreError::InvalidCommand(
+                "expected at least one playback".to_string(),
+            ));
+        }
+        if let Some(&id) = ids.iter().find(|id| !self.playbacks.contains_key(id)) {
+            return Err(CoreError::UnknownPlayback(id));
+        }
+        for id in ids {
+            self.delete_playback(id)?;
+        }
         Ok(())
     }
 

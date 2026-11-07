@@ -934,9 +934,20 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             icon,
             halo,
         } => engine.set_playback_legend(id, &legend, icon.as_deref(), halo),
-        PlaybackCopy { id, page, slot } => engine.copy_playback(id, page, slot).map(drop),
-        PlaybackMove { id, page, slot } => engine.move_playback(id, page, slot),
-        PlaybackDelete { id } => engine.delete_playback(id),
+        PlaybackCopy {
+            ids,
+            page,
+            slot,
+            layout,
+        } => engine.copy_playbacks(&ids, page, slot, layout).map(drop),
+        PlaybackMove {
+            ids,
+            page,
+            slot,
+            layout,
+            swap,
+        } => engine.move_playbacks(&ids, page, slot, layout, swap),
+        PlaybackDelete { ids } => engine.delete_playbacks(&ids),
         PageLegend { page, legend } => engine.set_page_legend(page, &legend),
         DboSet { on } => {
             engine.set_dbo(on);
@@ -1201,6 +1212,15 @@ fn park_label(verb: &str, ids: &[u32]) -> String {
     }
 }
 
+/// IPC-61: `Copy playback 3`, or `Copy 3 playbacks to 3.1` for a list.
+fn list_label(verb: &str, ids: &[u32], to: Option<(u16, u16)>) -> String {
+    match (ids, to) {
+        ([id], _) => format!("{verb} playback {id}"),
+        (_, Some((page, slot))) => format!("{verb} {} playbacks to {page}.{slot}", ids.len()),
+        _ => format!("{verb} {} playbacks", ids.len()),
+    }
+}
+
 /// UNDO-01, 05: the step's label and its coalescing key.
 fn label(cmd: &ipc::Command) -> (String, Option<String>) {
     use ipc::Command::*;
@@ -1294,9 +1314,13 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
             (format!("Playback {id} options"), None)
         }
         PlaybackLegend { id, .. } => (format!("Playback {id} legend"), None),
-        PlaybackCopy { id, .. } => (format!("Copy playback {id}"), None),
-        PlaybackMove { id, .. } => (format!("Move playback {id}"), None),
-        PlaybackDelete { id } => (format!("Delete playback {id}"), None),
+        PlaybackCopy {
+            ids, page, slot, ..
+        } => (list_label("Copy", ids, Some((*page, *slot))), None),
+        PlaybackMove {
+            ids, page, slot, ..
+        } => (list_label("Move", ids, Some((*page, *slot))), None),
+        PlaybackDelete { ids } => (list_label("Delete", ids, None), None),
         PageLegend { page, .. } => (format!("Page {page} legend"), None),
         SettingsPlayback(_) => ("Playback settings".into(), None),
         CueEdit { .. } => ("Edit cue".into(), None),
@@ -2500,17 +2524,20 @@ mod tests {
         run(
             &mut engine,
             ipc::Command::PlaybackCopy {
-                id,
+                ids: vec![id],
                 page: 3,
                 slot: 2,
+                layout: Default::default(),
             },
         );
         run(
             &mut engine,
             ipc::Command::PlaybackMove {
-                id,
+                ids: vec![id],
                 page: 3,
                 slot: 3,
+                layout: Default::default(),
+                swap: false,
             },
         );
         assert_eq!(engine.playback(id).unwrap().slot, 3);
@@ -2544,7 +2571,7 @@ mod tests {
             }),
         );
         assert_eq!(engine.settings().cue_fade_in, 1.5);
-        run(&mut engine, ipc::Command::PlaybackDelete { id });
+        run(&mut engine, ipc::Command::PlaybackDelete { ids: vec![id] });
         assert!(engine.playback(id).is_none());
     }
 
@@ -2562,11 +2589,12 @@ mod tests {
             ipc::Command::PlaybackRecord(PlaybackRecord::at(1, 1)),
             ipc::Command::PlaybackRecord(PlaybackRecord::at(3, 1)),
             ipc::Command::PlaybackCopy {
-                id: 1,
+                ids: vec![1],
                 page: 1,
                 slot: 2,
+                layout: Default::default(),
             },
-            ipc::Command::PlaybackDelete { id: 99 },
+            ipc::Command::PlaybackDelete { ids: vec![99] },
             ipc::Command::PlaybackFlash { id: 99, on: true },
             ipc::Command::PlaybackChange {
                 id: 1,
@@ -5251,5 +5279,74 @@ mod tests {
         let now = Instant::now();
         let deadline = now + TICK;
         assert_eq!(next_deadline(deadline, now, TICK), deadline + TICK);
+    }
+
+    // ---- IDEA-35 batch D: working on many at once (MUL-01: PBK-50, 51, IPC-61) -------------
+
+    /// PBK-50, IPC-61: a list form is one undo step, labelled with the range; the single form
+    /// keeps its label.
+    #[test]
+    fn ipc_61_playback_lists_are_one_undo_step_with_a_range_label() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let before = e.edit_state();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.copy","ids":[1,2,4],"to":{"page":3,"slot":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Copy 3 playbacks to 3.1"));
+        assert_eq!(e.playbacks().count(), 13);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.edit_state(), before);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.move","ids":[9,10],"to":{"page":3,"slot":5},"layout":"bunch"}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Move 2 playbacks to 3.5"));
+        assert_eq!(e.playback(10).map(|p| (p.page, p.slot)), Some((3, 6)));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.delete","ids":[1,2]}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Delete 2 playbacks"));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":4,"slot":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Copy playback 3"));
+    }
+
+    /// PBK-50, 51: a refused list changes nothing and leaves no undo step; swap works over IPC.
+    #[test]
+    fn ipc_61_a_refused_list_changes_nothing() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let before = e.edit_state();
+        let err = undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.move","ids":[1,2],"to":{"page":2,"slot":1}}"#,
+        )
+        .unwrap_err();
+        assert_eq!(err.to_string(), "Handle 2.1 is used");
+        assert_eq!(e.edit_state(), before);
+        assert_eq!(h.len(), 0);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.move","id":1,"to":{"page":2,"slot":1},"swap":true}"#,
+        )
+        .unwrap();
+        assert_eq!(e.playback(1).map(|p| (p.page, p.slot)), Some((2, 1)));
+        assert_eq!(e.playback(9).map(|p| (p.page, p.slot)), Some((1, 1)));
+        assert_eq!(h.len(), 1);
     }
 }
