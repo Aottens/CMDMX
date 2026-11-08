@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-07 (MUL-02)_
+_Last updated: 2026-11-08 (MUL-04)_
 
 ## Current step
+MUL-04 (2026-11-08, PBK-52, CTL-68): `playback::ReleaseScope`; `Engine::release_scope` picks active non-master playbacks by `playback_at`, runs `release_playback` on each and pushes the one notice. `playback.release` with `scope` is `Command::PlaybackReleaseScope`, class Live. `Action::ReleaseAll` and `ReleasePage` (the control tick's `page`); also in the OSC schema. Scenario key `release_scope`.
+
 MUL-02 (2026-11-07, PAL-34, PRG-98, CUE-63): `copy_palettes`, `move_palettes`, `delete_palettes` (`palette_block`: cell order, Retain refuses several windows with `SourcesInWindows`), `copy_groups`, `move_groups`, `delete_groups` (`group_block`: number order) and `delete_cues` (number order through `delete_cue`; every cue is `LastCue`). `move_groups` builds one old→new map, removes every moving group before inserting, then remaps group masters once, so a swap 1↔5 works. Copy rolls back what it made on a midway failure. Daemon: `uint_list` takes the single and the list key; labels "Copy 2 palettes to Positions 7", "Delete 3 cues".
 
 MUL-01 (2026-11-07, PBK-50, PBK-51, IPC-61): `playback::Layout` (`retain` default, `bunch`); `copy_playbacks`, `move_playbacks`, `delete_playbacks`. `playback_block` sorts by handle and works out the targets; every check runs before anything changes (Copy also removes its new playbacks and resets `playback_next_id` if a master number runs out). Move counts a moving playback's slot as free; with `swap`, playbacks in the way go to the freed homes, both sorted by handle; a `Locked` one from another handle refuses (`HandleLocked`). A freed home is not checked for a `Locked` playback of another page covering it. `Command::PlaybackCopy/Move/Delete` carry `ids`; one id keeps the old labels, several "Copy 3 playbacks to 3.1".

@@ -119,6 +119,7 @@ An action is a short text. These are the actions you can bind:
 | `playback 12 level` | the level of playback 12, wherever it is |
 | `upper 3`, `lower 3` | the upper or lower button of slot 3 |
 | `go`, `back`, `stop`, `release`, `tap` | on the connected cue list; `go 3` acts on slot 3, `go playback 12` on playback 12 |
+| `release all`, `release page` | releases every running playback, or those on the page shown |
 | `page next`, `page prev`, `page 4` | the page |
 | `gm` | the Grand Master |
 | `dbo` | DBO while held (use **Toggle** mode to latch it) |

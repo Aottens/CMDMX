@@ -66,7 +66,7 @@ the message line names where the function works, nothing else happens and the fu
 | Delete | confirm on softkey A | no | confirm on softkey A | confirm on softkey A | confirm on softkey A |
 | Set Legend | the editor | no | the editor | the editor | the editor |
 | Options | no | no | no | Playback Options | Playback Options on that cue's Times tab |
-| Release | no | no | no | releases | no |
+| Release | no | no | no | releases | no (Release again: all; a page button: that page on the softkeys) |
 | Latch | no | no | no | press Flash instead | no |
 | Unfold | no | unfolds (not on a cell button) | no | no | no |
 
@@ -76,7 +76,7 @@ with Release armed or nothing armed. With Copy, Move or Delete armed, ⇧-tap an
 [Working on many at once](playbacks.md#working-on-many-at-once).
 
 Flash and Swop on a handle count as a tap on its legend while something is armed, so the stage does not change. Latch is the
-exception: Flash latches. Page buttons, the workspace rail, faders, GM, DBO, Go, Back and Clear are never targets: a show keeps
+exception: Flash latches. Page buttons (except with Release armed), the workspace rail, faders, GM, DBO, Go, Back and Clear are never targets: a show keeps
 running while a function is armed.
 
 ## OSC addresses
