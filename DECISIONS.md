@@ -9,7 +9,7 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 **Decision:** The box's two faders are the desk's own Bourns PSM01-082A-103B2 motorised faders on an Adafruit TB6612FNG
 driver, with touch sense on their touch track; the parts come from DigiKey (one order, about €100 excl. VAT), the
-Cherry MX2A Honey switches from Cherry's shop (no distributor carries them).
+Cherry MX2A Honey switches from Amazon.nl (no distributor carries them, Cherry's own shop charges about €11 shipping).
 
 **Alternatives considered:** plain 100 mm faders for the box and motors only on the strip PCB (HWB-02); RS (no Pico 2,
 no motor driver).

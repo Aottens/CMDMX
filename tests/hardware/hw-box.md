@@ -6,7 +6,7 @@ Firmware: `subprojects/hardware/firmware/` (`box/`), wire map
 change: it is learned on the Mac (CTL-25).
 
 ## Parts (DigiKey order placed by the owner on 2026-11-08, not yet on the desk)
-One DigiKey order (digikey.nl, free shipping from €75), prices excl. VAT seen on 2026-11-08; the switches come from Cherry's own shop,
+One DigiKey order (digikey.nl, free shipping from €75), prices excl. VAT seen on 2026-11-08; the switches come from Amazon.nl,
 because no distributor carries the MX2A Honey (DECISIONS 2026-11-08). The owner has a bench supply, breadboards,
 jumper wires, through-hole resistors and a micro-USB data cable.
 - [ ] 2 × **Bourns PSM01-082A-103B2** motorised fader, 100 mm, 10 kΩ, 10 V motor, touch track (about €26)
@@ -18,7 +18,8 @@ jumper wires, through-hole resistors and a micro-USB data cable.
       the key PCB; the firmware lights the first four
 - [ ] 1 × **SN74AHCT125N** level shifter, DIP-14 (about €1)
 - [ ] 1 × **470 µF / 16 V** electrolytic, e.g. Panasonic EEU-FR1C471, across the LED supply
-- [ ] Cherry shop: **MX2A RGB Honey Switch Kit** (36 switches, about €22 incl. VAT); four go in the box
+- [ ] Amazon.nl: **CHERRY MX2A RGB Honey Switch Kit** (36 switches, €21.99 incl. VAT, free delivery; Cherry's own
+      shop charges about €11 shipping); four go in the box
 - [ ] From the drawer: 2 × 1 MΩ (touch), 2 × 10 kΩ and 2 × 20 kΩ (encoder divider), 330 Ω (LED data)
 - [ ] Solder short wires to the faders, the encoder and the driver carrier: their pins do not fit a breadboard
 - [ ] Knobs come later with the front plate; the bare fader lever is the touch contact
