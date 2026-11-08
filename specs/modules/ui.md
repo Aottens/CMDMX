@@ -596,6 +596,18 @@ console redraws on each.
   data (IPC-59: grid and DMX) live apart from the rest of the app's state, so an output delta redraws only the tile
   stripes and the open Views tab, not the playback area, the windows or the side column. What is shown does not change.
   Checked by measurement: the app's CPU with the daemon's `--demo` (fader 1 breathes), before and after, in the run file.
+- **UI-69** **A moving playback redraws only what shows it** (amends UI-22, CUE-40 in the app). The playbacks' live part
+  (PBK-35's `playback` delta: level, state, flash, cue, BPM, holding; up to 40 a second per moving playback, drawn at
+  most 30 a second) lives apart from their stored part. A live change redraws only what shows it: the playback strips,
+  the open cue list windows, the Active playbacks window, the status bar tags and the open Playback options or Fixture
+  info sheet. The windows grid, the side column, the rail and the attribute bar redraw only on a stored change, a
+  selection or the operator's own input. A softkey or tap that needs a live value reads it when pressed. What is shown
+  does not change.
+- **UI-70** **The CPU budget** (owner, 2026-11-08: "unacceptable for a lighting desk"). `scripts/app-cpu.sh` starts the
+  daemon (release, temp show folder, no outputs but Art-Net) and the release app in console mode, waits 12 s and
+  prints the app's average `%cpu` over 20 s, for two loads: idle, and `--demo` (fader 1 breathes). On the owner's Mac
+  the app stays at or under **5 % idle** and **15 % with `--demo`**. Every app PR that touches `EngineClient` or a view
+  that watches it runs the script and puts both numbers in its description. Measured before and after in the run file.
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each

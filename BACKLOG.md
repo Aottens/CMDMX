@@ -238,13 +238,14 @@ Builds: FIT-01.
 | FIT-01 | App: status bar, attribute bar and playback area always whole from 1280 × 800 pt up and in console mode, the rail scrolls and the side column keys shrink; checklist, checked on the owner's MacBook. | UI-63 | S | done (2026-11-07, #265) |
 
 ### Snappy while the rig moves (owner, 2026-11-08)
-The owner felt the app grow slower in recent releases; the ask to fix it is the approval of UI-68.
-Builds: SNP-01.
+The owner felt the app grow slower in recent releases; the ask to fix it is the approval of UI-68. UI-69 and UI-70 wait for the owner's approval (2026-11-08).
+Builds: SNP-01; SNP-03 + SNP-02 (the script first, so SNP-02 is measured with it).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
 | SNP-01 | App: live output and the Views data in their own observed object, so an output delta redraws only the tile stripes and the Views screen; CPU measured before and after with `--demo`. | UI-68 | S | done (2026-11-08, #272) |
-| SNP-02 | App: the playbacks' live state (level, state, cue) apart from the stored part, so a fading or running playback redraws only the playback area and the windows that show it; CPU measured as SNP-01. Spec to write. | — | M | todo |
+| SNP-02 | App: the playbacks' live part in its own observed object, read by the strips, cue list windows, Active playbacks, status bar tags and the two sheets only; the rest reads it on a press; run file with the CPU before and after. Needs SNP-01. | UI-69 | M | todo |
+| SNP-03 | Scripts: `scripts/app-cpu.sh` measures the app idle and with `--demo`; the budget (5 %, 15 %) in `DECISIONS.md` and in the PR template line of `CLAUDE.md`. | UI-70 | S | todo |
 
 ### Working on many at once (IDEA-35 batch D, spec P1-36)
 Approved by the owner 2026-11-07, every recommendation accepted (`ui.md`). Unfold and the linked copy are IDEA-46 and IDEA-47.
