@@ -76,7 +76,7 @@ private struct StripsRow: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 2) { ForEach(engine.slots) { StripCell(slot: $0) } }
+            HStack(spacing: 2) { ForEach(engine.livePlaybacks.slotCells) { StripCell(cell: $0) } }
                 .padding(.top, 13).padding([.horizontal, .bottom], 3)
                 .frame(maxHeight: .infinity)
                 .padding(4)
@@ -85,7 +85,13 @@ private struct StripsRow: View {
     }
 }
 
+/// UI-69: observes only its own slot, then draws it.
 private struct StripCell: View {
+    @ObservedObject var cell: SlotCell
+    var body: some View { StripCellBody(slot: cell.slot) }
+}
+
+private struct StripCellBody: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
     @EnvironmentObject private var line: TokenLine

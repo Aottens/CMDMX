@@ -10,12 +10,11 @@ import SwiftUI
 /// top-right, condensed legend. State never changes the fill.
 /// UI-60 / UI-68: the only reader of live output in a tile, so a delta redraws the stripes and not the window.
 private struct LampStripe: View {
-    @EnvironmentObject private var live: LiveOutput
-    let item: Item?
+    @ObservedObject var cell: OutputCell
 
     /// The stripe shows the output colour at its intensity; black at 0 (IPC-58).
     private var colour: Color {
-        guard let item, let o = live.output[item], o.i > 0 else { return .black }
+        guard let o = cell.value, o.i > 0 else { return .black }
         let c = o.rgb ?? [1, 1, 1]
         guard c.count == 3 else { return .black }
         return Color(.sRGBLinear, red: c[0] * o.i, green: c[1] * o.i, blue: c[2] * o.i)
@@ -48,7 +47,7 @@ struct Cell: View {
     /// Disabled output lamp stripe (fixtures, IDEA-10) / empty IPCGBES mask strip (groups).
     var lamp = false
     /// UI-60 / IPC-58: with `lamp`, the item whose output the stripe shows; nil = black stripe.
-    var lampItem: Item?
+    var lampCell: OutputCell?
     var mask = false
     /// With `mask`: the attribute groups that are lit in the IPCGBES strip (palettes, PAL-28).
     var maskGroups: [String] = []
@@ -86,7 +85,7 @@ struct Cell: View {
                 }
             }
             if lamp {
-                LampStripe(item: lampItem).frame(height: 4)
+                LampStripe(cell: lampCell ?? OutputCell()).frame(height: 4)
                     .overlay(Rectangle().strokeBorder(t.line, lineWidth: 1))
                     .padding(.horizontal, 4).padding(.bottom, 3)
                     .frame(maxHeight: .infinity, alignment: .bottom)
@@ -268,7 +267,7 @@ struct FixturesWindow: View {
                          dimmed: subSelection && order[item] != nil && !targets.contains(item),
                          inProgrammer: inProgrammer.contains(item),
                          lamp: true,
-                         lampItem: fixture.parked ? nil : item,
+                         lampCell: fixture.parked ? nil : engine.live.cell(item),
                          faded: faded) {
                         if fixture.parked {
                             return   // PAT-35: a parked fixture is not selectable
