@@ -60,6 +60,8 @@ Specified 2026-11-07, approved by the owner (P1-36; build tasks MUL-01..05): PBK
 3. Delete or duplicate a fixture profile: a bad import stays in the list.
 4. Lamp on/off and fixture control macros. RDM patching.
 
+Added by the fifth review (M, owner 2026-11-08): M2 straight after K1, then M3.
+
 ## F. Controls that exist in the engine, or small ones in the app
 1. Rename a control mapping: IPC is there, the app has no caller.
 2. Move a fixture button: `patch.handle` is there (PAT-14), the app never sends it.
@@ -74,6 +76,8 @@ Specified 2026-11-07, approved by the owner (P1-36; build tasks MUL-01..05): PBK
 
 Added by the fourth review (L, owner 2026-11-05): L7, L8.
 
+Added by the fifth review (M, owner 2026-11-08): M5's hint, M6.
+
 ## G. Show files
 1. No reveal, delete or rename in the app ("Finder", `showfile.md`), and the app cannot reveal the file.
 2. Loading a show brings its output nodes: no way to keep this desk's settings (Art-Net at home,
@@ -82,6 +86,8 @@ Added by the fourth review (L, owner 2026-11-05): L7, L8.
 4. Copying a file over the open show: Open is refused without a hint to quit first, and the next
    autosave overwrites the copy. A new show has no Serial node while Art-Net dots stay green.
 5. Reports of fixtures, cues, palettes and groups.
+
+Added by the fifth review (M, owner 2026-11-08): M1 first.
 
 Tracked already, not repeated here: Macros, Select If, Align, Scene Master, virtual faders, nested and
 time palettes, Merge from another show, Parking, Undo History, set list, Move In Dark (their specs'
@@ -144,6 +150,8 @@ the Show Library; gobo image as palette legend. Rarely: Copy Legends, Add Channe
 Mode, Auto Legend off, Always Merge, Attribute Overlap, Prev + Next cancels a skip, Bunch Up With Offset.
 
 Added by the fourth review (L, owner 2026-11-05): L4.
+
+Added by the fifth review (M, owner 2026-11-08): M4.
 
 ## J. Input paths and what you can see
 1. Attribute values cannot be typed: the command grammar has level, palette and gel only (`command.rs`).
@@ -234,4 +242,31 @@ Approved by the owner, 2026-11-05. Each batch still needs its spec approved befo
 - **F:** add L7, L8.
 - **I:** add L4.
 - **Patch (no batch):** L6, as it does not change how an operator works.
+
+# Fifth review, 2026-11-08 (at v0.7.0)
+
+New angle: the week after. An existing show is rebuilt for next week, on a generated rig of 254 fixtures over four universes (`tests/manual/runs/2026-11-08-gap-review.md`). The owner chose the angle; the stand-in is dropped, as it gave points for the first hour only. Each point is marked **[run]** or **[read]**. A claim about Titan is not checked here.
+
+The angle gave points the earlier ones could not reach, because none changed a show that already works. A next review can wait for real use: the first service on CMDMX, as the fourth review said. A run over a real second week would test this angle better than a script did.
+
+## M. The week after
+1. **[run]** Next week's show has no good start. New with *Keep the patch* also empties groups and palettes (SHW-19, the owner's choice of 2026-11-07), which are most of the programming and what next week needs. Save As keeps everything, and then every used page takes Delete, a tap, All and a confirm. Opening last week's show to look something up clears the Undo history (UNDO-13, as specified), and nothing can be brought over from it: *Merge from another show* is on the out-of-scope lists without a backlog row. **G**, first.
+2. **[run]** Changing a fixture's type costs what was programmed on it. Seven washes: "In 3 groups, 62 cues on 28 playbacks and 11 palettes". Removed and added back as another type at the same numbers and address, they are gone from groups 5, 16 and 17 and do not return. Mode changes stay within one profile. This is E2's Fixture Exchange, now with a price. **E**, first after K1.
+3. **[run]** The Patch list shows ten rows of 254, under an Add section that always takes half the screen, with no find or jump to a number. Reaching 1005 took 40 scroll ticks. The Fixtures window does have Find. **E**.
+4. **[run]** A block of cues cannot move. Move plus a cue row asks for one new number at a time (CUE-63 left this out on purpose). When the order of the service changes, a song of four cues is four renumbers, and a copy between lists is out too. **I**, with I3 and I6, or a batch of its own: owner.
+5. **[run]** New fixtures meet a Normal palette with no way forward: "Palette 1 Rood does not fit the selection". Adding them to a group is fine (Merge, 48 to 60). Each palette then needs its own Update **[read]**. The run's palettes were Normal partly by accident of the script, so how often this bites depends on the show. **F**: a hint that names Update.
+6. **[run]** A page is not an object. A copied page gets no legend, so page 5 is blank beside page 2 *Kerst*, and a page emptied with All keeps its legend *Pasen*. Small. **F**.
+7. **[run]** The engine costs much more on a large rig: 78 % of a core with 266 fixtures against 10 % with 38. A debug build only, so this says nothing yet about a release, and the app has a CPU budget (UI-70) where the engine has none. **Patch (no batch)**: measure a release build on this rig first.
+
+Seen again, already listed: E2 (no Fixture Exchange), G3 (Save As moves you, going back changes the stage), L8 (a notice stays, here "Group 8 Par zaal" across screens), I5 (the list window shows seven rows and follows nothing).
+
+What held, so no work needed, and batch D in particular: Copy of eight playbacks with ⇧ across a page change, in one undo step; All and its confirm naming the count and page; a cue range picked across a scrolled list, "Delete 7 cues of 1.1?", in one undo step; the consequence line on Remove, counted over the whole show; Save As as the way to a copy; Group Merge asked before it changes a used group; a new universe gets its output by itself; the Views screen with 266 tiles; opening a 5 MB show in under two seconds on a debug engine.
+
+## Changes to the batches, fifth review
+Approved by the owner, 2026-11-08. Each batch still needs its spec approved before it has criteria or code. The third review's proposals above still wait.
+- **G:** M1 first, as a choice on New that keeps groups and palettes; *Merge from another show* has its own row (P1-37).
+- **E:** M2 (Fixture Exchange) straight after K1, then M3.
+- **I:** add M4.
+- **F:** add M5's hint and M6.
+- **Patch (no batch):** M7's measurement on a release build (P1-38).
 
