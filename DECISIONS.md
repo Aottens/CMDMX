@@ -5,6 +5,19 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-08 — The BCF2000 runs over DIN MIDI on Apple Silicon (VS1-07; owner)
+
+**Decision:** The BCF2000 is connected with MIDI cables through a USB-MIDI interface, in global setup `S-4`. Its upper
+button row (notes 16..23, Mackie's MUTE notes) is bound to the upper handle button next to the REC row (CTL-33).
+
+**Alternatives considered:** a new USB driver (the owner's question; a raw libusb trial showed macOS refuses the OUT
+endpoint, so no driver helps); the interface's USB-A host port (no traffic); a separate BCF2000 profile (more to keep
+for a row nothing else uses).
+
+**Reasoning:** measured on the owner's M4 Mac: USB from the BCF works, USB to it does not, while DIN works both ways.
+
+**Reversal trigger:** a macOS update or another Mac on which the BCF's USB output works.
+
 ## 2026-11-08 — The USB-MIDI box gets the real motorised faders (HWB-01; owner)
 
 **Decision:** The box's two faders are the desk's own Bourns PSM01-082A-103B2 motorised faders on an Adafruit TB6612FNG

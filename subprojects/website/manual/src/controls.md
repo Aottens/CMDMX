@@ -141,19 +141,25 @@ sends its fader to zero and its lights off.
 ## Mackie Control surfaces
 
 A surface in Mackie Control mode, such as the Behringer BCF2000 or an X-Touch, gets the
-**Mackie Control** profile when you enable it. On the BCF2000, choose the Mackie Control preset
-when you switch it on (see its own manual). The profile binds:
+**Mackie Control** profile when you enable it. On the BCF2000, hold the second button from the
+left in the top row while you switch it on, until the display shows `NC C`. On a Mac with Apple
+silicon the BCF2000's USB output may not work: connect it with MIDI cables through a USB-MIDI
+interface, set its global setup to `S-4`, and choose the mapping by hand. The profile binds:
 
-- faders 1 to 8 to the slots of the current page, with the motors following the levels; the
-  master fader to the GM;
-- the top button row to the upper buttons and the **SELECT** row to the lower buttons;
+- faders 1 to 8 to the slots of the current page, with the motors following the levels; a
+  master fader, where the surface has one, to the GM;
+- the **REC** and **MUTE** rows to the upper buttons and the **SELECT** row to the lower buttons,
+  each with its own lamp (the BCF2000's top row sends the MUTE notes);
 - the encoders to the wheels, with the LED ring showing the wheel's value, and a push on the first
   encoder to the next fixture in the selection;
 - **Bank ◀ ▶** to the previous and next page, and **Channel ◀ ▶** to the fader window;
 - the transport keys **Play**, **Stop** and **Rewind** to Go, Stop and Back.
 
 While you hold a motor fader it does not fight your hand. When you let go it settles where the
-engine has the level, so a move that was refused springs back.
+engine has the level, so a move that was refused springs back. The BCF2000 has no touch sensor, so
+it cannot tell that a fader is held still: its motor follows the engine as soon as you stop moving.
+Connected with MIDI cables, CMDMX cannot see a BCF2000 being switched off: untick and tick it on the
+Control screen afterwards to send the motors and lamps their state again.
 
 **The fader window.** A surface with 8 faders shows 8 slots at a time, starting at slot 1. With
 more faders per page than the surface has, **Channel ▶** shows the next slots; faders past the end

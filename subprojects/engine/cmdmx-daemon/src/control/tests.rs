@@ -1105,7 +1105,7 @@ fn ctl_30_the_profile_ships_read_only_and_is_listed() {
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(m.name, MC);
     assert_eq!(m.extra.get("driver"), Some(&json!("mackie_control")));
-    assert_eq!(m.bindings.len(), 41);
+    assert_eq!(m.bindings.len(), 49);
 }
 
 #[test]
@@ -1379,6 +1379,55 @@ fn ctl_33_default_bindings() {
         !fb.iter().any(|o| o.bytes[0] == 0xE8),
         "no echo of the master's own move (CTL-20): {fb:?}"
     );
+}
+
+#[test]
+fn ctl_33_the_mute_row_is_the_upper_button_too() {
+    use cmdmx_core::playback::HandleButton;
+    let (mut c, _) = surface("mc-mute-row", &["BCF2000"]);
+    let e = engine();
+    for n in 1..=8u8 {
+        packet(&mut c, "BCF2000", &note(15 + n, 127));
+        let cmds: Vec<Command> = c.commands(&e, 0.0).into_iter().map(|(_, c)| c).collect();
+        let p = slot(&e, 1, n.into());
+        assert_eq!(cmds.len(), 1, "note {}: {cmds:?}", 15 + n);
+        assert!(matches!(
+            cmds[0],
+            Command::PlaybackButton { id, button: HandleButton::Upper, on: true, .. } if id == p
+        ));
+    }
+}
+
+#[test]
+fn ctl_17_a_handle_button_led_shows_its_own_function() {
+    let (mut c, _) = surface("mc-led", &["BCF2000"]);
+    let mut e = engine();
+    let mut h = History::default();
+    let led = |n: u8, v: u8| out("BCF2000", [0x90, n, v]);
+    let _ = c.feedback(&e);
+    // Upper is Swop on a memory: its LEDs light, the lower (Flash) LED does not.
+    packet(&mut c, "BCF2000", &note(16, 127));
+    let cmds = c.commands(&e, 0.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    e.tick(0.025);
+    let fb = c.feedback(&e);
+    assert!(fb.contains(&led(16, 127)), "{fb:?}");
+    assert!(fb.contains(&led(0, 127)), "{fb:?}");
+    assert!(!fb.contains(&led(24, 127)), "{fb:?}");
+    packet(&mut c, "BCF2000", &note(16, 0));
+    let cmds = c.commands(&e, 0.05);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    e.tick(0.075);
+    let _ = c.feedback(&e);
+    // Lower is Flash: only its own LED lights.
+    packet(&mut c, "BCF2000", &note(24, 127));
+    let cmds = c.commands(&e, 0.1);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    e.tick(0.125);
+    let fb = c.feedback(&e);
+    assert!(fb.contains(&led(24, 127)), "{fb:?}");
+    assert!(!fb.contains(&led(16, 127)), "{fb:?}");
+    assert!(!fb.contains(&led(0, 127)), "{fb:?}");
 }
 
 #[test]

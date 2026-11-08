@@ -199,7 +199,8 @@ Learn, stored as readable files and travel between Macs.
   move the window of the Mackie Control surfaces, send no engine command and do nothing on a mapping
   without the driver). Any page change, from the surface or elsewhere, resets the offset to 0.
 - **CTL-33** Mackie Control default bindings: fader n → `fader` of window slot n (motor, CTL-20/21);
-  master fader → `gm`; REC row → `upper`, SELECT row → `lower` of window slot n; V-Pot n →
+  master fader → `gm`; REC row and MUTE row (notes 16..23, what the BCF2000's upper button row
+  sends in MC mode) → `upper`, SELECT row → `lower` of window slot n; V-Pot n →
   `wheel n` with the ring showing the wheel's value (single-dot mode, CTL-04); V-Pot push n →
   `key step_next` on n = 1, unbound otherwise; transport Play (note 94) → `go`, Stop (93) → `stop`, Rewind (91) → `back`. Faders read and move
   as 10-bit values (CTL-01/02): full travel is exactly 1.0. Fader touch (notes 104..112) only holds

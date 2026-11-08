@@ -205,6 +205,70 @@
     },
     {
       "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 16
+      },
+      "action": "upper 1"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 17
+      },
+      "action": "upper 2"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 18
+      },
+      "action": "upper 3"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 19
+      },
+      "action": "upper 4"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 20
+      },
+      "action": "upper 5"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 21
+      },
+      "action": "upper 6"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 22
+      },
+      "action": "upper 7"
+    },
+    {
+      "input": {
+        "kind": "note",
+        "channel": 1,
+        "number": 23
+      },
+      "action": "upper 8"
+    },
+    {
+      "input": {
         "kind": "cc",
         "channel": 1,
         "number": 16

@@ -24,7 +24,6 @@ Runs only the owner can do (gate 3):
 - VS4-07 the DMG on the church Mac, not in the week of a service; VS8-01 the DMG on the owner's own Mac, which still
   has the app from before the rename (`tests/hardware/release.md`).
 - SPF-03 a real sleep during a running fade on the Eurolite and Art-Net (`tests/hardware/sleep.md`).
-- VS1-07 the BCF2000 (`tests/hardware/bcf2000.md`): postponed until it is found.
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
 
@@ -42,13 +41,14 @@ Programming and small checks:
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).
-- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-38, IDEA-45 and IDEA-47.
+- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-38, IDEA-45, IDEA-47 and IDEA-48.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
 
 ## Good to know
 - Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.
 - On the desk: Eurolite USB-DMX512 PRO MK2 (`--serial <path>`) with six dimmers (185–190) and an RGBL par (361–364);
-  Stream Deck Original (15 keys); a Mac with Command Line Tools only. The BCF2000 is missing.
+  Stream Deck Original (15 keys); a Mac with Command Line Tools only.
+- The BCF2000 is back, over DIN MIDI through the H4MIDI-WC: its USB output does not work on this Mac.
 - Manual runs use `--show-dir /tmp/…`, so real shows stay untouched. The owner is walked through them step by step.
 - The app has a CPU budget (UI-70): `scripts/app-cpu.sh` in every app PR; live values go on layers, not SwiftUI (UI-71).
 - CI runs a newer Rust than the Mac: check PR CI. Disk is nearly full: `cargo clean` after a task.
