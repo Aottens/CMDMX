@@ -237,6 +237,15 @@ Builds: FIT-01.
 |---|---|---|---|---|
 | FIT-01 | App: status bar, attribute bar and playback area always whole from 1280 × 800 pt up and in console mode, the rail scrolls and the side column keys shrink; checklist, checked on the owner's MacBook. | UI-63 | S | done (2026-11-07, #265) |
 
+### Snappy while the rig moves (owner, 2026-11-08)
+The owner felt the app grow slower in recent releases; the ask to fix it is the approval of UI-68.
+Builds: SNP-01.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| SNP-01 | App: live output and the Views data in their own observed object, so an output delta redraws only the tile stripes and the Views screen; CPU measured before and after with `--demo`. | UI-68 | S | done (2026-11-08, #272) |
+| SNP-02 | App: the playbacks' live state (level, state, cue) apart from the stored part, so a fading or running playback redraws only the playback area and the windows that show it; CPU measured as SNP-01. Spec to write. | — | M | todo |
+
 ### Working on many at once (IDEA-35 batch D, spec P1-36)
 Approved by the owner 2026-11-07, every recommendation accepted (`ui.md`). Unfold and the linked copy are IDEA-46 and IDEA-47.
 Builds: MUL-01 + MUL-02; MUL-03; MUL-04; MUL-05.

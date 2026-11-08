@@ -23,6 +23,7 @@ struct CMDMXApp: App {
         Window("CMDMX", id: "main") {
             MainScreen()
                 .environmentObject(engine)
+                .environmentObject(engine.live)
                 .frame(minWidth: 1280, minHeight: 800)
         }
         .commands {
