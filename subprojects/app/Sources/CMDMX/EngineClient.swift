@@ -61,6 +61,14 @@ struct PlaybackLive: Decodable, Equatable {
 
     init() {}
 
+    /// UI-71: the level and the cue progress change every tick and are drawn outside SwiftUI; this is the rest.
+    var withoutTicks: PlaybackLive {
+        var copy = self
+        copy.level = 0
+        copy.cue?.progress = 0
+        return copy
+    }
+
     private enum CodingKeys: String, CodingKey { case level, state, flash, latched, fired, cue, bpm, multiplier, holding }
 
     init(from decoder: Decoder) throws {
@@ -884,20 +892,81 @@ final class LiveOutput: ObservableObject {
     }
 }
 
-final class OutputCell: ObservableObject {
-    @Published var value: FixtureOutput?
+/// UI-71: not observed by SwiftUI; the tile stripe's layer subscribes to `subject` and sets its colour directly.
+final class OutputCell {
+    let subject = CurrentValueSubject<FixtureOutput?, Never>(nil)
+    var value: FixtureOutput? {
+        get { subject.value }
+        set { subject.send(newValue) }
+    }
+}
+
+/// UI-71: the two values that change every tick, sent straight to the AppKit views that draw them.
+struct LiveTick: Equatable {
+    var level: Double
+    /// The running cue transition (raw `live.cue?.progress`; each reader applies its own condition).
+    var progress: Double?
+}
+
+/// UI-71: what SwiftUI must still see of a playback: everything but the ticks, plus the coarse thresholds views branch on.
+struct LiveKey: Equatable {
+    var info: PlaybackInfo?
+    var belowFull = false, warns = false, progressPositive = false, progressBelowOne = false
+
+    init(_ info: PlaybackInfo?) {
+        self.info = info.map { PlaybackInfo(stored: $0.stored, live: $0.live.withoutTicks) }
+        guard let info else { return }
+        belowFull = info.live.level < 0.995
+        warns = info.levelWarns
+        let p = info.live.cue?.progress ?? 0
+        progressPositive = p > 0
+        progressBelowOne = p < 1
+    }
 }
 
 /// UI-69: every playback with its live part, and the strips' slots, apart from EngineClient, so a `playback` delta redraws only its readers.
+/// UI-71: the published copies change only when something other than a tick does; `current` and `currentSlots` are always fresh.
 final class LivePlaybacks: ObservableObject {
-    @Published var playbacks: [PlaybackInfo] = []
-    @Published var slots: [PlaybackSlot] = []
+    @Published private(set) var playbacks: [PlaybackInfo] = []
+    @Published private(set) var slots: [PlaybackSlot] = []
+    private(set) var current: [PlaybackInfo] = []
+    private(set) var currentSlots: [PlaybackSlot] = []
+    private var keys: [LiveKey] = []
+    private var slotKeys: [LiveKey] = []
+    private var cellKeys: [LiveKey] = []
     /// One cell per strip, so a moving fader redraws only its strip (plain var: the count follows `fadersPerPage`).
     private(set) var slotCells: [SlotCell] = []
-    func sync(_ new: [PlaybackSlot]) {
-        slots = new
-        if slotCells.count != new.count { slotCells = new.map { SlotCell($0) } }
-        for (c, n) in zip(slotCells, new) where c.slot != n { c.slot = n }
+    private var ticks: [Int: CurrentValueSubject<LiveTick, Never>] = [:]
+
+    /// The live level and progress of a playback; the AppKit views subscribe, SwiftUI does not.
+    func tick(_ id: Int) -> CurrentValueSubject<LiveTick, Never> {
+        if let subject = ticks[id] { return subject }
+        let live = current.first { $0.id == id }?.live
+        let subject = CurrentValueSubject<LiveTick, Never>(LiveTick(level: live?.level ?? 0, progress: live?.cue?.progress))
+        ticks[id] = subject
+        return subject
+    }
+
+    func sync(playbacks new: [PlaybackInfo], slots newSlots: [PlaybackSlot]) {
+        current = new
+        currentSlots = newSlots
+        for p in new {
+            let value = LiveTick(level: p.live.level, progress: p.live.cue?.progress)
+            let subject = tick(p.id)
+            if subject.value != value { subject.send(value) }
+        }
+        let newKeys = new.map { LiveKey($0) }
+        if newKeys != keys { keys = newKeys; playbacks = new }
+        let newSlotKeys = newSlots.map { LiveKey($0.info) }
+        if newSlotKeys != slotKeys { slotKeys = newSlotKeys; slots = newSlots }
+        if slotCells.count != newSlots.count {
+            slotCells = newSlots.map { SlotCell($0) }
+            cellKeys = newSlotKeys
+        }
+        for (index, cell) in slotCells.enumerated() where cellKeys[index] != newSlotKeys[index] {
+            cellKeys[index] = newSlotKeys[index]
+            cell.slot = newSlots[index]
+        }
     }
 }
 
@@ -1511,10 +1580,10 @@ final class EngineClient: ObservableObject {
     /// UI-69: the playbacks and slots live in `livePlaybacks`; these read the current value (press handlers, stored reads).
     /// A view that shows a live value declares `@EnvironmentObject LivePlaybacks` too.
     let livePlaybacks = LivePlaybacks()
-    var slots: [PlaybackSlot] { livePlaybacks.slots }
+    var slots: [PlaybackSlot] { livePlaybacks.currentSlots }
     /// PBK-35: every playback, sorted by id (the engine's order); `slots` and the Active
     /// playbacks window are derived from it.
-    var playbacks: [PlaybackInfo] { livePlaybacks.playbacks }
+    var playbacks: [PlaybackInfo] { livePlaybacks.current }
     /// PBK-35: the ten pages' legends, `dbo` and the cue / release settings; nil until the snapshot.
     @Published private(set) var pages: [PageLegend] = []
     @Published private(set) var dbo = false
@@ -2596,10 +2665,9 @@ final class EngineClient: ObservableObject {
         let playbacks = playbackStored.values.sorted { $0.id < $1.id }.map {
             PlaybackInfo(stored: $0, live: playbackLive[$0.id] ?? PlaybackLive())
         }
-        livePlaybacks.playbacks = playbacks
         let byId = Dictionary(playbacks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let byNumber = Dictionary(page.slots.map { ($0.slot, $0.playback) }, uniquingKeysWith: { first, _ in first })
-        livePlaybacks.sync((0..<fadersPerPage).map { index in
+        livePlaybacks.sync(playbacks: playbacks, slots: (0..<fadersPerPage).map { index in
             PlaybackSlot(id: index, info: byNumber[index + 1].flatMap { $0 }.flatMap { byId[$0] })
         })
     }

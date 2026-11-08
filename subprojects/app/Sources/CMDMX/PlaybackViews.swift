@@ -434,8 +434,14 @@ struct ActivePlaybacksWindow: View {
             HStack(spacing: 0) {
                 Text(p.homeHandle).font(Typo.mono(Typo.body)).frame(width: Self.widths[0], alignment: .leading)
                 Text(engine.shownLegend(p)).font(Typo.legend()).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
-                Text(p.locked ? "LOCKED \(percent(p.masterLevel))" : "GRP · \(percent(p.masterLevel))").font(Typo.mono(Typo.small))
-                    .frame(width: (Self.widths[2] ?? 0) + (Self.widths[3] ?? 0), alignment: .leading)
+                Group {
+                    if p.locked {
+                        Text("LOCKED \(percent(p.masterLevel))").font(Typo.mono(Typo.small))
+                    } else {
+                        LiveLabel(tick: engine.livePlaybacks.tick(p.id), text: { "GRP · \(percent($0.level))" }, color: t.amber, sample: "GRP · 100 %")   // UI-71
+                    }
+                }
+                .frame(width: (Self.widths[2] ?? 0) + (Self.widths[3] ?? 0), alignment: .leading)
                 Spacer().frame(width: Self.widths[4])
             }
             .foregroundStyle(t.amber)
@@ -457,7 +463,8 @@ struct ActivePlaybacksWindow: View {
             HStack(spacing: 0) {
                 Text(p.homeHandle).font(Typo.mono(Typo.body)).foregroundStyle(t.fg2).frame(width: Self.widths[0], alignment: .leading)
                 Text(engine.shownLegend(p)).font(Typo.legend()).foregroundStyle(t.fg).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
-                Text(percent(p.live.level)).font(Typo.mono(Typo.body)).foregroundStyle(t.fg).frame(width: Self.widths[2], alignment: .leading)
+                LiveLabel(tick: engine.livePlaybacks.tick(p.id), text: { percent($0.level) }, size: Typo.body, color: t.fg, sample: "100 %")   // UI-71
+                    .frame(width: Self.widths[2], alignment: .leading)
                 Text(releasing ? "releasing" : "active").font(Typo.mono(Typo.small))
                     .foregroundStyle(releasing ? t.amber : t.green).frame(width: Self.widths[3], alignment: .leading)
                 Text(attributeGroupOrder.filter(p.stored.groups.contains).joined()).font(Typo.mono(Typo.small))

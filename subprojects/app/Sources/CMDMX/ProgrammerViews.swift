@@ -207,17 +207,38 @@ struct AttributeBar: View {
     }
 }
 
-/// Block cursor after the tokens; it stays on under Reduce Motion.
-private struct BlinkingCursor: View {
+/// Block cursor after the tokens; it stays on under Reduce Motion. UI-71: the render server runs the blink.
+private struct BlinkingCursor: NSViewRepresentable {
     @Environment(\.theme) private var t
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
-            let on = reduceMotion || Int(context.date.timeIntervalSinceReferenceDate / 0.5) % 2 == 0
-            Rectangle().fill(t.fg).frame(width: 7, height: 14).opacity(on ? 1 : 0)
+    final class CursorView: NSView {
+        var blink = true
+        override init(frame: NSRect) { super.init(frame: frame); wantsLayer = true }
+        required init?(coder: NSCoder) { nil }
+        override var intrinsicContentSize: NSSize { NSSize(width: 7, height: 14) }
+        func apply() {
+            guard let layer else { return }
+            if blink {
+                guard layer.animation(forKey: "blink") == nil else { return }
+                let a = CAKeyframeAnimation(keyPath: "opacity")
+                a.values = [1, 0]; a.keyTimes = [0, 0.5]; a.calculationMode = .discrete
+                a.duration = 1; a.repeatCount = .infinity
+                layer.add(a, forKey: "blink")
+            } else {
+                layer.removeAnimation(forKey: "blink")
+            }
         }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); apply() }
     }
+
+    func makeNSView(context: Context) -> CursorView { CursorView() }
+    func updateNSView(_ v: CursorView, context: Context) {
+        v.layer?.backgroundColor = NSColor(t.fg).cgColor
+        v.blink = !reduceMotion
+        v.apply()
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: CursorView, context: Context) -> CGSize? { CGSize(width: 7, height: 14) }
 }
 
 private struct AttributeTab: View {

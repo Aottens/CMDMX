@@ -157,6 +157,7 @@ struct HoldActions {
 /// legend area still takes taps (Record, Copy, Move onto an empty handle, PBK-38).
 private struct FaderStrip: View {
     @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
     let slot: PlaybackSlot
     let page: Int
     /// Copy / Move source or Delete target: blue border, as a selected cell (UI-05).
@@ -187,8 +188,8 @@ private struct FaderStrip: View {
                 .overlay { RightClickCatcher(action: onRightClick) }
                 .help(empty ? "Empty handle \(page).\(slot.id + 1)" as String : "Right-click: Playback Options")
             if let info = slot.info {
-                LevelBar(value: Binding(get: { info.live.level }, set: onChange), running: slot.isActive, warn: info.levelWarns,
-                         progress: slot.isActive ? info.live.cue.flatMap { $0.current != nil && $0.progress < 1 ? $0.progress : nil } : nil,
+                LevelBar(tick: engine.livePlaybacks.tick(info.id), set: onChange, running: slot.isActive, warn: info.levelWarns,
+                         showsProgress: slot.isActive && (info.live.cue.map { $0.current != nil && $0.progress < 1 } ?? false),
                          onTouch: onTouch, onScroll: onScroll)
             } else {
                 Rectangle().fill(t.bg)
@@ -266,6 +267,10 @@ private struct StripLegend: View {
             if paging != "Unlocked" && info.stored.page != page {
                 Image(systemName: paging == "Locked" ? "lock.fill" : "lock").font(.system(size: 8))
                 Text(verbatim: "page \(info.stored.page)")
+            } else if let m = info.stored.master, !info.stored.isGroupMaster, let scale = m.rateScale {
+                // UI-71: the level moves, so the number is a live label.
+                LiveLabel(tick: engine.livePlaybacks.tick(info.id), text: { "RATE \(m.number) · ×" + String(format: "%.1f", $0.level * Double(scale) / 100) },
+                          size: 9, color: t.fg2, sample: "RATE 99 · ×99.9")
             } else if let summary = cueSummary(info) {
                 Text(summary).foregroundStyle(info.isLocked ? t.amber : t.fg2)
             } else if !info.stored.legend.isEmpty {
@@ -277,7 +282,7 @@ private struct StripLegend: View {
 }
 
 /// CUE-44: the legend's second line on a list ("Q3 › 4"), a chase ("2/8 · 120") or a master
-/// ("BPM 1 · 120 ×1", "RATE 2 · ×1.0", "GRP·SCALE 100%"); nil for a memory.
+/// ("BPM 1 · 120 ×1", "GRP·SCALE 100%"); nil for a memory. A rate master's "RATE 2 · ×1.0" is a live label (UI-71).
 private func cueSummary(_ info: PlaybackInfo) -> String? {
     if let m = info.stored.master {
         if info.stored.isGroupMaster {
@@ -286,7 +291,6 @@ private func cueSummary(_ info: PlaybackInfo) -> String? {
             let mode = ["Scale": "SCALE \(m.scale ?? 100)%", "Htp": "HTP", "Limit": "LIMIT", "TakeOver": "TAKE OVER"][m.mode ?? ""] ?? "?"
             return "GRP·" + mode
         }
-        if let scale = m.rateScale { return "RATE \(m.number) · ×" + String(format: "%.1f", info.live.level * Double(scale) / 100) }
         return "BPM \(m.number) · \(Int((info.live.bpm ?? m.bpm ?? 0).rounded())) ×\(plain(info.live.multiplier ?? m.multiplier ?? 1))"
     }
     guard let cue = info.live.cue else { return nil }
@@ -360,48 +364,49 @@ struct RightClickCatcher: NSViewRepresentable {
     }
 }
 
-/// Vertical level bar with a cap and the % in SF Mono. A drag moves the level by the distance dragged from the level at the press; a press changes nothing (UI-37).
+/// Vertical level bar with a cap and the % in SF Mono, drawn by `LiveBar` outside SwiftUI (UI-71). A drag moves the level by the distance dragged from the level at the press; a press changes nothing (UI-37).
 /// The engine's delta stays authoritative.
 private struct LevelBar: View {
     @Environment(\.theme) private var t
-    @Binding var value: Double
+    /// A playback's live level; nil for the Grand Master, which draws `level`.
+    var tick: TickSubject?
+    var level = 0.0
+    let set: (Double) -> Void
     var running = false
     /// Grand Master turns amber below 100 % (UI-24).
     var warnBelowFull = false
     /// GRM-16: amber for any reason the caller knows (a group master that darkens or lights its group).
     var warn = false
-    /// CUE-44: the running transition of a cue list, 0...1 (a green line along the bottom).
-    var progress: Double?
+    /// CUE-44: the running transition of a cue list is a green line along the bottom.
+    var showsProgress = false
     /// UI-22 / IPC-05: true on the first drag event, false on release (motor-fader touch).
     var onTouch: (Bool) -> Void = { _ in }
     /// UI-22: scroll over the bar moves the level (whole steps, modifiers as for the wheels).
     var onScroll: ((Int, NSEvent.ModifierFlags) -> Void)?
     @State private var pressLevel: Double?   // UI-37: the level at the press; nil = not touched
 
+    /// The level now: the press reads it here, not from what the last redraw saw.
+    private var now: Double { tick?.value.level ?? level }
+
     var body: some View {
         GeometryReader { geo in
             let height = geo.size.height
-            let fill: Color = (warnBelowFull && value < 1) || warn ? t.amber.opacity(0.45) : running ? t.green.opacity(0.4) : t.line2
-            ZStack(alignment: .bottom) {
-                Rectangle().fill(t.bg)
-                Rectangle().fill(fill).frame(height: height * value)
-                Rectangle().fill(t.fg).frame(height: 2).offset(y: -(height * value) + 1)
-                if let progress { Rectangle().fill(t.green).frame(width: geo.size.width * progress, height: 3).frame(maxWidth: .infinity, alignment: .leading) }
-                Text(percent(value)).font(Typo.mono(11)).foregroundStyle(warn ? t.amber : t.fg)  // GRM-16: also readable at 0 %
-                    .padding(.top, 3).padding(.trailing, 4)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag in
-                        if pressLevel == nil { pressLevel = value; onTouch(true) }
-                        guard height > 0 else { return }
-                        let level = ((pressLevel ?? value) - drag.translation.height / height).clamped01
-                        if level != value { value = level }   // UI-37: a press without movement sends nothing
-                    }
-                    .onEnded { _ in pressLevel = nil; onTouch(false) }
-            )
+            LiveBar(tick: tick, level: level, running: running, fillWarn: warn || (warnBelowFull && level < 1), textWarn: warn,
+                    showsProgress: showsProgress, theme: t)
+                .overlay {
+                    Rectangle().fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { drag in
+                                    if pressLevel == nil { pressLevel = now; onTouch(true) }
+                                    guard height > 0 else { return }
+                                    let new = ((pressLevel ?? now) - drag.translation.height / height).clamped01
+                                    if new != now { set(new) }   // UI-37: a press without movement sends nothing
+                                }
+                                .onEnded { _ in pressLevel = nil; onTouch(false) }
+                        )
+                }
         }
         .background { if let onScroll { ScrollCatcher(onSteps: onScroll) } }
         .clipped()
@@ -420,7 +425,7 @@ private struct GrandMaster: View {
             Text("GM").font(Typo.legend(11)).foregroundStyle(t.fg2).frame(height: 18)
                 .deckDrag("gm")   // CTL-58: onto a deck key
             // CTL-42: in Learn mode touching the GM arms Learn for `gm`; the level does not move.
-            LevelBar(value: Binding(get: { engine.grandMaster }, set: { if !ui.learnMode { engine.setGrandMaster($0) } }), warnBelowFull: true,
+            LevelBar(level: engine.grandMaster, set: { if !ui.learnMode { engine.setGrandMaster($0) } }, warnBelowFull: true,
                      onTouch: { held in
                          if held { ui.learnOrRun("gm", engine) { engine.touchGrandMaster(held: true) } }
                          else if !ui.learnMode { engine.touchGrandMaster(held: false) }

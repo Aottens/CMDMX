@@ -608,6 +608,13 @@ console redraws on each.
   prints the app's average `%cpu` over 20 s, for two loads: idle, and `--demo` (fader 1 breathes). On the owner's Mac
   the app stays at or under **5 % idle** and **15 % with `--demo`**. Every app PR that touches `EngineClient` or a view
   that watches it runs the script and puts both numbers in its description. Measured before and after in the run file.
+- **UI-71** **Live values drawn outside SwiftUI** (amends UI-22, UI-60, UI-69; SNP-04 found that any SwiftUI update in
+  the main window costs about 10 ms, however small the view, so 20–40 updates a second cannot fit UI-70). A value that
+  changes many times a second while the rig moves is drawn by a small AppKit view on its own layer, which takes the
+  value straight from the engine client without a SwiftUI update: a tile's output stripe, a fader strip's level fill,
+  its % and its cue progress, and the levels in the Active playbacks window. The blinking command-line cursor and the
+  clocks likewise. SwiftUI redraws a zone only when something else it shows changes (state, cue, legend, a stored
+  change). What is shown does not change. Checked with `scripts/app-cpu.sh` (UI-70) and by eye on Art-Net.
 
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
