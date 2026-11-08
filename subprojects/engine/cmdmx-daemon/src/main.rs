@@ -941,6 +941,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         PlaybackSwop { id, on } => engine.set_swop(id, on, now),
         PlaybackLatch { id } => engine.latch_flash(id, now),
         PlaybackRelease { id } => engine.release_playback(id, now),
+        PlaybackReleaseScope { scope } => engine.release_scope(scope, now),
         PlaybackChange { id, change } => engine.change_playback(id, &change),
         PlaybackLegend {
             id,
@@ -1091,6 +1092,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | PlaybackSwop { .. }
         | PlaybackLatch { .. }
         | PlaybackRelease { .. }
+        | PlaybackReleaseScope { .. }
         | PlaybackTap { .. }
         | EffectTap { .. }
         | EffectWheels { .. }
@@ -3067,6 +3069,10 @@ mod tests {
         ),
         (r#"{"v":1,"cmd":"playback.latch","id":3}"#, Class::Live),
         (r#"{"v":1,"cmd":"playback.release","id":3}"#, Class::Live),
+        (
+            r#"{"v":1,"cmd":"playback.release","scope":"all"}"#,
+            Class::Live,
+        ),
         (r#"{"v":1,"cmd":"playback.tap","id":3}"#, Class::Live),
         (
             r#"{"v":1,"cmd":"playback.bpm","id":3,"bpm":128}"#,

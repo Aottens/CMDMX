@@ -174,6 +174,8 @@ pub enum ActionKind {
     Release {
         playback: PlaybackId,
     },
+    /// PBK-52.
+    ReleaseScope(crate::playback::ReleaseScope),
     /// CUE-10..12, 18, 19, 26, 27: no `playback` is the connected list.
     Go {
         playback: Option<PlaybackId>,
@@ -425,6 +427,7 @@ pub fn run(scenario: &Scenario) -> Result<Vec<Mismatch>, CoreError> {
                 ActionKind::Swop { playback, on } => engine.set_swop(*playback, *on, now)?,
                 ActionKind::Latch { playback } => engine.latch_flash(*playback, now)?,
                 ActionKind::Release { playback } => engine.release_playback(*playback, now)?,
+                ActionKind::ReleaseScope(scope) => engine.release_scope(*scope, now)?,
                 ActionKind::Go { playback } => engine.cuelist(*playback, ListAction::Go, now)?,
                 ActionKind::Back { playback } => {
                     engine.cuelist(*playback, ListAction::Back, now)?

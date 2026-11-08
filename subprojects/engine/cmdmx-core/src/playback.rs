@@ -100,6 +100,15 @@ pub enum Layout {
     Bunch,
 }
 
+/// PBK-52: which active playbacks a release takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "scope", rename_all = "snake_case")]
+pub enum ReleaseScope {
+    All,
+    Page { page: u16 },
+    OtherPages { page: u16 },
+}
+
 /// PBK-07: Titan's Handle Paging.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Paging {

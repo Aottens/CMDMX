@@ -41,7 +41,11 @@ private struct PagesColumn: View {
                 let legend = engine.pages.first { $0.number == number }?.legend ?? ""
                 Button {
                     ui.learnOrRun("page \(number)", engine) {
-                        if ui.function == .legend { ui.pageLegendEditing = PageRef(number: number) } else { engine.setPage(number) }
+                        if ui.function == .legend { ui.pageLegendEditing = PageRef(number: number) }
+                        else if ui.function == .release {   // UI-66: pick the page, the softkeys release it
+                            ui.releasePage = number
+                            engine.say("Release: page \(number) on the softkeys.")
+                        } else { engine.setPage(number) }
                     }
                 } label: {
                     HStack(spacing: 3) {

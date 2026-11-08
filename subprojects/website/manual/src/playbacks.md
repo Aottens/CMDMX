@@ -204,6 +204,15 @@ light does not jump. Taking a playback out with its fader or a playback group is
 its intensity goes as before. A tap on a row of the Active playbacks window (see
 [Running a show](running.md#active-playbacks)) does the same.
 
+To release many at once, arm **Release** and:
+
+- press **Release** again: every running playback goes;
+- tap a page button: the page does not change, and the softkeys offer **Release page 2** and **Release all but page 2**.
+  A page holds what its handles show, locked playbacks included.
+
+Each playback releases with its own release time and mask. Group and speed masters stay. The message zone says how
+many went ("Release all: 5 playbacks"), or "Nothing to release".
+
 ## Priority and playback groups
 
 On the Playback tab:

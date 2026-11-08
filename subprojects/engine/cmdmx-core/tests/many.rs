@@ -1,5 +1,5 @@
 //! Working on many at once (IDEA-35 batch D, P1-36): `playbacks.md` PBK-50, 51 (MUL-01);
-//! `palettes.md` PAL-34, `programmer.md` PRG-98, `cuelists.md` CUE-63 (MUL-02).
+//! `palettes.md` PAL-34, `programmer.md` PRG-98, `cuelists.md` CUE-63 (MUL-02); PBK-52 (MUL-04).
 //!
 //! API these tests fix:
 //! - `cmdmx_core::playback::Layout::{Retain, Bunch}` (`Retain` is the default; serde lowercase).
@@ -26,7 +26,7 @@ use cmdmx_core::engine::Engine;
 use cmdmx_core::palette::{Cell, Record, Window};
 use cmdmx_core::playback::{
     Cue, CueNumber, GroupMaster, Layout, ListAction, Master, Paging, Playback, PlaybackRecord,
-    Values,
+    ReleaseScope, Values,
 };
 use cmdmx_core::programmer::Item;
 use cmdmx_core::value::Stored;
@@ -526,4 +526,134 @@ fn cue_63_every_cue_or_an_unknown_one_is_refused() {
     assert!(e.delete_cues(7, &[q(1.0)]).is_err());
     assert_eq!(e.edit_state(), before);
     assert_eq!(numbers(&e).len(), 5);
+}
+
+// ---- PBK-52: Release all, or a page ------------------------------------------------------
+//
+// API: `cmdmx_core::playback::ReleaseScope::{All, Page { page }, OtherPages { page }}` (serde:
+// internally tagged `scope`, snake_case, so `{"scope":"page","page":2}`) and
+// `Engine::release_scope(ReleaseScope, now) -> Result<(), CoreError>`. Each release is a
+// `release_playback`. The engine gives one notice: the count, or "Nothing to release".
+
+fn up(e: &mut Engine, ids: &[u32]) {
+    for &id in ids {
+        e.set_fader(id, 1.0, 0.0).unwrap();
+    }
+    e.tick(0.0);
+    e.drain_notices();
+}
+
+fn active(e: &Engine, id: u32) -> bool {
+    e.playback_state(id).is_some_and(|s| s.is_active())
+}
+
+fn all_active(e: &Engine, ids: &[u32]) -> Vec<bool> {
+    ids.iter().map(|&id| active(e, id)).collect()
+}
+
+#[test]
+fn pbk_52_all_releases_every_active_playback_and_names_the_count() {
+    let mut e = with(&[(1, 1, 1), (2, 2, 1), (3, 3, 1)]);
+    up(&mut e, &[1, 2]);
+    e.release_scope(ReleaseScope::All, 0.025).unwrap();
+    assert_eq!(all_active(&e, &[1, 2, 3]), [false, false, false]);
+    assert_eq!(e.drain_notices(), ["Release all: 2 playbacks"]);
+}
+
+#[test]
+fn pbk_52_page_releases_only_that_page() {
+    let mut e = with(&[(1, 1, 1), (2, 2, 1), (3, 2, 2)]);
+    up(&mut e, &[1, 2, 3]);
+    e.release_scope(ReleaseScope::Page { page: 2 }, 0.025)
+        .unwrap();
+    assert_eq!(all_active(&e, &[1, 2, 3]), [true, false, false]);
+    assert_eq!(e.drain_notices(), ["Release page 2: 2 playbacks"]);
+}
+
+#[test]
+fn pbk_52_other_pages_releases_all_but_that_page() {
+    let mut e = with(&[(1, 1, 1), (2, 2, 1), (3, 3, 1)]);
+    up(&mut e, &[1, 2, 3]);
+    e.release_scope(ReleaseScope::OtherPages { page: 2 }, 0.025)
+        .unwrap();
+    assert_eq!(all_active(&e, &[1, 2, 3]), [false, true, false]);
+    assert_eq!(e.drain_notices(), ["Release all but page 2: 2 playbacks"]);
+}
+
+/// Playback 2 is locked from page 3 onto slot 2, so page 1 shows it instead of playback 1.
+fn locked_over_1() -> Engine {
+    let mut e = with(&[(1, 1, 2), (2, 3, 2)]);
+    let mut locked = e.playback(2).unwrap().clone();
+    locked.paging = Paging::Locked;
+    e.add_playback(locked);
+    up(&mut e, &[1, 2]);
+    e
+}
+
+#[test]
+fn pbk_52_a_locked_playback_counts_as_shown_on_the_page() {
+    let mut e = locked_over_1();
+    e.release_scope(ReleaseScope::Page { page: 1 }, 0.025)
+        .unwrap();
+    assert_eq!(
+        all_active(&e, &[1, 2]),
+        [true, false],
+        "the lock goes, 1.2 stays"
+    );
+}
+
+#[test]
+fn pbk_52_the_playback_under_a_lock_is_not_shown_there() {
+    let mut e = locked_over_1();
+    e.release_scope(ReleaseScope::OtherPages { page: 1 }, 0.025)
+        .unwrap();
+    assert_eq!(
+        all_active(&e, &[1, 2]),
+        [false, true],
+        "hidden is not shown"
+    );
+}
+
+#[test]
+fn pbk_52_masters_are_not_released() {
+    let mut e = with(&[(1, 1, 1)]);
+    group(&mut e, 6, &[201]);
+    let m = master(&mut e, 6);
+    e.set_fader(m, 0.5, 0.0).unwrap();
+    up(&mut e, &[1]);
+    e.release_scope(ReleaseScope::All, 0.025).unwrap();
+    assert_eq!(e.playback_state(m).map(|s| s.level), Some(0.5));
+    assert_eq!(e.drain_notices(), ["Release all: 1 playback"]);
+}
+
+#[test]
+fn pbk_52_nothing_active_does_nothing_and_says_so() {
+    let mut e = with(&[(1, 1, 1)]);
+    e.release_scope(ReleaseScope::All, 0.0).unwrap();
+    e.release_scope(ReleaseScope::Page { page: 1 }, 0.0)
+        .unwrap();
+    e.release_scope(ReleaseScope::OtherPages { page: 1 }, 0.0)
+        .unwrap();
+    assert_eq!(
+        e.drain_notices(),
+        [
+            "Nothing to release",
+            "Nothing to release",
+            "Nothing to release"
+        ]
+    );
+}
+
+#[test]
+fn pbk_52_a_page_that_does_not_exist_is_refused() {
+    let mut e = with(&[(1, 1, 1)]);
+    up(&mut e, &[1]);
+    for page in [0, 99] {
+        assert!(e.release_scope(ReleaseScope::Page { page }, 0.0).is_err());
+        assert!(e
+            .release_scope(ReleaseScope::OtherPages { page }, 0.0)
+            .is_err());
+    }
+    assert!(active(&e, 1));
+    assert!(e.drain_notices().is_empty());
 }

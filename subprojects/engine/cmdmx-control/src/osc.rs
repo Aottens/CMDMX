@@ -208,6 +208,8 @@ pub fn schema(m: &OscMessage) -> Option<(Action, Reading)> {
             let page = u16::try_from(v as i64).ok().filter(|p| *p >= 1)?;
             (Action::Page(page), Reading::Tap)
         }
+        ["release", "all"] => (Action::ReleaseAll, button()?),
+        ["release", "page"] => (Action::ReleasePage, button()?),
         ["page", "next"] => (Action::PageNext, button()?),
         ["page", "prev"] => (Action::PagePrev, button()?),
         ["dbo"] => (Action::Dbo, button()?),

@@ -2136,6 +2136,10 @@ final class EngineClient: ObservableObject {
     }
     /// `playback.release` without an id releases the connected list.
     func releaseConnected() { sendJSON("playback.release") }
+    /// PBK-52: `scope` is all, page or other_pages; the two page scopes need `page`. The engine counts and says it.
+    func releaseScope(_ scope: String, page: Int? = nil) {
+        sendJSON("playback.release", page.map { ["scope": scope, "page": $0] } ?? ["scope": scope])
+    }
     /// CUE-55: `which` is upper or lower; the engine does what `handle_buttons` assigns. Held
     /// functions follow `on`, the others act on the press.
     func pressButton(_ id: Int, _ which: String, on: Bool) { sendJSON("playback.button", ["id": id, "button": which, "on": on]) }

@@ -96,6 +96,8 @@ fn ctl_05_display_round_trips_every_form() {
         "back playback 12",
         "stop",
         "release",
+        "release all",
+        "release page",
         "tap 2",
         "page next",
         "page prev",
@@ -459,4 +461,12 @@ fn ctl_21_clear_sends_the_full_state_again() {
         f.tick(vec![("/cmdmx/gm".into(), 1.0)], &[], &[]),
         vec![("/cmdmx/gm".into(), 1.0)]
     );
+}
+
+#[test]
+fn ctl_68_release_all_and_release_page_are_buttons() {
+    assert_eq!(parse("release all"), Action::ReleaseAll);
+    assert_eq!(parse("release page"), Action::ReleasePage);
+    assert_eq!(parse("release all").value_kind(), ValueKind::Button);
+    assert_eq!(parse("release page").value_kind(), ValueKind::Button);
 }
