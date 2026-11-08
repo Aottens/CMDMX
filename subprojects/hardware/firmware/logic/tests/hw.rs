@@ -310,3 +310,172 @@ fn hw_61_box_uses_the_wire_map() {
     assert_eq!(boxmap::key_for_note(10), Some(2));
     assert_eq!(boxmap::key_for_note(2), None);
 }
+
+// --- Motorised faders on the box (HWB-01: HW-14, 16, 17, 18) ---
+
+use cmdmx_desk_logic::midi::{parse_cc, Cc14Rx};
+use cmdmx_desk_logic::motor::{Drive, Motor, MotorConfig};
+use cmdmx_desk_logic::touch::Touch;
+
+const CFG: MotorConfig = MotorConfig {
+    tolerance: 40,
+    kp_permille_per_step: 2,
+    min_duty: 300,
+    max_duty: 1000,
+    timeout_ms: 1000,
+};
+
+fn duty(d: Drive) -> i32 {
+    match d {
+        Drive::Coast => 0,
+        Drive::Up(x) => i32::from(x),
+        Drive::Down(x) => -i32::from(x),
+    }
+}
+
+#[test]
+fn hw_18_motor_is_off_at_power_up() {
+    let mut m = Motor::new(CFG);
+    assert_eq!(m.update(5000, 0), Drive::Coast);
+    assert!(!m.moving());
+}
+
+#[test]
+fn hw_16_motor_drives_towards_the_target_and_stops_there() {
+    let mut m = Motor::new(CFG);
+    m.set_target(8000, 0);
+    assert!(m.moving());
+    assert!(duty(m.update(2000, 1)) > 0, "below the target: drive up");
+    assert!(duty(m.update(14000, 2)) < 0, "above the target: drive down");
+    assert_eq!(m.update(8020, 3), Drive::Coast, "within tolerance: stop");
+    assert!(!m.moving());
+}
+
+#[test]
+fn hw_16_duty_grows_with_distance_within_min_and_max() {
+    let mut m = Motor::new(CFG);
+    m.set_target(8000, 0);
+    let near = duty(m.update(7900, 1));
+    let far = duty(m.update(1000, 2));
+    assert!((300..=1000).contains(&near), "near {near}");
+    assert!(far >= near && far <= 1000, "far {far}");
+}
+
+#[test]
+fn hw_16_touched_fader_has_its_motor_off_and_ignores_targets() {
+    let mut m = Motor::new(CFG);
+    m.set_target(8000, 0);
+    m.set_touched(true);
+    assert_eq!(m.update(2000, 1), Drive::Coast);
+    m.set_target(12000, 2);
+    assert_eq!(m.update(2000, 3), Drive::Coast);
+    assert!(!m.moving());
+}
+
+#[test]
+fn hw_16_on_release_the_fader_stays_where_the_hand_left_it() {
+    let mut m = Motor::new(CFG);
+    m.set_target(8000, 0);
+    m.set_touched(true);
+    m.update(3000, 1);
+    m.set_touched(false);
+    assert_eq!(
+        m.update(3000, 2),
+        Drive::Coast,
+        "no jump back to the stale 8000"
+    );
+    m.set_target(9000, 3);
+    assert!(
+        duty(m.update(3000, 4)) > 0,
+        "a new target after release is followed"
+    );
+}
+
+#[test]
+fn hw_17_motor_that_does_not_arrive_within_1_s_is_switched_off_and_reported_once() {
+    let mut m = Motor::new(CFG);
+    m.set_target(8000, 0);
+    assert!(duty(m.update(2000, 999)) > 0);
+    assert!(!m.take_stall());
+    assert_eq!(m.update(2000, 1000), Drive::Coast);
+    assert!(m.take_stall(), "stall reported");
+    assert!(!m.take_stall(), "only once");
+    assert_eq!(m.update(2000, 1500), Drive::Coast, "stays off");
+    m.set_target(9000, 2000);
+    assert!(
+        duty(m.update(2000, 2001)) > 0,
+        "a new target re-arms the motor"
+    );
+}
+
+#[test]
+fn hw_17_timer_survives_the_millisecond_clock_wrapping() {
+    let mut m = Motor::new(CFG);
+    let t0 = u32::MAX - 10;
+    m.set_target(8000, t0);
+    assert!(duty(m.update(2000, t0.wrapping_add(500))) > 0);
+    assert_eq!(m.update(2000, t0.wrapping_add(1000)), Drive::Coast);
+    assert!(m.take_stall());
+}
+
+#[test]
+fn hw_14_a_motor_move_sends_no_echo() {
+    // The box follows the motor's arrival without sending it back to the host.
+    let mut f = settled(2000);
+    f.follow(8000);
+    assert_eq!(f.update(8010), None);
+    assert_eq!(
+        f.update(8100),
+        Some(8100),
+        "a hand move after it is sent again"
+    );
+}
+
+#[test]
+fn hw_16_cc14_target_is_assembled_from_msb_then_lsb() {
+    let mut rx = Cc14Rx::new();
+    // fader 1: CC 0 then CC 32, value 8000 = 62 << 7 | 64
+    assert_eq!(rx.feed(0, 62), None);
+    assert_eq!(rx.feed(32, 64), Some((0, 8000)));
+    // an LSB without its MSB is ignored
+    assert_eq!(rx.feed(33, 5), None);
+    // fader 2: CC 1 / 33
+    assert_eq!(rx.feed(1, 127), None);
+    assert_eq!(rx.feed(33, 127), Some((1, 16383)));
+    // CCs outside 0..=31 / 32..=63 are no cc14
+    assert_eq!(rx.feed(64, 1), None);
+}
+
+#[test]
+fn hw_16_parse_cc_reads_channel_1_control_change() {
+    assert_eq!(parse_cc(&[0x0B, 0xB0, 32, 64]), Some((32, 64)));
+    assert_eq!(parse_cc(&[0x0B, 0xB1, 32, 64]), None, "channel 2");
+    assert_eq!(parse_cc(&[0x09, 0x90, 0, 127]), None, "a note");
+}
+
+#[test]
+fn hw_16_touch_compares_charge_time_with_its_untouched_baseline() {
+    let mut t = Touch::new(20);
+    for _ in 0..8 {
+        assert!(!t.update(100), "untouched");
+    }
+    assert!(t.update(130), "a hand adds capacitance: longer charge time");
+    assert!(
+        t.update(115),
+        "hysteresis: still touched above half the threshold"
+    );
+    assert!(!t.update(105), "released");
+}
+
+#[test]
+fn hw_16_touch_baseline_follows_slow_drift_but_not_a_touch() {
+    let mut t = Touch::new(20);
+    for i in 0..200u16 {
+        t.update(100 + i / 20); // drifts to 109 slowly
+    }
+    assert!(!t.update(112), "drift is not a touch");
+    for _ in 0..500 {
+        assert!(t.update(150), "a long touch stays a touch");
+    }
+    assert!(!t.update(110), "released back to the baseline");
+}

@@ -37,6 +37,11 @@ impl Fader {
         self.last = None;
     }
 
+    /// Record `v` as already sent, without sending it (the motor put the fader there, HW-14).
+    pub fn follow(&mut self, v: u16) {
+        self.last = Some(v.min(MAX));
+    }
+
     fn snap(&self, raw: u16) -> u16 {
         if raw <= self.deadband {
             0

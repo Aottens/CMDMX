@@ -8,7 +8,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 1: a well-working general DMX console. Its finish line is a real Sunday service on CMDMX (VS4-03).
 - The church keeps running on Lightkey until Christmas, then on CMDMX (owner, 2026-11-06).
 - IDEA-35 batch C, seeing what the rig does, is complete: live output, Fixture info and the Views screen.
-- Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
+- Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
 1. Batch D, working on many at once: the engine takes lists; next the app's picking (MUL-03), then MUL-04, MUL-05.
@@ -26,7 +26,7 @@ Runs only the owner can do (gate 3):
 - SPF-03 a real sleep during a running fade on the Eurolite and Art-Net (`tests/hardware/sleep.md`).
 - VS1-07 the BCF2000 (`tests/hardware/bcf2000.md`): postponed until it is found.
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
-- HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): order the parts first.
+- HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
 
 Programming and small checks:
 - Program the service in *Kerk* at home on Art-Net as `tests/hardware/church.md` asks (steady looks, *Front band*,

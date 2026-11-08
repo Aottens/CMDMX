@@ -26,7 +26,8 @@ channel 1**. Code: `logic/src/wiremap.rs`, `logic/src/midi.rs`, `logic/src/palet
   USB transfer**, so Learn (CTL-26) recognises them as `cc14`. A still fader sends nothing (HW-14:
   deadband 0.25 % of travel = 41 steps); within the deadband of an end stop the value snaps to
   0 or 16383. After power-up or a new USB connection a fader sends its settled position once
-  (HW-18).
+  (HW-18). A motorised fader sends nothing while its motor moves it to a target from the host,
+  and no echo when it arrives (HW-14); a touched fader ignores targets (HW-16).
 - **Wheels** send the steps counted since the last message once per USB frame (1 ms), at most ±63
   per message (the rest follows in the next one): 1–63 up, 127–65 down (`twos_complement`).
   Default divider: one step per 4 quadrature counts (HW-22). A to B leading is up.
@@ -100,8 +101,8 @@ The proof of concept carries five controls of this map:
 
 | Box control | Wire map control | Message |
 | --- | --- | --- |
-| Fader 1 | playback fader 1 | `cc14` CC 0 / 32 |
-| Fader 2 | playback fader 2 | `cc14` CC 1 / 33 (motor target ignored: no motor) |
+| Fader 1 | playback fader 1 | `cc14` CC 0 / 32; the same `cc14` in is its motor target |
+| Fader 2 | playback fader 2 | `cc14` CC 1 / 33; the same `cc14` in is its motor target |
 | Key 1 | upper 1 | note 0 |
 | Key 2 | upper 2 | note 1 |
 | Key 3 | lower 1 | note 10 |
