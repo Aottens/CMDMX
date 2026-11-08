@@ -142,6 +142,32 @@ press Command-A for all of them. The panel then reads *Selected · 6 fixtures*.
 
 Each of these is one step for Undo, and each is refused as a whole when one fixture would clash.
 
+### Exchanging fixtures for another type
+
+When the rig changes, give the fixtures that hang there another type without removing them. Select the
+rows, then pick the new model and mode in the Add strip above the table. The Selected panel now offers
+**Exchange to Wash 19 · 16 Channel**. Click it, read what the fixtures are in, and click
+**Confirm exchange**.
+
+Each fixture keeps its number, name and button, and stays in its groups, cues and palettes.
+
+- **Address.** With Address empty in the Add strip, each fixture stays where it is, and the exchange is
+  refused as a whole when a bigger type would run into the next fixture. With Address filled in, the
+  fixtures go back to back from Universe and Address in the strip, in table order: use this when the
+  block grows. A parked fixture stays parked unless you fill in an address.
+- **Values.** Values carry over by attribute name, and the kind of value must match. Pan, Tilt, Dimmer and
+  Colour match across types. A position stays the same number, so check it on stage: a fixture with
+  another pan range may point elsewhere, and needs an update, as on Titan.
+- **Wheels.** A level in a named slot, such as *Star*, moves to the middle of the slot called *Star* on the
+  new wheel. With no slot of that name it is dropped and the fixture goes to its default, so no other gobo
+  appears on stage.
+- **What dropped.** One line names it for the whole range: `Dropped Gobo, Strobe on 7 fixtures`.
+- **Palettes.** A palette keeps what it has for each fixture, wheel values moved by the same rule. A value by
+  type gets a copy for the new type, unless the palette already has values for that type. A value the new
+  type cannot do stays in the palette and a warning names it (`in this type`), so an exchange back brings it into use.
+
+Undo takes the whole exchange back in one step.
+
 ### Parking a fixture that does not hang
 
 A lamp that is in the show but not on the rig today (in for repair, not hung for this service) can be
