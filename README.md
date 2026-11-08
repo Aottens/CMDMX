@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Batch D, working on many at once: Copy, Move, Delete and Release take several items in the app.
-Next: a new show keeping the patch (MUL-05), the church Mac (VS4-07), a service (VS4-03).
+Batch D, working on many at once, is complete: picking several, releasing many, a new show on the same patch.
+Next: the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -204,6 +204,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - An armed function or Record never does the normal action: every tap does what the table in the manual says or is refused with where it works, also a Flash or Swop; `Group 3 Enter` and `Palette 12 Enter` reach it from the command line, and Enter confirms a waiting Delete.
 - The show is one readable JSON file in `~/Documents/CMDMX/Shows/`, autosaved within
   5 seconds of a change, crash-safe, and opened again at start.
+- A new show can keep the patch: same fixtures, outputs and settings, with groups, palettes and playbacks empty. The old show
+  stays as it was.
 - Undo and redo of every edit, 100 steps, while live playing (Go, faders, Flash) is never
   touched; ⌘Z and ⇧⌘Z.
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four

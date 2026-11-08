@@ -30,6 +30,10 @@ holds every show in the shows folder; the open one is marked `open`.*
   it again to open it.
 - **New**: type a name and click **New**, then confirm. The new show is empty: no fixtures,
   groups or playbacks, and the default settings and outputs.
+- **New, keeping the patch**: tick **Keep the patch** before you click **New**. The new show has the
+  fixtures of the open show, with their numbers, names, addresses, modes and parked state, and its
+  outputs and settings. Groups, palettes, playbacks and masters start empty, and so does Undo. The
+  button says what goes before you confirm. The old show stays as it was, so you can go back to it.
 - **Save As**: type a name and click **Save As**. The show is saved under the new name and you go
   on working in the copy. Nothing on stage changes, so it does not ask.
 

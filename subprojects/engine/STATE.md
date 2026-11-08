@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-08 (VS1-07 run)_
+_Last updated: 2026-11-08 (MUL-05)_
 
 ## Current step
+MUL-05 (2026-11-08, SHW-19): `Engine::new_keeping_patch` builds a `Show` from `to_show` with the groups, palettes, pages and playbacks of a blank engine and loads it with `from_show`. `ShowRequest::New` has `keep_patch`, set by `show.new`'s `keep: "patch"`; the tick builds the engine before it replaces the current one. Tests: `tests/new_show.rs` on the real binary.
+
 VS1-07 run (2026-11-08, CTL-17, CTL-33): the BCF2000's upper row sends notes 16..23, now also `upper` in `profiles/mackie-control.json` (49 bindings). `state_of` shows an `upper`/`lower` LED from `Engine::button_held` of its own button, or latched; it looked at Flash only. Run: `tests/hardware/runs/2026-11-08-VS1-07.md`.
 
 MUL-04 (2026-11-08, PBK-52, CTL-68): `playback::ReleaseScope`; `Engine::release_scope` picks active non-master playbacks by `playback_at`, runs `release_playback` on each and pushes the one notice. `playback.release` with `scope` is `Command::PlaybackReleaseScope`, class Live. `Action::ReleaseAll` and `ReleasePage` (the control tick's `page`); also in the OSC schema. Scenario key `release_scope`.
