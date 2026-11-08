@@ -97,8 +97,31 @@ These are function buttons in the side column. Press one, then tap a strip's leg
   **Auto** for the automatic icon, and a halo row: **Auto**, eight colours and a colour picker.
 - **Options**: opens the Playback Options screen (next part).
 
-Copy and Move onto a used handle are refused. Recording, deleting and changing playbacks can be
-undone.
+Copy and Move onto a used handle are refused, and what you picked stays picked so you can try another
+handle. Recording, deleting and changing playbacks can be undone.
+
+### Working on many at once
+
+With **Copy**, **Move** or **Delete** armed, you can pick several playbacks before you act:
+
+- **⇧-tap** another handle on the page: every used handle between it and the last pick is picked.
+- **⌘-tap** a handle: adds it, or drops it when it was picked.
+- **All** (softkey B), after a first pick: every playback on that page.
+
+Picked handles are outlined in red and the message counts them ("Copy 4 playbacks: tap the target"). They stay
+picked when you go to another page, so a page is copied to another page in a few taps. Delete asks for its confirmation
+on softkey **A**, which names the count ("Delete 8 playbacks, on page 2").
+
+Copy and Move then take a tap on the target handle:
+
+- **Retain layout** / **Bunch up** (softkey A, stays as you last set it): Retain keeps the gaps between the picks, Bunch
+  up closes them. The lowest handle goes on the handle you tap and the rest follow.
+- **Swap if required** (softkey C, Move only, off each time you arm Move): what is in the way goes to the handles the
+  block leaves.
+
+**Menu latch** (softkey D) keeps Copy, Move or Delete armed after each action with the picks cleared, until you press the
+function button again, Clear or Esc. It stays lit until you turn it off; it is off when the app starts. The same picking
+works on palette cells and on groups ([Palettes](palettes.md), [Groups](programming.md)). A move or delete of several is one Undo step.
 
 ### Icons and halos
 

@@ -122,7 +122,9 @@ has no Times view. In this view a tap selects a time and does not change Next:
 - **Set Legend**: a name of up to 32 characters.
 - **Renumber** and **Copy**: type a free number on the keypad first, then press the softkey.
 - **Delete**: confirm on softkey **A**. The last cue of a playback cannot be deleted; delete the
-  playback instead. The message says when it is the live cue: the output stays until the next Go.
+  playback instead. The message says when it is the live cue: the output stays until the next Go. With the **Delete**
+  function armed, **⇧-tap** a range of rows or **⌘-tap** to add or drop one; softkey A names the count. Every cue of
+  a playback cannot go at once: delete the playback instead.
 
 **Record**, then a tap on a row, records onto that cue: **Replace**, **Merge** or **Update**.
 **Include**, then a tap on a row, puts what that cue holds itself in the programmer: nothing tracked and

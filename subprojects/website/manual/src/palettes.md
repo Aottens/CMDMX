@@ -142,6 +142,11 @@ Every cue and playback that uses the palette follows the change straight away, w
 - **Delete**, then tap a palette, and confirm on softkey **A**. The message says how many cues use
   it, on how many playbacks. Those cues keep the values the palette gave when they were recorded.
 
+**Copy**, **Move** and **Delete** take several palettes: **⇧-tap** a range in the window, **⌘-tap** to add or drop one,
+**All** (softkey B) for the whole window, then tap the target cell or confirm on softkey **A**. Retain layout, Bunch up,
+Swap if required and Menu latch work as for [playbacks](playbacks.md#working-on-many-at-once). Picks from two windows
+can only be placed with Bunch up. A used target cell is refused unless Swap if required is on, and the picks stay.
+
 Palettes are saved with the show. Recording, changing and deleting them can be undone.
 
 Next: [Playbacks and cues](playbacks.md).

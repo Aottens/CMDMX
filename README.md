@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-In batch D the engine copies, moves and deletes many at once; the app stays light (2 % idle, 5 % with a fade running).
-Next: picking several (MUL-03), MUL-04, MUL-05, the church Mac (VS4-07) and a service at Christmas (VS4-03).
+Batch D, working on many at once: Copy, Move and Delete take several items in the app, with layout and swap.
+Next: Release all (MUL-04), a new show keeping the patch (MUL-05), the church Mac (VS4-07), a service (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -158,7 +158,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   intensity too, over the release time.
 - Copy, Move and Delete take several playbacks, palettes or groups at once, keeping the gaps (Retain Layout) or
   closing them (Bunch Up), and a Move can swap what is in the way; Delete takes several cues of a list. One refused
-  item refuses it all, and it is one undo step. Engine and IPC only for now: picking several in the app is MUL-03.
+  item refuses it all, and it is one undo step. In the app you pick them with ⇧ for a range, ⌘ to add or drop one and
+  an All softkey; Menu latch keeps Copy, Move or Delete armed after each action.
 - Level bars never jump: a click on a strip, group master or the Grand Master changes nothing, a drag
   moves the level by the distance dragged.
 - *New cue times* in Playback Options ▸ Settings: the delay, delay out, fade in, fade out and overlap that cues recorded

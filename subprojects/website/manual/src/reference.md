@@ -72,7 +72,8 @@ the message line names where the function works, nothing else happens and the fu
 
 Fixtures are changed on the Patch screen, so Delete, Copy, Move and Set Legend on a fixture point there. A cell in the
 Effects window only applies, so with anything armed it is refused. A row of Active playbacks releases, so only
-with Release armed or nothing armed.
+with Release armed or nothing armed. With Copy, Move or Delete armed, ⇧-tap and ⌘-tap pick several: see
+[Working on many at once](playbacks.md#working-on-many-at-once).
 
 Flash and Swop on a handle count as a tap on its legend while something is armed, so the stage does not change. Latch is the
 exception: Flash latches. Page buttons, the workspace rail, faders, GM, DBO, Go, Back and Clear are never targets: a show keeps
