@@ -22,6 +22,7 @@ enum PlaybackOptionsTab: String, CaseIterable {
 struct PlaybackOptionsView: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var livePlaybacks: LivePlaybacks   // UI-69: shows live values
     @EnvironmentObject private var ui: UIState
 
     var body: some View {

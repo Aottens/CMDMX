@@ -24,6 +24,7 @@ struct CMDMXApp: App {
             MainScreen()
                 .environmentObject(engine)
                 .environmentObject(engine.live)
+                .environmentObject(engine.livePlaybacks)
                 .frame(minWidth: 1280, minHeight: 800)
         }
         .commands {

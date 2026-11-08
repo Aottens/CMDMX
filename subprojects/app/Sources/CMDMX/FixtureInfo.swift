@@ -74,6 +74,7 @@ struct FixtureInfoSheet: View {
     @Environment(\.theme) private var t
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var livePlaybacks: LivePlaybacks   // UI-69: shows live values
     @EnvironmentObject private var ui: UIState
     let id: Int
 

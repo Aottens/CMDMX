@@ -41,6 +41,7 @@ private func trackText(_ track: String) -> String {
 struct GoBlock: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var livePlaybacks: LivePlaybacks   // UI-69: shows live values
     @EnvironmentObject private var ui: UIState
 
     var body: some View {
@@ -219,6 +220,7 @@ struct CueWindow: View {
 private struct CueListWindow: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var livePlaybacks: LivePlaybacks   // UI-69: shows live values
     @EnvironmentObject private var ui: UIState
 
     private static let widths: [CGFloat?] = [44, nil, 44, 56, 84, 36, 58, 62]
@@ -457,6 +459,7 @@ private struct CueListWindow: View {
 private struct CueViewWindow: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var livePlaybacks: LivePlaybacks   // UI-69: shows live values
     @EnvironmentObject private var ui: UIState
     let ref: CueRef
     /// UI-62: the collapsed cells ("item+group") a right-click opened; reset when the cue changes.

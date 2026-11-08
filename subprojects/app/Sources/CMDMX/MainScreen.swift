@@ -442,49 +442,49 @@ private struct Frame: View {
         .overlay { if ui.learnMode { Rectangle().strokeBorder(t.amber, lineWidth: 2).allowsHitTesting(false) } }   // CTL-42
         .sheet(item: $ui.legendEditing, onDismiss: { ui.cancelModes() }) { ref in
             LegendEditor(number: ref.number)
-                .environmentObject(engine).environmentObject(ui)
+                .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
         .sheet(item: $ui.playbackLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
             PlaybackLegendEditor(id: ref.id)
-                .environmentObject(engine).environmentObject(ui)
+                .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
         .sheet(item: $ui.pageLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
             PageLegendEditor(page: ref.number)
-                .environmentObject(engine).environmentObject(ui)
+                .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
         .sheet(item: $ui.groupLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
             GroupLegendEditor(group: ref.number)
-                .environmentObject(engine).environmentObject(ui)
+                .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
         .sheet(item: $ui.cueLegendEditing, onDismiss: { ui.cancelModes() }) { ref in
             CueLegendEditor(ref: ref)
-                .environmentObject(engine).environmentObject(ui)
+                .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
         .sheet(item: $ui.fixtureInfo) { ref in
             FixtureInfoSheet(id: ref.id)
-                .environmentObject(engine).environmentObject(ui)
+                .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
         .sheet(isPresented: $ui.messagesOpen) {
             MessagesSheet()
-                .environmentObject(engine).environmentObject(ui)
+                .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
         .sheet(isPresented: $ui.lockPrompt) {
             LockPrompt()
-                .environmentObject(engine).environmentObject(ui)
+                .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
@@ -527,6 +527,25 @@ private struct Workspaces: View {
 }
 
 // MARK: - Status bar (UI-06)
+
+/// UI-56, UI-69: the GRP tag apart from the status bar, so a live delta redraws only it.
+private struct HoldingTag: View {
+    @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var livePlaybacks: LivePlaybacks
+
+    var body: some View {
+        if !engine.holdingMasters.isEmpty {
+            Button { engine.say(engine.holdingMasters.map(engine.holdingText).joined(separator: " · ")) } label: {
+                Text("GRP").font(Typo.ui(11, .semibold)).foregroundStyle(t.amber)
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.amber, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .help("A group master holds its group: click to see which")
+        }
+    }
+}
 
 private struct StatusBar: View {
     @Environment(\.theme) private var t
@@ -607,15 +626,7 @@ private struct StatusBar: View {
             }
 
             // UI-56: a group master holds its group; a click says which.
-            if !engine.holdingMasters.isEmpty {
-                Button { engine.say(engine.holdingMasters.map(engine.holdingText).joined(separator: " · ")) } label: {
-                    Text("GRP").font(Typo.ui(11, .semibold)).foregroundStyle(t.amber)
-                        .padding(.horizontal, 7).padding(.vertical, 2)
-                        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.amber, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .help("A group master holds its group: click to see which")
-            }
+            HoldingTag()
 
             Spacer(minLength: 0)
             BarToggle(title: "Lock", on: false, enabled: engine.connection == .online) {

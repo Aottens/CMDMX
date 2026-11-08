@@ -866,6 +866,45 @@ final class LiveOutput: ObservableObject {
     @Published var output: [Item: FixtureOutput] = [:]
     @Published var grid: [Item: [String: GridValue]] = [:]
     @Published var dmx: (line: Int, channels: [Int])?
+
+    /// UI-68: one observable cell per item, so a tile stripe redraws only when its own output changes.
+    private var cells: [Item: OutputCell] = [:]
+    func cell(_ item: Item) -> OutputCell {
+        if let c = cells[item] { return c }
+        let c = OutputCell(); cells[item] = c; return c
+    }
+    /// Sets `output` and the cells of the entries that differ.
+    func set(_ entries: [FixtureOutput], replacing: Bool = false) {
+        if replacing { output = [:]; for c in cells.values where c.value != nil { c.value = nil } }
+        for e in entries {
+            output[e.item] = e
+            let c = cell(e.item)
+            if c.value != e { c.value = e }
+        }
+    }
+}
+
+final class OutputCell: ObservableObject {
+    @Published var value: FixtureOutput?
+}
+
+/// UI-69: every playback with its live part, and the strips' slots, apart from EngineClient, so a `playback` delta redraws only its readers.
+final class LivePlaybacks: ObservableObject {
+    @Published var playbacks: [PlaybackInfo] = []
+    @Published var slots: [PlaybackSlot] = []
+    /// One cell per strip, so a moving fader redraws only its strip (plain var: the count follows `fadersPerPage`).
+    private(set) var slotCells: [SlotCell] = []
+    func sync(_ new: [PlaybackSlot]) {
+        slots = new
+        if slotCells.count != new.count { slotCells = new.map { SlotCell($0) } }
+        for (c, n) in zip(slotCells, new) where c.slot != n { c.slot = n }
+    }
+}
+
+final class SlotCell: ObservableObject, Identifiable {
+    @Published var slot: PlaybackSlot
+    var id: Int { slot.id }
+    init(_ slot: PlaybackSlot) { self.slot = slot }
 }
 
 /// One output node as reported by the daemon (OUT-33, IPC-20). Every field falls back to a default,
@@ -949,7 +988,7 @@ private struct UndoLabels: Decodable {
 private struct SnapshotUndo: Decodable { let undo: Tolerant<UndoLabels>? }
 
 /// IPC-58 / UI-60: what one fixture (or cell) outputs now. `rgb` is linear 0..1, nil without colour.
-struct FixtureOutput: Decodable {
+struct FixtureOutput: Decodable, Equatable {
     let item: Item
     let i: Double
     let rgb: [Double]?
@@ -1469,10 +1508,13 @@ final class EngineClient: ObservableObject {
     @Published private(set) var fadersPerPage: Int = 8
     /// PBK-03: the current page and the playback each slot holds; `slots` is derived from it.
     @Published private(set) var page = PageState()
-    @Published private(set) var slots: [PlaybackSlot] = []
+    /// UI-69: the playbacks and slots live in `livePlaybacks`; these read the current value (press handlers, stored reads).
+    /// A view that shows a live value declares `@EnvironmentObject LivePlaybacks` too.
+    let livePlaybacks = LivePlaybacks()
+    var slots: [PlaybackSlot] { livePlaybacks.slots }
     /// PBK-35: every playback, sorted by id (the engine's order); `slots` and the Active
     /// playbacks window are derived from it.
-    @Published private(set) var playbacks: [PlaybackInfo] = []
+    var playbacks: [PlaybackInfo] { livePlaybacks.playbacks }
     /// PBK-35: the ten pages' legends, `dbo` and the cue / release settings; nil until the snapshot.
     @Published private(set) var pages: [PageLegend] = []
     @Published private(set) var dbo = false
@@ -2357,7 +2399,7 @@ final class EngineClient: ObservableObject {
             let labels = (try? JSONDecoder().decode(SnapshotUndo.self, from: data))?.undo?.value
             undoLabel = labels?.undo; redoLabel = labels?.redo
             let entries = (try? JSONDecoder().decode(OutputEntries.self, from: data))?.output ?? []
-            live.output = Dictionary(entries.compactMap(\.value).map { ($0.item, $0) }, uniquingKeysWith: { _, b in b })
+            live.set(entries.compactMap(\.value), replacing: true)
             // UI-39: merge, the app keeps earlier lines across a daemon restart; known lines are skipped.
             var known = Set(messageLog.map { "\($0.at.timeIntervalSince1970)|\($0.level)|\($0.message)" })
             var added = false
@@ -2383,7 +2425,7 @@ final class EngineClient: ObservableObject {
             if let fixtures = incoming.fixtures?.value { self.fixtures = fixtures }
         case "output":
             // IPC-58: changed entries only, merged; an entry is never removed by a delta.
-            for e in ((try? JSONDecoder().decode(OutputEntries.self, from: data))?.fixtures ?? []).compactMap(\.value) { live.output[e.item] = e }
+            for e in ((try? JSONDecoder().decode(OutputEntries.self, from: data))?.fixtures ?? []).compactMap(\.value) { live.set([e]) }
         case "output_grid":
             guard watching == .grid, let msg = try? JSONDecoder().decode(GridMessage.self, from: data) else { break }
             for e in msg.fixtures.compactMap(\.value) { live.grid[e.id] = e.values.compactMapValues(\.value) }   // each changed row comes whole
@@ -2551,14 +2593,15 @@ final class EngineClient: ObservableObject {
 
     /// PBK-01/05: the strips show the current page's slots; the engine decides which playback each holds.
     private func rebuildSlots() {
-        playbacks = playbackStored.values.sorted { $0.id < $1.id }.map {
+        let playbacks = playbackStored.values.sorted { $0.id < $1.id }.map {
             PlaybackInfo(stored: $0, live: playbackLive[$0.id] ?? PlaybackLive())
         }
+        livePlaybacks.playbacks = playbacks
         let byId = Dictionary(playbacks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let byNumber = Dictionary(page.slots.map { ($0.slot, $0.playback) }, uniquingKeysWith: { first, _ in first })
-        slots = (0..<fadersPerPage).map { index in
+        livePlaybacks.sync((0..<fadersPerPage).map { index in
             PlaybackSlot(id: index, info: byNumber[index + 1].flatMap { $0 }.flatMap { byId[$0] })
-        }
+        })
     }
 
     /// The playback with this id, if it still exists.

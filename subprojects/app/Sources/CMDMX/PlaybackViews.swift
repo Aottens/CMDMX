@@ -390,6 +390,7 @@ struct GroupLegendEditor: View {
 struct ActivePlaybacksWindow: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var livePlaybacks: LivePlaybacks   // UI-69: shows live values
     @EnvironmentObject private var ui: UIState
 
     private static let widths: [CGFloat?] = [44, nil, 54, 70, 66]
