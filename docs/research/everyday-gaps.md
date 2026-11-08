@@ -62,7 +62,7 @@ Specified 2026-11-07, approved by the owner (P1-36; build tasks MUL-01..05): PBK
 
 Added by the fifth review (M, owner 2026-11-08): M2 straight after K1, then M3.
 
-Specified 2026-11-08, awaiting the owner (P1-39; build tasks PTC-01..08): PAT-37..47, LIB-41, LIB-42, IPC-62, UI-72..76, with M2, M3, K10 and most of E1..E3; K1 was done by P1-30. Checked in `tests/manual/runs/2026-11-08-E-checks.md`.
+Specified 2026-11-08, approved by the owner (P1-39; build tasks PTC-01..08): PAT-37..47, LIB-41, LIB-42, IPC-62, UI-72..76, with M2, M3, K10 and most of E1..E3; K1 was done by P1-30. What stayed out went to IDEA-49..54. Checked in `tests/manual/runs/2026-11-08-E-checks.md`.
 
 ## F. Controls that exist in the engine, or small ones in the app
 1. Rename a control mapping: IPC is there, the app has no caller.
@@ -211,7 +211,7 @@ No criteria or code for these until the owner approves.
 - **B:** add K11 and IDEA-36, keep I1 and I3. Also take I6 (times in the grid): with B it is one change to one screen.
 - **C:** add K8.
 - **D:** no change.
-- **E:** K1 first, add K10.
+- **E:** K1 first, add K10. Approved 2026-11-08: K1 was already done by P1-30, K10 is UI-74.
 - **F:** add K9, K12's hint, IDEA-38, IDEA-39.
 - **G:** add K7, unless the owner wants it apart.
 - **I:** add K4 and K5; K6 goes with I1. I1 moves with B as agreed.

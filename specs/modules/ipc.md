@@ -419,7 +419,7 @@ Behaviour in `engine-merge.md` ENG-25, `group-masters.md` GRM-22..23 and `ui.md`
 Behaviour in `playbacks.md` PBK-50..52, `palettes.md` PAL-34, `programmer.md` PRG-98, `cuelists.md` CUE-63, `showfile.md` SHW-19.
 - **IPC-61** **List forms** (D1..D3). `playback.copy/move/delete` take `ids`, `palette.copy/move/delete` take `numbers`, `group.copy/move/delete` take `groups`, `cue.delete` takes `cues`, each in place of the single key: both, neither or an empty list → `error` (IPC-06). Copy and move take `layout` (`"retain"` or `"bunch"`, default `"retain"`) and move takes `swap` (bool, default false); an unknown layout → `error`. `playback.release` takes `scope` (`"all"`, `"page"`, `"other_pages"`), with `page` for the last two; `scope` with `id` → `error`. `show.new` takes `keep: "patch"`. Classes as the single forms: edit and refused while locked for copy, move and delete (IPC-50), the class of `playback.release` for a release, reset for `show.new`. New keys only, `v` stays (IPC-41). Test `ipc_61_…`: each form parsed, the errors above.
 
-### Patch and profiles (IDEA-35 batch E, P1-39; proposed, awaiting the owner)
+### Patch and profiles (IDEA-35 batch E, P1-39; approved by owner 2026-11-08)
 Behaviour in `patch.md` PAT-37..47 and `fixture-library.md` LIB-41, 42.
 - **IPC-62** Commands, refusals as warnings (IPC-06), each taking `ids` as IPC-40 does and every one refused while locked (IPC-50):
   `patch.exchange {ids, profile, mode, universe?, address?}` (the daemon fetches a library profile outside the tick, as for

@@ -263,7 +263,8 @@ Builds: MUL-01 + MUL-02; MUL-03; MUL-04; MUL-05.
 | MUL-05 | Daemon and app: a new show that keeps the patch; `shw_19_…`; manual and run. | SHW-19, UI-67 | S | done (2026-11-08, #279) |
 
 ### Patch and profiles (IDEA-35 batch E, spec P1-39)
-Proposed 2026-11-08, awaiting the owner (`patch.md`, seven questions). PTC-03 does not need PTC-01.
+Approved by the owner 2026-11-08, every recommendation accepted (`patch.md`). PTC-03 does not need PTC-01.
+The Exchange Mapping screen is IDEA-49; Freeze, Curves, Flip, Lamp on/off with macros and RDM are IDEA-50..54.
 Builds: PTC-01 + PTC-02; PTC-03; PTC-04; PTC-05 + PTC-06; PTC-07 + PTC-08.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
@@ -366,7 +367,7 @@ after VS8-03, in any order.
 | P1-34 | Spec the phone patch page (IDEA-42, owner 2026-11-06: phase 1, before Christmas): new `remote.md` with RMT criteria (LAN listener, login set in the console, the page, highlight while walking), build tasks; approved by the owner when this PR merges. | RMT, PAT, PRG, IPC | S | done (2026-11-06, #258) |
 | P1-36 | Spec IDEA-35 batch D, working on many at once (D1..D4), as PBK-50..52, PAL-34, PRG-98, CUE-63, SHW-19, IPC-61, CTL-68, UI-64..67; checks in `tests/manual/runs/2026-11-07-D-checks.md`; build tasks MUL-01..05; approved by owner 2026-11-07, the five questions as recommended (`ui.md`); Unfold and the linked copy became IDEA-46, IDEA-47. | PBK, PAL, PRG, CUE, SHW, IPC, CTL, UI | S | done (2026-11-07, #269) |
 | P1-35 | Spec parking (IDEA-43, owner 2026-11-06: phase 1; a parked fixture is skipped live and kept in groups, palettes and cues for Unpark): PAT/PRG criteria checked against Titan's Park, build tasks; approved by the owner when this PR merges. | PAT, PRG, GRM, IPC, UI | S | done (2026-11-06, #258) |
-| P1-39 | Spec IDEA-35 batch E, patch and profiles (E1..E3, K10, M2, M3; K1 was done by P1-30), as PAT-37..47, LIB-41, LIB-42, IPC-62, UI-72..76; checks in `tests/manual/runs/2026-11-08-E-checks.md`; build tasks PTC-01..08; owner approves, with the seven questions in `patch.md`. | PAT, LIB, IPC, UI | S | todo |
+| P1-39 | Spec IDEA-35 batch E, patch and profiles (E1..E3, K10, M2, M3; K1 was done by P1-30), as PAT-37..47, LIB-41, LIB-42, IPC-62, UI-72..76; checks in `tests/manual/runs/2026-11-08-E-checks.md`; build tasks PTC-01..08; approved by owner 2026-11-08, the seven questions as recommended (`patch.md`); what stayed out became IDEA-49..54. | PAT, LIB, IPC, UI | S | done (2026-11-08, #283) |
 | P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show; find Titan's page first; numbered criteria and build tasks; owner approves. | SHW, UI | S | todo |
 | P1-38 | Measure the engine's load in a release build on a rig of about 260 fixtures (M7, fifth gap review; owner 2026-11-08): the debug build took 78 % of a core against 10 % with 38 fixtures; write the result in a run file, and a budget like UI-70 only if it is too high. | ENG | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |

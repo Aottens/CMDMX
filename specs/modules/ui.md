@@ -622,7 +622,7 @@ console redraws on each.
   passing on the new layout. The README gets screenshots of the main screen when UX-02a lands,
   updated as zones land (owner, 2026-10-17).
 
-### Patch and profiles (IDEA-35 batch E, P1-39; proposed, awaiting the owner)
+### Patch and profiles (IDEA-35 batch E, P1-39; approved by owner 2026-11-08)
 From `docs/research/everyday-gaps.md` E, K10, M2, M3. Behaviour in `patch.md` PAT-37..47, `fixture-library.md` LIB-41, 42; the Patch screen is PAT-10, 25, 35.
 - **UI-72** **Exchange** (M2). With rows selected and a model and mode picked in the Add strip, the Selected panel shows **Exchange to Wash 19 · 16 Channel**, a two-step confirm stating what the fixtures are in (UI-47's line, "In 3 groups, 62 cues on 28 playbacks and 11 palettes. Undo brings it all back."). It sends the Add strip's Universe and Address only when Address is filled in. A refusal shows in the panel; the selection stays on the same ids. Disabled without a pick or a selection. Checked by hand on Art-Net.
 - **UI-73** **Find in Patch** (M3). The Patch window's title row gets UI-59's find field: number, name and model, as the operator types. The table shows only the rows that match (Titan filters Patch View by fixture type) and the title counts them ("12 of 254"). Rows that leave the table leave the selection, so a range edit never reaches what cannot be seen. Return selects every row shown. Esc empties the field (UI-44). The Add strip gets a **Hide** button, remembered on this Mac, shown by default, so the table takes the screen. Checked by hand on a rig of about 250.

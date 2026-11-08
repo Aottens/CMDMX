@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). PAT-29..36 (parking, IDEA-43, P1-35): approved by owner 2026-11-06. PAT-37..47 (batch E, P1-39): proposed, awaiting the owner. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). PAT-29..36 (parking, IDEA-43, P1-35): approved by owner 2026-11-06. PAT-37..47 (batch E, P1-39): approved by owner 2026-11-08. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -220,7 +220,7 @@ CMDMX skips it everywhere live and keeps it in the show for Unpark (owner decisi
 - **PAT-36** The phone page (`remote.md` RMT-13) offers Park and Unpark on a fixture's card, and Park and
   move after a clash (RMT-11), through these same commands.
 
-### Patch and profiles (IDEA-35 batch E, P1-39; proposed, awaiting the owner)
+### Patch and profiles (IDEA-35 batch E, P1-39; approved by owner 2026-11-08)
 From `docs/research/everyday-gaps.md` E, K10, M2 and M3; checked in `tests/manual/runs/2026-11-08-E-checks.md`. Titan
 pages: *Changing the Patch*, *Copying, moving and deleting fixtures*, *Fixture Personality Options*, *Fixture Groups*.
 Titan keeps programming through an exchange ("All programmed items including palettes will be preserved"), keeps Pan, Tilt
@@ -357,14 +357,14 @@ a fixture spanning several universes (pixel products, with the pixel mapper), pa
 visual plot (with the visualiser). Not in batch E (P1-39, owner questions 3 and 7): Titan's Exchange Mapping screen, Park Conflicting
 on an exchange, Swap Addresses' Retain Layout, Update All, Freeze, Curves, Flip, Lamp on/off and fixture macros, RDM patching.
 
-## Owner questions (P1-39, batch E; open)
+## Owner decisions (P1-39, batch E, 2026-11-08: every recommendation accepted)
 1. **What is in batch E:** Fixture Exchange, find in Patch, Number and Address after Add, Copy, Swap Addresses, Update from library,
    Auto Groups, delete and duplicate a profile, Invert, Swap Pan/Tilt, Limits and Offset? Recommended: yes. Not chosen: Exchange and
    find alone now, the rest later, which leaves E's other points open for another spec round.
 2. **The third review's proposal for E (K1 first, add K10):** K1 is already done (LIB-40, NEW-01), so only K10 remains. Approve K10
    in E? Recommended: yes, UI-74. Not chosen: leaving it, so each next type starts with a refusal.
 3. **Exchange Mapping (PAT-38):** match by name, kind and slot name, and report what drops? Recommended: yes, the Exchange
-   Mapping screen becomes an idea for later. It is a screen as large as the exchange itself, and names are already normalised on
+   Mapping screen becomes an idea for later (IDEA-49). It is a screen as large as the exchange itself, and names are already normalised on
    import. Not chosen: Titan's screen now.
 4. **A wheel value with no slot of that name (PAT-38):** drop it and say so? Recommended: yes, the fixture falls back to its default and
    the message names it. Not chosen: keep the level, which puts an unknown gobo or colour on stage without a word.
@@ -374,7 +374,7 @@ on an exchange, Swap Addresses' Retain Layout, Update All, Freeze, Curves, Flip,
 6. **Auto Groups by default (UI-74):** off, a toggle in the Add strip that the Mac remembers? Recommended: off, so nobody's group pool
    fills unasked. Titan's page does not give its default. Not chosen: on.
 7. **Freeze, Curves and Flip (E1), Lamp on/off with fixture macros and RDM patching (E4):** out of batch E, each an idea for later in
-   phase 1? Recommended: yes. Each needs something that is not there: Freeze a per-attribute record of the last output, Curves shapes the
+   phase 1 (IDEA-50..54)? Recommended: yes. Each needs something that is not there: Freeze a per-attribute record of the last output, Curves shapes the
    manual does not define (only Linear is described), Flip and macros data the profiles do not hold, RDM a discovery path in
    the protocols crate and an RDM-capable node to test with. A control channel's named slots can already be set by hand. Not chosen:
    in E, which would double it.

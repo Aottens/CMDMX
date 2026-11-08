@@ -367,11 +367,11 @@ only seed editable defaults.
 - **LIB-40** (approved by owner 2026-11-04, P1-30) A plain dimmer is always in the library: `Generic` / `Dimmer`, source `"builtin"`, modes `1 channel` (Dimmer) and
   `2 channel 16-bit` (Dimmer, Dimmer fine), compiled into the daemon so it is there without the QLC+ folder. `dimmer`, `generic` and `generic dimmer` all find it. It behaves as a QLC+ entry: it cannot be
   overwritten, Edit profile starts a user copy, and a user profile `Generic/Dimmer` hides it (LIB-11). Test: `lib_40_…`.
-- **LIB-41** (P1-39, E3; proposed) `library.delete_profile {manufacturer, model}` removes a user profile: its file goes and the index
+- **LIB-41** (P1-39, E3; approved by owner 2026-11-08) `library.delete_profile {manufacturer, model}` removes a user profile: its file goes and the index
   lists it no more, so a QLC+ or built-in entry it hid is listed again (LIB-12). A QLC+ or built-in entry refuses ("… is part of
   the library"). Shows keep their own copy (ADR-006 decision 5), so nothing patched changes. No undo: the app confirms twice (UI-75).
   Tests `lib_41_…`.
-- **LIB-42** (P1-39, E3; proposed) `library.duplicate_profile {manufacturer, model, new_model}` saves a copy of any library entry as a
+- **LIB-42** (P1-39, E3; approved by owner 2026-11-08) `library.duplicate_profile {manufacturer, model, new_model}` saves a copy of any library entry as a
   user profile named `new_model` under the same manufacturer (LIB-12: atomic). A name already in the library, or an empty one, refuses
   instead of replacing (LIB-14's save does replace). The reply is `library.saved` (LIB-14). Tests `lib_42_…`.
 
