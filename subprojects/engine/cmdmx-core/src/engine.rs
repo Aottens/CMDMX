@@ -2209,6 +2209,26 @@ impl Engine {
         }
     }
 
+    /// SHW-19: a new engine with this one's patch, profiles, output and settings, and no
+    /// groups, palettes, playbacks or programmer. Warnings are those of `from_show`.
+    pub fn new_keeping_patch(&self) -> (Engine, Vec<String>) {
+        let meta = || Meta {
+            name: String::new(),
+            created: String::new(),
+            modified: String::new(),
+            app_version: String::new(),
+        };
+        let blank = Engine::new(Settings::default()).to_show(meta());
+        let show = Show {
+            groups: blank.groups,
+            palettes: blank.palettes,
+            pages: blank.pages,
+            playbacks: blank.playbacks,
+            ..self.to_show(meta())
+        };
+        Engine::from_show(&show)
+    }
+
     /// SHW-07: build an engine from a show. Never fails: a profile that does not validate, a
     /// fixture the patch refuses, a group member or playback value without a fixture is left
     /// out with one warning. A fixture left out for another reason takes its references with it

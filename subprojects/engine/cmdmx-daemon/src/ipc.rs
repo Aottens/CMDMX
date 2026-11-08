@@ -1601,6 +1601,11 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("show.list") => Ok(Command::Show(ShowRequest::List)),
         Some("show.new") => Ok(Command::Show(ShowRequest::New {
             name: string(&v, "name")?,
+            keep_patch: match opt_string(&v, "keep")?.as_deref() {
+                None => false,
+                Some("patch") => true,
+                Some(_) => return Err("invalid \"keep\" (expected \"patch\")".into()),
+            },
         })),
         Some("show.open") => Ok(Command::Show(ShowRequest::Open {
             name: string(&v, "name")?,
@@ -3820,7 +3825,7 @@ fn show_event(shows: &Shows, req: ShowRequest) -> Event {
             Ok(opened) => Event::ShowOpened(Box::new(opened)),
             Err(e) => Event::Warning(e),
         },
-        ShowRequest::New { name } | ShowRequest::SaveAs { name } => {
+        ShowRequest::New { name, .. } | ShowRequest::SaveAs { name } => {
             match valid_name(name).and_then(|()| match shows.exists(name) {
                 true => Err(format!("a show named {name} already exists")),
                 false => Ok(()),
@@ -6087,6 +6092,7 @@ mod tests {
                 r#"{"v":1,"cmd":"show.new","name":"Kerst"}"#,
                 ShowRequest::New {
                     name: "Kerst".into(),
+                    keep_patch: false,
                 },
             ),
             (
@@ -6112,6 +6118,19 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn shw_19_keep_patch_parses() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.new","name":"Kerst","keep":"patch"}"#),
+            Ok(Command::Show(ShowRequest::New {
+                name: "Kerst".into(),
+                keep_patch: true,
+            }))
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"show.new","name":"K","keep":"cues"}"#).is_err());
     }
 
     #[test]

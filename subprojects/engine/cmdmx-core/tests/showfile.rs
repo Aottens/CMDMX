@@ -827,3 +827,44 @@ fn cue_58_schema_13_is_refused() {
     v["schema_version"] = json!(13);
     assert!(Show::from_json(&v.to_string()).is_err());
 }
+
+// ---- SHW-19 ------------------------------------------------------------------
+
+#[test]
+fn shw_19_a_new_show_keeps_the_patch_and_empties_the_rest() {
+    use cmdmx_core::palette::{Cell, Record, Window};
+    let mut old = rig_with_settings();
+    old.patch_park(&[401]).unwrap();
+    common::select(&mut old, &[101]);
+    old.set_programmer_value(101, "Pan", 0.5).unwrap();
+    old.record_palette(&Record::at(Cell::new(Window::Positions, 1)))
+        .unwrap();
+    old.set_page_legend(2, "Band").unwrap();
+    old.set_page(2).unwrap();
+
+    let (new, warnings) = old.new_keeping_patch();
+    assert!(warnings.is_empty(), "{warnings:?}");
+
+    let was = old.to_show(meta());
+    let blank = Engine::new(Default::default()).to_show(meta());
+    let is = new.to_show(meta());
+    assert_eq!(
+        is.patch, was.patch,
+        "fixtures with numbers, modes and parked"
+    );
+    assert!(is.patch.fixtures.iter().any(|f| f.id == 401 && f.parked));
+    assert_eq!(is.profiles, was.profiles);
+    assert_eq!(is.output, was.output);
+    assert_eq!(is.settings, was.settings);
+    assert_eq!(is.settings.faders_per_page, 10);
+    assert!(is.groups.is_empty());
+    assert_eq!(is.palettes, blank.palettes);
+    assert_eq!(is.pages, blank.pages);
+    assert_eq!(is.playbacks, blank.playbacks);
+    assert_eq!(new.page(), 1);
+    assert!(new.programmer_view().selection.is_empty());
+    assert!(new.programmer_view().contents.is_empty());
+    // The old show is not changed by making the new one.
+    assert_eq!(old.page(), 2);
+    assert!(!old.to_show(meta()).playbacks.playbacks.is_empty());
+}

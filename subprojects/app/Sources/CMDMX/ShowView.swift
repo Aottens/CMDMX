@@ -9,6 +9,8 @@ struct ShowView: View {
     @State private var selection: String?
     @State private var newName = ""
     @State private var saveName = ""
+    /// UI-67: New starts from the open show's patch. Off whenever the screen opens.
+    @State private var keepPatch = false
     /// Which show-switching button has been clicked once. New and Open change what is on stage,
     /// so they need a second click (SHW-17, PAT-10); Save As does not.
     @State private var armed: Armed?
@@ -42,6 +44,8 @@ struct ShowView: View {
                 PanelWindow(title: "New", framed: true, accessory: { EmptyView() }) {
                     VStack(alignment: .leading, spacing: 6) {
                         TextField("name", text: $newName).textFieldStyle(.roundedBorder)
+                        Toggle("Keep the patch", isOn: $keepPatch).toggleStyle(.checkbox)
+                            .font(Typo.ui(11))
                         switchButton(.new, "New", newName)
                     }
                     .padding(8)
@@ -78,9 +82,10 @@ struct ShowView: View {
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
-        .onAppear { engine.listShows() }
+        .onAppear { keepPatch = false; engine.listShows() }
         .onChange(of: selection) { _, _ in armed = nil; engine.clearMessage() }
         .onChange(of: newName) { _, _ in armed = nil }
+        .onChange(of: keepPatch) { _, _ in armed = nil }
         .onChange(of: engine.show.name) { _, _ in armed = nil }
     }
 
@@ -92,16 +97,23 @@ struct ShowView: View {
             guard let name, !name.isEmpty else { return }
             if isArmed {
                 armed = nil
-                if kind == .open { engine.openShow(name) } else { engine.newShow(name) }
+                if kind == .open { engine.openShow(name) } else { engine.newShow(name, keepPatch: keepPatch) }
             } else {
                 armed = kind
             }
         } label: {
-            Text(isArmed ? "Confirm \(title.lowercased()) \(name ?? "") — output changes now" : title)
+            Text(isArmed ? armedLabel(kind, title, name) : title)
                 .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
         }
         .buttonStyle(FlatButton(fill: isArmed ? .red : nil))
         .disabled(name?.isEmpty ?? true)
+    }
+
+    private func armedLabel(_ kind: Armed, _ title: String, _ name: String?) -> String {
+        if kind == .new && keepPatch {
+            return "New show \(name ?? "") with the patch of \(engine.show.name): groups, palettes and playbacks start empty"
+        }
+        return "Confirm \(title.lowercased()) \(name ?? "") — output changes now"
     }
 
     private func saveAs() {

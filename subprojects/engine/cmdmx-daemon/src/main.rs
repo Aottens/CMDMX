@@ -353,9 +353,9 @@ fn main() {
                     use shows::ShowRequest::{New, SaveAs};
                     let target = match &event {
                         ipc::Event::ShowOpened(opened) => Some(&opened.name),
-                        ipc::Event::Command(ipc::Command::Show(New { name } | SaveAs { name })) => {
-                            Some(name)
-                        }
+                        ipc::Event::Command(ipc::Command::Show(
+                            New { name, .. } | SaveAs { name },
+                        )) => Some(name),
                         _ => None,
                     };
                     // Also keeps a New or Save As off the open show's own file.
@@ -384,8 +384,16 @@ fn main() {
                     );
                     let next = match event {
                         ipc::Event::ShowOpened(opened) => Some(*opened),
-                        ipc::Event::Command(ipc::Command::Show(New { name })) => {
-                            Some(fresh(name, Engine::new(Settings::default())))
+                        ipc::Event::Command(ipc::Command::Show(New { name, keep_patch })) => {
+                            let (new, warnings) = if keep_patch {
+                                engine.new_keeping_patch()
+                            } else {
+                                (Engine::new(Settings::default()), Vec::new())
+                            };
+                            Some(shows::Opened {
+                                warnings,
+                                ..fresh(name, new)
+                            })
                         }
                         // Same engine, a new file; the placeholder never runs.
                         ipc::Event::Command(ipc::Command::Show(SaveAs { name })) => Some(fresh(
