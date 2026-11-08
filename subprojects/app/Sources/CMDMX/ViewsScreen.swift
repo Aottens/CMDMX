@@ -9,6 +9,7 @@ struct ViewsScreen: View {
 
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var live: LiveOutput
     @EnvironmentObject private var ui: UIState
     @State private var tab = Tab.intensity
     @State private var filter = Filter.all
@@ -39,7 +40,7 @@ struct ViewsScreen: View {
             guard !f.parked, FixturesWindow.matches(f, find) else { return false }
             switch filter {
             case .all: return true
-            case .stage: return (engine.output[Item(fixture: f.id)]?.i ?? 0) > 0
+            case .stage: return (live.output[Item(fixture: f.id)]?.i ?? 0) > 0
             case .programmer, .selected: return touched.contains(f.id)
             }
         }.sorted { $0.number < $1.number }
@@ -124,11 +125,11 @@ struct ViewsScreen: View {
     /// Rows: a fixture, then its cell rows the feed holds (IPC-59). Columns: the attributes of the shown rows in the chosen group.
     private var gridTab: some View {
         let rows: [(FixtureInfo, Item)] = fixtures.flatMap { f -> [(FixtureInfo, Item)] in
-            let cells = engine.outputGrid.keys.filter { $0.fixture == f.id && $0.cell != nil }.sorted { ($0.cell ?? 0) < ($1.cell ?? 0) }
+            let cells = live.grid.keys.filter { $0.fixture == f.id && $0.cell != nil }.sorted { ($0.cell ?? 0) < ($1.cell ?? 0) }
             return [(f, Item(fixture: f.id))] + cells.map { (f, $0) }
         }
         let columns = Set(rows.flatMap { f, item in
-            (engine.outputGrid[item] ?? [:]).keys.filter { Self.group(of: $0, f, item) == group }
+            (live.grid[item] ?? [:]).keys.filter { Self.group(of: $0, f, item) == group }
         }).sorted()
         return GeometryReader { geo in ScrollView([.horizontal, .vertical]) {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
@@ -138,7 +139,7 @@ struct ViewsScreen: View {
                 }
                 .font(Typo.legend(Typo.small, .semibold)).foregroundStyle(t.fg2).padding(.vertical, 3)
                 ForEach(rows, id: \.1) { f, item in
-                    let values = engine.outputGrid[item] ?? [:]
+                    let values = live.grid[item] ?? [:]
                     HStack(spacing: 0) {
                         Text(item.cell.map { "\(f.number).\($0)" } ?? String(f.number)).font(Typo.mono())
                             .foregroundStyle(item.cell == nil ? t.fg : t.fg2).frame(width: 56, alignment: .leading)
@@ -198,6 +199,7 @@ struct ViewsScreen: View {
 private struct IntensityTab: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var live: LiveOutput
     @EnvironmentObject private var ui: UIState
     let fixtures: [FixtureInfo]
 
@@ -207,7 +209,7 @@ private struct IntensityTab: View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 4)], spacing: 4) {
                 ForEach(fixtures) { f in
-                    block(f, engine.output[Item(fixture: f.id)], selected: selected.contains(f.id), inProgrammer: inProgrammer.contains(f.id))
+                    block(f, live.output[Item(fixture: f.id)], selected: selected.contains(f.id), inProgrammer: inProgrammer.contains(f.id))
                         .contentShape(Rectangle())
                         .onTapGesture { if ui.armedAllows(.fixture, engine) { engine.selectFixture(f.id) } }   // as a tile does
                         .overlay { SecondaryClick { ui.fixtureInfo = FixtureRef(id: f.id) } }   // UI-57
@@ -251,6 +253,7 @@ private struct IntensityTab: View {
 private struct DMXTab: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var live: LiveOutput
     let line: Int?
 
     var body: some View {
@@ -260,7 +263,7 @@ private struct DMXTab: View {
         for f in on { for ch in f.address..<(f.address + f.footprint) where (1...512).contains(ch) { owner[ch - 1] = f } }
         let tints = [t.blue, t.green, t.amber, t.cyan, t.violet, t.magenta]
         let order = Dictionary(on.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a })
-        let values = engine.outputDMX.flatMap { $0.line == line ? $0.channels : nil } ?? []
+        let values = live.dmx.flatMap { $0.line == line ? $0.channels : nil } ?? []
         return ScrollView {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 32), spacing: 1) {
                 ForEach(0..<512, id: \.self) { i in

@@ -8,6 +8,22 @@ import SwiftUI
 
 /// One button of the fixed 6-column grid: 72 pt high, number top-left, tag or selection order
 /// top-right, condensed legend. State never changes the fill.
+/// UI-60 / UI-68: the only reader of live output in a tile, so a delta redraws the stripes and not the window.
+private struct LampStripe: View {
+    @EnvironmentObject private var live: LiveOutput
+    let item: Item?
+
+    /// The stripe shows the output colour at its intensity; black at 0 (IPC-58).
+    private var colour: Color {
+        guard let item, let o = live.output[item], o.i > 0 else { return .black }
+        let c = o.rgb ?? [1, 1, 1]
+        guard c.count == 3 else { return .black }
+        return Color(.sRGBLinear, red: c[0] * o.i, green: c[1] * o.i, blue: c[2] * o.i)
+    }
+
+    var body: some View { Rectangle().fill(colour) }
+}
+
 struct Cell: View {
     @Environment(\.theme) private var t
     /// nil: no number (an empty palette cell gets its number when it is recorded).
@@ -31,8 +47,8 @@ struct Cell: View {
     var armed = false
     /// Disabled output lamp stripe (fixtures, IDEA-10) / empty IPCGBES mask strip (groups).
     var lamp = false
-    /// UI-60 / IPC-58: with `lamp`, what the fixture outputs; nil or dark = black stripe.
-    var lampColour: Color?
+    /// UI-60 / IPC-58: with `lamp`, the item whose output the stripe shows; nil = black stripe.
+    var lampItem: Item?
     var mask = false
     /// With `mask`: the attribute groups that are lit in the IPCGBES strip (palettes, PAL-28).
     var maskGroups: [String] = []
@@ -70,7 +86,7 @@ struct Cell: View {
                 }
             }
             if lamp {
-                Rectangle().fill(lampColour ?? Color.black).frame(height: 4)
+                LampStripe(item: lampItem).frame(height: 4)
                     .overlay(Rectangle().strokeBorder(t.line, lineWidth: 1))
                     .padding(.horizontal, 4).padding(.bottom, 3)
                     .frame(maxHeight: .infinity, alignment: .bottom)
@@ -142,13 +158,6 @@ private struct CellScroll<Content: View>: View {
 struct FixturesWindow: View {
     @EnvironmentObject private var engine: EngineClient
 
-    /// UI-60: the stripe shows the output colour at its intensity; nil at 0 (IPC-58).
-    private static func lampColour(_ o: FixtureOutput?) -> Color? {
-        guard let o, o.i > 0 else { return nil }
-        let c = o.rgb ?? [1, 1, 1]
-        guard c.count == 3 else { return nil }
-        return Color(.sRGBLinear, red: c[0] * o.i, green: c[1] * o.i, blue: c[2] * o.i)
-    }
     @EnvironmentObject private var ui: UIState
     @State private var page = 0
     @Environment(\.theme) private var t
@@ -259,7 +268,7 @@ struct FixturesWindow: View {
                          dimmed: subSelection && order[item] != nil && !targets.contains(item),
                          inProgrammer: inProgrammer.contains(item),
                          lamp: true,
-                         lampColour: fixture.parked ? nil : Self.lampColour(engine.output[item]),
+                         lampItem: fixture.parked ? nil : item,
                          faded: faded) {
                         if fixture.parked {
                             return   // PAT-35: a parked fixture is not selectable

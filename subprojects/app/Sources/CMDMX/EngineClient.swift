@@ -861,6 +861,13 @@ private struct ProfileReply: Decodable {
     private enum CodingKeys: String, CodingKey { case profileKey = "profile_key", profile }
 }
 
+/// UI-68: live output (IPC-58) and the watched Views data (IPC-59) apart from EngineClient, so a delta redraws only its readers.
+final class LiveOutput: ObservableObject {
+    @Published var output: [Item: FixtureOutput] = [:]
+    @Published var grid: [Item: [String: GridValue]] = [:]
+    @Published var dmx: (line: Int, channels: [Int])?
+}
+
 /// One output node as reported by the daemon (OUT-33, IPC-20). Every field falls back to a default,
 /// so an odd entry cannot drop the snapshot it came in.
 struct OutputNode: Decodable, Identifiable, Equatable {
@@ -1508,10 +1515,8 @@ final class EngineClient: ObservableObject {
     /// IPC-10..12: all straight from the snapshot / deltas.
     @Published private(set) var fixtures: [FixtureInfo] = []
     /// IPC-58 / UI-60: live output per fixture or cell; the app draws it and animates nothing (FX-41).
-    @Published private(set) var output: [Item: FixtureOutput] = [:]
+    let live = LiveOutput()
     /// IPC-59 / UI-61: the watched view's last replies, cleared when the watch changes and when offline.
-    @Published private(set) var outputGrid: [Item: [String: GridValue]] = [:]
-    @Published private(set) var outputDMX: (line: Int, channels: [Int])?
     private var watching: OutputWatch?
     /// `patch.profile` replies in full, by profile key: the DMX view names a channel from them (UI-61).
     @Published private(set) var profileDocs: [String: ProfileDoc] = [:]
@@ -1839,7 +1844,7 @@ final class EngineClient: ObservableObject {
     /// UI-61, IPC-59: watch one view, or none (nil); the daemon forgets it with the connection, so views send it again once online.
     func watchOutput(_ view: OutputWatch?) {
         watching = view
-        outputGrid = [:]; outputDMX = nil
+        live.grid = [:]; live.dmx = nil
         switch view {
         case .grid?: sendJSON("output.watch", ["view": "grid"])
         case .dmx(let line)?: sendJSON("output.watch", ["view": "dmx", "line": line])
@@ -2229,7 +2234,7 @@ final class EngineClient: ObservableObject {
                 DaemonLauncher.shared.engineLost()   // REL-27
             }
             connection = .offline
-            outputs = []; outputGrid = [:]; outputDMX = nil
+            outputs = []; live.grid = [:]; live.dmx = nil
             control = ControlState(); controlMapping = nil; remote = RemoteState()
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
@@ -2352,7 +2357,7 @@ final class EngineClient: ObservableObject {
             let labels = (try? JSONDecoder().decode(SnapshotUndo.self, from: data))?.undo?.value
             undoLabel = labels?.undo; redoLabel = labels?.redo
             let entries = (try? JSONDecoder().decode(OutputEntries.self, from: data))?.output ?? []
-            output = Dictionary(entries.compactMap(\.value).map { ($0.item, $0) }, uniquingKeysWith: { _, b in b })
+            live.output = Dictionary(entries.compactMap(\.value).map { ($0.item, $0) }, uniquingKeysWith: { _, b in b })
             // UI-39: merge, the app keeps earlier lines across a daemon restart; known lines are skipped.
             var known = Set(messageLog.map { "\($0.at.timeIntervalSince1970)|\($0.level)|\($0.message)" })
             var added = false
@@ -2378,12 +2383,12 @@ final class EngineClient: ObservableObject {
             if let fixtures = incoming.fixtures?.value { self.fixtures = fixtures }
         case "output":
             // IPC-58: changed entries only, merged; an entry is never removed by a delta.
-            for e in ((try? JSONDecoder().decode(OutputEntries.self, from: data))?.fixtures ?? []).compactMap(\.value) { output[e.item] = e }
+            for e in ((try? JSONDecoder().decode(OutputEntries.self, from: data))?.fixtures ?? []).compactMap(\.value) { live.output[e.item] = e }
         case "output_grid":
             guard watching == .grid, let msg = try? JSONDecoder().decode(GridMessage.self, from: data) else { break }
-            for e in msg.fixtures.compactMap(\.value) { outputGrid[e.id] = e.values.compactMapValues(\.value) }   // each changed row comes whole
+            for e in msg.fixtures.compactMap(\.value) { live.grid[e.id] = e.values.compactMapValues(\.value) }   // each changed row comes whole
         case "output_dmx":
-            if let msg = try? JSONDecoder().decode(DMXMessage.self, from: data), watching == .dmx(msg.line) { outputDMX = (msg.line, msg.channels) }
+            if let msg = try? JSONDecoder().decode(DMXMessage.self, from: data), watching == .dmx(msg.line) { live.dmx = (msg.line, msg.channels) }
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
         case "control":

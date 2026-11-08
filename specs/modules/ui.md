@@ -588,6 +588,15 @@ From `docs/research/everyday-gaps.md` D; checked in `tests/manual/runs/2026-11-0
 - **UI-66** **Release all, or a page** (D3; amends UI-42: a page button is a target while Release is armed). Release armed and Release pressed again sends Release all (Titan: Release twice). Release armed and a tap on a page button shows the softkeys **Release page 2** and **Release all but page 2** (Titan has a third for fader groups, which we do not have). The message zone names how many playbacks go ("Release all: 5 playbacks"). Checked by hand on Art-Net with a release time of 2 s.
 - **UI-67** **New show from this patch** (D2; amends SHW-17). The Show screen's New gets a **Keep the patch** toggle, off when the screen opens. The two-step confirm names what goes: "New show Kerk kerst with the patch of Kerk: groups, palettes and playbacks start empty". Checked by hand.
 
+### Snappy while the rig moves (owner, 2026-11-08)
+The owner felt the app grow sluggish in the last releases. Cause found in the code: since UI-60 the live output deltas
+(IPC-58, up to 20 a second while anything fades or runs) land in the one object every view watches, so the whole
+console redraws on each.
+- **UI-68** **Live output redraws only what shows it** (amends UI-60, UI-61). The live output (IPC-58) and the Views
+  data (IPC-59: grid and DMX) live apart from the rest of the app's state, so an output delta redraws only the tile
+  stripes and the open Views tab, not the playback area, the windows or the side column. What is shown does not change.
+  Checked by measurement: the app's CPU with the daemon's `--demo` (fader 1 breathes), before and after, in the run file.
+
 ### Checks
 - **UI-25** `tests/manual/app-main-screen.md` (written with UX-02a, grown with b–d) walks each
   zone against the sketch. `tests/manual/app-programmer.md` and `tests/manual/app-patch.md` keep
