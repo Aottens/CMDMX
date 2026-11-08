@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WEB-02, 03, 11..13, 20..23, 30..34, REL-22: runs build.sh against a fake `gh` and checks _site/.
+# WEB-02, 03, 11..13, 20..23, 30..34, 37, REL-22: runs build.sh against a fake `gh` and checks _site/.
 # Usage: subprojects/website/test-build.sh   (needs jq and mdbook; CI runs it in the website job)
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -230,6 +230,37 @@ has "$root/.github/workflows/ci.yml" "subprojects/website/install-mdbook.sh" "WE
 has "$root/CLAUDE.md" "WEB-33" "WEB-33 CLAUDE.md"
 has "$root/scripts/check-tracking.py" "subprojects/website/manual" "WEB-33 check-tracking.py"
 has "$root/scripts/check-tracking.py" "subprojects/app/Sources" "WEB-33 check-tracking.py"
+
+# WEB-37: every released tag the notes lack gets an entry from its message, newest first.
+addnotes="$here/add-tag-notes.sh"
+if [ -x "$addnotes" ]; then
+  r="$tmp/tags"; mkdir -p "$r"; n="$r/notes.md"
+  g() { git -C "$r" -c user.name=t -c user.email=t@example.org "$@"; }
+  g init -q; g commit -q --allow-empty -m one
+  printf '# Release notes\n\n## 1.9.0\n\nWritten by hand.\n' > "$n"
+  g tag -a v1.9.0 -m 'v1.9.0: by hand'
+  g tag -a v1.10.0 -m 'v1.10.0: ten'
+  g tag -a v1.11.0 -m $'CMDMX 1.11.0: eleven\n\n- **A change** for the operator.'
+  g tag -a v1.12.0 -m 'CMDMX 1.12.0: still building'
+  (cd "$r" && "$addnotes" "$n" v1.11.0) || no "WEB-37: add-tag-notes.sh failed"
+  [ "$(head -1 "$n")" = "# Release notes" ] || no "WEB-37: the title is no longer first"
+  order=$(grep '^## ' "$n" | paste -sd' ' -)
+  [ "$order" = "## 1.11.0 ## 1.10.0 ## 1.9.0" ] || no "WEB-37: entries are '$order'"
+  has "$n" 'as "CMDMX 1.11.0".' "WEB-37 published line"
+  grep -qE '^Published [0-9]{1,2} [A-Z][a-z]+ 20[0-9]{2} as ' "$n" || no "WEB-37: no 'Published d Month yyyy' line"
+  has "$n" '(https://github.com/Aottens/CMDMX/releases/tag/v1.11.0)' "WEB-37 link"
+  has "$n" '- **A change** for the operator.' "WEB-37 message body"
+  grep -qx 'eleven' "$n" || no "WEB-37: the tag's first line without its version prefix is missing"
+  grep -qx 'ten' "$n" || no "WEB-37: a tag with only a first line is missing"
+  has "$n" 'Written by hand.' "WEB-37 written entry stays"
+  before=$(cat "$n")
+  (cd "$r" && "$addnotes" "$n" v1.11.0) || no "WEB-37: second run failed"
+  [ "$(cat "$n")" = "$before" ] || no "WEB-37: a second run changed the notes"
+else
+  no "WEB-37: subprojects/website/add-tag-notes.sh missing or not executable"
+fi
+has "$root/.github/workflows/website.yml" "add-tag-notes.sh" "WEB-37 website.yml"
+has "$root/.github/workflows/release.yml" "add-tag-notes.sh" "WEB-37 release.yml"
 
 # WEB-20, 21: Pages from the Actions artifact, least permissions, called after every release.
 wf="$root/.github/workflows/website.yml"

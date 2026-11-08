@@ -415,6 +415,7 @@ steps are IDEA-33 (phases confirmed 2026-10-29).
 | KERK-01 | The show *Kerk* (church patch, 56 fixtures, profiles inside) in `shows/Kerk.cmdmx.json`, so the church Mac can start from it; owner 2026-11-01, before the first church service run. | SHW | S | done (2026-11-01, #192) |
 | TRK-01 | `check-tracking.py`: README `## Status` has lines of at most 120 characters, no version number and names next by BACKLOG ids that are still open; `--summary` warns when a task finished and the status did not change; status rewritten. Owner, 2026-11-01. | CLAUDE.md step 5 | S | done (2026-11-01, #202) |
 | VS8-12 | Release notes on the site come from `main` (`website.yml` restores `release-notes.md` after checking out the tag's manual), so 0.2.5's notes show without a new release. | WEB-35 | S | done (2026-11-01, #193) |
+| VS8-13 | Release notes from the annotated tag (`add-tag-notes.sh`, on the site and in the app's manual), so a release needs no follow-up PR; 0.6.0 to 0.7.0 written. Spec approved by the owner when this PR merges. | WEB-37 | S | done (2026-11-08, #281) |
 
 ## Later phases
 Ideas waiting for their phase live in `IDEAS.md`. They get backlog rows when their phase is planned.
