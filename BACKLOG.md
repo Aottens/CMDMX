@@ -243,7 +243,7 @@ Builds: SNP-01.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| SNP-01 | App: live output and the Views data in their own observed object, so an output delta redraws only the tile stripes and the Views screen; CPU measured before and after with `--demo`. | UI-68 | S | todo |
+| SNP-01 | App: live output and the Views data in their own observed object, so an output delta redraws only the tile stripes and the Views screen; CPU measured before and after with `--demo`. | UI-68 | S | done (2026-11-08, #272) |
 | SNP-02 | App: the playbacks' live state (level, state, cue) apart from the stored part, so a fading or running playback redraws only the playback area and the windows that show it; CPU measured as SNP-01. Spec to write. | — | M | todo |
 
 ### Working on many at once (IDEA-35 batch D, spec P1-36)
