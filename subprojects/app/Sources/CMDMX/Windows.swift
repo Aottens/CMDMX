@@ -1,3 +1,5 @@
+import AppKit
+import Combine
 import SwiftUI
 
 // The windows of the 2x2 grid (UI-08..13) and the one cell view they share (UI-05).
@@ -9,18 +11,38 @@ import SwiftUI
 /// One button of the fixed 6-column grid: 72 pt high, number top-left, tag or selection order
 /// top-right, condensed legend. State never changes the fill.
 /// UI-60 / UI-68: the only reader of live output in a tile, so a delta redraws the stripes and not the window.
-private struct LampStripe: View {
-    @ObservedObject var cell: OutputCell
+private struct LampStripe: NSViewRepresentable {
+    let cell: OutputCell
 
     /// The stripe shows the output colour at its intensity; black at 0 (IPC-58).
-    private var colour: Color {
-        guard let o = cell.value, o.i > 0 else { return .black }
+    fileprivate static func colour(_ out: FixtureOutput?) -> CGColor {
+        guard let o = out, o.i > 0 else { return CGColor(gray: 0, alpha: 1) }
         let c = o.rgb ?? [1, 1, 1]
-        guard c.count == 3 else { return .black }
-        return Color(.sRGBLinear, red: c[0] * o.i, green: c[1] * o.i, blue: c[2] * o.i)
+        guard c.count == 3, let space = CGColorSpace(name: CGColorSpace.linearSRGB),
+              let col = CGColor(colorSpace: space, components: [c[0] * o.i, c[1] * o.i, c[2] * o.i, 1])
+        else { return CGColor(gray: 0, alpha: 1) }
+        return col
     }
 
-    var body: some View { Rectangle().fill(colour) }
+    final class StripeView: NSView {
+        var bound: ObjectIdentifier?
+        var sub: AnyCancellable?
+        override init(frame: NSRect) { super.init(frame: frame); wantsLayer = true }
+        required init?(coder: NSCoder) { nil }
+        func bind(_ cell: OutputCell) {
+            bound = ObjectIdentifier(cell)
+            sub = cell.subject.sink { [weak self] out in
+                CATransaction.begin(); CATransaction.setDisableActions(true)
+                self?.layer?.backgroundColor = LampStripe.colour(out)
+                CATransaction.commit()
+            }
+        }
+    }
+
+    func makeNSView(context: Context) -> StripeView { let v = StripeView(); v.bind(cell); return v }
+    func updateNSView(_ v: StripeView, context: Context) {
+        if v.bound != ObjectIdentifier(cell) { v.bind(cell) }
+    }
 }
 
 struct Cell: View {

@@ -85,7 +85,9 @@ struct GoBlock: View {
             .font(Typo.mono(Typo.small)).lineLimit(1)
             // CUE-42: a Go at a low fader is explained.
             if let list, list.live.level < 0.995 {
-                Text("fader \(percent(list.live.level))").font(Typo.mono(Typo.small)).foregroundStyle(t.amber)
+                // UI-71: shown by the threshold, the number is live.
+                LiveLabel(tick: engine.livePlaybacks.tick(list.id), text: { "fader \(percent($0.level))" }, color: t.amber,
+                          sample: "fader 100 %", alignment: .right)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
@@ -110,7 +112,7 @@ struct GoBlock: View {
                 if live.paused {
                     Text("paused").font(Typo.mono(Typo.small)).foregroundStyle(t.amber)
                 } else if live.progress > 0 && live.progress < 1 {
-                    Text(percent(live.progress)).font(Typo.mono(Typo.small)).foregroundStyle(t.green)
+                    LiveLabel(tick: engine.livePlaybacks.tick(list.id), text: { percent($0.progress ?? 0) }, color: t.green, sample: "100 %")
                 }
             } else {
                 Text("—").font(Typo.legend(13)).foregroundStyle(t.fg)
@@ -145,11 +147,8 @@ struct GoBlock: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: radius).fill(t.surf))
             .overlay(alignment: .bottom) {
-                if running, let progress = live?.progress {
-                    GeometryReader { geo in
-                        Rectangle().fill(t.green).frame(width: geo.size.width * progress, height: 3)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    }
+                if running, let list {
+                    LiveProgressLine(tick: engine.livePlaybacks.tick(list.id), color: t.green).frame(height: 3)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: radius))
@@ -320,12 +319,10 @@ private struct CueListWindow: View {
         .background {
             if current {
                 // CUE-43: the running row shows its transition.
-                GeometryReader { geo in
-                    ZStack(alignment: .bottomLeading) {
-                        t.green.opacity(0.12)
-                        if let progress = live?.progress, progress > 0 && progress < 1 {
-                            Rectangle().fill(t.green).frame(width: geo.size.width * progress, height: 2)
-                        }
+                ZStack(alignment: .bottomLeading) {
+                    t.green.opacity(0.12)
+                    if let progress = live?.progress, progress > 0 && progress < 1 {
+                        LiveProgressLine(tick: engine.livePlaybacks.tick(list.id), color: t.green).frame(height: 2)
                     }
                 }
             }

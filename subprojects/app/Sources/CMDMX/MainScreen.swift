@@ -643,9 +643,7 @@ private struct StatusBar: View {
                 .help("Hidden automatically on windows narrower than 1440 pt")
             BarToggle(title: day ? "Night" : "Day", on: false) { day.toggle() }
 
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(Self.clock.string(from: context.date)).font(Typo.mono(11)).foregroundStyle(t.fg)
-            }
+            LayerClock(text: { Self.clock.string(from: $0) }, font: .monospacedSystemFont(ofSize: 11, weight: .regular), color: NSColor(t.fg))
         }
         .font(Typo.ui(11))
         .foregroundStyle(t.fg2)
@@ -669,9 +667,7 @@ private struct ShowLabel: View {
             Text(show.name.isEmpty ? "—" : show.name).font(Typo.legend(Typo.body, .semibold))
                 .foregroundStyle(online ? t.fg : t.fg3)
             if online {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(show.ageText(now: context.date)).foregroundStyle(show.autosaveOk ? t.fg2 : t.amber)
-                }
+                LayerClock(text: { show.ageText(now: $0) }, font: .systemFont(ofSize: 11), color: NSColor(show.autosaveOk ? t.fg2 : t.amber))
             }
         }
     }
@@ -862,9 +858,7 @@ private struct LockCover: View {
         VStack(spacing: 14) {
             Text("Locked").font(Typo.legend(32, .semibold))
             Text(engine.show.name.isEmpty ? "—" : engine.show.name).font(Typo.legend(Typo.large)).foregroundStyle(t.fg2)
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(StatusBar.clock.string(from: context.date)).font(Typo.mono(Typo.large)).foregroundStyle(t.fg2)
-            }
+            LayerClock(text: { StatusBar.clock.string(from: $0) }, font: .monospacedSystemFont(ofSize: Typo.large, weight: .regular), color: NSColor(t.fg2))
             CodeBox(text: String(repeating: "•", count: ui.lockCode.count))
             Text(engine.lastMessage ?? "").font(Typo.ui()).foregroundStyle(t.amber).frame(height: 16)
             CodeKeypad()
@@ -891,4 +885,42 @@ private struct LockPrompt: View {
         .padding(16)
         .frame(width: 360)
     }
+}
+
+/// UI-71: a once-a-second label that sets its own string, so a tick costs no SwiftUI update.
+private struct LayerClock: NSViewRepresentable {
+    let text: (Date) -> String
+    let font: NSFont
+    let color: NSColor
+
+    final class Coordinator {
+        var timer: Timer?
+        var text: (Date) -> String = { _ in "" }
+        weak var label: NSTextField?
+        func tick() {
+            let s = text(Date())
+            if let l = label, l.stringValue != s { l.stringValue = s }
+        }
+        deinit { timer?.invalidate() }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSTextField {
+        let l = NSTextField(labelWithString: "")
+        l.setContentHuggingPriority(.required, for: .horizontal)
+        l.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let c = context.coordinator
+        c.label = l
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak c] _ in c?.tick() }
+        RunLoop.main.add(timer, forMode: .common)
+        c.timer = timer
+        return l
+    }
+    func updateNSView(_ l: NSTextField, context: Context) {
+        l.font = font; l.textColor = color
+        context.coordinator.text = text
+        context.coordinator.tick()
+    }
+    static func dismantleNSView(_ l: NSTextField, coordinator: Coordinator) { coordinator.timer?.invalidate() }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSTextField, context: Context) -> CGSize? { nsView.intrinsicContentSize }
 }
