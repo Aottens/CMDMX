@@ -32,10 +32,13 @@ impl Drop for Daemon {
 }
 
 /// As in `lock.rs`: below the ephemeral ranges, never bound here, and not taken by anyone else.
-/// A range of its own (30 000+) so it does not meet the other test binaries' ports.
+/// A range of its own (30 000+) so it does not meet the other test binaries' ports. It must end
+/// below Linux's ephemeral range (32 768+): a port in it can be a client's source port when the
+/// daemon binds, and the daemon then exits (CI, "daemon never listened on 36262"). The base stays
+/// under 32 500, which leaves room for this file's few dozen ports.
 fn free_port() -> u16 {
     static NEXT: AtomicU16 = AtomicU16::new(0);
-    let base = 30_000 + (std::process::id() % 10_000) as u16;
+    let base = 30_000 + (std::process::id() % 2_500) as u16;
     loop {
         let port = base + NEXT.fetch_add(1, Ordering::Relaxed);
         if TcpStream::connect(("127.0.0.1", port)).is_err() {
@@ -713,7 +716,12 @@ fn rmt_08_remote_highlight_uses_the_console_selection_and_highlight() {
     );
 
     // Something selected at the console first: the highlight replaces the whole selection.
+    // The app and the phone are two connections: wait until the tick has the selection, or the
+    // highlight could land first and the select would add to it.
     send(&mut app, json!({"cmd": "programmer.select", "fixture": a}));
+    until(&mut app, "the console selection", |m| {
+        m["type"] == "programmer" && m["selection"] == json!([a])
+    });
     send(&mut ws, json!({"cmd": "remote.highlight", "id": b}));
     until(&mut ws, "the highlight", |m| {
         m["type"] == "snapshot" && m["highlight"] == b
