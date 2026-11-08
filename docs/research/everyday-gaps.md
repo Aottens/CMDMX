@@ -60,6 +60,8 @@ Specified 2026-11-07, approved by the owner (P1-36; build tasks MUL-01..05): PBK
 3. Delete or duplicate a fixture profile: a bad import stays in the list.
 4. Lamp on/off and fixture control macros. RDM patching.
 
+Added by the fifth review (M, owner 2026-11-08): M2 straight after K1, then M3.
+
 ## F. Controls that exist in the engine, or small ones in the app
 1. Rename a control mapping: IPC is there, the app has no caller.
 2. Move a fixture button: `patch.handle` is there (PAT-14), the app never sends it.
@@ -74,6 +76,8 @@ Specified 2026-11-07, approved by the owner (P1-36; build tasks MUL-01..05): PBK
 
 Added by the fourth review (L, owner 2026-11-05): L7, L8.
 
+Added by the fifth review (M, owner 2026-11-08): M5's hint, M6.
+
 ## G. Show files
 1. No reveal, delete or rename in the app ("Finder", `showfile.md`), and the app cannot reveal the file.
 2. Loading a show brings its output nodes: no way to keep this desk's settings (Art-Net at home,
@@ -82,6 +86,8 @@ Added by the fourth review (L, owner 2026-11-05): L7, L8.
 4. Copying a file over the open show: Open is refused without a hint to quit first, and the next
    autosave overwrites the copy. A new show has no Serial node while Art-Net dots stay green.
 5. Reports of fixtures, cues, palettes and groups.
+
+Added by the fifth review (M, owner 2026-11-08): M1 first.
 
 Tracked already, not repeated here: Macros, Select If, Align, Scene Master, virtual faders, nested and
 time palettes, Merge from another show, Parking, Undo History, set list, Move In Dark (their specs'
@@ -144,6 +150,8 @@ the Show Library; gobo image as palette legend. Rarely: Copy Legends, Add Channe
 Mode, Auto Legend off, Always Merge, Attribute Overlap, Prev + Next cancels a skip, Bunch Up With Offset.
 
 Added by the fourth review (L, owner 2026-11-05): L4.
+
+Added by the fifth review (M, owner 2026-11-08): M4.
 
 ## J. Input paths and what you can see
 1. Attribute values cannot be typed: the command grammar has level, palette and gel only (`command.rs`).
@@ -254,11 +262,11 @@ Seen again, already listed: E2 (no Fixture Exchange), G3 (Save As moves you, goi
 
 What held, so no work needed, and batch D in particular: Copy of eight playbacks with ⇧ across a page change, in one undo step; All and its confirm naming the count and page; a cue range picked across a scrolled list, "Delete 7 cues of 1.1?", in one undo step; the consequence line on Remove, counted over the whole show; Save As as the way to a copy; Group Merge asked before it changes a used group; a new universe gets its output by itself; the Views screen with 266 tiles; opening a 5 MB show in under two seconds on a debug engine.
 
-## Proposed changes to the batches, fifth review
-Not approved. No criteria or code for these until the owner approves. The third review's proposals above still wait as well.
-- **G:** M1 first, as a choice on New that keeps groups and palettes, and a backlog row for *Merge from another show*.
+## Changes to the batches, fifth review
+Approved by the owner, 2026-11-08. Each batch still needs its spec approved before it has criteria or code. The third review's proposals above still wait.
+- **G:** M1 first, as a choice on New that keeps groups and palettes; *Merge from another show* has its own row (P1-37).
 - **E:** M2 (Fixture Exchange) straight after K1, then M3.
 - **I:** add M4.
 - **F:** add M5's hint and M6.
-- **Patch (no batch):** M7's measurement on a release build.
+- **Patch (no batch):** M7's measurement on a release build (P1-38).
 

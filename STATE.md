@@ -13,7 +13,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Next
 1. IDEA-35 batches E to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved
    first. P1-31 (Blind and Edit) stays apart from them.
-2. The proposals of the third and fifth gap reviews wait for approval (same file, *Proposed changes to the batches*).
+2. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
@@ -36,8 +36,6 @@ Programming and small checks:
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
 
 ## Owner to decide
-- The fifth gap review's proposals (`docs/research/everyday-gaps.md`, M1 to M7). First: should New keep groups and
-  palettes as a choice, is *Merge from another show* wanted now, and does moving a block of cues go in batch I or apart?
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).
