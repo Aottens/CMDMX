@@ -1,38 +1,29 @@
-# USB-MIDI box checklist — CMDMX Desk on a Pico 2 (HWB-01, HW-14, 18, 20, 22, 30, 32, 61)
+# USB-MIDI box checklist — CMDMX Desk on a Pico 2 (HWB-01, HW-14, 16, 17, 18, 20, 22, 30, 32, 61)
 
 Gate 3: only the owner ticks these. Copy to `tests/hardware/runs/<date>-HWB-01.md` for a run.
 Firmware: `subprojects/hardware/firmware/` (`box/`), wire map
 [`wire-map.md`](../../subprojects/hardware/firmware/wire-map.md). The box needs no software
 change: it is learned on the Mac (CTL-25).
 
-## Parts to order (none on the desk on 2026-10-25)
-Quality before price (HW-03); part numbers are suggestions, check the datasheet before ordering.
-- [ ] 1 × **Raspberry Pi Pico 2** (RP2350A) with headers (or solder them), and a USB data cable
-      (micro-USB to the Mac; a charge-only cable will not enumerate)
-- [ ] 2 × **plain 100 mm linear slide potentiometer, 10 kΩ linear (B10K)**, e.g. ALPS RSA0N
-      series or Bourns PSL series, with two fader knobs
-- [ ] 1 × **optical incremental encoder, smooth (no detents), 5 V, quadrature A/B, panel mount**:
-      Bourns EM14 with 64 PPR, e.g. EM14A0D-B28-L064N (about €28 at Mouser), with a knob for its
-      shaft. Check in the datasheet that the code means no detent and no switch. It is the encoder
-      the four wheels of the programmer panel get (HW-07, DECISIONS 2026-11-07)
-- [ ] 4 × **MX-compatible switch** (e.g. Cherry MX or Gateron, any feel) with clear caps
-- [ ] 4 × **SK6812 RGB LED** in a chain: a strip cut to 4 LEDs (5 V, 60/m) or 4 breakout boards
-- [ ] 1 × **74AHCT125** (or 74HCT245) level shifter for the LED data line (3.3 V → 5 V), plus a
-      330 Ω resistor in the data line and a 470 µF capacitor across the LED supply
-- [ ] Breadboard, jumper wires, and for the encoder's 5 V outputs a divider per channel: 2 × 10 kΩ
-      and 2 × 20 kΩ (an open-collector encoder needs 2 × 2.2 kΩ pull-ups to 3V3 instead)
-
-## Wiring (pin table at the top of `box/src/main.rs`)
-| Pico 2 pin | Connects to |
-| --- | --- |
-| GP26 (ADC0) | fader 1 wiper; fader ends to 3V3 (pin 36) and AGND (pin 33) |
-| GP27 (ADC1) | fader 2 wiper; ends like fader 1 |
-| GP2, GP3, GP4, GP5 | key 1 (`upper 1`), key 2 (`upper 2`), key 3 (`lower 1`), key 4 (`lower 2`), other side to GND |
-| GP6, GP7 | encoder A, B (encoder at 5 V from VBUS pin 40; each output through 10 kΩ to the pin, 20 kΩ from the pin to GND, so the pin sees at most 3.3 V) |
-| GP16 | 74AHCT125 input; its output through 330 Ω to the first SK6812 DIN; LEDs in key order 1–4 |
-| VBUS (pin 40), GND | 5 V and ground for the LEDs, the level shifter and the encoder |
-
-The ADC pins (GP26, GP27) must never see more than 3.3 V.
+## Parts (DigiKey order placed by the owner on 2026-11-08, not yet on the desk)
+One DigiKey order (digikey.nl, free shipping from €75), prices excl. VAT seen on 2026-11-08; the switches come from Amazon.nl,
+because no distributor carries the MX2A Honey (DECISIONS 2026-11-08). The owner has a bench supply, breadboards,
+jumper wires, through-hole resistors and a micro-USB data cable.
+- [ ] 2 × **Bourns PSM01-082A-103B2** motorised fader, 100 mm, 10 kΩ, 10 V motor, touch track (about €26)
+- [ ] 1 × **Bourns EM14A0D-C24-L064N** optical encoder, 64 PPR, no detent, 1/4" shaft (about €30)
+- [ ] 1 × **Raspberry Pi Pico 2 H** (SC1632, headers fitted; about €5)
+- [ ] 1 × **Adafruit 2448** TB6612FNG dual motor driver breakout (DigiKey 1528-1212-ND, about €6), headers to
+      solder. Not the Pololu 713: a marketplace item with its own shipping
+- [ ] 1 × **Adafruit 1426** NeoPixel Stick, 8 RGB LEDs (DigiKey 1528-1354-ND, about €5; not 6509, the white/amber one): stands in for the SK6812 Mini-E, which needs
+      the key PCB; the firmware lights the first four
+- [ ] 1 × **SN74AHCT125N** level shifter, DIP-14 (about €1)
+- [ ] 1 × **470 µF / 16 V** electrolytic, e.g. Panasonic EEU-FR1C471, across the LED supply
+- [ ] Amazon.nl: **CHERRY MX Experience Box 2nd Edition** (DMXAA-XC1X-2A, 10 different 5-pin switches, one of each,
+      €14.99 incl. VAT, free delivery): four go in the box, including MX2A Honey. The desk's ~100 switches are
+      ordered after the feel is chosen
+- [ ] From the drawer: 2 × 1 MΩ (touch), 2 × 10 kΩ and 2 × 20 kΩ (encoder divider), 330 Ω (LED data)
+- [ ] Solder short wires to the faders, the encoder and the driver carrier: their pins do not fit a breadboard
+- [ ] Knobs come later with the front plate; the bare fader lever is the touch contact
 
 ## Build and flash
 - [ ] Once: `brew install picotool` and (in `subprojects/hardware/firmware`) `rustup target add
@@ -66,6 +57,22 @@ an attribute on wheel 1, e.g. a dimmer). Output visible on Art-Net (Claude liste
       back: playback 1 follows the fader's real position (~50 %) or waits for pickup; it never
       jumps to 0 % first (HW-18)
 
+## Motors and touch (HW-16, 17, 18)
+Bench supply at 10 V, current limit about 1 A. The calibration knobs are constants at the top of
+`box/src/main.rs` (`MOTOR_*`, `TOUCH_THRESHOLD`).
+- [ ] Power-up: neither motor moves until the console sends a position (HW-18)
+- [ ] Move playback 1 on screen to 75 %: hardware fader 1 drives there and stops, without hunting
+      or buzzing; same for fader 2. Values used: `MOTOR_KP` ____ `MOTOR_MIN_DUTY` ____
+- [ ] No echo: after the motor stops, the Control screen's last input does not show fader 1 sending
+      (HW-14)
+- [ ] Recall a cue or page with other fader levels: both faders follow
+- [ ] Touch: hold the lever while the screen moves playback 1: the motor stays off, nothing fights
+      the hand; let go: the fader stays where it was left, then follows the next change (HW-16).
+      Value used: `TOUCH_THRESHOLD` ____
+- [ ] Stall: hold the lever by its edge with a glove or a non-conductive tool while the screen moves
+      it: the motor gives up within about 1 s and stays off until the next target (HW-17)
+- [ ] Quit the daemon: the faders stay where they are (HW-32)
+
 ## Keys and LED feedback (HW-20)
 - [ ] Key 1 does what playback 1's upper button does (Flash: held while pressed) and its LED is
       white while playback 1 is on; key 3 does `lower 1` (Swop or the lower function)
@@ -73,6 +80,8 @@ an attribute on wheel 1, e.g. a dimmer). Output visible on Art-Net (Claude liste
 - [ ] A LED colour from the palette: set `on_value` of `upper 1` to 8 in the bindings table: its LED
       lights **red** when on; 80 gives **blue** (wire-map.md)
 - [ ] A fast tap gives exactly one press and one release (no double Flash)
+- [ ] Feel: with a cap on each, compare MX2A Honey, MX Illuma Brown and MX2A Silent Red, then the rest of the box.
+      Switch chosen for the desk: ________
 
 ## Wheel 1 (HW-22)
 - [ ] With the fixture selected, turning right raises wheel 1's attribute, left lowers it (if the

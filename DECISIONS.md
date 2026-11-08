@@ -5,6 +5,20 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-08 — The USB-MIDI box gets the real motorised faders (HWB-01; owner)
+
+**Decision:** The box's two faders are the desk's own Bourns PSM01-082A-103B2 motorised faders on an Adafruit TB6612FNG
+driver, with touch sense on their touch track; the parts come from DigiKey (one order, about €100 excl. VAT), the
+Cherry switches from Amazon.nl: the MX Experience Box (10 different ones, among them MX2A Honey) to choose the feel before the desk's ~100 are bought (no distributor carries them, Cherry's own shop charges about €11 shipping).
+
+**Alternatives considered:** plain 100 mm faders for the box and motors only on the strip PCB (HWB-02); RS (no Pico 2,
+no motor driver).
+
+**Reasoning:** the owner wants to test with the final parts; motor, touch and stall (HW-16, 17) are then proven on the
+bench before the strip PCB is drawn.
+
+**Reversal trigger:** the PSM or TB6612 misbehaves on the bench, so the strip needs another motor part or driver.
+
 ## 2026-11-08 — Live values reach the screen without SwiftUI
 
 **Decision:** A value that changes many times a second (output stripes, fader levels, cue progress, clocks, the
@@ -18,6 +32,7 @@ splitting the window into several hosting views (measured: no gain).
 whatever its size (SNP-04); a layer update costs almost nothing. With the layers: idle 1.9 %, one breathing fader 4.6 %.
 
 **Reversal trigger:** a SwiftUI release that makes small updates cheap in a large window, measured with `scripts/app-cpu.sh`.
+
 
 ## 2026-11-08 — The app has a CPU budget
 

@@ -244,8 +244,9 @@ littlites); scribble strips or displays per fader; DMX input; MIDI DIN ports on 
 
 ## Build tasks (`BACKLOG.md`, added when this spec is approved)
 Build tasks are `HWB-nn` so they never read as a criterion `HW-nn`; HW-01 (this spec) keeps its id.
-- **HWB-01** USB-MIDI box firmware on a Pico 2 + checklist (HW-20 for its controls, 14, 18, 22,
-  30, 32, 33, 61, 62, 70).
+- **HWB-01** USB-MIDI box firmware on a Pico 2 + checklist (HW-20 for its controls, 14, 16, 17,
+  18, 22, 30, 32, 33, 61, 62, 70). Its two faders are the playback strip's motorised Bourns PSM on
+  a TB6612FNG driver, so motor, touch and stall (HW-16, 17) are proven before the strip PCB.
 - **HWB-02** Playback strip PCB + strip firmware + checklist (HW-10..18, 30, 31).
 - **HWB-03** Main controller PCB + firmware + checklist (HW-12, 13, 19..23, 31, 32, 63).
 - **HWB-04** Preset strip PCB + checklist (HW-10, 11, 14, 15, 18).

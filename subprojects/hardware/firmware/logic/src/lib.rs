@@ -13,5 +13,7 @@ pub mod fader;
 pub mod keys;
 pub mod link;
 pub mod midi;
+pub mod motor;
 pub mod palette;
+pub mod touch;
 pub mod wiremap;
