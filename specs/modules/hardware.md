@@ -153,6 +153,14 @@ Every proof of concept is tested on the owner's Mac with today's app.
   flushes the show and shuts down cleanly; the computer powers on by itself when mains returns.
 - **HW-36** Every connector a cable can be kicked out of locks: powerCON, etherCON, Neutrik XLR,
   locking internal cables with strain relief for screen, USB and strip buses.
+- **HW-37** One board stuck transmitting never takes the RS485 bus down (extends HW-31 from silent
+  to jamming). The main controller is the only master: a board transmits only in reply to a poll
+  addressed to it, and no frame takes longer than 1 ms on the wire. Each board's driver enable is
+  held off by a pull-down during reset and boot, and a hardware time limit that does not depend on
+  firmware releases it after at most 2 ms; it stays off until the MCU drops and raises it again.
+  The main controller reports a jammed bus on the status console (HW-23), naming the board when it
+  can. Checklist: with one strip's firmware forced to hold its driver on, all other controls keep
+  working. A short on the bus wiring itself is outside this criterion.
 
 ### DMX board
 - **HW-40** A separate DMX board with its own RP2350 drives four DMX512 outputs on Neutrik 5-pin

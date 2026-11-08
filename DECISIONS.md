@@ -5,6 +5,21 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-08 — The desk's strip bus stays RS485, polled, with a jam limit (HW-12, HW-37; owner)
+
+**Decision:** Strips, panel and main controller stay on half-duplex RS485 with the main controller as the only master.
+HW-37 adds what CAN would have given for free: one board stuck transmitting cannot take the bus down.
+
+**Alternatives considered:** CAN or CAN FD (the owner's question). The RP2350 has no CAN, so each board needs an
+MCP251863-class part and an SPI driver in Rust, or CAN in software on PIO next to the motor PID.
+
+**Reasoning:** RS485 runs on the RP2350's own UART, polling gives fixed timing and detects a silent strip without extra
+work (HW-31), and frames are not capped at 8 bytes. CAN's real advantage is bus-off for a jamming node, which HW-37
+covers. Cost did not decide this. Whether commercial desks use CAN was not checked and played no part.
+
+**Reversal trigger:** the HWB-03 checklist shows the polled bus too slow or a jam that HW-37 does not contain, or the
+strip MCU changes to one with CAN built in.
+
 ## 2026-11-08 — The BCF2000 runs over DIN MIDI on Apple Silicon (VS1-07; owner)
 
 **Decision:** The BCF2000 is connected with MIDI cables through a USB-MIDI interface, in global setup `S-4`. Its upper
