@@ -40,6 +40,8 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
    **Every PR description has a `## Tracking` section** with the output of
    `scripts/check-tracking.py --summary origin/main` (new tasks, status moves, ideas, open points),
    so the owner sees in plain lines what the PR records without reading the tables.
+   An app PR that touches `EngineClient` or a view that watches it also carries the line of
+   `scripts/app-cpu.sh` (UI-70: at most 5 % idle, 15 % with `--demo`).
 6. **Clean up after the merge.** GitHub deletes the merged branch; delete the local ones too, in
    the owner's checkout on `main`:
    `git fetch --prune && git branch -vv | awk '/: gone]/{print $1}' | xargs git branch -D`.

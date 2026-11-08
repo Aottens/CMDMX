@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-08 — The app has a CPU budget
+
+**Decision:** On the owner's Mac the release app stays at or under 5 % CPU idle and 15 % with the daemon's `--demo`
+(one breathing fader), measured by `scripts/app-cpu.sh` (UI-70). An app PR that touches `EngineClient` or a view that
+watches it puts the script's line in its description.
+
+**Alternatives considered:** no budget, profile when it feels slow (how 100 % went unnoticed for a release).
+
+**Reasoning:** a lighting desk that lags while the rig moves is not show-proof; the owner called 64 % unacceptable.
+
+**Reversal trigger:** the measurement proves too noisy to gate on, or a bigger rig needs a different load.
+
 ## 2026-11-07 — The wheels are Bourns EM14 optical encoders (HW-07, HWB-01; owner)
 
 **Decision:** The desk's smooth wheels use the Bourns EM14 optical encoder with 64 PPR and no detent (about €28 each, four for about €110); the USB-MIDI box gets one of them. Its 5 V outputs reach the RP2350 through a resistor divider.

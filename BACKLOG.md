@@ -238,7 +238,7 @@ Builds: FIT-01.
 | FIT-01 | App: status bar, attribute bar and playback area always whole from 1280 × 800 pt up and in console mode, the rail scrolls and the side column keys shrink; checklist, checked on the owner's MacBook. | UI-63 | S | done (2026-11-07, #265) |
 
 ### Snappy while the rig moves (owner, 2026-11-08)
-The owner felt the app grow slower in recent releases; the ask to fix it is the approval of UI-68. UI-69 and UI-70 wait for the owner's approval (2026-11-08).
+The owner felt the app grow slower in recent releases; the ask to fix it is the approval of UI-68. UI-69 and UI-70 approved by the owner 2026-11-08.
 Builds: SNP-01; SNP-03 + SNP-02 (the script first, so SNP-02 is measured with it).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
