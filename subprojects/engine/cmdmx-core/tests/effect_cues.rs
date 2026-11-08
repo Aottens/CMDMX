@@ -1307,6 +1307,26 @@ fn pat_27_a_running_cue_gives_the_frames_of_the_show_reopened() {
 }
 
 #[test]
+fn pat_38_effects_follow_pat_27_on_an_exchange() {
+    let mut e = mover_rig("Big");
+    e.add_profile(
+        "dim",
+        Profile::from_json(
+            r#"{ "attributes": [ { "name": "Dimmer", "group": "I", "kind": "Htp", "channel": 1 } ] }"#,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    pan_entry(&mut e);
+    let pb = record(&mut e, 1, 1);
+    e.drain_warnings();
+    e.patch_exchange(&[402], "dim", "default", None).unwrap();
+    assert_eq!(cue_effects(&e, pb, 0)[0].members, items(&[401, 403]));
+    assert_eq!(e.effects()[0].members, items(&[401, 403]));
+    assert_eq!(messages(&mut e), ["Dropped Pan, Tilt on 1 fixture"]);
+}
+
+#[test]
 fn pat_27_undo_brings_it_back_also_in_a_running_cue() {
     let setup = || {
         let mut e = mover_rig("Big");

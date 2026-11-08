@@ -843,6 +843,14 @@ impl Programmer {
         take(&mut self.values, item, attribute);
     }
 
+    /// PAT-38: replace the stored entry of an attribute the item already has.
+    pub(crate) fn replace_value(&mut self, item: Item, attribute: &str, value: Stored) {
+        if let Some(slot) = (self.values.get_mut(&item)).and_then(|a| a.get_mut(attribute)) {
+            *slot = value;
+            self.changed = true;
+        }
+    }
+
     /// PRG-29: empty the programmer's values and the located set.
     pub(crate) fn clear_values(&mut self) {
         self.values.clear();

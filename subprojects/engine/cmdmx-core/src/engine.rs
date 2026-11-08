@@ -1415,13 +1415,13 @@ impl Engine {
             &[id],
         )?;
         let at = self.last_tick.unwrap_or(0.0);
-        let palette_lines = self.palette_mode_warnings(&[id], mode);
+        let palette_lines = self.palette_mode_warnings(&[id], None, mode);
         self.warnings.extend(
             palette_lines
                 .into_iter()
                 .map(|message| Warning { at, message }),
         );
-        let dropped = self.apply_mode(id, mode)?;
+        let dropped = self.apply_mode(id, None, mode)?;
         self.warnings.extend(
             dropped
                 .into_iter()
@@ -1431,33 +1431,49 @@ impl Engine {
     }
 
     /// The value- and effect-dropping half of a mode change (PAT-13, 27); returns
-    /// `(warning, attribute)` per dropped value or effect attribute.
+    /// `(warning, attribute)` per dropped value or effect attribute. `exchange` is the new
+    /// profile key of a Fixture Exchange (PAT-37): values then follow PAT-38's carry rule and the
+    /// fixture takes the profile too.
     fn apply_mode(
         &mut self,
         id: FixtureId,
+        exchange: Option<&str>,
         mode: &str,
     ) -> Result<Vec<(String, String)>, CoreError> {
         let fixture = self
             .fixtures
             .get(&id)
             .ok_or(CoreError::UnknownFixture(id))?;
-        let old_footprint = self.footprint_of(fixture)?;
-        let new = lookup_mode(&self.profiles, &fixture.profile, Some(mode))?;
+        let old = lookup_mode(&self.profiles, &fixture.profile, fixture.mode.as_deref())?;
+        let old_footprint = old.footprint;
+        let key = exchange.map_or_else(|| fixture.profile.clone(), str::to_string);
+        let new = lookup_mode(&self.profiles, &key, Some(mode))?;
         let (number, universe, address) = (fixture.number, fixture.universe, fixture.address);
         let parked = fixture.parked;
-        // A value stays only when the new mode has that attribute with the same kind of value.
-        let keeps = |name: &str, value: &Stored| {
-            new.logical(name)
-                .is_some_and(|l| l.default.same_kind(&value.value()))
+        // What the new mode makes of a stored value: PAT-38's rule on an exchange; otherwise it
+        // stays only when the new mode has that attribute with the same kind of value (PAT-13).
+        let change = |name: &str, value: &Stored| -> Option<Stored> {
+            if exchange.is_some() {
+                carry_stored(name, value, old, new)
+            } else {
+                new.logical(name)
+                    .is_some_and(|l| l.default.same_kind(&value.value()))
+                    .then_some(*value)
+            }
         };
         let mut warnings: Vec<(String, String)> = Vec::new();
         let mut dropped_programmer = Vec::new();
+        let mut carried_programmer = Vec::new();
         // PRG-53: a cell item's values stay in every mode; only the fixture's own are checked.
         for (name, value) in (self.programmer.values_of(Item::fixture(id)))
             .into_iter()
             .flatten()
         {
-            if !keeps(name, value) {
+            if let Some(carried) = change(name, value) {
+                if carried != *value {
+                    carried_programmer.push((name.clone(), carried));
+                }
+            } else {
                 dropped_programmer.push(name.clone());
                 warnings.push((
                     format!(
@@ -1474,8 +1490,11 @@ impl Engine {
                     .filter_map(|v| v.get_mut(&Item::fixture(id)))
                 {
                     values.retain(|name, value| {
-                        let keep = keeps(name, value);
-                        if !keep {
+                        let carried = change(name, value);
+                        let keep = carried.is_some();
+                        if let Some(carried) = carried {
+                            *value = carried;
+                        } else {
                             warnings.push((
                                 format!(
                                     "fixture {number}: playback {} value '{name}' dropped, mode '{mode}' has no such attribute",
@@ -1536,7 +1555,12 @@ impl Engine {
                 let value = old_held
                     .get(l.name)
                     .copied()
-                    .filter(|v| l.default.same_kind(v))
+                    .and_then(|v| match exchange {
+                        // An untouched value is the default, not a slot to carry.
+                        Some(_) if old.logical(l.name).is_some_and(|o| o.default == v) => None,
+                        Some(_) => carry(l.name, v, old, new),
+                        None => l.default.same_kind(&v).then_some(v),
+                    })
                     .unwrap_or(l.default);
                 (l.name.to_string(), value)
             })
@@ -1544,12 +1568,17 @@ impl Engine {
         for name in dropped_programmer {
             self.programmer.remove_value(Item::fixture(id), &name);
         }
+        for (name, stored) in carried_programmer {
+            self.programmer
+                .replace_value(Item::fixture(id), &name, stored);
+        }
         self.held.insert(Item::fixture(id), held);
         if !parked {
             self.clear_channels(universe, address, old_footprint);
         }
         if let Some(f) = self.fixtures.get_mut(&id) {
             f.mode = Some(mode.to_string());
+            f.profile = key;
         }
         if !leaving.is_empty() {
             self.effects_leave(|e, m| *m == item && leaving.iter().any(|(i, _)| *i == e.id));
@@ -1560,7 +1589,13 @@ impl Engine {
 
     /// PAT-28: per palette (number order) the attributes it holds for the `ids` that `mode` lacks
     /// while their old mode has them; global values, cells and memberless entries say nothing.
-    fn palette_mode_warnings(&self, ids: &[FixtureId], mode: &str) -> Vec<String> {
+    /// An exchange (PAT-39) asks about `mode` of its new profile and says "type".
+    fn palette_mode_warnings(
+        &self,
+        ids: &[FixtureId],
+        exchange: Option<&str>,
+        mode: &str,
+    ) -> Vec<String> {
         let mut palettes: Vec<_> = self.palettes.values().collect();
         palettes.sort_by_key(|p| p.number);
         let mut lines = Vec::new();
@@ -1572,7 +1607,7 @@ impl Engine {
                 };
                 let (Some(old), Ok(new)) = (
                     resolve_mode(&self.profiles, f),
-                    lookup_mode(&self.profiles, &f.profile, Some(mode)),
+                    lookup_mode(&self.profiles, exchange.unwrap_or(&f.profile), Some(mode)),
                 ) else {
                     continue;
                 };
@@ -1602,8 +1637,9 @@ impl Engine {
                 let attrs: Vec<_> = lost.into_iter().collect();
                 let s = if count == 1 { "" } else { "s" };
                 lines.push(format!(
-                    "{name}: no {} on {count} fixture{s} in this mode, the value stays",
-                    attrs.join(", ")
+                    "{name}: no {} on {count} fixture{s} in this {}, the value stays",
+                    attrs.join(", "),
+                    if exchange.is_some() { "type" } else { "mode" }
                 ));
             }
         }
@@ -1786,7 +1822,7 @@ impl Engine {
             }
         }
         let at = self.last_tick.unwrap_or(0.0);
-        let palette_lines = self.palette_mode_warnings(&sorted, mode);
+        let palette_lines = self.palette_mode_warnings(&sorted, None, mode);
         self.warnings.extend(
             palette_lines
                 .into_iter()
@@ -1795,7 +1831,7 @@ impl Engine {
         let mut attrs = BTreeSet::new();
         let mut affected = 0;
         for &id in &sorted {
-            let dropped = self.apply_mode(id, mode)?;
+            let dropped = self.apply_mode(id, None, mode)?;
             affected += usize::from(!dropped.is_empty());
             attrs.extend(dropped.into_iter().map(|(_, attr)| attr));
         }
@@ -1805,6 +1841,172 @@ impl Engine {
                 at,
                 message: format!("Dropped {} on {affected} fixtures", attrs.join(", ")),
             });
+        }
+        Ok(())
+    }
+
+    /// PAT-37: give the range another profile and mode (PAT-38, 39), in place or placed back to
+    /// back from `place`; all or nothing, one line for what dropped.
+    pub fn patch_exchange(
+        &mut self,
+        ids: &[FixtureId],
+        profile: &str,
+        mode: &str,
+        place: Option<(UniverseId, u16)>,
+    ) -> Result<(), CoreError> {
+        let sorted = self.range_ids(ids)?;
+        let new = lookup_mode(&self.profiles, profile, Some(mode))?;
+        let footprint = new.footprint;
+        if let Some((universe, address)) = place {
+            let mut next = u32::from(address);
+            for &id in &sorted {
+                let f = (self.fixtures.get(&id)).ok_or(CoreError::UnknownFixture(id))?;
+                self.check_place(f.number, universe, next, footprint, &sorted)?;
+                next += u32::from(footprint.max(1));
+            }
+        } else {
+            // (number, universe, first, end) of each unparked fixture's new footprint.
+            let spans: Vec<_> = (sorted.iter().filter_map(|id| self.fixtures.get(id)))
+                .filter(|f| !f.parked)
+                .map(|f| {
+                    let first = u32::from(f.address);
+                    (f.number, f.universe, first, first + u32::from(footprint))
+                })
+                .collect();
+            for &(number, universe, first, end) in &spans {
+                self.check_place(number, universe, first, footprint, &sorted)?;
+                let clash = spans
+                    .iter()
+                    .filter(|&&(other, u, f, e)| {
+                        other != number && u == universe && first < e && f < end
+                    })
+                    .map(|&(other, _, f, _)| (first.max(f), other))
+                    .min();
+                if let Some((channel, other)) = clash {
+                    return Err(CoreError::PatchOverlap {
+                        number,
+                        other,
+                        universe,
+                        address: u16::try_from(channel).unwrap_or(u16::MAX),
+                    });
+                }
+            }
+        }
+        let at = self.last_tick.unwrap_or(0.0);
+        let palette_lines = self.palette_mode_warnings(&sorted, Some(profile), mode);
+        self.warnings.extend(
+            palette_lines
+                .into_iter()
+                .map(|message| Warning { at, message }),
+        );
+        let (mut attrs, mut affected) = (BTreeSet::new(), BTreeSet::new());
+        self.exchange_palettes(&sorted, profile, mode, &mut attrs, &mut affected)?;
+        let was_empty = place.is_some_and(|(u, _)| {
+            self.frames.entry(u).or_default();
+            self.universe_is_empty(u)
+        });
+        let (mut unparked, mut next) = (false, place.map_or(0, |(_, a)| u32::from(a)));
+        for &id in &sorted {
+            let was_parked = self.fixtures.get(&id).is_some_and(|f| f.parked);
+            let dropped = self.apply_mode(id, Some(profile), mode)?;
+            if !dropped.is_empty() {
+                affected.insert(id);
+                attrs.extend(dropped.into_iter().map(|(_, attr)| attr));
+            }
+            if let Some((universe, _)) = place {
+                unparked |= was_parked; // PAT-31
+                if let Some(f) = self.fixtures.get_mut(&id) {
+                    f.universe = universe;
+                    f.address = u16::try_from(next).unwrap_or(f.address);
+                    f.parked = false;
+                }
+                next += u32::from(footprint.max(1));
+            }
+        }
+        if unparked {
+            self.parking_changed();
+        }
+        if let Some((universe, _)) = place {
+            self.add_default_nodes(universe, was_empty);
+        }
+        if !affected.is_empty() {
+            let attrs: Vec<_> = attrs.into_iter().collect();
+            let n = affected.len();
+            let s = if n == 1 { "" } else { "s" };
+            self.warnings.push(Warning {
+                at,
+                message: format!("Dropped {} on {n} fixture{s}", attrs.join(", ")),
+            });
+        }
+        Ok(())
+    }
+
+    /// PAT-39: palettes follow an exchange, using the old modes (so before `apply_mode`).
+    fn exchange_palettes(
+        &mut self,
+        sorted: &[FixtureId],
+        profile: &str,
+        mode: &str,
+        attrs: &mut BTreeSet<String>,
+        affected: &mut BTreeSet<FixtureId>,
+    ) -> Result<(), CoreError> {
+        let new = lookup_mode(&self.profiles, profile, Some(mode))?;
+        let mut fixtures = Vec::new();
+        let mut types: Vec<(&str, &Mode, Vec<FixtureId>)> = Vec::new();
+        for &id in sorted {
+            let f = (self.fixtures.get(&id)).ok_or(CoreError::UnknownFixture(id))?;
+            let old = lookup_mode(&self.profiles, &f.profile, f.mode.as_deref())?;
+            fixtures.push((id, old));
+            match types.iter_mut().find(|(k, _, _)| *k == f.profile) {
+                Some((_, _, of)) => of.push(id),
+                None => types.push((&f.profile, old, vec![id])),
+            }
+        }
+        for p in self.palettes.values_mut() {
+            for &(id, old) in &fixtures {
+                let Some(own) = p.fixtures.get_mut(&Item::fixture(id)) else {
+                    continue;
+                };
+                own.retain(|name, value| match carry_value(name, *value, old, new) {
+                    Carry::To(v) => {
+                        *value = v;
+                        true
+                    }
+                    Carry::Missing => true, // named by the warning, the value stays
+                    Carry::NoSlot => {
+                        attrs.insert(name.clone());
+                        affected.insert(id);
+                        false
+                    }
+                });
+            }
+            if p.shared.contains_key(profile) || p.shared_cells.contains_key(profile) {
+                continue;
+            }
+            for &(key, old, ref of) in &types {
+                if let Some(shared) = p.shared.get(key) {
+                    let mut copy = BTreeMap::new();
+                    for (name, value) in shared {
+                        match carry_value(name, *value, old, new) {
+                            Carry::To(v) => {
+                                copy.insert(name.clone(), v);
+                            }
+                            Carry::Missing => {}
+                            Carry::NoSlot => {
+                                attrs.insert(name.clone());
+                                affected.extend(of.iter().copied());
+                            }
+                        }
+                    }
+                    if !copy.is_empty() {
+                        p.shared.entry(profile.to_string()).or_insert(copy);
+                    }
+                }
+                if let Some(cells) = p.shared_cells.get(key).filter(|c| !c.is_empty()) {
+                    let cells = cells.clone();
+                    p.shared_cells.entry(profile.to_string()).or_insert(cells);
+                }
+            }
         }
         Ok(())
     }
@@ -8805,6 +9007,73 @@ fn check_palette_number(number: u32) -> Result<(), CoreError> {
         Ok(())
     } else {
         Err(CoreError::InvalidPaletteNumber(number))
+    }
+}
+
+/// PAT-38: what an attribute value becomes under an exchange.
+enum Carry {
+    To(Value),
+    /// The new mode lacks the attribute, or has it with another kind of value.
+    Missing,
+    /// The value is in a named slot the new wheel has no slot of that name for.
+    NoSlot,
+}
+
+fn carry_value(name: &str, value: Value, old: &Mode, new: &Mode) -> Carry {
+    if !new
+        .logical(name)
+        .is_some_and(|l| l.default.same_kind(&value))
+    {
+        return Carry::Missing;
+    }
+    let Value::Level(level) = value else {
+        return Carry::To(value);
+    };
+    let (Some(o), Some(n)) = (old.attribute(name), new.attribute(name)) else {
+        return Carry::To(value);
+    };
+    let raw = (level * 255.0).round().clamp(0.0, 255.0) as u8;
+    let slot = o.slots.iter().find(|s| (s.from..=s.to).contains(&raw));
+    match slot {
+        Some(slot) if !n.slots.is_empty() => {
+            match n
+                .slots
+                .iter()
+                .find(|s| s.name.eq_ignore_ascii_case(&slot.name))
+            {
+                Some(s) => Carry::To(Value::Level(
+                    (f32::from(s.from) + f32::from(s.to)) / 2.0 / 255.0,
+                )),
+                None => Carry::NoSlot,
+            }
+        }
+        _ => Carry::To(value),
+    }
+}
+
+/// PAT-38: the carried value, `None` when it is dropped.
+fn carry(name: &str, value: Value, old: &Mode, new: &Mode) -> Option<Value> {
+    match carry_value(name, value, old, new) {
+        Carry::To(v) => Some(v),
+        _ => None,
+    }
+}
+
+/// PAT-38: a stored entry under an exchange; a reference stays one, and falls back to the new
+/// attribute's default when its fallback has no slot. `None` when the attribute is missing.
+fn carry_stored(name: &str, stored: &Stored, old: &Mode, new: &Mode) -> Option<Stored> {
+    match (stored, carry_value(name, stored.value(), old, new)) {
+        (Stored::Value(_), Carry::To(v)) => Some(Stored::Value(v)),
+        (Stored::Reference(r), Carry::To(v)) => {
+            Some(Stored::Reference(Reference { value: v, ..*r }))
+        }
+        (Stored::Reference(r), Carry::NoSlot) => new.logical(name).map(|l| {
+            Stored::Reference(Reference {
+                value: l.default,
+                ..*r
+            })
+        }),
+        _ => None,
     }
 }
 
