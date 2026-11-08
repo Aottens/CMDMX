@@ -238,15 +238,16 @@ Builds: FIT-01.
 | FIT-01 | App: status bar, attribute bar and playback area always whole from 1280 × 800 pt up and in console mode, the rail scrolls and the side column keys shrink; checklist, checked on the owner's MacBook. | UI-63 | S | done (2026-11-07, #265) |
 
 ### Snappy while the rig moves (owner, 2026-11-08)
-The owner felt the app grow slower in recent releases; the ask to fix it is the approval of UI-68. UI-69 and UI-70 approved by the owner 2026-11-08.
-Builds: SNP-01; SNP-03 + SNP-02 (the script first, so SNP-02 is measured with it); SNP-04.
+The owner felt the app grow slower in recent releases; the ask to fix it is the approval of UI-68. UI-69 and UI-70 approved by the owner 2026-11-08; UI-71 waits for approval.
+Builds: SNP-01; SNP-03 + SNP-02 (the script first, so SNP-02 is measured with it); SNP-04; SNP-05.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
 | SNP-01 | App: live output and the Views data in their own observed object, so an output delta redraws only the tile stripes and the Views screen; CPU measured before and after with `--demo`. | UI-68 | S | done (2026-11-08, #272) |
 | SNP-02 | App: the playbacks' live part in its own observed object, read by the strips, cue list windows, Active playbacks, status bar tags and the two sheets only; the rest reads it on a press; run file with the CPU before and after. Needs SNP-01. | UI-69 | M | done (2026-11-08, #273) |
 | SNP-03 | Scripts: `scripts/app-cpu.sh` measures the app idle and with `--demo`; the budget (5 %, 15 %) in `DECISIONS.md` and in the PR template line of `CLAUDE.md`. | UI-70 | S | done (2026-11-08, #273) |
-| SNP-04 | App: under the UI-70 budget (5 % idle, 15 % with `--demo`); find the fixed cost of about 8 ms that any redraw has (each live source alone adds about 20 %, whatever zone it draws), with Instruments' SwiftUI template if Xcode is installed; owner decides on drawing only the visible workspace (−8 %). | UI-70 | M | todo |
+| SNP-04 | App: find the fixed cost of a redraw with Instruments; experiments and the cause in the run file. | UI-70 | M | done (2026-11-08, #PR) |
+| SNP-05 | App: live values drawn outside SwiftUI (tile stripes, strip level and progress, Active playbacks levels, cursor, clocks); `scripts/app-cpu.sh` within UI-70; run on Art-Net by eye. Needs owner approval of UI-71. | UI-71, UI-70 | M | todo |
 
 ### Working on many at once (IDEA-35 batch D, spec P1-36)
 Approved by the owner 2026-11-07, every recommendation accepted (`ui.md`). Unfold and the linked copy are IDEA-46 and IDEA-47.

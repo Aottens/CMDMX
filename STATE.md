@@ -11,7 +11,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. The app under its CPU budget (SNP-04, UI-70): one breathing fader still costs 37 %, the budget is 15 %.
+1. The app under its CPU budget (UI-70): SNP-05 draws the live values outside SwiftUI (UI-71 waits for approval);
+   one breathing fader costs 37 % today, a layer-drawn stripe brought it to 7 % in a test.
 2. Batch D, working on many at once: the engine takes lists; next the app's picking (MUL-03), then MUL-04, MUL-05.
    Then batches E to
    G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and
