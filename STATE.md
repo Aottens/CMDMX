@@ -11,13 +11,11 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs and waits for HWB-01's parts.
 
 ## Next
-1. The app under its CPU budget (UI-70): SNP-05 draws the live values outside SwiftUI (UI-71 waits for approval);
-   one breathing fader costs 37 % today, a layer-drawn stripe brought it to 7 % in a test.
-2. Batch D, working on many at once: the engine takes lists; next the app's picking (MUL-03), then MUL-04, MUL-05.
+1. Batch D, working on many at once: the engine takes lists; next the app's picking (MUL-03), then MUL-04, MUL-05.
    Then batches E to
    G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and
    Edit) stays apart from them.
-3. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
+2. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
@@ -52,5 +50,6 @@ Programming and small checks:
 - On the desk: Eurolite USB-DMX512 PRO MK2 (`--serial <path>`) with six dimmers (185–190) and an RGBL par (361–364);
   Stream Deck Original (15 keys); a Mac with Command Line Tools only. The BCF2000 is missing.
 - Manual runs use `--show-dir /tmp/…`, so real shows stay untouched. The owner is walked through them step by step.
+- The app has a CPU budget (UI-70): `scripts/app-cpu.sh` in every app PR; live values go on layers, not SwiftUI (UI-71).
 - CI runs a newer Rust than the Mac: check PR CI. Disk is nearly full: `cargo clean` after a task.
 - No `git checkout` in the owner's tree while subagents work.

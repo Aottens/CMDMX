@@ -412,3 +412,7 @@ hold. Claude locks from a second client and listens to Art-Net; the owner holds 
 - [ ] (owner) Hold Flash, lock, and unlock while still holding (Claude does both): it may come on again while the mouse
       is down, and letting go ends it as usual; nothing stays on.
 
+
+## Live values on layers (UI-71, SNP-05)
+- [ ] With a cue list running a 5 s fade: the GO block shows the fade % and its progress bar fills, the current cue row in the Cue list window shows its progress line, Active playbacks shows the level; with its fader at 60 % the GO block says "fader 60 %".
+- [ ] The same in Day theme: colours as before.

@@ -5,6 +5,20 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-08 — Live values reach the screen without SwiftUI
+
+**Decision:** A value that changes many times a second (output stripes, fader levels, cue progress, clocks, the
+cursor blink) is drawn by a small AppKit view on its own layer that follows a Combine subject from `EngineClient`;
+SwiftUI redraws a zone only when something else in it changes (UI-71).
+
+**Alternatives considered:** finer-grained SwiftUI observation (UI-69, done: 62 % → 37 %), a lower redraw rate,
+splitting the window into several hosting views (measured: no gain).
+
+**Reasoning:** Instruments showed any SwiftUI update in the main window costs about 10 ms in AttributeGraph,
+whatever its size (SNP-04); a layer update costs almost nothing. With the layers: idle 1.9 %, one breathing fader 4.6 %.
+
+**Reversal trigger:** a SwiftUI release that makes small updates cheap in a large window, measured with `scripts/app-cpu.sh`.
+
 ## 2026-11-08 — The app has a CPU budget
 
 **Decision:** On the owner's Mac the release app stays at or under 5 % CPU idle and 15 % with the daemon's `--demo`
