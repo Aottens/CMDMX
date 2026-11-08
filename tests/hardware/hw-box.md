@@ -18,8 +18,9 @@ jumper wires, through-hole resistors and a micro-USB data cable.
       the key PCB; the firmware lights the first four
 - [ ] 1 × **SN74AHCT125N** level shifter, DIP-14 (about €1)
 - [ ] 1 × **470 µF / 16 V** electrolytic, e.g. Panasonic EEU-FR1C471, across the LED supply
-- [ ] Amazon.nl: **CHERRY MX2A RGB Honey Switch Kit** (36 switches, €21.99 incl. VAT, free delivery; Cherry's own
-      shop charges about €11 shipping); four go in the box
+- [ ] Amazon.nl: **CHERRY MX Experience Box 2nd Edition** (DMXAA-XC1X-2A, 10 different 5-pin switches, one of each,
+      €14.99 incl. VAT, free delivery): four go in the box, including MX2A Honey. The desk's ~100 switches are
+      ordered after the feel is chosen
 - [ ] From the drawer: 2 × 1 MΩ (touch), 2 × 10 kΩ and 2 × 20 kΩ (encoder divider), 330 Ω (LED data)
 - [ ] Solder short wires to the faders, the encoder and the driver carrier: their pins do not fit a breadboard
 - [ ] Knobs come later with the front plate; the bare fader lever is the touch contact
@@ -79,6 +80,8 @@ Bench supply at 10 V, current limit about 1 A. The calibration knobs are constan
 - [ ] A LED colour from the palette: set `on_value` of `upper 1` to 8 in the bindings table: its LED
       lights **red** when on; 80 gives **blue** (wire-map.md)
 - [ ] A fast tap gives exactly one press and one release (no double Flash)
+- [ ] Feel: with a cap on each, compare MX2A Honey, MX Illuma Brown and MX2A Silent Red, then the rest of the box.
+      Switch chosen for the desk: ________
 
 ## Wheel 1 (HW-22)
 - [ ] With the fixture selected, turning right raises wheel 1's attribute, left lowers it (if the
