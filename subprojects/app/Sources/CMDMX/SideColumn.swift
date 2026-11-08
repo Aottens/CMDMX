@@ -89,7 +89,7 @@ private struct FunctionButtons: View {
         "Delete": "Delete: tap the group, palette, playback handle or cue to delete (⇧ range, ⌘ add one). You confirm on softkey A.",
         "Copy": "Copy: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
         "Move": "Move: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
-        "Release": "Release: tap a running playback handle to release it.",
+        "Release": "Release: tap a handle or an active row to release it, Release again for all, or a page button for a page.",
         "Options": "Options: tap a playback handle or cue to open its options.",
         "Unfold": "Unfold: tap a fixture to unfold or fold its cells.",
         "Latch": "Latch: now press Flash on a handle to latch it.",
@@ -147,6 +147,9 @@ private struct FunctionButtons: View {
         case "Help": engine.openManual()   // UI-55: no target, what is armed stays armed
         default:
             if let function = PaletteFunction(rawValue: label) {   // PAL-29
+                if function == .release, ui.function == .release {   // UI-66: Release twice releases all
+                    engine.releaseScope("all"); ui.cancelModes(); return
+                }
                 engine.endArmedMessage()   // UI-50: the old function's hint goes, the new one is said below
                 ui.arm(function)
                 if ui.function != nil, let hint = Self.hints[label] { engine.say(hint) }
@@ -767,6 +770,10 @@ private struct Softkeys: View {
                 keys[2] = Softkey(name: "Swap if required", sub: ui.swapIfRequired ? "on" : "off", on: ui.swapIfRequired) { ui.swapIfRequired.toggle() }
             }
             keys[3] = menuLatchKey
+        }
+        if function == .release, let page = ui.releasePage {
+            keys[0] = Softkey(name: "Release page \(page)") { engine.releaseScope("page", page: page); ui.cancelModes() }
+            keys[1] = Softkey(name: "Release all but page \(page)") { engine.releaseScope("other_pages", page: page); ui.cancelModes() }
         }
         if function == .unfold {
             // UI-29: no selection is touched; unfolding is view state.

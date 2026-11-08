@@ -152,6 +152,8 @@ final class UIState: ObservableObject {
     /// UI-64: what Copy, Move and Delete have picked: playback ids, palette numbers or group numbers in tap order (the last is the ⇧ anchor).
     @Published var pickKind: PickKind?
     @Published var picks: [Int] = []
+    /// UI-66: the page picked while Release is armed; the softkeys then offer the page scopes.
+    @Published var releasePage: Int?
     /// UI-64: the cue rows picked for Delete in the Cue list window.
     @Published var cuePicks: [Double] = []
     /// UI-64: Bunch up as last used (kept over cancelModes); Swap if required is off when armed.
@@ -395,7 +397,7 @@ final class UIState: ObservableObject {
     /// Disarms Record and every palette function.
     func cancelModes() {
         recordArmed = false
-        function = nil; pickKind = nil; picks = []; cuePicks = []; swapIfRequired = false
+        function = nil; pickKind = nil; picks = []; cuePicks = []; swapIfRequired = false; releasePage = nil
         cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
         paletteMenu = false
         selectionMenu = nil

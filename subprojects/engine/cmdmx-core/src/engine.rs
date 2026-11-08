@@ -2711,6 +2711,50 @@ impl Engine {
         Ok(())
     }
 
+    /// PBK-52: release every active playback in the scope, each as its own Release. Masters are
+    /// left alone. A page shows what `playback_at` finds on its slots (locks included).
+    pub fn release_scope(
+        &mut self,
+        scope: crate::playback::ReleaseScope,
+        now: Timestamp,
+    ) -> Result<(), CoreError> {
+        use crate::playback::ReleaseScope::{All, OtherPages, Page};
+        if let Page { page } | OtherPages { page } = scope {
+            if !(1..=PAGES).contains(&page) {
+                return Err(CoreError::InvalidPage(page));
+            }
+        }
+        let shown = |e: &Self, id: PlaybackId, page: u16| {
+            (1..=e.settings.faders_per_page).any(|s| e.playback_at(page, s, true) == Some(id))
+        };
+        let ids: Vec<PlaybackId> = (self.playbacks.values())
+            .filter(|p| p.master.is_none())
+            .filter(|p| self.states.get(&p.id).is_some_and(|s| s.is_active()))
+            .filter(|p| match scope {
+                All => true,
+                Page { page } => shown(self, p.id, page),
+                OtherPages { page } => !shown(self, p.id, page),
+            })
+            .map(|p| p.id)
+            .collect();
+        for &id in &ids {
+            self.release_playback(id, now)?;
+        }
+        let text = match (ids.len(), scope) {
+            (0, _) => "Nothing to release".to_string(),
+            (n, scope) => {
+                let what = match scope {
+                    All => "Release all".to_string(),
+                    Page { page } => format!("Release page {page}"),
+                    OtherPages { page } => format!("Release all but page {page}"),
+                };
+                format!("{what}: {n} playback{}", if n == 1 { "" } else { "s" })
+            }
+        };
+        self.notices.push(text);
+        Ok(())
+    }
+
     /// PBK-47: before a Release kills the playback, note each HTP level it outputs now (master
     /// included); `merge_attribute` lets them fall to 0 beside the LTP release.
     fn start_htp_fall(&mut self, id: PlaybackId, now: Timestamp) {

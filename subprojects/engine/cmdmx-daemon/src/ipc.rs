@@ -352,6 +352,10 @@ pub enum Command {
     PlaybackRelease {
         id: PlaybackId,
     },
+    /// PBK-52: `playback.release` with a `scope`.
+    PlaybackReleaseScope {
+        scope: cmdmx_core::playback::ReleaseScope,
+    },
     /// `playback.options` and `playback.times` both land here.
     PlaybackChange {
         id: PlaybackId,
@@ -1753,6 +1757,23 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("playback.latch") => Ok(Command::PlaybackLatch {
             id: uint(&v, "id")?,
         }),
+        Some("playback.release") if v.get("scope").is_some() => {
+            use cmdmx_core::playback::ReleaseScope::{All, OtherPages, Page};
+            if v.get("id").is_some() {
+                return Err("\"scope\" and \"id\" exclude each other".into());
+            }
+            let scope = match string(&v, "scope")?.as_str() {
+                "all" => All,
+                "page" => Page {
+                    page: uint(&v, "page")?,
+                },
+                "other_pages" => OtherPages {
+                    page: uint(&v, "page")?,
+                },
+                other => return Err(format!("unknown release scope \"{other}\"")),
+            };
+            Ok(Command::PlaybackReleaseScope { scope })
+        }
         Some("playback.release") => Ok(match opt_uint(&v, "id")? {
             Some(id) => Command::PlaybackRelease { id },
             None => Command::CuelistAction {
@@ -8586,6 +8607,44 @@ mod tests {
             ok(r#"{"v":1,"cmd":"playback.delete","id":3}"#),
             Command::PlaybackDelete { ids: vec![3] }
         );
+    }
+
+    #[test]
+    fn pbk_52_release_scope_forms_parse() {
+        use cmdmx_core::playback::ReleaseScope;
+        for (json, scope) in [
+            (
+                r#"{"v":1,"cmd":"playback.release","scope":"all"}"#,
+                ReleaseScope::All,
+            ),
+            (
+                r#"{"v":1,"cmd":"playback.release","scope":"page","page":2}"#,
+                ReleaseScope::Page { page: 2 },
+            ),
+            (
+                r#"{"v":1,"cmd":"playback.release","scope":"other_pages","page":2}"#,
+                ReleaseScope::OtherPages { page: 2 },
+            ),
+        ] {
+            assert_eq!(
+                parse_command(json).unwrap(),
+                Command::PlaybackReleaseScope { scope }
+            );
+        }
+    }
+
+    #[test]
+    fn pbk_52_bad_release_scope_forms_are_errors() {
+        for bad in [
+            r#"{"v":1,"cmd":"playback.release","scope":"page"}"#,
+            r#"{"v":1,"cmd":"playback.release","scope":"other_pages"}"#,
+            r#"{"v":1,"cmd":"playback.release","scope":"page","page":-1}"#,
+            r#"{"v":1,"cmd":"playback.release","scope":"everything"}"#,
+            r#"{"v":1,"cmd":"playback.release","scope":3}"#,
+            r#"{"v":1,"cmd":"playback.release","scope":"all","id":3}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

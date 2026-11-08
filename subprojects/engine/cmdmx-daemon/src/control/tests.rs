@@ -1888,3 +1888,63 @@ fn ipc_53_an_input_still_down_at_the_unlock_is_released_as_usual() {
     assert!(run_all(&mut e, &mut h, cmds).is_empty());
     assert!(!e.playback_state(id).unwrap().swop);
 }
+
+// --- CTL-68 ---------------------------------------------------------------------
+
+const RELEASES: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"note","channel":1,"number":93},"action":"release all"},
+  {"input":{"kind":"note","channel":1,"number":94},"action":"release page"}
+]}"#;
+
+#[test]
+fn ctl_68_release_all_and_release_page_from_a_device() {
+    use cmdmx_core::playback::Playback;
+    let dir = tmp("releases");
+    fs::write(dir.join("control/nano.json"), RELEASES).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    let mut e = engine();
+    let mut h = History::default();
+    let values = e
+        .playback(slot(&e, 1, 1))
+        .unwrap()
+        .values()
+        .unwrap()
+        .clone();
+    e.add_playback(Playback::new(900, 3, 1, values));
+    let first = slot(&e, 1, 1);
+    let up = |e: &mut Engine| {
+        e.set_fader(first, 0.0, 0.0).unwrap();
+        e.set_fader(900, 0.0, 0.0).unwrap();
+        e.tick(0.0);
+        e.set_fader(first, 1.0, 0.0).unwrap();
+        e.set_fader(900, 1.0, 0.0).unwrap();
+        e.tick(0.0);
+    };
+    let active = |e: &Engine, id| e.playback_state(id).is_some_and(|s| s.is_active());
+
+    // Release page takes the page shown at that moment.
+    up(&mut e);
+    e.set_page(3).unwrap();
+    let _ = c.feedback(&e);
+    press(&mut c, "nano", 94);
+    let cmds = c.commands(&e, 1.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(active(&e, first), "page 1 stays");
+    assert!(!active(&e, 900), "page 3 goes");
+
+    // Release all takes both.
+    e.set_page(1).unwrap();
+    up(&mut e);
+    let _ = c.feedback(&e);
+    press(&mut c, "nano", 93);
+    let cmds = c.commands(&e, 2.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(!active(&e, first) && !active(&e, 900));
+}

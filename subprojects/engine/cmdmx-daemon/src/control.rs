@@ -26,7 +26,7 @@ use cmdmx_control::midi::{self, Decoder, Kind, MidiInput, MidiMessage};
 use cmdmx_core::attribute::AttributeGroup;
 use cmdmx_core::engine::{Engine, Settings};
 use cmdmx_core::palette::Timing;
-use cmdmx_core::playback::{Button, HandleButton, ListAction, PlaybackId, PAGES};
+use cmdmx_core::playback::{Button, HandleButton, ListAction, PlaybackId, ReleaseScope, PAGES};
 use cmdmx_core::programmer::{Grid, GridShortcut, Order};
 use serde_json::{json, Value};
 
@@ -493,6 +493,12 @@ impl Tick<'_> {
                 action: ListAction::Release,
             }),
             Action::Release(t) => resolve(engine, t).map(|id| Command::PlaybackRelease { id }),
+            Action::ReleaseAll => Some(Command::PlaybackReleaseScope {
+                scope: ReleaseScope::All,
+            }),
+            Action::ReleasePage => Some(Command::PlaybackReleaseScope {
+                scope: ReleaseScope::Page { page: self.page },
+            }),
             Action::Tap(t) => {
                 resolve(engine, t).map(|id| Command::PlaybackTap { id, at: self.now })
             }
