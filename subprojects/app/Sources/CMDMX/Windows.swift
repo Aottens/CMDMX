@@ -59,6 +59,8 @@ struct Cell: View {
     var located = false
     var empty = false
     var selected = false
+    /// UI-64: picked by Copy, Move or Delete: the function's colour (red) outline and tint.
+    var picked = false
     /// Current target during a sub-selection: a double blue border.
     var current = false
     /// Selected but not a target during a sub-selection: blue at 40 %.
@@ -154,6 +156,7 @@ struct Cell: View {
                 Rectangle().strokeBorder(selected ? t.blue.opacity(dimmed ? 0.4 : 1) : t.line, lineWidth: selected ? 2 : 1)
             }
         }
+        .overlay { if picked { Rectangle().fill(t.red.opacity(0.18)).overlay(Rectangle().strokeBorder(t.red, lineWidth: 2)) } }   // UI-64
         .clipShape(RoundedRectangle(cornerRadius: radius))
         .opacity(faded ? 0.38 : 1)
         .contentShape(Rectangle())
@@ -363,8 +366,8 @@ struct GroupsWindow: View {
                 ForEach(1...cells, id: \.self) { id in
                     if let group = byId[id] {
                         Cell(number: id, tag: "\(group.fixtures.count)", legend: group.shownLegend,
-                             selected: !group.fixtures.isEmpty && group.fixtures.allSatisfy(selection.contains)
-                                 || ui.groupSource == id || ui.deleteGroup == id,
+                             selected: !group.fixtures.isEmpty && group.fixtures.allSatisfy(selection.contains),
+                             picked: ui.isPicked(.group, id),
                              mask: true) { GroupTaps.tap(id, group, engine: engine, ui: ui) }
                     } else {
                         // Empty cells only react while Record or a group function is armed; any other
@@ -414,22 +417,16 @@ enum GroupTaps {
     /// PRG-94: Copy, Move, Delete and Set Legend on a group; the engine refuses a bad target (PRG-89).
     private static func perform(_ function: PaletteFunction, _ id: Int, _ group: GroupInfo?, engine: EngineClient, ui: UIState) {
         switch function {
-        case .copy, .move:
-            if let source = ui.groupSource {
-                function == .copy ? engine.copyGroup(source, to: id) : engine.moveGroup(source, to: id)
-                ui.cancelModes()
-            } else if group != nil {
-                ui.groupSource = id
-                ui.source = nil
-                ui.handleSource = nil
-                engine.say("\(function.rawValue) group \(id): tap an empty cell.")
-            } else {
-                engine.say("Tap a recorded group as the source.")
+        case .copy, .move, .delete:   // UI-64
+            switch ui.pickTap(.group, item: group != nil ? id : nil, order: engine.groups.map(\.id).sorted()) {
+            case .picked: engine.sayPicks(ui)
+            case .target:
+                ui.sendPicks(engine) {
+                    function == .copy ? engine.copyGroups(ui.picks, to: id, layout: ui.layoutWire)
+                                      : engine.moveGroups(ui.picks, to: id, layout: ui.layoutWire, swap: ui.swapIfRequired)
+                }
+            case .empty: engine.say(function == .delete ? "Group \(id) is empty" : "Tap a recorded group as the source.")
             }
-        case .delete:
-            guard let group else { return engine.say("Group \(id) is empty") }
-            ui.waitForDelete(group: id)
-            engine.say("Delete \(group.title)? Confirm on softkey A.")
         case .legend:
             guard group != nil else { return engine.say("Group \(id) is empty") }
             ui.groupLegendEditing = GroupRef(number: id)

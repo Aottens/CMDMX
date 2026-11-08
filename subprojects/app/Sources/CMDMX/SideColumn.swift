@@ -86,9 +86,9 @@ private struct FunctionButtons: View {
     private static let hints = [
         "Update": "Update: tick targets on the softkeys and Store, or tap the palette, playback handle or cue to update with what is in the programmer.",
         "Include": "Include: tap a palette, playback handle or cue; its values go into the programmer.",
-        "Delete": "Delete: tap the group, palette, playback handle or cue to delete. You confirm on softkey A.",
-        "Copy": "Copy: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
-        "Move": "Move: tap the source group, palette or playback handle, then an empty cell or handle; or tap a cue.",
+        "Delete": "Delete: tap the group, palette, playback handle or cue to delete (⇧ range, ⌘ add one). You confirm on softkey A.",
+        "Copy": "Copy: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
+        "Move": "Move: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
         "Release": "Release: tap a running playback handle to release it.",
         "Options": "Options: tap a playback handle or cue to open its options.",
         "Unfold": "Unfold: tap a fixture to unfold or fold its cells.",
@@ -607,9 +607,10 @@ private struct Softkeys: View {
         let name = cueName(ref.cue)
         if ui.cueDelete {
             var keys: [Softkey?] = Array(repeating: nil, count: 7)
-            keys[0] = Softkey(name: "Confirm delete", sub: name) {
+            keys[0] = Softkey(name: "Confirm delete", sub: ui.cuePicks.count > 1 ? "\(ui.cuePicks.count) cues" : name) {
                 ui.confirmDelete(engine)   // UI-46
             }
+            if ui.function == .delete { keys[3] = menuLatchKey }   // UI-65: a right-click's Delete has no function to latch
             keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
             return ("Cue · \(name)", keys)
         }
@@ -618,7 +619,7 @@ private struct Softkeys: View {
                 guard let n = line.onlyNumber else { return engine.say("\(title): type the cue number on the keypad first.") }
                 send(n)
                 line.clear()
-                ui.cancelModes()
+                ui.endAction(engine)
             }
         }
         let keys: [Softkey?] = [
@@ -722,6 +723,10 @@ private struct Softkeys: View {
 
     // MARK: Update, Include, Copy, Move, Delete, Set Legend (PAL-29)
 
+    private var menuLatchKey: Softkey {
+        Softkey(name: "Menu latch", sub: ui.menuLatch ? "on" : "off", on: ui.menuLatch) { ui.menuLatch.toggle() }   // UI-65
+    }
+
     private func functionContext(_ function: PaletteFunction) -> (name: String, keys: [Softkey?]) {
         // PBK-48: Include's Mask covers all eight groups, FX too, and starts all on; a palette tap ignores it (PAL-12).
         if function == .include, ui.maskMenu {
@@ -736,20 +741,32 @@ private struct Softkeys: View {
             return ("Include · Mask", groups + [Softkey(name: "Back", action: { ui.maskMenu = false })])
         }
         var keys: [Softkey?] = Array(repeating: nil, count: 7)
-        if function == .delete, let number = ui.deleteTarget {
-            keys[0] = Softkey(name: "Confirm delete", sub: "palette \(number)") {
-                ui.confirmDelete(engine)   // UI-46
+        // UI-64, UI-65: Copy, Move and Delete pick several; the layout, All, Swap and Menu latch keys.
+        if [.copy, .move, .delete].contains(function) {
+            let n = ui.picks.count, first = ui.picks.first ?? 0
+            if function == .delete, let kind = ui.pickKind, n > 0 {
+                let confirm = { ui.confirmDelete(engine) }   // UI-46
+                if n == 1 {
+                    switch kind {
+                    case .palette: keys[0] = Softkey(name: "Confirm delete", sub: "palette \(first)", action: { confirm() })
+                    case .handle: keys[0] = Softkey(name: "Confirm delete", sub: "playback \(engine.playback(first)?.homeHandle ?? "")", action: { confirm() })
+                    case .group: keys[0] = Softkey(name: "Delete group \(first)", sub: engine.groups.first { $0.id == first }?.legend ?? "", action: { confirm() })
+                    }
+                } else {
+                    let noun = kind == .handle ? "playbacks" : kind == .palette ? "palettes" : "groups"
+                    let page = kind == .handle ? ui.pickedPage(engine) : nil
+                    keys[0] = Softkey(name: "Delete \(n) \(noun)", sub: page.map { "on page \($0)" } ?? "confirm", action: { confirm() })
+                }
+            } else if function != .delete {
+                keys[0] = Softkey(name: ui.bunchUp ? "Bunch up" : "Retain layout", sub: "layout") { ui.bunchUp.toggle() }
             }
-        }
-        if function == .delete, let id = ui.deletePlayback {
-            keys[0] = Softkey(name: "Confirm delete", sub: "playback \(engine.playback(id)?.homeHandle ?? "")") {
-                ui.confirmDelete(engine)   // UI-46
+            if n > 0 {
+                keys[1] = Softkey(name: "All", sub: ui.pickKind == .handle ? "this page" : ui.pickKind == .palette ? "this window" : "groups") { ui.pickAll(engine) }
             }
-        }
-        if function == .delete, let number = ui.deleteGroup, let group = engine.groups.first(where: { $0.id == number }) {
-            keys[0] = Softkey(name: "Delete group \(number)", sub: group.legend ?? "") {
-                ui.confirmDelete(engine)   // UI-46
+            if function == .move {
+                keys[2] = Softkey(name: "Swap if required", sub: ui.swapIfRequired ? "on" : "off", on: ui.swapIfRequired) { ui.swapIfRequired.toggle() }
             }
+            keys[3] = menuLatchKey
         }
         if function == .unfold {
             // UI-29: no selection is touched; unfolding is view state.

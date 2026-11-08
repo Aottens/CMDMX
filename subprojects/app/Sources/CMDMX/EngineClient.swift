@@ -1881,9 +1881,10 @@ final class EngineClient: ObservableObject {
         if let mode { body["mode"] = mode }
         sendJSON("group.record", body)
     }
-    func deleteGroup(_ id: Int) { patch("group.delete", ["group": id]) }
-    func copyGroup(_ id: Int, to: Int) { patch("group.copy", ["group": id, "to": to]) }
-    func moveGroup(_ id: Int, to: Int) { patch("group.move", ["group": id, "to": to]) }
+    // UI-64: the list forms (IPC-61); the engine places, refuses and undoes as one step.
+    func deleteGroups(_ groups: [Int]) { patch("group.delete", ["groups": groups]) }
+    func copyGroups(_ groups: [Int], to: Int, layout: String) { patch("group.copy", ["groups": groups, "to": to, "layout": layout]) }
+    func moveGroups(_ groups: [Int], to: Int, layout: String, swap: Bool) { patch("group.move", ["groups": groups, "to": to, "layout": layout, "swap": swap]) }
     func setGroupLegend(_ id: Int, legend: String) { patch("group.legend", ["group": id, "legend": legend]) }
     /// GRM-16, PRG-90: a group master without its own legend shows its group's.
     func shownLegend(_ p: PlaybackInfo) -> String {
@@ -2058,14 +2059,14 @@ final class EngineClient: ObservableObject {
         if let mask { fields["mask"] = mask }
         patch("playback.include", fields)
     }
-    func copyPalette(_ number: Int, window: String, handle: Int) {
-        patch("palette.copy", ["number": number, "to": ["window": window, "handle": handle]])
+    func copyPalettes(_ numbers: [Int], window: String, handle: Int, layout: String) {
+        patch("palette.copy", ["numbers": numbers, "to": ["window": window, "handle": handle], "layout": layout])
     }
-    func movePalette(_ number: Int, window: String, handle: Int) {
-        patch("palette.move", ["number": number, "to": ["window": window, "handle": handle]])
+    func movePalettes(_ numbers: [Int], window: String, handle: Int, layout: String, swap: Bool) {
+        patch("palette.move", ["numbers": numbers, "to": ["window": window, "handle": handle], "layout": layout, "swap": swap])
     }
     func renumberPalette(_ number: Int, to: Int) { patch("palette.renumber", ["number": number, "to": to]) }
-    func deletePalette(_ number: Int) { patch("palette.delete", ["number": number]) }
+    func deletePalettes(_ numbers: [Int]) { patch("palette.delete", ["numbers": numbers]) }
     /// `icon` nil = the automatic icon.
     func setPaletteLegend(_ number: Int, legend: String, icon: String?) {
         patch("palette.legend", ["number": number, "legend": legend, "icon": icon.map { $0 as Any } ?? NSNull()])
@@ -2107,12 +2108,12 @@ final class EngineClient: ObservableObject {
     func swopPlayback(_ id: Int, on: Bool) { sendJSON("playback.swop", ["id": id, "on": on]) }
     func latchPlayback(_ id: Int) { sendJSON("playback.latch", ["id": id]) }
     func releasePlayback(_ id: Int) { sendJSON("playback.release", ["id": id]) }
-    func deletePlayback(_ id: Int) { patch("playback.delete", ["id": id]) }
-    func copyPlayback(_ id: Int, page: Int, slot: Int) {
-        patch("playback.copy", ["id": id, "to": ["page": page, "slot": slot]])
+    func deletePlaybacks(_ ids: [Int]) { patch("playback.delete", ["ids": ids]) }
+    func copyPlaybacks(_ ids: [Int], page: Int, slot: Int, layout: String) {
+        patch("playback.copy", ["ids": ids, "to": ["page": page, "slot": slot], "layout": layout])
     }
-    func movePlayback(_ id: Int, page: Int, slot: Int) {
-        patch("playback.move", ["id": id, "to": ["page": page, "slot": slot]])
+    func movePlaybacks(_ ids: [Int], page: Int, slot: Int, layout: String, swap: Bool) {
+        patch("playback.move", ["ids": ids, "to": ["page": page, "slot": slot], "layout": layout, "swap": swap])
     }
     /// `playback.options` (PBK-36): only the given fields change; `NSNull()` clears a nullable one.
     func setPlaybackOptions(_ id: Int, _ fields: [String: Any]) { patch("playback.options", fields.merging(["id": id]) { a, _ in a }) }
@@ -2157,7 +2158,7 @@ final class EngineClient: ObservableObject {
     }
     func setCueLegend(_ id: Int, cue: Double, legend: String) { patch("cue.legend", ["id": id, "cue": cue, "legend": legend]) }
     func setCueTrack(_ id: Int, cue: Double, track: String) { patch("cue.track", ["id": id, "cue": cue, "track": track]) }
-    func deleteCue(_ id: Int, cue: Double) { patch("cue.delete", ["id": id, "cue": cue]) }
+    func deleteCues(_ id: Int, cues: [Double]) { patch("cue.delete", ["id": id, "cues": cues]) }
     func renumberCue(_ id: Int, cue: Double, to: Double) { patch("cue.renumber", ["id": id, "cue": cue, "to": to]) }
     func renumberAllCues(_ id: Int) { patch("cue.renumber_all", ["id": id]) }
     func copyCue(_ id: Int, cue: Double, to: Double) { patch("cue.copy", ["id": id, "cue": cue, "to": to]) }
@@ -2250,6 +2251,8 @@ final class EngineClient: ObservableObject {
     }
     /// UI-50: set by the Frame; whether a function is armed when the app says something.
     var isArmed: () -> Bool = { false }
+    /// UI-64: counts warnings and errors, so a send can tell whether the engine refused it. Not published.
+    private(set) var refusals = 0
     /// UI-50: the text the app said because a function was armed.
     private var armedMessage: String?
     /// UI-50: the function disarmed. Comparing the text means an engine message, or a later one that replaced it, stays.
@@ -2612,7 +2615,7 @@ final class EngineClient: ObservableObject {
         case "notice", "warning", "error": // PRG-96: a notice is informational; UI-39: all three go to the Messages list
             lastMessage = incoming.message
             addMessage(level: incoming.type, message: incoming.message ?? "", at: Self.messageDate(incoming.at))
-            if incoming.type != "notice" { print("engine \(incoming.type): \(incoming.message ?? "")") }
+            if incoming.type != "notice" { refusals += 1; print("engine \(incoming.type): \(incoming.message ?? "")") }
         default:
             break
         }
@@ -2699,6 +2702,36 @@ extension EngineClient {
     func sayDelete(cue: StoredCue, of list: PlaybackInfo) {
         var text = "Delete cue \(plain(cue.number))\(cue.legend.isEmpty ? "" : " " + cue.legend)?"
         if list.isRunning && list.live.cue?.current == cue.number { text += " It is the live cue: the output stays until the next Go." }
+        say(text + " Confirm on softkey A.")
+    }
+}
+
+/// UI-64: what the message zone says about the picks.
+extension EngineClient {
+    func sayPicks(_ ui: UIState) {
+        let name = ui.function?.rawValue ?? "", n = ui.picks.count, del = ui.function == .delete
+        guard let kind = ui.pickKind, let first = ui.picks.first else { return say("\(name): nothing picked.") }
+        if n == 1 {
+            switch kind {
+            case .handle:
+                guard let info = playback(first) else { return }
+                if del { sayDelete(playback: info) } else { say("\(name) playback \(info.homeHandle): tap an empty handle.") }
+            case .palette:
+                guard let p = palettes.first(where: { $0.number == first }) else { return }
+                if del { sayDelete(palette: p) } else { say("\(name) palette \(first): tap an empty cell.") }
+            case .group:
+                guard let g = groups.first(where: { $0.id == first }) else { return }
+                say(del ? "Delete \(g.title)? Confirm on softkey A." : "\(name) group \(first): tap an empty cell.")
+            }
+            return
+        }
+        let noun = kind == .handle ? "playbacks" : kind == .palette ? "palettes" : "groups"
+        guard del else { return say("\(name) \(n) \(noun): tap the target") }
+        var text = "Delete \(n) \(noun)"
+        if kind == .handle, let page = ui.pickedPage(self) { text += " on page \(page)" }
+        text += "?"
+        let running = kind == .handle ? ui.picks.filter { playback($0)?.isRunning == true }.count : 0
+        if running > 0 { text += running == 1 ? " 1 is running: its output ends at once." : " \(running) are running: their output ends at once." }
         say(text + " Confirm on softkey A.")
     }
 }

@@ -330,6 +330,7 @@ private struct CueListWindow: View {
         .overlay(alignment: .leading) { if current { Rectangle().fill(t.green).frame(width: 3) } }
         .overlay { if next { Rectangle().strokeBorder(t.fg2, lineWidth: 1) } }
         .overlay(alignment: .bottom) { HLine() }
+        .overlay { if ui.cueDelete && ui.cueMenu?.playback == list.id && ui.cuePicks.contains(cue.number) { Rectangle().fill(t.red.opacity(0.18)).overlay(Rectangle().strokeBorder(t.red, lineWidth: 2)) } }   // UI-64
     }
 
     /// UI-51: a row of the Times view. A tap selects one time cell and never sets Next; armed, the whole row is the target (UI-42).
@@ -405,8 +406,7 @@ private struct CueListWindow: View {
         let ref = CueRef(playback: list.id, cue: cue.number)
         // Copy, Move and Delete open the Cue softkeys on this row (CUE-43) and stay armed; every Cue softkey disarms.
         func openCueMenu() {
-            ui.waitForDelete()
-            ui.source = nil; ui.handleSource = nil; ui.groupSource = nil
+            ui.pickKind = nil; ui.picks = []; ui.cuePicks = []
             ui.cueMenu = ref; ui.cueDelete = false; ui.lastHandle = list.id
         }
         // UI-53: a memory's one cue is not copied, moved or deleted from its row.
@@ -429,8 +429,19 @@ private struct CueListWindow: View {
             openCueMenu()
             engine.say("Move cue \(plain(cue.number)): type the number, then Renumber.")
         case .delete:
+            // UI-64: ⇧ / ⌘ on a row while this list's Delete waits picks more cues.
+            let flags = NSApp.currentEvent?.modifierFlags ?? []
+            if flags.contains(.shift) || flags.contains(.command), ui.cueDelete, ui.cueMenu?.playback == list.id {
+                ui.cuePicks = extended(ui.cuePicks, with: cue.number, in: list.stored.cues.map(\.number), range: flags.contains(.shift))
+                if let last = ui.cuePicks.last, !ui.cuePicks.contains(ui.cueMenu?.cue ?? -1) { ui.cueMenu = CueRef(playback: list.id, cue: last) }
+                if ui.cuePicks.isEmpty { ui.cueMenu = nil; ui.cueDelete = false; engine.say("Delete: nothing picked.") }
+                else if ui.cuePicks.count == 1, let only = list.cue(ui.cuePicks.first) { engine.sayDelete(cue: only, of: list) }
+                else { engine.say("Delete \(ui.cuePicks.count) cues of \(list.homeHandle)? Confirm on softkey A.") }
+                return
+            }
             openCueMenu()
             ui.cueDelete = true
+            ui.cuePicks = [cue.number]
             engine.sayDelete(cue: cue, of: list)
         case .legend:
             ui.cueLegendEditing = ref

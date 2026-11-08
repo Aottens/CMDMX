@@ -5,6 +5,20 @@ import SwiftUI
 // resizes with the window; the other zones keep their size. Everything shown comes from
 // `EngineClient`; nothing is computed here.
 
+/// UI-64: what a Copy / Move / Delete pick is of.
+enum PickKind { case handle, palette, group }
+/// UI-64: what a tap did: picked it, is the Copy / Move target, or hit an empty cell.
+enum PickTap { case picked, target, empty }
+
+/// UI-64: ⇧ picks the range from the last pick (the anchor) in `order`; ⌘, or an anchor outside `order`, adds or drops one.
+func extended<T: Equatable>(_ picks: [T], with item: T, in order: [T], range: Bool) -> [T] {
+    if range, let last = picks.last, let a = order.firstIndex(of: last), let b = order.firstIndex(of: item) {
+        let span = a <= b ? Array(order[a...b]) : Array(order[b...a].reversed())
+        return picks.filter { !span.contains($0) } + span
+    }
+    return picks.contains(item) ? picks.filter { $0 != item } : picks + [item]
+}
+
 /// A function button armed for palettes and playback handles (UI-16, PAL-29, PBK-38); the next
 /// palette or handle tap uses it. Release, Options and Latch only mean something on handles.
 enum PaletteFunction: String {
@@ -135,23 +149,22 @@ final class UIState: ObservableObject {
     @Published var function: PaletteFunction? { didSet { if function != nil { timeCells = nil } } }
     /// UI-29: fixtures (ids) whose cells show in the Fixtures window. View state only.
     @Published var unfolded = Set<Int>()
-    /// Copy / Move: the id of the source palette, after its tap.
-    @Published var source: Int?
-    /// Delete: the palette number waiting for the confirmation on softkey A (two-step, PAT-10).
-    @Published var deleteTarget: Int?
+    /// UI-64: what Copy, Move and Delete have picked: playback ids, palette numbers or group numbers in tap order (the last is the ⇧ anchor).
+    @Published var pickKind: PickKind?
+    @Published var picks: [Int] = []
+    /// UI-64: the cue rows picked for Delete in the Cue list window.
+    @Published var cuePicks: [Double] = []
+    /// UI-64: Bunch up as last used (kept over cancelModes); Swap if required is off when armed.
+    @Published var bunchUp = false
+    @Published var swapIfRequired = false
+    /// UI-65: Menu latch keeps Copy, Move or Delete armed after each action; not saved.
+    @Published var menuLatch = false
+    private var answerPending = false
     @Published var legendEditing: PaletteRef?
     /// UI-57: the fixture whose info sheet is open.
     @Published var fixtureInfo: FixtureRef?
-    /// Copy / Move on handles: the source playback's id (PBK-38).
-    @Published var handleSource: Int?
-    /// Delete on handles: the playback waiting for the confirmation on softkey A.
-    @Published var deletePlayback: Int?
     @Published var playbackLegendEditing: PlaybackRef?
     @Published var pageLegendEditing: PageRef?
-    /// Copy / Move on groups: the source group's number (PRG-94).
-    @Published var groupSource: Int?
-    /// Delete on groups: the group waiting for the confirmation on softkey A.
-    @Published var deleteGroup: Int?
     @Published var groupLegendEditing: GroupRef?
     /// The handle last tapped (a playback id): the Playback Options and Edit Times softkeys open it.
     @Published var lastHandle: Int?
@@ -269,30 +282,96 @@ final class UIState: ObservableObject {
             engine.say(message)
             return false
         }
-        if (recordArmed || function != nil), target != .cue { cueMenu = nil; cueDelete = false }
+        if (recordArmed || function != nil), target != .cue { cueMenu = nil; cueDelete = false; cuePicks = [] }
         return true
     }
 
-    /// Delete waits for softkey A on exactly one target (UI-42, UI-47).
-    func waitForDelete(palette: Int? = nil, playback: Int? = nil, group: Int? = nil) {
-        deleteTarget = palette; deletePlayback = playback; deleteGroup = group
+    func isPicked(_ kind: PickKind, _ item: Int) -> Bool { pickKind == kind && picks.contains(item) }
+    var layoutWire: String { bunchUp ? "bunch" : "retain" }
+
+    /// UI-64: the page all picked playbacks are stored on, nil when they differ.
+    func pickedPage(_ engine: EngineClient) -> Int? {
+        let pages = Set(picks.compactMap { engine.playback($0)?.stored.page })
+        return pages.count == 1 ? pages.first : nil
+    }
+
+    /// UI-64: a tap with Copy, Move or Delete armed. ⇧ extends the picks over `order`, ⌘ adds or drops one; a plain tap on
+    /// Copy / Move with picks is the target. The engine decides what the target may be.
+    func pickTap(_ kind: PickKind, item: Int?, order: @autoclosure () -> [Int]) -> PickTap {
+        let flags = NSApp.currentEvent?.modifierFlags ?? []
+        let shift = flags.contains(.shift), command = flags.contains(.command)
+        if pickKind == kind, !picks.isEmpty {
+            if shift || command {
+                guard let item else { return .empty }
+                picks = extended(picks, with: item, in: order(), range: shift)
+                if picks.isEmpty { pickKind = nil }
+                return .picked
+            }
+            if function == .copy || function == .move { return .target }
+        }
+        guard let item else { return .empty }
+        pickKind = kind; picks = [item]
+        return .picked
+    }
+
+    /// UI-64: the All softkey: every used item on the page (handles) or in the window (palettes) of the first pick; every group.
+    func pickAll(_ engine: EngineClient) {
+        guard let first = picks.first, let kind = pickKind else { return }
+        switch kind {
+        case .handle:
+            guard let page = engine.playback(first)?.stored.page else { return }
+            picks = engine.playbacks.filter { $0.stored.page == page }.sorted { $0.stored.slot < $1.stored.slot }.map(\.id)
+        case .palette:
+            guard let window = engine.palettes.first(where: { $0.number == first })?.window else { return }
+            picks = engine.palettes.filter { $0.window == window }.sorted { $0.handle < $1.handle }.map(\.number)
+        case .group:
+            picks = engine.groups.map(\.id).sorted()
+        }
+        engine.sayPicks(self)
+    }
+
+    /// UI-64: sends the picks; done when the engine stays silent for 250 ms, kept when it refuses.
+    func sendPicks(_ engine: EngineClient, _ send: () -> Void) {
+        guard !answerPending else { return }   // a double tap sends once
+        answerPending = true
+        let sent = function, before = engine.refusals
+        send()
+        // ponytail: the engine has no ack; a refusal is a warning within one tick, so 250 ms of silence means done. A later refusal only drops the picks. An IPC reply id if that ever matters.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self else { return }
+            self.answerPending = false
+            if engine.refusals == before, self.function == sent { self.endAction(engine) }
+        }
+    }
+
+    /// UI-65: an action is done: Menu latch keeps Copy, Move or Delete armed with the picks cleared, else everything disarms.
+    func endAction(_ engine: EngineClient) {
+        if menuLatch, let f = function, [.copy, .move, .delete].contains(f) {
+            picks = []; pickKind = nil; cuePicks = []; cueMenu = nil; cueDelete = false
+            engine.say("Menu latch: \(f.rawValue) stays armed, tap the next item.")
+        } else {
+            cancelModes()
+        }
     }
 
     /// UI-46: the one place a waiting Delete is confirmed (softkey A and Enter). false = nothing was waiting.
     @discardableResult
     func confirmDelete(_ engine: EngineClient) -> Bool {
         if cueDelete, let ref = cueMenu {
-            engine.deleteCue(ref.playback, cue: ref.cue)
-        } else if function == .delete, let number = deleteTarget {
-            engine.deletePalette(number)
-        } else if function == .delete, let id = deletePlayback {
-            engine.deletePlayback(id)
-        } else if function == .delete, let number = deleteGroup {
-            engine.deleteGroup(number)
+            let cues = cuePicks.isEmpty ? [ref.cue] : cuePicks
+            sendPicks(engine) { engine.deleteCues(ref.playback, cues: cues) }
+        } else if function == .delete, let kind = pickKind, !picks.isEmpty {
+            let picks = picks
+            sendPicks(engine) {
+                switch kind {
+                case .handle: engine.deletePlaybacks(picks)
+                case .palette: engine.deletePalettes(picks)
+                case .group: engine.deleteGroups(picks)
+                }
+            }
         } else {
             return false
         }
-        cancelModes()
         return true
     }
 
@@ -316,9 +395,7 @@ final class UIState: ObservableObject {
     /// Disarms Record and every palette function.
     func cancelModes() {
         recordArmed = false
-        function = nil; source = nil; deleteTarget = nil
-        handleSource = nil; deletePlayback = nil
-        groupSource = nil; deleteGroup = nil
+        function = nil; pickKind = nil; picks = []; cuePicks = []; swapIfRequired = false
         cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
         paletteMenu = false
         selectionMenu = nil
