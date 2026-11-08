@@ -35,7 +35,7 @@ use cmdmx_core::palette::{
 use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{
     AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
-    GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Link,
+    GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Layout, Link,
     ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
     PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, UpdateTarget, Values,
     PAGES,
@@ -233,16 +233,20 @@ pub enum Command {
         group: GroupId,
         mode: Option<GroupRecordMode>,
     },
+    /// IPC-61: one or several groups.
     DeleteGroup {
-        group: GroupId,
+        groups: Vec<GroupId>,
     },
     CopyGroup {
-        group: GroupId,
+        groups: Vec<GroupId>,
         to: GroupId,
+        layout: Layout,
     },
     MoveGroup {
-        group: GroupId,
+        groups: Vec<GroupId>,
         to: GroupId,
+        layout: Layout,
+        swap: bool,
     },
     GroupLegend {
         group: GroupId,
@@ -303,20 +307,24 @@ pub enum Command {
     PaletteInclude {
         number: u32,
     },
+    /// IPC-61: one or several palettes.
     PaletteCopy {
-        number: u32,
+        numbers: Vec<u32>,
         to: Cell,
+        layout: Layout,
     },
     PaletteMove {
-        number: u32,
+        numbers: Vec<u32>,
         to: Cell,
+        layout: Layout,
+        swap: bool,
     },
     PaletteRenumber {
         number: u32,
         to: u32,
     },
     PaletteDelete {
-        number: u32,
+        numbers: Vec<u32>,
     },
     PaletteLegend {
         number: u32,
@@ -355,18 +363,22 @@ pub enum Command {
         icon: Option<String>,
         halo: Option<TargetColour>,
     },
+    /// IPC-61: one or several playbacks.
     PlaybackCopy {
-        id: PlaybackId,
+        ids: Vec<PlaybackId>,
         page: u16,
         slot: u16,
+        layout: Layout,
     },
     PlaybackMove {
-        id: PlaybackId,
+        ids: Vec<PlaybackId>,
         page: u16,
         slot: u16,
+        layout: Layout,
+        swap: bool,
     },
     PlaybackDelete {
-        id: PlaybackId,
+        ids: Vec<PlaybackId>,
     },
     PageLegend {
         page: u16,
@@ -420,9 +432,10 @@ pub enum Command {
         cues: Vec<CueNumber>,
         change: CueChange,
     },
+    /// IPC-61: one or several cues.
     CueDelete {
         id: PlaybackId,
-        cue: CueNumber,
+        cues: Vec<CueNumber>,
     },
     CueRenumber {
         id: PlaybackId,
@@ -823,6 +836,35 @@ fn ids_or_id(v: &serde_json::Value) -> Result<Vec<FixtureId>, String> {
             .ok_or_else(|| "invalid \"ids\" (expected an array of fixture ids)".to_string()),
         _ => Err("expected exactly one of \"id\" or \"ids\"".to_string()),
     }
+}
+
+/// IPC-61: exactly one of `one` (a value) or `many` (a non-empty array), parsed by `el`.
+fn one_or_list<T>(
+    v: &serde_json::Value,
+    one: &str,
+    many: &str,
+    el: impl Fn(&serde_json::Value) -> Option<T>,
+) -> Result<Vec<T>, String> {
+    match (v.get(one), v.get(many)) {
+        (Some(x), None) => el(x)
+            .map(|t| vec![t])
+            .ok_or_else(|| format!("invalid \"{one}\"")),
+        (None, Some(t)) => t
+            .as_array()
+            .and_then(|a| a.iter().map(el).collect())
+            .filter(|l: &Vec<T>| !l.is_empty())
+            .ok_or_else(|| format!("invalid \"{many}\" (expected a non-empty array)")),
+        _ => Err(format!("expected exactly one of \"{one}\" or \"{many}\"")),
+    }
+}
+
+/// IPC-61: `one_or_list` of unsigned integers.
+fn uint_list<T: TryFrom<u64>>(
+    v: &serde_json::Value,
+    one: &str,
+    many: &str,
+) -> Result<Vec<T>, String> {
+    one_or_list(v, one, many, |n| n.as_u64()?.try_into().ok())
 }
 
 /// A number field in 0.0..=1.0.
@@ -1469,15 +1511,18 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             mode: opt_field(&v, "mode", "Replace or Merge")?,
         }),
         Some("group.delete") => Ok(Command::DeleteGroup {
-            group: uint(&v, "group")?,
+            groups: uint_list(&v, "group", "groups")?,
         }),
         Some("group.copy") => Ok(Command::CopyGroup {
-            group: uint(&v, "group")?,
+            groups: uint_list(&v, "group", "groups")?,
             to: uint(&v, "to")?,
+            layout: opt_field(&v, "layout", "\"retain\" or \"bunch\"")?.unwrap_or_default(),
         }),
         Some("group.move") => Ok(Command::MoveGroup {
-            group: uint(&v, "group")?,
+            groups: uint_list(&v, "group", "groups")?,
             to: uint(&v, "to")?,
+            layout: opt_field(&v, "layout", "\"retain\" or \"bunch\"")?.unwrap_or_default(),
+            swap: opt_bool(&v, "swap")?,
         }),
         Some("group.legend") => Ok(Command::GroupLegend {
             group: uint(&v, "group")?,
@@ -1624,19 +1669,22 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             number: uint(&v, "number")?,
         }),
         Some("palette.copy") => Ok(Command::PaletteCopy {
-            number: uint(&v, "number")?,
+            numbers: uint_list(&v, "number", "numbers")?,
             to: field(&v, "to", "{window, handle}")?,
+            layout: opt_field(&v, "layout", "\"retain\" or \"bunch\"")?.unwrap_or_default(),
         }),
         Some("palette.move") => Ok(Command::PaletteMove {
-            number: uint(&v, "number")?,
+            numbers: uint_list(&v, "number", "numbers")?,
             to: field(&v, "to", "{window, handle}")?,
+            layout: opt_field(&v, "layout", "\"retain\" or \"bunch\"")?.unwrap_or_default(),
+            swap: opt_bool(&v, "swap")?,
         }),
         Some("palette.renumber") => Ok(Command::PaletteRenumber {
             number: uint(&v, "number")?,
             to: uint(&v, "to")?,
         }),
         Some("palette.delete") => Ok(Command::PaletteDelete {
-            number: uint(&v, "number")?,
+            numbers: uint_list(&v, "number", "numbers")?,
         }),
         Some("palette.legend") => Ok(Command::PaletteLegend {
             number: uint(&v, "number")?,
@@ -1746,21 +1794,24 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("playback.copy") => {
             let (page, slot) = target_handle(&v)?;
             Ok(Command::PlaybackCopy {
-                id: uint(&v, "id")?,
+                ids: uint_list(&v, "id", "ids")?,
                 page,
                 slot,
+                layout: opt_field(&v, "layout", "\"retain\" or \"bunch\"")?.unwrap_or_default(),
             })
         }
         Some("playback.move") => {
             let (page, slot) = target_handle(&v)?;
             Ok(Command::PlaybackMove {
-                id: uint(&v, "id")?,
+                ids: uint_list(&v, "id", "ids")?,
                 page,
                 slot,
+                layout: opt_field(&v, "layout", "\"retain\" or \"bunch\"")?.unwrap_or_default(),
+                swap: opt_bool(&v, "swap")?,
             })
         }
         Some("playback.delete") => Ok(Command::PlaybackDelete {
-            id: uint(&v, "id")?,
+            ids: uint_list(&v, "id", "ids")?,
         }),
         Some("page.legend") => Ok(Command::PageLegend {
             page: uint(&v, "page")?,
@@ -1872,7 +1923,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         }),
         Some("cue.delete") => Ok(Command::CueDelete {
             id: uint(&v, "id")?,
-            cue: cue_number(&v, "cue")?,
+            cues: one_or_list(&v, "cue", "cues", |n| CueNumber::new(n.as_f64()?))?,
         }),
         Some("cue.renumber") => Ok(Command::CueRenumber {
             id: uint(&v, "id")?,
@@ -5091,15 +5142,24 @@ mod tests {
         let ok = |s: &str| parse_command(s).unwrap();
         assert_eq!(
             ok(r#"{"v":1,"cmd":"group.delete","group":5}"#),
-            Command::DeleteGroup { group: 5 }
+            Command::DeleteGroup { groups: vec![5] }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"group.copy","group":5,"to":9}"#),
-            Command::CopyGroup { group: 5, to: 9 }
+            Command::CopyGroup {
+                groups: vec![5],
+                to: 9,
+                layout: Layout::Retain
+            }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"group.move","group":6,"to":12}"#),
-            Command::MoveGroup { group: 6, to: 12 }
+            Command::MoveGroup {
+                groups: vec![6],
+                to: 12,
+                layout: Layout::Retain,
+                swap: false
+            }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"group.legend","group":5,"legend":"Pars outside in"}"#),
@@ -6326,11 +6386,20 @@ mod tests {
         let to = Cell::new(Window::Colours, 5);
         assert_eq!(
             ok(r#"{"v":1,"cmd":"palette.copy","number":3,"to":{"window":"Colours","handle":5}}"#),
-            Command::PaletteCopy { number: 3, to }
+            Command::PaletteCopy {
+                numbers: vec![3],
+                to,
+                layout: Layout::Retain
+            }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"palette.move","number":3,"to":{"window":"Colours","handle":5}}"#),
-            Command::PaletteMove { number: 3, to }
+            Command::PaletteMove {
+                numbers: vec![3],
+                to,
+                layout: Layout::Retain,
+                swap: false
+            }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"palette.renumber","number":3,"to":30}"#),
@@ -6338,7 +6407,7 @@ mod tests {
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"palette.delete","number":3}"#),
-            Command::PaletteDelete { number: 3 }
+            Command::PaletteDelete { numbers: vec![3] }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"palette.legend","number":3,"legend":"Warm","icon":"colour.drop"}"#),
@@ -6830,22 +6899,25 @@ mod tests {
         assert_eq!(
             ok(r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4}}"#),
             Command::PlaybackCopy {
-                id: 3,
+                ids: vec![3],
                 page: 2,
-                slot: 4
+                slot: 4,
+                layout: Layout::Retain
             }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#),
             Command::PlaybackMove {
-                id: 3,
+                ids: vec![3],
                 page: 2,
-                slot: 4
+                slot: 4,
+                layout: Layout::Retain,
+                swap: false
             }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"playback.delete","id":3}"#),
-            Command::PlaybackDelete { id: 3 }
+            Command::PlaybackDelete { ids: vec![3] }
         );
         assert_eq!(
             ok(r#"{"v":1,"cmd":"page.legend","page":2,"legend":"Service"}"#),
@@ -8457,5 +8529,180 @@ mod tests {
             .unwrap();
         let v = parse(&cue_view(&e, 2, q(2.0)).unwrap());
         assert_eq!(v["order"], json!({"2":0}));
+    }
+
+    // ---- IDEA-35 batch D: list forms (MUL-01: IPC-61) ----------------------------------------
+
+    #[test]
+    fn ipc_61_playback_list_forms_parse() {
+        use cmdmx_core::playback::Layout;
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.copy","ids":[1,2],"to":{"page":2,"slot":1}}"#),
+            Command::PlaybackCopy {
+                ids: vec![1, 2],
+                page: 2,
+                slot: 1,
+                layout: Layout::Retain
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":2,"slot":4},"layout":"bunch"}"#),
+            Command::PlaybackCopy {
+                ids: vec![3],
+                page: 2,
+                slot: 4,
+                layout: Layout::Bunch
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"playback.move","ids":[1,2],"to":{"page":2,"slot":1},
+                   "layout":"retain","swap":true}"#
+            ),
+            Command::PlaybackMove {
+                ids: vec![1, 2],
+                page: 2,
+                slot: 1,
+                layout: Layout::Retain,
+                swap: true
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.move","id":3,"to":{"page":2,"slot":4}}"#),
+            Command::PlaybackMove {
+                ids: vec![3],
+                page: 2,
+                slot: 4,
+                layout: Layout::Retain,
+                swap: false
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.delete","ids":[4,5,6]}"#),
+            Command::PlaybackDelete { ids: vec![4, 5, 6] }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"playback.delete","id":3}"#),
+            Command::PlaybackDelete { ids: vec![3] }
+        );
+    }
+
+    #[test]
+    fn ipc_61_bad_playback_list_forms_are_errors() {
+        for bad in [
+            r#"{"v":1,"cmd":"playback.copy","id":1,"ids":[1,2],"to":{"page":2,"slot":1}}"#,
+            r#"{"v":1,"cmd":"playback.copy","to":{"page":2,"slot":1}}"#,
+            r#"{"v":1,"cmd":"playback.copy","ids":[],"to":{"page":2,"slot":1}}"#,
+            r#"{"v":1,"cmd":"playback.copy","ids":[1],"to":{"page":2,"slot":1},"layout":"tidy"}"#,
+            r#"{"v":1,"cmd":"playback.move","ids":[1],"to":{"page":2,"slot":1},"swap":"yes"}"#,
+            r#"{"v":1,"cmd":"playback.move","ids":"1","to":{"page":2,"slot":1}}"#,
+            r#"{"v":1,"cmd":"playback.delete","ids":[]}"#,
+            r#"{"v":1,"cmd":"playback.delete","id":1,"ids":[1]}"#,
+            r#"{"v":1,"cmd":"playback.delete","ids":[-1]}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    // ---- IDEA-35 batch D: list forms (MUL-02: IPC-61 for palettes, groups and cues) ----------
+
+    #[test]
+    fn ipc_61_palette_group_and_cue_list_forms_parse() {
+        use cmdmx_core::palette::{Cell, Window};
+        use cmdmx_core::playback::Layout;
+        let ok = |s: &str| parse_command(s).unwrap();
+        let to = Cell::new(Window::Positions, 7);
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"palette.copy","numbers":[3,4],"to":{"window":"Positions","handle":7},"layout":"bunch"}"#
+            ),
+            Command::PaletteCopy {
+                numbers: vec![3, 4],
+                to,
+                layout: Layout::Bunch
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"palette.move","number":3,"to":{"window":"Positions","handle":7},"swap":true}"#
+            ),
+            Command::PaletteMove {
+                numbers: vec![3],
+                to,
+                layout: Layout::Retain,
+                swap: true
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"palette.delete","numbers":[3,4,12]}"#),
+            Command::PaletteDelete {
+                numbers: vec![3, 4, 12]
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"palette.delete","number":3}"#),
+            Command::PaletteDelete { numbers: vec![3] }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.copy","groups":[1,3],"to":10}"#),
+            Command::CopyGroup {
+                groups: vec![1, 3],
+                to: 10,
+                layout: Layout::Retain
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.move","group":6,"to":12,"layout":"bunch","swap":true}"#),
+            Command::MoveGroup {
+                groups: vec![6],
+                to: 12,
+                layout: Layout::Bunch,
+                swap: true
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.delete","groups":[5,6]}"#),
+            Command::DeleteGroup { groups: vec![5, 6] }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"group.delete","group":5}"#),
+            Command::DeleteGroup { groups: vec![5] }
+        );
+        let q = |n: f64| CueNumber::new(n).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"cue.delete","id":1,"cues":[2,3,3.5]}"#),
+            Command::CueDelete {
+                id: 1,
+                cues: vec![q(2.0), q(3.0), q(3.5)]
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"cue.delete","id":1,"cue":2}"#),
+            Command::CueDelete {
+                id: 1,
+                cues: vec![q(2.0)]
+            }
+        );
+    }
+
+    #[test]
+    fn ipc_61_bad_palette_group_and_cue_list_forms_are_errors() {
+        for bad in [
+            r#"{"v":1,"cmd":"palette.copy","number":3,"numbers":[3],"to":{"window":"Positions","handle":7}}"#,
+            r#"{"v":1,"cmd":"palette.copy","to":{"window":"Positions","handle":7}}"#,
+            r#"{"v":1,"cmd":"palette.move","numbers":[3],"to":{"window":"Positions","handle":7},"layout":"tidy"}"#,
+            r#"{"v":1,"cmd":"palette.delete","numbers":[]}"#,
+            r#"{"v":1,"cmd":"group.copy","group":1,"groups":[1],"to":10}"#,
+            r#"{"v":1,"cmd":"group.move","groups":[1],"to":10,"swap":1}"#,
+            r#"{"v":1,"cmd":"group.delete","groups":[]}"#,
+            r#"{"v":1,"cmd":"group.delete"}"#,
+            r#"{"v":1,"cmd":"cue.delete","id":1,"cue":2,"cues":[2]}"#,
+            r#"{"v":1,"cmd":"cue.delete","id":1,"cues":[]}"#,
+            r#"{"v":1,"cmd":"cue.delete","id":1,"cues":[0]}"#,
+            r#"{"v":1,"cmd":"cue.delete","id":1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 }

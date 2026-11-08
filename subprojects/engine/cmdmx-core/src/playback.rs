@@ -89,6 +89,17 @@ pub enum KillPoint {
     FaderAtZero,
 }
 
+/// PBK-50: how a list of playbacks lands on its target handles.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Layout {
+    /// Keep the gaps between the sources (they must share a page).
+    #[default]
+    Retain,
+    /// Consecutive slots in handle order.
+    Bunch,
+}
+
 /// PBK-07: Titan's Handle Paging.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Paging {

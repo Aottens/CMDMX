@@ -39,9 +39,10 @@ use crate::playback::{
     check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BpmFader, BpmMaster, Button,
     ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
-    Kind as PlaybackKind, Link, ListAction, ListFader, ListLive, Master, MasterKind, Origin,
-    Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState, Priority,
-    Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values, GROUP_SCALES, PAGES,
+    Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master, MasterKind,
+    Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
+    Priority, Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values, GROUP_SCALES,
+    PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -4084,6 +4085,29 @@ impl Engine {
         Ok(())
     }
 
+    /// CUE-63: remove several cues; refused as a whole when one is unknown or when they are
+    /// every cue of the playback.
+    pub fn delete_cues(&mut self, id: PlaybackId, cues: &[CueNumber]) -> Result<(), CoreError> {
+        let playback = self.playback_mut(id)?;
+        let cues: BTreeSet<_> = cues.iter().copied().collect();
+        let first = *cues
+            .first()
+            .ok_or_else(|| CoreError::InvalidCommand("expected at least one cue".to_string()))?;
+        if let Some(&c) = cues
+            .iter()
+            .find(|c| !playback.cues.iter().any(|x| x.number == **c))
+        {
+            return Err(CoreError::UnknownCue(c));
+        }
+        if cues.len() >= playback.cues.len() {
+            return Err(CoreError::LastCue(cues.last().copied().unwrap_or(first)));
+        }
+        for c in cues {
+            self.delete_cue(id, c)?;
+        }
+        Ok(())
+    }
+
     /// CUE-08: give a cue a free number; it moves to its place in the order.
     pub fn renumber_cue(
         &mut self,
@@ -4529,6 +4553,150 @@ impl Engine {
             .remove(&id)
             .ok_or(CoreError::UnknownPlayback(id))?;
         self.states.remove(&id);
+        Ok(())
+    }
+
+    /// PBK-50: the sources in handle order with the handle each lands on. Refuses an empty or
+    /// unknown list, `Retain` over several pages and any target outside the pages.
+    fn playback_block(
+        &self,
+        ids: &[PlaybackId],
+        page: u16,
+        slot: u16,
+        layout: Layout,
+    ) -> Result<Vec<(PlaybackId, u16, u16)>, CoreError> {
+        let mut src = Vec::new();
+        for &id in ids {
+            let p = self
+                .playbacks
+                .get(&id)
+                .ok_or(CoreError::UnknownPlayback(id))?;
+            src.push((p.page, p.slot, id));
+        }
+        src.sort_unstable();
+        src.dedup_by_key(|s| s.2);
+        let first = src.first().ok_or_else(|| {
+            CoreError::InvalidCommand("expected at least one playback".to_string())
+        })?;
+        let pages = src.iter().map(|s| s.0).collect::<BTreeSet<_>>().len();
+        if layout == Layout::Retain && pages > 1 {
+            return Err(CoreError::SourcesOnPages(pages));
+        }
+        let lowest = first.1;
+        let mut block = Vec::new();
+        for (i, &(_, s, id)) in src.iter().enumerate() {
+            let offset = match layout {
+                Layout::Retain => s.saturating_sub(lowest),
+                Layout::Bunch => u16::try_from(i).unwrap_or(u16::MAX),
+            };
+            let target = slot.saturating_add(offset);
+            self.handle_target(page, target)?;
+            block.push((id, page, target));
+        }
+        Ok(block)
+    }
+
+    /// PBK-50: copy several playbacks onto empty handles; the new ids come back in handle
+    /// order. All or nothing.
+    pub fn copy_playbacks(
+        &mut self,
+        ids: &[PlaybackId],
+        page: u16,
+        slot: u16,
+        layout: Layout,
+    ) -> Result<Vec<PlaybackId>, CoreError> {
+        let block = self.playback_block(ids, page, slot, layout)?;
+        for &(_, p, s) in &block {
+            self.check_empty_handle(p, s)?;
+        }
+        let next = self.playback_next_id;
+        let mut new = Vec::new();
+        for (id, p, s) in block {
+            match self.copy_playback(id, p, s) {
+                Ok(n) => new.push(n),
+                Err(e) => {
+                    for n in new {
+                        self.playbacks.remove(&n);
+                        self.states.remove(&n);
+                    }
+                    self.playback_next_id = next;
+                    return Err(e);
+                }
+            }
+        }
+        Ok(new)
+    }
+
+    /// PBK-50, 51: move several playbacks (ids and running state kept). With `swap` a playback
+    /// in the way takes a handle the block leaves free. All or nothing.
+    pub fn move_playbacks(
+        &mut self,
+        ids: &[PlaybackId],
+        page: u16,
+        slot: u16,
+        layout: Layout,
+        swap: bool,
+    ) -> Result<(), CoreError> {
+        let block = self.playback_block(ids, page, slot, layout)?;
+        let moving: BTreeSet<_> = block.iter().map(|b| b.0).collect();
+        let mut in_way = Vec::new();
+        for &(_, p, s) in &block {
+            let Some(o) = self.handle_target(p, s)?.filter(|o| !moving.contains(o)) else {
+                continue;
+            };
+            let home = self.playbacks.get(&o).map_or((p, s), |x| (x.page, x.slot));
+            if !swap {
+                return Err(CoreError::HandleUsed { page: p, slot: s });
+            }
+            if home != (p, s) {
+                return Err(CoreError::HandleLocked {
+                    page: p,
+                    slot: s,
+                    by_page: home.0,
+                    by_slot: home.1,
+                });
+            }
+            in_way.push((home, o));
+        }
+        in_way.sort_unstable();
+        let mut freed = Vec::new();
+        for id in &moving {
+            if let Some(h) = self.playbacks.get(id).map(|x| (x.page, x.slot)) {
+                if !block.iter().any(|&(_, p, s)| (p, s) == h) {
+                    freed.push(h);
+                }
+            }
+        }
+        freed.sort_unstable();
+        if in_way.len() > freed.len() {
+            let ((p, s), _) = in_way.get(freed.len()).copied().unwrap_or_default();
+            return Err(CoreError::HandleUsed { page: p, slot: s });
+        }
+        let moves = block.into_iter().map(|(id, p, s)| (id, (p, s)));
+        let swaps = in_way.into_iter().map(|(_, o)| o).zip(freed);
+        for (id, (p, s)) in moves.chain(swaps) {
+            if let Some(pb) = self.playbacks.get_mut(&id) {
+                pb.page = p;
+                pb.slot = s;
+            }
+        }
+        Ok(())
+    }
+
+    /// PBK-50: delete several playbacks; refused as a whole when one is unknown.
+    pub fn delete_playbacks(&mut self, ids: &[PlaybackId]) -> Result<(), CoreError> {
+        let ids: BTreeSet<_> = ids.iter().copied().collect();
+        if ids.is_empty() {
+            return Err(CoreError::InvalidCommand(
+                "expected at least one playback".to_string(),
+            ));
+        }
+        if let Some(&id) = ids.iter().find(|id| !self.playbacks.contains_key(id)) {
+            return Err(CoreError::UnknownPlayback(id));
+        }
+        for id in ids {
+            self.delete_playback(id)?;
+        }
         Ok(())
     }
 
@@ -5505,6 +5673,138 @@ impl Engine {
                     m.group = to;
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// PRG-98: the sources in group order with the number each lands on. Refuses an empty or
+    /// empty-group list and a number past `u32`.
+    fn group_block(
+        &self,
+        groups: &[GroupId],
+        to: GroupId,
+        layout: Layout,
+    ) -> Result<Vec<(GroupId, GroupId)>, CoreError> {
+        let src: BTreeSet<_> = groups.iter().copied().collect();
+        if let Some(&g) = src.iter().find(|g| !self.groups.contains_key(g)) {
+            return Err(CoreError::GroupEmpty(g));
+        }
+        let lowest = *src
+            .first()
+            .ok_or_else(|| CoreError::InvalidCommand("expected at least one group".to_string()))?;
+        let mut block = Vec::new();
+        for (i, &g) in src.iter().enumerate() {
+            let offset = match layout {
+                Layout::Retain => g - lowest,
+                Layout::Bunch => u32::try_from(i).unwrap_or(u32::MAX),
+            };
+            let target = to
+                .checked_add(offset)
+                .ok_or_else(|| CoreError::InvalidCommand("group number out of range".into()))?;
+            block.push((g, target));
+        }
+        if block.iter().all(|b| b.0 == b.1) {
+            return Err(CoreError::GroupOntoItself(lowest));
+        }
+        Ok(block)
+    }
+
+    /// PRG-98: copy several groups (items, grid, legend) onto empty numbers. All or nothing.
+    pub fn copy_groups(
+        &mut self,
+        groups: &[GroupId],
+        to: GroupId,
+        layout: Layout,
+    ) -> Result<(), CoreError> {
+        let block = self.group_block(groups, to, layout)?;
+        if let Some(&(_, t)) = block.iter().find(|b| self.groups.contains_key(&b.1)) {
+            return Err(CoreError::GroupUsed(t));
+        }
+        for (g, t) in block {
+            self.copy_group(g, t)?;
+        }
+        Ok(())
+    }
+
+    /// PRG-98: move several groups; group masters follow every moved group. With `swap` a
+    /// group in the way takes a number the block leaves free. All or nothing.
+    pub fn move_groups(
+        &mut self,
+        groups: &[GroupId],
+        to: GroupId,
+        layout: Layout,
+        swap: bool,
+    ) -> Result<(), CoreError> {
+        let block = self.group_block(groups, to, layout)?;
+        let moving: BTreeSet<_> = block.iter().map(|b| b.0).collect();
+        let targets: BTreeSet<_> = block.iter().map(|b| b.1).collect();
+        let in_way: Vec<_> = (targets.iter())
+            .filter(|t| self.groups.contains_key(t) && !moving.contains(t))
+            .copied()
+            .collect();
+        if !in_way.is_empty() && !swap {
+            return Err(CoreError::GroupUsed(in_way.first().copied().unwrap_or(to)));
+        }
+        let freed = moving.iter().filter(|g| !targets.contains(g)).copied();
+        let map: BTreeMap<GroupId, GroupId> = block
+            .into_iter()
+            .chain(in_way.into_iter().zip(freed))
+            .collect();
+        let items: Vec<_> = (map.iter())
+            .map(|(&g, &t)| {
+                (
+                    t,
+                    self.groups.remove(&g),
+                    self.group_grids.remove(&g),
+                    self.group_legends.remove(&g),
+                )
+            })
+            .collect();
+        for (t, items, grid, legend) in items {
+            if let Some(items) = items {
+                self.groups.insert(t, items);
+            }
+            if let Some(grid) = grid {
+                self.group_grids.insert(t, grid);
+            }
+            if let Some(legend) = legend {
+                self.group_legends.insert(t, legend);
+            }
+        }
+        for pb in self.playbacks.values_mut() {
+            if let Some(Master::Group(m)) = &mut pb.master {
+                if let Some(&t) = map.get(&m.group) {
+                    m.group = t;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// PRG-98: delete several groups; refused as a whole when one is empty or mastered.
+    pub fn delete_groups(&mut self, groups: &[GroupId]) -> Result<(), CoreError> {
+        let groups: BTreeSet<_> = groups.iter().copied().collect();
+        if groups.is_empty() {
+            return Err(CoreError::InvalidCommand(
+                "expected at least one group".to_string(),
+            ));
+        }
+        for &g in &groups {
+            if !self.groups.contains_key(&g) {
+                return Err(CoreError::GroupEmpty(g));
+            }
+            if let Some(pb) = (self.playbacks.values())
+                .find(|pb| matches!(&pb.master, Some(Master::Group(m)) if m.group == g))
+            {
+                return Err(CoreError::GroupMastered {
+                    group: g,
+                    page: pb.page,
+                    slot: pb.slot,
+                });
+            }
+        }
+        for g in groups {
+            self.delete_group(g)?;
         }
         Ok(())
     }
@@ -7470,6 +7770,140 @@ impl Engine {
             },
         );
         Ok(id)
+    }
+
+    /// PAL-34: the sources in cell order with the cell each lands on. Refuses an empty or
+    /// unknown list, `Retain` over several windows and handle 0.
+    fn palette_block(
+        &self,
+        numbers: &[u32],
+        to: Cell,
+        layout: Layout,
+    ) -> Result<Vec<(PaletteId, Cell)>, CoreError> {
+        let mut src = Vec::new();
+        for &n in numbers {
+            let p = self.palette(n).ok_or(CoreError::UnknownPalette(n))?;
+            src.push((p.cell(), p.id));
+        }
+        src.sort_unstable();
+        src.dedup_by_key(|s| s.1);
+        let first = src.first().ok_or_else(|| {
+            CoreError::InvalidCommand("expected at least one palette".to_string())
+        })?;
+        let windows = src
+            .iter()
+            .map(|s| s.0.window)
+            .collect::<BTreeSet<_>>()
+            .len();
+        if layout == Layout::Retain && windows > 1 {
+            return Err(CoreError::SourcesInWindows(windows));
+        }
+        let mut block = Vec::new();
+        for (i, &(cell, id)) in src.iter().enumerate() {
+            let offset = match layout {
+                Layout::Retain => cell.handle.saturating_sub(first.0.handle),
+                Layout::Bunch => u16::try_from(i).unwrap_or(u16::MAX),
+            };
+            let target = Cell::new(to.window, to.handle.saturating_add(offset));
+            if target.handle == 0 || target.handle == u16::MAX {
+                self.check_free_cell(Cell::new(target.window, 0))?; // InvalidPaletteCell
+            }
+            block.push((id, target));
+        }
+        Ok(block)
+    }
+
+    /// PAL-34: copy several palettes onto empty cells (new ids and numbers, in cell order).
+    /// All or nothing.
+    pub fn copy_palettes(
+        &mut self,
+        numbers: &[u32],
+        to: Cell,
+        layout: Layout,
+    ) -> Result<Vec<PaletteId>, CoreError> {
+        let block = self.palette_block(numbers, to, layout)?;
+        for &(_, cell) in &block {
+            self.check_free_cell(cell)?;
+        }
+        let next = self.palette_next_id;
+        let mut new = Vec::new();
+        for (id, cell) in block {
+            let number = self.palettes.get(&id).map(|p| p.number);
+            match number.map_or(Err(CoreError::UnknownPalette(0)), |n| {
+                self.copy_palette(n, cell)
+            }) {
+                Ok(n) => new.push(n),
+                Err(e) => {
+                    for n in new {
+                        self.palettes.remove(&n);
+                    }
+                    self.palette_next_id = next;
+                    return Err(e);
+                }
+            }
+        }
+        Ok(new)
+    }
+
+    /// PAL-34: move several palettes (numbers and references kept). With `swap` a palette in
+    /// the way takes a cell the block leaves free. All or nothing.
+    pub fn move_palettes(
+        &mut self,
+        numbers: &[u32],
+        to: Cell,
+        layout: Layout,
+        swap: bool,
+    ) -> Result<(), CoreError> {
+        let block = self.palette_block(numbers, to, layout)?;
+        let moving: BTreeSet<_> = block.iter().map(|b| b.0).collect();
+        let mut in_way = Vec::new();
+        for &(_, cell) in &block {
+            let Some(o) = self
+                .palettes
+                .values()
+                .find(|p| p.cell() == cell && !moving.contains(&p.id))
+            else {
+                continue;
+            };
+            if !swap {
+                return Err(CoreError::PaletteCellInUse {
+                    window: format!("{:?}", cell.window),
+                    handle: cell.handle,
+                });
+            }
+            in_way.push((cell, o.id));
+        }
+        in_way.sort_unstable();
+        let mut freed: Vec<Cell> = (self.palettes.values())
+            .filter(|p| moving.contains(&p.id) && !block.iter().any(|b| b.1 == p.cell()))
+            .map(Palette::cell)
+            .collect();
+        freed.sort_unstable();
+        let swaps = in_way.into_iter().map(|(_, o)| o).zip(freed);
+        for (id, cell) in block.into_iter().chain(swaps) {
+            if let Some(p) = self.palettes.get_mut(&id) {
+                p.window = cell.window;
+                p.handle = cell.handle;
+            }
+        }
+        Ok(())
+    }
+
+    /// PAL-34: delete several palettes; refused as a whole when one is unknown.
+    pub fn delete_palettes(&mut self, numbers: &[u32]) -> Result<(), CoreError> {
+        let numbers: BTreeSet<_> = numbers.iter().copied().collect();
+        if numbers.is_empty() {
+            return Err(CoreError::InvalidCommand(
+                "expected at least one palette".to_string(),
+            ));
+        }
+        if let Some(&n) = numbers.iter().find(|&&n| self.palette(n).is_none()) {
+            return Err(CoreError::UnknownPalette(n));
+        }
+        for n in numbers {
+            self.delete_palette(n)?;
+        }
+        Ok(())
     }
 
     /// PAL-17: change only the cell, so every reference follows.

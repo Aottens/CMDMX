@@ -807,9 +807,14 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             engine.execute_command(&tokens)
         }
         RecordGroup { group, mode } => engine.record_group_as(group, mode),
-        DeleteGroup { group } => engine.delete_group(group),
-        CopyGroup { group, to } => engine.copy_group(group, to),
-        MoveGroup { group, to } => engine.move_group(group, to),
+        DeleteGroup { groups } => engine.delete_groups(&groups),
+        CopyGroup { groups, to, layout } => engine.copy_groups(&groups, to, layout),
+        MoveGroup {
+            groups,
+            to,
+            layout,
+            swap,
+        } => engine.move_groups(&groups, to, layout, swap),
         GroupLegend { group, legend } => engine.set_group_legend(group, &legend),
         // Answered in the client thread; the tick never sees it (LIB-14).
         Library(_) => Ok(()),
@@ -901,10 +906,19 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         PaletteRecord(record) => engine.record_palette(&record).map(drop),
         PaletteApply { number, timing } => engine.apply_palette(number, timing),
         PaletteInclude { number } => engine.include_palette(number),
-        PaletteCopy { number, to } => engine.copy_palette(number, to).map(drop),
-        PaletteMove { number, to } => engine.move_palette(number, to),
+        PaletteCopy {
+            numbers,
+            to,
+            layout,
+        } => engine.copy_palettes(&numbers, to, layout).map(drop),
+        PaletteMove {
+            numbers,
+            to,
+            layout,
+            swap,
+        } => engine.move_palettes(&numbers, to, layout, swap),
         PaletteRenumber { number, to } => engine.renumber_palette(number, to),
-        PaletteDelete { number } => engine.delete_palette(number),
+        PaletteDelete { numbers } => engine.delete_palettes(&numbers),
         PaletteLegend {
             number,
             legend,
@@ -934,9 +948,20 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             icon,
             halo,
         } => engine.set_playback_legend(id, &legend, icon.as_deref(), halo),
-        PlaybackCopy { id, page, slot } => engine.copy_playback(id, page, slot).map(drop),
-        PlaybackMove { id, page, slot } => engine.move_playback(id, page, slot),
-        PlaybackDelete { id } => engine.delete_playback(id),
+        PlaybackCopy {
+            ids,
+            page,
+            slot,
+            layout,
+        } => engine.copy_playbacks(&ids, page, slot, layout).map(drop),
+        PlaybackMove {
+            ids,
+            page,
+            slot,
+            layout,
+            swap,
+        } => engine.move_playbacks(&ids, page, slot, layout, swap),
+        PlaybackDelete { ids } => engine.delete_playbacks(&ids),
         PageLegend { page, legend } => engine.set_page_legend(page, &legend),
         DboSet { on } => {
             engine.set_dbo(on);
@@ -981,7 +1006,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         }
         CueEdit { id, cue, change } => engine.change_cue(id, cue, &change),
         CueTimes { id, cues, change } => engine.change_cues(id, &cues, &change),
-        CueDelete { id, cue } => engine.delete_cue(id, cue),
+        CueDelete { id, cues } => engine.delete_cues(id, &cues),
         CueRenumber { id, cue, to } => engine.renumber_cue(id, cue, to),
         CueRenumberAll { id } => engine.renumber_cues(id),
         CueCopy { id, cue, to } => engine.copy_cue(id, cue, to),
@@ -1201,6 +1226,24 @@ fn park_label(verb: &str, ids: &[u32]) -> String {
     }
 }
 
+/// IPC-61: `Copy playback 3`, or `Copy 3 playbacks to 3.1` for a list.
+fn list_label<T: std::fmt::Display>(
+    verb: &str,
+    noun: &str,
+    ids: &[T],
+    to: Option<String>,
+) -> String {
+    match (ids, to) {
+        ([id], _) => format!("{verb} {noun} {id}"),
+        (_, Some(to)) => format!("{verb} {} {noun}s to {to}", ids.len()),
+        _ => format!("{verb} {} {noun}s", ids.len()),
+    }
+}
+
+fn cell_label(c: &cmdmx_core::palette::Cell) -> String {
+    format!("{:?} {}", c.window, c.handle)
+}
+
 /// UNDO-01, 05: the step's label and its coalescing key.
 fn label(cmd: &ipc::Command) -> (String, Option<String>) {
     use ipc::Command::*;
@@ -1263,9 +1306,15 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         ProfileSave(p) => (format!("Edit profile {}", p.model), None),
         Colour { .. } | CtStep { .. } | Gel { .. } => ("Colour".into(), Some("colour".into())),
         RecordGroup { group, .. } => (format!("Record group {group}"), None),
-        DeleteGroup { group } => (format!("Delete group {group}"), None),
-        CopyGroup { group, .. } => (format!("Copy group {group}"), None),
-        MoveGroup { group, .. } => (format!("Move group {group}"), None),
+        DeleteGroup { groups } => (list_label("Delete", "group", groups, None), None),
+        CopyGroup { groups, to, .. } => (
+            list_label("Copy", "group", groups, Some(to.to_string())),
+            None,
+        ),
+        MoveGroup { groups, to, .. } => (
+            list_label("Move", "group", groups, Some(to.to_string())),
+            None,
+        ),
         GroupLegend { group, .. } => (format!("Legend group {group}"), None),
         OutputAdd { .. } => ("Add output".into(), None),
         OutputEdit { .. } => ("Edit output".into(), None),
@@ -1283,10 +1332,16 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         PaletteRecord(_) => ("Record palette".into(), None),
         PaletteApply { number, .. } => (format!("Apply palette {number}"), None),
         PaletteInclude { number } => (format!("Include palette {number}"), None),
-        PaletteCopy { number, .. } => (format!("Copy palette {number}"), None),
-        PaletteMove { number, .. } => (format!("Move palette {number}"), None),
+        PaletteCopy { numbers, to, .. } => (
+            list_label("Copy", "palette", numbers, Some(cell_label(to))),
+            None,
+        ),
+        PaletteMove { numbers, to, .. } => (
+            list_label("Move", "palette", numbers, Some(cell_label(to))),
+            None,
+        ),
         PaletteRenumber { number, .. } => (format!("Renumber palette {number}"), None),
-        PaletteDelete { number } => (format!("Delete palette {number}"), None),
+        PaletteDelete { numbers } => (list_label("Delete", "palette", numbers, None), None),
         PaletteLegend { number, .. } => (format!("Palette {number} legend"), None),
         SettingsPalette { .. } => ("Palette settings".into(), None),
         PlaybackRecord(_) => ("Record playback".into(), None),
@@ -1294,14 +1349,25 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
             (format!("Playback {id} options"), None)
         }
         PlaybackLegend { id, .. } => (format!("Playback {id} legend"), None),
-        PlaybackCopy { id, .. } => (format!("Copy playback {id}"), None),
-        PlaybackMove { id, .. } => (format!("Move playback {id}"), None),
-        PlaybackDelete { id } => (format!("Delete playback {id}"), None),
+        PlaybackCopy {
+            ids, page, slot, ..
+        } => (
+            list_label("Copy", "playback", ids, Some(format!("{page}.{slot}"))),
+            None,
+        ),
+        PlaybackMove {
+            ids, page, slot, ..
+        } => (
+            list_label("Move", "playback", ids, Some(format!("{page}.{slot}"))),
+            None,
+        ),
+        PlaybackDelete { ids } => (list_label("Delete", "playback", ids, None), None),
         PageLegend { page, .. } => (format!("Page {page} legend"), None),
         SettingsPlayback(_) => ("Playback settings".into(), None),
         CueEdit { .. } => ("Edit cue".into(), None),
         CueTimes { cues, .. } if cues.len() > 1 => (format!("Edit {} cues", cues.len()), None),
         CueTimes { .. } => ("Edit cue".into(), None),
+        CueDelete { cues, .. } if cues.len() > 1 => (format!("Delete {} cues", cues.len()), None),
         CueDelete { .. } => ("Delete cue".into(), None),
         CueRenumber { .. } | CueRenumberAll { .. } => ("Renumber cue".into(), None),
         CueCopy { .. } => ("Copy cue".into(), None),
@@ -2368,16 +2434,19 @@ mod tests {
         run(
             &mut engine,
             ipc::Command::PaletteCopy {
-                number: 1,
+                numbers: vec![1],
                 to: Cell::new(Window::Colours, 2),
+                layout: Default::default(),
             },
         )
         .unwrap();
         run(
             &mut engine,
             ipc::Command::PaletteMove {
-                number: 2,
+                numbers: vec![2],
                 to: Cell::new(Window::Positions, 1),
+                layout: Default::default(),
+                swap: false,
             },
         )
         .unwrap();
@@ -2408,7 +2477,11 @@ mod tests {
             engine.programmer().stored(202, "Colour"),
             Some(cmdmx_core::value::Stored::Value(_))
         ));
-        run(&mut engine, ipc::Command::PaletteDelete { number: 20 }).unwrap();
+        run(
+            &mut engine,
+            ipc::Command::PaletteDelete { numbers: vec![20] },
+        )
+        .unwrap();
         assert!(engine.palette(20).is_none());
         run(
             &mut engine,
@@ -2441,7 +2514,7 @@ mod tests {
                 number: 99,
                 timing: Timing::default(),
             },
-            ipc::Command::PaletteDelete { number: 99 },
+            ipc::Command::PaletteDelete { numbers: vec![99] },
             ipc::Command::PaletteRecord(cmdmx_core::palette::Record::at(
                 cmdmx_core::palette::Cell::new(Window::Colours, 1),
             )),
@@ -2500,17 +2573,20 @@ mod tests {
         run(
             &mut engine,
             ipc::Command::PlaybackCopy {
-                id,
+                ids: vec![id],
                 page: 3,
                 slot: 2,
+                layout: Default::default(),
             },
         );
         run(
             &mut engine,
             ipc::Command::PlaybackMove {
-                id,
+                ids: vec![id],
                 page: 3,
                 slot: 3,
+                layout: Default::default(),
+                swap: false,
             },
         );
         assert_eq!(engine.playback(id).unwrap().slot, 3);
@@ -2544,7 +2620,7 @@ mod tests {
             }),
         );
         assert_eq!(engine.settings().cue_fade_in, 1.5);
-        run(&mut engine, ipc::Command::PlaybackDelete { id });
+        run(&mut engine, ipc::Command::PlaybackDelete { ids: vec![id] });
         assert!(engine.playback(id).is_none());
     }
 
@@ -2562,11 +2638,12 @@ mod tests {
             ipc::Command::PlaybackRecord(PlaybackRecord::at(1, 1)),
             ipc::Command::PlaybackRecord(PlaybackRecord::at(3, 1)),
             ipc::Command::PlaybackCopy {
-                id: 1,
+                ids: vec![1],
                 page: 1,
                 slot: 2,
+                layout: Default::default(),
             },
-            ipc::Command::PlaybackDelete { id: 99 },
+            ipc::Command::PlaybackDelete { ids: vec![99] },
             ipc::Command::PlaybackFlash { id: 99, on: true },
             ipc::Command::PlaybackChange {
                 id: 1,
@@ -5251,5 +5328,190 @@ mod tests {
         let now = Instant::now();
         let deadline = now + TICK;
         assert_eq!(next_deadline(deadline, now, TICK), deadline + TICK);
+    }
+
+    // ---- IDEA-35 batch D: working on many at once (MUL-01: PBK-50, 51, IPC-61) -------------
+
+    /// PBK-50, IPC-61: a list form is one undo step, labelled with the range; the single form
+    /// keeps its label.
+    #[test]
+    fn ipc_61_playback_lists_are_one_undo_step_with_a_range_label() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let before = e.edit_state();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.copy","ids":[1,2,4],"to":{"page":3,"slot":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Copy 3 playbacks to 3.1"));
+        assert_eq!(e.playbacks().count(), 13);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.edit_state(), before);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.move","ids":[9,10],"to":{"page":3,"slot":5},"layout":"bunch"}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Move 2 playbacks to 3.5"));
+        assert_eq!(e.playback(10).map(|p| (p.page, p.slot)), Some((3, 6)));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.delete","ids":[1,2]}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Delete 2 playbacks"));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.copy","id":3,"to":{"page":4,"slot":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Copy playback 3"));
+    }
+
+    /// PBK-50, 51: a refused list changes nothing and leaves no undo step; swap works over IPC.
+    #[test]
+    fn ipc_61_a_refused_list_changes_nothing() {
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let before = e.edit_state();
+        let err = undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.move","ids":[1,2],"to":{"page":2,"slot":1}}"#,
+        )
+        .unwrap_err();
+        assert_eq!(err.to_string(), "Handle 2.1 is used");
+        assert_eq!(e.edit_state(), before);
+        assert_eq!(h.len(), 0);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"playback.move","id":1,"to":{"page":2,"slot":1},"swap":true}"#,
+        )
+        .unwrap();
+        assert_eq!(e.playback(1).map(|p| (p.page, p.slot)), Some((2, 1)));
+        assert_eq!(e.playback(9).map(|p| (p.page, p.slot)), Some((1, 1)));
+        assert_eq!(h.len(), 1);
+    }
+
+    // ---- MUL-02: PAL-34, PRG-98, CUE-63 over IPC-61 --------------------------------------------
+
+    /// PRG-98, CUE-63, PAL-34: a list is one undo step with a range label; a refusal leaves none.
+    #[test]
+    fn ipc_61_group_cue_and_palette_lists_are_one_undo_step() {
+        use cmdmx_core::palette::{Cell, Record, Window};
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let before = e.edit_state();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"group.copy","groups":[1,2,4],"to":10}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Copy 3 groups to 10"));
+        assert!(e.group_items(13).is_some());
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"group.move","groups":[10,11],"to":20}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Move 2 groups to 20"));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"group.delete","groups":[20,21]}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Delete 2 groups"));
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"group.delete","group":13}"#).unwrap();
+        assert_eq!(h.undo_label(), Some("Delete group 13"));
+        for _ in 0..4 {
+            undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        }
+        assert_eq!(e.edit_state(), before);
+
+        for (handle, fixture) in [(1, 1), (2, 2), (3, 3)] {
+            e.select_fixture(fixture).unwrap();
+            e.set_programmer_value(fixture, "Dimmer", 0.5).unwrap();
+            e.record_palette(&Record {
+                mask: Some(vec![AttributeGroup::I]),
+                ..Record::at(Cell::new(Window::Colours, handle))
+            })
+            .unwrap();
+            e.clear_selection();
+            e.clear();
+        }
+        let mut h = History::default();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"palette.copy","numbers":[1,2],"to":{"window":"Positions","handle":7}}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Copy 2 palettes to Positions 7"));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"palette.move","numbers":[1,2],"to":{"window":"Beams","handle":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Move 2 palettes to Beams 1"));
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"palette.delete","numbers":[1,2,3]}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Delete 3 palettes"));
+        let steps = h.len();
+        assert!(undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"palette.delete","numbers":[3,99]}"#
+        )
+        .is_err());
+        assert_eq!(h.len(), steps, "a refusal leaves no step");
+    }
+
+    /// CUE-63: several cues out in one step, labelled with the count.
+    #[test]
+    fn cue_63_delete_several_cues_is_one_undo_step() {
+        use cmdmx_core::playback::{Cue, CueNumber};
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let mut pb = e.playback(1).unwrap().clone();
+        let first = pb.cues[0].clone();
+        pb.cues = (1..=5)
+            .map(|n| Cue {
+                number: CueNumber::new(f64::from(n)).unwrap(),
+                ..first.clone()
+            })
+            .collect();
+        e.add_playback(pb);
+        let before = e.edit_state();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"cue.delete","id":1,"cues":[2,3,4]}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Delete 3 cues"));
+        assert_eq!(e.playback(1).unwrap().cues.len(), 2);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.edit_state(), before);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"cue.delete","id":1,"cue":2}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Delete cue"));
     }
 }

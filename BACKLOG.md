@@ -243,8 +243,8 @@ Builds: MUL-01 + MUL-02; MUL-03; MUL-04; MUL-05.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| MUL-01 | Core and daemon: several playbacks in Copy, Move and Delete, with layout and swap; `pbk_50_…`, `pbk_51_…`, `ipc_61_…`. | PBK-50, PBK-51, IPC-61 | M | todo |
-| MUL-02 | Core and daemon: several palettes, groups and cues; `pal_34_…`, `prg_98_…`, `cue_63_…`. Needs MUL-01. | PAL-34, PRG-98, CUE-63 | S | todo |
+| MUL-01 | Core and daemon: several playbacks in Copy, Move and Delete, with layout and swap; `pbk_50_…`, `pbk_51_…`, `ipc_61_…`. | PBK-50, PBK-51, IPC-61 | M | done (2026-11-07, #271) |
+| MUL-02 | Core and daemon: several palettes, groups and cues; `pal_34_…`, `prg_98_…`, `cue_63_…`. Needs MUL-01. | PAL-34, PRG-98, CUE-63 | S | done (2026-11-07, #271) |
 | MUL-03 | App: picking several with ⇧, ⌘ and All, the layout and swap softkeys and Menu latch; manual and run on Art-Net. Needs MUL-02. | UI-64, UI-65 | M | todo |
 | MUL-04 | Core, daemon, control and app: Release all and a page's release; `pbk_52_…`, `ctl_68_…`, scenario; manual and run on Art-Net. | PBK-52, CTL-68, UI-66 | S | todo |
 | MUL-05 | Daemon and app: a new show that keeps the patch; `shw_19_…`; manual and run. | SHW-19, UI-67 | S | todo |
