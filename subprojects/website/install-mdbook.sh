@@ -11,7 +11,7 @@ case "$(uname -s)/$(uname -m)" in
 esac
 dir=${RUNNER_TEMP:-/tmp}/mdbook
 mkdir -p "$dir"
-curl -fsSL -o "$dir/mdbook.tar.gz" "https://github.com/rust-lang/mdBook/releases/download/$v/mdbook-$v-$t.tar.gz"
+curl -fsSL --retry 3 --retry-delay 5 -o "$dir/mdbook.tar.gz" "https://github.com/rust-lang/mdBook/releases/download/$v/mdbook-$v-$t.tar.gz"
 echo "$sha  $dir/mdbook.tar.gz" | shasum -a 256 -c -
 tar -xzf "$dir/mdbook.tar.gz" -C "$dir"
 rm "$dir/mdbook.tar.gz"

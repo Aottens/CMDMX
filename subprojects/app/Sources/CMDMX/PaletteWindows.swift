@@ -83,7 +83,7 @@ struct PaletteWindow: View {
                     ForEach(1...(rows * 6), id: \.self) { handle in
                         if let p = byHandle[handle] {
                             Cell(number: p.number, tag: p.kind, legend: p.shownLegend,
-                                 selected: ui.source == p.id || ui.deleteTarget == p.number,
+                                 picked: ui.isPicked(.palette, p.number),
                                  inProgrammer: inUse.contains(p.id),
                                  mask: true, maskGroups: p.groups,
                                  faded: hasSelection && !relevant.contains(p.id),
@@ -159,20 +159,16 @@ enum PaletteTaps {
 
     private static func perform(_ function: PaletteFunction, _ window: String, _ handle: Int, _ p: PaletteInfo?, engine: EngineClient, ui: UIState) {
         switch function {
-        case .copy, .move:
-            if let source = ui.source {
-                guard p == nil else { return engine.say("Pick an empty cell for the \(function.rawValue.lowercased()).") }
-                guard let from = engine.palettes.first(where: { $0.id == source }) else { return ui.cancelModes() }
-                function == .copy ? engine.copyPalette(from.number, window: window, handle: handle)
-                                  : engine.movePalette(from.number, window: window, handle: handle)
-                ui.cancelModes()
-            } else if let p {
-                ui.source = p.id
-                ui.handleSource = nil
-                ui.groupSource = nil
-                engine.say("\(function.rawValue) palette \(p.number): tap an empty cell.")
-            } else {
-                engine.say("Tap a recorded palette as the source.")
+        case .copy, .move, .delete:   // UI-64
+            let order = engine.palettes.filter { $0.window == window }.sorted { $0.handle < $1.handle }.map(\.number)
+            switch ui.pickTap(.palette, item: p?.number, order: order) {
+            case .picked: engine.sayPicks(ui)
+            case .target:
+                ui.sendPicks(engine) {
+                    function == .copy ? engine.copyPalettes(ui.picks, window: window, handle: handle, layout: ui.layoutWire)
+                                      : engine.movePalettes(ui.picks, window: window, handle: handle, layout: ui.layoutWire, swap: ui.swapIfRequired)
+                }
+            case .empty: engine.say(function == .delete ? "Delete: that cell is empty." : "Tap a recorded palette as the source.")
             }
         default:
             guard let p else { return engine.say("\(function.rawValue): that cell is empty.") }
@@ -183,12 +179,9 @@ enum PaletteTaps {
             case .include:
                 engine.includePalette(p.number)
                 ui.cancelModes()
-            case .delete:
-                ui.waitForDelete(palette: p.number)
-                engine.sayDelete(palette: p)
             case .legend:
                 ui.legendEditing = PaletteRef(number: p.number)
-            case .copy, .move, .release, .options, .latch, .unfold:
+            case .copy, .move, .delete, .release, .options, .latch, .unfold:
                 break
             }
         }

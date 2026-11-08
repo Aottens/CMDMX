@@ -84,19 +84,15 @@ enum HandleTaps {
         }
         let name = function.rawValue
         switch function {
-        case .copy, .move:
-            if let source = ui.handleSource {
-                guard !used else { return engine.say("Pick an empty handle for the \(name.lowercased()).") }
-                function == .copy ? engine.copyPlayback(source, page: page, slot: slot)
-                                  : engine.movePlayback(source, page: page, slot: slot)
-                ui.cancelModes()
-            } else if let info, used {
-                ui.source = nil
-                ui.groupSource = nil
-                ui.handleSource = info.id
-                engine.say("\(name) playback \(info.homeHandle): tap an empty handle.")
-            } else {
-                engine.say("Tap a recorded playback as the source.")
+        case .copy, .move, .delete:   // UI-64
+            switch ui.pickTap(.handle, item: used ? info?.id : nil, order: engine.slots.compactMap { isUsed($0.info, page: page) ? $0.info?.id : nil }) {
+            case .picked: engine.sayPicks(ui)
+            case .target:
+                ui.sendPicks(engine) {
+                    function == .copy ? engine.copyPlaybacks(ui.picks, page: page, slot: slot, layout: ui.layoutWire)
+                                      : engine.movePlaybacks(ui.picks, page: page, slot: slot, layout: ui.layoutWire, swap: ui.swapIfRequired)
+                }
+            case .empty: engine.say(function == .delete ? "\(name): that handle is empty." : "Tap a recorded playback as the source.")
             }
         default:
             guard let info, used else { return engine.say("\(name): that handle is empty.") }
@@ -104,9 +100,6 @@ enum HandleTaps {
             case .update:
                 engine.recordPlayback(page: page, slot: slot, mode: "Update")
                 ui.cancelModes()
-            case .delete:
-                ui.waitForDelete(playback: info.id)
-                engine.sayDelete(playback: info)
             case .release:
                 engine.releasePlayback(info.id)
                 ui.cancelModes()
@@ -122,7 +115,7 @@ enum HandleTaps {
                 } else {
                     ui.cancelModes()
                 }
-            case .copy, .move, .latch, .unfold:
+            case .copy, .move, .delete, .latch, .unfold:
                 break
             }
         }

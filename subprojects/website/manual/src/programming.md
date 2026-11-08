@@ -259,6 +259,8 @@ A group is a saved selection, with its order. The Groups window shows each group
 - **Delete:** press **Delete**, tap the group, then confirm on softkey A. Cues, palettes and the
   selection hold fixtures rather than groups, so they do not change. A group that a group master
   uses is not deleted: the message line names the handle, and you delete the master first.
+- **Several at once:** with Copy, Move or Delete armed, **⇧-tap** a range of groups, **⌘-tap** to add or drop one, **All**
+  (softkey B) for every group, as for [playbacks](playbacks.md#working-on-many-at-once).
 
 While one of these is armed a tap on a group does not select it, and neither does any other armed function: see
 [What an armed function does](reference.md#what-an-armed-function-does). **Clear** disarms. A refusal, such

@@ -117,7 +117,7 @@ private struct StripCellBody: View {
 
     var body: some View {
         FaderStrip(slot: slot, page: engine.page.number,
-                   selected: slot.playback.map { ui.handleSource == $0 || ui.deletePlayback == $0 } ?? false,
+                   picked: slot.playback.map { ui.isPicked(.handle, $0) } ?? false,
                    connected: slot.playback != nil && slot.playback == engine.connected,
                    armed: ui.recordArmed || (ui.function != nil && ui.function != .latch),
                    onChange: { level in
@@ -160,8 +160,8 @@ private struct FaderStrip: View {
     @EnvironmentObject private var engine: EngineClient
     let slot: PlaybackSlot
     let page: Int
-    /// Copy / Move source or Delete target: blue border, as a selected cell (UI-05).
-    let selected: Bool
+    /// UI-64: picked by Copy, Move or Delete: red border and tint.
+    let picked: Bool
     /// CUE-26: the strip of the connected list has a 2 pt blue frame (UI-03).
     let connected: Bool
     /// A function button is armed: the legends get a red hairline (the sketch's `.armed .leg`).
@@ -182,7 +182,7 @@ private struct FaderStrip: View {
         VStack(spacing: 2) {
             StripLegend(info: slot.info, page: page)
                 .overlay { if armed { Rectangle().strokeBorder(t.red, lineWidth: 1) } }
-                .overlay { if selected { Rectangle().strokeBorder(t.blue, lineWidth: 2) } }
+                .overlay { if picked { Rectangle().fill(t.red.opacity(0.18)).overlay(Rectangle().strokeBorder(t.red, lineWidth: 2)) } }
                 .onTapGesture(perform: onLegendTap)
                 .deckDrag("upper \(slot.id + 1)")   // CTL-58: onto a deck key
                 .overlay { RightClickCatcher(action: onRightClick) }

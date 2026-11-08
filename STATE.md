@@ -11,7 +11,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. Batch D, working on many at once: the engine takes lists; next the app's picking (MUL-03), then MUL-04, MUL-05.
+1. Batch D, working on many at once: picking several works in the app; next Release all (MUL-04), then MUL-05.
    Then batches E to
    G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and
    Edit) stays apart from them.
