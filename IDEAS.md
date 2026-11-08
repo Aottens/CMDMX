@@ -60,7 +60,7 @@ the backlog, not the whole idea.
 | IDEA-32 | Automatic mixing of extra emitters (White, Warm White, Amber, Lime, …) from the target colour, plus a colour-temperature view (Kelvin, CTO/CTB steps) | done (2026-10-28, VS2-44..46: #159, #160, #161) | 1 (owner 2026-10-28) | LIB, ENG, PRG, IPC, UI |
 | IDEA-33 | The FX engine is still sparse; much more should go in later (owner 2026-10-29) | triaged; phases confirmed 2026-10-29 | 2, in parts (owner 2026-10-29; part 7 after IDEA-25) | `effects.md`, ENG, PRG, CUE, PBK, IPC, UI |
 | IDEA-34 | Multi-user support in the software | triaged | 3 (owner 2026-11-01) | ENG, PRG, IPC, UI, undo |
-| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches; batch C specified (P1-33); batch D specified (P1-36) | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
+| IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches; batch C specified (P1-33); batch D specified (P1-36); batch E specified (P1-39) | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | REC-02 done (UI-52) | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
 | IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
@@ -74,6 +74,12 @@ the backlog, not the whole idea.
 | IDEA-46 | Unfold a cue list or chase onto the faders: each cue on its own fader, edited there (Titan's Unfold) | triaged; out of batch D (owner decision 3, P1-36) | 1, later, its own spec | CUE, PBK, UI |
 | IDEA-47 | A linked playback copy: the same cues on another handle, with its own times and options (Titan's Link) | triaged; out of batch D (owner decision 4, P1-36) | later, phase to confirm | PBK, CUE, SHW |
 | IDEA-48 | A BCF2000 behind a MIDI interface: fresh feedback after a power-cycle, the profile found without a name match, a way to reach slots 9 and up | new, from the VS1-07 run | later, phase to confirm | CTL |
+| IDEA-49 | Titan's Exchange Mapping screen: see and change how old attributes map to new ones on an exchange | triaged; out of batch E (owner decision 3, P1-39) | later, phase to confirm | PAT, UI |
+| IDEA-50 | Freeze an attribute of a fixture at the output | triaged; out of batch E (owner decision 7, P1-39) | 1, later | PAT, ENG |
+| IDEA-51 | Output curves per fixture and attribute | triaged; out of batch E (owner decision 7, P1-39) | 1, later | PAT, ENG |
+| IDEA-52 | Flip a moving head to its other yoke position | triaged; out of batch E (owner decision 7, P1-39) | 1, later | LIB, PRG |
+| IDEA-53 | Lamp on/off and fixture macros through the control channel | triaged; out of batch E (owner decision 7, P1-39) | 1, later | LIB, PRG, UI |
+| IDEA-54 | RDM patching: discover and address fixtures on an RDM-enabled Art-Net node | triaged; out of batch E (owner decision 7, P1-39) | 1, later | OUT, PAT |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -954,3 +960,48 @@ owner's M4 Mac.
 **Triage:** later, phase to confirm; the owner's desk works without it (Control re-sends everything at once).
 **What it touches now:** nothing; `control-surfaces.md` CTL-16, 21, 30 and 32 when it is planned.
 **Open questions:** which phase; which button could stand in for Channel on a BCF2000.
+
+### IDEA-49 — Titan's Exchange Mapping screen (2026-11-08)
+**Found in:** IDEA-35 batch E (M2), from Titan's *Changing the Patch*.
+**Intent:** when a fixture type is exchanged, the operator sees how the old attributes map to the new ones and can change it.
+**Triage:** later, phase to confirm (owner decision 3, P1-39, 2026-11-08). The screen is as large as the exchange itself, and names
+are already normalised on import, so the automatic match of PAT-38 comes first.
+**What it touches now:** nothing; PAT-38 matches by name, kind and slot name and reports what drops.
+**Open question:** which phase.
+
+### IDEA-50 — Freeze an attribute of a fixture (2026-11-08)
+**Found in:** IDEA-35 batch E (E1), from Titan's *Fixture Personality Options*.
+**Intent:** an attribute of a fixture stays at its value at the output while the Freeze option is on.
+**Triage:** phase 1, later (owner decision 7, P1-39, 2026-11-08). It needs a per-attribute record of the last output, which is not there.
+**What it touches now:** nothing; PAT-44..45 hold the other options.
+**Open question:** what Titan does when Freeze is switched off during a fade.
+
+### IDEA-51 — Output curves per attribute (2026-11-08)
+**Found in:** IDEA-35 batch E (E1), from Titan's *Fixture Personality Options* and *Curves*.
+**Intent:** a curve between the programmed value and the output, chosen per fixture and attribute.
+**Triage:** phase 1, later (owner decision 7, P1-39, 2026-11-08). Titan's manual describes only Linear, so the shapes need defining first.
+**What it touches now:** nothing; PAT-45 is where the output write would apply it.
+**Open question:** which shapes, and from where.
+
+### IDEA-52 — Flip a moving head (2026-11-08)
+**Found in:** IDEA-35 batch E (E1), from Titan's *Fixture Personality Options*.
+**Intent:** Flip moves a selected head to its other yoke position, with the same beam direction.
+**Triage:** phase 1, later (owner decision 7, P1-39, 2026-11-08). Titan defines its settings in the personality; our profiles do not hold them.
+**What it touches now:** nothing; `fixture-library.md` when it is planned.
+**Open question:** where the flip data comes from for QLC+ and GDTF profiles.
+
+### IDEA-53 — Lamp on/off and fixture macros (2026-11-08)
+**Found in:** IDEA-35 batch E (E4), from Titan's *Fixture Personalities*.
+**Intent:** Lamp On, Lamp Off and Reset run through a fixture's control channel with its timing, one press for a selection.
+**Triage:** phase 1, later (owner decision 7, P1-39, 2026-11-08). Profiles hold no macro data. A control channel's named slots can
+already be set by hand (LIB-15).
+**What it touches now:** nothing; LIB-15 is the nearest thing.
+**Open question:** where macro data comes from for QLC+ and GDTF profiles.
+
+### IDEA-54 — RDM patching (2026-11-08)
+**Found in:** IDEA-35 batch E (E4), from Titan's manual.
+**Intent:** the console discovers RDM fixtures on an Art-Net node and patches or addresses them from there.
+**Triage:** phase 1, later (owner decision 7, P1-39, 2026-11-08). It needs a discovery path in the protocols crate and an
+RDM-capable node to test with. Titan needs an RDM-enabled Art-Net node as well; XLR does not carry it.
+**What it touches now:** nothing; `cmdmx-protocols` has output only.
+**Open question:** which RDM-capable node to test with.

@@ -262,6 +262,22 @@ Builds: MUL-01 + MUL-02; MUL-03; MUL-04; MUL-05.
 | MUL-04 | Core, daemon, control and app: Release all and a page's release; `pbk_52_…`, `ctl_68_…`, scenario; manual and run on Art-Net. | PBK-52, CTL-68, UI-66 | S | done (2026-11-08, #277) |
 | MUL-05 | Daemon and app: a new show that keeps the patch; `shw_19_…`; manual and run. | SHW-19, UI-67 | S | done (2026-11-08, #279) |
 
+### Patch and profiles (IDEA-35 batch E, spec P1-39)
+Approved by the owner 2026-11-08, every recommendation accepted (`patch.md`). PTC-03 does not need PTC-01.
+The Exchange Mapping screen is IDEA-49; Freeze, Curves, Flip, Lamp on/off with macros and RDM are IDEA-50..54.
+Builds: PTC-01 + PTC-02; PTC-03; PTC-04; PTC-05 + PTC-06; PTC-07 + PTC-08.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| PTC-01 | Core and daemon: Fixture Exchange of a range, values, slots and palettes carried over; `pat_37_…`, `pat_38_…`, `pat_39_…`, `ipc_62_…`. | PAT-37..39, IPC-62 | M | todo |
+| PTC-02 | App: Exchange on the Patch screen; manual, checklist and run on Art-Net. Needs PTC-01. | UI-72 | S | todo |
+| PTC-03 | App: find in the Patch list, the Add strip can hide, Number and Address empty after an accepted Add; manual and run on about 250 fixtures. | UI-73, UI-74 | S | todo |
+| PTC-04 | Core, daemon and app: Copy a patched fixture and Swap Addresses; `pat_40_…`, `pat_41_…`; manual and run. | PAT-40, PAT-41, UI-75 | M | todo |
+| PTC-05 | Core, daemon and app: Update from library, delete and duplicate a user profile; `pat_42_…`, `lib_41_…`, `lib_42_…`; manual and run. | PAT-42, LIB-41, LIB-42, UI-75 | S | todo |
+| PTC-06 | Core, daemon and app: Auto Groups on Add; `pat_43_…`; manual and run. | PAT-43, UI-74 | S | todo |
+| PTC-07 | Core and daemon: behaviour at the output (Invert, Limits, Offset, Swap Pan/Tilt), its wire and show schema step; `pat_44_…`..`pat_47_…`, scenario on the frame. | PAT-44..47 | M | todo |
+| PTC-08 | App: the Behaviour sheet and its tags; manual and run on Art-Net. Needs PTC-07. | UI-76 | S | todo |
+
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
 park buttons on the phone come with PRK-02.
@@ -351,6 +367,7 @@ after VS8-03, in any order.
 | P1-34 | Spec the phone patch page (IDEA-42, owner 2026-11-06: phase 1, before Christmas): new `remote.md` with RMT criteria (LAN listener, login set in the console, the page, highlight while walking), build tasks; approved by the owner when this PR merges. | RMT, PAT, PRG, IPC | S | done (2026-11-06, #258) |
 | P1-36 | Spec IDEA-35 batch D, working on many at once (D1..D4), as PBK-50..52, PAL-34, PRG-98, CUE-63, SHW-19, IPC-61, CTL-68, UI-64..67; checks in `tests/manual/runs/2026-11-07-D-checks.md`; build tasks MUL-01..05; approved by owner 2026-11-07, the five questions as recommended (`ui.md`); Unfold and the linked copy became IDEA-46, IDEA-47. | PBK, PAL, PRG, CUE, SHW, IPC, CTL, UI | S | done (2026-11-07, #269) |
 | P1-35 | Spec parking (IDEA-43, owner 2026-11-06: phase 1; a parked fixture is skipped live and kept in groups, palettes and cues for Unpark): PAT/PRG criteria checked against Titan's Park, build tasks; approved by the owner when this PR merges. | PAT, PRG, GRM, IPC, UI | S | done (2026-11-06, #258) |
+| P1-39 | Spec IDEA-35 batch E, patch and profiles (E1..E3, K10, M2, M3; K1 was done by P1-30), as PAT-37..47, LIB-41, LIB-42, IPC-62, UI-72..76; checks in `tests/manual/runs/2026-11-08-E-checks.md`; build tasks PTC-01..08; approved by owner 2026-11-08, the seven questions as recommended (`patch.md`); what stayed out became IDEA-49..54. | PAT, LIB, IPC, UI | S | done (2026-11-08, #283) |
 | P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show; find Titan's page first; numbered criteria and build tasks; owner approves. | SHW, UI | S | todo |
 | P1-38 | Measure the engine's load in a release build on a rig of about 260 fixtures (M7, fifth gap review; owner 2026-11-08): the debug build took 78 % of a core against 10 % with 38 fixtures; write the result in a run file, and a budget like UI-70 only if it is too high. | ENG | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
