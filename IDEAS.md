@@ -73,6 +73,7 @@ the backlog, not the whole idea.
 | IDEA-45 | A tracked value's source names the cue running now, not the cue it came from (SEE-09 run, 2026-11-07) | triaged | 1 proposed, owner to confirm | IPC, ENG, UI |
 | IDEA-46 | Unfold a cue list or chase onto the faders: each cue on its own fader, edited there (Titan's Unfold) | triaged; out of batch D (owner decision 3, P1-36) | 1, later, its own spec | CUE, PBK, UI |
 | IDEA-47 | A linked playback copy: the same cues on another handle, with its own times and options (Titan's Link) | triaged; out of batch D (owner decision 4, P1-36) | later, phase to confirm | PBK, CUE, SHW |
+| IDEA-48 | A BCF2000 behind a MIDI interface: fresh feedback after a power-cycle, the profile found without a name match, a way to reach slots 9 and up | new, from the VS1-07 run | later, phase to confirm | CTL |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -941,3 +942,15 @@ playback options; a change to a cue shows on both.
 change the show file and every cue edit.
 **What it touches now:** nothing; `copy_playback` clones the cues.
 **Open question:** which phase.
+
+### IDEA-48 — A BCF2000 behind a MIDI interface (2026-11-08)
+**Found in:** the VS1-07 run, where the BCF2000 had to run over DIN MIDI because its USB output does not work on the
+owner's M4 Mac.
+**Intent:** the BCF works as smoothly behind a MIDI interface as it would over USB.
+- A power-cycled BCF keeps the wrong motor and LED state until it is unticked and ticked in Control. It sends the
+  Mackie sysex `F0 00 00 66 14 01 …` at power-on, which could trigger the full feedback of CTL-21.
+- The profile matches by device name, so a surface behind `H4MIDI-WC Port 1` needs the mapping chosen by hand.
+- The BCF2000 has no Channel buttons, so with more than 8 faders per page slots 9 and up cannot be reached from it.
+**Triage:** later, phase to confirm; the owner's desk works without it (Control re-sends everything at once).
+**What it touches now:** nothing; `control-surfaces.md` CTL-16, 21, 30 and 32 when it is planned.
+**Open questions:** which phase; which button could stand in for Channel on a BCF2000.

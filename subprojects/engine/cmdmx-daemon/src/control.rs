@@ -585,11 +585,16 @@ fn state_of(engine: &Engine, action: Action, wheels: &mut Option<Vec<f32>>) -> S
     match action {
         Action::Fader(t) => Shown::Level(slot(t)),
         Action::Gm => Shown::Level(Some(engine.grand_master())),
-        Action::Upper(t) | Action::Lower(t) => Shown::On(
-            resolve(engine, t)
-                .and_then(|id| engine.playback_state(id))
-                .is_some_and(|s| s.flash || s.latched),
-        ),
+        Action::Upper(t) | Action::Lower(t) => {
+            let button = match action {
+                Action::Upper(_) => HandleButton::Upper,
+                _ => HandleButton::Lower,
+            };
+            Shown::On(resolve(engine, t).is_some_and(|id| {
+                engine.button_held(id, button)
+                    || engine.playback_state(id).is_some_and(|s| s.latched)
+            }))
+        }
         Action::Go(t) => Shown::On(
             resolve(engine, t)
                 .and_then(|id| engine.list_live(id))

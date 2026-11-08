@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-08 (MUL-04)_
+_Last updated: 2026-11-08 (VS1-07 run)_
 
 ## Current step
+VS1-07 run (2026-11-08, CTL-17, CTL-33): the BCF2000's upper row sends notes 16..23, now also `upper` in `profiles/mackie-control.json` (49 bindings). `state_of` shows an `upper`/`lower` LED from `Engine::button_held` of its own button, or latched; it looked at Flash only. Run: `tests/hardware/runs/2026-11-08-VS1-07.md`.
+
 MUL-04 (2026-11-08, PBK-52, CTL-68): `playback::ReleaseScope`; `Engine::release_scope` picks active non-master playbacks by `playback_at`, runs `release_playback` on each and pushes the one notice. `playback.release` with `scope` is `Command::PlaybackReleaseScope`, class Live. `Action::ReleaseAll` and `ReleasePage` (the control tick's `page`); also in the OSC schema. Scenario key `release_scope`.
 
 MUL-02 (2026-11-07, PAL-34, PRG-98, CUE-63): `copy_palettes`, `move_palettes`, `delete_palettes` (`palette_block`: cell order, Retain refuses several windows with `SourcesInWindows`), `copy_groups`, `move_groups`, `delete_groups` (`group_block`: number order) and `delete_cues` (number order through `delete_cue`; every cue is `LastCue`). `move_groups` builds one old→new map, removes every moving group before inserting, then remaps group masters once, so a swap 1↔5 works. Copy rolls back what it made on a midway failure. Daemon: `uint_list` takes the single and the list key; labels "Copy 2 palettes to Positions 7", "Delete 3 cues".
