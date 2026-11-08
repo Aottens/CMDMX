@@ -1,7 +1,7 @@
 # Module spec: patch (PAT)
 
 Owner: `cmdmx-core::patch` (pure) and `cmdmx-daemon` (IPC), patch screen in `subprojects/app`.
-Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). PAT-29..36 (parking, IDEA-43, P1-35): approved by owner 2026-11-06. Builds on `fixture-library.md` (profile + mode).
+Status: **PAT-01..14 approved by owner 2026-10-17 (P1-11); PAT-09 wire details approved 2026-10-17 (VS2-12)**; PAT-15..18 (the church one-off, VS2-13) approved by owner 2026-10-18; PAT-09/10 amendment (modes dropdown, VS2-16) approved by owner 2026-10-18; PAT-19..25 (range edits, P1-15) approved by owner 2026-10-24; PAT-26..28: approved by owner 2026-11-02 (IDEA-35 batch A2, P1-26). PAT-29..36 (parking, IDEA-43, P1-35): approved by owner 2026-11-06. PAT-37..47 (batch E, P1-39): proposed, awaiting the owner. Builds on `fixture-library.md` (profile + mode).
 Behavioural reference: Titan *Patching* (fixtures from the library, user numbers, auto address).
 
 ## Purpose
@@ -220,6 +220,80 @@ CMDMX skips it everywhere live and keeps it in the show for Unpark (owner decisi
 - **PAT-36** The phone page (`remote.md` RMT-13) offers Park and Unpark on a fixture's card, and Park and
   move after a clash (RMT-11), through these same commands.
 
+### Patch and profiles (IDEA-35 batch E, P1-39; proposed, awaiting the owner)
+From `docs/research/everyday-gaps.md` E, K10, M2 and M3; checked in `tests/manual/runs/2026-11-08-E-checks.md`. Titan
+pages: *Changing the Patch*, *Copying, moving and deleting fixtures*, *Fixture Personality Options*, *Fixture Groups*.
+Titan keeps programming through an exchange ("All programmed items including palettes will be preserved"), keeps Pan, Tilt
+and Dimmer always, and matches the other functions, adjustable in Exchange Mapping. It exchanges one fixture at a time.
+Here it takes a range, because M2 was seven washes. The Exchange Mapping screen is an owner question.
+
+- **PAT-37** **Fixture Exchange** (M2). `patch.exchange {ids, profile, mode, universe?, address?}` gives fixtures another
+  profile and mode, a range command under PAT-19. Each keeps its `id`, number, name and handle, so groups, the selection and
+  everything recorded stay with it. The profile comes as in `patch.add` (PAT-09: a key the show has keeps the show's copy).
+  An unknown profile or mode refuses the command, naming it. Without a place, each fixture keeps its universe and address and
+  the new footprints are checked as in PAT-22. With `universe` and `address`, the range is placed back to back from there
+  as in PAT-20, in the same command, because a block that grows cannot be moved apart first. A parked fixture has no channels
+  to check and stays parked; with a place given it is unparked there (PAT-31). Old channels drop to 0 at the next tick where
+  the new footprint no longer covers them, and the new type plays from that tick. One undo step ("Exchange 7 fixtures"), an edit
+  command (UNDO-04), refused while locked (IPC-50). The seven washes of the M2 run stay in groups 5, 16 and 17 with
+  all their cues. Tests `pat_37_…`.
+- **PAT-38** **What carries over** (M2). In the programmer, in each cue's values and dormant values, an attribute is matched by
+  name and kind of value as in PAT-13. Names come from LIB-05, so Pan, Tilt, Dimmer and Colour match across types; a
+  virtual dimmer (LIB-04) is a Dimmer. A level inside a named slot (LIB-15), going to an attribute that has slots, moves to the
+  middle of the slot with the same name; with no slot of that name it is dropped like a missing attribute, because the same
+  level on another wheel is another gobo. Every other level stays as it is; position is not converted between pan
+  ranges (LIB-16), so positions may need an Update, as on Titan. A palette reference stays a reference. Cell items
+  follow PRG-53 and effects PAT-27. What is dropped gives one line for the range ("Dropped Gobo, Strobe on 7 fixtures").
+  Running cues give the same frames as the show saved and reopened (PAT-26). Tests `pat_38_…`.
+- **PAT-39** **Palettes carry over** (M2, and so no M5 refusal after an exchange). A palette's values for the fixture itself
+  stay, with PAT-38's slot rule. A value on an attribute the new type lacks stays and is named as in PAT-28 ("in this
+  type"), so an exchange back brings it into use. A palette with shared values (and shared cell values) for the old type and none
+  for the new type gets a copy under the new type, by PAT-38's rule; the old type's values stay for fixtures that were not
+  exchanged, and a palette that has its own values for the new type keeps them. Global values and effect entries without
+  members do not change. Tests `pat_39_…`.
+- **PAT-40** **Copy a patched fixture** (E2). `patch.copy {ids, number?}`, a range command under PAT-19, makes new
+  fixtures of the same profile, mode and name, numbered upwards from `number` or after the highest in use (PAT-03), each on the
+  next free handle (PAT-14). A copy starts parked at the original's place (Titan: "Parked", no DMX channel), so a Move gives it its
+  address (PAT-31). It comes with everything recorded on the original, cells included: cue values, dormant values and order,
+  effect membership right after the original, palette values for the fixture, and behaviour (PAT-44). It joins the original's
+  groups right after it (owner question 5). The programmer and the selection do not change. One undo step ("Copy 4
+  fixtures"); the message says "Copied 4 fixtures, parked: give them an address". Tests `pat_40_…`.
+- **PAT-41** **Swap Addresses** (E2). `patch.swap_addresses {ids, with}` takes two ranges of equal size with no fixture in both;
+  pairs in number order trade universe and address (Titan's *One For One*). Different sizes refuse the command, as does a
+  parked fixture in either range ("201 is parked"). The new footprints are checked as a whole against every fixture outside
+  both ranges and against each other (PAT-19). Nothing else changes, since recorded data follows the id. One undo step.
+  Tests `pat_41_…`.
+- **PAT-42** **Update from the library** (E2; Titan *Updating Patched Personalities*). `patch.update_profile {profile}` replaces the
+  show's copy of one profile (PAT-09) with the library's current one, under LIB-25's checks: each used mode keeps its name and
+  footprint and no stored attribute disappears, otherwise it is refused naming the mode or attribute, and nothing changes. Output
+  follows on the next tick. One undo step ("Update profile Phantom 25 LED Spot"). No file is written. A key the library does not
+  have refuses; an identical copy says "already up to date" and adds no step. Tests `pat_42_…`.
+- **PAT-43** **Auto Groups** (E2, K run). `patch.add` takes `auto_groups: true`. A count of two or more makes a group of the
+  new fixtures in number order, legend `<count> <model>` (Titan's "4 BB4"). A group legended `All <model>` (Titan's "All
+  Robe Pointe") gets every fixture of the profile: appended to an existing group of exactly that legend, new otherwise, numbered in
+  the first free group numbers with the type's group first. A count of one appends to an existing `All` group and makes
+  no group. In the same undo step as the add. Tests `pat_43_…`.
+- **Behaviour:** per fixture and attribute, what the output stage does to a level: `invert`, `low` and `high` (limits,
+  0.0–1.0), `offset` (−1.0–1.0). All off by default. It lives on the fixture, not the profile.
+- **PAT-44** **Setting behaviour** (E1). `patch.behaviour {ids, attribute, invert?, low?, high?, offset?}`, a range command under
+  PAT-19, sets only the fields given. A fixture without the attribute refuses the command naming it. `low` above `high`, or
+  a value out of range, refuses. Colour holds no level, so it refuses ("Colour cannot be inverted: use its channels"); a virtual
+  Dimmer can take behaviour. `patch.behaviour_reset {ids}` puts every field back (Titan's Reset Behaviour; it leaves PAT-46's
+  swap alone, as Titan does). Each is one undo step. Tests `pat_44_…`.
+- **PAT-45** **At the output** (E1; Titan: applied "just before final output"). After merge and masters, before the DMX write, a
+  level goes: invert (1 − v), then add the offset, then clamp to `low`..`high`. Every source goes through it: programmer,
+  cues, effects, Locate, Highlight and a profile default. A cell's attribute takes the fixture's behaviour of that name. A virtual
+  Dimmer's scale is the value after behaviour. What is stored never changes, and the programmer may hold values outside the limits
+  (Titan). Pan 0.25 inverted outputs 0.75; Dimmer 1.0 with `high` 0.8 outputs DMX 204; offset +0.1 on 0.95 outputs 1.0. A
+  fixture without behaviour costs one check per tick and nothing allocates. Tests `pat_45_…`, scenario on the frame.
+- **PAT-46** **Swap Pan and Tilt** (E1). `patch.swap_pan_tilt {ids, swapped}`, a range command under PAT-19, sends the Pan
+  value to Tilt's channels and the Tilt value to Pan's, coarse and fine, after each attribute's own behaviour. A fixture without both
+  refuses the command naming it. One undo step. Tests `pat_46_…`.
+- **PAT-47** **Wire and show.** Snapshot `fixtures` entries (PAT-09) gain `behaviour` (attribute → the fields that are not default)
+  and `swap_pan_tilt`, both absent at their defaults. The show file's patch entry gains them too, as the next schema step
+  under SHW-04, with a migration that changes nothing. A mode change or exchange keeps the behaviour of attributes that
+  remain and drops the rest; a Copy takes it along. Tests `pat_47_…`.
+
 ### The church
 - **PAT-11** The church rig from the owner's Lightkey export is patched once through these commands
   (or a one-off script that calls them) into the church show; the result is listed in
@@ -280,7 +354,30 @@ slot names for now (the Lightkey show has them; adding them is a LIB-12 edit lat
 ## Out of scope (this spec)
 Per-cell selection and Unfold (cells exist in the model, LIB-07; selecting them is PRG-46..55),
 a fixture spanning several universes (pixel products, with the pixel mapper), patching from a
-visual plot (with the visualiser).
+visual plot (with the visualiser). Not in batch E (P1-39, owner questions 3 and 7): Titan's Exchange Mapping screen, Park Conflicting
+on an exchange, Swap Addresses' Retain Layout, Update All, Freeze, Curves, Flip, Lamp on/off and fixture macros, RDM patching.
+
+## Owner questions (P1-39, batch E; open)
+1. **What is in batch E:** Fixture Exchange, find in Patch, Number and Address after Add, Copy, Swap Addresses, Update from library,
+   Auto Groups, delete and duplicate a profile, Invert, Swap Pan/Tilt, Limits and Offset? Recommended: yes. Not chosen: Exchange and
+   find alone now, the rest later, which leaves E's other points open for another spec round.
+2. **The third review's proposal for E (K1 first, add K10):** K1 is already done (LIB-40, NEW-01), so only K10 remains. Approve K10
+   in E? Recommended: yes, UI-74. Not chosen: leaving it, so each next type starts with a refusal.
+3. **Exchange Mapping (PAT-38):** match by name, kind and slot name, and report what drops? Recommended: yes, the Exchange
+   Mapping screen becomes an idea for later. It is a screen as large as the exchange itself, and names are already normalised on
+   import. Not chosen: Titan's screen now.
+4. **A wheel value with no slot of that name (PAT-38):** drop it and say so? Recommended: yes, the fixture falls back to its default and
+   the message names it. Not chosen: keep the level, which puts an unknown gobo or colour on stage without a word.
+5. **Copy and groups (PAT-40):** the copy joins the original's groups? Titan's page names cues and palettes and says nothing about
+   groups. Recommended: yes, it is parked until addressed, so it changes nothing live (PAT-30). Not chosen: no groups, so each
+   needs adding by hand.
+6. **Auto Groups by default (UI-74):** off, a toggle in the Add strip that the Mac remembers? Recommended: off, so nobody's group pool
+   fills unasked. Titan's page does not give its default. Not chosen: on.
+7. **Freeze, Curves and Flip (E1), Lamp on/off with fixture macros and RDM patching (E4):** out of batch E, each an idea for later in
+   phase 1? Recommended: yes. Each needs something that is not there: Freeze a per-attribute record of the last output, Curves shapes the
+   manual does not define (only Linear is described), Flip and macros data the profiles do not hold, RDM a discovery path in
+   the protocols crate and an RDM-capable node to test with. A control channel's named slots can already be set by hand. Not chosen:
+   in E, which would double it.
 
 ## Owner decisions (P1-35, 2026-11-06, IDEA-43)
 1. Phase 1, beside the phone page (P1-34).

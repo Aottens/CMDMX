@@ -11,8 +11,9 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batches E to G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved
-   first. P1-31 (Blind and Edit) stays apart from them.
+1. IDEA-35 batch E, patch and profiles: its spec (P1-39) waits for the owner, then builds PTC-01..08. Then batches
+   F, G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and
+   Edit) stays apart from them.
 2. The proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
 ## Waiting on the owner
@@ -36,6 +37,8 @@ Programming and small checks:
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
 
 ## Owner to decide
+- Batch E's spec (P1-39): approve it and answer its seven questions (`specs/modules/patch.md`, *Owner questions
+  (P1-39)*).
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).

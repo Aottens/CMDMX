@@ -62,6 +62,8 @@ Specified 2026-11-07, approved by the owner (P1-36; build tasks MUL-01..05): PBK
 
 Added by the fifth review (M, owner 2026-11-08): M2 straight after K1, then M3.
 
+Specified 2026-11-08, awaiting the owner (P1-39; build tasks PTC-01..08): PAT-37..47, LIB-41, LIB-42, IPC-62, UI-72..76, with M2, M3, K10 and most of E1..E3; K1 was done by P1-30. Checked in `tests/manual/runs/2026-11-08-E-checks.md`.
+
 ## F. Controls that exist in the engine, or small ones in the app
 1. Rename a control mapping: IPC is there, the app has no caller.
 2. Move a fixture button: `patch.handle` is there (PAT-14), the app never sends it.
