@@ -2283,7 +2283,9 @@ final class EngineClient: ObservableObject {
     // Show commands (SHW-15). The engine checks names and refuses with a warning.
 
     func listShows() { sendJSON("show.list") }
-    func newShow(_ name: String) { patch("show.new", ["name": name]) }
+    func newShow(_ name: String, keepPatch: Bool = false) {
+        patch("show.new", keepPatch ? ["name": name, "keep": "patch"] : ["name": name])
+    }
     func openShow(_ name: String) { patch("show.open", ["name": name]) }
     func saveShowAs(_ name: String) { patch("show.save_as", ["name": name]) }
 

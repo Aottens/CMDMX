@@ -289,9 +289,17 @@ impl Shows {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ShowRequest {
     List,
-    New { name: String },
-    Open { name: String },
-    SaveAs { name: String },
+    New {
+        name: String,
+        /// SHW-19: start from the open show's patch instead of an empty one.
+        keep_patch: bool,
+    },
+    Open {
+        name: String,
+    },
+    SaveAs {
+        name: String,
+    },
 }
 
 /// SHW-15: the `show` part of the snapshot and the `show` delta.

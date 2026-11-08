@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-08 (MUL-04)_
+_Last updated: 2026-11-08 (MUL-05)_
 
 ## Current step
+MUL-05 (2026-11-08, UI-67): `ShowView.keepPatch`, off in `onAppear` and left as it is after a send, so a refused name keeps it. `armedLabel` names what goes. `EngineClient.newShow(_:keepPatch:)` adds `keep: "patch"`.
 MUL-04 (2026-11-08, UI-66): `UIState.releasePage` holds the page tapped while Release is armed; the function softkeys offer its two scopes. A second Release key press sends scope all in `FunctionButtons`. `EngineClient.releaseScope` sends `playback.release` with `scope`; the count in the message zone is the engine's notice.
 MUL-03 (2026-11-08, UI-64, UI-65): `UIState.picks` and `pickKind` replace the six source and delete fields; `cuePicks` holds Delete's cue rows. `pickTap` reads ⇧ and ⌘ from `NSApp.currentEvent`; `extended` is the range and add-or-drop rule. Copy, Move and Delete send the list forms (IPC-61) through `sendPicks`: the engine has no ack, so a `warning` or `error` within 250 ms keeps the picks and silence ends the action (`EngineClient.refusals`; the `undo` delta cannot be the signal, it is sent only when the label changes). `bunchUp` and `menuLatch` survive `cancelModes`, `swapIfRequired` does not. A ⇧-tap whose anchor is on another page or window acts as a ⌘-tap. Run: `tests/manual/runs/2026-11-08-MUL-03.md`.
 SNP-05 (2026-11-08, UI-71): `LiveViews.swift` holds `LiveLayerView` (no hit testing, sinks a subject), `LiveLabel` (CATextLayer, sized from a `sample` string), `LiveProgressLine` and `LiveBar` (the level bar's picture; gestures stay in SwiftUI on top, a drag starts from `tick(id).value.level`). `LivePlaybacks.tick(id)` carries `LiveTick` (level, progress); `playbacks`/`slots`/`SlotCell` publish only when `LiveKey` (live without ticks plus four threshold flags) changes, while `current`/`currentSlots` stay fresh for press handlers. `OutputCell` is a subject; `LampStripe`, `BlinkingCursor` (a `CAKeyframeAnimation`) and `LayerClock` (status bar, show age, lock cover) are AppKit views. Idle 1.9 %, demo 4.6 %. Run `tests/manual/runs/2026-11-08-SNP-05.md`.
