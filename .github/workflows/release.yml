@@ -69,6 +69,12 @@ jobs:
       - run: swift --version
       - run: subprojects/engine/scripts/fetch-qlcplus.sh
       - run: subprojects/website/install-mdbook.sh
+      - name: Release notes of this tag (WEB-37)
+        if: github.ref_type == 'tag'
+        run: |
+          # actions/checkout turns an annotated tag into a lightweight one locally; fetch it back with its message.
+          git fetch --force --depth=1 origin 'refs/tags/v*:refs/tags/v*'
+          subprojects/website/add-tag-notes.sh subprojects/website/manual/src/release-notes.md "$GITHUB_REF_NAME"
       - run: subprojects/app/scripts/make-dmg.sh "${{ steps.v.outputs.version }}" "${{ github.run_number }}"
       - run: subprojects/app/scripts/check-dmg.sh "subprojects/app/.build/CMDMX-${{ steps.v.outputs.version }}.dmg" "${{ steps.v.outputs.version }}" ${{ steps.sign.outputs.signed == 'true' && '--notarised' || '' }}
       - name: GitHub release (REL-09)

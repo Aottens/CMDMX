@@ -34,15 +34,17 @@ jobs:
         run: |
           tag=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
           [ -n "$tag" ] || exit 0
-          git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag"
+          # All tags with their annotations: add-tag-notes.sh (WEB-37) writes their messages into the notes.
+          git fetch --force --depth=1 origin 'refs/tags/v*:refs/tags/v*'
+          notes=subprojects/website/manual/src/release-notes.md
           if git cat-file -e "$tag:subprojects/website/manual/book.toml" 2>/dev/null; then
-            notes=subprojects/website/manual/src/release-notes.md
             cp "$notes" "$RUNNER_TEMP/release-notes.md"
             rm -rf subprojects/website/manual
             git checkout "$tag" -- subprojects/website/manual
             cp "$RUNNER_TEMP/release-notes.md" "$notes"
             echo "MANUAL_FROM_TAG=1" >> "$GITHUB_ENV"
           fi
+          subprojects/website/add-tag-notes.sh "$notes" "$tag"
       - run: subprojects/website/build.sh
         env:
           GH_TOKEN: ${{ github.token }}

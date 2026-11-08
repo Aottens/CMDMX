@@ -82,6 +82,15 @@ nothing to run or patch on a server.
   the rest of the manual comes from the release tag (WEB-23): a release's notes are written after
   its tag (they link to the published release), so they show on the site as soon as they are
   merged, not one release later. (Owner 2026-11-01.)
+- **WEB-37** A release never waits for a follow-up PR to reach the release notes (owner 2026-11-08). Its notes are
+  the message of its annotated tag: a first line, then the changes as Markdown, in operator language.
+  `subprojects/website/add-tag-notes.sh <notes file> <latest released tag>` puts in an entry for that tag and every
+  older `v*` tag, newest first under the title, stopping at the first tag whose `## <version>` the file already has.
+  The entry has the same form as a written one: heading, `Published <d Month yyyy> as "CMDMX <version>".`, the link to
+  the release on GitHub, then the message without a leading `CMDMX 1.2.3: ` or `v1.2.3: `. A tag newer than the latest
+  release is left out, so its link is never dead while the DMG builds. `website.yml` runs it on every build and
+  `release.yml` before the DMG, so the site and the manual inside the app both name the release. A written
+  entry for a version replaces the generated one.
 
 ### The manual
 - **WEB-30** The manual is mdBook with its built-in search, sidebar, print page (one page for the

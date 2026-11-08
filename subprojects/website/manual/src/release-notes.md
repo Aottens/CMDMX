@@ -1,5 +1,57 @@
 # Release notes
 
+## 0.7.0
+
+Published 8 November 2026 as "CMDMX 0.7.0".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.7.0)
+
+Working on many at once: the last part, and the BCF2000 proven on the real device.
+
+- **Release all, or a page:** arm **Release** and press it again to release every running playback, or tap a page
+  button for **Release page N** and **Release all but page N**. Each playback keeps its own release time and mask,
+  and masters stay. MIDI, OSC and the Stream Deck get the same two actions (see [Release](playbacks.md#release)).
+- **A new show that keeps the patch:** tick **Keep the patch** before **New**. Fixtures, outputs and settings come
+  along, groups, palettes and playbacks start empty, and the old show stays as it was (see
+  [The Show screen](shows.md#the-show-screen)).
+- **BCF2000:** its top button row now works, each handle button's lamp shows its own function, and it runs over MIDI
+  cables where its USB output does not work on a Mac with Apple silicon (see [Control surfaces](controls.md)).
+
+## 0.6.2
+
+Published 8 November 2026 as "CMDMX 0.6.2".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.6.2)
+
+Pick several, then act.
+
+- **Copy, Move and Delete take several items:** ⇧-tap a range, ⌘-tap to add or drop one, **All** for the page or
+  window. It works on playbacks, palettes and groups, and a move or delete of several is one Undo step (see
+  [Working on many at once](playbacks.md#working-on-many-at-once)).
+- **Retain layout, Bunch up and Swap if required** decide where the picks land.
+- **Menu latch** keeps Copy, Move or Delete armed after each action.
+
+## 0.6.1
+
+Published 8 November 2026 as "CMDMX 0.6.1".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.6.1)
+
+The app stays light while the rig moves.
+
+- **Much less CPU:** live values no longer redraw the whole console. With a fader breathing, the app went from a full
+  processor core to about 5 % of one. Nothing you see changes.
+
+## 0.6.0
+
+Published 7 November 2026 as "CMDMX 0.6.0".
+[Release on GitHub](https://github.com/Aottens/CMDMX/releases/tag/v0.6.0)
+
+Seeing what the rig does.
+
+- **The Views screen:** **Intensity** shows a block per fixture with its level and source, **Grid** a row per fixture
+  and a column per attribute, **DMX** a line's 512 channels with each fixture tinted. Filter by All, Stage, Programmer
+  or Selected (see [Views](running.md#views-intensity-grid-and-dmx)).
+- **One palette, one line:** when all of a fixture's values in a group come from one palette, the Programmer window,
+  the Cue view and the Grid show it once (`■ Warm`). A right-click shows the values (see [Palettes](palettes.md)).
+
 ## 0.5.4
 
 Published 7 November 2026 as "CMDMX 0.5.4".
