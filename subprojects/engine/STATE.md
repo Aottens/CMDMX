@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-08 (MUL-05)_
+_Last updated: 2026-11-09 (PTC-01)_
 
 ## Current step
+PTC-01 (2026-11-09, PAT-37..39, IPC-62): `Engine::patch_exchange`; `apply_mode` takes the new profile key for an exchange and then runs `carry_stored`, `carry` and `carry_value` (name, kind, slot name; `Carry::{To, Missing, NoSlot}`), `exchange_palettes` before it. `Command::PatchExchange` with `library`, `attach_profile` fetches it. A level at the old default on the held map goes to the new default, so a reopened show gives the same frames.
+
 MUL-05 (2026-11-08, SHW-19): `Engine::new_keeping_patch` builds a `Show` from `to_show` with the groups, palettes, pages and playbacks of a blank engine and loads it with `from_show`. `ShowRequest::New` has `keep_patch`, set by `show.new`'s `keep: "patch"`; the tick builds the engine before it replaces the current one. Tests: `tests/new_show.rs` on the real binary.
 
 VS1-07 run (2026-11-08, CTL-17, CTL-33): the BCF2000's upper row sends notes 16..23, now also `upper` in `profiles/mackie-control.json` (49 bindings). `state_of` shows an `upper`/`lower` LED from `Engine::button_held` of its own button, or latched; it looked at Flash only. Run: `tests/hardware/runs/2026-11-08-VS1-07.md`.
