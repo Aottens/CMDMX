@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-09 (PTC-04)_
+_Last updated: 2026-11-09 (PTC-06)_
 
 ## Current step
+PTC-06 (2026-11-09, PAT-43, IPC-62): `Engine::auto_group` runs after a `patch.add` with `auto_groups`, and cannot fail, so an accepted Add stays one undo step; legends are cut to `MAX_LEGEND`. Tests: `cmdmx-core/tests/auto_groups.rs`.
+PTC-05 (2026-11-09, PAT-42, LIB-41, LIB-42, IPC-62): `Engine::update_profile` shares `install_profile` with `save_profile` but uses `validate` only (a QLC+ file may overlap slots). `Index` remembers the non-user entry a user profile hides, so `Library::delete_profile` lists it again; `Library::duplicate_profile` never replaces a file. Tests: `cmdmx-core/tests/update_profile.rs`, `cmdmx-daemon/src/library.rs`.
 PTC-04 (2026-11-09, PAT-40, PAT-41, IPC-62): `Engine::patch_copy` installs parked copies, then `copy_rows` (palette, cue values, dormant, order) and `copy_members` (groups, cue effects) and `parking_changed`; the copy of the `Fixture` struct takes any later field along, so PTC-07's behaviour needs a field, not code here. `Engine::patch_swap_addresses`; `CoreError::SwapSizes`. Tests: `cmdmx-core/tests/copy_swap.rs`.
 
 PTC-01 (2026-11-09, PAT-37..39, IPC-62): `Engine::patch_exchange`; `apply_mode` takes the new profile key for an exchange and then runs `carry_stored`, `carry` and `carry_value` (name, kind, slot name; `Carry::{To, Missing, NoSlot}`), `exchange_palettes` before it. `Command::PatchExchange` with `library`, `attach_profile` fetches it. A level at the old default on the held map goes to the new default, so a reopened show gives the same frames.
