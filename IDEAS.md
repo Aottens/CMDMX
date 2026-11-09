@@ -121,6 +121,7 @@ the backlog, not the whole idea.
 **Owner's intent:** a timeline that syncs to e.g. Ableton, so timecoded shows are easy to make by dragging presets onto it.
 **Triage:** phase 3 (timelines are out of scope for now in `PROJECT.md`; "software first"). Sync options to choose later: MIDI Time Code or LTC (absolute time), MIDI clock or Ableton Link (tempo and beat, no absolute position). Builds on cue lists (IDEA-04) and palettes.
 **Open questions:** sync to song position (timecode) or to the beat, or both?
+**Research (2026-11-09):** the LG Lighting Smart 5 records running cues against an audio file, edits them on a waveform and plays shows from a list, with MIDI and LTC on the same recorder; a workflow to weigh when this idea is planned (`docs/research/smart5-console.md`). Phase unchanged.
 
 ### IDEA-06 — Own web remote with a password (2026-10-17)
 **Owner's intent:** in the church a TouchOSC layout on an old iPad mini in another room is the remote today. Rather: our own web app, usable by anyone on the network who has the password, from an iPad or the browser on the Mac there. Hardware control (BCF2000 or similar) in the church is wanted too.
@@ -537,6 +538,7 @@ many times more.
 **Owner's answer (2026-10-25):** phase 3 starts now as a parallel track beside phase 1 (DECISIONS); `subprojects/hardware/`, first task HW-01 (the open questions, then `hardware.md`).
 **Specified (2026-10-25, HW-01):** the owner answered the eleven questions (`hardware.md`, *Owner decisions*): a Tiger Touch II-size desk with one touch screen, Linux reference compute (IDEA-30), 10 motorised playback + 10 preset faders, four optical wheels, four isolated DMX ports, CERN-OHL-S v2. Build tasks HWB-01..09, the USB-MIDI box first.
 **Owner's answer (2026-11-01):** the hardware phase moves from 3 to 10, which leaves phases up to 9 for other work (DECISIONS).
+**Research (2026-11-09):** the finished LG Lighting Smart 5 (26 faders, 8 DMX ports) lists at about $910–950, below the ~€1000–2500 build, so the "beats desks that cost many times more" argument does not hold against it. The case rests on openness, repair, show-proof behaviour and updates that do not depend on one maker (`docs/research/smart5-console.md`). Scope unchanged.
 
 ### IDEA-24 — An info message type for good news (2026-10-18, SHW-c run; recorded 2026-10-24)
 **Owner's intent (from the SHW-c run, finding 1):** "autosave of <name> works again" is shown in
