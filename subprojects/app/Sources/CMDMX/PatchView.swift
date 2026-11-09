@@ -613,7 +613,9 @@ private struct SelectedPanel: View {
                             engine.patchCopy(ids: ids, number: start)
                             copyNumber = ""
                         }.buttonStyle(FlatButton())
-                        // PAT-42: only when the whole selection shares one profile; the engine refuses a misfit.
+                    }
+                    // PAT-42: only when the whole selection shares one profile; the engine refuses a misfit.
+                    labelled("Library") {
                         Button("Update from library") {
                             engine.patchUpdateProfile(profile: fixture.profile)
                         }.buttonStyle(FlatButton()).disabled(!sharedProfile)
