@@ -922,6 +922,8 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             }
             engine.patch_exchange(&ids, &profile, &mode, place)
         }
+        PatchCopy { ids, number } => engine.patch_copy(&ids, number).map(drop),
+        PatchSwapAddresses { ids, with } => engine.patch_swap_addresses(&ids, &with),
         PatchHandle { id, handle } => engine.patch_handle(id, handle),
         PaletteRecord(record) => engine.record_palette(&record).map(drop),
         PaletteApply { number, timing } => engine.apply_palette(number, timing),
@@ -1187,6 +1189,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | PatchName { .. }
         | PatchChangeMode { .. }
         | PatchExchange { .. }
+        | PatchCopy { .. }
+        | PatchSwapAddresses { .. }
         | PatchHandle { .. }
         | PaletteRecord(_)
         | PaletteApply { .. }
@@ -1352,6 +1356,8 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         PatchName { ids, .. } => (range_label("name", ids), None),
         PatchChangeMode { ids, .. } => (range_label("mode", ids), None),
         PatchExchange { ids, .. } => (park_label("Exchange", ids), None),
+        PatchCopy { ids, .. } => (park_label("Copy", ids), None),
+        PatchSwapAddresses { .. } => ("Swap addresses".into(), None),
         PatchHandle { id, .. } => (format!("Patch handle {id}"), None),
         PaletteRecord(_) => ("Record palette".into(), None),
         PaletteApply { number, .. } => (format!("Apply palette {number}"), None),
@@ -2404,6 +2410,47 @@ mod tests {
     }
 
     #[test]
+    fn ipc_62_copy_and_swap_are_edits_with_their_undo_labels() {
+        let copy = |ids: Vec<u32>| ipc::Command::PatchCopy { ids, number: None };
+        assert_eq!(class(&copy(vec![1])), Class::Edit, "so IPC-50 refuses it");
+        assert_eq!(label(&copy(vec![1, 2, 3, 4])).0, "Copy 4 fixtures");
+        assert_eq!(label(&copy(vec![301])).0, "Copy 301");
+        let swap = ipc::Command::PatchSwapAddresses {
+            ids: vec![1],
+            with: vec![2],
+        };
+        assert_eq!(class(&swap), Class::Edit, "so IPC-50 refuses it");
+        assert_eq!(label(&swap).0, "Swap addresses");
+    }
+
+    #[test]
+    fn ipc_62_copy_and_swap_reach_the_engine() {
+        let mut engine = demo_engine().unwrap();
+        let count = engine.fixtures().count();
+        let ids: Vec<u32> = engine.fixtures().take(2).map(|f| f.id).collect();
+        let (first, second) = (ids[0], ids[1]);
+        let place = |e: &cmdmx_core::engine::Engine, id| {
+            let f = e.fixture(id).unwrap();
+            (f.universe, f.address)
+        };
+        let (a, b) = (place(&engine, first), place(&engine, second));
+        let cmd = ipc::Command::PatchSwapAddresses {
+            ids: vec![first],
+            with: vec![second],
+        };
+        // Equal footprints or not, the outcome is what the core says; the demo's first two match.
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert_eq!((place(&engine, first), place(&engine, second)), (b, a));
+        let cmd = ipc::Command::PatchCopy {
+            ids: vec![first],
+            number: Some(9001),
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert_eq!(engine.fixtures().count(), count + 1);
+        assert!(engine.fixture_by_number(9001).unwrap().parked);
+    }
+
+    #[test]
     fn pat_09_change_mode_reaches_the_engine() {
         let mut engine = demo_engine().unwrap();
         let cmd = ipc::Command::PatchChangeMode {
@@ -3444,6 +3491,11 @@ mod tests {
         (r#"{"v":1,"cmd":"update"}"#, Class::Edit),
         (
             r#"{"v":1,"cmd":"patch.exchange","ids":[1],"profile":"p","mode":"m"}"#,
+            Class::Edit,
+        ),
+        (r#"{"v":1,"cmd":"patch.copy","ids":[1]}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"patch.swap_addresses","ids":[1],"with":[2]}"#,
             Class::Edit,
         ),
         (r#"{"v":1,"cmd":"update.targets"}"#, Class::Neutral),

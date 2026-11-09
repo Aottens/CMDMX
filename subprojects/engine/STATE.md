@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-09 (PTC-01)_
+_Last updated: 2026-11-09 (PTC-04)_
 
 ## Current step
+PTC-04 (2026-11-09, PAT-40, PAT-41, IPC-62): `Engine::patch_copy` installs parked copies, then `copy_rows` (palette, cue values, dormant, order) and `copy_members` (groups, cue effects) and `parking_changed`; the copy of the `Fixture` struct takes any later field along, so PTC-07's behaviour needs a field, not code here. `Engine::patch_swap_addresses`; `CoreError::SwapSizes`. Tests: `cmdmx-core/tests/copy_swap.rs`.
+
 PTC-01 (2026-11-09, PAT-37..39, IPC-62): `Engine::patch_exchange`; `apply_mode` takes the new profile key for an exchange and then runs `carry_stored`, `carry` and `carry_value` (name, kind, slot name; `Carry::{To, Missing, NoSlot}`), `exchange_palettes` before it. `Command::PatchExchange` with `library`, `attach_profile` fetches it. A level at the old default on the held map goes to the new default, so a reopened show gives the same frames.
 
 MUL-05 (2026-11-08, SHW-19): `Engine::new_keeping_patch` builds a `Show` from `to_show` with the groups, palettes, pages and playbacks of a blank engine and loads it with `from_show`. `ShowRequest::New` has `keep_patch`, set by `show.new`'s `keep: "patch"`; the tick builds the engine before it replaces the current one. Tests: `tests/new_show.rs` on the real binary.

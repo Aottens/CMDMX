@@ -303,6 +303,16 @@ pub enum Command {
         place: Option<(UniverseId, u16)>,
         library: Option<Profile>,
     },
+    /// PAT-40, IPC-62: copy the range as parked fixtures, numbered from `number` or the next free.
+    PatchCopy {
+        ids: Vec<FixtureId>,
+        number: Option<u32>,
+    },
+    /// PAT-41, IPC-62: the two equal-sized ranges trade addresses.
+    PatchSwapAddresses {
+        ids: Vec<FixtureId>,
+        with: Vec<FixtureId>,
+    },
     PatchHandle {
         id: FixtureId,
         handle: Handle,
@@ -1675,6 +1685,16 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 _ => return Err("expected both or neither of \"universe\" and \"address\"".into()),
             },
             library: None,
+        }),
+        Some("patch.copy") => Ok(Command::PatchCopy {
+            ids: ids_or_id(&v)?,
+            number: opt_uint(&v, "number")?,
+        }),
+        Some("patch.swap_addresses") => Ok(Command::PatchSwapAddresses {
+            ids: ids_or_id(&v)?,
+            with: (v.get("with").and_then(|t| t.as_array()))
+                .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
+                .ok_or_else(|| "invalid \"with\" (expected an array of fixture ids)".to_string())?,
         }),
         Some("patch.handle") => Ok(Command::PatchHandle {
             id: uint(&v, "id")?,
@@ -4970,6 +4990,45 @@ mod tests {
         )
         .unwrap();
         assert_eq!(attach_profile(&lib, cmd.clone()), cmd);
+    }
+
+    #[test]
+    fn ipc_62_patch_copy_parses_with_and_without_a_number() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"patch.copy","ids":[3,4]}"#),
+            Command::PatchCopy {
+                ids: vec![3, 4],
+                number: None,
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"patch.copy","id":3,"number":500}"#),
+            Command::PatchCopy {
+                ids: vec![3],
+                number: Some(500),
+            }
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"patch.copy"}"#).is_err());
+    }
+
+    #[test]
+    fn ipc_62_patch_swap_addresses_takes_two_id_lists() {
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"patch.swap_addresses","ids":[3,4],"with":[7,8]}"#)
+                .unwrap(),
+            Command::PatchSwapAddresses {
+                ids: vec![3, 4],
+                with: vec![7, 8],
+            }
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"patch.swap_addresses","ids":[3]}"#,
+            r#"{"v":1,"cmd":"patch.swap_addresses","with":[3]}"#,
+            r#"{"v":1,"cmd":"patch.swap_addresses","ids":[3],"with":"7"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

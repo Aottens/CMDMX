@@ -1,4 +1,4 @@
-# App patch checklist (PAT-09, PAT-10, PAT-25, PAT-35, UI-72, LIB-22, LIB-35) — template
+# App patch checklist (PAT-09, PAT-10, PAT-25, PAT-35, UI-72, UI-75, LIB-22, LIB-35) — template
 
 No Swift test target exists (CLAUDE.md), so the Patch screen of `specs/modules/patch.md` PAT-10
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
@@ -186,6 +186,19 @@ From a fresh Demo, with an Art-Net monitor on universe 1.
 - [ ] A bigger type in place: refused, the panel shows the overlap, nothing changes; with Address filled in: back to back from there
 - [ ] A dropped attribute gives the one line `Dropped … on N fixtures`
 - [ ] Undo brings the whole range back in one step
+
+## Copy and Swap addresses (UI-75, PAT-40, PAT-41)
+From a fresh Demo, with an Art-Net monitor on universe 1.
+- [ ] Select two rows, Copy with no number: two new rows after the highest number, greyed, *parked (was …)* at the originals' place;
+      the panel says "Copied 2 fixtures, parked: give them an address"; Art-Net does not change; the selection stays
+- [ ] Copy with a start number: numbered from it; a number in use: refused, the panel names it
+- [ ] The copies are in the originals' groups, right after them, and in their cues; Move gives one an address and it plays the running cue
+- [ ] Undo takes the copies away in one step
+- [ ] Swap addresses: the message says "Pick the fixtures to swap with …"; Confirm swap is disabled on the same selection
+- [ ] A new selection of the same size, Confirm swap: the rows trade addresses, one undo step, and Art-Net shows each look at its fixture's new place
+- [ ] Different sizes: refused, the panel says so; a parked fixture: refused ("… is parked")
+- [ ] Esc disarms and the Patch screen stays; **Clear** disarms; leaving Patch and coming back: not armed
+- [ ] With text in Find the armed range stays named in the message; the second range is picked from the rows shown
 
 ## Still works
 - [ ] A second app window (or a restart of the app) shows the same patch: the table comes from the
