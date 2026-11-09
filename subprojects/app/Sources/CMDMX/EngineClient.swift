@@ -2042,6 +2042,14 @@ final class EngineClient: ObservableObject {
         patch("patch.exchange", fields)
     }
 
+    func patchCopy(ids: [Int], number: Int?) {
+        var fields: [String: Any] = ["ids": ids]
+        if let number { fields["number"] = number }
+        patch("patch.copy", fields)
+    }
+
+    func patchSwapAddresses(ids: [Int], with: [Int]) { patch("patch.swap_addresses", ["ids": ids, "with": with]) }
+
     // Palette commands (PAL-27). Numbers and cells, never ids; a refusal comes back as a warning.
 
     func recordPalette(window: String, handle: Int, mask: [String]? = nil, recordBy: String? = nil,

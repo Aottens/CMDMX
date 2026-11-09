@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-09 (PTC-03)_
+_Last updated: 2026-11-09 (PTC-04)_
 
 ## Current step
+PTC-04 (2026-11-09, UI-75 Copy and Swap): `UIState.patchSwapFrom` holds the first range; in `modesOpen` and `cancelModes`, so Esc disarms it; the range stays armed while Find changes and the message names it (`PatchView.swapNumbers`). `SelectedPanel` watches `fixture.address` so Move shows the place after a swap or undo. `EngineClient.patchCopy`, `patchSwapAddresses`. Run: `tests/manual/runs/2026-11-09-PTC-04.md`.
 PTC-03 (2026-11-09, UI-73, UI-74): `PatchView.shownRows` filters with `FixturesWindow.matches`; `clickedRowID` works on the shown rows. `AddPanel` stays alive while hidden (height 0, disabled) so typing and `pendingPick` survive. `countBeforeAdd`: only a longer list counts as accepted, a warning can come with an accepted Add. Run: `tests/manual/runs/2026-11-09-PTC-03.md`.
 PTC-02 (2026-11-09, UI-72): `ExchangeTarget`, computed by `AddPanel` and passed through `PatchView` to `SelectedPanel`; `usageCaption(for:)`; `UsageReply.patchText(withEmpties:)`; `EngineClient.patchExchange`.
 MUL-05 (2026-11-08, UI-67): `ShowView.keepPatch`, off in `onAppear` and left as it is after a send, so a refused name keeps it. `armedLabel` names what goes. `EngineClient.newShow(_:keepPatch:)` adds `keep: "patch"`.

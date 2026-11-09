@@ -86,6 +86,10 @@ struct PatchView: View {
                 }
                 VStack(spacing: 8) {
                     SelectedPanel(fixtures: rows.filter { selection.contains($0.id) }, exchange: exchange, edit: { editor = $0 })
+                    if let armed = ui.patchSwapFrom {
+                        Text("Pick the fixtures to swap with \(swapNumbers(armed))").font(Typo.ui(11)).foregroundStyle(t.amber)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     if let message = engine.lastMessage {
                         Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -113,7 +117,7 @@ struct PatchView: View {
                 return event
             }
         }
-        .onDisappear { clickMonitor.map(NSEvent.removeMonitor); clickMonitor = nil }
+        .onDisappear { clickMonitor.map(NSEvent.removeMonitor); clickMonitor = nil; ui.patchSwapFrom = nil }
     }
 }
 
@@ -132,6 +136,15 @@ private func clickedRowID(_ rows: [FixtureInfo]) -> Int? {
 }
 
 /// "" = nil (omitted), a number = that number, anything else = invalid (`.some(nil)` is never produced).
+extension PatchView {
+    /// UI-75: user numbers of the armed range, "101, 102, 103" or "101 … 108 (8)".
+    fileprivate func swapNumbers(_ ids: [Int]) -> String {
+        let n = engine.fixtures.filter { ids.contains($0.id) }.map(\.number).sorted()
+        guard n.count > 4, let first = n.first, let last = n.last else { return n.map(String.init).joined(separator: ", ") }
+        return "\(first) … \(last) (\(n.count))"
+    }
+}
+
 private func optionalInt(_ text: String) -> Int?? {
     let t = text.trimmingCharacters(in: .whitespaces)
     if t.isEmpty { return .some(nil) }
@@ -489,6 +502,8 @@ private struct AddPanel: View {
 
 private struct SelectedPanel: View {
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
+    @State private var copyNumber = ""
     /// The selection in number order (PAT-25); every action sends all their ids (IPC-40).
     let fixtures: [FixtureInfo]
     let exchange: ExchangeTarget?
@@ -545,6 +560,25 @@ private struct SelectedPanel: View {
                             .buttonStyle(FlatButton()).disabled(fixtures.allSatisfy(\.parked))
                         Button("Unpark") { lastMove = nil; engine.patchUnpark(ids: fixtures.filter(\.parked).map(\.id)) }
                             .buttonStyle(FlatButton()).disabled(!fixtures.contains(where: \.parked))
+                    }
+                    // UI-75: copies start parked; an empty start number is the next free one (PAT-40).
+                    labelled("Copy") {
+                        TextField("start no", text: $copyNumber).textFieldStyle(.roundedBorder)
+                        Button("Copy") {
+                            guard let start = optionalInt(copyNumber) else { return }
+                            engine.patchCopy(ids: ids, number: start)
+                            copyNumber = ""
+                        }.buttonStyle(FlatButton())
+                    }
+                    // UI-75: armed on the first range; a new selection and Confirm send both (PAT-41).
+                    labelled("Swap") {
+                        if let from = ui.patchSwapFrom {
+                            Button("Confirm swap") { engine.patchSwapAddresses(ids: from, with: ids); ui.patchSwapFrom = nil }
+                                .buttonStyle(FlatButton(fill: .red)).disabled(ids == from)
+                            Button("Clear") { ui.patchSwapFrom = nil }.buttonStyle(FlatButton())
+                        } else {
+                            Button("Swap addresses") { ui.patchSwapFrom = ids }.buttonStyle(FlatButton())
+                        }
                     }
                     labelled("Renumber") {
                         TextField("number", text: $number).textFieldStyle(.roundedBorder)
@@ -610,6 +644,7 @@ private struct SelectedPanel: View {
                 .onAppear { load(fixture) }
                 .onChange(of: ids) { _, _ in load(fixture) }
                 .onChange(of: sharedMode) { _, m in mode = m }
+                .onChange(of: fixture.address) { _, a in address = "\(a)"; universe = "\(fixture.universe)" }   // UI-75: a swap or undo moved it
                 .onChange(of: exchange) { _, _ in if armed == .exchange { armed = nil } }
             } else {
                 Text("Select a row").font(.caption).foregroundStyle(.secondary)
@@ -629,7 +664,7 @@ private struct SelectedPanel: View {
     /// Prefill the fields from the engine's values for the first selected fixture.
     private func load(_ f: FixtureInfo) {
         universe = "\(f.universe)"; address = "\(f.address)"; number = "\(f.number)"
-        name = f.name; mode = sharedMode; armed = nil; lastMove = nil
+        name = f.name; mode = sharedMode; armed = nil; lastMove = nil; copyNumber = ""
     }
 }
 

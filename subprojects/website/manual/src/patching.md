@@ -194,6 +194,31 @@ address with **Move**, which also unparks it.
 When a **Move** clashes, the warning in the panel offers **Park conflicting and move**: the fixtures in
 the way are parked and the move goes through, as one step for Undo.
 
+### Copying a fixture
+
+Hanging the same type elsewhere, with what the original already plays? Select the rows and click **Copy**
+in the Selected panel. Fill in a start number, or leave it empty for the first numbers after the highest in use.
+
+Each copy has the type, mode and name of its original and takes the next free button in the Fixtures window. It is
+**parked** at the original's address, so nothing changes on stage, and the panel says `Copied 4 fixtures, parked: give them
+an address`. Give the copies an address with **Move**, which also unparks them.
+
+A copy comes with everything recorded on the original: its values in cues and palettes (cells included), cue order, its place in effects,
+and it joins the original's groups right behind it. What is in the programmer and what is selected stay as they were.
+Undo takes all copies back in one step.
+
+### Swapping addresses
+
+Two lamps were hung the wrong way round? Trade their addresses instead of re-recording anything. Select the first
+fixtures and click **Swap addresses**. The panel says *Pick the fixtures to swap with*. Select as many other fixtures, using Find if you need it, and click
+**Confirm swap**. Esc or **Clear** stops without changing anything.
+
+The lowest number of the first selection trades with the lowest of the second, and so on. Each fixture keeps its own cues, palettes and
+groups, so the look follows the fixture to its new place. Undo takes it back in one step.
+
+The swap is refused as a whole when the selections differ in size, when a fixture is in both, when a fixture is parked (`201 is parked`), or when a type with more channels would
+run into another fixture on its new address (`101 would overlap 301 at 1.8`).
+
 ## Universes and output nodes
 
 A **universe** is one set of 512 DMX channels. An **output node** sends a universe somewhere: as

@@ -139,6 +139,9 @@ pub enum CoreError {
     /// PAT-19: a range command lists the same fixture twice.
     #[error("fixture id {0} is listed twice")]
     RepeatedFixture(u32),
+    /// PAT-41.
+    #[error("the two ranges differ in size ({ids} and {with})")]
+    SwapSizes { ids: usize, with: usize },
     /// PAT-22: `fixture` is a user number.
     #[error("{fixture} has no mode '{mode}'")]
     FixtureLacksMode { fixture: u32, mode: String },

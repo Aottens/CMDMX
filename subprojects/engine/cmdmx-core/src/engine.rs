@@ -1845,6 +1845,143 @@ impl Engine {
         Ok(())
     }
 
+    /// PAT-40: copy the range as parked fixtures with the next free numbers (or from `number`);
+    /// palettes, groups and cues that hold an original hold its copy too.
+    pub fn patch_copy(
+        &mut self,
+        ids: &[FixtureId],
+        number: Option<u32>,
+    ) -> Result<Vec<FixtureId>, CoreError> {
+        let sorted = self.range_ids(ids)?;
+        if number == Some(0) {
+            return Err(CoreError::InvalidNumber);
+        }
+        let first = match (number, self.numbers.keys().next_back()) {
+            (Some(n), _) => n,
+            (None, None) => 1,
+            (None, Some(max)) => max.checked_add(1).ok_or(CoreError::NoFreeNumbers)?,
+        };
+        let mut plan = Vec::new();
+        for (i, &old) in sorted.iter().enumerate() {
+            let i = u32::try_from(i).map_err(|_| CoreError::NoFreeNumbers)?;
+            let n = first.checked_add(i).ok_or(CoreError::NoFreeNumbers)?;
+            let id = (self.next_id.checked_add(i)).ok_or(CoreError::NoFreeNumbers)?;
+            if self.numbers.contains_key(&n) {
+                return Err(CoreError::NumberInUse(n));
+            }
+            let f = (self.fixtures.get(&old)).ok_or(CoreError::UnknownFixture(old))?;
+            plan.push((
+                old,
+                Fixture {
+                    parked: true,
+                    id,
+                    number: n,
+                    handle: None,
+                    ..f.clone()
+                },
+            ));
+        }
+        let mut pairs = BTreeMap::new();
+        let mut copies = Vec::new();
+        for (old, fixture) in plan {
+            pairs.insert(old, fixture.id);
+            copies.push(fixture.id);
+            self.install(fixture)?;
+        }
+        for p in self.palettes.values_mut() {
+            copy_rows(&mut p.fixtures, &pairs);
+        }
+        for cue in self.playbacks.values_mut().flat_map(|p| p.cues.iter_mut()) {
+            copy_rows(&mut cue.values, &pairs);
+            copy_rows(&mut cue.dormant, &pairs);
+            copy_rows(&mut cue.order, &pairs);
+            for entry in &mut cue.effects {
+                copy_members(&mut entry.members, &pairs);
+            }
+        }
+        for members in self.groups.values_mut() {
+            copy_members(members, &pairs);
+        }
+        self.parking_changed();
+        self.notices.push(match copies.len() {
+            1 => "Copied 1 fixture, parked: give it an address".to_string(),
+            n => format!("Copied {n} fixtures, parked: give them an address"),
+        });
+        Ok(copies)
+    }
+
+    /// PAT-41: two equal-sized ranges trade places, number order against number order.
+    pub fn patch_swap_addresses(
+        &mut self,
+        ids: &[FixtureId],
+        with: &[FixtureId],
+    ) -> Result<(), CoreError> {
+        self.range_ids(&[ids, with].concat())?;
+        if ids.len() != with.len() {
+            return Err(CoreError::SwapSizes {
+                ids: ids.len(),
+                with: with.len(),
+            });
+        }
+        let (left, right) = (self.range_ids(ids)?, self.range_ids(with)?);
+        let all = [left.as_slice(), right.as_slice()].concat();
+        // (id, number, footprint, old place, new place)
+        let mut moves = Vec::new();
+        for (&a, &b) in left.iter().zip(&right).chain(right.iter().zip(&left)) {
+            let f = (self.fixtures.get(&a)).ok_or(CoreError::UnknownFixture(a))?;
+            let g = (self.fixtures.get(&b)).ok_or(CoreError::UnknownFixture(b))?;
+            moves.push((
+                a,
+                f.number,
+                self.footprint_of(f)?,
+                (f.universe, f.address),
+                (g.universe, g.address),
+            ));
+        }
+        for &id in &all {
+            if let Some(f) = self.fixtures.get(&id).filter(|f| f.parked) {
+                return Err(CoreError::Parked(f.number));
+            }
+        }
+        for &(_, number, footprint, _, (universe, address)) in &moves {
+            self.check_place(number, universe, u32::from(address), footprint, &all)?;
+        }
+        for &(_, number, footprint, _, (universe, address)) in &moves {
+            let (first, end) = (
+                u32::from(address),
+                u32::from(address) + u32::from(footprint),
+            );
+            let clash = moves
+                .iter()
+                .filter(|&&(_, other, f, _, (u, a))| {
+                    other != number
+                        && u == universe
+                        && first < u32::from(a) + u32::from(f)
+                        && u32::from(a) < end
+                })
+                .map(|&(_, other, _, _, (_, a))| (first.max(u32::from(a)), other))
+                .min();
+            if let Some((channel, other)) = clash {
+                return Err(CoreError::PatchOverlap {
+                    number,
+                    other,
+                    universe,
+                    address: u16::try_from(channel).unwrap_or(u16::MAX),
+                });
+            }
+        }
+        for &(_, _, footprint, (universe, address), _) in &moves {
+            self.clear_channels(universe, address, footprint);
+        }
+        for &(id, _, _, _, (universe, address)) in &moves {
+            if let Some(f) = self.fixtures.get_mut(&id) {
+                f.universe = universe;
+                f.address = address;
+            }
+        }
+        Ok(())
+    }
+
     /// PAT-37: give the range another profile and mode (PAT-38, 39), in place or placed back to
     /// back from `place`; all or nothing, one line for what dropped.
     pub fn patch_exchange(
@@ -10129,6 +10266,27 @@ fn single_group(cmd: &command::Command) -> Option<GroupId> {
         }
         _ => None,
     }
+}
+
+/// PAT-40: every row of a fixture that was copied gets the same row for the copy.
+fn copy_rows<V: Clone>(map: &mut BTreeMap<Item, V>, pairs: &BTreeMap<FixtureId, FixtureId>) {
+    let extra: Vec<_> = (map.iter())
+        .filter_map(|(k, v)| {
+            let fixture = *pairs.get(&k.fixture)?;
+            Some((Item { fixture, ..*k }, v.clone()))
+        })
+        .collect();
+    map.extend(extra);
+}
+
+/// PAT-40: each member that was copied is followed by its copy.
+fn copy_members(list: &mut Vec<Item>, pairs: &BTreeMap<FixtureId, FixtureId>) {
+    *list = (list.iter())
+        .flat_map(|i| {
+            let copy = pairs.get(&i.fixture).map(|&fixture| Item { fixture, ..*i });
+            std::iter::once(*i).chain(copy)
+        })
+        .collect();
 }
 
 #[cfg(test)]

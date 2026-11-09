@@ -272,10 +272,10 @@ Builds: PTC-01 + PTC-02; PTC-03; PTC-04; PTC-05 + PTC-06; PTC-07 + PTC-08.
 | PTC-01 | Core and daemon: Fixture Exchange of a range, values, slots and palettes carried over; `pat_37_…`, `pat_38_…`, `pat_39_…`, `ipc_62_…`. | PAT-37..39, IPC-62 | M | done (2026-11-09, #284) |
 | PTC-02 | App: Exchange on the Patch screen; manual, checklist and run on Art-Net. Needs PTC-01. | UI-72 | S | done (2026-11-09, #284; run `tests/manual/runs/2026-11-09-PTC-02.md`) |
 | PTC-03 | App: find in the Patch list, the Add strip can hide, Number and Address empty after an accepted Add; manual and run on about 250 fixtures. | UI-73, UI-74 | S | done (2026-11-09, #285) |
-| PTC-04 | Core, daemon and app: Copy a patched fixture and Swap Addresses; `pat_40_…`, `pat_41_…`; manual and run. | PAT-40, PAT-41, UI-75 | M | todo |
+| PTC-04 | Core, daemon and app: Copy a patched fixture and Swap Addresses; `pat_40_…`, `pat_41_…`; manual and run. | PAT-40, PAT-41, UI-75 | M | done (2026-11-09, #286; run `tests/manual/runs/2026-11-09-PTC-04.md`) |
 | PTC-05 | Core, daemon and app: Update from library, delete and duplicate a user profile; `pat_42_…`, `lib_41_…`, `lib_42_…`; manual and run. | PAT-42, LIB-41, LIB-42, UI-75 | S | todo |
 | PTC-06 | Core, daemon and app: Auto Groups on Add; `pat_43_…`; manual and run. | PAT-43, UI-74 | S | todo |
-| PTC-07 | Core and daemon: behaviour at the output (Invert, Limits, Offset, Swap Pan/Tilt), its wire and show schema step; `pat_44_…`..`pat_47_…`, scenario on the frame. | PAT-44..47 | M | todo |
+| PTC-07 | Core and daemon: behaviour at the output (Invert, Limits, Offset, Swap Pan/Tilt), its wire and show schema step, and PAT-40's copy of it; `pat_44_…`..`pat_47_…`, scenario on the frame. | PAT-44..47 | M | todo |
 | PTC-08 | App: the Behaviour sheet and its tags; manual and run on Art-Net. Needs PTC-07. | UI-76 | S | todo |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)

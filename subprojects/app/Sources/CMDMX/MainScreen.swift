@@ -122,8 +122,10 @@ final class UIState: ObservableObject {
     /// nil = the workspace windows. The screens exclude each other.
     /// UI-45: opening a screen disarms Record and every function, as hiding the keys must not leave one live.
     @Published var screen: Screen? { didSet { if screen != nil { cancelModes() } } }
+    /// UI-75: the first range of an armed Swap addresses; a new selection and Confirm send it.
+    @Published var patchSwapFrom: [Int]?
     /// UI-44: any armed mode or open menu that Esc cancels first.
-    var modesOpen: Bool { recordArmed || function != nil || cueMenu != nil || cueRemoveConfirm || paletteMenu || selectionMenu != nil }
+    var modesOpen: Bool { patchSwapFrom != nil || recordArmed || function != nil || cueMenu != nil || cueRemoveConfirm || paletteMenu || selectionMenu != nil }
     /// UI-44: Esc just left a text field, so a field that commits on losing focus restores instead.
     var fieldEscaped = false
     /// Record armed with the Record function button (UI-16); the next group or palette tap records.
@@ -396,6 +398,7 @@ final class UIState: ObservableObject {
 
     /// Disarms Record and every palette function.
     func cancelModes() {
+        patchSwapFrom = nil
         recordArmed = false
         function = nil; pickKind = nil; picks = []; cuePicks = []; swapIfRequired = false; releasePage = nil
         cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
