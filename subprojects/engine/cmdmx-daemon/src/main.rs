@@ -910,6 +910,18 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         PatchRenumber { ids, number } => engine.patch_renumber_range(&ids, number),
         PatchName { ids, name } => engine.patch_name_range(&ids, &name),
         PatchChangeMode { ids, mode } => engine.patch_change_mode_range(&ids, &mode),
+        PatchExchange {
+            ids,
+            profile,
+            mode,
+            place,
+            library,
+        } => {
+            if let Some(p) = library.filter(|_| !engine.has_profile(&profile)) {
+                engine.add_profile(profile.clone(), p)?;
+            }
+            engine.patch_exchange(&ids, &profile, &mode, place)
+        }
         PatchHandle { id, handle } => engine.patch_handle(id, handle),
         PaletteRecord(record) => engine.record_palette(&record).map(drop),
         PaletteApply { number, timing } => engine.apply_palette(number, timing),
@@ -1174,6 +1186,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | PatchRenumber { .. }
         | PatchName { .. }
         | PatchChangeMode { .. }
+        | PatchExchange { .. }
         | PatchHandle { .. }
         | PaletteRecord(_)
         | PaletteApply { .. }
@@ -1338,6 +1351,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         PatchRenumber { ids, .. } => (range_label("renumber", ids), None),
         PatchName { ids, .. } => (range_label("name", ids), None),
         PatchChangeMode { ids, .. } => (range_label("mode", ids), None),
+        PatchExchange { ids, .. } => (park_label("Exchange", ids), None),
         PatchHandle { id, .. } => (format!("Patch handle {id}"), None),
         PaletteRecord(_) => ("Record palette".into(), None),
         PaletteApply { number, .. } => (format!("Apply palette {number}"), None),
@@ -2343,6 +2357,50 @@ mod tests {
         for (cmd, want) in cases {
             assert_eq!(label(&cmd).0, want);
         }
+    }
+
+    #[test]
+    fn ipc_62_exchange_is_an_edit_with_its_undo_label() {
+        let cmd = |ids: Vec<u32>| ipc::Command::PatchExchange {
+            ids,
+            profile: "rgbw".into(),
+            mode: "default".into(),
+            place: None,
+            library: None,
+        };
+        assert_eq!(class(&cmd(vec![1])), Class::Edit, "so IPC-50 refuses it");
+        assert_eq!(
+            label(&cmd(vec![1, 2, 3, 4, 5, 6, 7])).0,
+            "Exchange 7 fixtures"
+        );
+        assert_eq!(label(&cmd(vec![301])).0, "Exchange 301");
+    }
+
+    #[test]
+    fn ipc_62_exchange_installs_a_library_profile_and_keeps_the_shows_copy() {
+        let mut engine = demo_engine().unwrap();
+        let cmd = ipc::Command::PatchExchange {
+            ids: vec![201],
+            profile: "Showtec/LED Par 56".into(),
+            mode: "default".into(),
+            place: Some((3, 1)),
+            library: Some(Profile::from_json(RGB_PAR).unwrap()),
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        let f = engine.fixture(201).unwrap();
+        assert_eq!(f.profile, "Showtec/LED Par 56");
+        assert_eq!(f.mode.as_deref(), Some("default"));
+        let unknown = ipc::Command::PatchExchange {
+            ids: vec![201],
+            profile: "Nope".into(),
+            mode: "default".into(),
+            place: None,
+            library: None,
+        };
+        assert!(matches!(
+            apply(&mut engine, unknown, 0.0),
+            Err(CoreError::UnknownProfile(p)) if p == "Nope"
+        ));
     }
 
     #[test]
@@ -3384,6 +3442,10 @@ mod tests {
         ),
         (r#"{"v":1,"cmd":"playback.include","id":2}"#, Class::Edit),
         (r#"{"v":1,"cmd":"update"}"#, Class::Edit),
+        (
+            r#"{"v":1,"cmd":"patch.exchange","ids":[1],"profile":"p","mode":"m"}"#,
+            Class::Edit,
+        ),
         (r#"{"v":1,"cmd":"update.targets"}"#, Class::Neutral),
         (
             r#"{"v":1,"cmd":"master.record","page":1,"slot":4,"kind":"Bpm"}"#,

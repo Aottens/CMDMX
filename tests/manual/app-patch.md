@@ -1,4 +1,4 @@
-# App patch checklist (PAT-09, PAT-10, PAT-25, PAT-35, LIB-22, LIB-35) — template
+# App patch checklist (PAT-09, PAT-10, PAT-25, PAT-35, UI-72, LIB-22, LIB-35) — template
 
 No Swift test target exists (CLAUDE.md), so the Patch screen of `specs/modules/patch.md` PAT-10
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
@@ -153,6 +153,17 @@ From a fresh Demo, with an Art-Net monitor on universe 1.
       Move 204 to 2.1: unparked there
 - [ ] Select 202, Move into 203's channels: the warning shows **Park conflicting and move**; click it: 202 moves,
       203 is parked, the panel says so; Undo brings both back in one step
+
+## Exchange (UI-72, PAT-37..39)
+From a fresh Demo, with an Art-Net monitor on universe 1.
+- [ ] No pick in the Add strip: the Selected panel's **Exchange to …** is disabled; pick a model and mode: it reads
+      *Exchange to <model> · <mode>*
+- [ ] Click it: it asks **Confirm exchange** and states what the fixtures are in; changing the pick disarms it
+- [ ] Confirm on a range in place: the rows show the new type, number and name stay, the selection stays; groups and cues
+      still hold them; the new type plays on Art-Net and old channels beyond the new footprint are 0
+- [ ] A bigger type in place: refused, the panel shows the overlap, nothing changes; with Address filled in: back to back from there
+- [ ] A dropped attribute gives the one line `Dropped … on N fixtures`
+- [ ] Undo brings the whole range back in one step
 
 ## Still works
 - [ ] A second app window (or a restart of the app) shows the same patch: the table comes from the
