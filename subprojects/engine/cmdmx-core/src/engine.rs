@@ -809,6 +809,27 @@ impl Engine {
     /// fixture of this type stays. Returns how many patched fixtures use the profile.
     pub fn save_profile(&mut self, key: &str, profile: Profile) -> Result<usize, CoreError> {
         profile.validate_for_save()?;
+        self.install_profile(key, profile)
+    }
+
+    /// PAT-42: replace the show's copy of a profile with the library's, under the same fit
+    /// checks as `save_profile` but with `validate` only (a QLC+ file may overlap slots).
+    /// An identical copy changes nothing and says so.
+    pub fn update_profile(&mut self, key: &str, profile: Profile) -> Result<usize, CoreError> {
+        let Some(current) = self.profiles.get(key) else {
+            return Err(CoreError::UnknownProfile(key.to_string()));
+        };
+        profile.validate()?;
+        if *current == profile {
+            self.notices
+                .push(format!("{} is already up to date", profile.model));
+            return Ok(self.fixtures.values().filter(|f| f.profile == key).count());
+        }
+        self.install_profile(key, profile)
+    }
+
+    /// The fit checks and the install shared by `save_profile` and `update_profile`.
+    fn install_profile(&mut self, key: &str, profile: Profile) -> Result<usize, CoreError> {
         let users: Vec<&Fixture> = self
             .fixtures
             .values()

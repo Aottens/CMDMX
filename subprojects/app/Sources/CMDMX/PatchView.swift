@@ -181,6 +181,11 @@ private struct AddPanel: View {
     @State private var universe = "1"
     @State private var address = ""
     @State private var number = ""
+    /// UI-75: Duplicate… asks for a name; Delete profile asks twice. `duplicateAs` is the name sent, awaiting `library.saved`.
+    @State private var askDuplicate = false
+    @State private var duplicateName = ""
+    @State private var duplicateAs: String?
+    @State private var deleteArmed = false
     @FocusState private var focus: Field?
 
     private enum Field: Hashable { case search, manufacturer, model, mode }
@@ -322,6 +327,20 @@ private struct AddPanel: View {
                     field("Address", $address, "next free")
                     field("Number", $number, "next free")
                     Button("Edit profile…") { editPicked() }.buttonStyle(FlatButton()).disabled(picked == nil)
+                    if deleteArmed, let picked {
+                        Text("Delete user profile \(picked.model)? Shows that use it keep their copy.")
+                            .font(.caption).foregroundStyle(.red).lineLimit(2)
+                        Button("Delete") {
+                            engine.libraryDeleteProfile(manufacturer: picked.manufacturer, model: picked.model)
+                            deleteArmed = false
+                        }.buttonStyle(FlatButton(fill: .red))
+                        Button("Cancel") { deleteArmed = false }.buttonStyle(FlatButton())
+                    } else {
+                        Button("Duplicate…") { duplicateName = ""; askDuplicate = true }.buttonStyle(FlatButton()).disabled(picked == nil)
+                        if let picked, picked.isUser, !picked.fromShow {
+                            Button("Delete profile") { deleteArmed = true }.buttonStyle(FlatButton())
+                        }
+                    }
                     Button("New from channel list…") { edit(ProfileEditorTarget(source: .channelList)) }.buttonStyle(FlatButton())
                     Button("Import GDTF…") { importGdtf() }.buttonStyle(FlatButton())
                     Button("Add") { add() }.buttonStyle(FlatButton(fill: .blue)).disabled(!canAdd)
@@ -330,6 +349,29 @@ private struct AddPanel: View {
             .padding(8)
         }
         .onAppear { engine.requestManufacturers(query: query) }
+        .alert("Duplicate \(picked?.model ?? "")", isPresented: $askDuplicate) {
+            TextField("New model name", text: $duplicateName)
+            Button("Duplicate") {
+                let name = duplicateName.trimmingCharacters(in: .whitespaces)
+                guard let picked, !name.isEmpty else { return }
+                duplicateAs = name
+                engine.libraryDuplicateProfile(manufacturer: picked.manufacturer, model: picked.model, newModel: name)
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        // The copy is listed and picked like a model saved in the editor (LIB-26).
+        .onChange(of: engine.profileSaved) { _, s in
+            guard let s, let name = duplicateAs, s.model == name else { return }
+            duplicateAs = nil
+            pendingPick = SavedPick(manufacturer: s.manufacturer, model: s.model, mode: mode)
+        }
+        // LIB-41: the list is asked again, as after a save.
+        .onChange(of: engine.profileDeleted) { _, _ in
+            pick = nil
+            engine.requestManufacturers(query: query)
+            refreshModels()
+        }
+        .onChange(of: pick) { _, _ in deleteArmed = false }
         // ponytail: a warning can accompany an accepted Add, so only a longer list counts; a refused Add followed by someone else's Add also empties them.
         .onChange(of: engine.fixtures.count) { _, n in   // UI-74: an accepted Add starts over
             if let before = countBeforeAdd, n > before { number = ""; address = ""; countBeforeAdd = nil }
@@ -569,6 +611,10 @@ private struct SelectedPanel: View {
                             engine.patchCopy(ids: ids, number: start)
                             copyNumber = ""
                         }.buttonStyle(FlatButton())
+                        // PAT-42: only when the whole selection shares one profile; the engine refuses a misfit.
+                        Button("Update from library") {
+                            engine.patchUpdateProfile(profile: fixture.profile)
+                        }.buttonStyle(FlatButton()).disabled(!sharedProfile)
                     }
                     // UI-75: armed on the first range; a new selection and Confirm send both (PAT-41).
                     labelled("Swap") {

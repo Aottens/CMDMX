@@ -64,6 +64,9 @@ pub enum CoreError {
     UnknownCtStep(String),
     #[error("unknown profile '{0}'")]
     UnknownProfile(String),
+    /// PAT-42: the show's profile has no library entry to update from.
+    #[error("'{0}' is not in the library")]
+    NotInLibrary(String),
     #[error("profile '{profile}' has no mode '{mode}'")]
     UnknownMode { profile: String, mode: String },
     /// LIB-25: a profile edit the show's content does not allow, with the reason as plain text.

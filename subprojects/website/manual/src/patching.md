@@ -219,6 +219,24 @@ groups, so the look follows the fixture to its new place. Undo takes it back in 
 The swap is refused as a whole when the selections differ in size, when a fixture is in both, when a fixture is parked (`201 is parked`), or when a type with more channels would
 run into another fixture on its new address (`101 would overlap 301 at 1.8`).
 
+### Updating a type from the library
+
+A show keeps its own copy of every fixture type, so a better profile in the library changes nothing by itself. To bring it in, select
+fixtures of that type and click **Update from library**. All fixtures of the type follow, and the output changes on the next tick. Undo takes
+it back in one step. The button is off when the selection holds more than one type.
+
+The update is refused as a whole when a mode in use lost its name or changed its channel count, or when an attribute that a cue, palette or
+the programmer holds has gone. The message names it (`Gobo is used by cue 1.3 of list 2`). When the show's copy already matches, the panel says
+*already up to date*.
+
+### Copying and deleting a type
+
+**Duplicate…** in the Add strip saves the picked type under a new model name, as your own user profile, to change without touching the
+original. A name that is already in the library is refused.
+
+**Delete profile** appears on your own user profiles and asks once more before it goes. There is no undo. Shows that use the type keep their
+copy, and a bundled type your profile was hiding is listed again.
+
 ## Universes and output nodes
 
 A **universe** is one set of 512 DMX channels. An **output node** sends a universe somewhere: as

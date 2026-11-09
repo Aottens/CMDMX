@@ -200,6 +200,15 @@ From a fresh Demo, with an Art-Net monitor on universe 1.
 - [ ] Esc disarms and the Patch screen stays; **Clear** disarms; leaving Patch and coming back: not armed
 - [ ] With text in Find the armed range stays named in the message; the second range is picked from the rows shown
 
+## Update from library, Duplicate, Delete profile (UI-75, PAT-42, LIB-41, LIB-42)
+- [ ] A selection of two types: **Update from library** is off; one type: on
+- [ ] Update when the show's copy matches: the panel says "… is already up to date"; no undo step
+- [ ] Change a library copy's default (Edit profile on a copy in another show), Update here: Art-Net follows on the next tick; undo label "Update profile …"
+- [ ] A library copy that lost a used mode or a stored attribute: refused, the panel names it, nothing changes
+- [ ] **Duplicate…** on a bundled type: the copy is listed as a user profile and picked; the same name again: refused
+- [ ] **Delete profile** only on a user profile; it asks "Delete user profile X? Shows that use it keep their copy."; Cancel keeps it
+- [ ] Delete: the type leaves the list; a bundled type it hid is listed again; fixtures of it in the show stay and keep playing
+
 ## Still works
 - [ ] A second app window (or a restart of the app) shows the same patch: the table comes from the
       snapshot and the `fixtures` deltas (PAT-09)

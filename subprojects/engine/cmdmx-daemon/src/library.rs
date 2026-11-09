@@ -258,6 +258,47 @@ impl Library {
         Ok(())
     }
 
+    /// LIB-41: remove a user profile (file, then index); what it hid is listed again.
+    pub fn delete_profile(&mut self, manufacturer: &str, model: &str) -> Result<(), String> {
+        let entry = self.entry(manufacturer, model)?;
+        if entry.source != "user" {
+            return Err(format!(
+                "'{model}' is part of the library and cannot be deleted"
+            ));
+        }
+        match fs::remove_file(&entry.path) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                return Err(format!("{}: {e}", entry.path))
+            }
+            _ => {}
+        }
+        self.index.remove_user(manufacturer, model);
+        Ok(())
+    }
+
+    /// LIB-42: save a copy of any entry as a user profile named `new_model`; never replaces.
+    pub fn duplicate_profile(
+        &mut self,
+        manufacturer: &str,
+        model: &str,
+        new_model: &str,
+    ) -> Result<(), String> {
+        let mut copy = self.profile(manufacturer, model)?;
+        let name = new_model.trim();
+        if name.is_empty() {
+            return Err("a copy needs a model name".into());
+        }
+        if self.index.get(manufacturer, name).is_some() {
+            return Err(format!("'{name}' is already in the library"));
+        }
+        if self.user_dir.join(file_name(manufacturer, name)).exists() {
+            return Err(format!("'{name}' would replace another profile's file"));
+        }
+        copy.model = name.to_string();
+        copy.source = "user".into();
+        self.save_profile(&copy)
+    }
+
     /// LIB-11: build from a channel list and save it as a user profile.
     pub fn save_channel_list(&mut self, list: &ChannelList) -> Result<Profile, String> {
         let profile = channel_list::build(list).map_err(|e| e.to_string())?;
@@ -608,6 +649,153 @@ mod tests {
             back.profile("Generic", "Dimmer").unwrap().modes[0].attributes[0].name,
             "Dimmer"
         );
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    const PAR: (&str, &str) = ("Showtec", "LED Par 56");
+
+    /// A user copy of the bundled Showtec par under its own name, so it hides the QLC+ entry.
+    fn hide_par(lib: &mut Library) -> Profile {
+        let mut copy = lib.profile(PAR.0, PAR.1).unwrap();
+        copy.source = "user".into();
+        copy.modes[0].attributes[0].name = "Intensity".into();
+        lib.save_profile(&copy).unwrap();
+        copy
+    }
+
+    fn source(lib: &Library, model: &str) -> Vec<String> {
+        lib.models(Some(PAR.0), model)
+            .0
+            .into_iter()
+            .map(|e| e.source.clone())
+            .collect()
+    }
+
+    #[test]
+    fn lib_41_delete_removes_the_file_and_the_hidden_entry_is_listed_again() {
+        let user = user_dir("delete");
+        let mut lib = load(&user);
+        hide_par(&mut lib);
+        // A second save over the user copy must not lose what it hides.
+        hide_par(&mut lib);
+        let file = user.join("Showtec - LED Par 56.json");
+        assert!(file.is_file());
+        assert_eq!(source(&lib, PAR.1), ["user"]);
+        lib.delete_profile(PAR.0, PAR.1).unwrap();
+        assert!(!file.exists());
+        assert_eq!(source(&lib, PAR.1), ["qlcplus"]);
+        assert_eq!(
+            lib.profile(PAR.0, PAR.1).unwrap().modes[0].attributes[0].name,
+            load(&user_dir("delete-ref"))
+                .profile(PAR.0, PAR.1)
+                .unwrap()
+                .modes[0]
+                .attributes[0]
+                .name
+        );
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn lib_41_delete_after_a_restart_also_brings_the_hidden_entry_back() {
+        let user = user_dir("delete-restart");
+        hide_par(&mut load(&user));
+        let mut lib = load(&user);
+        assert_eq!(source(&lib, PAR.1), ["user"]);
+        lib.delete_profile(PAR.0, PAR.1).unwrap();
+        assert_eq!(source(&lib, PAR.1), ["qlcplus"]);
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn lib_41_delete_of_a_copy_of_the_builtin_dimmer_brings_it_back() {
+        let user = user_dir("delete-builtin");
+        let mut lib = load(&user);
+        let copy = lib.profile("Generic", "Dimmer").unwrap();
+        lib.save_profile(&copy).unwrap();
+        assert!(lib.has_user_profile("Generic", "Dimmer"));
+        lib.delete_profile("Generic", "Dimmer").unwrap();
+        assert_eq!(
+            names(&lib, "generic dimmer"),
+            [("Generic".to_string(), "builtin".to_string())]
+        );
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn lib_41_a_user_profile_that_hid_nothing_goes_entirely() {
+        let user = user_dir("delete-plain");
+        let mut lib = load(&user);
+        lib.duplicate_profile(PAR.0, PAR.1, "Kerk Par").unwrap();
+        lib.delete_profile(PAR.0, "Kerk Par").unwrap();
+        assert!(source(&lib, "Kerk Par").is_empty());
+        assert!(lib.profile(PAR.0, "Kerk Par").is_err());
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn lib_41_bundled_entries_and_unknown_names_refuse() {
+        let user = user_dir("delete-refused");
+        let mut lib = load(&user);
+        for (manufacturer, model) in [PAR, ("Generic", "Dimmer")] {
+            let e = lib.delete_profile(manufacturer, model).unwrap_err();
+            assert!(
+                e.contains("part of the library") && e.contains(model),
+                "{e}"
+            );
+        }
+        assert_eq!(source(&lib, PAR.1), ["qlcplus"]);
+        assert!(lib.delete_profile("No", "Such").is_err());
+    }
+
+    #[test]
+    fn lib_42_a_copy_of_any_entry_is_a_user_profile_under_the_same_manufacturer() {
+        let user = user_dir("duplicate");
+        let mut lib = load(&user);
+        lib.duplicate_profile(PAR.0, PAR.1, "Kerk Par").unwrap();
+        assert!(user.join("Showtec - Kerk Par.json").is_file());
+        assert_eq!(source(&lib, "Kerk Par"), ["user"]);
+        let (original, copy) = (
+            lib.profile(PAR.0, PAR.1).unwrap(),
+            lib.profile(PAR.0, "Kerk Par").unwrap(),
+        );
+        assert_eq!(
+            (copy.model.as_str(), copy.source.as_str()),
+            ("Kerk Par", "user")
+        );
+        assert_eq!(copy.modes, original.modes);
+        assert_eq!(source(&lib, PAR.1), ["qlcplus"], "the original stays");
+        // A built-in entry and a user entry can be copied too.
+        lib.duplicate_profile("Generic", "Dimmer", "Kerk Dimmer")
+            .unwrap();
+        lib.duplicate_profile(PAR.0, "Kerk Par", "Kerk Par 2")
+            .unwrap();
+        assert_eq!(source(&lib, "Kerk Par 2"), ["user"]);
+        let _ = std::fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn lib_42_a_taken_or_empty_name_refuses_and_replaces_nothing() {
+        let user = user_dir("duplicate-refused");
+        let mut lib = load(&user);
+        lib.duplicate_profile(PAR.0, PAR.1, "Kerk Par").unwrap();
+        let file = user.join("Showtec - Kerk Par.json");
+        let before = std::fs::read(&file).unwrap();
+        for taken in ["Kerk Par", PAR.1] {
+            let e = lib.duplicate_profile(PAR.0, PAR.1, taken).unwrap_err();
+            assert!(e.contains(taken), "{e}");
+        }
+        for empty in ["", "   "] {
+            assert!(lib.duplicate_profile(PAR.0, PAR.1, empty).is_err());
+        }
+        // Another name that would land in the same file must not replace it either.
+        lib.duplicate_profile(PAR.0, PAR.1, "Kerk_Par").unwrap();
+        let shared = user.join("Showtec - Kerk_Par.json");
+        let before_shared = std::fs::read(&shared).unwrap();
+        assert!(lib.duplicate_profile(PAR.0, PAR.1, "Kerk:Par").is_err());
+        assert_eq!(std::fs::read(&shared).unwrap(), before_shared);
+        assert_eq!(std::fs::read(&file).unwrap(), before);
+        assert!(lib.duplicate_profile("No", "Such", "Copy").is_err());
         let _ = std::fs::remove_dir_all(&user);
     }
 

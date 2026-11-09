@@ -1654,6 +1654,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var editorProfile: EditorProfile?
     @Published private(set) var profileSaved: ProfileSaved?
     @Published private(set) var gdtfImported: GdtfImported?
+    /// LIB-41: the last `library.deleted` reply (token as in `profileSaved`).
+    @Published private(set) var profileDeleted: ProfileSaved?
     /// LIB-39: latest `profile.emitter` reply per emitter name.
     @Published private(set) var emitterInfo: [String: EmitterInfo] = [:]
     /// IPC-47 / UI-32: the LEE table, asked once per connection.
@@ -2046,6 +2048,20 @@ final class EngineClient: ObservableObject {
         var fields: [String: Any] = ["ids": ids]
         if let number { fields["number"] = number }
         patch("patch.copy", fields)
+    }
+
+    /// PAT-42: the engine fetches the library's copy of `profile` itself.
+    func patchUpdateProfile(profile: String) { patch("patch.update_profile", ["profile": profile]) }
+
+    /// LIB-41, LIB-42: a refusal comes back as an `error`, which lands in `lastMessage`.
+    func libraryDeleteProfile(manufacturer: String, model: String) {
+        lastMessage = nil
+        sendJSON("library.delete_profile", ["manufacturer": manufacturer, "model": model])
+    }
+
+    func libraryDuplicateProfile(manufacturer: String, model: String, newModel: String) {
+        lastMessage = nil
+        sendJSON("library.duplicate_profile", ["manufacturer": manufacturer, "model": model, "new_model": newModel])
     }
 
     func patchSwapAddresses(ids: [Int], with: [Int]) { patch("patch.swap_addresses", ["ids": ids, "with": with]) }
@@ -2574,6 +2590,10 @@ final class EngineClient: ObservableObject {
         case "library.saved":
             if let saved = try? JSONDecoder().decode(SavedReply.self, from: data) {
                 profileSaved = ProfileSaved(manufacturer: saved.manufacturer, model: saved.model, token: (profileSaved?.token ?? 0) + 1)
+            }
+        case "library.deleted":
+            if let gone = try? JSONDecoder().decode(SavedReply.self, from: data) {
+                profileDeleted = ProfileSaved(manufacturer: gone.manufacturer, model: gone.model, token: (profileDeleted?.token ?? 0) + 1)
             }
         case "library.imported":
             if var done = try? JSONDecoder().decode(GdtfImported.self, from: data) {

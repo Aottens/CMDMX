@@ -922,6 +922,10 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             }
             engine.patch_exchange(&ids, &profile, &mode, place)
         }
+        PatchUpdateProfile { profile, library } => match library {
+            Some(p) => engine.update_profile(&profile, p).map(drop),
+            None => Err(CoreError::NotInLibrary(profile)),
+        },
         PatchCopy { ids, number } => engine.patch_copy(&ids, number).map(drop),
         PatchSwapAddresses { ids, with } => engine.patch_swap_addresses(&ids, &with),
         PatchHandle { id, handle } => engine.patch_handle(id, handle),
@@ -1189,6 +1193,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | PatchName { .. }
         | PatchChangeMode { .. }
         | PatchExchange { .. }
+        | PatchUpdateProfile { .. }
         | PatchCopy { .. }
         | PatchSwapAddresses { .. }
         | PatchHandle { .. }
@@ -1356,6 +1361,10 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         PatchName { ids, .. } => (range_label("name", ids), None),
         PatchChangeMode { ids, .. } => (range_label("mode", ids), None),
         PatchExchange { ids, .. } => (park_label("Exchange", ids), None),
+        PatchUpdateProfile { profile, library } => {
+            let model = library.as_ref().map_or(profile.as_str(), |p| &p.model);
+            (format!("Update profile {model}"), None)
+        }
         PatchCopy { ids, .. } => (park_label("Copy", ids), None),
         PatchSwapAddresses { .. } => ("Swap addresses".into(), None),
         PatchHandle { id, .. } => (format!("Patch handle {id}"), None),
@@ -3495,6 +3504,10 @@ mod tests {
         ),
         (r#"{"v":1,"cmd":"patch.copy","ids":[1]}"#, Class::Edit),
         (
+            r#"{"v":1,"cmd":"patch.update_profile","profile":"A/B"}"#,
+            Class::Edit,
+        ),
+        (
             r#"{"v":1,"cmd":"patch.swap_addresses","ids":[1],"with":[2]}"#,
             Class::Edit,
         ),
@@ -3902,6 +3915,52 @@ mod tests {
                 "{json}"
             );
         }
+    }
+
+    // ---- PTC-05: PAT-42 ----------------------------------------------------------------------
+
+    /// A show holding `T/Spot` (Dimmer, Pan), and what the library holds with Pan's default moved.
+    fn update_rig() -> (Engine, Profile) {
+        let json = |default: f64| {
+            format!(
+                r#"{{"manufacturer":"T","model":"Spot","source":"user","modes":[{{"name":"Std",
+                "footprint":2,"attributes":[{{"name":"Dimmer","group":"I","kind":"Htp","channel":1}},
+                {{"name":"Pan","group":"P","kind":"Ltp","channel":2,"default":{default}}}]}}]}}"#
+            )
+        };
+        let mut e = Engine::new(Settings::default());
+        e.add_profile("T/Spot", Profile::from_json(&json(0.0)).unwrap())
+            .unwrap();
+        (e, Profile::from_json(&json(0.5)).unwrap())
+    }
+
+    #[test]
+    fn pat_42_update_is_one_undo_step_named_after_the_model() {
+        let (mut e, newer) = update_rig();
+        let mut h = History::default();
+        let cmd = || ipc::Command::PatchUpdateProfile {
+            profile: "T/Spot".into(),
+            library: Some(newer.clone()),
+        };
+        run(&mut e, &mut h, cmd(), 0.0).unwrap();
+        assert_eq!((h.len(), h.undo_label()), (1, Some("Update profile Spot")));
+        assert_eq!(e.profile("T/Spot"), Some(&newer));
+        run(&mut e, &mut h, cmd(), 0.0).unwrap();
+        assert_eq!(h.len(), 1, "an identical copy adds no step");
+    }
+
+    #[test]
+    fn pat_42_a_key_the_library_lacks_refuses_and_names_the_library() {
+        let (mut e, _) = update_rig();
+        let before = e.profile("T/Spot").cloned();
+        let mut h = History::default();
+        let cmd = ipc::Command::PatchUpdateProfile {
+            profile: "T/Spot".into(),
+            library: None,
+        };
+        let err = run(&mut e, &mut h, cmd, 0.0).unwrap_err().to_string();
+        assert!(err.contains("T/Spot") && err.contains("library"), "{err}");
+        assert_eq!((e.profile("T/Spot").cloned(), h.len()), (before, 0));
     }
 
     // ---- VS2-24: IPC-38, IPC-39 ------------------------------------------------------------
