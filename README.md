@@ -79,6 +79,7 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   clashes are refused. Move, renumber, rename, change mode and remove.
 - Multi-select in the patch table: Shift/Cmd-click a range and move it back to back, renumber
   it, name it ("Par 1…6"), change its mode or remove it in one checked step.
+- Find in the patch table by number, name or model; the Add panel can fold away, and Number and Address start over after an Add.
 - Removing a fixture or changing its mode also reaches effects, in cues, palettes and a cue running now, and
   a warning names each palette that holds something the new mode cannot do; Undo brings it all back.
 - Park a fixture that is not hung: it keeps its place, groups, palettes and cues but is dark, cannot be selected and
