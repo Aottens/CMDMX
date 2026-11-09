@@ -209,6 +209,13 @@ From a fresh Demo, with an Art-Net monitor on universe 1.
 - [ ] **Delete profile** only on a user profile; it asks "Delete user profile X? Shows that use it keep their copy."; Cancel keeps it
 - [ ] Delete: the type leaves the list; a bundled type it hid is listed again; fixtures of it in the show stay and keep playing
 
+## Auto groups (UI-74, PAT-43)
+- [ ] The toggle starts off; an Add makes no group
+- [ ] On, Add 4 of a type: the Group pool shows `All <model>` and `4 <model>` in the first free numbers, the type's group first
+- [ ] Add 2 more of the type: `All` grows to 6, a new `2 <model>`; Add 1 more: `All` grows to 7, no new group
+- [ ] Undo after an Add takes the fixtures and the groups together
+- [ ] Quit and reopen the app: the toggle is as you left it
+
 ## Still works
 - [ ] A second app window (or a restart of the app) shows the same patch: the table comes from the
       snapshot and the `fixtures` deltas (PAT-09)

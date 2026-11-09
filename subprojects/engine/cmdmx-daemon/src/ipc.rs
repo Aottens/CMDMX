@@ -263,6 +263,8 @@ pub enum Command {
         profile: Option<Profile>,
         /// PAT-32: park the fixtures the new ones overlap instead of refusing.
         park_conflicting: bool,
+        /// PAT-43: also make the type's `All` group and a count group.
+        auto_groups: bool,
     },
     PatchMove {
         ids: Vec<FixtureId>,
@@ -1660,6 +1662,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             },
             profile: None,
             park_conflicting: opt_bool(&v, "park_conflicting")?,
+            auto_groups: opt_bool(&v, "auto_groups")?,
         }),
         Some("patch.move") => Ok(Command::PatchMove {
             ids: ids_or_id(&v)?,
@@ -4014,10 +4017,12 @@ pub fn attach_profile(lib: &RwLock<Option<Library>>, cmd: Command) -> Command {
             add,
             profile: None,
             park_conflicting,
+            auto_groups,
         } => Command::PatchAdd {
             profile: find(&add.profile),
             add,
             park_conflicting,
+            auto_groups,
         },
         // PAT-37: an exchange fetches its profile the same way.
         Command::PatchExchange {
@@ -4847,6 +4852,7 @@ mod tests {
             ),
             Command::PatchAdd {
                 park_conflicting: false,
+                auto_groups: false,
                 add: PatchAdd {
                     profile: "Showtec/LED Par 56".into(),
                     mode: Some("6 Channel".into()),
@@ -4865,6 +4871,7 @@ mod tests {
             ),
             Command::PatchAdd {
                 park_conflicting: false,
+                auto_groups: false,
                 add: PatchAdd {
                     profile: "rgbw".into(),
                     mode: Some("default".into()),
@@ -5772,6 +5779,30 @@ mod tests {
         let after = ask(&lib, r#"{"v":1,"cmd":"library.search","query":""}"#);
         assert_eq!(before, after);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ipc_62_patch_add_takes_auto_groups_and_it_defaults_to_off() {
+        let add = |extra: &str| {
+            parse_command(&format!(
+                r#"{{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1{extra}}}"#
+            ))
+        };
+        assert!(matches!(
+            add(r#","auto_groups":true"#),
+            Ok(Command::PatchAdd {
+                auto_groups: true,
+                ..
+            })
+        ));
+        assert!(matches!(
+            add(""),
+            Ok(Command::PatchAdd {
+                auto_groups: false,
+                ..
+            })
+        ));
+        assert!(add(r#","auto_groups":"yes""#).is_err());
     }
 
     #[test]

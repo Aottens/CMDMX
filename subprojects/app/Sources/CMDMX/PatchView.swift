@@ -164,6 +164,7 @@ func labelled<Content: View>(_ label: String, @ViewBuilder _ content: () -> Cont
 /// focused column, Left/Right move between columns (Right selects the first row of an empty Model/Mode
 /// column), Return adds when Add is enabled.
 private struct AddPanel: View {
+    @AppStorage("patchAutoGroups") private var autoGroups = false   // PAT-43
     @EnvironmentObject private var engine: EngineClient
     /// A model saved in the profile editor: shown and picked here once the library lists it (LIB-26).
     @Binding var pendingPick: SavedPick?
@@ -343,6 +344,7 @@ private struct AddPanel: View {
                     }
                     Button("New from channel list…") { edit(ProfileEditorTarget(source: .channelList)) }.buttonStyle(FlatButton())
                     Button("Import GDTF…") { importGdtf() }.buttonStyle(FlatButton())
+                    Toggle("Auto groups", isOn: $autoGroups).toggleStyle(.checkbox)
                     Button("Add") { add() }.buttonStyle(FlatButton(fill: .blue)).disabled(!canAdd)
                 }
             }
@@ -451,7 +453,7 @@ private struct AddPanel: View {
     private func add() {
         guard let picked = pickedRow, let c = Int(count), let u = Int(universe),
               case let .some(a) = optionalInt(address), case let .some(n) = optionalInt(number) else { return }
-        engine.patchAdd(profile: picked.pick.key, mode: mode, count: c, universe: u, address: a, number: n)
+        engine.patchAdd(profile: picked.pick.key, mode: mode, count: c, universe: u, address: a, number: n, autoGroups: autoGroups)
         countBeforeAdd = engine.fixtures.count   // UI-74
     }
 

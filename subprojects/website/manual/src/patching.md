@@ -107,6 +107,10 @@ that names the clash. Nothing changes then, and your typing stays so you can cor
 After an Add that went through, Address and Number go empty again, so the next type you add lands on
 the next free channels and numbers. Count, Universe and the picked model stay.
 
+Tick **Auto groups** and an Add of two or more also makes two groups in the first free group numbers: **All Wash** with every Wash in the
+show, and **4 Wash** with the four you just added. A later Add of the same type joins the existing **All Wash**, and adding one fixture joins
+it without making a group of one. Undo takes the fixtures and their groups back together. Your Mac remembers the tick, and it starts off.
+
 **Hide** in the title of the Add panel folds it away, so the table takes the screen. **Show Add** in
 the title of the patch table brings it back, with what you had typed. Your Mac remembers the choice.
 

@@ -846,16 +846,21 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             add,
             profile,
             park_conflicting,
+            auto_groups,
         } => {
             if let Some(p) = profile.filter(|_| !engine.has_profile(&add.profile)) {
                 // ponytail: a refused add leaves the installed profile unused in the show.
                 engine.add_profile(add.profile.clone(), p)?;
             }
-            if park_conflicting {
-                engine.patch_add_parking(&add).map(drop)
+            let ids = if park_conflicting {
+                engine.patch_add_parking(&add)?
             } else {
-                engine.patch_add(&add).map(drop)
+                engine.patch_add(&add)?
+            };
+            if auto_groups {
+                engine.auto_group(&add.profile, &ids);
             }
+            Ok(())
         }
         PatchMove {
             ids,
@@ -2079,6 +2084,7 @@ mod tests {
         let profile = Profile::from_json(RGB_PAR).unwrap();
         let cmd = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Showtec/LED Par 56", "default", 6, Some(201), Some(1221)),
             profile: Some(profile),
         };
@@ -2102,6 +2108,7 @@ mod tests {
         // A second add reuses the show's copy; no profile needed. PAT-03: first free run.
         let cmd = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Showtec/LED Par 56", "default", 1, None, None),
             profile: None,
         };
@@ -2115,6 +2122,7 @@ mod tests {
         // A different profile under the demo's "Demo/RGBW Par" key must not replace the show's copy.
         let cmd = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Demo/RGBW Par", "default", 1, None, Some(2001)),
             profile: Some(Profile::from_json(RGB_PAR).unwrap()),
         };
@@ -2127,6 +2135,7 @@ mod tests {
         );
         let next = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Demo/RGBW Par", "default", 1, None, None),
             profile: None,
         };
@@ -2144,6 +2153,7 @@ mod tests {
         let before: Vec<_> = engine.fixtures().cloned().collect();
         let unknown = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Nope/Nope", "default", 1, None, None),
             profile: None,
         };
@@ -2154,6 +2164,7 @@ mod tests {
         // PAT-02: 2 RGBW pars at 140 would overlap 226 at 140.
         let clash = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Demo/RGBW Par", "default", 2, Some(140), Some(900)),
             profile: None,
         };
@@ -3915,6 +3926,60 @@ mod tests {
                 "{json}"
             );
         }
+    }
+
+    // ---- PTC-06: PAT-43 ----------------------------------------------------------------------
+
+    const ADD_AUTO: &str = r#"{"v":1,"cmd":"patch.add","profile":"T/Spot","mode":"Std","count":2,"universe":1,"address":1,"number":1,"auto_groups":true}"#;
+
+    #[test]
+    fn pat_43_the_add_and_its_groups_are_one_undo_step() {
+        let (mut e, _) = update_rig();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, ADD_AUTO).unwrap();
+        assert_eq!(h.len(), 1);
+        let g = |e: &Engine, id| e.group_legend(id).map(str::to_string);
+        assert_eq!(g(&e, 1).as_deref(), Some("All Spot"));
+        assert_eq!(g(&e, 2).as_deref(), Some("2 Spot"));
+        h.undo(&mut e).unwrap();
+        assert!(e.groups().is_empty());
+        assert_eq!(e.fixtures().count(), 0);
+    }
+
+    #[test]
+    fn pat_43_without_the_flag_there_are_no_groups() {
+        let (mut e, _) = update_rig();
+        let mut h = History::default();
+        let plain = ADD_AUTO.replace(r#","auto_groups":true"#, "");
+        undo_run(&mut e, &mut h, &plain).unwrap();
+        assert_eq!(e.fixtures().count(), 2);
+        assert!(e.groups().is_empty());
+    }
+
+    #[test]
+    fn pat_43_a_refused_add_makes_no_group_and_no_step() {
+        let (mut e, _) = update_rig();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, ADD_AUTO).unwrap();
+        assert!(undo_run(&mut e, &mut h, ADD_AUTO).is_err(), "number in use");
+        assert_eq!(h.len(), 1);
+        assert_eq!(e.groups().len(), 2);
+        assert_eq!(e.group(1).map(|g| g.len()), Some(2));
+    }
+
+    #[test]
+    fn pat_43_a_parking_add_makes_the_groups_too() {
+        let (mut e, _) = update_rig();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, ADD_AUTO).unwrap();
+        let parking = ADD_AUTO.replace(r#""number":1"#, r#""number":11"#).replace(
+            r#""auto_groups":true"#,
+            r#""auto_groups":true,"park_conflicting":true"#,
+        );
+        undo_run(&mut e, &mut h, &parking).unwrap();
+        assert_eq!(h.len(), 2);
+        assert_eq!(e.group(1).map(|g| g.len()), Some(4), "the parked ones stay");
+        assert_eq!(e.group_legend(3), Some("2 Spot"));
     }
 
     // ---- PTC-05: PAT-42 ----------------------------------------------------------------------

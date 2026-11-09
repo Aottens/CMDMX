@@ -6233,6 +6233,62 @@ impl Engine {
         Ok(())
     }
 
+    /// PAT-43: after an Add, put the new fixtures in the type's `All <model>` group (made when
+    /// the Add has two or more) and, for two or more, in a new `<count> <model>` group. It cannot
+    /// fail: the Add already happened and must stay one undo step.
+    pub fn auto_group(&mut self, key: &str, ids: &[FixtureId]) {
+        let Some(model) = self.profiles.get(key).map(|p| p.model.clone()) else {
+            return;
+        };
+        if ids.is_empty() {
+            return;
+        }
+        // ponytail: two models whose cut legends match share an `All` group.
+        let cut = |s: String| s.chars().take(palette::MAX_LEGEND).collect::<String>();
+        let all_legend = cut(format!("All {model}"));
+        let count_legend = cut(format!("{} {model}", ids.len()));
+        let found = self
+            .group_legends
+            .iter()
+            .find(|(g, l)| **l == all_legend && self.groups.contains_key(g))
+            .map(|(g, _)| *g);
+        let mut free = 0;
+        let mut next_free = |groups: &BTreeMap<GroupId, Vec<Item>>| {
+            free += 1;
+            while groups.contains_key(&free) {
+                free += 1;
+            }
+            free
+        };
+        if let Some(all) = found {
+            if let Some(members) = self.groups.get_mut(&all) {
+                for &id in ids {
+                    let item = Item::fixture(id);
+                    if !members.contains(&item) {
+                        members.push(item);
+                    }
+                }
+            }
+        } else if ids.len() >= 2 {
+            let all = next_free(&self.groups);
+            let mut of_type: Vec<&Fixture> = self
+                .fixtures
+                .values()
+                .filter(|f| f.profile == key)
+                .collect();
+            of_type.sort_by_key(|f| f.number);
+            let members = of_type.iter().map(|f| Item::fixture(f.id)).collect();
+            self.groups.insert(all, members);
+            self.group_legends.insert(all, all_legend);
+        }
+        if ids.len() >= 2 {
+            let g = next_free(&self.groups);
+            self.groups
+                .insert(g, ids.iter().map(|&id| Item::fixture(id)).collect());
+            self.group_legends.insert(g, count_legend);
+        }
+    }
+
     /// PRG-90: set a group's legend; an empty one clears it.
     pub fn set_group_legend(&mut self, id: GroupId, legend: &str) -> Result<(), CoreError> {
         check_legend(legend)?;

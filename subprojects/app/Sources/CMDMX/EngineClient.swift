@@ -2019,10 +2019,11 @@ final class EngineClient: ObservableObject {
     }
 
     /// `address` / `number` nil = omitted, the engine picks (PAT-03).
-    func patchAdd(profile: String, mode: String, count: Int, universe: Int, address: Int?, number: Int?) {
+    func patchAdd(profile: String, mode: String, count: Int, universe: Int, address: Int?, number: Int?, autoGroups: Bool = false) {
         var fields: [String: Any] = ["profile": profile, "mode": mode, "count": count, "universe": universe]
         if let address { fields["address"] = address }
         if let number { fields["number"] = number }
+        if autoGroups { fields["auto_groups"] = true }
         patch("patch.add", fields)
     }
     func patchMove(ids: [Int], universe: Int, address: Int, parkConflicting: Bool = false) {
