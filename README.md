@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Batch D, working on many at once, is complete: picking several, releasing many, a new show on the same patch.
-Next: batch E's builds (PTC-01), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
+Batch E, patch and profiles, has started: a Fixture Exchange keeps a fixture's groups, cues and palettes.
+Next: batch E's builds (PTC-04), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -82,6 +82,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - Find in the patch table by number, name or model; the Add panel can fold away, and Number and Address start over after an Add.
 - Removing a fixture or changing its mode also reaches effects, in cues, palettes and a cue running now, and
   a warning names each palette that holds something the new mode cannot do; Undo brings it all back.
+- Fixture Exchange: give a range another type and mode. Number, groups, cues and palettes stay, wheel values move to the
+  slot of the same name, one line names what dropped, and Undo brings it all back.
 - Park a fixture that is not hung: it keeps its place, groups, palettes and cues but is dark, cannot be selected and
   frees its channels; Unpark puts it back. A move or add onto used channels can park what it covers. In the app
   a parked row is greyed, "parked (was 1.37)", with Park and Unpark in the Selected panel; its tile shows `PARK`.

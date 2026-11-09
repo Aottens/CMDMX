@@ -294,6 +294,15 @@ pub enum Command {
         ids: Vec<FixtureId>,
         mode: String,
     },
+    /// PAT-37, IPC-62: `library` is the library's copy of `profile`, attached by the client
+    /// thread (`attach_profile`).
+    PatchExchange {
+        ids: Vec<FixtureId>,
+        profile: String,
+        mode: String,
+        place: Option<(UniverseId, u16)>,
+        library: Option<Profile>,
+    },
     PatchHandle {
         id: FixtureId,
         handle: Handle,
@@ -1655,6 +1664,17 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("patch.change_mode") => Ok(Command::PatchChangeMode {
             ids: ids_or_id(&v)?,
             mode: string(&v, "mode")?,
+        }),
+        Some("patch.exchange") => Ok(Command::PatchExchange {
+            ids: ids_or_id(&v)?,
+            profile: string(&v, "profile")?,
+            mode: string(&v, "mode")?,
+            place: match (opt_uint(&v, "universe")?, opt_uint(&v, "address")?) {
+                (Some(universe), Some(address)) => Some((universe, address)),
+                (None, None) => None,
+                _ => return Err("expected both or neither of \"universe\" and \"address\"".into()),
+            },
+            library: None,
         }),
         Some("patch.handle") => Ok(Command::PatchHandle {
             id: uint(&v, "id")?,
@@ -3907,21 +3927,35 @@ fn refuse_origin(req: &Request, resp: Response) -> Result<Response, ErrorRespons
 /// PAT-09: a `patch.add` of a library type (`"<manufacturer>/<model>"`) takes the library's
 /// profile along; any other command, or a key the library does not have, goes on unchanged.
 pub fn attach_profile(lib: &RwLock<Option<Library>>, cmd: Command) -> Command {
-    let Command::PatchAdd {
-        add,
-        profile: None,
-        park_conflicting,
-    } = cmd
-    else {
-        return cmd;
+    let find = |key: &str| {
+        let ((manufacturer, model), guard) = key.split_once('/').zip(lib.read().ok())?;
+        guard.as_ref()?.profile(manufacturer, model).ok()
     };
-    let profile = add.profile.split_once('/').zip(lib.read().ok()).and_then(
-        |((manufacturer, model), guard)| guard.as_ref()?.profile(manufacturer, model).ok(),
-    );
-    Command::PatchAdd {
-        add,
-        profile,
-        park_conflicting,
+    match cmd {
+        Command::PatchAdd {
+            add,
+            profile: None,
+            park_conflicting,
+        } => Command::PatchAdd {
+            profile: find(&add.profile),
+            add,
+            park_conflicting,
+        },
+        // PAT-37: an exchange fetches its profile the same way.
+        Command::PatchExchange {
+            ids,
+            profile,
+            mode,
+            place,
+            library: None,
+        } => Command::PatchExchange {
+            library: find(&profile),
+            ids,
+            profile,
+            mode,
+            place,
+        },
+        other => other,
     }
 }
 
@@ -4877,6 +4911,65 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn ipc_62_patch_exchange_parses_with_and_without_a_place() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"patch.exchange","ids":[3,4],"profile":"Acme/Wash 19","mode":"16 Channel"}"#
+            ),
+            Command::PatchExchange {
+                ids: vec![3, 4],
+                profile: "Acme/Wash 19".into(),
+                mode: "16 Channel".into(),
+                place: None,
+                library: None,
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"patch.exchange","id":3,"profile":"spot","mode":"Long","universe":2,"address":101}"#
+            ),
+            Command::PatchExchange {
+                ids: vec![3],
+                profile: "spot".into(),
+                mode: "Long".into(),
+                place: Some((2, 101)),
+                library: None,
+            }
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"patch.exchange","profile":"spot","mode":"Long"}"#,
+            r#"{"v":1,"cmd":"patch.exchange","ids":[3],"mode":"Long"}"#,
+            r#"{"v":1,"cmd":"patch.exchange","ids":[3],"profile":"spot"}"#,
+            r#"{"v":1,"cmd":"patch.exchange","ids":[3],"profile":"spot","mode":"Long","address":101}"#,
+            r#"{"v":1,"cmd":"patch.exchange","ids":[3],"profile":"spot","mode":"Long","universe":2}"#,
+            r#"{"v":1,"cmd":"patch.exchange","ids":[3],"profile":"spot","mode":"Long","universe":2,"address":70000}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_62_patch_exchange_takes_its_profile_from_the_library() {
+        let lib = library("exchange");
+        let cmd = parse_command(
+            r#"{"v":1,"cmd":"patch.exchange","ids":[3],"profile":"Showtec/LED Par 56","mode":"6 Channel"}"#,
+        )
+        .unwrap();
+        match attach_profile(&lib, cmd) {
+            Command::PatchExchange {
+                library: Some(p), ..
+            } => assert_eq!(p.model, "LED Par 56"),
+            other => panic!("expected a patch.exchange with a profile, got {other:?}"),
+        }
+        let cmd = parse_command(
+            r#"{"v":1,"cmd":"patch.exchange","ids":[3],"profile":"rgbw","mode":"default"}"#,
+        )
+        .unwrap();
+        assert_eq!(attach_profile(&lib, cmd.clone()), cmd);
     }
 
     #[test]

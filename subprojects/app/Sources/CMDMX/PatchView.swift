@@ -4,6 +4,15 @@ import UniformTypeIdentifiers
 // Patch screen (PAT-10): pure rendering of `engine.fixtures` plus command sending. No overlap
 // check, address or number logic lives here; the engine decides and refuses with a warning.
 
+/// UI-72: what the Add strip would exchange the selection to; nil when it cannot be sent.
+private struct ExchangeTarget: Equatable {
+    let key: String
+    let label: String
+    let mode: String
+    let universe: Int?
+    let address: Int?
+}
+
 struct PatchView: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
@@ -12,6 +21,7 @@ struct PatchView: View {
     /// LIB-23: the profile editor covers the screen while set; the Add panel stays alive underneath.
     @State private var editor: ProfileEditorTarget?
     @State private var pendingPick: SavedPick?
+    @State private var exchange: ExchangeTarget?
     @State private var clickMonitor: Any?
     /// LIB-35: the report of the last GDTF import, shown until Done.
     @State private var gdtfReport: GdtfImported?
@@ -50,7 +60,7 @@ struct PatchView: View {
         let rows = shownRows
         return VStack(spacing: 8) {
             // UI-73: hidden, the panel stays alive so its typed text and a pending pick survive.
-            AddPanel(pendingPick: $pendingPick, edit: { editor = $0 }, hide: { addHidden = true })
+            AddPanel(pendingPick: $pendingPick, exchange: $exchange, edit: { editor = $0 }, hide: { addHidden = true })
                 .frame(height: addHidden ? 0 : 220).clipped().disabled(addHidden).opacity(addHidden ? 0 : 1)
             HStack(spacing: 8) {
                 PanelWindow(title: "Patch", info: find.isEmpty ? "\(rows.count) fixtures" : "\(rows.count) of \(engine.fixtures.count)", framed: true, accessory: {
@@ -75,7 +85,7 @@ struct PatchView: View {
                     }
                 }
                 VStack(spacing: 8) {
-                    SelectedPanel(fixtures: rows.filter { selection.contains($0.id) }, edit: { editor = $0 })
+                    SelectedPanel(fixtures: rows.filter { selection.contains($0.id) }, exchange: exchange, edit: { editor = $0 })
                     if let message = engine.lastMessage {
                         Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -144,6 +154,7 @@ private struct AddPanel: View {
     @EnvironmentObject private var engine: EngineClient
     /// A model saved in the profile editor: shown and picked here once the library lists it (LIB-26).
     @Binding var pendingPick: SavedPick?
+    @Binding var exchange: ExchangeTarget?
     let edit: (ProfileEditorTarget) -> Void
     let hide: () -> Void
     /// UI-74: the fixture count when the last Add was sent; a longer list means the engine accepted it.
@@ -205,6 +216,17 @@ private struct AddPanel: View {
     }
 
     private var pickedRow: ModelRow? { modelRows.first { $0.pick == pick } }
+
+    /// UI-72: Universe and Address are sent only when Address is filled in, and then both must parse.
+    private var exchangeTarget: ExchangeTarget? {
+        guard let picked = pickedRow, !mode.isEmpty, let a = optionalInt(address) else { return nil }
+        var u: Int?
+        if a != nil {
+            guard let uv = Int(universe) else { return nil }
+            u = uv
+        }
+        return ExchangeTarget(key: picked.pick.key, label: picked.model, mode: mode, universe: u, address: a)
+    }
 
     /// The Manufacturer column's choices in display order.
     private var mfrChoices: [ManufacturerPick] {
@@ -309,6 +331,8 @@ private struct AddPanel: View {
             // A selected manufacturer that left the list is dropped.
             if case let .named(name) = mfr, !list.contains(where: { $0.name == name }) { mfr = nil }
         }
+        .onAppear { exchange = exchangeTarget }
+        .onChange(of: exchangeTarget) { _, target in exchange = target }
         .onChange(of: showKeys) { _, keys in
             guard mfr == .show else { return }
             // A type patched meanwhile needs its show copy too.
@@ -467,6 +491,7 @@ private struct SelectedPanel: View {
     @EnvironmentObject private var engine: EngineClient
     /// The selection in number order (PAT-25); every action sends all their ids (IPC-40).
     let fixtures: [FixtureInfo]
+    let exchange: ExchangeTarget?
     let edit: (ProfileEditorTarget) -> Void
     @State private var universe = ""
     @State private var address = ""
@@ -478,7 +503,7 @@ private struct SelectedPanel: View {
     /// The last Move sent, so a refused overlap can be resent with `park_conflicting` (PAT-35).
     @State private var lastMove: (ids: [Int], universe: Int, address: Int)?
 
-    private enum Armed { case remove, mode }
+    private enum Armed { case remove, mode, exchange }
 
     private var ids: [Int] { fixtures.map(\.id) }
     /// The current mode when every selected fixture has the same one, else "".
@@ -552,6 +577,21 @@ private struct SelectedPanel: View {
                         .buttonStyle(FlatButton(fill: armed == .mode ? .red : nil))
                         .disabled(mode.isEmpty || mode == sharedMode)
                     }
+                    // UI-72: two-step, with UI-47's usage line; sends the Add strip's pick.
+                    Button(armed == .exchange ? "Confirm exchange" : exchange.map { "Exchange to \($0.label) · \($0.mode)" } ?? "Exchange") {
+                        guard let x = exchange else { return }
+                        if armed == .exchange {
+                            engine.patchExchange(ids: ids, profile: x.key, mode: x.mode, universe: x.universe, address: x.address)
+                            armed = nil
+                        } else {
+                            armed = .exchange
+                            engine.askUsage(fixtures: ids)
+                        }
+                    }
+                    .buttonStyle(FlatButton(fill: armed == .exchange ? .red : nil))
+                    .lineLimit(1)
+                    .disabled(exchange == nil)
+                    usageCaption(for: .exchange)
                     Button("Edit profile…") { edit(.show(key: fixture.profile, mode: fixture.mode)) }
                         .buttonStyle(FlatButton())
                         .disabled(!sharedProfile)
@@ -564,19 +604,25 @@ private struct SelectedPanel: View {
                             engine.askUsage(fixtures: ids)
                         }
                     }.buttonStyle(FlatButton(fill: armed == .remove ? .red : nil))
-                    if armed == .remove, let usage = engine.usage, usage.fixtures == ids {
-                        Text(usage.patchText).font(.caption).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    usageCaption(for: .remove)
                 }
                 .padding(8)
                 .onAppear { load(fixture) }
                 .onChange(of: ids) { _, _ in load(fixture) }
                 .onChange(of: sharedMode) { _, m in mode = m }
+                .onChange(of: exchange) { _, _ in if armed == .exchange { armed = nil } }
             } else {
                 Text("Select a row").font(.caption).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity).padding(12)
             }
+        }
+    }
+
+    /// UI-47's usage line under an armed button.
+    @ViewBuilder private func usageCaption(for action: Armed) -> some View {
+        if armed == action, let usage = engine.usage, usage.fixtures == ids {
+            Text(usage.patchText(withEmpties: action == .remove)).font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

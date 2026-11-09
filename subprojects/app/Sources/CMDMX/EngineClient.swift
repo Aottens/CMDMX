@@ -666,8 +666,9 @@ struct UsageReply: Decodable, Equatable {
         emptyCues = (try? c.decode(Int.self, forKey: .emptyCues)) ?? 0
     }
 
-    /// UI-47: what removing the fixtures touches, for the Patch screen.
-    var patchText: String {
+    /// UI-47: what removing the fixtures touches, for the Patch screen. UI-72: an exchange empties nothing,
+    /// so `withEmpties: false` leaves that sentence out.
+    func patchText(withEmpties: Bool = true) -> String {
         func list(_ parts: [String]) -> String {
             parts.count < 2 ? parts.joined() : parts.dropLast().joined(separator: ", ") + " and " + (parts.last ?? "")
         }
@@ -680,7 +681,7 @@ struct UsageReply: Decodable, Equatable {
         var empty: [String] = []
         if emptyGroups > 0 { empty.append("\(emptyGroups) \(emptyGroups == 1 ? "group" : "groups")") }
         if emptyCues > 0 { empty.append("\(emptyCues) \(emptyCues == 1 ? "cue" : "cues")") }
-        if !empty.isEmpty {
+        if withEmpties && !empty.isEmpty {
             text += " \(list(empty)) \(emptyGroups + emptyCues == 1 ? "ends" : "end") up empty and \(emptyGroups + emptyCues == 1 ? "stays" : "stay")."
         }
         return text + " Undo brings it all back."
@@ -2033,6 +2034,13 @@ final class EngineClient: ObservableObject {
     func patchRenumber(ids: [Int], number: Int) { patch("patch.renumber", ["ids": ids, "number": number]) }
     func patchName(ids: [Int], name: String) { patch("patch.name", ["ids": ids, "name": name]) }
     func patchChangeMode(ids: [Int], mode: String) { patch("patch.change_mode", ["ids": ids, "mode": mode]) }
+
+    /// PTC-01: universe and address go along only when both are given (else the engine keeps each fixture's own).
+    func patchExchange(ids: [Int], profile: String, mode: String, universe: Int?, address: Int?) {
+        var fields: [String: Any] = ["ids": ids, "profile": profile, "mode": mode]
+        if let universe, let address { fields["universe"] = universe; fields["address"] = address }
+        patch("patch.exchange", fields)
+    }
 
     // Palette commands (PAL-27). Numbers and cells, never ids; a refusal comes back as a warning.
 
