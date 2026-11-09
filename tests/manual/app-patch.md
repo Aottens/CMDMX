@@ -73,6 +73,28 @@ so the imports stay out of the real user profiles folder.
       the table is unchanged
 - [ ] Add one with number 201: refused ("number 201 is already in use"), nothing changes
 
+- [ ] Search something, leave Patch and come back: with the search empty, the Model column does not show the old result
+
+## Add starts over (UI-74)
+- [ ] Count 2, universe 2, address 1, number 3001, Add: accepted, Address and Number are empty again;
+      Count, Universe and the pick stay
+- [ ] Number 3001, Add: refused, Address and Number stay as typed
+
+## Find in Patch and Hide (UI-73), on a rig of about 250
+- [ ] A rig of about 250 (the Demo show plus 216 Generic Dimmer): the title says "254 fixtures"
+- [ ] Type `par` in Find: only the pars show, the title says "20 of 254", without a delay in typing
+- [ ] Add with a warning (the first Add on a new universe) still empties Address and Number
+- [ ] Type a number prefix and a name: both narrow the table
+- [ ] Select a dimmer, type `par 56` with the mouse resting on a row: the selection is empty, no row
+      gets selected by itself, the Selected panel says "Select a row"
+- [ ] Return in Find: every row shown is selected ("Selected · 54 fixtures"), the find text stays
+- [ ] Narrow further so some selected rows leave: the Selected panel's count drops with them
+- [ ] A plain click on a row inside the multi-selection keeps that row while filtered (PAT-25)
+- [ ] Esc in Find empties it, all rows are back; a second Esc leaves the Patch screen (UI-44)
+- [ ] Type something in the Add panel, Hide: the table takes the height; Show Add brings the panel back
+      with the typing kept
+- [ ] Hide, close and restart the app: the Add panel is still hidden; Show Add, restart: shown
+
 ## Edit a selected row (PAT-04..06, 13, PAT-09/10)
 - [ ] Select 1221, Move to universe 1 address 300: the row shows 1.300; Move it onto 1.45:
       refused with the overlap warning

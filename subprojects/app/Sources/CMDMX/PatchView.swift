@@ -25,6 +25,10 @@ struct PatchView: View {
     @State private var clickMonitor: Any?
     /// LIB-35: the report of the last GDTF import, shown until Done.
     @State private var gdtfReport: GdtfImported?
+    /// UI-73: the find text, and the Add strip's Hide state (remembered on this Mac).
+    @State private var find = ""
+    @FocusState private var findFocused: Bool
+    @AppStorage("patchAddHidden") private var addHidden = false
 
     var body: some View {
         ZStack {
@@ -47,12 +51,25 @@ struct PatchView: View {
         .sheet(item: $gdtfReport) { GdtfReportSheet(report: $0) }
     }
 
+    /// UI-73: the rows that match the find field, in number order.
+    private var shownRows: [FixtureInfo] {
+        engine.fixtures.filter { FixturesWindow.matches($0, find) }.sorted { $0.number < $1.number }
+    }
+
     private var patchScreen: some View {
-        let rows = engine.fixtures.sorted { $0.number < $1.number }
+        let rows = shownRows
         return VStack(spacing: 8) {
-            AddPanel(pendingPick: $pendingPick, exchange: $exchange, edit: { editor = $0 }).frame(height: 220)
+            // UI-73: hidden, the panel stays alive so its typed text and a pending pick survive.
+            AddPanel(pendingPick: $pendingPick, exchange: $exchange, edit: { editor = $0 }, hide: { addHidden = true })
+                .frame(height: addHidden ? 0 : 220).clipped().disabled(addHidden).opacity(addHidden ? 0 : 1)
             HStack(spacing: 8) {
-                PanelWindow(title: "Patch", info: "\(rows.count) fixtures", framed: true, accessory: { EmptyView() }) {
+                PanelWindow(title: "Patch", info: find.isEmpty ? "\(rows.count) fixtures" : "\(rows.count) of \(engine.fixtures.count)", framed: true, accessory: {
+                    TextField("Find", text: $find).textFieldStyle(.plain).font(Typo.mono(Typo.small))
+                        .frame(width: 110).focused($findFocused)
+                        .onSubmit { selection = Set(shownRows.map(\.id)) }   // UI-73: Return selects every row shown
+                        .onChange(of: findFocused) { _, now in if !now, ui.fieldEscaped { find = "" } }   // UI-44
+                    if addHidden { Button("Show Add") { addHidden = false }.buttonStyle(FlatButton(compact: true)) }   // UI-73
+                }) {
                     Table(rows, selection: $selection) {
                         TableColumn("No") { Text(String($0.number)).monospacedDigit().opacity($0.parked ? 0.45 : 1) }.width(min: 40, ideal: 50, max: 70)
                         TableColumn("Name") { Text($0.name).opacity($0.parked ? 0.45 : 1) }.width(min: 60, ideal: 120)
@@ -81,15 +98,17 @@ struct PatchView: View {
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
+        .onChange(of: rows.map(\.id)) { _, ids in selection.formIntersection(ids) }   // UI-73: leaving rows leave the selection
         .onChange(of: selection) { old, new in
-            if !old.isEmpty, new.isEmpty, let id = clickedRowID(rows) { selection = [id] }
+            // UI-73: only when some of `old` is still shown; a filter that empties the selection must not restore a row.
+            if !old.isEmpty, new.isEmpty, !old.isDisjoint(with: rows.map(\.id)), let id = clickedRowID(rows) { selection = [id] }
             engine.clearMessage()
         }
         // A plain click on a row inside a multi-selection keeps only that row, on mouse-down (PAT-25);
         // the onChange above puts it back when the Table empties the selection afterwards.
         .onAppear {
             clickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
-                if selection.count > 1, let id = clickedRowID(engine.fixtures.sorted { $0.number < $1.number }),
+                if selection.count > 1, let id = clickedRowID(shownRows),
                    selection.contains(id) { selection = [id] }
                 return event
             }
@@ -137,6 +156,9 @@ private struct AddPanel: View {
     @Binding var pendingPick: SavedPick?
     @Binding var exchange: ExchangeTarget?
     let edit: (ProfileEditorTarget) -> Void
+    let hide: () -> Void
+    /// UI-74: the fixture count when the last Add was sent; a longer list means the engine accepted it.
+    @State private var countBeforeAdd: Int?
     @State private var wantedMode: String?
     @State private var query = ""
     @State private var mfr: ManufacturerPick?
@@ -218,7 +240,7 @@ private struct AddPanel: View {
         let canAdd = picked != nil && !mode.isEmpty && countValue != nil && universeValue != nil
             && addressValue != nil && numberValue != nil
 
-        PanelWindow(title: "Add", framed: true, accessory: { EmptyView() }) {
+        PanelWindow(title: "Add", framed: true, accessory: { Button("Hide", action: hide).buttonStyle(FlatButton(compact: true)) }) {
             VStack(alignment: .leading, spacing: 6) {
                 TextField("Search library, e.g. showtec par 56", text: $query)
                     .textFieldStyle(.roundedBorder)
@@ -295,6 +317,10 @@ private struct AddPanel: View {
             .padding(8)
         }
         .onAppear { engine.requestManufacturers(query: query) }
+        // ponytail: a warning can accompany an accepted Add, so only a longer list counts; a refused Add followed by someone else's Add also empties them.
+        .onChange(of: engine.fixtures.count) { _, n in   // UI-74: an accepted Add starts over
+            if let before = countBeforeAdd, n > before { number = ""; address = ""; countBeforeAdd = nil }
+        }
         .onChange(of: query) { _, _ in
             pick = nil
             engine.requestManufacturers(query: query)
@@ -371,6 +397,7 @@ private struct AddPanel: View {
         guard let picked = pickedRow, let c = Int(count), let u = Int(universe),
               case let .some(a) = optionalInt(address), case let .some(n) = optionalInt(number) else { return }
         engine.patchAdd(profile: picked.pick.key, mode: mode, count: c, universe: u, address: a, number: n)
+        countBeforeAdd = engine.fixtures.count   // UI-74
     }
 
     /// Clicking the selected manufacturer again deselects it.

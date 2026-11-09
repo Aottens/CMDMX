@@ -102,13 +102,24 @@ With a model and mode picked, fill in the fields of the Add panel and click **Ad
 
 Leave Address or Number empty and CMDMX takes the first free channels and the next free numbers.
 A patch that would overlap another fixture, or a number that is in use, is refused with a message
-that names the clash. Nothing changes then.
+that names the clash. Nothing changes then, and your typing stays so you can correct it.
+
+After an Add that went through, Address and Number go empty again, so the next type you add lands on
+the next free channels and numbers. Count, Universe and the picked model stay.
+
+**Hide** in the title of the Add panel folds it away, so the table takes the screen. **Show Add** in
+the title of the patch table brings it back, with what you had typed. Your Mac remembers the choice.
 
 ## The patch table
 
 The table lists every fixture, sorted by number: number, name, profile, mode, address as
 `universe.address` (for example `1.45`) and footprint. A mode that mixes colour without a dimmer
 channel says *virtual dimmer*: CMDMX gives it a dimmer of its own.
+
+The **Find** field in the title of the table narrows it as you type, on number, name or model, and the
+title counts what is left (`12 of 254`). A selected fixture that drops out of the table also drops out
+of the selection, so an edit never reaches a row you cannot see. Return selects every row shown. Esc
+empties the field.
 
 Click a row to edit it in the Selected panel:
 

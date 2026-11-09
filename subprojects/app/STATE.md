@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-09 (PTC-02)_
+_Last updated: 2026-11-09 (PTC-03)_
 
 ## Current step
+PTC-03 (2026-11-09, UI-73, UI-74): `PatchView.shownRows` filters with `FixturesWindow.matches`; `clickedRowID` works on the shown rows. `AddPanel` stays alive while hidden (height 0, disabled) so typing and `pendingPick` survive. `countBeforeAdd`: only a longer list counts as accepted, a warning can come with an accepted Add. Run: `tests/manual/runs/2026-11-09-PTC-03.md`.
 PTC-02 (2026-11-09, UI-72): `ExchangeTarget`, computed by `AddPanel` and passed through `PatchView` to `SelectedPanel`; `usageCaption(for:)`; `UsageReply.patchText(withEmpties:)`; `EngineClient.patchExchange`.
 MUL-05 (2026-11-08, UI-67): `ShowView.keepPatch`, off in `onAppear` and left as it is after a send, so a refused name keeps it. `armedLabel` names what goes. `EngineClient.newShow(_:keepPatch:)` adds `keep: "patch"`.
 MUL-04 (2026-11-08, UI-66): `UIState.releasePage` holds the page tapped while Release is armed; the function softkeys offer its two scopes. A second Release key press sends scope all in `FunctionButtons`. `EngineClient.releaseScope` sends `playback.release` with `scope`; the count in the message zone is the engine's notice.
