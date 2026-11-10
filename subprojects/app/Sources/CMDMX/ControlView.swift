@@ -50,6 +50,10 @@ struct ControlView: View {
         .onDisappear { engine.showMapping(nil) }
         .onChange(of: mappingName) { _, name in engine.showMapping(name) }
         .onChange(of: selected) { _, _ in armed = nil }
+        // Put down (Esc, placed, another device): the pick message goes with it; a refusal's message stays.
+        .onChange(of: armed) { _, now in
+            if now == nil, engine.lastMessage?.hasPrefix("Pick a key for") == true { engine.clearMessage() }
+        }
         // A row selects its mapping for the bindings table.
         .onChange(of: selected) { _, name in
             if let mapping = engine.control.devices.first(where: { $0.name == name })?.mapping { mappingName = mapping }
@@ -355,6 +359,8 @@ private struct BindingsPanel: View {
                     .onSubmit {
                         let text = deviceText.trimmingCharacters(in: .whitespaces)
                         if text != devicePattern { engine.controlMappingDevice(info.name, device: text) }
+                        // A refusal leaves the stored pattern shown; an accepted one comes back with the mapping.
+                        deviceText = devicePattern
                     }
                     .onChange(of: devicePattern) { _, v in deviceText = v }
                     .onAppear { deviceText = devicePattern }

@@ -2595,7 +2595,10 @@ final class EngineClient: ObservableObject {
                 var rest = state; rest.lastInput = control.lastInput
                 let onlyInput = rest == control && state.lastInput != control.lastInput
                 control = state
-                if !onlyInput, let name = shownMapping { sendJSON("control.mapping", ["name": name]) }
+                // A renamed or deleted mapping is not asked for: the screen moves on to the new name.
+                if !onlyInput, let name = shownMapping, state.mappings.contains(where: { $0.name == name }) {
+                    sendJSON("control.mapping", ["name": name])
+                }
             }
         case "control.mapping":
             if let doc = ControlMappingDoc(data), doc.name == shownMapping { controlMapping = doc }
