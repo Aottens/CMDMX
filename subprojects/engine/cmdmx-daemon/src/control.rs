@@ -1328,6 +1328,34 @@ impl Control {
                 self.refresh();
                 self.persist()
             }
+            ControlRequest::MappingDuplicate { name, to } => {
+                valid_name(&to)?;
+                if self.mappings.contains_key(&to) {
+                    return Err(format!("mapping '{to}' exists"));
+                }
+                let mut m = (self.mappings.get(&name))
+                    .cloned()
+                    .ok_or(format!("unknown mapping '{name}'"))?;
+                m.name = to.clone();
+                self.mappings.insert(to.clone(), m);
+                self.save(&to)?;
+                self.refresh();
+                Ok(())
+            }
+            ControlRequest::MappingDevice { name, device } => {
+                if self.profiles.contains(&name) {
+                    return Err(format!("'{name}' is a profile"));
+                }
+                if device.split('|').any(|a| a.trim().is_empty()) {
+                    return Err(format!(
+                        "'{device}' is not a device pattern (a non-empty name, or names split by |)"
+                    ));
+                }
+                self.mapping_mut(&name)?.device = device;
+                self.save(&name)?;
+                self.refresh();
+                Ok(())
+            }
             ControlRequest::MappingDelete { name } => {
                 if self.profiles.contains(&name) {
                     return Err(format!("'{name}' is a profile"));

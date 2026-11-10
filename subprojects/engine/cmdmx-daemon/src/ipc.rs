@@ -732,6 +732,14 @@ pub enum ControlRequest {
         name: String,
         to: String,
     },
+    MappingDuplicate {
+        name: String,
+        to: String,
+    },
+    MappingDevice {
+        name: String,
+        device: String,
+    },
     MappingDelete {
         name: String,
     },
@@ -1323,6 +1331,14 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
         "mapping_rename" => ControlRequest::MappingRename {
             name: string(v, "name")?,
             to: string(v, "to")?,
+        },
+        "mapping_duplicate" => ControlRequest::MappingDuplicate {
+            name: string(v, "name")?,
+            to: string(v, "to")?,
+        },
+        "mapping_device" => ControlRequest::MappingDevice {
+            name: string(v, "name")?,
+            device: string(v, "device")?,
         },
         "mapping_delete" => ControlRequest::MappingDelete {
             name: string(v, "name")?,

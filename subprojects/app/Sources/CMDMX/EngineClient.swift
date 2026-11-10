@@ -2292,6 +2292,8 @@ final class EngineClient: ObservableObject {
     func controlDeck(_ device: String, page: Int) { patch("control.deck", ["device": device, "page": page]) }
     func controlMappingNew(_ name: String, device: String) { patch("control.mapping_new", ["name": name, "device": device]) }
     func controlMappingRename(_ name: String, to: String) { patch("control.mapping_rename", ["name": name, "to": to]) }
+    func controlMappingDuplicate(_ name: String, to: String) { patch("control.mapping_duplicate", ["name": name, "to": to]) }
+    func controlMappingDevice(_ name: String, device: String) { patch("control.mapping_device", ["name": name, "device": device]) }
     func controlMappingDelete(_ name: String) { patch("control.mapping_delete", ["name": name]) }
     func controlMappingImport(json: String, replace: Bool = false) {
         patch("control.mapping_import", replace ? ["json": json, "replace": true] : ["json": json])

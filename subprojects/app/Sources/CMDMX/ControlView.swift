@@ -301,6 +301,9 @@ private struct BindingsPanel: View {
     @EnvironmentObject private var engine: EngineClient
     @Binding var mappingName: String?
     @State private var confirmDelete = false
+    @State private var deviceText = ""
+    /// A duplicate or rename sent: shown once the engine lists it, so a refusal keeps the mapping shown.
+    @State private var pendingName: String?
     @State private var action = ""
     @State private var newName = ""
     @State private var newDevice = "*"
@@ -342,6 +345,29 @@ private struct BindingsPanel: View {
             Picker("", selection: $mappingName) {
                 ForEach(engine.control.mappings, id: \.name) { Text($0.name + ($0.profile ? " (profile)" : "")).tag(String?.some($0.name)) }
             }.labelsHidden().frame(width: 200)
+            if let info {
+                TextField("device", text: $deviceText).textFieldStyle(.roundedBorder).frame(width: 150)
+                    .disabled(info.profile)
+                    .help(info.profile ? "A profile's device pattern is fixed; duplicate it to change it" : "Device name pattern; * matches any, | separates alternatives. Return saves")
+                    .onSubmit {
+                        let text = deviceText.trimmingCharacters(in: .whitespaces)
+                        if text != devicePattern { engine.controlMappingDevice(info.name, device: text) }
+                    }
+                    .onChange(of: devicePattern) { _, v in deviceText = v }
+                    .onAppear { deviceText = devicePattern }
+                Button("Duplicate…") {
+                    guard let to = promptName("Duplicate \(info.name) as", initial: info.name + " copy") else { return }
+                    pendingName = to
+                    engine.controlMappingDuplicate(info.name, to: to)
+                }
+                if !info.profile {
+                    Button("Rename…") {
+                        guard let to = promptName("Rename \(info.name) to", initial: info.name), to != info.name else { return }
+                        pendingName = to
+                        engine.controlMappingRename(info.name, to: to)
+                    }
+                }
+            }
             Spacer(minLength: 0)
             Button("Export") { export() }.disabled(engine.controlMapping == nil)
             Button("Import") { importMapping() }
@@ -355,6 +381,9 @@ private struct BindingsPanel: View {
         .buttonStyle(FlatButton(compact: true))
         .padding(.horizontal, 8).frame(height: 28)
         .onChange(of: mappingName) { _, _ in confirmDelete = false }
+        .onChange(of: engine.control.mappings) { _, list in
+            if let p = pendingName, list.contains(where: { $0.name == p }) { mappingName = p; pendingName = nil }
+        }
     }
 
     /// Add a binding by Learn, and a new mapping.
@@ -383,6 +412,23 @@ private struct BindingsPanel: View {
             }
         }
         .padding(8)
+    }
+
+    private var devicePattern: String { engine.controlMapping?.raw["device"] as? String ?? "" }
+
+    /// A small name prompt (CTL-69/70); nil on Cancel or a blank answer.
+    private func promptName(_ title: String, initial: String) -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = initial
+        alert.accessoryView = field
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let text = field.stringValue.trimmingCharacters(in: .whitespaces)
+        return text.isEmpty ? nil : text
     }
 
     private func export() {
