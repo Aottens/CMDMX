@@ -80,6 +80,8 @@ Added by the fourth review (L, owner 2026-11-05): L7, L8.
 
 Added by the fifth review (M, owner 2026-11-08): M5's hint, M6.
 
+Spec'd as P1-40 (2026-11-10, awaiting the owner): F3 holds already (UI-42), IDEA-39 was done by UI-63, F7's Help key by UI-55.
+
 ## G. Show files
 1. No reveal, delete or rename in the app ("Finder", `showfile.md`), and the app cannot reveal the file.
 2. Loading a show brings its output nodes: no way to keep this desk's settings (Art-Net at home,

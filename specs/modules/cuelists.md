@@ -557,6 +557,10 @@ Titan pages used: *Cue List Timing*, *Creating a Cue List*, *Editing Cue Lists*,
 ### Working on many at once (IDEA-35 batch D, P1-36; approved by owner 2026-11-07)
 - **CUE-63** **Delete several cues** (D1; amends CUE-07; Titan: hold the first cue, press the last, *Not* takes one out). `cue.delete {id, cues: [2, 3, 3.5]}`: each cue goes as CUE-07, and tracking afterwards is as if they were deleted one by one in number order (CUE-51). Deleting every cue of the playback is refused ("Delete the playback instead", PBK-14). An unknown cue refuses it all. One undo step. Copying or moving several cues stays out, as copying cues between lists does. Test `cue_63_…`: three cues out of five, tracking after, all cues refused, one undo.
 
+### Go at zero (IDEA-35 batch F, P1-40; proposed 2026-11-10, awaiting the owner)
+- **CUE-64** **A Go with the fader at 0 says why it is dark** (K12; CUE-15 and CUE-42 stay). While the list's fader is at 0 %, the
+  amber text in the Go block reads "fader 0 % · no output"; between 0 and 99.5 % it stays "fader n %". Checked by hand.
+
 ## Scenario test format
 Scenario playback entries gain the CUE-38 fields (`kind`, `list`, `chase`, `master`, and per cue
 `number`, `legend`, `link`, `track`, `group_times`; `number` may be left out and then counts 1, 2, 3 … in

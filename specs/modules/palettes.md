@@ -286,6 +286,11 @@ back from the colour (PRG-69), so it survives without being stored and the show 
 ### Working on many at once (IDEA-35 batch D, P1-36; approved by owner 2026-11-07)
 - **PAL-34** **Copy, Move and Delete several palettes** (D1, D2; amends PAL-27; Titan *Copying, Moving and Deleting Palettes*). `palette.copy` and `palette.move` take `numbers` in place of `number`, with `layout` (`retain` by default, or `bunch`) and, for Move, `swap`, placed from `to.handle` in the target window by cell order as PBK-50 and PBK-51 place handles. A window grows as PAL-28, so a block never runs past its end. A used target cell refuses Copy, and Move without `swap`. `palette.delete` takes `numbers`; each palette goes as PAL-18 (its references become their fallback values). A single `number` stays as today. One refused palette refuses the whole command; one undo step ("Delete 12 palettes"). Test `pal_34_…`: retain, bunch, swap, delete with a palette used in a cue, one undo.
 
+### A hint on a refusal (IDEA-35 batch F, P1-40; proposed 2026-11-10, awaiting the owner)
+- **PAL-35** **A Normal palette that does not fit names Update** (M5). When a palette is refused because it holds nothing for the
+  selected fixtures (PAL-05, PAL-09) and it is a Normal palette, the warning adds what to do: "Palette 1 Rood does not fit the
+  selection. To add these fixtures, set them and Update the palette". Other refusals stay as they are. Tests `pal_35_…`.
+
 ## Scenario test format
 Scenario files (`engine-merge.md`) gain an optional `palettes` list (palette entries as in
 PAL-23) and a `pal` action (`record` with the `palette.record` fields, `apply {number}`,

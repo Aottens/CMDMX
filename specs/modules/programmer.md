@@ -617,6 +617,16 @@ and a `programmer` expectation:
 Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are unit tests on
 `Programmer`; anything that reaches the frame (PRG-12, 13, 20, 21, 23..26) is a scenario file.
 
+### Small controls (IDEA-35 batch F, P1-40; proposed 2026-11-10, awaiting the owner)
+- **PRG-99** **All with an empty programmer** (K9). With nothing stepped and an empty programmer, All (PRG-06) does nothing to the
+  selection and says "All: nothing in the programmer". With values in the programmer it is PRG-06 as now. Tests `prg_99_…`.
+- **PRG-100** **A relative level** (F6). The command line takes `@ +n` and `@ -n` (n from 0 to 100, as PRG-11 takes a level): each
+  target's intensity moves by n percentage points from the level the programmer holds for it, or from its level on stage when the
+  programmer holds none, clamped to 0..100. One undo step, like `@ n`. Titan offers the same as a +/- softkey after `@`; here it is typed.
+  `@ +` without a number refuses as PRG-11. Tests `prg_100_…`.
+- **PRG-101** **The level wheel's travel** (F6). Dragging a wheel in the app moves one step per point, so 0 to full takes 255 pt
+  in place of about 1020 pt. Option (fine) and Shift (coarse) keep their meaning (PRG-19). The scroll wheel is unchanged. Checked by hand.
+
 ## Out of scope (phase 1 unless noted)
 - Fan beyond PRG-56..62 (phase 2): Titan's Pull Middle, Pull Ends and Pull End curves, Fan parts
   (hold Fan + a number), the group options Fan Within Group and Fan Group as Fixture, press-and-hold

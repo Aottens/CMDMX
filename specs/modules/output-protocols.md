@@ -100,6 +100,13 @@ does that.
 - **OUT-18** *(later)* On a clean shutdown the daemon sends three packets with the Stream_Terminated option bit per sACN node. Needs signal handling in the daemon.
 - **OUT-19** *(later)* E1.31 universe discovery packets (universe 64214) every 10 s.
 
+### Names for nodes (IDEA-35 batch F, P1-40; proposed 2026-11-10, awaiting the owner)
+- **OUT-42** **A node has a name** (F4). Each node gains `name`, 0 to 32 characters, empty by default. It is saved in the show
+  (schema 14, SHW-04; an older show loads with every name empty), taken by `output.add` and `output.edit` (OUT-34), and carried in the
+  snapshot and deltas (OUT-33). The Output screen (OUT-37) gets a Name column, edited in place. Where a node is named for a person, in
+  the OUT-30 log lines, the status-bar detail and the warnings, a node with a name reads `Kerk Eurolite (serial #3)`, and one without
+  stays `serial #3`. Tests `out_42_…`.
+
 ## Hardware checklist
 `tests/hardware/output.md` covers OUT-03/04/06/09/20..23 on the owner's network and Eurolite MK2. P1-18 adds lines for OUT-29/31: a fixture on universe 2 seen on Art-Net and sACN universe 2 in a monitor while universe 1 keeps going, a node disabled and enabled without the others dropping a frame, and the Eurolite chosen on the Output screen surviving a daemon restart.
 
