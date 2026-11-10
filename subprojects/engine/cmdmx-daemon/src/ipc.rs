@@ -732,8 +732,21 @@ pub enum ControlRequest {
         name: String,
         to: String,
     },
+    MappingDuplicate {
+        name: String,
+        to: String,
+    },
+    MappingDevice {
+        name: String,
+        device: String,
+    },
     MappingDelete {
         name: String,
+    },
+    /// CTL-71: remove every deck binding of one page.
+    DeckClear {
+        mapping: String,
+        deck_page: u16,
     },
     MappingImport {
         json: String,
@@ -1323,6 +1336,18 @@ fn parse_control(cmd: &str, v: &serde_json::Value) -> Result<Command, String> {
         "mapping_rename" => ControlRequest::MappingRename {
             name: string(v, "name")?,
             to: string(v, "to")?,
+        },
+        "mapping_duplicate" => ControlRequest::MappingDuplicate {
+            name: string(v, "name")?,
+            to: string(v, "to")?,
+        },
+        "mapping_device" => ControlRequest::MappingDevice {
+            name: string(v, "name")?,
+            device: string(v, "device")?,
+        },
+        "deck_clear" => ControlRequest::DeckClear {
+            mapping: string(v, "mapping")?,
+            deck_page: field(v, "deck_page", "a deck page number")?,
         },
         "mapping_delete" => ControlRequest::MappingDelete {
             name: string(v, "name")?,

@@ -1298,6 +1298,18 @@ impl Control {
                 self.refresh();
                 Ok(())
             }
+            ControlRequest::DeckClear { mapping, deck_page } => {
+                let m = self.mapping_mut(&mapping)?;
+                let before = m.bindings.len();
+                (m.bindings)
+                    .retain(|b| !(matches!(b.input, Input::Deck(_)) && b.deck_page == deck_page));
+                if m.bindings.len() == before {
+                    return Err(format!("deck page {deck_page} holds no keys"));
+                }
+                self.save(&mapping)?;
+                self.refresh();
+                Ok(())
+            }
             ControlRequest::MappingNew { name, device } => {
                 valid_name(&name)?;
                 if self.mappings.contains_key(&name) {
@@ -1327,6 +1339,34 @@ impl Control {
                 }
                 self.refresh();
                 self.persist()
+            }
+            ControlRequest::MappingDuplicate { name, to } => {
+                valid_name(&to)?;
+                if self.mappings.contains_key(&to) {
+                    return Err(format!("mapping '{to}' exists"));
+                }
+                let mut m = (self.mappings.get(&name))
+                    .cloned()
+                    .ok_or(format!("unknown mapping '{name}'"))?;
+                m.name = to.clone();
+                self.mappings.insert(to.clone(), m);
+                self.save(&to)?;
+                self.refresh();
+                Ok(())
+            }
+            ControlRequest::MappingDevice { name, device } => {
+                if self.profiles.contains(&name) {
+                    return Err(format!("'{name}' is a profile"));
+                }
+                if device.split('|').any(|a| a.trim().is_empty()) {
+                    return Err(format!(
+                        "'{device}' is not a device pattern (a non-empty name, or names split by |)"
+                    ));
+                }
+                self.mapping_mut(&name)?.device = device;
+                self.save(&name)?;
+                self.refresh();
+                Ok(())
             }
             ControlRequest::MappingDelete { name } => {
                 if self.profiles.contains(&name) {

@@ -2287,11 +2287,15 @@ final class EngineClient: ObservableObject {
         if let deckPage { fields["deck_page"] = deckPage }
         patch("control.unbind", fields)
     }
+    /// CTL-71: removes every deck key of one page in one write.
+    func controlDeckClear(_ mapping: String, page: Int) { patch("control.deck_clear", ["mapping": mapping, "deck_page": page]) }
     /// CTL-53, 67: a Stream Deck's brightness 0...100, or the deck page it shows.
     func controlDeck(_ device: String, brightness: Int) { patch("control.deck", ["device": device, "brightness": brightness]) }
     func controlDeck(_ device: String, page: Int) { patch("control.deck", ["device": device, "page": page]) }
     func controlMappingNew(_ name: String, device: String) { patch("control.mapping_new", ["name": name, "device": device]) }
     func controlMappingRename(_ name: String, to: String) { patch("control.mapping_rename", ["name": name, "to": to]) }
+    func controlMappingDuplicate(_ name: String, to: String) { patch("control.mapping_duplicate", ["name": name, "to": to]) }
+    func controlMappingDevice(_ name: String, device: String) { patch("control.mapping_device", ["name": name, "device": device]) }
     func controlMappingDelete(_ name: String) { patch("control.mapping_delete", ["name": name]) }
     func controlMappingImport(json: String, replace: Bool = false) {
         patch("control.mapping_import", replace ? ["json": json, "replace": true] : ["json": json])
@@ -2591,7 +2595,10 @@ final class EngineClient: ObservableObject {
                 var rest = state; rest.lastInput = control.lastInput
                 let onlyInput = rest == control && state.lastInput != control.lastInput
                 control = state
-                if !onlyInput, let name = shownMapping { sendJSON("control.mapping", ["name": name]) }
+                // A renamed or deleted mapping is not asked for: the screen moves on to the new name.
+                if !onlyInput, let name = shownMapping, state.mappings.contains(where: { $0.name == name }) {
+                    sendJSON("control.mapping", ["name": name])
+                }
             }
         case "control.mapping":
             if let doc = ControlMappingDoc(data), doc.name == shownMapping { controlMapping = doc }

@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch and profiles are complete: exchange, copy, update from the library, and behaviour per fixture at the output.
-Next: batch F's builds (CTR-01, CTR-03), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
+Next: batch F's builds (CTR-03, CTR-04), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -202,7 +202,9 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - Elgato Stream Decks (Original, MK.2, Mini, XL, Neo, +, Pedal) driven by the engine itself, no
   Elgato app needed: a fresh deck gets playback keys, page and Go, each key drawn with the
   playback's legend, colour, level and state. In the Control screen you link keys by dragging a
-  playback, Go, a page or the GM onto a key, by right-click or by Learn; a deck has its own pages.
+  playback, Go, a page or the GM onto a key, by right-click or by Learn; a deck has its own pages. Keys copy and move
+  to any page, and a page clears in one go.
+- Mappings can be renamed and duplicated, a profile too, and their device pattern changed on the Control screen.
 
 **Show, undo and app**
 - A delete says what it does before you confirm: how many cues on how many playbacks use a palette, a running playback's output ending, the live cue; under Patch's Confirm remove, where a fixture is used and what ends up empty.

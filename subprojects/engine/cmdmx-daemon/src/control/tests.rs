@@ -1997,3 +1997,133 @@ fn ctl_68_release_all_and_release_page_from_a_device() {
     assert!(run_all(&mut e, &mut h, cmds).is_empty());
     assert!(!active(&e, first) && !active(&e, 900));
 }
+
+// --- CTL-70 duplicate a mapping, change its device pattern (IDEA-35 F4, P1-40) ---------------
+
+fn file(dir: &std::path::Path, name: &str) -> Value {
+    serde_json::from_str(&fs::read_to_string(dir.join(format!("control/{name}.json"))).unwrap())
+        .unwrap()
+}
+
+fn profile_flag(c: &Control, name: &str) -> Option<Value> {
+    (c.snapshot()["mappings"].as_array().unwrap().iter())
+        .find(|m| m["name"] == name)
+        .map(|m| m["profile"].clone())
+}
+
+#[test]
+fn ctl_70_both_commands_parse_and_are_neutral() {
+    for json in [
+        r#"{"v":1,"cmd":"control.mapping_duplicate","name":"nano","to":"copy"}"#,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"nano","device":"*nano*"}"#,
+    ] {
+        let cmd = ipc::parse_command(json).unwrap();
+        assert!(matches!(cmd, Command::Control(_)), "{json}");
+        assert_eq!(crate::class(&cmd), crate::Class::Neutral, "{json}");
+    }
+    for json in [
+        r#"{"v":1,"cmd":"control.mapping_duplicate","name":"nano"}"#,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"nano"}"#,
+    ] {
+        assert!(ipc::parse_command(json).is_err(), "{json}");
+    }
+}
+
+#[test]
+fn ctl_70_duplicate_copies_bindings_and_device_and_refuses_a_name_in_use() {
+    let (mut c, dir) = enabled("dup");
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.mapping_duplicate","name":"nano","to":"copy"}"#,
+    )
+    .unwrap();
+    let copy = file(&dir, "copy");
+    let nano = file(&dir, "nano");
+    assert_eq!(copy["name"], "copy");
+    assert_eq!(copy["device"], "nano*");
+    assert_eq!(copy["bindings"], nano["bindings"]);
+    assert_eq!(profile_flag(&c, "copy"), Some(json!(false)));
+    // The source and the device that uses it stay as they were.
+    assert_eq!(nano["name"], "nano");
+    assert_eq!(device(&c.snapshot(), "nano")["mapping"], "nano");
+    // A name in use, an unknown source or a bad name refuses and writes nothing.
+    for json in [
+        r#"{"v":1,"cmd":"control.mapping_duplicate","name":"nano","to":"copy"}"#,
+        r#"{"v":1,"cmd":"control.mapping_duplicate","name":"copy","to":"nano"}"#,
+        r#"{"v":1,"cmd":"control.mapping_duplicate","name":"ghost","to":"other"}"#,
+        r#"{"v":1,"cmd":"control.mapping_duplicate","name":"nano","to":"a/b"}"#,
+    ] {
+        assert!(req(&mut c, json).is_err(), "{json}");
+    }
+    assert!(!dir.join("control/other.json").exists());
+    // The copy survives a restart.
+    let (again, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert!(again.mapping_reply("copy").contains("fader 1"));
+}
+
+#[test]
+fn ctl_70_a_profile_duplicates_but_its_device_pattern_does_not_change() {
+    let (mut c, dir) = bare("dup-profile");
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.mapping_duplicate","name":"Mackie Control","to":"MC mine"}"#,
+    )
+    .unwrap();
+    // The copy is a user mapping; the profile stays the shipped one, with no file.
+    assert_eq!(profile_flag(&c, "MC mine"), Some(json!(false)));
+    assert_eq!(profile_flag(&c, MC), Some(json!(true)));
+    assert!(!dir.join("control/Mackie Control.json").exists());
+    let copy = file(&dir, "MC mine");
+    let shipped: Value = serde_json::from_str(&c.mapping_reply(MC)).unwrap();
+    assert_eq!(copy["device"], shipped["mapping"]["device"]);
+    assert_eq!(copy["bindings"], shipped["mapping"]["bindings"]);
+    // A profile's device pattern refuses; the copy's changes.
+    assert!(req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"Mackie Control","device":"*X*"}"#,
+    )
+    .is_err());
+    assert!(!dir.join("control/Mackie Control.json").exists());
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"MC mine","device":"*X-Touch*"}"#,
+    )
+    .unwrap();
+    assert_eq!(file(&dir, "MC mine")["device"], "*X-Touch*");
+}
+
+#[test]
+fn ctl_70_mapping_device_changes_the_pattern_and_writes_the_file() {
+    let (mut c, dir) = setup("device");
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"nano","device":"*nano*|*Launchpad*"}"#,
+    )
+    .unwrap();
+    let nano = file(&dir, "nano");
+    assert_eq!(nano["device"], "*nano*|*Launchpad*");
+    assert_eq!(nano["bindings"].as_array().unwrap().len(), 7);
+    let reply: Value = serde_json::from_str(&c.mapping_reply("nano")).unwrap();
+    assert_eq!(reply["mapping"]["device"], "*nano*|*Launchpad*");
+    // The new pattern is the one CTL-24 matches: a Launchpad seen for the first time gets `nano`.
+    ports(&mut c, &[port("Launchpad X", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"Launchpad X","on":true}"#,
+    )
+    .unwrap();
+    assert_eq!(device(&c.snapshot(), "Launchpad X")["mapping"], "nano");
+    // An empty pattern, an empty alternative or an unknown mapping refuses; the file stays.
+    for json in [
+        r#"{"v":1,"cmd":"control.mapping_device","name":"nano","device":""}"#,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"nano","device":"  "}"#,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"nano","device":"a||b"}"#,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"nano","device":"a|"}"#,
+        r#"{"v":1,"cmd":"control.mapping_device","name":"ghost","device":"x"}"#,
+    ] {
+        assert!(req(&mut c, json).is_err(), "{json}");
+    }
+    assert_eq!(file(&dir, "nano")["device"], "*nano*|*Launchpad*");
+    assert!(!dir.join("control/ghost.json").exists());
+}

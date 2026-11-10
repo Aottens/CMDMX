@@ -49,6 +49,12 @@ mapping shown as a `.json` file and **Import** reads one back, so you can take y
 another Mac. Importing a mapping with a name that already exists asks before replacing it.
 **Delete** asks for a second click.
 
+Beside the mapping list, the **Device** field shows the mapping's device pattern; type a new one and press Return
+to change which devices it is for. Several patterns are separated by `|` (`*BCF2000*|*X-Touch*`). **Duplicate…**
+saves a copy under a new name, also of a profile, so you can start from one and change it. **Rename…** gives one of
+your mappings a new name; the devices that use it keep using it. A profile's device pattern cannot be changed and a
+profile cannot be renamed: duplicate it first. A name that is already in use is refused with a message.
+
 ## Learn
 
 Learn binds the next control you move to an action. There are two ways to start it.
@@ -252,15 +258,21 @@ brings the device table back.
   a bound key replaces it and says what it was.
 - **Right-click** a key for its menu: **Action** (pick an action, or a deck page), **Group** and
   **Palette** (the groups and palettes of the show), **Edit action…** to type one, **Label…** to
-  give it your own text, **Colour** for its bar, and **Remove**. Choosing a new action drops the
-  old label and colour.
+  give it your own text, **Colour** for its bar, **Copy to…**, **Move to…** and **Remove**. Choosing a new action
+  drops the old label and colour. **Remove** asks before it removes the key.
+- **Copy to…** and **Move to…** pick the key up: it gets a blue outline and the message line says
+  `Pick a key for Group 3`. Switch the deck page if you like, then click the key where it should go, on any page.
+  A move onto a bound key swaps the two; a copy onto a bound key is refused (`key 5 is in use`), so pick an empty
+  one. Click the key itself or press Esc to put it down.
 - **Learn**: in Learn mode, click a control on the main screen, then press the key on the deck or
   click it on the screen.
 
 **Deck pages.** A deck can have more pages than one. The **Deck page** selector picks the page
 the deck and the screen show; **+** adds an empty page, which becomes real once you bind a key on
 it. Bind keys to `deck page 2` and back to `deck page 1` to make a folder. The deck page is the
-deck's own and does not change the console page.
+deck's own and does not change the console page. Right-click a page button for **Clear page…**, which asks first
+(`Clear page 2? It holds 9 keys.`) and then empties that page of the deck in one go; MIDI and OSC bindings in the
+same mapping stay.
 
 The Stream Deck Original is the model CMDMX has been tested with. The MK.2, Mini, XL, Neo, + and
 Pedal are listed as `untested` but work the same way. The dials and touch strip of the Stream Deck
