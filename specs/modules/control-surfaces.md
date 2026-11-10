@@ -509,7 +509,7 @@ feedback is a **key image** instead of an LED or a motor.
 ### Working on many at once (IDEA-35 batch D, P1-36; approved by owner 2026-11-07)
 - **CTL-68** **Release all, or the page** (D3; adds to CTL-05). Actions `release all` → `playback.release {"scope":"all"}` and `release page` → `{"scope":"page"}` with the page shown at that moment (PBK-52). Button, on press; no feedback. Bindable on MIDI, OSC and the Stream Deck like any action. Test `ctl_68_…`.
 
-### Controls the app was missing (IDEA-35 batch F, P1-40; proposed 2026-11-10, awaiting the owner)
+### Controls the app was missing (IDEA-35 batch F, P1-40; approved by owner 2026-11-10)
 From `docs/research/everyday-gaps.md` F1 and F4; checked in `tests/manual/runs/2026-11-10-F-checks.md`.
 
 - **CTL-69** **Rename a mapping** (F1). The Control screen's mapping header gets **Rename…** beside Delete, for a mapping that is

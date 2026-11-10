@@ -11,9 +11,9 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch F, controls and small things: its spec (P1-40) waits for the owner, then builds CTR-01..09. Then
-   batches G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind
-   and Edit) stays apart from them.
+1. IDEA-35 batch F, controls and small things (spec approved): builds CTR-01 + CTR-02, CTR-03,
+   CTR-04 + CTR-05 + CTR-07, CTR-06 + CTR-08 + CTR-09. Then batches G, I and J in the owner's order
+   (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and Edit) stays apart from them.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
 ## Waiting on the owner
@@ -27,7 +27,6 @@ Runs only the owner can do (gate 3):
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
 
 Programming and small checks:
-- Batch F's spec (P1-40): approve it and answer its nine questions (`specs/modules/ui.md`, *Owner questions (P1-40)*).
 - Program the service in *Kerk* at home on Art-Net as `tests/hardware/church.md` asks (steady looks, *Front band*,
   *Front spreker*), and say which fresnels are band and speaker. Use the release that goes on the church Mac: a show
   saved with a newer schema does not open on an older one.

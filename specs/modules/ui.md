@@ -630,7 +630,7 @@ From `docs/research/everyday-gaps.md` E, K10, M2, M3. Behaviour in `patch.md` PA
 - **UI-75** **Copy, swap, update, profiles** (E2, E3). The Selected panel gets **Copy** (with an optional start number), **Swap addresses** (armed, the message says "Pick the fixtures to swap with"; a new selection and Confirm send it; Esc or Clear disarms) and **Update from library** (enabled when every selected row has the same profile). The Add strip gets **Duplicate…** on any pick (asks a new model name) and **Delete profile** on a user profile, two-step: "Delete user profile X? Shows that use it keep their copy." Checked by hand.
 - **UI-76** **Behaviour** (E1). The Selected panel gets **Behaviour…**, a sheet over the attributes every selected row has: Invert, Low, High and Offset in %, a value shown empty where the selection differs (Titan shows no Inverted on a mixed selection), Swap Pan and Tilt when all have both, and Reset. A row with behaviour shows a small `INV` or `LIM` tag in the Mode column. Checked by hand on Art-Net.
 
-### Small controls (IDEA-35 batch F, P1-40; proposed 2026-11-10, awaiting the owner)
+### Small controls (IDEA-35 batch F, P1-40; approved by owner 2026-11-10)
 From `docs/research/everyday-gaps.md` F, K9, K12, L7, L8, M5 and M6; checked in `tests/manual/runs/2026-11-10-F-checks.md`.
 F3 holds already (UI-42: an armed function on an effect palette tile is refused). IDEA-39 was done by UI-63.
 
@@ -652,7 +652,7 @@ Palette, cue and playback behaviour (their own specs fill in the disabled contro
 (P1-10), freely configurable workspaces, legends and halos, picture legends, a remote/touch layout
 (IDEA-06), and the narrow single-column layout of the sketch (below 900 px). Not in batch C (P1-33): editing values in the Grid, Titan's *View If* and *Frozen* filters, the DMX View's input column, a fixture's position on a rig plan (IDEA-25). Not in batch D (P1-36): Unfold of a cue list or chase onto faders and a linked playback copy (owner decisions 3 and 4: IDEA-46, IDEA-47), copying or moving several cues, Titan's *Copy Legends* option and *Unassign*, the Release Priority setting and *Release all Masters*.
 
-## Owner questions (P1-40, batch F; open)
+## Owner decisions (P1-40, batch F, 2026-11-10: every recommendation accepted)
 1. **What is in batch F:** F1 and F4 (CTL-69..71, OUT-42), F2 (UI-77), F5 (UI-78), F6 (PRG-100, PRG-101), F7's two manual fixes, L7 and
    L8 (UI-79, UI-80), M5 (PAL-35), M6 (PBK-53), and from the third review K9 (PRG-99) and K12 (CUE-64)? Recommended: yes. F3 holds already,
    IDEA-39 was done by UI-63, and IDEA-38 looks fixed in the code (hidden workspaces are left out of hit-testing and accessibility),

@@ -326,7 +326,7 @@ From `docs/research/everyday-gaps.md` D; checked in `tests/manual/runs/2026-11-0
   its `values` become its only cue with times 0 and overlap 100; options at their defaults;
   `next_id` = highest id + 1. An id beyond page 10 is left out with a warning.
 
-### A page keeps its legend (IDEA-35 batch F, P1-40; proposed 2026-11-10, awaiting the owner)
+### A page keeps its legend (IDEA-35 batch F, P1-40; approved by owner 2026-11-10)
 - **PBK-53** **A page's legend follows a whole-page copy or delete** (M6). When `playback.copy` takes every occupied handle of one
   page (PBK-50) and puts them on another page whose legend is empty, that page takes the source's legend. When `playback.delete` takes
   every occupied handle of a page, the page's legend empties. Both happen in the same undo step. A copy or delete of part of a page leaves

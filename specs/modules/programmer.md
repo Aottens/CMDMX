@@ -617,7 +617,7 @@ and a `programmer` expectation:
 Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are unit tests on
 `Programmer`; anything that reaches the frame (PRG-12, 13, 20, 21, 23..26) is a scenario file.
 
-### Small controls (IDEA-35 batch F, P1-40; proposed 2026-11-10, awaiting the owner)
+### Small controls (IDEA-35 batch F, P1-40; approved by owner 2026-11-10)
 - **PRG-99** **All with an empty programmer** (K9). With nothing stepped and an empty programmer, All (PRG-06) does nothing to the
   selection and says "All: nothing in the programmer". With values in the programmer it is PRG-06 as now. Tests `prg_99_…`.
 - **PRG-100** **A relative level** (F6). The command line takes `@ +n` and `@ -n` (n from 0 to 100, as PRG-11 takes a level): each
