@@ -285,8 +285,8 @@ Builds: CTR-01 + CTR-02; CTR-03; CTR-04 + CTR-05 + CTR-07; CTR-06 + CTR-08 + CTR
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| CTR-01 | Daemon and app: rename, duplicate and change the device pattern of a mapping on the Control screen; `ctl_70_…`; manual and run. | CTL-69, CTL-70 | S | todo |
-| CTR-02 | Daemon and app: copy, move and clear deck keys and a two-step Remove; `ctl_71_…`; manual and run with the Stream Deck. | CTL-71 | S | todo |
+| CTR-01 | Daemon and app: rename, duplicate and change the device pattern of a mapping on the Control screen; `ctl_70_…`; manual and run. | CTL-69, CTL-70 | S | done (2026-11-10, #291; run `tests/manual/runs/2026-11-10-CTR-01-02.md`) |
+| CTR-02 | Daemon and app: copy, move and clear deck keys and a two-step Remove; `ctl_71_…`; manual and run with the Stream Deck. | CTL-71 | S | done (2026-11-10, #291; run `tests/manual/runs/2026-11-10-CTR-01-02.md`) |
 | CTR-03 | Core, daemon and app: a name for an output node, schema 14, in the log lines and the status bar; `out_42_…`; manual and run on Art-Net. | OUT-42 | M | todo |
 | CTR-04 | App: Move a fixture's button in the Fixtures window; manual and run, which also checks IDEA-38 with an accessibility click. | UI-77 | S | todo |
 | CTR-05 | App: the keypad below 1440 pt, and the manual's Command-1 to 5 and `faders_per_page` lines; run at 1280 pt. | UI-78 | S | todo |

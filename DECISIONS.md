@@ -5,6 +5,20 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-10 — What CTL-70 and CTL-71 refuse (CTR-01, CTR-02)
+
+**Decision:** `control.mapping_device` refuses an empty pattern and any blank `|` alternative (`a||b`, `a|`); the
+rest of CTL-22's pattern is free text. `control.deck_clear` removes only deck bindings (keys, dials, touch) of that
+page: a mapping shared with MIDI or OSC keeps those, though they sit on page 1 too. A page with no deck bindings
+refuses ("deck page 3 holds no keys"), as `control.unbind` refuses a key that is not bound.
+
+**Alternatives considered:** clear every binding with that `deck_page` (it would take a MIDI mapping's whole page 1);
+a clear of an empty page as a silent success.
+
+**Reasoning:** the spec says "every binding of one page" of a deck; the deck page means nothing to a MIDI or OSC input.
+
+**Reversal trigger:** a mapping where non-deck inputs are meant to follow the deck page.
+
 ## 2026-11-08 — The desk's strip bus stays RS485, polled, with a jam limit (HW-12, HW-37; owner)
 
 **Decision:** Strips, panel and main controller stay on half-duplex RS485 with the main controller as the only master.
