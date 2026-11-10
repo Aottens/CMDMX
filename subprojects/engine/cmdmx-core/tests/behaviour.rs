@@ -567,11 +567,11 @@ fn pat_47_the_show_file_has_them_only_when_set_and_they_survive_a_reopen() {
 #[test]
 fn pat_47_schema_12_migrates_and_changes_nothing() {
     let (e, a, _) = rig();
-    assert_eq!(SCHEMA_VERSION, 13);
+    assert_eq!(SCHEMA_VERSION, 14);
     let mut v: Json = serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
     v["schema_version"] = json!(12);
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert_eq!(migrations.len(), 2, "{migrations:?}");
     assert!(migrations[0].starts_with("12 -> 13"), "{migrations:?}");
     let (loaded, _) = Engine::from_show(&show);
     assert!(loaded.fixture(a).unwrap().behaviour.is_empty());

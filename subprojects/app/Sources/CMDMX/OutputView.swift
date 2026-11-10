@@ -33,6 +33,7 @@ struct OutputView: View {
                     // Each cell gets `engine` again: after a reconnect rebuilds the rows, macOS Table cells
                     // can lose the inherited environment object, and reading it then traps.
                     Table(rows) {
+                        TableColumn("Name") { NameCell(node: $0).environmentObject(engine) }.width(min: 100, ideal: 160, max: 240)
                         TableColumn("Universe") { LineCell(node: $0).environmentObject(engine) }.width(min: 50, ideal: 60, max: 80)
                         TableColumn("Protocol") { Text(protocolName($0.kind)) }.width(min: 60, ideal: 70, max: 90)
                         TableColumn("Destination") { DestinationCell(node: $0).environmentObject(engine) }.width(min: 220, ideal: 360)
@@ -91,6 +92,17 @@ private struct NodeField: View {
             .onSubmit { commit(text.trimmingCharacters(in: .whitespaces)); text = load(node) }
             .onAppear { text = load(node) }
             .onChange(of: node) { _, n in text = load(n) }
+    }
+}
+
+/// OUT-42: the engine refuses more than 32 characters; the refusal lands in `lastMessage` and the field snaps back.
+private struct NameCell: View {
+    @EnvironmentObject private var engine: EngineClient
+    let node: OutputNode
+    var body: some View {
+        NodeField(node: node, placeholder: "name", load: { $0.name }) { s in
+            if s != node.name { engine.editOutput(node.id, ["name": s]) }
+        }
     }
 }
 

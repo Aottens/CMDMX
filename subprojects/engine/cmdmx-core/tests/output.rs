@@ -13,6 +13,9 @@
 //!   node by id, `kind` cannot change), `output_remove(&[NodeId])` (all ids checked first).
 //!   Refusals are `CoreError`s and change nothing (OUT-28). Nodes are in `EditState` (undo).
 //! - `Show::output { next_node_id, nodes }`, the last top-level key; schema 6.
+//! - OUT-42: `Node::name` (0 to 32 characters, empty by default, left out of the file when empty;
+//!   schema 14), `Engine::output_add_named(line, enabled, name, kind)` (`output_add` is it with an
+//!   empty name) and `Node::label()`: `serial #3`, or `Kerk Eurolite (serial #3)` with a name.
 
 #![allow(
     clippy::panic,
@@ -69,6 +72,7 @@ fn node(id: u32, line: u16, kind: NodeKind) -> Node {
         id,
         line,
         enabled: true,
+        name: String::new(),
         kind,
     }
 }
@@ -126,8 +130,8 @@ fn out_13_output_is_the_last_key_with_nodes_sorted_by_id() {
     e.output_add(2, false, sacn(2)).unwrap();
     let text = e.to_show(meta()).to_json();
     let v: Json = serde_json::from_str(&text).unwrap();
-    assert_eq!(SCHEMA_VERSION, 13);
-    assert_eq!(v["schema_version"], json!(13));
+    assert_eq!(SCHEMA_VERSION, 14);
+    assert_eq!(v["schema_version"], json!(14));
     let last_key = text
         .lines()
         .rfind(|l| l.starts_with("  \"") && !l.starts_with("   "))
@@ -283,10 +287,10 @@ fn out_26_undo_takes_the_patch_add_and_its_nodes_back_in_one_step() {
 fn out_27_a_schema_5_show_gets_default_nodes_for_every_patched_universe() {
     let file = std::fs::read_to_string(V5_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 8, "{migrations:?}");
+    assert_eq!(migrations.len(), 9, "{migrations:?}");
     assert!(migrations[0].starts_with("5 -> 6"), "{migrations:?}");
     assert!(migrations[1].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
-    assert_eq!(show.schema_version, 13);
+    assert_eq!(show.schema_version, 14);
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     // The church rig patches universes 1 and 2.
@@ -503,4 +507,106 @@ fn out_28_bad_nodes_are_left_out_on_load_with_one_warning_each() {
         "id 5 clashes with node 1: {warnings:?}"
     );
     assert_eq!(e.nodes().map(|n| n.id).collect::<Vec<_>>(), [1, 2, 3]);
+}
+
+// ---- OUT-42 ------------------------------------------------------------------
+
+#[test]
+fn out_42_a_node_name_is_saved_at_schema_14_and_left_out_when_empty() {
+    assert_eq!(SCHEMA_VERSION, 14);
+    let mut e = Engine::new(Settings::default());
+    let id = e
+        .output_add_named(
+            1,
+            true,
+            "Kerk Eurolite".into(),
+            serial("/dev/cu.usbserial-A"),
+        )
+        .unwrap();
+    let v: Json = serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
+    assert_eq!(v["schema_version"], json!(14));
+    let saved = v["output"]["nodes"].as_array().unwrap();
+    let named = saved.iter().find(|n| n["id"] == json!(id)).unwrap();
+    assert_eq!(named["name"], json!("Kerk Eurolite"));
+    assert!(
+        saved
+            .iter()
+            .filter(|n| n["id"] != json!(id))
+            .all(|n| n.get("name").is_none()),
+        "an empty name is not written: {saved:?}"
+    );
+    let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
+    assert!(migrations.is_empty(), "{migrations:?}");
+    let (loaded, warnings) = Engine::from_show(&show);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(nodes(&loaded), nodes(&e));
+}
+
+#[test]
+fn out_42_a_schema_13_show_loads_with_every_name_empty() {
+    let mut v: Json =
+        serde_json::from_str(&Engine::new(Settings::default()).to_show(meta()).to_json()).unwrap();
+    v["schema_version"] = 13.into();
+    let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
+    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert!(migrations[0].starts_with("13 -> 14"), "{migrations:?}");
+    assert_eq!(show.schema_version, 14);
+    let (e, warnings) = Engine::from_show(&show);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(e.nodes().count(), 3);
+    assert!(e.nodes().all(|n| n.name.is_empty()));
+}
+
+#[test]
+fn out_42_a_name_is_at_most_32_characters() {
+    let mut e = Engine::new(Settings::default());
+    let before = nodes(&e);
+    let too_long = "x".repeat(33);
+    let refused = "a node name is at most 32 characters (this one has 33)";
+    assert_eq!(
+        refusal(e.output_add_named(2, true, too_long.clone(), artnet(1))),
+        refused
+    );
+    assert_eq!(
+        refusal(e.output_edit(Node {
+            name: too_long,
+            ..node(1, 1, artnet(0))
+        })),
+        refused
+    );
+    assert_eq!(nodes(&e), before, "nothing changed");
+
+    // Characters, not bytes: 32 accented letters are 64 bytes and fit.
+    let longest = "é".repeat(32);
+    let id = e
+        .output_add_named(2, true, longest.clone(), artnet(1))
+        .unwrap();
+    assert_eq!(nodes(&e).last().unwrap().name, longest);
+    e.output_edit(node(id, 2, artnet(1))).unwrap();
+    assert_eq!(nodes(&e).last().unwrap().name, "", "a name can be cleared");
+}
+
+#[test]
+fn out_42_a_too_long_name_in_a_file_leaves_that_node_out_with_a_warning() {
+    let mut v: Json =
+        serde_json::from_str(&Engine::new(Settings::default()).to_show(meta()).to_json()).unwrap();
+    v["output"]["nodes"][2]["name"] = json!("y".repeat(33));
+    let (show, _) = Show::from_json(&v.to_string()).unwrap();
+    let (e, warnings) = Engine::from_show(&show);
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(
+        warnings[0].contains("at most 32 characters"),
+        "{warnings:?}"
+    );
+    assert_eq!(e.nodes().map(|n| n.id).collect::<Vec<_>>(), [1, 2]);
+}
+
+#[test]
+fn out_42_a_node_is_named_for_a_person_by_its_name_kind_and_id() {
+    let mut n = node(3, 1, serial("auto"));
+    assert_eq!(n.label(), "serial #3");
+    n.name = "Kerk Eurolite".into();
+    assert_eq!(n.label(), "Kerk Eurolite (serial #3)");
+    assert_eq!(node(1, 1, artnet(0)).label(), "art-net #1");
+    assert_eq!(node(2, 1, sacn(1)).label(), "sacn #2");
 }

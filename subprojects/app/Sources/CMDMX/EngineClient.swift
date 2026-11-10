@@ -1011,6 +1011,7 @@ struct OutputNode: Decodable, Identifiable, Equatable {
     let id: Int
     let line: Int
     let enabled: Bool
+    let name: String
     let kind: String
     let portAddress: Int?
     let target: String?
@@ -1022,7 +1023,7 @@ struct OutputNode: Decodable, Identifiable, Equatable {
     let detail: String?
 
     private enum CodingKeys: String, CodingKey {
-        case id, line, enabled, kind, target, universe, priority, unicast, port, state, detail
+        case id, line, enabled, name, kind, target, universe, priority, unicast, port, state, detail
         case portAddress = "port_address"
     }
 
@@ -1031,6 +1032,7 @@ struct OutputNode: Decodable, Identifiable, Equatable {
         id = (try? c.decode(Int.self, forKey: .id)) ?? 0
         line = (try? c.decode(Int.self, forKey: .line)) ?? 1
         enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? true
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
         kind = (try? c.decode(String.self, forKey: .kind)) ?? "?"
         portAddress = try? c.decode(Int.self, forKey: .portAddress)
         target = try? c.decode(String.self, forKey: .target)
@@ -1045,6 +1047,12 @@ struct OutputNode: Decodable, Identifiable, Equatable {
         default: state = .degraded   // "Degraded" or something newer: show it as a warning
         }
         detail = try? c.decode(String.self, forKey: .detail)
+    }
+
+    /// OUT-42: how a node is named for a person, the engine's rule: `serial #3`, `Kerk Eurolite (serial #3)`.
+    var label: String {
+        let k = kind == "artnet" ? "art-net" : kind
+        return name.isEmpty ? "\(k) #\(id)" : "\(name) (\(k) #\(id))"
     }
 }
 

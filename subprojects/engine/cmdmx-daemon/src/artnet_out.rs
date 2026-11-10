@@ -2,14 +2,15 @@
 
 use std::io;
 use std::net::{SocketAddrV4, UdpSocket};
+use std::sync::{Arc, Mutex};
 
 use cmdmx_protocols::{artnet, ArtSequence};
 
-use crate::output::{open_udp, Health, OutputState};
+use crate::output::{open_udp, read_name, Health, OutputState, SharedName};
 
 pub struct ArtNetNode {
     /// `art-net #3`, the prefix of every log line (OUT-30).
-    name: String,
+    name: SharedName,
     target: SocketAddrV4,
     port_address: u16,
     sequence: ArtSequence,
@@ -18,9 +19,14 @@ pub struct ArtNetNode {
 }
 
 impl ArtNetNode {
+    /// OUT-42: log lines read the name the reconciler keeps current.
+    pub fn share_name(&mut self, name: SharedName) {
+        self.name = name;
+    }
+
     pub fn new(name: String, target: SocketAddrV4, port_address: u16) -> Self {
         ArtNetNode {
-            name,
+            name: Arc::new(Mutex::new(name)),
             target,
             port_address,
             sequence: ArtSequence::default(),
@@ -38,7 +44,7 @@ impl ArtNetNode {
         }
         self.health
             .record(&result)
-            .map(|m| format!("{}: {m}", self.name))
+            .map(|m| format!("{}: {m}", read_name(&self.name)))
     }
 
     /// OUT-33: why the node is degraded.

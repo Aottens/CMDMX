@@ -100,6 +100,7 @@ pub enum Command {
     OutputAdd {
         line: UniverseId,
         enabled: bool,
+        name: String,
         kind: NodeKind,
     },
     /// OUT-34: only the fields to change (`id`, `v` and `cmd` are not among them).
@@ -1194,6 +1195,7 @@ fn parse_output_add(v: &serde_json::Value) -> Result<Command, String> {
     Ok(Command::OutputAdd {
         line,
         enabled,
+        name: opt_string(v, "name")?.unwrap_or_default(),
         kind,
     })
 }
@@ -4415,6 +4417,7 @@ mod tests {
             id,
             line,
             enabled: true,
+            name: String::new(),
             kind,
         };
         let status = |node, state, detail: Option<&str>| OutputStatus {
@@ -4552,6 +4555,7 @@ mod tests {
             Command::OutputAdd {
                 line: 2,
                 enabled: true,
+                name: String::new(),
                 kind: NodeKind::default_artnet(2),
             }
         );
@@ -4562,6 +4566,7 @@ mod tests {
             Command::OutputAdd {
                 line: 3,
                 enabled: false,
+                name: String::new(),
                 kind: NodeKind::Sacn {
                     universe: 3,
                     priority: 150,
@@ -4576,6 +4581,7 @@ mod tests {
             Command::OutputAdd {
                 line: 1,
                 enabled: true,
+                name: String::new(),
                 kind: NodeKind::Artnet {
                     port_address: 17,
                     target: "2.255.255.255".into(),
@@ -4587,6 +4593,7 @@ mod tests {
             Command::OutputAdd {
                 line: 2,
                 enabled: true,
+                name: String::new(),
                 kind: NodeKind::Serial {
                     port: "auto".into()
                 },
@@ -4619,6 +4626,59 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn out_42_output_add_takes_a_name() {
+        use cmdmx_core::output::NodeKind;
+        assert_eq!(
+            parse_command(
+                r#"{"v":1,"cmd":"output.add","line":1,"kind":"serial","port":"/dev/cu.usbserial-A","name":"Kerk Eurolite"}"#
+            )
+            .unwrap(),
+            Command::OutputAdd {
+                line: 1,
+                enabled: true,
+                name: "Kerk Eurolite".into(),
+                kind: NodeKind::Serial {
+                    port: "/dev/cu.usbserial-A".into()
+                },
+            }
+        );
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"output.add","line":1,"kind":"serial","name":5}"#)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn out_42_snapshot_carries_a_name_only_when_set() {
+        use cmdmx_core::output::{Node, NodeKind};
+        let status = |id, name: &str| OutputStatus {
+            node: Node {
+                id,
+                line: 1,
+                enabled: true,
+                name: name.into(),
+                kind: NodeKind::Serial {
+                    port: "auto".into(),
+                },
+            },
+            state: OutputState::Ok,
+            detail: None,
+        };
+        let v = parse(&snapshot(
+            &engine(),
+            &[status(3, "Kerk Eurolite"), status(4, "")],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+            &[],
+            false,
+            &serde_json::Value::Null,
+        ));
+        assert_eq!(v["outputs"][0]["name"], "Kerk Eurolite");
+        assert!(v["outputs"][1].get("name").is_none(), "{}", v["outputs"]);
     }
 
     #[test]

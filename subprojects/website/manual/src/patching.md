@@ -275,6 +275,9 @@ and the message line says so. Click **Output** in the rail to see and edit the n
 
 - Each row has an **On** tick and a coloured dot for its state. Untick a node to stop it
   without removing it.
+- **Name** is yours to fill in, up to 32 characters, such as `Kerk Eurolite`: type it and press
+  Return. The message line, the log and the status-bar dots then call the node
+  `Kerk Eurolite (serial #3)` instead of `serial #3`. Empty the field to drop the name.
 - **Art-Net** has a port address, such as `0:0:1`, and a destination (broadcast by default).
 - **sACN** has a priority (0–200) and sends by multicast, or to one address you type.
 - **Serial** is a USB DMX interface. Choose its port from the dropdown; see

@@ -154,7 +154,7 @@ fn shw_01_top_level_keys_in_order() {
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
-    assert_eq!(SCHEMA_VERSION, 13); // OUT-13, PRG-52, FX-29, CUE-58
+    assert_eq!(SCHEMA_VERSION, 14); // OUT-13, PRG-52, FX-29, CUE-58
     assert_eq!(
         v["meta"],
         json!({"name": "Church demo", "created": "2026-10-18T09:00:00Z",
@@ -573,7 +573,7 @@ fn grm_13_a_restart_keeps_the_masters_level_and_the_stage() {
 fn grm_13_a_schema_4_show_is_migrated() {
     let file = std::fs::read_to_string(V4_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 9, "{migrations:?}");
+    assert_eq!(migrations.len(), 10, "{migrations:?}");
     assert!(migrations[0].starts_with("4 -> 5"), "{migrations:?}");
     assert!(migrations[1].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
     assert!(migrations[2].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
@@ -658,7 +658,7 @@ fn schema_10(out: Json, edit: impl FnOnce(&mut Json)) -> Json {
 
 fn first_cue_of(v: &Json) -> (Show, cmdmx_core::playback::Cue) {
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 3, "{migrations:?}");
+    assert_eq!(migrations.len(), 4, "{migrations:?}");
     assert!(migrations[0].starts_with("10 -> 11"), "{migrations:?}");
     let (e, _) = Engine::from_show(&show);
     let cue = e.playbacks().next().unwrap().cues[0].clone();
@@ -775,7 +775,7 @@ fn cue_58_as_in_and_empty_are_absent_in_the_file() {
     e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange::default())
         .unwrap();
     let v = as_json(&e.to_show(meta()));
-    assert_eq!(v["schema_version"], json!(13));
+    assert_eq!(v["schema_version"], json!(14));
     for pb in v["playbacks"]["playbacks"].as_array().unwrap() {
         for cue in pb["cues"].as_array().unwrap() {
             for key in ["fade_out", "delay_out", "dormant"] {
@@ -826,9 +826,9 @@ fn cue_58_out_times_out_of_range_load_as_as_in_with_one_warning_each() {
 }
 
 #[test]
-fn cue_58_schema_14_is_refused() {
+fn cue_58_schema_15_is_refused() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["schema_version"] = json!(14);
+    v["schema_version"] = json!(15);
     assert!(Show::from_json(&v.to_string()).is_err());
 }
 
