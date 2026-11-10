@@ -425,7 +425,7 @@ Behaviour in `patch.md` PAT-37..47 and `fixture-library.md` LIB-41, 42.
   `patch.exchange {ids, profile, mode, universe?, address?}` (the daemon fetches a library profile outside the tick, as for
   `patch.add`), `patch.copy {ids, number?}`, `patch.swap_addresses {ids, with}`, `patch.update_profile {profile}` (fetched the same way),
   `patch.behaviour {ids, attribute, invert?, low?, high?, offset?}`, `patch.behaviour_reset {ids}`, `patch.swap_pan_tilt {ids, swapped}`,
-  and `auto_groups` on `patch.add`. `library.delete_profile` and `library.duplicate_profile` reply to the asking client only. Tests `ipc_62_…`.
+  and `auto_groups` on `patch.add`. `library.delete_profile` (reply `library.deleted {manufacturer, model}`) and `library.duplicate_profile` reply to the asking client only. Tests `ipc_62_…`.
 
 ## Owner decision (P1-26, 2026-11-02: the recommendation accepted)
 1. **IPC-53, a Flash or Swop held when the lock comes:** it stays, and letting go ends it. The stage does not change by

@@ -40,16 +40,39 @@ pub struct Entry {
 
 /// Entries by manufacturer and model, so listing is already sorted (LIB-14).
 #[derive(Debug, Clone, Default)]
-pub struct Index(BTreeMap<(String, String), Entry>);
+pub struct Index(
+    BTreeMap<(String, String), Entry>,
+    /// LIB-41: the non-user entry a user entry hides, listed again when the user entry goes.
+    BTreeMap<(String, String), Entry>,
+);
 
 impl Index {
     /// A user entry replaces the same manufacturer/model; a QLC+ entry never replaces a user one (LIB-12).
     pub fn insert(&mut self, entry: Entry) {
         let key = (entry.manufacturer.clone(), entry.model.clone());
-        if entry.source != "user" && self.0.get(&key).is_some_and(|e| e.source == "user") {
+        let user_here = self.0.get(&key).is_some_and(|e| e.source == "user");
+        if entry.source != "user" && user_here {
+            self.1.insert(key, entry);
             return;
         }
-        self.0.insert(key, entry);
+        if let Some(old) = self.0.insert(key.clone(), entry) {
+            if old.source != "user" {
+                self.1.insert(key, old);
+            }
+        }
+    }
+
+    /// LIB-41: drop a user entry; what it hid is listed again. `None` when there is no user entry.
+    pub fn remove_user(&mut self, manufacturer: &str, model: &str) -> Option<Entry> {
+        let key = (manufacturer.to_string(), model.to_string());
+        if self.0.get(&key)?.source != "user" {
+            return None;
+        }
+        let gone = self.0.remove(&key);
+        if let Some(hidden) = self.1.remove(&key) {
+            self.0.insert(key, hidden);
+        }
+        gone
     }
 
     pub fn get(&self, manufacturer: &str, model: &str) -> Option<&Entry> {

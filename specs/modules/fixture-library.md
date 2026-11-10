@@ -372,7 +372,7 @@ only seed editable defaults.
   the library"). Shows keep their own copy (ADR-006 decision 5), so nothing patched changes. No undo: the app confirms twice (UI-75).
   Tests `lib_41_…`.
 - **LIB-42** (P1-39, E3; approved by owner 2026-11-08) `library.duplicate_profile {manufacturer, model, new_model}` saves a copy of any library entry as a
-  user profile named `new_model` under the same manufacturer (LIB-12: atomic). A name already in the library, or an empty one, refuses
+  user profile named `new_model` under the same manufacturer (LIB-12: atomic). A name already in the library, one that would land in another profile's file, or an empty one, refuses
   instead of replacing (LIB-14's save does replace). The reply is `library.saved` (LIB-14). Tests `lib_42_…`.
 
 ## Out of scope (this spec)

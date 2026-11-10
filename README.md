@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Batch E, patch and profiles, has started: fixtures can be exchanged, found, copied and swap addresses.
-Next: batch E's builds (PTC-05, PTC-07), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
+Batch E, patch and profiles: fixtures can be exchanged, copied and updated from the library, with groups made on Add.
+Next: batch E's build PTC-07, the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -81,6 +81,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   it, name it ("Par 1…6"), change its mode or remove it in one checked step.
 - Find in the patch table by number, name or model; the Add panel can fold away, and Number and Address start over after an Add.
 - Copy a patched fixture with all it has recorded, parked until it gets an address; two ranges can swap addresses.
+- Update a patched type from the library in one undo step; duplicate any library type and delete your own.
+- Auto groups on Add: an `All <model>` group and a `<count> <model>` group, in the first free group numbers.
 - Removing a fixture or changing its mode also reaches effects, in cues, palettes and a cue running now, and
   a warning names each palette that holds something the new mode cannot do; Undo brings it all back.
 - Fixture Exchange: give a range another type and mode. Number, groups, cues and palettes stay, wheel values move to the

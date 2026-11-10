@@ -846,16 +846,21 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             add,
             profile,
             park_conflicting,
+            auto_groups,
         } => {
             if let Some(p) = profile.filter(|_| !engine.has_profile(&add.profile)) {
                 // ponytail: a refused add leaves the installed profile unused in the show.
                 engine.add_profile(add.profile.clone(), p)?;
             }
-            if park_conflicting {
-                engine.patch_add_parking(&add).map(drop)
+            let ids = if park_conflicting {
+                engine.patch_add_parking(&add)?
             } else {
-                engine.patch_add(&add).map(drop)
+                engine.patch_add(&add)?
+            };
+            if auto_groups {
+                engine.auto_group(&add.profile, &ids);
             }
+            Ok(())
         }
         PatchMove {
             ids,
@@ -922,6 +927,10 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             }
             engine.patch_exchange(&ids, &profile, &mode, place)
         }
+        PatchUpdateProfile { profile, library } => match library {
+            Some(p) => engine.update_profile(&profile, p).map(drop),
+            None => Err(CoreError::NotInLibrary(profile)),
+        },
         PatchCopy { ids, number } => engine.patch_copy(&ids, number).map(drop),
         PatchSwapAddresses { ids, with } => engine.patch_swap_addresses(&ids, &with),
         PatchHandle { id, handle } => engine.patch_handle(id, handle),
@@ -1189,6 +1198,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | PatchName { .. }
         | PatchChangeMode { .. }
         | PatchExchange { .. }
+        | PatchUpdateProfile { .. }
         | PatchCopy { .. }
         | PatchSwapAddresses { .. }
         | PatchHandle { .. }
@@ -1356,6 +1366,10 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         PatchName { ids, .. } => (range_label("name", ids), None),
         PatchChangeMode { ids, .. } => (range_label("mode", ids), None),
         PatchExchange { ids, .. } => (park_label("Exchange", ids), None),
+        PatchUpdateProfile { profile, library } => {
+            let model = library.as_ref().map_or(profile.as_str(), |p| &p.model);
+            (format!("Update profile {model}"), None)
+        }
         PatchCopy { ids, .. } => (park_label("Copy", ids), None),
         PatchSwapAddresses { .. } => ("Swap addresses".into(), None),
         PatchHandle { id, .. } => (format!("Patch handle {id}"), None),
@@ -2070,6 +2084,7 @@ mod tests {
         let profile = Profile::from_json(RGB_PAR).unwrap();
         let cmd = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Showtec/LED Par 56", "default", 6, Some(201), Some(1221)),
             profile: Some(profile),
         };
@@ -2093,6 +2108,7 @@ mod tests {
         // A second add reuses the show's copy; no profile needed. PAT-03: first free run.
         let cmd = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Showtec/LED Par 56", "default", 1, None, None),
             profile: None,
         };
@@ -2106,6 +2122,7 @@ mod tests {
         // A different profile under the demo's "Demo/RGBW Par" key must not replace the show's copy.
         let cmd = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Demo/RGBW Par", "default", 1, None, Some(2001)),
             profile: Some(Profile::from_json(RGB_PAR).unwrap()),
         };
@@ -2118,6 +2135,7 @@ mod tests {
         );
         let next = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Demo/RGBW Par", "default", 1, None, None),
             profile: None,
         };
@@ -2135,6 +2153,7 @@ mod tests {
         let before: Vec<_> = engine.fixtures().cloned().collect();
         let unknown = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Nope/Nope", "default", 1, None, None),
             profile: None,
         };
@@ -2145,6 +2164,7 @@ mod tests {
         // PAT-02: 2 RGBW pars at 140 would overlap 226 at 140.
         let clash = ipc::Command::PatchAdd {
             park_conflicting: false,
+            auto_groups: false,
             add: add("Demo/RGBW Par", "default", 2, Some(140), Some(900)),
             profile: None,
         };
@@ -3495,6 +3515,10 @@ mod tests {
         ),
         (r#"{"v":1,"cmd":"patch.copy","ids":[1]}"#, Class::Edit),
         (
+            r#"{"v":1,"cmd":"patch.update_profile","profile":"A/B"}"#,
+            Class::Edit,
+        ),
+        (
             r#"{"v":1,"cmd":"patch.swap_addresses","ids":[1],"with":[2]}"#,
             Class::Edit,
         ),
@@ -3902,6 +3926,106 @@ mod tests {
                 "{json}"
             );
         }
+    }
+
+    // ---- PTC-06: PAT-43 ----------------------------------------------------------------------
+
+    const ADD_AUTO: &str = r#"{"v":1,"cmd":"patch.add","profile":"T/Spot","mode":"Std","count":2,"universe":1,"address":1,"number":1,"auto_groups":true}"#;
+
+    #[test]
+    fn pat_43_the_add_and_its_groups_are_one_undo_step() {
+        let (mut e, _) = update_rig();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, ADD_AUTO).unwrap();
+        assert_eq!(h.len(), 1);
+        let g = |e: &Engine, id| e.group_legend(id).map(str::to_string);
+        assert_eq!(g(&e, 1).as_deref(), Some("All Spot"));
+        assert_eq!(g(&e, 2).as_deref(), Some("2 Spot"));
+        h.undo(&mut e).unwrap();
+        assert!(e.groups().is_empty());
+        assert_eq!(e.fixtures().count(), 0);
+    }
+
+    #[test]
+    fn pat_43_without_the_flag_there_are_no_groups() {
+        let (mut e, _) = update_rig();
+        let mut h = History::default();
+        let plain = ADD_AUTO.replace(r#","auto_groups":true"#, "");
+        undo_run(&mut e, &mut h, &plain).unwrap();
+        assert_eq!(e.fixtures().count(), 2);
+        assert!(e.groups().is_empty());
+    }
+
+    #[test]
+    fn pat_43_a_refused_add_makes_no_group_and_no_step() {
+        let (mut e, _) = update_rig();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, ADD_AUTO).unwrap();
+        assert!(undo_run(&mut e, &mut h, ADD_AUTO).is_err(), "number in use");
+        assert_eq!(h.len(), 1);
+        assert_eq!(e.groups().len(), 2);
+        assert_eq!(e.group(1).map(|g| g.len()), Some(2));
+    }
+
+    #[test]
+    fn pat_43_a_parking_add_makes_the_groups_too() {
+        let (mut e, _) = update_rig();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, ADD_AUTO).unwrap();
+        let parking = ADD_AUTO.replace(r#""number":1"#, r#""number":11"#).replace(
+            r#""auto_groups":true"#,
+            r#""auto_groups":true,"park_conflicting":true"#,
+        );
+        undo_run(&mut e, &mut h, &parking).unwrap();
+        assert_eq!(h.len(), 2);
+        assert_eq!(e.group(1).map(|g| g.len()), Some(4), "the parked ones stay");
+        assert_eq!(e.group_legend(3), Some("2 Spot"));
+    }
+
+    // ---- PTC-05: PAT-42 ----------------------------------------------------------------------
+
+    /// A show holding `T/Spot` (Dimmer, Pan), and what the library holds with Pan's default moved.
+    fn update_rig() -> (Engine, Profile) {
+        let json = |default: f64| {
+            format!(
+                r#"{{"manufacturer":"T","model":"Spot","source":"user","modes":[{{"name":"Std",
+                "footprint":2,"attributes":[{{"name":"Dimmer","group":"I","kind":"Htp","channel":1}},
+                {{"name":"Pan","group":"P","kind":"Ltp","channel":2,"default":{default}}}]}}]}}"#
+            )
+        };
+        let mut e = Engine::new(Settings::default());
+        e.add_profile("T/Spot", Profile::from_json(&json(0.0)).unwrap())
+            .unwrap();
+        (e, Profile::from_json(&json(0.5)).unwrap())
+    }
+
+    #[test]
+    fn pat_42_update_is_one_undo_step_named_after_the_model() {
+        let (mut e, newer) = update_rig();
+        let mut h = History::default();
+        let cmd = || ipc::Command::PatchUpdateProfile {
+            profile: "T/Spot".into(),
+            library: Some(newer.clone()),
+        };
+        run(&mut e, &mut h, cmd(), 0.0).unwrap();
+        assert_eq!((h.len(), h.undo_label()), (1, Some("Update profile Spot")));
+        assert_eq!(e.profile("T/Spot"), Some(&newer));
+        run(&mut e, &mut h, cmd(), 0.0).unwrap();
+        assert_eq!(h.len(), 1, "an identical copy adds no step");
+    }
+
+    #[test]
+    fn pat_42_a_key_the_library_lacks_refuses_and_names_the_library() {
+        let (mut e, _) = update_rig();
+        let before = e.profile("T/Spot").cloned();
+        let mut h = History::default();
+        let cmd = ipc::Command::PatchUpdateProfile {
+            profile: "T/Spot".into(),
+            library: None,
+        };
+        let err = run(&mut e, &mut h, cmd, 0.0).unwrap_err().to_string();
+        assert!(err.contains("T/Spot") && err.contains("library"), "{err}");
+        assert_eq!((e.profile("T/Spot").cloned(), h.len()), (before, 0));
     }
 
     // ---- VS2-24: IPC-38, IPC-39 ------------------------------------------------------------

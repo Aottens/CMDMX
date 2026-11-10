@@ -263,6 +263,8 @@ pub enum Command {
         profile: Option<Profile>,
         /// PAT-32: park the fixtures the new ones overlap instead of refusing.
         park_conflicting: bool,
+        /// PAT-43: also make the type's `All` group and a count group.
+        auto_groups: bool,
     },
     PatchMove {
         ids: Vec<FixtureId>,
@@ -312,6 +314,12 @@ pub enum Command {
     PatchSwapAddresses {
         ids: Vec<FixtureId>,
         with: Vec<FixtureId>,
+    },
+    /// PAT-42, IPC-62: `library` is the library's copy of `profile`, attached by the client
+    /// thread (`attach_profile`).
+    PatchUpdateProfile {
+        profile: String,
+        library: Option<Profile>,
     },
     PatchHandle {
         id: FixtureId,
@@ -745,6 +753,17 @@ pub enum LibraryRequest {
     },
     SaveProfile(Profile),
     SaveChannelList(ChannelList),
+    /// LIB-41: remove a user profile.
+    DeleteProfile {
+        manufacturer: String,
+        model: String,
+    },
+    /// LIB-42: save a copy of any entry as a user profile under a new model name.
+    DuplicateProfile {
+        manufacturer: String,
+        model: String,
+        new_model: String,
+    },
     /// LIB-34, IPC-45
     ImportGdtf {
         path: String,
@@ -1643,6 +1662,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             },
             profile: None,
             park_conflicting: opt_bool(&v, "park_conflicting")?,
+            auto_groups: opt_bool(&v, "auto_groups")?,
         }),
         Some("patch.move") => Ok(Command::PatchMove {
             ids: ids_or_id(&v)?,
@@ -1686,6 +1706,21 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             },
             library: None,
         }),
+        Some("patch.update_profile") => Ok(Command::PatchUpdateProfile {
+            profile: string(&v, "profile")?,
+            library: None,
+        }),
+        Some("library.delete_profile") => Ok(Command::Library(LibraryRequest::DeleteProfile {
+            manufacturer: string(&v, "manufacturer")?,
+            model: string(&v, "model")?,
+        })),
+        Some("library.duplicate_profile") => {
+            Ok(Command::Library(LibraryRequest::DuplicateProfile {
+                manufacturer: string(&v, "manufacturer")?,
+                model: string(&v, "model")?,
+                new_model: string(&v, "new_model")?,
+            }))
+        }
         Some("patch.copy") => Ok(Command::PatchCopy {
             ids: ids_or_id(&v)?,
             number: opt_uint(&v, "number")?,
@@ -3719,6 +3754,32 @@ fn library_reply(
                 .save_profile(&profile)?;
             Ok(saved(&profile.manufacturer, &profile.model))
         }
+        LibraryRequest::DeleteProfile {
+            manufacturer,
+            model,
+        } => {
+            let mut guard = lib.write().map_err(|_| LIBRARY_POISONED)?;
+            guard
+                .as_mut()
+                .ok_or(LIBRARY_LOADING)?
+                .delete_profile(&manufacturer, &model)?;
+            Ok(
+                json!({"v": PROTOCOL, "type": "library.deleted", "manufacturer": manufacturer, "model": model}),
+            )
+        }
+        LibraryRequest::DuplicateProfile {
+            manufacturer,
+            model,
+            new_model,
+        } => {
+            let mut guard = lib.write().map_err(|_| LIBRARY_POISONED)?;
+            guard.as_mut().ok_or(LIBRARY_LOADING)?.duplicate_profile(
+                &manufacturer,
+                &model,
+                &new_model,
+            )?;
+            Ok(saved(&manufacturer, new_model.trim()))
+        }
         LibraryRequest::SaveChannelList(list) => {
             let mut guard = lib.write().map_err(|_| LIBRARY_POISONED)?;
             guard
@@ -3956,10 +4017,12 @@ pub fn attach_profile(lib: &RwLock<Option<Library>>, cmd: Command) -> Command {
             add,
             profile: None,
             park_conflicting,
+            auto_groups,
         } => Command::PatchAdd {
             profile: find(&add.profile),
             add,
             park_conflicting,
+            auto_groups,
         },
         // PAT-37: an exchange fetches its profile the same way.
         Command::PatchExchange {
@@ -3974,6 +4037,14 @@ pub fn attach_profile(lib: &RwLock<Option<Library>>, cmd: Command) -> Command {
             profile,
             mode,
             place,
+        },
+        // PAT-42: the update fetches the library's copy the same way.
+        Command::PatchUpdateProfile {
+            profile,
+            library: None,
+        } => Command::PatchUpdateProfile {
+            library: find(&profile),
+            profile,
         },
         other => other,
     }
@@ -4018,6 +4089,8 @@ fn serve_client(
                     Command::Library(
                         LibraryRequest::SaveProfile(_)
                         | LibraryRequest::SaveChannelList(_)
+                        | LibraryRequest::DeleteProfile { .. }
+                        | LibraryRequest::DuplicateProfile { .. }
                         | LibraryRequest::ImportGdtf { .. },
                     )
                     | Command::Show(
@@ -4779,6 +4852,7 @@ mod tests {
             ),
             Command::PatchAdd {
                 park_conflicting: false,
+                auto_groups: false,
                 add: PatchAdd {
                     profile: "Showtec/LED Par 56".into(),
                     mode: Some("6 Channel".into()),
@@ -4797,6 +4871,7 @@ mod tests {
             ),
             Command::PatchAdd {
                 park_conflicting: false,
+                auto_groups: false,
                 add: PatchAdd {
                     profile: "rgbw".into(),
                     mode: Some("default".into()),
@@ -5704,6 +5779,102 @@ mod tests {
         let after = ask(&lib, r#"{"v":1,"cmd":"library.search","query":""}"#);
         assert_eq!(before, after);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ipc_62_patch_add_takes_auto_groups_and_it_defaults_to_off() {
+        let add = |extra: &str| {
+            parse_command(&format!(
+                r#"{{"v":1,"cmd":"patch.add","profile":"rgbw","mode":"default","count":2,"universe":1{extra}}}"#
+            ))
+        };
+        assert!(matches!(
+            add(r#","auto_groups":true"#),
+            Ok(Command::PatchAdd {
+                auto_groups: true,
+                ..
+            })
+        ));
+        assert!(matches!(
+            add(""),
+            Ok(Command::PatchAdd {
+                auto_groups: false,
+                ..
+            })
+        ));
+        assert!(add(r#","auto_groups":"yes""#).is_err());
+    }
+
+    #[test]
+    fn ipc_62_update_profile_fetches_the_library_copy_outside_the_tick() {
+        let lib = library("update");
+        let cmd =
+            parse_command(r#"{"v":1,"cmd":"patch.update_profile","profile":"Showtec/LED Par 56"}"#)
+                .unwrap();
+        match attach_profile(&lib, cmd) {
+            Command::PatchUpdateProfile {
+                profile,
+                library: Some(p),
+            } => assert_eq!(
+                (profile.as_str(), p.model.as_str()),
+                ("Showtec/LED Par 56", "LED Par 56")
+            ),
+            other => panic!("expected the library copy attached, got {other:?}"),
+        }
+        let cmd =
+            parse_command(r#"{"v":1,"cmd":"patch.update_profile","profile":"No/Such"}"#).unwrap();
+        assert!(matches!(
+            attach_profile(&lib, cmd),
+            Command::PatchUpdateProfile { library: None, .. }
+        ));
+        assert!(parse_command(r#"{"v":1,"cmd":"patch.update_profile"}"#).is_err());
+    }
+
+    #[test]
+    fn lib_41_lib_42_duplicate_then_delete_answer_the_asking_client() {
+        let lib = library("dup-del");
+        let v = ask(
+            &lib,
+            r#"{"v":1,"cmd":"library.duplicate_profile","manufacturer":"Showtec","model":"LED Par 56","new_model":"Kerk Par"}"#,
+        );
+        assert_eq!(
+            (&v["type"], &v["manufacturer"], &v["model"]),
+            (
+                &json!("library.saved"),
+                &json!("Showtec"),
+                &json!("Kerk Par")
+            )
+        );
+        let v = ask(
+            &lib,
+            r#"{"v":1,"cmd":"library.delete_profile","manufacturer":"Showtec","model":"Kerk Par"}"#,
+        );
+        assert_eq!(
+            (&v["type"], &v["manufacturer"], &v["model"]),
+            (
+                &json!("library.deleted"),
+                &json!("Showtec"),
+                &json!("Kerk Par")
+            )
+        );
+        let v = ask(
+            &lib,
+            r#"{"v":1,"cmd":"library.delete_profile","manufacturer":"Showtec","model":"LED Par 56"}"#,
+        );
+        assert_eq!(v["type"], "error");
+        assert!(
+            v["message"]
+                .as_str()
+                .unwrap()
+                .contains("part of the library"),
+            "{v}"
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"library.delete_profile","manufacturer":"Showtec"}"#,
+            r#"{"v":1,"cmd":"library.duplicate_profile","manufacturer":"Showtec","model":"LED Par 56"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]
