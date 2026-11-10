@@ -13,6 +13,8 @@ struct ControlView: View {
     @State private var selected: String?
     /// The mapping whose bindings are shown.
     @State private var mappingName: String?
+    /// CTL-71: the deck key armed by Copy to… / Move to…; it outlives a page switch.
+    @State private var armed: DeckArm?
 
     var body: some View {
         VStack(spacing: 8) {
@@ -21,7 +23,7 @@ struct ControlView: View {
                 VStack(spacing: 8) {
                     // CTL-58a: a selected deck gets the column to itself.
                     if let deck = engine.control.devices.first(where: { $0.name == selected && $0.isDeck }) {
-                        DeckPanel(device: deck)
+                        DeckPanel(device: deck, armed: $armed)
                     } else {
                         DevicesPanel(selected: $selected)
                         OSCPanel()
@@ -34,9 +36,9 @@ struct ControlView: View {
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
-        // UI-44: Esc leaves a deck's focus first, then the screen.
+        // UI-44, CTL-71: Esc disarms a key first, then leaves a deck's focus, then the screen.
         .background(Button("") {
-            if engine.control.devices.contains(where: { $0.name == selected && $0.isDeck }) { selected = nil } else { ui.screen = nil }
+            if armed != nil { armed = nil } else if engine.control.devices.contains(where: { $0.name == selected && $0.isDeck }) { selected = nil } else { ui.screen = nil }
         }.keyboardShortcut(.cancelAction).frame(width: 0, height: 0).opacity(0))
         .onAppear {
             // Only a mapping that exists: the OSC mapping is made by the first OSC Learn (CTL-35).
@@ -47,6 +49,7 @@ struct ControlView: View {
         }
         .onDisappear { engine.showMapping(nil) }
         .onChange(of: mappingName) { _, name in engine.showMapping(name) }
+        .onChange(of: selected) { _, _ in armed = nil }
         // A row selects its mapping for the bindings table.
         .onChange(of: selected) { _, name in
             if let mapping = engine.control.devices.first(where: { $0.name == name })?.mapping { mappingName = mapping }

@@ -910,3 +910,91 @@ fn ipc_53_a_held_deck_key_lets_go_once_under_the_lock() {
     press(&mut c, 1);
     assert!(c.commands(&e, 0.2).is_empty());
 }
+
+// --- CTL-71 clear a deck page (IDEA-35 F4, P1-40) --------------------------------------------
+
+#[test]
+fn ctl_71_deck_clear_parses_and_is_neutral() {
+    let cmd =
+        ipc::parse_command(r#"{"v":1,"cmd":"control.deck_clear","mapping":"mine","deck_page":2}"#)
+            .unwrap();
+    assert!(matches!(cmd, Command::Control(_)));
+    assert_eq!(crate::class(&cmd), crate::Class::Neutral);
+    for json in [
+        r#"{"v":1,"cmd":"control.deck_clear","mapping":"mine"}"#,
+        r#"{"v":1,"cmd":"control.deck_clear","deck_page":2}"#,
+        r#"{"v":1,"cmd":"control.deck_clear","mapping":"mine","deck_page":"x"}"#,
+    ] {
+        assert!(ipc::parse_command(json).is_err(), "{json}");
+    }
+}
+
+#[test]
+fn ctl_71_deck_clear_removes_every_key_of_one_page_only() {
+    let e = engine();
+    let (mut c, dir) = two_pages("clear", &e);
+    fs::write(
+        dir.join("control/mine.json"),
+        r#"{"name":"mine","device":"Stream Deck Original*","bindings":[
+          {"input":{"kind":"key","number":5},"action":"go"},
+          {"input":{"kind":"key","number":5},"action":"dbo","deck_page":2},
+          {"input":{"kind":"key","number":6},"action":"stop","deck_page":2},
+          {"input":{"kind":"key","number":1},"action":"stop","deck_page":3}
+        ]}"#,
+    )
+    .unwrap();
+    let (mut c2, _) = Control::load(dir.join("control"), dir.join("state.json"));
+    std::mem::swap(&mut c, &mut c2);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.deck_clear","mapping":"mine","deck_page":2}"#,
+    )
+    .unwrap();
+    // Pages 1 and 3 keep their keys, in memory and in the file.
+    assert_eq!(bindings_of(&c, 5).len(), 1);
+    assert_eq!(bindings_of(&c, 5)[0]["action"], "go");
+    assert!(bindings_of(&c, 6).is_empty());
+    assert_eq!(bindings_of(&c, 1).len(), 1);
+    let saved: Value =
+        serde_json::from_str(&fs::read_to_string(dir.join("control/mine.json")).unwrap()).unwrap();
+    let pages: Vec<u64> = (saved["bindings"].as_array().unwrap().iter())
+        .map(|b| b["deck_page"].as_u64().unwrap_or(1))
+        .collect();
+    assert_eq!(pages, [1, 3], "{saved}");
+    // An empty page or an unknown mapping refuses.
+    assert!(req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.deck_clear","mapping":"mine","deck_page":2}"#
+    )
+    .is_err());
+    assert!(req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.deck_clear","mapping":"ghost","deck_page":1}"#
+    )
+    .is_err());
+}
+
+#[test]
+fn ctl_71_deck_clear_leaves_midi_and_osc_bindings_alone() {
+    let (mut c, dir) = setup("clear-midi");
+    fs::write(
+        dir.join("control/mixed.json"),
+        r#"{"name":"mixed","device":"*","bindings":[
+          {"input":{"kind":"cc","channel":1,"number":7},"action":"fader 1"},
+          {"input":{"kind":"key","number":2},"action":"go"},
+          {"input":{"kind":"key","number":3},"action":"stop"}
+        ]}"#,
+    )
+    .unwrap();
+    let (mut c2, _) = Control::load(dir.join("control"), dir.join("state.json"));
+    std::mem::swap(&mut c, &mut c2);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.deck_clear","mapping":"mixed","deck_page":1}"#,
+    )
+    .unwrap();
+    let reply: Value = serde_json::from_str(&c.mapping_reply("mixed")).unwrap();
+    let b = reply["mapping"]["bindings"].as_array().unwrap();
+    assert_eq!(b.len(), 1, "{b:?}");
+    assert_eq!(b[0]["action"], "fader 1");
+}

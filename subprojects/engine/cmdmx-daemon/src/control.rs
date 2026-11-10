@@ -1298,6 +1298,18 @@ impl Control {
                 self.refresh();
                 Ok(())
             }
+            ControlRequest::DeckClear { mapping, deck_page } => {
+                let m = self.mapping_mut(&mapping)?;
+                let before = m.bindings.len();
+                (m.bindings)
+                    .retain(|b| !(matches!(b.input, Input::Deck(_)) && b.deck_page == deck_page));
+                if m.bindings.len() == before {
+                    return Err(format!("deck page {deck_page} holds no keys"));
+                }
+                self.save(&mapping)?;
+                self.refresh();
+                Ok(())
+            }
             ControlRequest::MappingNew { name, device } => {
                 valid_name(&name)?;
                 if self.mappings.contains_key(&name) {

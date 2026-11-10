@@ -5,10 +5,18 @@ import SwiftUI
 // reports (CTL-57), never computed here. Linking is by drag and drop or the right-click menu; each
 // edit is a `control.binding` / `control.unbind` with the deck page shown (CTL-67).
 
+/// CTL-71: the key whose binding Copy to… / Move to… will place with the next click.
+struct DeckArm: Equatable {
+    let key: Int
+    let page: Int
+    let copy: Bool
+}
+
 struct DeckPanel: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     let device: ControlDevice
+    @Binding var armed: DeckArm?
     /// The empty page `deckPages + 1` the `+` shows; the deck itself stays on its page until a binding lands there.
     @State private var virtualPage = false
     @State private var brightness = 100.0
@@ -60,6 +68,11 @@ struct DeckPanel: View {
                     engine.controlDeck(device.name, page: n)
                 }
                 .buttonStyle(FlatButton(fill: !virtualPage && n == device.deckPage ? .blue : nil, compact: true))
+                .contextMenu {
+                    if let mapping = device.mapping, deckKeys(on: n) > 0 {
+                        Button("Clear page…") { clearPage(n, mapping: mapping) }
+                    }
+                }
             }
             Button("+") { virtualPage = true }
                 .buttonStyle(FlatButton(fill: virtualPage ? .blue : nil, compact: true))
@@ -77,6 +90,45 @@ struct DeckPanel: View {
         doc?.bindings.first { $0.deckKey == key && $0.deckPage == page }
     }
 
+    private func deckKeys(on page: Int) -> Int {
+        doc?.bindings.filter { $0.isDeck && $0.deckPage == page }.count ?? 0
+    }
+
+    /// Two steps in a context menu: an alert, since a state flip does not survive the menu closing (CTL-41, 71).
+    private func confirm(_ title: String, ok: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.addButton(withTitle: ok)
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    private func clearPage(_ page: Int, mapping: String) {
+        let n = deckKeys(on: page)
+        guard confirm("Clear page \(page)? It holds \(n) keys.", ok: "Clear") else { return }
+        engine.controlDeckClear(mapping, page: page)
+    }
+
+    private func arm(_ key: Int, bound: ControlBinding, copy: Bool) {
+        armed = DeckArm(key: key, page: shownPage, copy: copy)
+        let name = (bound.raw["label"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? bound.action
+        engine.say("Pick a key for \(name) (Esc cancels)")
+    }
+
+    /// CTL-71: the next click on a key places the armed binding, on any page.
+    private func place(on key: Int, arm: DeckArm, mapping: String) {
+        if arm.key == key && arm.page == shownPage { armed = nil; return }
+        guard let source = binding(arm.key, page: arm.page) else { armed = nil; return }
+        if arm.copy {
+            if binding(key, page: shownPage) != nil { engine.say("key \(key) is in use"); return }
+            engine.controlBinding(mapping, input: keyInput(key), whole(source, page: shownPage))
+            followIfVirtual()
+        } else {
+            move(arm.key, to: key, fromPage: arm.page, toPage: shownPage, mapping: mapping)
+        }
+        armed = nil
+    }
+
     private func keyInput(_ key: Int) -> [String: Any] { ["kind": "key", "number": key] }
 
     @ViewBuilder private func tile(_ key: Int, size: CGFloat) -> some View {
@@ -84,6 +136,11 @@ struct DeckPanel: View {
         let bound = binding(key, page: page)
         let look = virtualPage ? nil : device.keys.first { $0.key == key }
         DeckKeyTile(look: look, number: key, size: size)
+            .overlay {
+                if armed?.key == key && armed?.page == page {
+                    RoundedRectangle(cornerRadius: 4).stroke(Color.blue, lineWidth: 2)
+                }
+            }
             .deckDrag(bound != nil ? "deckkey:\(key)" : nil)
             .onDrop(of: [.plainText], isTargeted: nil) { providers, _ in
                 guard let provider = providers.first else { return false }
@@ -97,7 +154,9 @@ struct DeckPanel: View {
                 return true
             }
             .contextMenu { menu(key, bound: bound) }
-            .onTapGesture { learnHere(key, bound: bound) }
+            .onTapGesture {
+                if let armed, let mapping = target() { place(on: key, arm: armed, mapping: mapping) } else { learnHere(key, bound: bound) }
+            }
     }
 
     /// CTL-58: with Learn armed on an action, a click on a key links that action to it.
@@ -124,7 +183,7 @@ struct DeckPanel: View {
         guard !payload.isEmpty, let mapping = target() else { return }
         let page = shownPage
         if let from = payload.hasPrefix("deckkey:") ? Int(payload.dropFirst(8)) : nil {
-            move(from, to: key, page: page, mapping: mapping)
+            move(from, to: key, fromPage: page, toPage: page, mapping: mapping)
             return
         }
         var action = payload
@@ -137,14 +196,15 @@ struct DeckPanel: View {
     }
 
     /// A key onto another key: the whole binding moves; a bound target swaps places with it.
-    private func move(_ from: Int, to key: Int, page: Int, mapping: String) {
-        guard from != key, let source = binding(from, page: page) else { return }
-        let other = binding(key, page: page)
-        engine.controlUnbind(mapping, input: keyInput(from), deckPage: page)
-        if other != nil { engine.controlUnbind(mapping, input: keyInput(key), deckPage: page) }
-        engine.controlBinding(mapping, input: keyInput(key), whole(source, page: page))
+    /// The pages differ for Move to… (CTL-71); the other binding lands where the source was.
+    private func move(_ from: Int, to key: Int, fromPage: Int, toPage: Int, mapping: String) {
+        guard from != key || fromPage != toPage, let source = binding(from, page: fromPage) else { return }
+        let other = binding(key, page: toPage)
+        engine.controlUnbind(mapping, input: keyInput(from), deckPage: fromPage)
+        if other != nil { engine.controlUnbind(mapping, input: keyInput(key), deckPage: toPage) }
+        engine.controlBinding(mapping, input: keyInput(key), whole(source, page: toPage))
         if let other {
-            engine.controlBinding(mapping, input: keyInput(from), whole(other, page: page))
+            engine.controlBinding(mapping, input: keyInput(from), whole(other, page: fromPage))
         }
         followIfVirtual()
     }
@@ -194,7 +254,13 @@ struct DeckPanel: View {
                 Divider()
                 Button("None") { change(key, ["colour": NSNull()]) }
             }
-            Button("Remove") { engine.controlUnbind(mapping, input: keyInput(key), deckPage: shownPage) }
+            Button("Copy to…") { arm(key, bound: bound, copy: true) }
+            Button("Move to…") { arm(key, bound: bound, copy: false) }
+            Button("Remove") {
+                if confirm("Remove key \(key) (\(bound.action))?", ok: "Remove") {
+                    engine.controlUnbind(mapping, input: keyInput(key), deckPage: shownPage)
+                }
+            }
         }
     }
 

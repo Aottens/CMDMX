@@ -2287,6 +2287,8 @@ final class EngineClient: ObservableObject {
         if let deckPage { fields["deck_page"] = deckPage }
         patch("control.unbind", fields)
     }
+    /// CTL-71: removes every deck key of one page in one write.
+    func controlDeckClear(_ mapping: String, page: Int) { patch("control.deck_clear", ["mapping": mapping, "deck_page": page]) }
     /// CTL-53, 67: a Stream Deck's brightness 0...100, or the deck page it shows.
     func controlDeck(_ device: String, brightness: Int) { patch("control.deck", ["device": device, "brightness": brightness]) }
     func controlDeck(_ device: String, page: Int) { patch("control.deck", ["device": device, "page": page]) }
