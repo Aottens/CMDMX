@@ -509,6 +509,24 @@ feedback is a **key image** instead of an LED or a motor.
 ### Working on many at once (IDEA-35 batch D, P1-36; approved by owner 2026-11-07)
 - **CTL-68** **Release all, or the page** (D3; adds to CTL-05). Actions `release all` → `playback.release {"scope":"all"}` and `release page` → `{"scope":"page"}` with the page shown at that moment (PBK-52). Button, on press; no feedback. Bindable on MIDI, OSC and the Stream Deck like any action. Test `ctl_68_…`.
 
+### Controls the app was missing (IDEA-35 batch F, P1-40; approved by owner 2026-11-10)
+From `docs/research/everyday-gaps.md` F1 and F4; checked in `tests/manual/runs/2026-11-10-F-checks.md`.
+
+- **CTL-69** **Rename a mapping** (F1). The Control screen's mapping header gets **Rename…** beside Delete, for a mapping that is
+  not a profile: it asks a new name and sends `control.mapping_rename {name, to}` (CTL-40). The devices that used the old name follow
+  (as CTL-40 does). A refusal, such as a name in use, is the engine's warning. Checked by hand.
+- **CTL-70** **Duplicate a mapping, change its device pattern** (F4). `control.mapping_duplicate {name, to}` saves a copy of any mapping,
+  a profile included, as a new user mapping with the same bindings and device pattern; a name in use refuses. `control.mapping_device
+  {name, device}` changes a user mapping's device pattern, checked as CTL-22 (`*` and `|`); a profile refuses. Both write the file
+  atomically (CTL-24) and are neutral, like the other mapping commands (CTL-29). The header gets **Duplicate…** and an editable
+  **Device** field. Tests `ctl_70_…`.
+- **CTL-71** **Deck keys: copy, move, clear, confirm** (F4). A deck key's menu gets **Copy to…** and **Move to…**. Either one arms, and
+  the message names the key ("Pick a key for Group 3"); the page buttons still switch pages while armed, and the next click on a key
+  places it, on any page. Move onto a bound key swaps them, as the drag within a page does now (CTL-58); Copy onto a bound key refuses
+  ("key 5 is in use"). Esc disarms. `control.deck_clear {mapping, deck_page}` removes every binding of one page in one file write;
+  the page selector's menu gets **Clear page**, two-step: "Clear page 2? It holds 9 keys." The key menu's **Remove** becomes two-step
+  as in the bindings table (CTL-41). Tests `ctl_71_…` for `deck_clear`; the app checked by hand.
+
 ## Where the code lives
 - `cmdmx-control` (pure, no ports, no clock): MIDI decode (CTL-09..12), mapping model and JSON
   (CTL-22), action catalogue and parsing (CTL-05), conversion and pickup (CTL-07, 13), feedback

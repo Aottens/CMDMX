@@ -241,7 +241,7 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     Space does nothing while Keys is off.
 
   (Amended by UI-44: Esc works whatever Keys says.)
-  ⌘1–⌘4 switch workspaces too, also while Keys is off (owner, UX-02a run). Keys never fire while a text field (Patch, Show, legends) has focus. The Keys toggle is
+  ⌘1–⌘5 switch workspaces too (amended 2026-11-10, F7: there are five), also while Keys is off (owner, UX-02a run). Keys never fire while a text field (Patch, Show, legends) has focus. The Keys toggle is
   remembered across launches, like Console.
 - **UI-27 [now]** Command history (IDEA-12; owner, 2026-10-18): every line sent with Enter is
   added to the history, except a line equal to the newest entry. While Keys is live, Up replaces
@@ -630,10 +630,50 @@ From `docs/research/everyday-gaps.md` E, K10, M2, M3. Behaviour in `patch.md` PA
 - **UI-75** **Copy, swap, update, profiles** (E2, E3). The Selected panel gets **Copy** (with an optional start number), **Swap addresses** (armed, the message says "Pick the fixtures to swap with"; a new selection and Confirm send it; Esc or Clear disarms) and **Update from library** (enabled when every selected row has the same profile). The Add strip gets **Duplicate…** on any pick (asks a new model name) and **Delete profile** on a user profile, two-step: "Delete user profile X? Shows that use it keep their copy." Checked by hand.
 - **UI-76** **Behaviour** (E1). The Selected panel gets **Behaviour…**, a sheet over the attributes every selected row has: Invert, Low, High and Offset in %, a value shown empty where the selection differs (Titan shows no Inverted on a mixed selection), Swap Pan and Tilt when all have both, and Reset. A row with behaviour shows a small `INV` or `LIM` tag in the Mode column. Checked by hand on Art-Net.
 
+### Small controls (IDEA-35 batch F, P1-40; approved by owner 2026-11-10)
+From `docs/research/everyday-gaps.md` F, K9, K12, L7, L8, M5 and M6; checked in `tests/manual/runs/2026-11-10-F-checks.md`.
+F3 holds already (UI-42: an armed function on an effect palette tile is refused). IDEA-39 was done by UI-63.
+
+- **UI-77** **Move a fixture's button** (F2; Titan *Copying, moving and deleting fixtures*). With Move armed, a tap on a fixture tile
+  (Fixtures window) takes it, and a tap on an empty tile or another fixture's tile sends `patch.handle` (PAT-14): the tiles swap when
+  the target is taken. A row in UI-42's table. Menu Latch keeps Move armed for the next one (UI-65). Checked by hand.
+- **UI-78** **The keypad on a narrow window** (F5; amends UI-17). Below 1440 pt, with Keypad on, the keypad takes the place of the
+  Main softkeys in the side column, and Keypad off brings the softkeys back; from 1440 pt both show as now. The Keys-off message (UI-49)
+  then points at a keypad that can be shown. The manual says so. Checked by hand.
+- **UI-79** **An Undo from before this app** (L7; UNDO-13 and UNDO-15 stay). Until this app has sent an edit of its own, the Undo
+  softkey reads "Undo (earlier) Edit cue", and a tap or ⌘Z asks for a second one: "Undo Edit cue, done before this app opened?
+  Undo again to go ahead". After the first edit from this app, Undo is as now. Checked by hand.
+- **UI-80** **A notice goes** (L8; amends UI-50). A notice (IPC-49) goes on the next command, Clear included, and when the workspace
+  or the screen changes. A warning or error goes on the next command, Clear included, as now. All stay in the Messages list (UI-39).
+  Checked by hand.
+
 ## Out of scope (this spec)
 Palette, cue and playback behaviour (their own specs fill in the disabled controls), Blind, undo
 (P1-10), freely configurable workspaces, legends and halos, picture legends, a remote/touch layout
 (IDEA-06), and the narrow single-column layout of the sketch (below 900 px). Not in batch C (P1-33): editing values in the Grid, Titan's *View If* and *Frozen* filters, the DMX View's input column, a fixture's position on a rig plan (IDEA-25). Not in batch D (P1-36): Unfold of a cue list or chase onto faders and a linked playback copy (owner decisions 3 and 4: IDEA-46, IDEA-47), copying or moving several cues, Titan's *Copy Legends* option and *Unassign*, the Release Priority setting and *Release all Masters*.
+
+## Owner decisions (P1-40, batch F, 2026-11-10: every recommendation accepted)
+1. **What is in batch F:** F1 and F4 (CTL-69..71, OUT-42), F2 (UI-77), F5 (UI-78), F6 (PRG-100, PRG-101), F7's two manual fixes, L7 and
+   L8 (UI-79, UI-80), M5 (PAL-35), M6 (PBK-53), and from the third review K9 (PRG-99) and K12 (CUE-64)? Recommended: yes. F3 holds already,
+   IDEA-39 was done by UI-63, and IDEA-38 looks fixed in the code (hidden workspaces are left out of hit-testing and accessibility),
+   so it is checked in a run and closed, with no criterion. Not chosen: leaving K9 and K12 for later.
+2. **A name for an output node (OUT-42):** in the show, schema 14? Recommended: yes, since the nodes are in the show (OUT-13).
+   Not chosen: names on this Mac only, which a show opened elsewhere would lose.
+3. **The keypad below 1440 pt (UI-78):** it takes the place of the Main softkeys while Keypad is on? Recommended: yes, the window has no
+   room for both, and the softkeys are one toggle away. Not chosen: a smaller keypad beside the softkeys, which would make every key
+   too small to hit.
+4. **What `@ +10` starts from (PRG-100):** the programmer's level, else the level on stage? Recommended: yes, so +10 means brighter
+   than what you see. Not chosen: from 0 when the programmer holds nothing, which makes `@ +10` the same as `@ 10`.
+5. **The wheel's travel (PRG-101):** one step per point, 255 pt from 0 to full? Recommended: yes; a trackpad stroke is about 300 pt.
+   Not chosen: an acceleration curve, which is harder to predict.
+6. **An Undo from before this app (UI-79):** a second tap to confirm? Recommended: yes. Not chosen: a history per app, which breaks
+   UNDO-15 (one history for every client), or emptying the history when an app connects, which loses the last operator's way back.
+7. **A page's legend (PBK-53):** a whole-page copy to an unnamed page takes the legend, and a whole-page delete empties it? Recommended:
+   yes. Not chosen: a page as its own object with Copy Page and Delete Page, a larger change for the same result.
+8. **`faders_per_page` (F7):** the manual calls it a setting of the show, but nothing changes it. Fix the manual to say it is 8 and fixed
+   for now? Recommended: yes; a control to change it moves every handle, an idea of its own if you want it. Not chosen: a setting now.
+9. **Clearing a deck page (CTL-71):** a new command, one file write? Recommended: yes. Not chosen: one `control.unbind` per key from the
+   app, which writes the file once per key and can stop halfway.
 
 ## Owner decisions (P1-36, 2026-11-07: every recommendation accepted)
 1. **Layout by default (PBK-50, UI-64):** Retain layout, so a copied page looks like the page? Recommended: yes. Not chosen: Bunch up first, which closes gaps nobody asked to close.

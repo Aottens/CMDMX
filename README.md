@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch and profiles are complete: exchange, copy, update from the library, and behaviour per fixture at the output.
-Next: the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
+Next: batch F's builds (CTR-01, CTR-03), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
