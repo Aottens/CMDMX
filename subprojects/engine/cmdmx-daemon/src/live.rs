@@ -405,6 +405,8 @@ mod tests {
     fn fixture(id: u32, profile: &str, universe: UniverseId, address: u16) -> Fixture {
         Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),

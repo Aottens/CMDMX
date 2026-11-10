@@ -62,6 +62,8 @@ fn rig_with(settings: Settings) -> Engine {
     ] {
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),

@@ -34,7 +34,7 @@ use crate::palette::{
     self, Cell, Detected, Entry, GlobalValue, Limit, Palette, PaletteId, Record, RecordBy,
     RecordMode, Timing,
 };
-use crate::patch::{Fixture, FixtureId, Handle, PatchAdd};
+use crate::patch::{Behaviour, BehaviourEdit, Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
     check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BpmFader, BpmMaster, Button,
     ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, FaderMode,
@@ -646,7 +646,8 @@ pub struct Explanation {
     pub name: String,
     /// `Some(n)` for the attribute of cell `n` (LIB-07), `None` for the fixture's own.
     pub cell: Option<u16>,
-    /// What the tick writes for the attribute (before a virtual dimmer scales it).
+    /// What the tick writes for the attribute (before a virtual dimmer scales it, and before
+    /// behaviour, PAT-45).
     pub value: Value,
     pub base: Base,
     /// HTP sources that proposed a value and lost.
@@ -1041,6 +1042,8 @@ impl Engine {
         for (id, number, address) in placed {
             self.install(Fixture {
                 parked: false,
+                behaviour: Default::default(),
+                swap_pan_tilt: false,
                 id,
                 number,
                 name: String::new(),
@@ -1471,6 +1474,12 @@ impl Engine {
         let new = lookup_mode(&self.profiles, &key, Some(mode))?;
         let (number, universe, address) = (fixture.number, fixture.universe, fixture.address);
         let parked = fixture.parked;
+        // PAT-47: behaviour stays for the level attributes the new mode has; swap needs both.
+        let mut behaviour = fixture.behaviour.clone();
+        behaviour.retain(|n, _| new.logical(n).is_some_and(|l| !l.is_colour()));
+        let swapped = fixture.swap_pan_tilt
+            && new.logical(palette::PAN).is_some()
+            && new.logical(palette::TILT).is_some();
         // What the new mode makes of a stored value: PAT-38's rule on an exchange; otherwise it
         // stays only when the new mode has that attribute with the same kind of value (PAT-13).
         let change = |name: &str, value: &Stored| -> Option<Stored> {
@@ -1600,6 +1609,8 @@ impl Engine {
         if let Some(f) = self.fixtures.get_mut(&id) {
             f.mode = Some(mode.to_string());
             f.profile = key;
+            f.behaviour = behaviour;
+            f.swap_pan_tilt = swapped;
         }
         if !leaving.is_empty() {
             self.effects_leave(|e, m| *m == item && leaving.iter().any(|(i, _)| *i == e.id));
@@ -1665,6 +1676,101 @@ impl Engine {
             }
         }
         lines
+    }
+
+    /// PAT-44: set the fields given of `attribute`'s behaviour on every fixture of the range;
+    /// all or nothing.
+    pub fn patch_behaviour(
+        &mut self,
+        ids: &[FixtureId],
+        attribute: &str,
+        edit: &BehaviourEdit,
+    ) -> Result<(), CoreError> {
+        let sorted = self.range_ids(ids)?;
+        let in_range = |v: Option<f32>, lo: f32, what: &str| match v {
+            Some(v) if !(lo..=1.0).contains(&v) => Err(CoreError::InvalidBehaviour(format!(
+                "{what} {v} is out of range ({lo} to 1)"
+            ))),
+            _ => Ok(()),
+        };
+        in_range(edit.low, 0.0, "Low")?;
+        in_range(edit.high, 0.0, "High")?;
+        in_range(edit.offset, -1.0, "Offset")?;
+        let mut plan = Vec::new();
+        for &id in &sorted {
+            let f = (self.fixtures.get(&id)).ok_or(CoreError::UnknownFixture(id))?;
+            let mode = lookup_mode(&self.profiles, &f.profile, f.mode.as_deref())?;
+            let Some(l) = mode.logical(attribute) else {
+                return Err(CoreError::UnknownAttribute {
+                    fixture: f.number,
+                    attribute: attribute.to_string(),
+                });
+            };
+            if l.is_colour() {
+                return Err(CoreError::InvalidBehaviour(
+                    "Colour cannot be inverted: use its channels".to_string(),
+                ));
+            }
+            let mut b = f.behaviour.get(attribute).copied().unwrap_or_default();
+            b.invert = edit.invert.unwrap_or(b.invert);
+            b.low = edit.low.unwrap_or(b.low);
+            b.high = edit.high.unwrap_or(b.high);
+            b.offset = edit.offset.unwrap_or(b.offset);
+            if b.low > b.high {
+                return Err(CoreError::InvalidBehaviour(format!(
+                    "Low {} is above High {} on fixture {}",
+                    b.low, b.high, f.number
+                )));
+            }
+            plan.push((id, b));
+        }
+        for (id, b) in plan {
+            if let Some(f) = self.fixtures.get_mut(&id) {
+                if b == Behaviour::default() {
+                    f.behaviour.remove(attribute);
+                } else {
+                    f.behaviour.insert(attribute.to_string(), b);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// PAT-44: every behaviour field of the range back to default; the swap stays (PAT-46).
+    pub fn patch_behaviour_reset(&mut self, ids: &[FixtureId]) -> Result<(), CoreError> {
+        for id in self.range_ids(ids)? {
+            if let Some(f) = self.fixtures.get_mut(&id) {
+                f.behaviour.clear();
+            }
+        }
+        Ok(())
+    }
+
+    /// PAT-46: send Pan to Tilt's channels and Tilt to Pan's, or back; all or nothing.
+    pub fn patch_swap_pan_tilt(
+        &mut self,
+        ids: &[FixtureId],
+        swapped: bool,
+    ) -> Result<(), CoreError> {
+        let sorted = self.range_ids(ids)?;
+        for &id in &sorted {
+            let f = (self.fixtures.get(&id)).ok_or(CoreError::UnknownFixture(id))?;
+            let mode = lookup_mode(&self.profiles, &f.profile, f.mode.as_deref())?;
+            for attribute in [palette::PAN, palette::TILT] {
+                if mode.logical(attribute).is_none() {
+                    return Err(CoreError::UnknownAttribute {
+                        fixture: f.number,
+                        attribute: attribute.to_string(),
+                    });
+                }
+            }
+        }
+        for id in sorted {
+            if let Some(f) = self.fixtures.get_mut(&id) {
+                f.swap_pan_tilt = swapped;
+            }
+        }
+        Ok(())
     }
 
     /// PAT-19: the range's ids sorted by user number; empty, unknown or repeated ids refuse.
@@ -8722,14 +8828,19 @@ impl Engine {
                 if let Some(level) = out.after_masters.filter(|_| l.name == DIMMER) {
                     masters.pickups(*fixture_id, level, &mut pickups);
                 }
-                let value = out.value;
+                // PAT-45: behaviour acts on the merged value; the mix gets it unshaped.
+                let value = shaped(&fixture.behaviour, l.name, out.value);
                 if virtual_dimmer && l.name == DIMMER {
                     scale = value.level();
                 }
                 if mode.automix {
-                    mix.record(&l, value);
+                    mix.record(&l, out.value);
                 }
-                write_value(frame, fixture.address, mode, &l, value, scale);
+                let target = LogicalAttribute {
+                    name: outlet(fixture, l.name),
+                    ..l
+                };
+                write_value(frame, fixture.address, mode, &target, value, scale);
             }
             // ENG-21: the mix overwrites RGB and the mixable emitters, whatever the write order.
             if mode.automix {
@@ -8739,6 +8850,7 @@ impl Engine {
                     mode.colour.as_ref(),
                     &mode.attributes,
                     &mix,
+                    &fixture.behaviour,
                     scale,
                 );
                 for cell in &mode.cells {
@@ -8748,6 +8860,7 @@ impl Engine {
                         cell.colour.as_ref(),
                         &cell.attributes,
                         &mix,
+                        &fixture.behaviour,
                         scale,
                     );
                 }
@@ -8773,14 +8886,25 @@ impl Engine {
                     if let Some(v) = out.held {
                         (self.held.entry(item).or_default()).insert(l.name.to_string(), v);
                     }
-                    let value = out.value;
+                    let value = shaped(&fixture.behaviour, l.name, out.value);
                     if virtual_dimmer {
                         cell_scale = value.level();
                     }
                     if mode.automix {
-                        cell_mix.record(&l, value);
+                        cell_mix.record(&l, out.value);
                     }
-                    write_cell(frame, fixture.address, cell, &l, value, scale * cell_scale);
+                    let target = LogicalAttribute {
+                        name: outlet(fixture, l.name),
+                        ..l
+                    };
+                    write_cell(
+                        frame,
+                        fixture.address,
+                        cell,
+                        &target,
+                        value,
+                        scale * cell_scale,
+                    );
                 }
                 if mode.automix {
                     let scale = scale * cell_scale;
@@ -8790,6 +8914,7 @@ impl Engine {
                         cell.colour.as_ref(),
                         &cell.attributes,
                         &cell_mix,
+                        &fixture.behaviour,
                         scale,
                     );
                 }
@@ -9392,6 +9517,23 @@ impl Highlight {
     }
 }
 
+/// PAT-45: a level with a behaviour entry goes through it; anything else is unchanged.
+fn shaped(behaviour: &BTreeMap<String, Behaviour>, name: &str, value: Value) -> Value {
+    match (value, behaviour.get(name)) {
+        (Value::Level(v), Some(b)) => Value::Level(b.apply(v)),
+        _ => value,
+    }
+}
+
+/// PAT-46: the attribute whose channels `name` is written to.
+fn outlet<'a>(fixture: &Fixture, name: &'a str) -> &'a str {
+    match name {
+        palette::PAN if fixture.swap_pan_tilt => palette::TILT,
+        palette::TILT if fixture.swap_pan_tilt => palette::PAN,
+        _ => name,
+    }
+}
+
 /// Write one logical attribute's value into the fixture's slots. A level goes to the mode's
 /// attribute of that name and to the same-named attribute of every cell; Colour goes to the
 /// mode's and every cell's mixing channels (LIB-07, ADR-005). `scale` is the virtual dimmer
@@ -9466,6 +9608,7 @@ fn write_mixed(
     mixing: Option<&ColourMixing>,
     attributes: &[AttributeDef],
     mix: &Mix,
+    behaviour: &BTreeMap<String, Behaviour>,
     scale: f32,
 ) {
     let (Some(mixing), Some(target)) = (mixing, mix.colour) else {
@@ -9489,7 +9632,10 @@ fn write_mixed(
         for (r, e) in rem.iter_mut().zip(eq) {
             *r = (*r - level * a.output * e).max(0.0);
         }
-        frame.set_attribute(address, a, (level + mix.level(&a.name)).min(1.0) * scale);
+        // PAT-45: a limit holds on the mix's total.
+        let total = Value::Level((level + mix.level(&a.name)).min(1.0));
+        let total = shaped(behaviour, &a.name, total).level();
+        frame.set_attribute(address, a, total * scale);
     }
     let [r, g, b] = rem;
     frame.set_mixing(address, mixing, TargetColour { r, g, b }.scaled(scale));
@@ -10385,6 +10531,8 @@ mod tests {
         assert_eq!(e.add_profile("dimmer", dimmer_profile()), Ok(()));
         let patched = e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 1,
             number: 0,
             name: String::new(),
@@ -10403,6 +10551,8 @@ mod tests {
         let mut e = Engine::new(Settings::default());
         let r = e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 1,
             number: 0,
             name: String::new(),
@@ -10421,6 +10571,8 @@ mod tests {
         assert_eq!(e.add_profile("dimmer", dimmer_profile()), Ok(()));
         let r = e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 1,
             number: 0,
             name: String::new(),

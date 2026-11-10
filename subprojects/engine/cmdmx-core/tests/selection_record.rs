@@ -533,7 +533,7 @@ fn meta() -> Meta {
 
 #[test]
 fn prg_83_schema_9_round_trips_grid_order_and_flip() {
-    assert_eq!(SCHEMA_VERSION, 12);
+    assert_eq!(SCHEMA_VERSION, 13);
     let mut e = church();
     pars_outside_in(&mut e);
     e.select_group(5).unwrap();
@@ -544,7 +544,7 @@ fn prg_83_schema_9_round_trips_grid_order_and_flip() {
     let pb = record(&mut e, 1, 1);
 
     let json = e.to_show(meta()).to_json();
-    assert!(json.contains("\"schema_version\": 12"));
+    assert!(json.contains("\"schema_version\": 13"));
     assert!(json.contains("\"grid\""), "{json}");
     assert!(json.contains("\"order\""), "{json}");
     assert!(json.contains("\"flip\": true"), "{json}");
@@ -575,7 +575,7 @@ fn prg_83_a_show_without_them_saves_as_schema_8_did() {
         assert!(!json.contains(key), "{key} in {json}");
     }
 
-    let eight = json.replace("\"schema_version\": 12", "\"schema_version\": 8");
+    let eight = json.replace("\"schema_version\": 13", "\"schema_version\": 8");
     let (show, migrations) = Show::from_json(&eight).unwrap();
     assert!(
         migrations.iter().any(|m| m.starts_with("8 -> 9")),

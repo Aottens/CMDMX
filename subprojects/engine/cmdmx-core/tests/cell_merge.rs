@@ -39,6 +39,8 @@ fn rig() -> Engine {
     for (id, address) in [(901, 1), (902, 25)] {
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),

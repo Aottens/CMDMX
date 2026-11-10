@@ -933,6 +933,13 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         },
         PatchCopy { ids, number } => engine.patch_copy(&ids, number).map(drop),
         PatchSwapAddresses { ids, with } => engine.patch_swap_addresses(&ids, &with),
+        PatchBehaviour {
+            ids,
+            attribute,
+            edit,
+        } => engine.patch_behaviour(&ids, &attribute, &edit),
+        PatchBehaviourReset { ids } => engine.patch_behaviour_reset(&ids),
+        PatchSwapPanTilt { ids, swapped } => engine.patch_swap_pan_tilt(&ids, swapped),
         PatchHandle { id, handle } => engine.patch_handle(id, handle),
         PaletteRecord(record) => engine.record_palette(&record).map(drop),
         PaletteApply { number, timing } => engine.apply_palette(number, timing),
@@ -1201,6 +1208,9 @@ fn class(cmd: &ipc::Command) -> Class {
         | PatchUpdateProfile { .. }
         | PatchCopy { .. }
         | PatchSwapAddresses { .. }
+        | PatchBehaviour { .. }
+        | PatchBehaviourReset { .. }
+        | PatchSwapPanTilt { .. }
         | PatchHandle { .. }
         | PaletteRecord(_)
         | PaletteApply { .. }
@@ -1372,6 +1382,9 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         }
         PatchCopy { ids, .. } => (park_label("Copy", ids), None),
         PatchSwapAddresses { .. } => ("Swap addresses".into(), None),
+        PatchBehaviour { ids, .. } => (park_label("Behaviour", ids), None),
+        PatchBehaviourReset { ids } => (park_label("Reset behaviour", ids), None),
+        PatchSwapPanTilt { ids, .. } => (park_label("Swap pan/tilt", ids), None),
         PatchHandle { id, .. } => (format!("Patch handle {id}"), None),
         PaletteRecord(_) => ("Record palette".into(), None),
         PaletteApply { number, .. } => (format!("Apply palette {number}"), None),
@@ -1605,6 +1618,8 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
     for n in 1..=u32::from(Settings::default().faders_per_page) {
         engine.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: n,
             number: 0,
             name: String::new(),
@@ -1646,6 +1661,8 @@ fn demo_engine() -> Result<Engine, cmdmx_core::CoreError> {
         for id in ids {
             engine.patch(Fixture {
                 parked: false,
+                behaviour: Default::default(),
+                swap_pan_tilt: false,
                 id,
                 number: 0,
                 name: String::new(),
@@ -2468,6 +2485,60 @@ mod tests {
         apply(&mut engine, cmd, 0.0).unwrap();
         assert_eq!(engine.fixtures().count(), count + 1);
         assert!(engine.fixture_by_number(9001).unwrap().parked);
+    }
+
+    #[test]
+    fn ipc_62_behaviour_commands_are_edits_with_their_undo_labels() {
+        use cmdmx_core::patch::BehaviourEdit;
+        let set = |ids: Vec<u32>| ipc::Command::PatchBehaviour {
+            ids,
+            attribute: "Pan".into(),
+            edit: BehaviourEdit::default(),
+        };
+        let reset = |ids: Vec<u32>| ipc::Command::PatchBehaviourReset { ids };
+        let swap = |ids: Vec<u32>| ipc::Command::PatchSwapPanTilt { ids, swapped: true };
+        assert_eq!(class(&set(vec![1])), Class::Edit, "so IPC-50 refuses it");
+        assert_eq!(class(&reset(vec![1])), Class::Edit, "so IPC-50 refuses it");
+        assert_eq!(class(&swap(vec![1])), Class::Edit, "so IPC-50 refuses it");
+        assert_eq!(label(&set(vec![1, 2, 3, 4])).0, "Behaviour 4 fixtures");
+        assert_eq!(label(&set(vec![301])).0, "Behaviour 301");
+        assert_eq!(label(&reset(vec![1, 2])).0, "Reset behaviour 2 fixtures");
+        assert_eq!(label(&swap(vec![301])).0, "Swap pan/tilt 301");
+    }
+
+    #[test]
+    fn ipc_62_behaviour_commands_reach_the_engine() {
+        use cmdmx_core::patch::BehaviourEdit;
+        let mut engine = demo_engine().unwrap();
+        let id = (engine.fixtures())
+            .find(|f| {
+                engine.profile(&f.profile).is_some_and(|p| {
+                    (p.modes.iter())
+                        .any(|m| m.logical("Pan").is_some() && m.logical("Tilt").is_some())
+                })
+            })
+            .unwrap()
+            .id;
+        let cmd = ipc::Command::PatchBehaviour {
+            ids: vec![id],
+            attribute: "Pan".into(),
+            edit: BehaviourEdit {
+                invert: Some(true),
+                ..Default::default()
+            },
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert!(engine.fixture(id).unwrap().behaviour["Pan"].invert);
+        let cmd = ipc::Command::PatchSwapPanTilt {
+            ids: vec![id],
+            swapped: true,
+        };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert!(engine.fixture(id).unwrap().swap_pan_tilt);
+        let cmd = ipc::Command::PatchBehaviourReset { ids: vec![id] };
+        apply(&mut engine, cmd, 0.0).unwrap();
+        assert!(engine.fixture(id).unwrap().behaviour.is_empty());
+        assert!(engine.fixture(id).unwrap().swap_pan_tilt);
     }
 
     #[test]
@@ -3515,6 +3586,18 @@ mod tests {
         ),
         (r#"{"v":1,"cmd":"patch.copy","ids":[1]}"#, Class::Edit),
         (
+            r#"{"v":1,"cmd":"patch.behaviour","ids":[1],"attribute":"Pan","invert":true}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"patch.behaviour_reset","ids":[1]}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"patch.swap_pan_tilt","ids":[1],"swapped":true}"#,
+            Class::Edit,
+        ),
+        (
             r#"{"v":1,"cmd":"patch.update_profile","profile":"A/B"}"#,
             Class::Edit,
         ),
@@ -4251,6 +4334,8 @@ mod tests {
         .unwrap();
         e.patch(cmdmx_core::patch::Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 999,
             number: 0,
             name: String::new(),
@@ -4494,6 +4579,8 @@ mod tests {
             .unwrap();
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 1,
             number: 0,
             name: String::new(),

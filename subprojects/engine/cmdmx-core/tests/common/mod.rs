@@ -46,6 +46,8 @@ pub fn church() -> Engine {
     for id in 101..=104 {
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),
@@ -61,6 +63,8 @@ pub fn church() -> Engine {
     for id in (201..=208).chain(221..=226).chain(301..=306) {
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),

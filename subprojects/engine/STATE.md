@@ -1,8 +1,9 @@
 # engine — State
 
-_Last updated: 2026-11-09 (PTC-06)_
+_Last updated: 2026-11-10 (PTC-07)_
 
 ## Current step
+PTC-07 (2026-11-10, PAT-44..47, IPC-62): `Fixture.behaviour` (attribute → `Behaviour`, an entry only when not default) and `Fixture.swap_pan_tilt`, both left out of the file and the snapshot at their defaults; schema 13, step "12 -> 13". `tick` shapes each level with `shaped` right after the merge, for the fixture and cell loops; `held` and Take Over pickups stay unshaped. `Mix` records unshaped levels and `write_mixed` shapes the emitter's total, so a limit holds on auto level plus own value. `outlet` picks the channels for the swap. `Behaviour::apply` uses `max`/`min` because `f32::clamp` panics on a hand-edited `low > high`. `apply_mode` keeps the level attributes the new mode has and clears the swap when Pan or Tilt is gone. `explain` still shows the value before behaviour. Tests: `cmdmx-core/tests/behaviour.rs`, `tests/scenarios/PAT-45-behaviour-on-the-frame.json`.
 PTC-06 (2026-11-09, PAT-43, IPC-62): `Engine::auto_group` runs after a `patch.add` with `auto_groups`, and cannot fail, so an accepted Add stays one undo step; legends are cut to `MAX_LEGEND`. Tests: `cmdmx-core/tests/auto_groups.rs`.
 PTC-05 (2026-11-09, PAT-42, LIB-41, LIB-42, IPC-62): `Engine::update_profile` shares `install_profile` with `save_profile` but uses `validate` only (a QLC+ file may overlap slots). `Index` remembers the non-user entry a user profile hides, so `Library::delete_profile` lists it again; `Library::duplicate_profile` never replaces a file. Tests: `cmdmx-core/tests/update_profile.rs`, `cmdmx-daemon/src/library.rs`.
 PTC-04 (2026-11-09, PAT-40, PAT-41, IPC-62): `Engine::patch_copy` installs parked copies, then `copy_rows` (palette, cue values, dormant, order) and `copy_members` (groups, cue effects) and `parking_changed`; the copy of the `Fixture` struct takes any later field along, so PTC-07's behaviour needs a field, not code here. `Engine::patch_swap_addresses`; `CoreError::SwapSizes`. Tests: `cmdmx-core/tests/copy_swap.rs`.
