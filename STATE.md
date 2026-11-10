@@ -7,12 +7,11 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Now
 - Phase 1: a well-working general DMX console. Its finish line is a real Sunday service on CMDMX (VS4-03).
 - The church keeps running on Lightkey until Christmas, then on CMDMX (owner, 2026-11-06).
-- IDEA-35 batch D, working on many at once, is complete: picking several, releasing many, a new show on the same patch.
+- IDEA-35 batches D (working on many at once) and E (patch and profiles) are complete.
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch E, patch and profiles (spec approved): build
-   PTC-07 + PTC-08. Then batches F, G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec
+1. IDEA-35 batches F, G, I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec
    approved first. P1-31 (Blind and Edit) stays apart from them.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 

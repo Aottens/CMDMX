@@ -549,6 +549,8 @@ fn grm_10_a_fixture_without_a_dimmer_is_skipped() {
     .unwrap();
     e.patch(Fixture {
         parked: false,
+        behaviour: Default::default(),
+        swap_pan_tilt: false,
         id: 900,
         number: 0,
         name: String::new(),

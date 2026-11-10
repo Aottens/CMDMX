@@ -32,7 +32,7 @@ use cmdmx_core::output::{Node, NodeId, NodeKind};
 use cmdmx_core::palette::{
     AutoIcon, Cell, PaletteId, PaletteKind, Record, RecordBy, RecordMode, Timing,
 };
-use cmdmx_core::patch::{Fixture, FixtureId, Handle, PatchAdd};
+use cmdmx_core::patch::{Behaviour, BehaviourEdit, Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{
     AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Layout, Link,
@@ -314,6 +314,21 @@ pub enum Command {
     PatchSwapAddresses {
         ids: Vec<FixtureId>,
         with: Vec<FixtureId>,
+    },
+    /// PAT-44, IPC-62: set the fields given of one attribute's behaviour on the range.
+    PatchBehaviour {
+        ids: Vec<FixtureId>,
+        attribute: String,
+        edit: BehaviourEdit,
+    },
+    /// PAT-44, IPC-62: every behaviour field of the range back to default.
+    PatchBehaviourReset {
+        ids: Vec<FixtureId>,
+    },
+    /// PAT-46, IPC-62: send Pan to Tilt's channels and the other way round.
+    PatchSwapPanTilt {
+        ids: Vec<FixtureId>,
+        swapped: bool,
     },
     /// PAT-42, IPC-62: `library` is the library's copy of `profile`, attached by the client
     /// thread (`attach_profile`).
@@ -1731,6 +1746,23 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
                 .ok_or_else(|| "invalid \"with\" (expected an array of fixture ids)".to_string())?,
         }),
+        Some("patch.behaviour") => Ok(Command::PatchBehaviour {
+            ids: ids_or_id(&v)?,
+            attribute: string(&v, "attribute")?,
+            edit: BehaviourEdit {
+                invert: opt_field(&v, "invert", "true or false")?,
+                low: opt_f32(&v, "low")?,
+                high: opt_f32(&v, "high")?,
+                offset: opt_f32(&v, "offset")?,
+            },
+        }),
+        Some("patch.behaviour_reset") => Ok(Command::PatchBehaviourReset {
+            ids: ids_or_id(&v)?,
+        }),
+        Some("patch.swap_pan_tilt") => Ok(Command::PatchSwapPanTilt {
+            ids: ids_or_id(&v)?,
+            swapped: boolean(&v, "swapped")?,
+        }),
         Some("patch.handle") => Ok(Command::PatchHandle {
             id: uint(&v, "id")?,
             handle: Handle {
@@ -2515,6 +2547,12 @@ struct FixtureInfo<'a> {
     handle: Option<Handle>,
     /// PAT-34: off the output map; `universe` and `address` are the remembered place.
     parked: bool,
+    /// PAT-47: attribute name to its behaviour; absent when none is set.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    behaviour: &'a BTreeMap<String, Behaviour>,
+    /// PAT-46: absent when false.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    swap_pan_tilt: bool,
     /// IPC-21: attribute name to group, for placing programmer values.
     attributes: BTreeMap<&'a str, AttributeGroup>,
     /// IPC-42: attribute name to group over all the mode's cells; absent without cells.
@@ -2873,6 +2911,8 @@ fn fixture_infos(engine: &Engine) -> Vec<FixtureInfo<'_>> {
                 virtual_dimmer: mode.is_some_and(|m| m.has_virtual_dimmer()),
                 handle: f.handle,
                 parked: f.parked,
+                behaviour: &f.behaviour,
+                swap_pan_tilt: f.swap_pan_tilt,
                 attributes: (mode.iter())
                     .flat_map(|m| m.logical_attributes())
                     .map(|l| (l.name, l.group))
@@ -4296,6 +4336,8 @@ mod tests {
         .unwrap();
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 1,
             number: 0,
             name: String::new(),
@@ -4843,6 +4885,31 @@ mod tests {
     }
 
     #[test]
+    fn pat_47_snapshot_entries_carry_behaviour_only_when_set() {
+        use cmdmx_core::patch::BehaviourEdit;
+        let mut e = engine();
+        let edit = BehaviourEdit {
+            invert: Some(true),
+            high: Some(0.5),
+            ..Default::default()
+        };
+        e.patch_behaviour(&[1], "Dimmer", &edit).unwrap();
+        let v = parse(&snapshot(
+            &e,
+            &[],
+            &show_state(),
+            &UndoInfo::default(),
+            &serde_json::Value::Null,
+            &[],
+            false,
+            &serde_json::Value::Null,
+        ));
+        let mut entry = dimmer_entry();
+        entry["behaviour"] = json!({"Dimmer":{"invert":true,"high":0.5}});
+        assert_eq!(v["fixtures"], json!([entry]));
+    }
+
+    #[test]
     fn pat_09_patch_commands_parse() {
         use cmdmx_core::patch::{Handle, PatchAdd};
         let ok = |s: &str| parse_command(s).unwrap();
@@ -5104,6 +5171,64 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn ipc_62_patch_behaviour_parses_only_the_fields_given() {
+        use cmdmx_core::patch::BehaviourEdit;
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"patch.behaviour","ids":[3,4],"attribute":"Pan","invert":true}"#),
+            Command::PatchBehaviour {
+                ids: vec![3, 4],
+                attribute: "Pan".into(),
+                edit: BehaviourEdit {
+                    invert: Some(true),
+                    ..Default::default()
+                },
+            }
+        );
+        assert_eq!(
+            ok(
+                r#"{"v":1,"cmd":"patch.behaviour","id":3,"attribute":"Dimmer","low":0.1,"high":0.5,"offset":-0.25}"#
+            ),
+            Command::PatchBehaviour {
+                ids: vec![3],
+                attribute: "Dimmer".into(),
+                edit: BehaviourEdit {
+                    invert: None,
+                    low: Some(0.1),
+                    high: Some(0.5),
+                    offset: Some(-0.25),
+                },
+            }
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"patch.behaviour","ids":[3]}"#,
+            r#"{"v":1,"cmd":"patch.behaviour","attribute":"Pan"}"#,
+            r#"{"v":1,"cmd":"patch.behaviour","ids":[3],"attribute":"Pan","invert":1}"#,
+            r#"{"v":1,"cmd":"patch.behaviour","ids":[3],"attribute":"Pan","low":"0"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_62_behaviour_reset_and_swap_pan_tilt_parse() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"patch.behaviour_reset","ids":[3,4]}"#),
+            Command::PatchBehaviourReset { ids: vec![3, 4] }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"patch.swap_pan_tilt","id":3,"swapped":true}"#),
+            Command::PatchSwapPanTilt {
+                ids: vec![3],
+                swapped: true,
+            }
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"patch.swap_pan_tilt","ids":[3]}"#).is_err());
+        assert!(parse_command(r#"{"v":1,"cmd":"patch.behaviour_reset"}"#).is_err());
     }
 
     #[test]
@@ -6048,6 +6173,8 @@ mod tests {
             .unwrap();
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 9,
             number: 0,
             name: String::new(),
@@ -7005,6 +7132,8 @@ mod tests {
         .unwrap();
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 2,
             number: 0,
             name: String::new(),
@@ -7356,6 +7485,8 @@ mod tests {
         let mut e = engine();
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id: 2,
             number: 0,
             name: String::new(),

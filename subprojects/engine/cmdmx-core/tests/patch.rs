@@ -419,6 +419,8 @@ fn pat_12_low_level_patch_numbers_fixtures_by_id() {
     let mut e = engine();
     e.patch(cmdmx_core::patch::Fixture {
         parked: false,
+        behaviour: Default::default(),
+        swap_pan_tilt: false,
         id: 201,
         number: 0,
         name: String::new(),
@@ -567,6 +569,8 @@ fn pat_09_name_sets_the_legend_only() {
     assert_eq!(
         cmdmx_core::patch::Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             name: String::new(),
             ..after
         },

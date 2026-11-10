@@ -1,4 +1,4 @@
-# App patch checklist (PAT-09, PAT-10, PAT-25, PAT-35, UI-72, UI-75, LIB-22, LIB-35) — template
+# App patch checklist (PAT-09, PAT-10, PAT-25, PAT-35, UI-72, UI-75, UI-76, LIB-22, LIB-35) — template
 
 No Swift test target exists (CLAUDE.md), so the Patch screen of `specs/modules/patch.md` PAT-10
 is checked by hand. Copy to `tests/manual/runs/<date>-<task>.md` and tick it there.
@@ -215,6 +215,16 @@ From a fresh Demo, with an Art-Net monitor on universe 1.
 - [ ] Add 2 more of the type: `All` grows to 6, a new `2 <model>`; Add 1 more: `All` grows to 7, no new group
 - [ ] Undo after an Add takes the fixtures and the groups together
 - [ ] Quit and reopen the app: the toggle is as you left it
+
+## Behaviour (UI-76, PAT-44..47)
+- [ ] **Behaviour…** on a selection: the sheet lists the attributes every selected row has, no Colour; Swap Pan and Tilt only when all have both
+- [ ] Invert Pan with Pan at 25 %: Art-Net Pan reads 191; the row shows `INV`
+- [ ] High 80 on Dimmer at full: Art-Net 204; the row shows `LIM`; Offset 10 on Zoom at 95 %: 255
+- [ ] A selection where one row is inverted and another is not: Invert off, the differing Low, High, Offset fields empty
+- [ ] Low above High, or a value out of range: refused, the sheet names it, nothing changes
+- [ ] Swap Pan and Tilt: Pan's value on the Tilt channels and the other way round; off: back
+- [ ] Reset: tags gone, output as it was; Swap Pan and Tilt stays
+- [ ] Undo (each one step); save, quit, reopen: behaviour and the tags are back
 
 ## Still works
 - [ ] A second app window (or a restart of the app) shows the same patch: the table comes from the

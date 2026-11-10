@@ -95,6 +95,8 @@ fn rig() -> Engine {
     ] {
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),
@@ -942,6 +944,8 @@ fn strobe_rig() -> Engine {
     for (id, address) in [(401, 31), (402, 34)] {
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),

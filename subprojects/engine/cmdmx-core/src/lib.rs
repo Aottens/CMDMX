@@ -133,6 +133,9 @@ pub enum CoreError {
     GroupMastered { group: u32, page: u16, slot: u16 },
     #[error("fixture {fixture} has no attribute '{attribute}'")]
     UnknownAttribute { fixture: u32, attribute: String },
+    /// PAT-44: a behaviour field out of range, low above high, or Colour.
+    #[error("{0}")]
+    InvalidBehaviour(String),
     #[error("Nothing to undo")]
     NothingToUndo,
     #[error("Nothing to redo")]

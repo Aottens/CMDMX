@@ -78,6 +78,8 @@ fn church() -> Engine {
     for (i, id) in (201..=204).enumerate() {
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),

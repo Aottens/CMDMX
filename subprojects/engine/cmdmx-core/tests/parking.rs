@@ -500,7 +500,7 @@ fn pat_33_a_parked_fixture_can_be_removed() {
 
 #[test]
 fn pat_34_the_show_file_marks_parked_fixtures_only() {
-    assert_eq!(SCHEMA_VERSION, 12);
+    assert_eq!(SCHEMA_VERSION, 13);
     let mut e = church();
     e.patch_park(&[202]).unwrap();
     let v: Json = serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
@@ -513,7 +513,7 @@ fn pat_34_the_show_file_marks_parked_fixtures_only() {
         };
         assert_eq!(f.get("parked"), expected, "{f}");
     }
-    assert_eq!(v["schema_version"], json!(12));
+    assert_eq!(v["schema_version"], json!(13));
 }
 
 #[test]
@@ -536,7 +536,7 @@ fn pat_34_schema_11_migrates_and_parks_nothing() {
     let mut v: Json = serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
     v["schema_version"] = json!(11);
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert_eq!(migrations.len(), 2, "{migrations:?}");
     assert!(migrations[0].starts_with("11 -> 12"), "{migrations:?}");
     let (loaded, _) = Engine::from_show(&show);
     assert!(loaded.fixtures().all(|f| !f.parked));

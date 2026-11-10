@@ -98,6 +98,8 @@ fn engine(profiles: &[(&str, &str)], patch: &[(u32, &str, u16)]) -> Engine {
     for &(id, profile, address) in patch {
         e.patch(Fixture {
             parked: false,
+            behaviour: Default::default(),
+            swap_pan_tilt: false,
             id,
             number: 0,
             name: String::new(),
