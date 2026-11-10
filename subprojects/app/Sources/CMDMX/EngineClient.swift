@@ -740,9 +740,13 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
     let cellAttributes: [String: String]
     /// Every mode name of the fixture's profile (PAT-09), for the Change Mode dropdown.
     let modes: [String]
+    /// PTC-07: attribute → the behaviour that is not default; absent attributes are default.
+    let behaviour: [String: FixtureBehaviour]
+    let swapPanTilt: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case id, number, name, profile, mode, universe, address, footprint, parked, cells, handle, attributes, modes
+        case id, number, name, profile, mode, universe, address, footprint, parked, cells, handle, attributes, modes, behaviour
+        case swapPanTilt = "swap_pan_tilt"
         case virtualDimmer = "virtual_dimmer"
         case cellAttributes = "cell_attributes"
     }
@@ -764,7 +768,29 @@ struct FixtureInfo: Decodable, Identifiable, Equatable {
         attributes = (try? c.decode([String: String].self, forKey: .attributes)) ?? [:]
         cellAttributes = (try? c.decode([String: String].self, forKey: .cellAttributes)) ?? [:]
         modes = (try? c.decode([String].self, forKey: .modes)) ?? []
+        behaviour = (try? c.decode([String: FixtureBehaviour].self, forKey: .behaviour)) ?? [:]
+        swapPanTilt = (try? c.decode(Bool.self, forKey: .swapPanTilt)) ?? false
     }
+}
+
+/// PTC-07: how one attribute of a fixture is shaped at the output; every field falls back to its default.
+struct FixtureBehaviour: Decodable, Equatable {
+    let invert: Bool
+    let low: Double
+    let high: Double
+    let offset: Double
+
+    private enum CodingKeys: String, CodingKey { case invert, low, high, offset }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        invert = (try? c.decode(Bool.self, forKey: .invert)) ?? false
+        low = (try? c.decode(Double.self, forKey: .low)) ?? 0
+        high = (try? c.decode(Double.self, forKey: .high)) ?? 1
+        offset = (try? c.decode(Double.self, forKey: .offset)) ?? 0
+    }
+
+    var limits: Bool { low != 0 || high != 1 || offset != 0 }
 }
 
 /// One manufacturer in a `library.manufacturers` reply (LIB-20), with its model count.
@@ -2050,6 +2076,20 @@ final class EngineClient: ObservableObject {
         if let number { fields["number"] = number }
         patch("patch.copy", fields)
     }
+
+    /// PTC-07: only the fields given are sent; the engine keeps the rest.
+    func patchBehaviour(ids: [Int], attribute: String, invert: Bool? = nil, low: Double? = nil, high: Double? = nil, offset: Double? = nil) {
+        var fields: [String: Any] = ["ids": ids, "attribute": attribute]
+        if let invert { fields["invert"] = invert }
+        if let low { fields["low"] = low }
+        if let high { fields["high"] = high }
+        if let offset { fields["offset"] = offset }
+        patch("patch.behaviour", fields)
+    }
+
+    func patchBehaviourReset(ids: [Int]) { patch("patch.behaviour_reset", ["ids": ids]) }
+
+    func patchSwapPanTilt(ids: [Int], swapped: Bool) { patch("patch.swap_pan_tilt", ["ids": ids, "swapped": swapped]) }
 
     /// PAT-42: the engine fetches the library's copy of `profile` itself.
     func patchUpdateProfile(profile: String) { patch("patch.update_profile", ["profile": profile]) }

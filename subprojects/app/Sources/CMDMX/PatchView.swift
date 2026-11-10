@@ -74,7 +74,14 @@ struct PatchView: View {
                         TableColumn("No") { Text(String($0.number)).monospacedDigit().opacity($0.parked ? 0.45 : 1) }.width(min: 40, ideal: 50, max: 70)
                         TableColumn("Name") { Text($0.name).opacity($0.parked ? 0.45 : 1) }.width(min: 60, ideal: 120)
                         TableColumn("Fixture") { Text($0.profile).opacity($0.parked ? 0.45 : 1) }.width(min: 100, ideal: 200)
-                        TableColumn("Mode") { Text($0.virtualDimmer ? "\($0.mode) · virtual dimmer" : $0.mode).opacity($0.parked ? 0.45 : 1) }
+                        TableColumn("Mode") { f in
+                            HStack(spacing: 6) {
+                                Text(f.virtualDimmer ? "\(f.mode) · virtual dimmer" : f.mode)
+                                let tags = [f.behaviour.values.contains { $0.invert } ? "INV" : nil,
+                                            f.behaviour.values.contains { $0.limits } ? "LIM" : nil].compactMap { $0 }
+                                if !tags.isEmpty { Text(tags.joined(separator: " ")).font(Typo.mono(Typo.small)).foregroundStyle(t.amber) }
+                            }.opacity(f.parked ? 0.45 : 1)
+                        }
                             .width(min: 100, ideal: 180)
                         TableColumn("Address") {
                             Text(verbatim: $0.parked ? "parked (was \($0.universe).\($0.address))" : "\($0.universe).\($0.address)")
@@ -557,6 +564,7 @@ private struct SelectedPanel: View {
     @State private var number = ""
     @State private var name = ""
     @State private var mode = ""
+    @State private var showBehaviour = false
     /// Which destructive button has been clicked once; reset when the selection changes.
     @State private var armed: Armed?
     /// The last Move sent, so a refused overlap can be resent with `park_conflicting` (PAT-35).
@@ -613,6 +621,9 @@ private struct SelectedPanel: View {
                             engine.patchCopy(ids: ids, number: start)
                             copyNumber = ""
                         }.buttonStyle(FlatButton())
+                    }
+                    labelled("Behaviour") {
+                        Button("Behaviour…") { showBehaviour = true }.buttonStyle(FlatButton())
                     }
                     // PAT-42: only when the whole selection shares one profile; the engine refuses a misfit.
                     labelled("Library") {
@@ -691,6 +702,7 @@ private struct SelectedPanel: View {
                     usageCaption(for: .remove)
                 }
                 .padding(8)
+                .sheet(isPresented: $showBehaviour) { BehaviourSheet(fixtures: fixtures) }
                 .onAppear { load(fixture) }
                 .onChange(of: ids) { _, _ in load(fixture) }
                 .onChange(of: sharedMode) { _, m in mode = m }
@@ -715,6 +727,107 @@ private struct SelectedPanel: View {
     private func load(_ f: FixtureInfo) {
         universe = "\(f.universe)"; address = "\(f.address)"; number = "\(f.number)"
         name = f.name; mode = sharedMode; armed = nil; lastMove = nil; copyNumber = ""
+    }
+}
+
+/// UI-76: per-attribute invert, limits and offset for the selection, and Pan/Tilt swap. The engine does the shaping.
+private struct BehaviourSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var t
+    @EnvironmentObject private var engine: EngineClient
+    let fixtures: [FixtureInfo]
+
+    private var ids: [Int] { fixtures.map(\.id) }
+
+    /// Attributes every selected fixture has (not Colour), by group order then name.
+    private var attributes: [String] {
+        guard let first = fixtures.first else { return [] }
+        func rank(_ g: String) -> Int { attributeGroupOrder.firstIndex(of: g) ?? attributeGroupOrder.count }
+        return first.attributes
+            .filter { kv in kv.key != "Colour" && fixtures.allSatisfy { $0.attributes[kv.key] != nil } }
+            .sorted { a, b in (rank(a.value), a.key) < (rank(b.value), b.key) }
+            .map(\.key)
+    }
+
+    /// The value every selected fixture shares for `attribute` (missing entry = default), else nil.
+    private func shared<V: Equatable>(_ attribute: String, _ value: (FixtureBehaviour) -> V, default d: V) -> V? {
+        let values = fixtures.map { $0.behaviour[attribute].map(value) ?? d }
+        guard let first = values.first, values.allSatisfy({ $0 == first }) else { return nil }
+        return first
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Behaviour · \(fixtures.count == 1 ? "fixture \(fixtures.first?.number ?? 0)" : "\(fixtures.count) fixtures")").font(.headline)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text("").frame(width: 90)
+                        Text("Invert").frame(width: 44, alignment: .leading)
+                        ForEach(["Low %", "High %", "Offset %"], id: \.self) { Text($0).frame(width: 56, alignment: .trailing) }
+                    }.font(.caption).foregroundStyle(.secondary)
+                    ForEach(attributes, id: \.self) { a in
+                        HStack(spacing: 8) {
+                            Text(a).frame(width: 90, alignment: .leading).lineLimit(1)
+                            Toggle("Invert", isOn: Binding(
+                                get: { shared(a, \.invert, default: false) == true },
+                                set: { engine.patchBehaviour(ids: ids, attribute: a, invert: $0) }))
+                                .toggleStyle(.checkbox).labelsHidden().frame(width: 44, alignment: .leading)
+                            PercentField(label: "Low", value: shared(a, \.low, default: 0)) { engine.patchBehaviour(ids: ids, attribute: a, low: $0) }
+                            PercentField(label: "High", value: shared(a, \.high, default: 1)) { engine.patchBehaviour(ids: ids, attribute: a, high: $0) }
+                            PercentField(label: "Offset", value: shared(a, \.offset, default: 0)) { engine.patchBehaviour(ids: ids, attribute: a, offset: $0) }
+                        }
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(maxHeight: 360)
+            if fixtures.allSatisfy({ $0.attributes["Pan"] != nil && $0.attributes["Tilt"] != nil }) {
+                Toggle("Swap Pan and Tilt", isOn: Binding(
+                    get: { fixtures.allSatisfy(\.swapPanTilt) },
+                    set: { engine.patchSwapPanTilt(ids: ids, swapped: $0) }))
+            }
+            // Always one line, so a refusal does not squeeze the rows: the sheet keeps its height.
+            Text(engine.lastMessage ?? " ").font(Typo.ui(11)).foregroundStyle(t.amber)
+            HStack {
+                Button("Reset") { engine.patchBehaviourReset(ids: ids) }
+                    .buttonStyle(FlatButton()).disabled(!fixtures.contains { !$0.behaviour.isEmpty })
+                Spacer()
+                Button("Done") { dismiss() }   // no .defaultAction: Return commits a field
+            }
+        }
+        // Escape closes like Done; zero-size rather than .hidden(), which disables the shortcut.
+        .background(Button("") { dismiss() }.keyboardShortcut(.cancelAction).frame(width: 0, height: 0).opacity(0))
+        .padding(16)
+        .frame(width: 460)
+    }
+
+    /// A percent field: the shared value × 100, empty when the selection differs; commits on Return and focus loss.
+    private struct PercentField: View {
+        let label: String
+        let value: Double?
+        let commit: (Double) -> Void
+        @State private var text = ""
+        @FocusState private var focused: Bool
+
+        private var shown: String {
+            guard let value else { return "" }
+            return String(format: "%g", (value * 1000).rounded() / 10)
+        }
+
+        var body: some View {
+            TextField(label, text: $text)
+                .textFieldStyle(.roundedBorder).frame(width: 56).multilineTextAlignment(.trailing)
+                .focused($focused)
+                .help(label + " (%)")
+                .onAppear { text = shown }
+                .onChange(of: value) { _, _ in text = shown }
+                .onSubmit(send)
+                .onChange(of: focused) { _, f in if !f { send() } }
+        }
+
+        private func send() {
+            guard let n = Double(text.trimmingCharacters(in: .whitespaces)), text != shown else { return }
+            commit(n / 100)
+        }
     }
 }
 

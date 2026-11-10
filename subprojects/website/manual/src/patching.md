@@ -223,6 +223,26 @@ groups, so the look follows the fixture to its new place. Undo takes it back in 
 The swap is refused as a whole when the selections differ in size, when a fixture is in both, when a fixture is parked (`201 is parked`), or when a type with more channels would
 run into another fixture on its new address (`101 would overlap 301 at 1.8`).
 
+### Behaviour: invert, limits and offset
+
+A moving head hung the other way round, or a dimmer that must never go above 80%? Select the rows and click **Behaviour…** in the Selected panel.
+The sheet lists the attributes every selected fixture has, each with:
+
+- **Invert**: 25% comes out as 75%.
+- **Low** and **High**: the output stays between them. Dimmer full under a High of 80 sends DMX 204.
+- **Offset**: added to the level, from −100 to 100. 95% with an Offset of 10 comes out full.
+
+A level is inverted first, then the offset is added, then it is held between Low and High. This is the very last step before the DMX goes out, so
+it counts for everything: the programmer, cues, effects, Locate and Highlight. What you stored does not change, and the programmer may hold a value outside the
+limits. A value that differs across the selection shows empty, and Invert shows off. Typing a value and pressing Return sets it on the whole selection.
+Colour holds no level of its own, so it is not in the list.
+
+**Swap Pan and Tilt** appears when every selected fixture has both: the Pan value goes to the Tilt channels and the other way round, after each
+one's own invert and limits. **Reset** puts Invert, Low, High and Offset back on the selection. It leaves Swap Pan and Tilt as it is.
+
+A row with an invert shows `INV` in the Mode column, a row with a limit or offset `LIM`. Behaviour belongs to the fixture and is saved with the show. Changing mode or type
+keeps it for the attributes that remain, and a copy takes it along. Each change is one step for Undo.
+
 ### Updating a type from the library
 
 A show keeps its own copy of every fixture type, so a better profile in the library changes nothing by itself. To bring it in, select
