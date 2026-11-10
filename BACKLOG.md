@@ -275,8 +275,8 @@ Builds: PTC-01 + PTC-02; PTC-03; PTC-04; PTC-05 + PTC-06; PTC-07 + PTC-08.
 | PTC-04 | Core, daemon and app: Copy a patched fixture and Swap Addresses; `pat_40_…`, `pat_41_…`; manual and run. | PAT-40, PAT-41, UI-75 | M | done (2026-11-09, #286; run `tests/manual/runs/2026-11-09-PTC-04.md`) |
 | PTC-05 | Core, daemon and app: Update from library, delete and duplicate a user profile; `pat_42_…`, `lib_41_…`, `lib_42_…`; manual and run. | PAT-42, LIB-41, LIB-42, UI-75 | S | done (2026-11-09, #288; run `tests/manual/runs/2026-11-09-PTC-05-06.md`) |
 | PTC-06 | Core, daemon and app: Auto Groups on Add; `pat_43_…`; manual and run. | PAT-43, UI-74 | S | done (2026-11-09, #288; run `tests/manual/runs/2026-11-09-PTC-05-06.md`) |
-| PTC-07 | Core and daemon: behaviour at the output (Invert, Limits, Offset, Swap Pan/Tilt), its wire and show schema step, and PAT-40's copy of it; `pat_44_…`..`pat_47_…`, scenario on the frame. | PAT-44..47 | M | todo |
-| PTC-08 | App: the Behaviour sheet and its tags; manual and run on Art-Net. Needs PTC-07. | UI-76 | S | todo |
+| PTC-07 | Core and daemon: behaviour at the output (Invert, Limits, Offset, Swap Pan/Tilt), its wire and show schema step, and PAT-40's copy of it; `pat_44_…`..`pat_47_…`, scenario on the frame. | PAT-44..47 | M | done (2026-11-10, #289; run `tests/manual/runs/2026-11-10-PTC-07-08.md`) |
+| PTC-08 | App: the Behaviour sheet and its tags; manual and run on Art-Net. Needs PTC-07. | UI-76 | S | done (2026-11-10, #289; run `tests/manual/runs/2026-11-10-PTC-07-08.md`) |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
