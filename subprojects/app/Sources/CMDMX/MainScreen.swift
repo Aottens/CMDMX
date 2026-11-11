@@ -655,7 +655,7 @@ private struct StatusBar: View {
             let worst = nodes.map(\.state).max { rank($0) < rank($1) } ?? .ok
             let color = [OutputNode.State.ok: t.green, .disabled: t.fg3, .degraded: t.amber, .stopped: t.red][worst] ?? t.green
             let issues = nodes.filter { $0.state != .ok }.map { n in
-                "#\(n.id) universe \(n.line)" + (n.detail.map { ": \($0)" } ?? "")
+                "\(n.label) universe \(n.line)" + (n.detail.map { ": \($0)" } ?? "")
             }
             // UI-40: a click opens the Output screen.
             Button { ui.screen = .output } label: {

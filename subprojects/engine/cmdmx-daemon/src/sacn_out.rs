@@ -2,10 +2,11 @@
 
 use std::io;
 use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
+use std::sync::{Arc, Mutex};
 
 use cmdmx_protocols::sacn;
 
-use crate::output::{open_udp, Health, OutputState};
+use crate::output::{open_udp, read_name, Health, OutputState, SharedName};
 
 pub const SOURCE_NAME: &str = "CMDMX";
 
@@ -25,7 +26,7 @@ pub fn multicast_target(universe: u16) -> SocketAddrV4 {
 
 pub struct SacnNode {
     /// `sacn #2`, the prefix of every log line (OUT-30).
-    name: String,
+    name: SharedName,
     target: SocketAddrV4,
     universe: u16,
     priority: u8,
@@ -35,9 +36,14 @@ pub struct SacnNode {
 }
 
 impl SacnNode {
+    /// OUT-42: log lines read the name the reconciler keeps current.
+    pub fn share_name(&mut self, name: SharedName) {
+        self.name = name;
+    }
+
     pub fn new(name: String, target: SocketAddrV4, universe: u16, priority: u8) -> Self {
         SacnNode {
-            name,
+            name: Arc::new(Mutex::new(name)),
             target,
             universe,
             priority,
@@ -55,7 +61,7 @@ impl SacnNode {
         }
         self.health
             .record(&result)
-            .map(|m| format!("{}: {m}", self.name))
+            .map(|m| format!("{}: {m}", read_name(&self.name)))
     }
 
     /// OUT-29: an edited priority applies from the next frame.

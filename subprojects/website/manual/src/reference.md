@@ -179,6 +179,7 @@ Work from the console to the lamp:
    output`. Hover over a protocol dot in the status bar to see what is wrong with a node; a click on it
    opens the Output screen. When a node goes wrong or recovers, the message line says so once, for
    example `serial #3 universe 1: Degraded: port not found` and later `serial #3 universe 1: Ok again`.
+   A node with a name reads `Kerk Eurolite (serial #3) universe 1: …`.
    [Messages](#messages) keeps those lines.
 5. **USB DMX**: the Serial row shows `no interface` or `port not found` when it cannot find the
    interface. Choose its port in the dropdown (a Eurolite is never found by itself; see

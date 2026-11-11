@@ -21,7 +21,7 @@ use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId, It
 use crate::{CoreError, UniverseId};
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 13;
+pub const SCHEMA_VERSION: u32 = 14;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -305,6 +305,12 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
                 .into(),
         );
     }
+    if version < 14 {
+        if let Some(show) = value.as_object_mut() {
+            show.insert("schema_version".into(), 14.into());
+        }
+        migrations.push("13 -> 14: output nodes may carry a name, nothing else changes".into());
+    }
     migrations
 }
 
@@ -451,6 +457,7 @@ fn migrate_5_to_6(value: &mut serde_json::Value) -> String {
                 id,
                 line,
                 enabled: true,
+                name: String::new(),
                 kind,
             })
             .ok()

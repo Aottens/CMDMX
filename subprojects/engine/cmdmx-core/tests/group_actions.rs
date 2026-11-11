@@ -336,11 +336,11 @@ fn prg_91_each_action_is_one_step_and_a_refused_one_adds_none() {
 
 #[test]
 fn prg_92_schema_10_round_trips_a_legend() {
-    assert_eq!(SCHEMA_VERSION, 13);
+    assert_eq!(SCHEMA_VERSION, 14);
     let mut e = church();
     group_5(&mut e);
     let json = e.to_show(meta()).to_json();
-    assert!(json.contains("\"schema_version\": 13"));
+    assert!(json.contains("\"schema_version\": 14"));
     assert!(json.contains("\"legend\": \"Pars outside in\""), "{json}");
     let (show, migrations) = Show::from_json(&json).unwrap();
     assert!(migrations.is_empty(), "{migrations:?}");
@@ -361,9 +361,9 @@ fn prg_92_a_show_without_legends_saves_as_schema_9_did() {
     let groups = &json[json.find("\"groups\"").unwrap()..json.find("\"palettes\"").unwrap()];
     assert!(!groups.contains("legend"), "{groups}");
 
-    let nine = json.replace("\"schema_version\": 13", "\"schema_version\": 9");
+    let nine = json.replace("\"schema_version\": 14", "\"schema_version\": 9");
     let (show, migrations) = Show::from_json(&nine).unwrap();
-    assert_eq!(migrations.len(), 4, "{migrations:?}");
+    assert_eq!(migrations.len(), 5, "{migrations:?}");
     assert!(migrations[0].starts_with("9 -> 10"), "{migrations:?}");
     let (loaded, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");

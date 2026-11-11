@@ -16,8 +16,27 @@ pub struct Node {
     pub id: NodeId,
     pub line: UniverseId,
     pub enabled: bool,
+    /// OUT-42: 0 to 32 characters, left out of the file when empty.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub name: String,
     #[serde(flatten)]
     pub kind: NodeKind,
+}
+
+impl Node {
+    /// OUT-42: how a node is named for a person: `serial #3`, or `Kerk Eurolite (serial #3)`.
+    pub fn label(&self) -> String {
+        let kind = match self.kind {
+            NodeKind::Artnet { .. } => "art-net",
+            NodeKind::Sacn { .. } => "sacn",
+            NodeKind::Serial { .. } => "serial",
+        };
+        if self.name.is_empty() {
+            format!("{kind} #{}", self.id)
+        } else {
+            format!("{} ({kind} #{})", self.name, self.id)
+        }
+    }
 }
 
 /// OUT-13: addresses stay strings so the core checks them (OUT-28).
@@ -101,6 +120,12 @@ pub fn check_number(key: &str, n: i64) -> Result<(), CoreError> {
 /// (another id) sends to the same destination. Used by every edit and by load.
 pub fn check<'a>(node: &Node, others: impl IntoIterator<Item = &'a Node>) -> Result<(), CoreError> {
     check_number("line", i64::from(node.line))?;
+    let len = node.name.chars().count();
+    if len > 32 {
+        return Err(invalid(format!(
+            "a node name is at most 32 characters (this one has {len})"
+        )));
+    }
     match &node.kind {
         NodeKind::Artnet {
             port_address,

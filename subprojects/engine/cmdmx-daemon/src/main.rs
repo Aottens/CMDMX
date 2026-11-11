@@ -879,8 +879,9 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         OutputAdd {
             line,
             enabled,
+            name,
             kind,
-        } => engine.output_add(line, enabled, kind).map(drop),
+        } => engine.output_add_named(line, enabled, name, kind).map(drop),
         OutputRemove { ids } => engine.output_remove(&ids),
         // OUT-34: the changed fields go over the stored node; the engine checks the whole.
         OutputEdit { id, change } => {
@@ -4253,6 +4254,46 @@ mod tests {
         }
         assert_eq!(e.edit_state(), before);
         assert!(h.is_empty());
+    }
+
+    #[test]
+    fn out_42_output_add_and_edit_take_a_name() {
+        let mut e = Engine::new(Settings::default());
+        let mut h = History::default();
+        let first: Vec<u32> = e.nodes().map(|n| n.id).collect();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"output.add","line":2,"kind":"sacn","name":"Kerk Eurolite"}"#,
+        )
+        .unwrap();
+        let added = e
+            .nodes()
+            .map(|n| n.id)
+            .find(|id| !first.contains(id))
+            .unwrap();
+        assert_eq!(node(&e, added).unwrap().name, "Kerk Eurolite");
+
+        let rename = format!(r#"{{"v":1,"cmd":"output.edit","id":{added},"name":"Balkon"}}"#);
+        undo_run(&mut e, &mut h, &rename).unwrap();
+        assert_eq!(h.undo_label(), Some("Edit output"));
+        let renamed = node(&e, added).unwrap();
+        assert_eq!((renamed.name.as_str(), renamed.line), ("Balkon", 2));
+
+        let before = e.edit_state();
+        let long = "x".repeat(33);
+        for bad in [
+            format!(r#"{{"v":1,"cmd":"output.edit","id":{added},"name":"{long}"}}"#),
+            format!(r#"{{"v":1,"cmd":"output.edit","id":{added},"name":5}}"#),
+            format!(r#"{{"v":1,"cmd":"output.add","line":3,"kind":"sacn","name":"{long}"}}"#),
+        ] {
+            assert!(undo_run(&mut e, &mut h, &bad).is_err(), "{bad}");
+        }
+        assert_eq!(e.edit_state(), before, "refused, nothing changed");
+
+        let clear = format!(r#"{{"v":1,"cmd":"output.edit","id":{added},"name":""}}"#);
+        undo_run(&mut e, &mut h, &clear).unwrap();
+        assert_eq!(node(&e, added).unwrap().name, "");
     }
 
     #[test]

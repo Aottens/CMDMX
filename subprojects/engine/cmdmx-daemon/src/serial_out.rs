@@ -2,6 +2,7 @@
 
 use std::io::{self, Write};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use cmdmx_protocols::enttec;
@@ -9,7 +10,7 @@ use serialport::{
     DataBits, FlowControl, Parity, SerialPort, SerialPortInfo, SerialPortType, StopBits,
 };
 
-use crate::output::{Claimed, Health, OutputState};
+use crate::output::{read_name, Claimed, Health, OutputState, SharedName};
 
 const RESCAN: Duration = Duration::from_secs(1);
 const WRITE_TIMEOUT: Duration = Duration::from_millis(100);
@@ -74,7 +75,7 @@ pub fn missing_message(ports: &[SerialPortInfo], claimed: &[String]) -> String {
 
 pub struct SerialNode {
     /// `serial #5`, the prefix of every log line (OUT-30).
-    name: String,
+    name: SharedName,
     choice: Choice,
     port: Option<Box<dyn SerialPort>>,
     last_scan: Option<Instant>,
@@ -86,9 +87,14 @@ pub struct SerialNode {
 }
 
 impl SerialNode {
+    /// OUT-42: log lines read the name the reconciler keeps current.
+    pub fn share_name(&mut self, name: SharedName) {
+        self.name = name;
+    }
+
     pub fn new(name: String, choice: Choice) -> Self {
         SerialNode {
-            name,
+            name: Arc::new(Mutex::new(name)),
             choice,
             port: None,
             last_scan: None,
@@ -116,7 +122,7 @@ impl SerialNode {
                     self.not_found = false;
                     self.last_write = Some(now);
                     let written = self.write(data);
-                    return Some(format!("{}: {msg}", self.name))
+                    return Some(format!("{}: {msg}", read_name(&self.name)))
                         .into_iter()
                         .chain(written)
                         .reduce(|a, b| a + "\n" + &b);
@@ -127,7 +133,7 @@ impl SerialNode {
                         return None;
                     }
                     self.said_missing = true;
-                    return Some(format!("{}: {missing}", self.name));
+                    return Some(format!("{}: {missing}", read_name(&self.name)));
                 }
                 Err(e) => return self.log(&Err(e)),
             }
@@ -173,8 +179,10 @@ impl SerialNode {
     }
 
     fn log(&mut self, result: &io::Result<()>) -> Option<String> {
-        let name = &self.name;
-        self.health.record(result).map(|m| format!("{name}: {m}"))
+        // The name is read only for a log line, never per frame.
+        self.health
+            .record(result)
+            .map(|m| format!("{}: {m}", read_name(&self.name)))
     }
 
     /// `Ok(Err(text))` = no interface present, with the OUT-23 text, or for a chosen path

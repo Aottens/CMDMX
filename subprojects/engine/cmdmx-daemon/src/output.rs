@@ -300,6 +300,8 @@ pub enum NodeMessage {
 pub struct Live {
     /// OUT-29: the sACN node's priority, edited without a restart.
     pub priority: Arc<AtomicU8>,
+    /// OUT-42: the node's label, edited without a restart.
+    pub name: SharedName,
     pub claimed: Claimed,
 }
 
@@ -311,17 +313,16 @@ pub struct OutputStatus {
     pub detail: Option<String>,
 }
 
-fn kind_name(kind: &NodeKind) -> &'static str {
-    match kind {
-        NodeKind::Artnet { .. } => "art-net",
-        NodeKind::Sacn { .. } => "sacn",
-        NodeKind::Serial { .. } => "serial",
-    }
+/// OUT-42: `art-net #3` or `Kerk Eurolite (art-net #3)`: the prefix of every log line (OUT-30).
+fn node_name(node: &Node) -> String {
+    node.label()
 }
 
-/// `art-net #3`: the prefix of every log line of the node (OUT-30).
-fn node_name(node: &Node) -> String {
-    format!("{} #{}", kind_name(&node.kind), node.id)
+/// OUT-42: the label a node thread reads when it formats a log line; a rename reaches it live.
+pub type SharedName = Arc<Mutex<String>>;
+
+pub fn read_name(name: &SharedName) -> String {
+    name.lock().map(|n| n.clone()).unwrap_or_default()
 }
 
 /// OUT-30: the line printed when a node starts or changes.
@@ -493,6 +494,9 @@ impl Outputs {
                     r.live
                         .priority
                         .store(priority_of(&node.kind), Ordering::Relaxed);
+                    if let Ok(mut n) = r.live.name.lock() {
+                        *n = node_name(node);
+                    }
                     if r.node != *node {
                         eprintln!("{}", describe(node));
                         r.node = node.clone();
@@ -503,6 +507,7 @@ impl Outputs {
                     eprintln!("{}", describe(node));
                     let live = Live {
                         priority: Arc::new(AtomicU8::new(priority_of(&node.kind))),
+                        name: Arc::new(Mutex::new(node_name(node))),
                         claimed: self.claimed.clone(),
                     };
                     let (tx, status) = (self.spawn)(node, &live);
@@ -594,6 +599,7 @@ pub fn spawn_node(node: &Node, live: &Live) -> (SyncSender<FrameData>, Status) {
             Ok(ip) => {
                 let target = SocketAddrV4::new(ip, artnet::PORT);
                 let mut n = ArtNetNode::new(name, target, *port_address);
+                n.share_name(live.name.clone());
                 spawn_with(status, "art-net", move |f| {
                     let log = n.send(f);
                     shared.set_detail(n.detail().map(String::from));
@@ -614,6 +620,7 @@ pub fn spawn_node(node: &Node, live: &Live) -> (SyncSender<FrameData>, Status) {
             match target {
                 Ok(target) => {
                     let mut n = SacnNode::new(name, target, *universe, *priority);
+                    n.share_name(live.name.clone());
                     let prio = live.priority.clone();
                     spawn_with(status, "sacn", move |f| {
                         n.set_priority(prio.load(Ordering::Relaxed));
@@ -634,6 +641,7 @@ pub fn spawn_node(node: &Node, live: &Live) -> (SyncSender<FrameData>, Status) {
                 Choice::Path(port.clone())
             };
             let mut n = SerialNode::new(name, choice);
+            n.share_name(live.name.clone());
             spawn_paced_with(status, "serial", MIN_WRITE_INTERVAL, move |f, now| {
                 let log = n.send(f, now);
                 shared.set_detail(n.detail());
@@ -870,6 +878,7 @@ mod tests {
             id,
             line,
             enabled: true,
+            name: String::new(),
             kind: NodeKind::Artnet {
                 port_address,
                 target: "255.255.255.255".into(),
@@ -882,6 +891,7 @@ mod tests {
             id,
             line,
             enabled: true,
+            name: String::new(),
             kind: NodeKind::default_sacn(line),
         }
     }
@@ -891,6 +901,7 @@ mod tests {
             id,
             line: 1,
             enabled: true,
+            name: String::new(),
             kind: NodeKind::Serial { port: port.into() },
         }
     }
@@ -1242,6 +1253,47 @@ mod tests {
             "sacn #6: universe 2 → sACN 7 at 10.0.0.5, priority 50"
         );
         assert_eq!(describe(&serial(5, "auto")), "serial #5: universe 1 → auto");
+    }
+
+    #[test]
+    fn out_42_log_lines_and_messages_carry_the_name() {
+        let mut named = serial(5, "auto");
+        named.name = "Kerk Eurolite".into();
+        assert_eq!(
+            describe(&named),
+            "Kerk Eurolite (serial #5): universe 1 → auto"
+        );
+        let mut balkon = artnet(1, 2, 0);
+        balkon.name = "Balkon".into();
+        let (mut outputs, f) = fake(Kill::default());
+        outputs.reconcile(&[balkon]);
+        let status = f.status.borrow()[&1].clone();
+        status.set_detail(Some("no route to host".into()));
+        status.set(OutputState::Degraded);
+        outputs.publish(frames);
+        assert_eq!(
+            outputs.take_messages(),
+            [warning(
+                "Balkon (art-net #1) universe 2: Degraded: no route to host"
+            )]
+        );
+    }
+
+    #[test]
+    fn out_42_a_rename_keeps_the_thread_and_reaches_it() {
+        let (mut outputs, f) = fake(Kill::default());
+        let mut nodes = vec![artnet(1, 1, 0)];
+        outputs.reconcile(&nodes);
+        assert_eq!(*f.live.borrow()[&1].name.lock().unwrap(), "art-net #1");
+        nodes[0].name = "Balkon".into();
+        outputs.reconcile(&nodes);
+        assert_eq!(*f.spawned.borrow(), [1], "a name is not a destination");
+        assert_eq!(
+            *f.live.borrow()[&1].name.lock().unwrap(),
+            "Balkon (art-net #1)",
+            "the thread's own log lines read the new name"
+        );
+        assert_eq!(outputs.statuses()[0].node, nodes[0], "the status shows it");
     }
 
     #[test]

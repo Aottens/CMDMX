@@ -762,6 +762,7 @@ impl Engine {
                     id,
                     line: 1,
                     enabled: true,
+                    name: String::new(),
                     kind,
                 };
                 (id, node)
@@ -1110,11 +1111,23 @@ impl Engine {
         enabled: bool,
         kind: NodeKind,
     ) -> Result<NodeId, CoreError> {
+        self.output_add_named(line, enabled, String::new(), kind)
+    }
+
+    /// OUT-42: `output_add` with a name.
+    pub fn output_add_named(
+        &mut self,
+        line: UniverseId,
+        enabled: bool,
+        name: String,
+        kind: NodeKind,
+    ) -> Result<NodeId, CoreError> {
         let id = self.node_next_id;
         let node = Node {
             id,
             line,
             enabled,
+            name,
             kind,
         };
         output::check(&node, self.nodes.values())?;
