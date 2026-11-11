@@ -682,7 +682,7 @@ Palette, cue and playback behaviour (their own specs fill in the disabled contro
    for now? Recommended: yes; a control to change it moves every handle, an idea of its own if you want it. Not chosen: a setting now.
 9. **Clearing a deck page (CTL-71):** a new command, one file write? Recommended: yes. Not chosen: one `control.unbind` per key from the
    app, which writes the file once per key and can stop halfway.
-10. **A hidden workspace out of reach (UI-81, added 2026-11-11 after the CTR-04 run):** keep every workspace built and make each hidden
+10. **A hidden workspace out of reach (UI-81, added after the CTR-04 run; approved by the owner 2026-11-11):** keep every workspace built and make each hidden
    one a single accessibility element with no children (`.accessibilityElement(children: .ignore)` beside `.accessibilityHidden`)?
    Recommended: yes; a probe on the release app took Shapes' *Dimmer wave* and the other workspaces' Group tiles out of the tree, a
    press by element index then went to Group 3, and nothing is rebuilt, so every window keeps its page, Find text and scroll. Not
