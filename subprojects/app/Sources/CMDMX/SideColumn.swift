@@ -427,7 +427,7 @@ private struct Softkeys: View {
 
     /// UNDO-18: the IPC-31 label as the second line; no action while there is nothing to undo.
     private var undoKey: Softkey {
-        Softkey(name: "Undo", sub: engine.undoLabel ?? "nothing", spec: "Undo · ⌘Z",
+        Softkey(name: "Undo", sub: engine.undoLabel.map { engine.undoEarlier ? "(earlier) \($0)" : $0 } ?? "nothing", spec: "Undo · ⌘Z",
                 action: engine.undoLabel == nil && !ui.learnMode ? nil : { ui.learnOrRun("key undo", engine) { engine.undo() } })
     }
 

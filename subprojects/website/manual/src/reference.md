@@ -191,7 +191,9 @@ Work from the console to the lamp:
 
 ### Messages
 
-The message line shows only the latest message and the next command clears it. A click on the line, or
+The message line shows only the latest message and the next command clears it, **Clear** included. A notice
+(a message that only informs, such as what a selection holds) also goes when you change the workspace or
+open a screen; a warning or an error stays until the next command. A click on the line, or
 on the amber count next to it, opens **Messages**: the history, newest first, with the time and the level
 (warning, notice or error) of each line. Close it with **Done** or Esc. The count is the number of warnings
 and errors since you last opened it, and it stays when the line clears. With a full screen open (Output,

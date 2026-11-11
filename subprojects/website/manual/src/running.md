@@ -198,6 +198,11 @@ and DBO are not undo steps, so an undo during a show never changes what is runni
 The engine keeps the last 100 steps. The history is shared by everything connected to the engine
 and is gone when the engine restarts.
 
+When the app opens on an engine that already has a history, the last step was done before this app was
+there, perhaps by the last operator. Until you make an edit yourself, the softkey reads **Undo (earlier)**
+with the step's name, and Undo or Command-Z asks first: "Undo Edit cue, done before this app opened? Undo
+again to go ahead". A second Undo does it. After your first edit, Undo works at once again.
+
 ## Help
 
 The **Help** function key, *Help › CMDMX Manual* and ⌘? open this manual in your browser. It is the

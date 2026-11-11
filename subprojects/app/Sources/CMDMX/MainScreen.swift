@@ -524,6 +524,8 @@ private struct Frame: View {
         }
         .background(t.bg)
         .foregroundStyle(t.fg)
+        .onChange(of: ui.workspace) { _, _ in engine.endNotice() }   // UI-80
+        .onChange(of: ui.screen) { _, _ in engine.endNotice() }
         // FX-17, FX-36: the effect wheels are on exactly while the Shapes workspace shows.
         .onChange(of: ui.screen == nil && ui.workspace == Workspace.shapes) { _, on in engine.setEffectWheels(on) }
         .overlay { if ui.learnMode { Rectangle().strokeBorder(t.amber, lineWidth: 2).allowsHitTesting(false) } }   // CTL-42
