@@ -63,7 +63,7 @@ the backlog, not the whole idea.
 | IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches; batch C specified (P1-33); batch D specified (P1-36); batch E specified (P1-39) | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | REC-02 done (UI-52) | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
-| IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; still holds (CTR-04 run, 2026-11-11); awaiting phase confirmation | 1 proposed | UI |
+| IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | done (UI-81; CTR-10 #294) | 1 (owner 2026-11-11) | UI |
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | spec UI-63, build FIT-01 | 1 (owner 2026-11-07) | UI |
 | IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
 | IDEA-41 | Our own built-in 3D visualiser, inside the app (owner 2026-11-04) | triaged | 4 (owner 2026-11-04) | new `visualiser.md`, PAT, LIB, IPC, UI |
@@ -80,6 +80,7 @@ the backlog, not the whole idea.
 | IDEA-52 | Flip a moving head to its other yoke position | triaged; out of batch E (owner decision 7, P1-39) | 1, later | LIB, PRG |
 | IDEA-53 | Lamp on/off and fixture macros through the control channel | triaged; out of batch E (owner decision 7, P1-39) | 1, later | LIB, PRG, UI |
 | IDEA-54 | RDM patching: discover and address fixtures on an RDM-enabled Art-Net node | triaged; out of batch E (owner decision 7, P1-39) | 1, later | OUT, PAT |
+| IDEA-56 | A screen visit keeps each workspace window's view state (IDEA-38 run, 2026-11-11) | triaged; awaiting phase confirmation | 1 proposed | UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -823,6 +824,9 @@ offline until it is restarted; it does not start its own bundled engine. Only re
 hidden Shapes workspace, and one on a fixture tile to *Breathe*; with nothing selected the engine only warned "nothing is
 selected". A real mouse hits the right tile. The modifiers do not take the buttons out of the macOS accessibility tree.
 
+**Done (2026-11-11):** UI-81 (owner 2026-11-11), build CTR-10 (#294): a hidden workspace is one accessibility element with
+no children. Run `tests/manual/runs/2026-11-11-IDEA-38.md`.
+
 ### IDEA-39 — Strips are cut off on a window with the Dock (2026-11-03)
 **Found in:** the FUN-01 run; not from the owner.
 **What happens:** on the owner's MacBook with the Dock showing the window is 832 pt high. The workspace layout then cuts off the strips below the fader readout, so the handle buttons are out of reach; empty bands stay above and below the window grid. On the screens that replace the grid (Patch, Playback Options) the upper button shows, the lower is cut off.
@@ -1011,3 +1015,12 @@ already be set by hand (LIB-15).
 RDM-capable node to test with. Titan needs an RDM-enabled Art-Net node as well; XLR does not carry it.
 **What it touches now:** nothing; `cmdmx-protocols` has output only.
 **Open question:** which RDM-capable node to test with.
+
+### IDEA-56 — A screen visit keeps each workspace window's view state (2026-11-11)
+**Found in:** the IDEA-38 run; not from the owner.
+**What happens:** a workspace switch keeps every window's view state (UI-08, UI-81), but a visit to a screen (Patch, Views,
+Output, …) and back rebuilds all workspaces, so the Fixtures window's Find text and page, each window's scroll and Shapes' Raw
+start over.
+**Triage:** proposed phase 1, small; `ui.md` (UI-08). Owner to confirm the phase. Nothing touched now.
+**What it touches now:** `MainScreen.Frame`, which builds `Workspaces` only while no screen is on show.
+**Open question:** keep the workspaces built under a screen (as hidden workspaces are now), or move the view state into `UIState`?
