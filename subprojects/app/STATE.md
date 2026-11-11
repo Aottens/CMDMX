@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-10 (CTR-03)_
+_Last updated: 2026-11-11 (CTR-10)_
 
 ## Current step
+CTR-10 (2026-11-11, UI-81): `Workspaces` gives each hidden workspace `.accessibilityElement(children: .ignore)` beside `.accessibilityHidden`, which on macOS alone left the children in the tree (IDEA-38). Every workspace stays built, so view state survives a switch; a screen visit still rebuilds them (IDEA-56). Run: `tests/manual/runs/2026-11-11-IDEA-38.md`.
 CTR-03 (2026-11-10, OUT-42): `OutputNode.name` (absent decodes as empty) and `label`, the engine's rule; `OutputView` has a Name column first (`NameCell` on `NodeField`), the status-bar dot's hover lines use `label`. No length check in Swift: the engine refuses and the field snaps back. Run: `tests/manual/runs/2026-11-10-CTR-03.md`.
 CTR-01, CTR-02 (2026-11-10, CTL-69..71): `BindingsPanel.header` has the Device field (`raw["device"]`, Return sends `controlMappingDevice` and shows the stored pattern again until the new one comes back), **Duplicate…** and **Rename…** (`promptName`; `pendingName` selects the new name once the engine lists it, so a refusal keeps the shown one). The control delta asks `control.mapping` again only while the engine lists the shown name (a rename or delete warned "unknown mapping"). `ControlView` holds `armed: DeckArm?` (key, page, copy) for `DeckPanel`; Esc disarms first. While armed a key tap `place`s: copy refuses a bound target, move uses `move(_:to:fromPage:toPage:)` (the drag passes the same page twice). Page buttons have **Clear page…** (`controlDeckClear`), and Remove asks with an NSAlert (a state flip does not survive a context menu).
 PTC-08 (2026-11-10, UI-76): `FixtureInfo.behaviour` and `swapPanTilt`, `FixtureBehaviour`; `EngineClient.patchBehaviour`, `patchBehaviourReset`, `patchSwapPanTilt`. `SelectedPanel` has **Behaviour…**, a `BehaviourSheet` over the attributes every selected row has, with a `PercentField` that commits on Return and on leaving the field; Done is no default button, so Return only commits. The Mode column shows `INV` and `LIM`. Run: `tests/manual/runs/2026-11-10-PTC-07-08.md`.

@@ -5,6 +5,19 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-11 — A hidden workspace stays built and is one accessibility element (UI-81, CTR-10; owner)
+
+**Decision:** Every workspace stays built in the ZStack; a hidden one gets `.accessibilityElement(children: .ignore)` beside
+`.accessibilityHidden(true)`. On macOS `.accessibilityHidden` alone left its buttons in the tree, where an accessibility press
+landed on them (IDEA-38).
+
+**Alternatives considered:** build only the workspace on show (each window's view state moves into `UIState`, per workspace);
+`.disabled` (the hidden button still takes the press and does nothing); an AppKit host per workspace, hidden as an `NSView`.
+
+**Reasoning:** one modifier, nothing rebuilt, so UI-08's view state stays; a probe on the release app proved it.
+
+**Reversal trigger:** a macOS release where the hidden workspace's elements show up again, or where `.ignore` hides the one on show.
+
 ## 2026-11-10 — What CTL-70 and CTL-71 refuse (CTR-01, CTR-02)
 
 **Decision:** `control.mapping_device` refuses an empty pattern and any blank `|` alternative (`a||b`, `a|`); the

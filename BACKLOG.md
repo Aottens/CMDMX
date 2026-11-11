@@ -295,7 +295,7 @@ workspace and may have to be reverted alone).
 | CTR-07 | App: an Undo from before this app asks twice, and a notice goes on Clear and a screen change; manual and run. | UI-79, UI-80 | S | todo |
 | CTR-08 | Core and app: All with an empty programmer, the Normal palette hint and "fader 0 % · no output"; `prg_99_…`, `pal_35_…`; manual. | PRG-99, PAL-35, CUE-64 | S | todo |
 | CTR-09 | Core and app: a page's legend follows a whole-page copy or delete; `pbk_53_…`; manual and run. | PBK-53 | S | todo |
-| CTR-10 | App: a hidden workspace leaves the accessibility tree and a background press lands on the workspace on show, keeping each window's view state; run with background computer use and `app-cpu.sh`. | UI-81 | S | todo |
+| CTR-10 | App: a hidden workspace leaves the accessibility tree and a background press lands on the workspace on show, keeping each window's view state; run with background computer use and `app-cpu.sh`. | UI-81 | S | done (2026-11-11, #294; run `tests/manual/runs/2026-11-11-IDEA-38.md`) |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
