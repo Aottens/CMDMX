@@ -5,6 +5,21 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-11 — The Fixtures window shows buttons by handle; "an edit of this app" is the next undo change (CTR-04, CTR-07)
+
+**Decision:** The Fixtures window places each button in its handle slot (page, slot), so a gap is an empty tile; while Move
+holds a fixture the whole page and one empty page more show. For UI-79 the app counts its own edit as the first `undo` delta that
+follows a command it sent (not a read, Undo or Redo).
+
+**Alternatives considered:** keep the dense list and show empty tiles only while Move is armed (the buttons would jump when
+arming); an author on the `undo` delta (a wire change for one label).
+
+**Reasoning:** PAT-14 already says the window shows fixtures by handle, and Titan has empty buttons. The undo delta carries no
+author; the failure is a second press too many, or, after a selection from this app and another client's edit, one press too
+few.
+
+**Reversal trigger:** several apps on one engine edit at the same time (IDEA-34), where the delta needs an author.
+
 ## 2026-11-10 — What CTL-70 and CTL-71 refuse (CTR-01, CTR-02)
 
 **Decision:** `control.mapping_device` refuses an empty pattern and any blank `|` alternative (`a||b`, `a|`); the
