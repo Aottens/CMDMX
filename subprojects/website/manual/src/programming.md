@@ -31,6 +31,14 @@ that do not match dim and the window goes to the page of the first match. Return
 in number order, skipping any that are already selected, then empties the field and gives the keys back to the
 command line; Esc empties the field without selecting.
 
+Each fixture button has its own place: a page and a slot, as in the patch, so a gap between buttons
+stays an empty button. To move a button, press **Move**, tap the fixture, then tap an empty button or
+another fixture's button; the two swap places. While a fixture is taken, every slot of the page shows,
+and one empty page more, so a button can go to a new page. Tap the taken fixture again to let it go.
+With **Menu latch** on, Move stays armed for the next button. Moving a button changes nothing on stage
+and **Undo** takes it back. Copy, Delete and Set Legend on a fixture button point you to the
+[Patch screen](patching.md).
+
 The stripe along the bottom of a fixture button shows what that fixture sends out right now: its
 colour at its intensity, with masters, the Grand Master, DBO and running effects already in. A
 fixture at 0 shows a dark stripe with a grey outline, so a chase runs across the buttons and a

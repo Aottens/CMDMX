@@ -2113,6 +2113,8 @@ final class EngineClient: ObservableObject {
         sendJSON("library.duplicate_profile", ["manufacturer": manufacturer, "model": model, "new_model": newModel])
     }
 
+    /// PAT-14, UI-77: moves a fixture to a handle (1-based page and slot); the engine swaps with the occupant.
+    func patchHandle(id: Int, page: Int, slot: Int) { patch("patch.handle", ["id": id, "page": page, "slot": slot]) }
     func patchSwapAddresses(ids: [Int], with: [Int]) { patch("patch.swap_addresses", ["ids": ids, "with": with]) }
 
     // Palette commands (PAL-27). Numbers and cells, never ids; a refusal comes back as a warning.

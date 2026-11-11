@@ -480,7 +480,7 @@ press and a surface keypad line go on as before (J4, J5).
   | Update | refused | refused | PAL-29 | PBK-38 | updates that cue, as Record's Update softkey (CUE-45) |
   | Include | refused | refused | PAL-29 | PBK-48 | PBK-48 |
   | Copy | PRG-94 | refused | PAL-29 | PBK-38 | the Cue softkeys on that row (CUE-43), "Copy cue 3: type the number, then Copy." |
-  | Move | PRG-94 | refused | PAL-29 | PBK-38 | the same, "Move cue 3: type the number, then Renumber." |
+  | Move | PRG-94 | fixture tile UI-77, cell button refused | PAL-29 | PBK-38 | the same, "Move cue 3: type the number, then Renumber." |
   | Delete | PRG-94 | refused | PAL-29 | PBK-38 | the Cue softkeys waiting on Confirm delete (CUE-07, UI-47) |
   | Set Legend | PRG-94 | refused | PAL-29 | PBK-38 | the cue's legend editor |
   | Options | refused | refused | refused | PBK-39 | Playback Options on that cue's Times tab |
@@ -488,7 +488,7 @@ press and a surface keypad line go on as before (J4, J5).
   | Latch | refused | refused | refused | "Latch: press Flash on a handle." | refused |
   | Unfold | refused | fixture tile UI-29, cell button refused | refused | refused | refused |
 
-  A refused Delete, Copy, Move or Set Legend on a fixture tile points to the Patch screen, where fixtures are changed (PAT-10); a
+  A refused Delete, Copy or Set Legend on a fixture tile points to the Patch screen, where fixtures are changed (PAT-10); a
   refused Record on one says to tap a group, palette, cue or handle. Titan sets a legend on a fixture button and deletes one
   in Patch mode; here the legend stays in Patch (PAT-09), because one place for patch data is enough for now.
   With anything armed, an effect palette cell (Shapes) is refused and does not apply, and an Active playbacks row is refused

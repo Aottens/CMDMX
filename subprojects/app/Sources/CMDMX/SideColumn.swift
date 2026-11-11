@@ -88,7 +88,7 @@ private struct FunctionButtons: View {
         "Include": "Include: tap a palette, playback handle or cue; its values go into the programmer.",
         "Delete": "Delete: tap the group, palette, playback handle or cue to delete (⇧ range, ⌘ add one). You confirm on softkey A.",
         "Copy": "Copy: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
-        "Move": "Move: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
+        "Move": "Move: tap the source group, palette, playback handle or fixture (⇧ range, ⌘ add one), then an empty cell, handle or fixture button; or tap a cue.",
         "Release": "Release: tap a handle or an active row to release it, Release again for all, or a page button for a page.",
         "Options": "Options: tap a playback handle or cue to open its options.",
         "Unfold": "Unfold: tap a fixture to unfold or fold its cells.",
