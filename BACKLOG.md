@@ -280,7 +280,7 @@ Builds: PTC-01 + PTC-02; PTC-03; PTC-04; PTC-05 + PTC-06; PTC-07 + PTC-08.
 
 ### Controls and small things (IDEA-35 batch F, spec P1-40)
 Approved by the owner 2026-11-10, every recommendation accepted (`ui.md`). F3 holds already, IDEA-39 was done by FIT-01; IDEA-38 is checked
-in CTR-04's run and closed there.
+in CTR-04's run: it still holds (2026-11-11), so it stays open.
 Builds: CTR-01 + CTR-02; CTR-03; CTR-04 + CTR-05 + CTR-07; CTR-06 + CTR-08 + CTR-09.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
@@ -288,10 +288,10 @@ Builds: CTR-01 + CTR-02; CTR-03; CTR-04 + CTR-05 + CTR-07; CTR-06 + CTR-08 + CTR
 | CTR-01 | Daemon and app: rename, duplicate and change the device pattern of a mapping on the Control screen; `ctl_70_…`; manual and run. | CTL-69, CTL-70 | S | done (2026-11-10, #291; run `tests/manual/runs/2026-11-10-CTR-01-02.md`) |
 | CTR-02 | Daemon and app: copy, move and clear deck keys and a two-step Remove; `ctl_71_…`; manual and run with the Stream Deck. | CTL-71 | S | done (2026-11-10, #291; run `tests/manual/runs/2026-11-10-CTR-01-02.md`) |
 | CTR-03 | Core, daemon and app: a name for an output node, schema 14, in the log lines and the status bar; `out_42_…`; manual and run on Art-Net. | OUT-42 | M | done (2026-11-10, #292; run `tests/manual/runs/2026-11-10-CTR-03.md`) |
-| CTR-04 | App: Move a fixture's button in the Fixtures window; manual and run, which also checks IDEA-38 with an accessibility click. | UI-77 | S | todo |
-| CTR-05 | App: the keypad below 1440 pt, and the manual's Command-1 to 5 and `faders_per_page` lines; run at 1280 pt. | UI-78 | S | todo |
+| CTR-04 | App: Move a fixture's button in the Fixtures window; manual and run, which also checks IDEA-38 with an accessibility click. | UI-77 | S | done (2026-11-11, #293; run `tests/manual/runs/2026-11-11-CTR-04-05-07.md`) |
+| CTR-05 | App: the keypad below 1440 pt, and the manual's Command-1 to 5 and `faders_per_page` lines; run at 1280 pt. | UI-78 | S | done (2026-11-11, #293; run `tests/manual/runs/2026-11-11-CTR-04-05-07.md`) |
 | CTR-06 | Core and app: `@ +n` and `@ -n`, and the wheel's travel; `prg_100_…`; manual and run on Art-Net. | PRG-100, PRG-101 | S | todo |
-| CTR-07 | App: an Undo from before this app asks twice, and a notice goes on Clear and a screen change; manual and run. | UI-79, UI-80 | S | todo |
+| CTR-07 | App: an Undo from before this app asks twice, and a notice goes on Clear and a screen change; manual and run. | UI-79, UI-80 | S | done (2026-11-11, #293; run `tests/manual/runs/2026-11-11-CTR-04-05-07.md`) |
 | CTR-08 | Core and app: All with an empty programmer, the Normal palette hint and "fader 0 % · no output"; `prg_99_…`, `pal_35_…`; manual. | PRG-99, PAL-35, CUE-64 | S | todo |
 | CTR-09 | Core and app: a page's legend follows a whole-page copy or delete; `pbk_53_…`; manual and run. | PBK-53 | S | todo |
 

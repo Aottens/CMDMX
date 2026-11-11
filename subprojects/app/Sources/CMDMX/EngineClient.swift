@@ -1657,6 +1657,15 @@ final class EngineClient: ObservableObject {
     private var launcherNotes: AnyCancellable?
     /// IPC-31: what Undo / Redo would do now; nil when there is nothing.
     @Published private(set) var undoLabel: String?
+    /// UI-79: this app has sent an edit of its own; until then the undo history may hold earlier work.
+    @Published private(set) var ownEdit = false
+    private var editSent = false
+    /// UI-79: the label a first Undo asked to confirm.
+    private var undoAsked: String?
+    /// UI-79: the Undo key reads "(earlier)" until this app has edited.
+    var undoEarlier: Bool { !ownEdit && undoLabel != nil }
+    /// UI-80: the text of the last engine notice, so a change of workspace or screen can end it.
+    private var noticeText: String?
     @Published private(set) var redoLabel: String?
     /// IPC-10..12: all straight from the snapshot / deltas.
     @Published private(set) var fixtures: [FixtureInfo] = []
@@ -1887,7 +1896,7 @@ final class EngineClient: ObservableObject {
         sendJSON("programmer.grid", f)
     }
     /// A time fades the Clear out (ENG-10, IPC-32); nil = the plain Clear (PRG-29).
-    func clearProgrammer(time: Double? = nil) { sendJSON("programmer.clear", time.map { ["time": $0] } ?? [:]) }
+    func clearProgrammer(time: Double? = nil) { lastMessage = nil; sendJSON("programmer.clear", time.map { ["time": $0] } ?? [:]) }
     /// UI-26: Locate (no groups = all), Highlight, Off (no field = the active group; or one attribute)
     /// and Rem Dim; the `programmer` delta shows the result.
     func locate() { sendJSON("programmer.locate") }
@@ -2113,6 +2122,8 @@ final class EngineClient: ObservableObject {
         sendJSON("library.duplicate_profile", ["manufacturer": manufacturer, "model": model, "new_model": newModel])
     }
 
+    /// PAT-14, UI-77: moves a fixture to a handle (1-based page and slot); the engine swaps with the occupant.
+    func patchHandle(id: Int, page: Int, slot: Int) { patch("patch.handle", ["id": id, "page": page, "slot": slot]) }
     func patchSwapAddresses(ids: [Int], with: [Int]) { patch("patch.swap_addresses", ["ids": ids, "with": with]) }
 
     // Palette commands (PAL-27). Numbers and cells, never ids; a refusal comes back as a warning.
@@ -2347,7 +2358,7 @@ final class EngineClient: ObservableObject {
     /// UI-50: the function disarmed. Comparing the text means an engine message, or a later one that replaced it, stays.
     func endArmedMessage() { if lastMessage == armedMessage { lastMessage = nil }; armedMessage = nil }
     /// UI-49: Keys off and a key it would act on (or a click on the command line); not in the Messages sheet, so not `addMessage`.
-    func sayKeysOff() { lastMessage = "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad." }
+    func sayKeysOff() { lastMessage = "The Mac keyboard is off: turn on Keys or Keypad in the status bar." }
 
     func askUsage(fixtures: [Int]) { usage = nil; sendJSON("usage", ["fixtures": fixtures]) }
 
@@ -2362,7 +2373,18 @@ final class EngineClient: ObservableObject {
     }
 
     /// UNDO-19: confirm with the label the key showed; a refusal arrives as a warning and overwrites.
-    func undo() { lastMessage = undoLabel.map { "Undone: \($0)" }; sendJSON("undo") }
+    /// UI-79: while the history may hold work from before this app opened, the first Undo asks twice.
+    func undo() {
+        if undoEarlier, let label = undoLabel, undoAsked != label {
+            undoAsked = label
+            say("Undo \(label), done before this app opened? Undo again to go ahead")
+            return
+        }
+        undoAsked = nil
+        lastMessage = undoLabel.map { "Undone: \($0)" }; sendJSON("undo")
+    }
+    /// UI-80: a notice goes when the workspace or the screen changes; a warning or error stays.
+    func endNotice() { if lastMessage == noticeText { lastMessage = nil }; noticeText = nil }
     func redo() { lastMessage = redoLabel.map { "Redone: \($0)" }; sendJSON("redo") }
 
     // Show commands (SHW-15). The engine checks names and refuses with a warning.
@@ -2397,6 +2419,7 @@ final class EngineClient: ObservableObject {
         guard let socket,
               let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": Self.protocolVersion, "cmd": cmd]) { a, _ in a }),
               let text = String(data: data, encoding: .utf8) else { return }
+        if !Self.asks.contains(cmd) && cmd != "undo" && cmd != "redo" { editSent = true; undoAsked = nil }   // UI-79
         if !Self.asks.contains(cmd) { DaemonLauncher.shared.commandGiven() }   // REL-27
         socket.send(.string(text)) { error in
             if error != nil { socket.cancel(with: .goingAway, reason: nil) }
@@ -2581,6 +2604,9 @@ final class EngineClient: ObservableObject {
             if let state = try? JSONDecoder().decode(PageState.self, from: data) { page = state; rebuildSlots() }
         case "undo":
             if let labels = try? JSONDecoder().decode(UndoLabels.self, from: data) { undoLabel = labels.undo; redoLabel = labels.redo }
+            // ponytail: the delta has no author, so a non-edit command from this app followed by another client's edit also
+            // counts; asking twice stays the safe side when an own edit leaves the label unchanged (no delta). Not reset on reconnect.
+            if editSent { ownEdit = true }
         case "programmer":
             // IPC-12: the delta carries the IPC-11 fields at top level.
             if let state = try? JSONDecoder().decode(ProgrammerState.self, from: data) { programmer = state }
@@ -2712,6 +2738,7 @@ final class EngineClient: ObservableObject {
             }
         case "notice", "warning", "error": // PRG-96: a notice is informational; UI-39: all three go to the Messages list
             lastMessage = incoming.message
+            if incoming.type == "notice" { noticeText = incoming.message }   // UI-80
             addMessage(level: incoming.type, message: incoming.message ?? "", at: Self.messageDate(incoming.at))
             if incoming.type != "notice" { refusals += 1; print("engine \(incoming.type): \(incoming.message ?? "")") }
         default:

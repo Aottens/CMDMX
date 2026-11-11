@@ -197,7 +197,7 @@ struct AttributeBar: View {
                 Text(verbatim: !programmer.inProgrammer.isEmpty ? "\(Set(programmer.inProgrammer.map(\.fixture)).count) fx · \(touchedGroups)" : "empty")
                     .font(Typo.mono(13, .medium)).foregroundStyle(programmer.inProgrammer.isEmpty ? t.fg3 : t.red)
                     .lineLimit(1).padding(.horizontal, 8).frame(minWidth: 90, alignment: .leading)
-                Button("Undo") { ui.learnOrRun("key undo", engine) { engine.undo() } }.disabled(engine.undoLabel == nil && !ui.learnMode).help(engine.undoLabel.map { "Undo: \($0) · ⌘Z" } ?? "Nothing to undo")
+                Button("Undo") { ui.learnOrRun("key undo", engine) { engine.undo() } }.disabled(engine.undoLabel == nil && !ui.learnMode).help(engine.undoLabel.map { "Undo\(engine.undoEarlier ? " (earlier)" : ""): \($0) · ⌘Z" } ?? "Nothing to undo")
                 Button("Redo") { ui.learnOrRun("key redo", engine) { engine.redo() } }.disabled(engine.redoLabel == nil && !ui.learnMode).help(engine.redoLabel.map { "Redo: \($0) · ⇧⌘Z" } ?? "Nothing to redo")
                 Button("Clear") { ui.learnOrRun("key clear", engine) { line.clearProgrammer(engine); if ui.building == nil { ui.cancelModes() }; ui.pendingOverlap = nil } }.buttonStyle(ZoneKeyStyle(ring: dirty))
             }

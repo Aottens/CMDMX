@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch and profiles are complete: exchange, copy, update from the library, and behaviour per fixture at the output.
-Next: batch F's builds (CTR-04, CTR-06), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
+Next: batch F's last build (CTR-06, CTR-08), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -117,7 +117,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   where the cell is).
 - The Fixtures window: a named button shows its model under the name, Find matches number, name and model and Return
   selects the matches, and a selection made elsewhere (a group, the command line) brings its page and fixtures into
-  view, with a dot on each page tab that holds a selected fixture.
+  view, with a dot on each page tab that holds a selected fixture. Buttons keep their place (page and slot), and
+  Move takes a button to an empty slot, a new page, or swaps it with another.
 - Fixture info: a right-click on a fixture button shows its type, address, groups, cues and palettes, and for each
   attribute why it has its value ("Dienst Q2 gives 100 %, tracked from an earlier cue, Master Zaal (3.8) scales it to
   0 %"), live while open; a tap on a row goes to that playback's page.
@@ -216,10 +217,11 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - A new show can keep the patch: same fixtures, outputs and settings, with groups, palettes and playbacks empty. The old show
   stays as it was.
 - Undo and redo of every edit, 100 steps, while live playing (Go, faders, Flash) is never
-  touched; ⌘Z and ⇧⌘Z.
+  touched; ⌘Z and ⇧⌘Z. A step from before the app opened reads *Undo (earlier)* and asks a second press.
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four
   workspaces, Patch, Output, Control and Show screens, and a dark and a day theme. The playback strips stay whole on
   a MacBook, full screen or in a window with the Dock: the rail scrolls and the side column keys shrink instead.
+  Below 1440 pt the keypad takes the softkeys' place while **Keypad** is on.
 - App and engine check each other's protocol version and say plainly which versions differ.
 - Installs from a versioned DMG that GitHub builds from a `v*` tag (universal; signed with a
   Developer ID and notarised by Apple once the signing secrets are set, ad hoc before that):

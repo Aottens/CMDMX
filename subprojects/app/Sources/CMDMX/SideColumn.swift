@@ -57,8 +57,10 @@ private struct ColumnHeader: View {
 }
 
 struct SideColumn: View {
-    /// False when the Keypad toggle is off or the window is narrower than 1440 pt (UI-17).
+    /// The Keypad toggle (UI-17).
     let showKeypad: Bool
+    /// Window narrower than 1440 pt: the keypad then takes the place of the softkeys (UI-78).
+    let narrow: Bool
     @Environment(\.theme) private var t
 
     var body: some View {
@@ -67,9 +69,9 @@ struct SideColumn: View {
             VLine()
             if showKeypad {
                 Keypad()
-                VLine()
+                if !narrow { VLine() }
             }
-            Softkeys()
+            if !(narrow && showKeypad) { Softkeys() }
         }
         .fixedSize(horizontal: true, vertical: false)
         .background(t.bg)
@@ -88,7 +90,7 @@ private struct FunctionButtons: View {
         "Include": "Include: tap a palette, playback handle or cue; its values go into the programmer.",
         "Delete": "Delete: tap the group, palette, playback handle or cue to delete (⇧ range, ⌘ add one). You confirm on softkey A.",
         "Copy": "Copy: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
-        "Move": "Move: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
+        "Move": "Move: tap the source group, palette, playback handle or fixture (⇧ range, ⌘ add one), then an empty cell, handle or fixture button; or tap a cue.",
         "Release": "Release: tap a handle or an active row to release it, Release again for all, or a page button for a page.",
         "Options": "Options: tap a playback handle or cue to open its options.",
         "Unfold": "Unfold: tap a fixture to unfold or fold its cells.",
@@ -425,7 +427,7 @@ private struct Softkeys: View {
 
     /// UNDO-18: the IPC-31 label as the second line; no action while there is nothing to undo.
     private var undoKey: Softkey {
-        Softkey(name: "Undo", sub: engine.undoLabel ?? "nothing", spec: "Undo · ⌘Z",
+        Softkey(name: "Undo", sub: engine.undoLabel.map { engine.undoEarlier ? "(earlier) \($0)" : $0 } ?? "nothing", spec: "Undo · ⌘Z",
                 action: engine.undoLabel == nil && !ui.learnMode ? nil : { ui.learnOrRun("key undo", engine) { engine.undo() } })
     }
 

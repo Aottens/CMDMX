@@ -180,6 +180,9 @@ private struct CellScroll<Content: View>: View {
 // MARK: - Fixtures (UI-11)
 
 struct FixturesWindow: View {
+    /// A tile of the grid: a fixture or one of its cells, or the empty handle slot (UI-77).
+    private enum Tile: Hashable { case item(Item), empty(Int) }
+
     @EnvironmentObject private var engine: EngineClient
 
     @EnvironmentObject private var ui: UIState
@@ -223,30 +226,98 @@ struct FixturesWindow: View {
             || f.name.localizedCaseInsensitiveContains(q) || Self.model(f).localizedCaseInsensitiveContains(q)
     }
 
+    /// One tile with its fixture (nil for an empty slot) and its handle slot.
+    private struct Row { let tile: Tile; let fixture: FixtureInfo?; let slot: Int }
+
+    /// UI-58, UI-77: what the window shows, worked out from the display-ordered fixtures.
+    private struct Layout {
+        var pageCount = 1
+        var shown = 0
+        var pageOf: [Int: Int] = [:]
+        var selectedPages: Set<Int> = []
+        var onShown = 0
+        var rows: [Row] = []
+    }
+
+    private static func layout(sorted: [FixtureInfo], selection: [Item], page: Int, moving: Bool,
+                               handlesPerPage: Int, unfolded: Set<Int>) -> Layout {
+        var out = Layout()
+        let handles: [FixtureInfo.Handle] = sorted.compactMap { $0.handle }
+        let lastPage: Int = max(1, handles.map { $0.page }.max() ?? 1)
+        out.pageCount = lastPage + (moving ? 1 : 0)
+        let shown: Int = min(page, out.pageCount - 1)
+        out.shown = shown
+
+        var bySlot: [Int: FixtureInfo] = [:]
+        for f in sorted {
+            guard let h = f.handle else { continue }
+            let key: Int = h.page * 1000 + h.slot
+            if bySlot[key] == nil { bySlot[key] = f }
+        }
+        let onThisPage: [Int] = handles.filter { $0.page == shown + 1 }.map { $0.slot }
+        let lastSlot: Int = moving ? handlesPerPage : (onThisPage.max() ?? 0)
+
+        // UI-58: the page each selected fixture sits on (0-based handle page).
+        var pageOf: [Int: Int] = [:]
+        for f in sorted where pageOf[f.id] == nil { pageOf[f.id] = (f.handle?.page ?? lastPage) - 1 }
+        out.pageOf = pageOf
+        for item in selection {
+            guard let p = pageOf[item.fixture] else { continue }
+            out.selectedPages.insert(p)
+            if p == shown { out.onShown += 1 }
+        }
+
+        // UI-77: a gap is an empty tile; a fixture without a handle goes after the slots of the last real page.
+        var rows: [Row] = []
+        for slot in 0..<lastSlot {
+            let f: FixtureInfo? = bySlot[(shown + 1) * 1000 + slot + 1]
+            rows.append(contentsOf: Self.rows(for: f, slot: slot + 1, unfolded: unfolded))
+        }
+        if shown == lastPage - 1 {
+            for f in sorted where f.handle == nil { rows.append(contentsOf: Self.rows(for: f, slot: 0, unfolded: unfolded)) }
+        }
+        out.rows = rows
+        return out
+    }
+
+    /// A fixture's tile, then its cells when it is unfolded (UI-29); an empty slot is one empty tile.
+    private static func rows(for f: FixtureInfo?, slot: Int, unfolded: Set<Int>) -> [Row] {
+        guard let f else { return [Row(tile: .empty(slot), fixture: nil, slot: slot)] }
+        var out: [Row] = [Row(tile: .item(Item(fixture: f.id)), fixture: f, slot: slot)]
+        if unfolded.contains(f.id) {
+            for c in 0..<f.cells { out.append(Row(tile: .item(Item(fixture: f.id, cell: c + 1)), fixture: f, slot: slot)) }
+        }
+        return out
+    }
+
+    /// The 1-based position of each selected item; the first occurrence wins.
+    private static func order(_ selection: [Item], positions: [Int]) -> [Item: Int] {
+        var out: [Item: Int] = [:]
+        for (i, item) in selection.enumerated() where out[item] == nil {
+            out[item] = (positions[safe: i] ?? i) + 1
+        }
+        return out
+    }
+
     var body: some View {
         let programmer = engine.programmer
         // Display lookups only: 1-based position in the engine's selection order.
         // PRG-55: a fixture button speaks for its whole-fixture item; cells show with VS2-34.
         // UI-33: the grid position the engine reports (0-based), else the index.
-        let order = Dictionary(programmer.selection.enumerated().map { ($1, (programmer.positions[safe: $0] ?? $0) + 1) }, uniquingKeysWith: { a, _ in a })
+        let order: [Item: Int] = Self.order(programmer.selection, positions: programmer.positions)
         // Double outline only while the engine's targets differ from its selection (sub-selection).
         let subSelection = programmer.targets != programmer.selection
         let targets = Set(programmer.targets)
         let inProgrammer = Set(programmer.inProgrammer)
 
         let sorted = engine.fixtures.sorted(by: Self.handleOrder)
-        let pageCount = max(1, (sorted.count + handlesPerPage - 1) / handlesPerPage)
-        let shown = min(page, pageCount - 1)
-        let visible = sorted.dropFirst(shown * handlesPerPage).prefix(handlesPerPage)
-        // UI-58: the page each selected fixture sits on.
-        let pageOf = Dictionary(sorted.enumerated().map { ($1.id, $0 / handlesPerPage) }, uniquingKeysWith: { a, _ in a })
-        let selectedPages = Set(programmer.selection.compactMap { pageOf[$0.fixture] })
-        let onShown = programmer.selection.filter { pageOf[$0.fixture] == shown }.count
-
-        let rows: [(FixtureInfo, Item)] = visible.flatMap { f -> [(FixtureInfo, Item)] in
-            let cells = ui.unfolded.contains(f.id) ? (0..<f.cells).map { (f, Item(fixture: f.id, cell: $0 + 1)) } : []
-            return [(f, Item(fixture: f.id))] + cells
-        }
+        // UI-77: tiles sit in their handle slots, so a gap is an empty tile. While Move holds a fixture every slot shows,
+        // plus one empty page after the last. A fixture without a handle goes after the slots of the last real page.
+        let moving = ui.function == .move && ui.moveFixture != nil
+        let layout = Self.layout(sorted: sorted, selection: programmer.selection, page: page, moving: moving,
+                                 handlesPerPage: handlesPerPage, unfolded: ui.unfolded)
+        let pageCount = layout.pageCount, shown = layout.shown, pageOf = layout.pageOf
+        let selectedPages = layout.selectedPages, onShown = layout.onShown, rows = layout.rows
 
         PanelWindow(
             title: "Fixtures",
@@ -259,7 +330,7 @@ struct FixturesWindow: View {
                     .onSubmit { selectMatches(sorted) }
                     .onChange(of: find) { _, _ in
                         // UI-59: the window goes to the first match's page, in display order, and scrolls it into view.
-                        if !find.isEmpty, let i = sorted.firstIndex(where: matches) { page = i / handlesPerPage; scrollTarget = Item(fixture: sorted[i].id) }
+                        if !find.isEmpty, let m = sorted.first(where: matches) { page = pageOf[m.id] ?? 0; scrollTarget = Item(fixture: m.id) }
                     }
                     .onChange(of: findFocused) { _, now in if !now, ui.fieldEscaped { find = "" } }   // UI-44: Esc empties it
                 if pageCount > 1 {
@@ -278,34 +349,17 @@ struct FixturesWindow: View {
             CellScroll {
                 // UI-29: one button per item, the cells of an unfolded fixture right after it. A flat
                 // list, so the lazy grid sees every button as its own element.
-                ForEach(rows, id: \.1) { fixture, item in
-                    let model: String = item.cell == nil && !fixture.name.isEmpty ? Self.model(fixture) : ""   // UI-59
-                    let faded: Bool = !matches(fixture) || fixture.parked   // UI-59, PAT-35
-                    Cell(number: item.cell == nil ? fixture.number : nil,
-                         tag: fixture.parked ? "PARK" : item.cell == nil && fixture.cells > 0 ? "\(fixture.cells)" : nil,   // PAT-35
-                         legend: item.cell.map { "\(fixture.number).\($0)" } ?? Self.legend(fixture),
-                         model: model,
-                         order: order[item],
-                         located: programmer.located[item] != nil,   // UI-26
-                         selected: order[item] != nil,
-                         current: subSelection && targets.contains(item),
-                         dimmed: subSelection && order[item] != nil && !targets.contains(item),
-                         inProgrammer: inProgrammer.contains(item),
-                         lamp: true,
-                         lampCell: fixture.parked ? nil : engine.live.cell(item),
-                         faded: faded) {
-                        if fixture.parked {
-                            return   // PAT-35: a parked fixture is not selectable
-                        } else if let n = item.cell {
-                            lastTap = item
-                            if ui.armedAllows(.cell, engine) { engine.selectCell(fixture.id, cell: n) }
-                        } else {
-                            lastTap = item
-                            tap(fixture)
-                        }
+                ForEach(rows, id: \.tile) { row in
+                    let slot = row.slot
+                    if case let .item(item) = row.tile, let fixture = row.fixture {
+                        let o: Int? = order[item]
+                        let isTaken: Bool = moving && ui.moveFixture == fixture.id && item.cell == nil   // UI-77
+                        fixtureTile(fixture, item, order: o, current: subSelection && targets.contains(item),
+                                    dimmed: subSelection && o != nil && !targets.contains(item),
+                                    inProgrammer: inProgrammer.contains(item), located: programmer.located[item] != nil, taken: isTaken)
+                    } else {
+                        emptyTile(page: shown + 1, slot: slot)
                     }
-                    // UI-57: a right-click on a whole-fixture tile opens Fixture info.
-                    .overlay { if item.cell == nil { SecondaryClick { ui.fixtureInfo = FixtureRef(id: fixture.id) } } }
                 }
             }
             .onChange(of: scrollTarget) { _, t in if let t { proxy.scrollTo(t, anchor: .center); scrollTarget = nil } }
@@ -332,8 +386,65 @@ extension FixturesWindow {
         }
     }
 
+    /// One whole-fixture tile or one of its cells (UI-29).
+    fileprivate func fixtureTile(_ fixture: FixtureInfo, _ item: Item, order: Int?, current: Bool, dimmed: Bool,
+                                 inProgrammer: Bool, located: Bool, taken: Bool) -> some View {
+        let model: String = item.cell == nil && !fixture.name.isEmpty ? Self.model(fixture) : ""   // UI-59
+        let faded: Bool = !matches(fixture) || fixture.parked   // UI-59, PAT-35
+        return Cell(number: item.cell == nil ? fixture.number : nil,
+             tag: fixture.parked ? "PARK" : item.cell == nil && fixture.cells > 0 ? "\(fixture.cells)" : nil,   // PAT-35
+             legend: item.cell.map { "\(fixture.number).\($0)" } ?? Self.legend(fixture),
+             model: model,
+             order: order,
+             located: located,   // UI-26
+             selected: order != nil,
+             picked: taken,
+             current: current,
+             dimmed: dimmed,
+             inProgrammer: inProgrammer,
+             lamp: true,
+             lampCell: fixture.parked ? nil : engine.live.cell(item),
+             faded: faded) {
+            if fixture.parked && ui.function != .move {
+                return   // PAT-35: a parked fixture is not selectable (Move can take it, UI-77)
+            } else if let n = item.cell {
+                lastTap = item
+                if ui.armedAllows(.cell, engine) { engine.selectCell(fixture.id, cell: n) }
+            } else {
+                lastTap = item
+                tap(fixture)
+            }
+        }
+        // UI-57: a right-click on a whole-fixture tile opens Fixture info.
+        .overlay { if item.cell == nil { SecondaryClick { ui.fixtureInfo = FixtureRef(id: fixture.id) } } }
+    }
+
+    /// UI-77: an empty handle slot reacts only while Move is armed.
+    fileprivate func emptyTile(page: Int, slot: Int) -> some View {
+        let reacts = ui.function == .move
+        let action: (() -> Void)? = reacts ? { moveTap(nil, page: page, slot: slot) } : nil
+        return Cell(number: nil, empty: true, armed: reacts, action: action)
+    }
+
+    /// UI-77: Move on a fixture tile or an empty slot (`fixture` nil): the first fixture tapped is taken, the next tile is the target.
+    fileprivate func moveTap(_ fixture: FixtureInfo?, page: Int, slot: Int) {
+        guard ui.armedAllows(.fixtureButton, engine) else { return }   // UI-42
+        guard let taken = ui.moveFixture else {
+            guard let fixture else { return engine.say("Move: tap the fixture to move first.") }
+            ui.moveFixture = fixture.id
+            return engine.say("Move fixture \(fixture.number): tap an empty button, or a fixture to swap with.")
+        }
+        if fixture?.id == taken {
+            ui.moveFixture = nil
+            return engine.say("Move: tap the fixture to move.")
+        }
+        guard page > 0, slot > 0 else { return }   // a target without a handle cannot happen
+        ui.sendPicks(engine) { engine.patchHandle(id: taken, page: page, slot: slot) }
+    }
+
     /// While Unfold is armed a tap folds or unfolds instead of selecting (UI-29), then disarms.
     fileprivate func tap(_ fixture: FixtureInfo) {
+        if ui.function == .move { return moveTap(fixture, page: fixture.handle?.page ?? 0, slot: fixture.handle?.slot ?? 0) }   // UI-77
         guard ui.armedAllows(.fixture, engine) else { return }   // UI-42
         guard ui.function == .unfold else { return engine.selectFixture(fixture.id) }
         if fixture.cells == 0 {

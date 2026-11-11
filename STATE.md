@@ -11,8 +11,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch F, controls and small things (spec approved): builds
-   CTR-04 + CTR-05 + CTR-07, CTR-06 + CTR-08 + CTR-09. Then batches G, I and J in the owner's order
+1. IDEA-35 batch F, controls and small things (spec approved): its last build,
+   CTR-06 + CTR-08 + CTR-09. Then batches G, I and J in the owner's order
    (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and Edit) stays apart from them.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 
@@ -40,7 +40,8 @@ Programming and small checks:
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).
-- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-38, IDEA-45, IDEA-47, IDEA-48 and IDEA-49.
+- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-38, IDEA-45, IDEA-47, IDEA-48 and IDEA-49. IDEA-38 still
+  holds (run of 2026-11-11): a click by accessibility lands on a hidden workspace; fix now or later?
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
 
 ## Good to know

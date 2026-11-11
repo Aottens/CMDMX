@@ -63,7 +63,7 @@ the backlog, not the whole idea.
 | IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches; batch C specified (P1-33); batch D specified (P1-36); batch E specified (P1-39) | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | REC-02 done (UI-52) | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
-| IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
+| IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; still holds (CTR-04 run, 2026-11-11); awaiting phase confirmation | 1 proposed | UI |
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | spec UI-63, build FIT-01 | 1 (owner 2026-11-07) | UI |
 | IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
 | IDEA-41 | Our own built-in 3D visualiser, inside the app (owner 2026-11-04) | triaged | 4 (owner 2026-11-04) | new `visualiser.md`, PAT, LIB, IPC, UI |
@@ -818,6 +818,10 @@ offline until it is restarted; it does not start its own bundled engine. Only re
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now.
 **Third review (2026-11-04):** proposed batch F; not met with a real mouse. Owner to confirm.
 **Open question:** hide them from accessibility, or stop keeping hidden workspaces built?
+**Checked (CTR-04 run, 2026-11-11):** still holds, so not closed as P1-40 decision 1 expected. Hidden workspaces have
+`.allowsHitTesting(false)` and `.accessibilityHidden(true)`, yet an accessibility press on Group 2 went to *Dimmer wave* of the
+hidden Shapes workspace, and one on a fixture tile to *Breathe*; with nothing selected the engine only warned "nothing is
+selected". A real mouse hits the right tile. The modifiers do not take the buttons out of the macOS accessibility tree.
 
 ### IDEA-39 — Strips are cut off on a window with the Dock (2026-11-03)
 **Found in:** the FUN-01 run; not from the owner.
