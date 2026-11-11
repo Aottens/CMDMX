@@ -271,7 +271,7 @@ and the message line says so. Click **Output** in the rail to see and edit the n
 
 ![The Output screen with one row per output node](images/output-screen.png)
 
-*The Output screen: one row per node, with its universe, protocol, settings and state.*
+*The Output screen: one row per node, with its name, universe, protocol, settings and state.*
 
 - Each row has an **On** tick and a coloured dot for its state. Untick a node to stop it
   without removing it.
