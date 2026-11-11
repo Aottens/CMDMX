@@ -193,7 +193,7 @@ fn pat_30_ranges_groups_all_and_rem_dim_leave_it_out() {
     run(&mut e, "201 And 202 And 306 @ 50 Enter").unwrap();
     e.clear_selection();
     e.patch_park(&[202]).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(e.programmer().selection(), [201, 306]);
     e.clear_selection();
 

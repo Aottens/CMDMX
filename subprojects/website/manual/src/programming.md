@@ -62,6 +62,8 @@ selection replaces the current one.
 - `Group 3 Enter` selects group 3.
 - `201 Thro 208 @ 50 Enter` selects them and sets their intensity to 50 %. With fixtures selected,
   `@ 80 Enter` sets the selection to 80 %.
+- `@ + 10 Enter` raises every target's intensity by 10 points, `@ - 10 Enter` lowers it. It starts from the level the
+  programmer holds for a fixture, or from what is on stage when it holds none, and stops at 0 and 100 %.
 - Ending the line with **Locate** instead of Enter selects and locates in one go.
 - With Record or a function armed, `Group 3 Enter` or `Palette 12 Enter` is a tap on that cell. Any other line is refused and stays,
   to be corrected, and a palette that does not exist has to be tapped, because its cell decides where it goes.
@@ -74,7 +76,7 @@ with a message next to it, and nothing changes. A click on the message opens the
 [Messages](reference.md#messages)).
 
 With **Keys** on in the status bar, the Mac keyboard types into the line as well: the digits, `-`
-for Thro, `+` for And, `@`, `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter.
+for Thro, `+` for And (right after `@` they type `-` and `+`, for a relative level), `@`, `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter.
 Escape is Exit too, also with **Keys** off, and with nothing to exit it goes one level up (see the
 [reference](reference.md)).
 With **Keys** off, which is how the app starts the first time, those keys do nothing, and they or a click on the line
@@ -91,7 +93,8 @@ the wheels change only the targets.
 - **Odd/Even** splits the selection in two: the first, third, fifth fixture and so on, then the
   others. Fix +1 moves to the other half.
 - **All** (a softkey) ends the stepping, so the whole selection is the target again. With nothing
-  stepped it selects every fixture that is in the programmer.
+  stepped it selects every fixture that is in the programmer. With nothing stepped and an empty programmer it keeps
+  the selection as it is and says "All: nothing in the programmer".
 
 Fix ±1 and All are also on the *Selection* softkeys at the right, together with **Rem Dim**;
 Odd/Even sits there under **Pattern**.
@@ -146,7 +149,8 @@ The attribute bar shows the groups **I P C G B E S FX**. A group is available wh
 fixtures have attributes in it. Pick one and the wheels show its attributes; the encoders on a
 connected controller follow the same page.
 
-Drag a wheel up or down to change its value on every target. Values you change turn red, and the
+Drag a wheel up or down to change its value on every target: each point is one step, so a drag of about 255 points
+takes a level from 0 to full. Values you change turn red, and the
 fixture gets a red strip. Hold **Option** while dragging for fine steps, or **Shift** for big
 steps.
 

@@ -188,8 +188,10 @@ pub enum CoreError {
     PaletteUsed(u32),
     #[error("Nothing in the programmer for {0}")]
     NothingToRecord(String),
-    #[error("Palette {0} does not fit the selection")]
-    PaletteDoesNotFit(String),
+    #[error("Palette {0} does not fit the selection{hint}", hint = if *.1 { ". To add these fixtures, set them and Update the palette" } else { "" })]
+    PaletteDoesNotFit(String, bool),
+    #[error("All: nothing in the programmer")]
+    NothingForAll,
     #[error("Record as Shared: the values differ inside a fixture type")]
     SharedValuesDiffer,
     #[error("a legend is at most {max} characters", max = crate::palette::MAX_LEGEND)]

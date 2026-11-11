@@ -5152,6 +5152,15 @@ impl Engine {
         for &(_, p, s) in &block {
             self.check_empty_handle(p, s)?;
         }
+        // PBK-53: a whole page copied onto a page without a legend brings its legend.
+        let ids_set: BTreeSet<_> = ids.iter().copied().collect();
+        let whole = self.whole_pages(&ids_set);
+        let legend = match whole.as_slice() {
+            [p] if *p != page && self.page_legend(page) == Some("") => {
+                self.page_legend(*p).unwrap_or("").to_string()
+            }
+            _ => String::new(),
+        };
         let next = self.playback_next_id;
         let mut new = Vec::new();
         for (id, p, s) in block {
@@ -5167,7 +5176,29 @@ impl Engine {
                 }
             }
         }
+        // Checked above to be an empty legend of a real page; nothing can refuse it now.
+        if let Some(l) = (!legend.is_empty())
+            .then(|| usize::from(page).checked_sub(1))
+            .flatten()
+            .and_then(|i| self.page_legends.get_mut(i))
+        {
+            *l = legend;
+        }
         Ok(new)
+    }
+
+    /// PBK-53: the pages all of whose playbacks are in `ids`.
+    fn whole_pages(&self, ids: &BTreeSet<PlaybackId>) -> Vec<u16> {
+        let mut pages: BTreeSet<u16> = ids
+            .iter()
+            .filter_map(|id| self.playbacks.get(id).map(|p| p.page))
+            .collect();
+        pages.retain(|&pg| {
+            self.playbacks
+                .iter()
+                .all(|(id, p)| p.page != pg || ids.contains(id))
+        });
+        pages.into_iter().collect()
     }
 
     /// PBK-50, 51: move several playbacks (ids and running state kept). With `swap` a playback
@@ -5237,8 +5268,17 @@ impl Engine {
         if let Some(&id) = ids.iter().find(|id| !self.playbacks.contains_key(id)) {
             return Err(CoreError::UnknownPlayback(id));
         }
+        let whole = self.whole_pages(&ids);
         for id in ids {
             self.delete_playback(id)?;
+        }
+        for page in whole {
+            if let Some(l) = usize::from(page)
+                .checked_sub(1)
+                .and_then(|i| self.page_legends.get_mut(i))
+            {
+                l.clear();
+            }
         }
         Ok(())
     }
@@ -6088,9 +6128,11 @@ impl Engine {
     }
 
     /// PRG-06.
-    pub fn select_all(&mut self) {
-        self.programmer.select_all();
+    /// PRG-99: refused (nothing changes) with nothing stepped and an empty programmer.
+    pub fn select_all(&mut self) -> Result<(), CoreError> {
+        self.programmer.select_all()?;
         self.follow_active_group();
+        Ok(())
     }
 
     /// PRG-07: store the selection as a group, replacing any existing one.
@@ -7649,7 +7691,7 @@ impl Engine {
             // FX-22: an effect-only palette resolves no value and is no misfit.
             let effects = self.palette(number).is_some_and(|p| !p.effects.is_empty());
             let plan = match self.palette_plan(number, &targets) {
-                Err(CoreError::PaletteDoesNotFit(_)) if effects => None,
+                Err(CoreError::PaletteDoesNotFit(..)) if effects => None,
                 plan => Some(plan?),
             };
             if let Some(list) = typed {
@@ -7686,7 +7728,7 @@ impl Engine {
             return self.locate(&ALL_GROUPS);
         }
         let mut touched = Vec::new();
-        let level = cmd.level.map(|v| (v / 100.0).clamp(0.0, 1.0));
+        let level = cmd.level.map(|v| v / 100.0);
         if level.is_some() {
             let targets = typed
                 .clone()
@@ -7699,7 +7741,11 @@ impl Engine {
                 let mode = self.mode_of(item.fixture);
                 for l in mode.into_iter().flat_map(|m| m.item_attributes(item.cell)) {
                     if l.group == AttributeGroup::I && l.kind == AttributeKind::Htp {
-                        touched.push((item, l.name.to_string()));
+                        let start = match (cmd.relative, self.start_value(item, &l)) {
+                            (true, Value::Level(v)) => v,
+                            _ => 0.0,
+                        };
+                        touched.push((item, l.name.to_string(), start));
                     }
                 }
             }
@@ -7708,8 +7754,9 @@ impl Engine {
             self.replace_typed(list, typed_grid);
         }
         if let Some(level) = level {
-            for (item, name) in touched {
-                self.set_item_value(item, &name, level)?;
+            for (item, name, start) in touched {
+                let new = if cmd.relative { start + level } else { level };
+                self.set_item_value(item, &name, new.clamp(0.0, 1.0))?;
             }
         }
         Ok(())
@@ -8128,6 +8175,7 @@ impl Engine {
                 format!("{} {}", palette.number, palette.legend)
                     .trim()
                     .to_string(),
+                palette.kind() == crate::palette::PaletteKind::Normal,
             ));
         }
         Ok((palette.id, plan))
@@ -8158,7 +8206,7 @@ impl Engine {
         let apply = EffectApply::Palette(number);
         match self.palette_plan(number, &self.programmer.target_items()) {
             // FX-22: an effect-only palette resolves no value and is no misfit.
-            Err(CoreError::PaletteDoesNotFit(_)) if effects => self.effect_apply(&apply).map(drop),
+            Err(CoreError::PaletteDoesNotFit(..)) if effects => self.effect_apply(&apply).map(drop),
             Err(e) => Err(e),
             Ok((id, plan)) => {
                 self.put_palette_timed(id, plan, time, overlap);

@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch and profiles are complete: exchange, copy, update from the library, and behaviour per fixture at the output.
-Next: batch F's last build (CTR-06, CTR-08), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
+Patch and profiles are complete, and so are the controls and small things of the everyday gap review.
+Next: the spec of batch G (show files), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -145,10 +145,13 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   comes from its White LED).
 - Locate, Highlight with lowlight, Off (per attribute group or one attribute), Rem Dim, and
   Clear with a choice of what LTP attributes do; `3` then Clear fades the programmer out over 3 s.
+- `@ + 10` and `@ - 10` move the selection's level from where it is, in the programmer or on stage, clamped at 0 and
+  100 %. A wheel goes from 0 to full in 255 points of drag. All with an empty programmer says so.
 
 **Palettes**
 - Colours, positions and beams recorded as on Titan (Global/Shared/Normal decided
-  automatically), applied by tap or `Palette 3 Enter`, snapping or fading with fixture overlap.
+  automatically), applied by tap or `Palette 3 Enter`, snapping or fading with fixture overlap. A Normal palette that
+  fits none of the selection says how to add those fixtures: set them and Update the palette.
 - Cues and playbacks keep a reference, so changing a palette changes every place that uses it.
 
 **Effects**
@@ -168,7 +171,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - Copy, Move and Delete take several playbacks, palettes or groups at once, keeping the gaps (Retain Layout) or
   closing them (Bunch Up), and a Move can swap what is in the way; Delete takes several cues of a list. One refused
   item refuses it all, and it is one undo step. In the app you pick them with ⇧ for a range, ⌘ to add or drop one and
-  an All softkey; Menu latch keeps Copy, Move or Delete armed after each action.
+  an All softkey; Menu latch keeps Copy, Move or Delete armed after each action. A whole page copied to an empty page
+  takes its legend along, a whole page deleted loses it, and the confirm names it ("page 2 Pasen").
 - Level bars never jump: a click on a strip, group master or the Grand Master changes nothing, a drag
   moves the level by the distance dragged.
 - *New cue times* in Playback Options ▸ Settings: the delay, delay out, fade in, fade out and overlap that cues recorded
@@ -182,7 +186,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   value, an effect or a whole fixture, or set a value Off and On again. Include loads a cue back into the programmer,
   and Update offers what it can store into, cues and palettes, on softkeys. Create List and Create Chase stay in
   Record, so a list is built by making a look and tapping its handle. The current cue reads large and
-  green, the next small and grey. Playback Options shows only what applies to the playback type.
+  green, the next small and grey. Playback Options shows only what applies to the playback type. With the list's
+  fader at 0 the Go block reads `fader 0 % · no output`.
 - Chases at a BPM with crossfade and direction, Tap tempo, and BPM and Rate masters that drive
   several chases at once.
 - Group masters: a group on a fader masters its fixtures' intensity (Scale, HTP, Limit or Take

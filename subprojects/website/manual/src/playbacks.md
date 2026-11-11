@@ -110,7 +110,12 @@ With **Copy**, **Move** or **Delete** armed, you can pick several playbacks befo
 
 Picked handles are outlined in red and the message counts them ("Copy 4 playbacks: tap the target"). They stay
 picked when you go to another page, so a page is copied to another page in a few taps. Delete asks for its confirmation
-on softkey **A**, which names the count ("Delete 8 playbacks, on page 2").
+on softkey **A**, which names the count ("Delete 8 playbacks, on page 2"). When the picks are the whole page, it names the
+page's legend too ("Delete 8 playbacks of page 2 Pasen?").
+
+A page's legend follows the whole page: copy every playback of a page to a page without a legend and that page takes the
+legend; delete every playback of a page and its legend goes. A copy or delete of part of a page leaves the legends alone,
+and an Undo brings the legend back with the playbacks.
 
 Copy and Move then take a tap on the target handle:
 

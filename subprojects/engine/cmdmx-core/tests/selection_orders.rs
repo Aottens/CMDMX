@@ -341,7 +341,7 @@ fn prg_73_the_grid_stays_through_order_tools_steps_and_all() {
     e.order(Order::Shuffle).unwrap();
     e.next_fixture();
     e.prev_fixture();
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(e.programmer().grid(), Some(grid(2, 0, 1, false)));
 }
 
@@ -366,9 +366,9 @@ fn prg_73_a_new_selection_ends_the_grid() {
     e.set_programmer_value(201, "Dimmer", 1.0).unwrap();
     select(&mut e, &[202, 203]);
     e.grid_shortcut(GridShortcut::OddEven).unwrap();
-    e.select_all(); // ends the stage
+    e.select_all().unwrap(); // ends the stage
     assert!(e.programmer().grid().is_some());
-    e.select_all(); // selects the programmer
+    e.select_all().unwrap(); // selects the programmer
     assert_eq!(selection(&e), vec![201]);
     assert_eq!(e.programmer().grid(), None);
 
@@ -422,13 +422,13 @@ fn prg_74_all_ends_the_stage_and_keeps_the_grid() {
     let mut e = pars();
     e.grid_shortcut(GridShortcut::OutsideIn).unwrap();
     e.next_fixture();
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(e.programmer().stage(), None);
     assert_eq!(targets(&e), PARS.to_vec());
     assert_eq!(e.programmer().grid(), Some(grid(2, 0, 1, false)));
     e.next_fixture();
     assert_eq!(targets(&e), vec![201, 208]);
-    e.select_all();
+    e.select_all().unwrap();
     e.prev_fixture();
     assert_eq!(targets(&e), vec![204, 205]);
 }
@@ -576,7 +576,7 @@ fn prg_05_a_pattern_is_the_grid_groups_n() {
 fn prg_06_all_ends_the_pattern_stage_but_keeps_the_grid() {
     let mut e = pars();
     e.select_pattern(2).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(targets(&e), PARS.to_vec());
     assert_eq!(e.programmer().grid(), Some(grid(1, 2, 1, false)));
 }
@@ -624,7 +624,7 @@ fn prg_84_stages_over_small_and_odd_selections_never_panic() {
                 assert!(e.programmer().positions().iter().all(|&k| k < count));
                 assert!(targets(&e).iter().all(|t| selection(&e).contains(t)));
             }
-            e.select_all();
+            e.select_all().unwrap();
             let _ = e.order(Order::Revert);
             let _ = e.grid_shortcut(GridShortcut::Divide(32));
         }

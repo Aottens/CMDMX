@@ -304,6 +304,15 @@ final class UIState: ObservableObject {
         return pages.count == 1 ? pages.first : nil
     }
 
+    /// PBK-53: "page 2 Pasen" when the picks are every playback of their page (legend left out when empty), else nil.
+    func wholePagePhrase(_ engine: EngineClient) -> String? {
+        guard let page = pickedPage(engine) else { return nil }
+        let all = engine.playbacks.filter { $0.stored.page == page }
+        guard all.count == Set(picks).count else { return nil }
+        let legend = engine.pages.first { $0.number == page }?.legend ?? ""
+        return legend.isEmpty ? "page \(page)" : "page \(page) \(legend)"
+    }
+
     /// UI-64: a tap with Copy, Move or Delete armed. ⇧ extends the picks over `order`, ⌘ adds or drops one; a plain tap on
     /// Copy / Move with picks is the target. The engine decides what the target may be.
     func pickTap(_ kind: PickKind, item: Int?, order: @autoclosure () -> [Int]) -> PickTap {

@@ -257,7 +257,9 @@ enum MacKeys {
         case 126: line.older()              // Up
         case 125: line.newer()              // Down
         default:
-            guard let c = event.characters?.lowercased(), let token = token(for: c) else { return false }
+            guard let c = event.characters?.lowercased(), var token = token(for: c) else { return false }
+            // PRG-100: after `@`, + and - are a sign (`@ + 10`), not And / Thro.
+            if line.tokens.last == "@", c == "+" || c == "=" || c == "-" { token = c == "-" ? "-" : "+" }
             if c == "p", line.tokens.isEmpty { ui.paletteMenu = true }
             line.add(token)
         }

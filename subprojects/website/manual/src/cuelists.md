@@ -51,7 +51,8 @@ The Go block, on the right of the playback area, shows the **connected** cue lis
 
 - the header: the list's legend and handle, and the fade times of the live and the next cue
   (`live 3s · next 2/4s` means a fade in of 2 s and a fade out of 4 s). An amber `fader 40 %`
-  warns that the list's fader is not at full, so a Go may look dimmer than you expect;
+  warns that the list's fader is not at full, so a Go may look dimmer than you expect. At 0 % it reads
+  `fader 0 % · no output`: a Go then runs the cue without anything on stage;
 - the **now** line, large and green: the current cue's number and legend, and the progress while
   it fades. *paused* in amber while the list is paused;
 - the **GO** button, with the next cue in small grey text (`Next: Q4 Sermon`). It reads *end of

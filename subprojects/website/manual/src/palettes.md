@@ -75,7 +75,8 @@ A palette recorded from one fixture counts as shared. **Normal** forces a per-fi
 
 Select fixtures and tap the palette. Every selected fixture that the palette fits gets it;
 attributes and fixtures it does not fit are left alone. If it fits none of them, it is refused
-with a message.
+with a message. For a normal (**N**) palette the message says what to do: "Palette 1 Rood does not fit the selection.
+To add these fixtures, set them and Update the palette".
 
 In the programmer the values are *references* to the palette. The Programmer window shows them in
 cyan with the palette's legend, instead of red. When all of a fixture's values in one attribute group come from the

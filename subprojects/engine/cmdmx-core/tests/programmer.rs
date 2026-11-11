@@ -238,11 +238,11 @@ fn prg_06_all_ends_stepping_and_patterns() {
     let mut e = church();
     select(&mut e, &[101, 102, 103]);
     e.next_fixture();
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(targets(&e), vec![101, 102, 103]);
 
     e.select_pattern(2).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(targets(&e), vec![101, 102, 103]);
     assert_eq!(selection(&e), vec![101, 102, 103]);
 }
@@ -255,7 +255,7 @@ fn prg_06_all_without_sub_selection_selects_the_programmer_fixtures() {
     e.set_programmer_value(201, "Dimmer", 0.4).unwrap();
     e.clear_selection();
     select(&mut e, &[101]);
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(selection(&e), vec![201, 302]);
     assert_eq!(targets(&e), vec![201, 302]);
 }
@@ -381,7 +381,7 @@ fn prg_14_selecting_puts_nothing_in_the_programmer() {
     e.select_group(1).unwrap();
     e.next_fixture();
     e.select_pattern(2).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     assert!(e.programmer().is_empty());
     assert!(!e.programmer().in_programmer(201));
 }
@@ -407,4 +407,35 @@ fn programmer_value_is_refused_for_unknown_fixture_attribute_or_level() {
         Err(CoreError::InvalidLevel(1.5))
     );
     assert!(e.programmer().is_empty());
+}
+
+// ---- PRG-99: All with an empty programmer -----------------------------------
+
+#[test]
+fn prg_99_all_with_an_empty_programmer_keeps_the_selection_and_says_so() {
+    let mut e = church();
+    select(&mut e, &[201, 202]);
+    let err = e.select_all().unwrap_err();
+    assert_eq!(err.to_string(), "All: nothing in the programmer");
+    assert_eq!(selection(&e), vec![201, 202]);
+    assert_eq!(targets(&e), vec![201, 202]);
+}
+
+#[test]
+fn prg_99_all_still_ends_stepping_with_an_empty_programmer() {
+    let mut e = church();
+    select(&mut e, &[201, 202, 203]);
+    e.next_fixture();
+    e.select_all().unwrap();
+    assert_eq!(targets(&e), vec![201, 202, 203]);
+}
+
+#[test]
+fn prg_99_all_with_values_is_prg_06() {
+    let mut e = church();
+    select(&mut e, &[201]);
+    e.set_programmer_value(201, "Dimmer", 0.5).unwrap();
+    e.clear_selection();
+    e.select_all().unwrap();
+    assert_eq!(selection(&e), vec![201]);
 }

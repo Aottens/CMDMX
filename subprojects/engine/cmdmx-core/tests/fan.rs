@@ -169,9 +169,9 @@ fn prg_56_fix_patterns_and_all_keep_fan_on() {
     e.prev_fixture();
     e.select_pattern(2).unwrap();
     e.next_fixture();
-    e.select_all(); // ends the pattern
+    e.select_all().unwrap(); // ends the pattern
     assert_eq!(e.fan(), Some(Line));
-    e.select_all(); // every fixture in the programmer (none yet: an empty selection is fine)
+    assert!(e.select_all().is_err()); // PRG-99: an empty programmer, so All is refused
     assert_eq!(e.fan(), Some(Line));
 }
 

@@ -109,7 +109,7 @@ fn prg_76_outside_in_fans_both_ends_alike() {
     set_all(&mut e, &WASHES, "Pan", 0.5);
     select(&mut e, &WASHES);
     e.grid_shortcut(GridShortcut::OutsideIn).unwrap();
-    e.select_all(); // ends the stage, keeps the grid
+    e.select_all().unwrap(); // ends the stage, keeps the grid
     e.set_fan(Some(FanCurve::Line));
     e.turn_wheel("Pan", 10, Coarse).unwrap(); // +0.40
     assert_close(&levels(&e, &WASHES, "Pan"), &[0.1, 0.5, 0.9, 0.9, 0.5, 0.1]);
@@ -121,7 +121,7 @@ fn prg_76_odd_against_even() {
     set_all(&mut e, &PARS, "Dimmer", 0.5);
     select(&mut e, &PARS);
     e.grid_shortcut(GridShortcut::OddEven).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     e.set_fan(Some(FanCurve::Line));
     e.turn_wheel("Dimmer", 10, Coarse).unwrap();
     assert_close(
@@ -164,7 +164,7 @@ fn prg_76_one_position_acts_as_without_fan() {
     set_all(&mut e, &four, "Dimmer", 0.5);
     select(&mut e, &four);
     e.grid_shortcut(GridShortcut::Blocks(4)).unwrap(); // N = 1
-    e.select_all();
+    e.select_all().unwrap();
     e.set_fan(Some(FanCurve::Line));
     e.turn_wheel("Dimmer", 10, Coarse).unwrap();
     assert_close(&levels(&e, &four, "Dimmer"), &[0.9; 4]);
@@ -178,7 +178,7 @@ fn prg_76_positions_run_over_the_fan_list() {
     set_all(&mut e, &washes, "Pan", 0.5);
     select(&mut e, &[201, 101, 102, 103, 104, 202]);
     e.grid_shortcut(GridShortcut::OutsideIn).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     e.set_fan(Some(FanCurve::Line));
     e.turn_wheel("Pan", 10, Coarse).unwrap();
     assert_close(&levels(&e, &washes, "Pan"), &[0.1, 0.9, 0.9, 0.1]);
@@ -203,7 +203,7 @@ fn prg_77_a_new_entry_takes_the_grid() {
     let mut e = rig();
     select(&mut e, &PARS);
     e.grid_shortcut(GridShortcut::OutsideIn).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     let id = e.effect_apply(&look("Dimmer chase")).unwrap();
     let x = entry(&e, id);
     let p = x.params;
@@ -225,7 +225,7 @@ fn prg_77_inside_out_takes_flip() {
     let mut e = rig();
     select(&mut e, &PARS);
     e.grid_shortcut(GridShortcut::InsideOut).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     let id = e.effect_apply(&look("Dimmer chase")).unwrap();
     let x = entry(&e, id);
     assert!(x.params.flip);
@@ -243,7 +243,7 @@ fn prg_77_one_in_three() {
     let mut e = rig();
     select(&mut e, &PARS);
     e.grid_shortcut(GridShortcut::OneIn(3)).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     let id = e.effect_apply(&look("Dimmer wave")).unwrap();
     let x = entry(&e, id);
     assert_eq!((x.params.groups, x.count), (3, 3));
@@ -255,7 +255,7 @@ fn prg_77_fan_sweep_swaps_its_wings_for_the_grid() {
     let mut e = rig();
     select(&mut e, &WASHES);
     e.grid_shortcut(GridShortcut::OddEven).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     let id = e.effect_apply(&look("Fan sweep")).unwrap();
     let want = LOOKS.iter().find(|l| l.name == "Fan sweep").unwrap().params;
     let p = entry(&e, id).params;
@@ -364,7 +364,7 @@ fn prg_78_palette_overlap_runs_on_positions() {
     with_full(&mut e);
     select(&mut e, &PARS);
     e.grid_shortcut(GridShortcut::OutsideIn).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     e.apply_palette(81, timed(2.0, 0.0)).unwrap();
     e.tick(0.0);
     e.tick(1.0);
@@ -442,7 +442,7 @@ fn prg_78_positions_run_over_the_items_the_palette_touches() {
     .unwrap();
     select(&mut e, &[201, 101, 102, 103, 104, 202]);
     e.grid_shortcut(GridShortcut::OutsideIn).unwrap();
-    e.select_all();
+    e.select_all().unwrap();
     e.apply_palette(41, timed(2.0, 0.0)).unwrap();
     e.tick(0.0);
     e.tick(2.0);

@@ -373,8 +373,8 @@ private struct MixBar: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { drag in
-                            // Right = positive; same 1 step per 4 pt as the wheels.
-                            let total = Int(drag.translation.width / 4)
+                            // Right = positive; same 1 step per point as the wheels (PRG-101).
+                            let total = Int(drag.translation.width)
                             engine.wheel(attribute: wheel.attribute, steps: total - sentSteps,
                                          resolution: resolution(NSEvent.modifierFlags))
                             sentSteps = total

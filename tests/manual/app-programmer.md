@@ -72,6 +72,10 @@ do not commit them.
 - [ ] `201 Thro 204 Lee 106 Enter`: selects 201–204 and turns them red
 - [ ] Record a Colours palette from 201–208 at LEE 201: its legend is "L201 Full C.T. Blue" (PAL-33)
 
+## Relative level on the Mac keys (PRG-100)
+- [ ] With Keys on: `1 Thro 4 @ 50 Return`, then `@ + 10 Return`: the line shows `@ + 10` (not `@ And 10`); Art-Net
+      1–4 at 153. `@ - 25 Return`: the line shows `@ - 25` (not Thro), Art-Net 89
+
 ## Still works
 - [ ] On-screen faders 1–8 and GM still drive channels 1–8 (IPC-09); a programmer value on 1–8 beats its fader (PRG-13)
 - [ ] Stop and restart the daemon: banner, reconnect, the app rebuilds fixtures, groups and an empty programmer (IPC-08/10)

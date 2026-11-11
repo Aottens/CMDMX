@@ -2853,7 +2853,8 @@ extension EngineClient {
         let noun = kind == .handle ? "playbacks" : kind == .palette ? "palettes" : "groups"
         guard del else { return say("\(name) \(n) \(noun): tap the target") }
         var text = "Delete \(n) \(noun)"
-        if kind == .handle, let page = ui.pickedPage(self) { text += " on page \(page)" }
+        if kind == .handle, let whole = ui.wholePagePhrase(self) { text += " of \(whole)" }
+        else if kind == .handle, let page = ui.pickedPage(self) { text += " on page \(page)" }
         text += "?"
         let running = kind == .handle ? ui.picks.filter { playback($0)?.isRunning == true }.count : 0
         if running > 0 { text += running == 1 ? " 1 is running: its output ends at once." : " \(running) are running: their output ends at once." }
