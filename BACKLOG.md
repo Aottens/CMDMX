@@ -281,7 +281,8 @@ Builds: PTC-01 + PTC-02; PTC-03; PTC-04; PTC-05 + PTC-06; PTC-07 + PTC-08.
 ### Controls and small things (IDEA-35 batch F, spec P1-40)
 Approved by the owner 2026-11-10, every recommendation accepted (`ui.md`). F3 holds already, IDEA-39 was done by FIT-01; IDEA-38 is checked
 in CTR-04's run and closed there.
-Builds: CTR-01 + CTR-02; CTR-03; CTR-04 + CTR-05 + CTR-07; CTR-06 + CTR-08 + CTR-09.
+Builds: CTR-01 + CTR-02; CTR-03; CTR-04 + CTR-05 + CTR-07; CTR-06 + CTR-08 + CTR-09; CTR-10 (IDEA-38, alone: it touches every
+workspace and may have to be reverted alone).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
@@ -294,6 +295,7 @@ Builds: CTR-01 + CTR-02; CTR-03; CTR-04 + CTR-05 + CTR-07; CTR-06 + CTR-08 + CTR
 | CTR-07 | App: an Undo from before this app asks twice, and a notice goes on Clear and a screen change; manual and run. | UI-79, UI-80 | S | todo |
 | CTR-08 | Core and app: All with an empty programmer, the Normal palette hint and "fader 0 % · no output"; `prg_99_…`, `pal_35_…`; manual. | PRG-99, PAL-35, CUE-64 | S | todo |
 | CTR-09 | Core and app: a page's legend follows a whole-page copy or delete; `pbk_53_…`; manual and run. | PBK-53 | S | todo |
+| CTR-10 | App: a hidden workspace leaves the accessibility tree and a background press lands on the workspace on show, keeping each window's view state; run with background computer use and `app-cpu.sh`. | UI-81 | S | todo |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the

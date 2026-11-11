@@ -63,7 +63,7 @@ the backlog, not the whole idea.
 | IDEA-35 | Everyday gaps: actions an operator takes for granted that nobody wrote down (`docs/research/everyday-gaps.md`) | batch A done (v0.3.0); second review 2026-11-02 added A2, H, I, J; third review 2026-11-04 proposes K into the batches; batch C specified (P1-33); batch D specified (P1-36); batch E specified (P1-39) | 1, in order A2, H, B to G, I, J (owner 2026-11-02); H specified (P1-27) | PRG, CUE, PBK, PAT, LIB, SHW, CTL, IPC, UI |
 | IDEA-36 | A refused number stays in its field: the field shows a value the engine does not hold (SPF-07 run, 2026-11-02) | REC-02 done (UI-52) | 1 (owner 2026-11-02) | UI |
 | IDEA-37 | The app takes over when another engine goes away: today it stays offline (DEF-03 run, 2026-11-02) | triaged; awaiting phase confirmation | 1 proposed | REL |
-| IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | triaged; awaiting phase confirmation | 1 proposed | UI |
+| IDEA-38 | Workspaces that are not on show leave the accessibility tree (FUN-01 run, 2026-11-03) | spec UI-81 | 1 proposed | UI |
 | IDEA-39 | Strips are cut off on a window with the Dock (FUN-01 run, 2026-11-03) | spec UI-63, build FIT-01 | 1 (owner 2026-11-07) | UI |
 | IDEA-40 | A function's hint stays after it is disarmed (FUN-03 run, 2026-11-03) | spec P1-30 proposed (UI-50) | 1 (owner 2026-11-04) | UI |
 | IDEA-41 | Our own built-in 3D visualiser, inside the app (owner 2026-11-04) | triaged | 4 (owner 2026-11-04) | new `visualiser.md`, PAT, LIB, IPC, UI |
