@@ -591,7 +591,8 @@ private struct Frame: View {
 }
 
 /// All five workspaces stay alive, only one is visible: switching never rebuilds a window, so each
-/// keeps its scroll position (UI-08).
+/// keeps its scroll position (UI-08). `.accessibilityHidden` alone leaves the children of a hidden
+/// workspace in the macOS accessibility tree, so `.accessibilityElement(children: .ignore)` removes them (UI-81, IDEA-38).
 private struct Workspaces: View {
     @EnvironmentObject private var ui: UIState
 
@@ -602,6 +603,7 @@ private struct Workspaces: View {
                 WindowGrid(workspace: workspace)
                     .opacity(visible ? 1 : 0)
                     .allowsHitTesting(visible)
+                    .accessibilityElement(children: visible ? .contain : .ignore)
                     .accessibilityHidden(!visible)
             }
         }
