@@ -226,12 +226,85 @@ struct FixturesWindow: View {
             || f.name.localizedCaseInsensitiveContains(q) || Self.model(f).localizedCaseInsensitiveContains(q)
     }
 
+    /// One tile with its fixture (nil for an empty slot) and its handle slot.
+    private struct Row { let tile: Tile; let fixture: FixtureInfo?; let slot: Int }
+
+    /// UI-58, UI-77: what the window shows, worked out from the display-ordered fixtures.
+    private struct Layout {
+        var pageCount = 1
+        var shown = 0
+        var pageOf: [Int: Int] = [:]
+        var selectedPages: Set<Int> = []
+        var onShown = 0
+        var rows: [Row] = []
+    }
+
+    private static func layout(sorted: [FixtureInfo], selection: [Item], page: Int, moving: Bool,
+                               handlesPerPage: Int, unfolded: Set<Int>) -> Layout {
+        var out = Layout()
+        let handles: [FixtureInfo.Handle] = sorted.compactMap { $0.handle }
+        let lastPage: Int = max(1, handles.map { $0.page }.max() ?? 1)
+        out.pageCount = lastPage + (moving ? 1 : 0)
+        let shown: Int = min(page, out.pageCount - 1)
+        out.shown = shown
+
+        var bySlot: [Int: FixtureInfo] = [:]
+        for f in sorted {
+            guard let h = f.handle else { continue }
+            let key: Int = h.page * 1000 + h.slot
+            if bySlot[key] == nil { bySlot[key] = f }
+        }
+        let onThisPage: [Int] = handles.filter { $0.page == shown + 1 }.map { $0.slot }
+        let lastSlot: Int = moving ? handlesPerPage : (onThisPage.max() ?? 0)
+
+        // UI-58: the page each selected fixture sits on (0-based handle page).
+        var pageOf: [Int: Int] = [:]
+        for f in sorted where pageOf[f.id] == nil { pageOf[f.id] = (f.handle?.page ?? lastPage) - 1 }
+        out.pageOf = pageOf
+        for item in selection {
+            guard let p = pageOf[item.fixture] else { continue }
+            out.selectedPages.insert(p)
+            if p == shown { out.onShown += 1 }
+        }
+
+        // UI-77: a gap is an empty tile; a fixture without a handle goes after the slots of the last real page.
+        var rows: [Row] = []
+        for slot in 0..<lastSlot {
+            let f: FixtureInfo? = bySlot[(shown + 1) * 1000 + slot + 1]
+            rows.append(contentsOf: Self.rows(for: f, slot: slot + 1, unfolded: unfolded))
+        }
+        if shown == lastPage - 1 {
+            for f in sorted where f.handle == nil { rows.append(contentsOf: Self.rows(for: f, slot: 0, unfolded: unfolded)) }
+        }
+        out.rows = rows
+        return out
+    }
+
+    /// A fixture's tile, then its cells when it is unfolded (UI-29); an empty slot is one empty tile.
+    private static func rows(for f: FixtureInfo?, slot: Int, unfolded: Set<Int>) -> [Row] {
+        guard let f else { return [Row(tile: .empty(slot), fixture: nil, slot: slot)] }
+        var out: [Row] = [Row(tile: .item(Item(fixture: f.id)), fixture: f, slot: slot)]
+        if unfolded.contains(f.id) {
+            for c in 0..<f.cells { out.append(Row(tile: .item(Item(fixture: f.id, cell: c + 1)), fixture: f, slot: slot)) }
+        }
+        return out
+    }
+
+    /// The 1-based position of each selected item; the first occurrence wins.
+    private static func order(_ selection: [Item], positions: [Int]) -> [Item: Int] {
+        var out: [Item: Int] = [:]
+        for (i, item) in selection.enumerated() where out[item] == nil {
+            out[item] = (positions[safe: i] ?? i) + 1
+        }
+        return out
+    }
+
     var body: some View {
         let programmer = engine.programmer
         // Display lookups only: 1-based position in the engine's selection order.
         // PRG-55: a fixture button speaks for its whole-fixture item; cells show with VS2-34.
         // UI-33: the grid position the engine reports (0-based), else the index.
-        let order = Dictionary(programmer.selection.enumerated().map { ($1, (programmer.positions[safe: $0] ?? $0) + 1) }, uniquingKeysWith: { a, _ in a })
+        let order: [Item: Int] = Self.order(programmer.selection, positions: programmer.positions)
         // Double outline only while the engine's targets differ from its selection (sub-selection).
         let subSelection = programmer.targets != programmer.selection
         let targets = Set(programmer.targets)
@@ -241,23 +314,10 @@ struct FixturesWindow: View {
         // UI-77: tiles sit in their handle slots, so a gap is an empty tile. While Move holds a fixture every slot shows,
         // plus one empty page after the last. A fixture without a handle goes after the slots of the last real page.
         let moving = ui.function == .move && ui.moveFixture != nil
-        let lastPage = max(1, sorted.compactMap { $0.handle?.page }.max() ?? 1)
-        let pageCount = lastPage + (moving ? 1 : 0)
-        let shown = min(page, pageCount - 1)
-        let bySlot = Dictionary(sorted.compactMap { f in f.handle.map { ($0.page * 1000 + $0.slot, f) } }, uniquingKeysWith: { a, _ in a })
-        let lastSlot = moving ? handlesPerPage : (sorted.compactMap { $0.handle }.filter { $0.page == shown + 1 }.map(\.slot).max() ?? 0)
-        // UI-58: the page each selected fixture sits on (0-based handle page).
-        let pageOf = Dictionary(sorted.map { ($0.id, ($0.handle?.page ?? lastPage) - 1) }, uniquingKeysWith: { a, _ in a })
-        let selectedPages = Set(programmer.selection.compactMap { pageOf[$0.fixture] })
-        let onShown = programmer.selection.filter { pageOf[$0.fixture] == shown }.count
-
-        let unhandled = shown == lastPage - 1 ? sorted.filter { $0.handle == nil } : []
-        let slots: [(slot: Int, f: FixtureInfo?)] = (0..<lastSlot).map { ($0 + 1, bySlot[(shown + 1) * 1000 + $0 + 1]) } + unhandled.map { (0, $0) }
-        let rows: [(Tile, FixtureInfo?, Int)] = slots.flatMap { s -> [(Tile, FixtureInfo?, Int)] in
-            guard let f = s.f else { return [(.empty(s.slot), nil, s.slot)] }
-            let cells = ui.unfolded.contains(f.id) ? (0..<f.cells).map { (Tile.item(Item(fixture: f.id, cell: $0 + 1)), f, s.slot) } : []
-            return [(.item(Item(fixture: f.id)), f, s.slot)] + cells
-        }
+        let layout = Self.layout(sorted: sorted, selection: programmer.selection, page: page, moving: moving,
+                                 handlesPerPage: handlesPerPage, unfolded: ui.unfolded)
+        let pageCount = layout.pageCount, shown = layout.shown, pageOf = layout.pageOf
+        let selectedPages = layout.selectedPages, onShown = layout.onShown, rows = layout.rows
 
         PanelWindow(
             title: "Fixtures",
@@ -289,8 +349,9 @@ struct FixturesWindow: View {
             CellScroll {
                 // UI-29: one button per item, the cells of an unfolded fixture right after it. A flat
                 // list, so the lazy grid sees every button as its own element.
-                ForEach(rows, id: \.0) { tile, fixtureOrNil, slot in
-                    if case let .item(item) = tile, let fixture = fixtureOrNil {
+                ForEach(rows, id: \.tile) { row in
+                    let slot = row.slot
+                    if case let .item(item) = row.tile, let fixture = row.fixture {
                         let o: Int? = order[item]
                         let isTaken: Bool = moving && ui.moveFixture == fixture.id && item.cell == nil   // UI-77
                         fixtureTile(fixture, item, order: o, current: subSelection && targets.contains(item),
