@@ -148,7 +148,11 @@ that number.
 **Keys** in the status bar lets the Mac keyboard drive the console. While it is on, **Space** is Go
 and **Shift+Space** is Back on the connected list. While it is off, Space does nothing, so a stray
 key never runs a cue. Space never acts while you are typing in a text field. Command-1 to
-Command-4 switch workspaces whether Keys is on or not.
+Command-5 switch workspaces whether Keys is on or not.
+
+**Keypad** in the status bar shows or hides the keypad. On a window narrower than 1440 points, such as a
+laptop screen, there is no room for both: the keypad then takes the place of the softkeys, and turning
+**Keypad** off brings the softkeys back.
 
 **Console** in the status bar puts the app full screen with the Dock and menu bar hidden.
 
@@ -193,6 +197,11 @@ and DBO are not undo steps, so an undo during a show never changes what is runni
 
 The engine keeps the last 100 steps. The history is shared by everything connected to the engine
 and is gone when the engine restarts.
+
+When the app opens on an engine that already has a history, the last step was done before this app was
+there, perhaps by the last operator. Until you make an edit yourself, the softkey reads **Undo (earlier)**
+with the step's name, and Undo or Command-Z asks first: "Undo Edit cue, done before this app opened? Undo
+again to go ahead". A second Undo does it. After your first edit, Undo works at once again.
 
 ## Help
 

@@ -819,9 +819,14 @@ offline until it is restarted; it does not start its own bundled engine. Only re
 **Triage:** proposed phase 1, with the gap review of 0.4.0; `ui.md`. Owner to confirm the phase. Nothing touched now.
 **Third review (2026-11-04):** proposed batch F; not met with a real mouse. Owner to confirm.
 **Open question:** hide them from accessibility, or stop keeping hidden workspaces built?
+**Checked (CTR-04 run, 2026-11-11):** still holds, so not closed as P1-40 decision 1 expected. Hidden workspaces have
+`.allowsHitTesting(false)` and `.accessibilityHidden(true)`, yet an accessibility press on Group 2 went to *Dimmer wave* of the
+hidden Shapes workspace, and one on a fixture tile to *Breathe*; with nothing selected the engine only warned "nothing is
+selected". A real mouse hits the right tile. The modifiers do not take the buttons out of the macOS accessibility tree.
 
 **Done (2026-11-11):** UI-81 (owner 2026-11-11), build CTR-10 (#294): a hidden workspace is one accessibility element with
 no children. Run `tests/manual/runs/2026-11-11-IDEA-38.md`.
+
 ### IDEA-39 — Strips are cut off on a window with the Dock (2026-11-03)
 **Found in:** the FUN-01 run; not from the owner.
 **What happens:** on the owner's MacBook with the Dock showing the window is 832 pt high. The workspace layout then cuts off the strips below the fader readout, so the handle buttons are out of reach; empty bands stay above and below the window grid. On the screens that replace the grid (Patch, Playback Options) the upper button shows, the lower is cut off.

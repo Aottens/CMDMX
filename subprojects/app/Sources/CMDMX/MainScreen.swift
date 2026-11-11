@@ -27,7 +27,8 @@ enum PaletteFunction: String {
 }
 
 /// What a tap can land on while Record or a function is armed (UI-42).
-enum ArmedTarget { case group, fixture, cell, palette, handle, cue, effectCell, activeRow }
+/// `fixtureButton`: a fixture's own tile in the Fixtures window (UI-77: Move takes it); `fixture` is any other place a fixture is tapped.
+enum ArmedTarget { case group, fixture, fixtureButton, cell, palette, handle, cue, effectCell, activeRow }
 
 /// CUE-62: Record stays armed while a list or chase is built; the handle is known after its first tap.
 struct Building: Equatable {
@@ -154,6 +155,8 @@ final class UIState: ObservableObject {
     /// UI-64: what Copy, Move and Delete have picked: playback ids, palette numbers or group numbers in tap order (the last is the ⇧ anchor).
     @Published var pickKind: PickKind?
     @Published var picks: [Int] = []
+    /// UI-77: the fixture (id) Move has taken in the Fixtures window.
+    @Published var moveFixture: Int?
     /// UI-66: the page picked while Release is armed; the softkeys then offer the page scopes.
     @Published var releasePage: Int?
     /// UI-64: the cue rows picked for Delete in the Cue list window.
@@ -261,14 +264,16 @@ final class UIState: ObservableObject {
         switch function {
         case .update: places = [.palette, .handle, .cue]
         case .include: places = [.palette, .handle, .cue]
-        case .copy, .move, .delete, .legend: places = [.group, .palette, .handle, .cue]
+        case .copy, .delete, .legend: places = [.group, .palette, .handle, .cue]
+        case .move: places = [.group, .palette, .handle, .cue, .fixtureButton]   // UI-77
         case .options: places = [.handle, .cue]
         case .release: places = [.handle]
         case .unfold: places = [.fixture]
         case .latch: places = []
         }
         if places.contains(target) { return nil }
-        if target == .fixture || target == .cell, [.delete, .copy, .move, .legend].contains(function) {
+        if target == .cell, function == .move { return "Move: tap the fixture's own button." }
+        if target == .fixture || target == .fixtureButton || target == .cell, [.delete, .copy, .move, .legend].contains(function) {
             return "\(name): fixtures are changed on the Patch screen."
         }
         if target == .effectCell, places.contains(.palette) { return "\(name): tap the palette in its own window." }
@@ -351,7 +356,7 @@ final class UIState: ObservableObject {
     /// UI-65: an action is done: Menu latch keeps Copy, Move or Delete armed with the picks cleared, else everything disarms.
     func endAction(_ engine: EngineClient) {
         if menuLatch, let f = function, [.copy, .move, .delete].contains(f) {
-            picks = []; pickKind = nil; cuePicks = []; cueMenu = nil; cueDelete = false
+            picks = []; pickKind = nil; cuePicks = []; cueMenu = nil; cueDelete = false; moveFixture = nil
             engine.say("Menu latch: \(f.rawValue) stays armed, tap the next item.")
         } else {
             cancelModes()
@@ -400,7 +405,7 @@ final class UIState: ObservableObject {
     func cancelModes() {
         patchSwapFrom = nil
         recordArmed = false
-        function = nil; pickKind = nil; picks = []; cuePicks = []; swapIfRequired = false; releasePage = nil
+        function = nil; pickKind = nil; picks = []; moveFixture = nil; cuePicks = []; swapIfRequired = false; releasePage = nil
         cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
         paletteMenu = false
         selectionMenu = nil
@@ -503,7 +508,7 @@ private struct Frame: View {
                             VLine()
                             Workspaces()
                             VLine()
-                            SideColumn(showKeypad: keypad && geo.size.width >= 1440)
+                            SideColumn(showKeypad: keypad, narrow: geo.size.width < 1440)
                         }
                         .frame(minHeight: 0, maxHeight: .infinity).clipped()   // UI-63
                         HLine()
@@ -519,6 +524,8 @@ private struct Frame: View {
         }
         .background(t.bg)
         .foregroundStyle(t.fg)
+        .onChange(of: ui.workspace) { _, _ in engine.endNotice() }   // UI-80
+        .onChange(of: ui.screen) { _, _ in engine.endNotice() }
         // FX-17, FX-36: the effect wheels are on exactly while the Shapes workspace shows.
         .onChange(of: ui.screen == nil && ui.workspace == Workspace.shapes) { _, on in engine.setEffectWheels(on) }
         .overlay { if ui.learnMode { Rectangle().strokeBorder(t.amber, lineWidth: 2).allowsHitTesting(false) } }   // CTL-42
@@ -724,7 +731,7 @@ private struct StatusBar: View {
             BarToggle(title: "Keys", on: keys) { keys.toggle() }
                 .help("Mac keyboard drives the keypad and the command line · ⌘1–⌘5 always switch workspaces")
             BarToggle(title: "Keypad", on: keypad) { keypad.toggle() }
-                .help("Hidden automatically on windows narrower than 1440 pt")
+                .help("Below 1440 pt the keypad takes the place of the softkeys")
             BarToggle(title: day ? "Night" : "Day", on: false) { day.toggle() }
 
             LayerClock(text: { Self.clock.string(from: $0) }, font: .monospacedSystemFont(ofSize: 11, weight: .regular), color: NSColor(t.fg))
