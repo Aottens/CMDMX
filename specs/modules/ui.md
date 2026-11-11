@@ -646,6 +646,14 @@ F3 holds already (UI-42: an armed function on an effect palette tile is refused)
 - **UI-80** **A notice goes** (L8; amends UI-50). A notice (IPC-49) goes on the next command, Clear included, and when the workspace
   or the screen changes. A warning or error goes on the next command, Clear included, as now. All stay in the Messages list (UI-39).
   Checked by hand.
+- **UI-81** **A hidden workspace is out of reach** (IDEA-38; amends UI-08). P1-40 decision 1 expected IDEA-38 to hold already; the
+  CTR-04 run (2026-11-11) found it does not. Only the workspace on show has elements in the macOS accessibility tree: no button, tile
+  or cell of another workspace is listed, and an accessibility press at a spot (VoiceOver, a background run) lands on the workspace on
+  show, as a real mouse does. A workspace switch still keeps what UI-08 promises, for each window on its own (the Fixtures window in
+  Fixtures + Groups apart from the one in Playbacks): the Fixtures page and Find text, every window's scroll position, and what a
+  window has open (the Programmer's cells opened by a right-click, UI-62; Shapes' Raw, More and Palettes). The CPU budget (UI-70) holds. Checked by hand:
+  with Groups + Palettes on show, an accessibility search for "wave" finds nothing; background presses on Group 2 and on a fixture
+  tile select that group and that fixture.
 
 ## Out of scope (this spec)
 Palette, cue and playback behaviour (their own specs fill in the disabled controls), Blind, undo
@@ -674,6 +682,12 @@ Palette, cue and playback behaviour (their own specs fill in the disabled contro
    for now? Recommended: yes; a control to change it moves every handle, an idea of its own if you want it. Not chosen: a setting now.
 9. **Clearing a deck page (CTL-71):** a new command, one file write? Recommended: yes. Not chosen: one `control.unbind` per key from the
    app, which writes the file once per key and can stop halfway.
+10. **A hidden workspace out of reach (UI-81, added after the CTR-04 run; approved by the owner 2026-11-11):** keep every workspace built and make each hidden
+   one a single accessibility element with no children (`.accessibilityElement(children: .ignore)` beside `.accessibilityHidden`)?
+   Recommended: yes; a probe on the release app took Shapes' *Dimmer wave* and the other workspaces' Group tiles out of the tree, a
+   press by element index then went to Group 3, and nothing is rebuilt, so every window keeps its page, Find text and scroll. Not
+   chosen: building only the workspace on show (every window's view state would move into `UIState`, per workspace), `.disabled`
+   (the hidden button still takes the press and does nothing), or an AppKit host per workspace (more code for the same result).
 
 ## Owner decisions (P1-36, 2026-11-07: every recommendation accepted)
 1. **Layout by default (PBK-50, UI-64):** Retain layout, so a copied page looks like the page? Recommended: yes. Not chosen: Bunch up first, which closes gaps nobody asked to close.
