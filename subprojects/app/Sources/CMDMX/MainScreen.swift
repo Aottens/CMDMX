@@ -508,7 +508,7 @@ private struct Frame: View {
                             VLine()
                             Workspaces()
                             VLine()
-                            SideColumn(showKeypad: keypad && geo.size.width >= 1440)
+                            SideColumn(showKeypad: keypad, narrow: geo.size.width < 1440)
                         }
                         .frame(minHeight: 0, maxHeight: .infinity).clipped()   // UI-63
                         HLine()
@@ -727,7 +727,7 @@ private struct StatusBar: View {
             BarToggle(title: "Keys", on: keys) { keys.toggle() }
                 .help("Mac keyboard drives the keypad and the command line · ⌘1–⌘5 always switch workspaces")
             BarToggle(title: "Keypad", on: keypad) { keypad.toggle() }
-                .help("Hidden automatically on windows narrower than 1440 pt")
+                .help("Below 1440 pt the keypad takes the place of the softkeys")
             BarToggle(title: day ? "Night" : "Day", on: false) { day.toggle() }
 
             LayerClock(text: { Self.clock.string(from: $0) }, font: .monospacedSystemFont(ofSize: 11, weight: .regular), color: NSColor(t.fg))

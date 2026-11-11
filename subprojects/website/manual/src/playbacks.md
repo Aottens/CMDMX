@@ -10,7 +10,7 @@ single look; with more cues it becomes a cue list (see [Cue lists](cuelists.md))
 The playback area has a column of page buttons on the left, a strip per fader in the middle, the
 Go block and the Grand Master on the right. A place for a playback is a **handle**, written as
 page and slot: **2.3** is slot 3 on page 2. There are ten pages, and as many slots per page as the
-show's *faders per page* setting (eight by default; the number is shown under the page buttons).
+faders per page: eight for now (the number is shown under the page buttons).
 
 ![The playback area on page 1: three looks, a cue list, a chase, a BPM master, an empty handle and a group master, with the Go block and the Grand Master on the right](images/playback-strips.png)
 

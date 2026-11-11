@@ -57,8 +57,10 @@ private struct ColumnHeader: View {
 }
 
 struct SideColumn: View {
-    /// False when the Keypad toggle is off or the window is narrower than 1440 pt (UI-17).
+    /// The Keypad toggle (UI-17).
     let showKeypad: Bool
+    /// Window narrower than 1440 pt: the keypad then takes the place of the softkeys (UI-78).
+    let narrow: Bool
     @Environment(\.theme) private var t
 
     var body: some View {
@@ -67,9 +69,9 @@ struct SideColumn: View {
             VLine()
             if showKeypad {
                 Keypad()
-                VLine()
+                if !narrow { VLine() }
             }
-            Softkeys()
+            if !(narrow && showKeypad) { Softkeys() }
         }
         .fixedSize(horizontal: true, vertical: false)
         .background(t.bg)

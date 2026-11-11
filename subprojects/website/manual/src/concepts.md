@@ -76,8 +76,8 @@ Playbacks are arranged on **pages**. A page is a bank of handles, and the fader 
 bottom of the screen show the current page. Switching the page changes which playbacks your faders
 and any connected controller are working with.
 
-The number of faders per page is a setting of the show. The default is eight. The screen and
-control surfaces follow it, so it is not fixed at eight.
+There are eight faders per page. The number is kept in the show, and the screen and control surfaces
+follow it, but nothing in the app changes it yet, so for now it is eight.
 
 Next: [Patching](patching.md), [Programming](programming.md), [Palettes](palettes.md),
 [Playbacks and cues](playbacks.md), [Cue lists](cuelists.md) and [Running a show](running.md) cover

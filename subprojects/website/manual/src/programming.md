@@ -78,7 +78,8 @@ for Thro, `+` for And, `@`, `f` for Fixture, `g` for Group, `p` for Palette and 
 Escape is Exit too, also with **Keys** off, and with nothing to exit it goes one level up (see the
 [reference](reference.md)).
 With **Keys** off, which is how the app starts the first time, those keys do nothing, and they or a click on the line
-say so in the message zone: use the keypad, or turn **Keys** on.
+say so in the message zone: use the keypad, or turn **Keys** on. On a narrow window the keypad shows
+while **Keypad** is on in the status bar, in the place of the softkeys (see [Running a show](running.md#the-keyboard)).
 
 ### Stepping and patterns
 
