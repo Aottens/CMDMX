@@ -5152,6 +5152,15 @@ impl Engine {
         for &(_, p, s) in &block {
             self.check_empty_handle(p, s)?;
         }
+        // PBK-53: a whole page copied onto a page without a legend brings its legend.
+        let ids_set: BTreeSet<_> = ids.iter().copied().collect();
+        let whole = self.whole_pages(&ids_set);
+        let legend = match whole.as_slice() {
+            [p] if *p != page && self.page_legend(page) == Some("") => {
+                self.page_legend(*p).unwrap_or("").to_string()
+            }
+            _ => String::new(),
+        };
         let next = self.playback_next_id;
         let mut new = Vec::new();
         for (id, p, s) in block {
@@ -5167,7 +5176,29 @@ impl Engine {
                 }
             }
         }
+        // Checked above to be an empty legend of a real page; nothing can refuse it now.
+        if let Some(l) = (!legend.is_empty())
+            .then(|| usize::from(page).checked_sub(1))
+            .flatten()
+            .and_then(|i| self.page_legends.get_mut(i))
+        {
+            *l = legend;
+        }
         Ok(new)
+    }
+
+    /// PBK-53: the pages all of whose playbacks are in `ids`.
+    fn whole_pages(&self, ids: &BTreeSet<PlaybackId>) -> Vec<u16> {
+        let mut pages: BTreeSet<u16> = ids
+            .iter()
+            .filter_map(|id| self.playbacks.get(id).map(|p| p.page))
+            .collect();
+        pages.retain(|&pg| {
+            self.playbacks
+                .iter()
+                .all(|(id, p)| p.page != pg || ids.contains(id))
+        });
+        pages.into_iter().collect()
     }
 
     /// PBK-50, 51: move several playbacks (ids and running state kept). With `swap` a playback
@@ -5237,8 +5268,17 @@ impl Engine {
         if let Some(&id) = ids.iter().find(|id| !self.playbacks.contains_key(id)) {
             return Err(CoreError::UnknownPlayback(id));
         }
+        let whole = self.whole_pages(&ids);
         for id in ids {
             self.delete_playback(id)?;
+        }
+        for page in whole {
+            if let Some(l) = usize::from(page)
+                .checked_sub(1)
+                .and_then(|i| self.page_legends.get_mut(i))
+            {
+                l.clear();
+            }
         }
         Ok(())
     }

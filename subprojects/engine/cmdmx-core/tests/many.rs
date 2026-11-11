@@ -657,3 +657,68 @@ fn pbk_52_a_page_that_does_not_exist_is_refused() {
     assert!(active(&e, 1));
     assert!(e.drain_notices().is_empty());
 }
+
+// ---- PBK-53: a page keeps its legend ---------------------------------------------------------
+
+#[test]
+fn pbk_53_a_whole_page_copy_takes_the_legend_to_an_empty_one() {
+    let mut e = with(&[(1, 2, 1), (2, 2, 3), (3, 4, 1)]);
+    e.set_page_legend(2, "Pasen").unwrap();
+    e.copy_playbacks(&[1, 2], 3, 1, Layout::Retain).unwrap();
+    assert_eq!(e.page_legend(3), Some("Pasen"));
+    // A page that has a legend keeps it.
+    e.set_page_legend(5, "Kerst").unwrap();
+    e.copy_playbacks(&[1, 2], 5, 1, Layout::Retain).unwrap();
+    assert_eq!(e.page_legend(5), Some("Kerst"));
+}
+
+#[test]
+fn pbk_53_part_of_a_page_leaves_the_legends_alone() {
+    let mut e = with(&[(1, 2, 1), (2, 2, 3)]);
+    e.set_page_legend(2, "Pasen").unwrap();
+    e.copy_playbacks(&[1], 3, 1, Layout::Retain).unwrap();
+    assert_eq!(e.page_legend(3), Some(""));
+    e.delete_playbacks(&[2]).unwrap();
+    assert_eq!(e.page_legend(2), Some("Pasen"));
+}
+
+#[test]
+fn pbk_53_a_whole_page_delete_empties_its_legend() {
+    let mut e = with(&[(1, 2, 1), (2, 2, 3), (3, 4, 1)]);
+    e.set_page_legend(2, "Pasen").unwrap();
+    e.set_page_legend(4, "Kerst").unwrap();
+    e.delete_playbacks(&[1, 2]).unwrap();
+    assert_eq!(e.page_legend(2), Some(""));
+    assert_eq!(e.page_legend(4), Some("Kerst"));
+    // A page whose last playback goes by one delete empties too.
+    e.delete_playbacks(&[3]).unwrap();
+    assert_eq!(e.page_legend(4), Some(""));
+}
+
+#[test]
+fn pbk_53_a_refused_copy_or_delete_leaves_the_legends() {
+    let mut e = with(&[(1, 2, 1), (2, 2, 3), (3, 3, 3)]);
+    e.set_page_legend(2, "Pasen").unwrap();
+    let before = e.edit_state();
+    assert!(
+        e.copy_playbacks(&[1, 2], 3, 1, Layout::Retain).is_err(),
+        "3.3 is used"
+    );
+    assert!(e.delete_playbacks(&[1, 2, 9]).is_err());
+    assert_eq!(e.edit_state(), before);
+}
+
+#[test]
+fn pbk_53_one_undo_step_brings_the_playbacks_and_the_legend_back() {
+    let mut e = with(&[(1, 2, 1), (2, 2, 3)]);
+    e.set_page_legend(2, "Pasen").unwrap();
+    let mut h = cmdmx_core::undo::History::default();
+    h.edit(&mut e, "Delete 2 playbacks", None, |e| {
+        e.delete_playbacks(&[1, 2])
+    })
+    .unwrap();
+    assert_eq!(e.page_legend(2), Some(""));
+    h.undo(&mut e).unwrap();
+    assert_eq!(e.page_legend(2), Some("Pasen"));
+    assert_eq!(e.playbacks().count(), 2);
+}

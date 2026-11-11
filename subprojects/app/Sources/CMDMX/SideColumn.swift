@@ -760,7 +760,7 @@ private struct Softkeys: View {
                 } else {
                     let noun = kind == .handle ? "playbacks" : kind == .palette ? "palettes" : "groups"
                     let page = kind == .handle ? ui.pickedPage(engine) : nil
-                    keys[0] = Softkey(name: "Delete \(n) \(noun)", sub: page.map { "on page \($0)" } ?? "confirm", action: { confirm() })
+                    keys[0] = Softkey(name: "Delete \(n) \(noun)", sub: ui.wholePagePhrase(engine) ?? page.map { "on page \($0)" } ?? "confirm", action: { confirm() })
                 }
             } else if function != .delete {
                 keys[0] = Softkey(name: ui.bunchUp ? "Bunch up" : "Retain layout", sub: "layout") { ui.bunchUp.toggle() }
