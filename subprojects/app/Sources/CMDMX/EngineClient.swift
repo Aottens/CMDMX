@@ -2358,7 +2358,7 @@ final class EngineClient: ObservableObject {
     /// UI-50: the function disarmed. Comparing the text means an engine message, or a later one that replaced it, stays.
     func endArmedMessage() { if lastMessage == armedMessage { lastMessage = nil }; armedMessage = nil }
     /// UI-49: Keys off and a key it would act on (or a click on the command line); not in the Messages sheet, so not `addMessage`.
-    func sayKeysOff() { lastMessage = "The Mac keyboard is off: turn on Keys in the status bar, or use the keypad (Keypad in the status bar shows it)." }
+    func sayKeysOff() { lastMessage = "The Mac keyboard is off: turn on Keys or Keypad in the status bar." }
 
     func askUsage(fixtures: [Int]) { usage = nil; sendJSON("usage", ["fixtures": fixtures]) }
 
