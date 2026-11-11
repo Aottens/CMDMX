@@ -86,8 +86,8 @@ struct GoBlock: View {
             // CUE-42: a Go at a low fader is explained.
             if let list, list.live.level < 0.995 {
                 // UI-71: shown by the threshold, the number is live.
-                LiveLabel(tick: engine.livePlaybacks.tick(list.id), text: { "fader \(percent($0.level))" }, color: t.amber,
-                          sample: "fader 100 %", alignment: .right)
+                LiveLabel(tick: engine.livePlaybacks.tick(list.id), text: { percent($0.level) == "0 %" ? "fader 0 % \u{00B7} no output" : "fader \(percent($0.level))" }, color: t.amber,
+                          sample: "fader 0 % \u{00B7} no output", alignment: .right)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }

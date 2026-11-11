@@ -388,7 +388,7 @@ fn prg_50_odd_even_over_items() {
     assert_eq!(targets(&e), vec![c(901, 1), c(901, 3)]);
     e.next_fixture();
     assert_eq!(targets(&e), vec![c(901, 2)]);
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(targets(&e), vec![c(901, 1), c(901, 2), c(901, 3)]);
 }
 
@@ -410,7 +410,7 @@ fn prg_50_all_without_sub_selection_selects_the_programmer_items() {
     e.set_programmer_value(901, "Dimmer", 0.4).unwrap();
     e.clear_selection();
     tap(&mut e, &[c(903, 1)]);
-    e.select_all();
+    e.select_all().unwrap();
     assert_eq!(items(&e), vec![f(901), f(902)]);
 }
 

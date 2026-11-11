@@ -903,13 +903,16 @@ impl Programmer {
     }
 
     /// PRG-06/74: end the stage (the grid stays), or else select every item in the programmer.
-    pub(crate) fn select_all(&mut self) {
+    pub(crate) fn select_all(&mut self) -> Result<(), crate::CoreError> {
         if self.stage.is_some() {
             self.stage = None;
+        } else if self.values.is_empty() {
+            return Err(crate::CoreError::NothingForAll);
         } else {
             // PRG-50: every item in the programmer, a whole fixture before its cells.
             self.start_selection(self.values.keys().copied().collect());
         }
+        Ok(())
     }
 
     /// PAL-18: references to a deleted palette become their fallback values.

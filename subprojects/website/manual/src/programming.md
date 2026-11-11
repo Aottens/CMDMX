@@ -93,7 +93,8 @@ the wheels change only the targets.
 - **Odd/Even** splits the selection in two: the first, third, fifth fixture and so on, then the
   others. Fix +1 moves to the other half.
 - **All** (a softkey) ends the stepping, so the whole selection is the target again. With nothing
-  stepped it selects every fixture that is in the programmer.
+  stepped it selects every fixture that is in the programmer. With nothing stepped and an empty programmer it keeps
+  the selection as it is and says "All: nothing in the programmer".
 
 Fix ±1 and All are also on the *Selection* softkeys at the right, together with **Rem Dim**;
 Odd/Even sits there under **Pattern**.

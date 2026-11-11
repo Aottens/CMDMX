@@ -757,10 +757,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         Grid(grid) => engine.set_grid(grid),
         GridShortcut(shortcut) => engine.grid_shortcut(shortcut),
         CueOrder { list, cue, order } => engine.set_cue_order(list, cue, &order),
-        All => {
-            engine.select_all();
-            Ok(())
-        }
+        All => engine.select_all(),
         Clear => {
             engine.clear();
             Ok(())

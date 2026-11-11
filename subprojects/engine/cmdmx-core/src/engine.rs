@@ -6088,9 +6088,11 @@ impl Engine {
     }
 
     /// PRG-06.
-    pub fn select_all(&mut self) {
-        self.programmer.select_all();
+    /// PRG-99: refused (nothing changes) with nothing stepped and an empty programmer.
+    pub fn select_all(&mut self) -> Result<(), CoreError> {
+        self.programmer.select_all()?;
         self.follow_active_group();
+        Ok(())
     }
 
     /// PRG-07: store the selection as a group, replacing any existing one.
@@ -7649,7 +7651,7 @@ impl Engine {
             // FX-22: an effect-only palette resolves no value and is no misfit.
             let effects = self.palette(number).is_some_and(|p| !p.effects.is_empty());
             let plan = match self.palette_plan(number, &targets) {
-                Err(CoreError::PaletteDoesNotFit(_)) if effects => None,
+                Err(CoreError::PaletteDoesNotFit(..)) if effects => None,
                 plan => Some(plan?),
             };
             if let Some(list) = typed {
@@ -8133,6 +8135,7 @@ impl Engine {
                 format!("{} {}", palette.number, palette.legend)
                     .trim()
                     .to_string(),
+                palette.kind() == crate::palette::PaletteKind::Normal,
             ));
         }
         Ok((palette.id, plan))
@@ -8163,7 +8166,7 @@ impl Engine {
         let apply = EffectApply::Palette(number);
         match self.palette_plan(number, &self.programmer.target_items()) {
             // FX-22: an effect-only palette resolves no value and is no misfit.
-            Err(CoreError::PaletteDoesNotFit(_)) if effects => self.effect_apply(&apply).map(drop),
+            Err(CoreError::PaletteDoesNotFit(..)) if effects => self.effect_apply(&apply).map(drop),
             Err(e) => Err(e),
             Ok((id, plan)) => {
                 self.put_palette_timed(id, plan, time, overlap);

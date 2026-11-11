@@ -1473,3 +1473,46 @@ fn ipc_54_a_set_of_fixtures_counts_as_a_whole_and_says_what_ends_up_empty() {
     assert!(e.playback(2).unwrap().cues[0].values.is_empty());
     assert_eq!(e.fixture_usage(&[201, 202]), FixtureUsage::default());
 }
+
+// ---- PAL-35: a Normal palette that does not fit names Update ------------------------------
+
+fn red_palette(e: &mut Engine, record_as: RecordAs) {
+    set(e, &[201, 202], "Colour", rgb(1.0, 0.0, 0.0));
+    e.record_palette(&Record {
+        record_by: Some(RecordBy::Channel),
+        record_as,
+        ..Record::at(cell(Window::Colours, 1))
+    })
+    .unwrap();
+    e.set_palette_legend(1, "Rood", None).unwrap();
+    e.clear();
+    assert!(e.programmer().is_empty());
+}
+
+#[test]
+fn pal_35_a_normal_palette_that_does_not_fit_names_update() {
+    let mut e = rig();
+    red_palette(&mut e, RecordAs::Normal);
+    select(&mut e, &[221]);
+    let err = e.apply_palette(1, Timing::default()).unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Palette 1 Rood does not fit the selection. To add these fixtures, set them and Update the palette"
+    );
+    assert!(e.programmer().is_empty(), "a refusal changes nothing");
+    // The command line goes the same way.
+    let err = e.execute_command(&["Palette", "1", "Enter"]).unwrap_err();
+    assert!(
+        err.to_string().ends_with("set them and Update the palette"),
+        "{err}"
+    );
+}
+
+#[test]
+fn pal_35_other_refusals_stay_as_they_are() {
+    let mut e = rig();
+    red_palette(&mut e, RecordAs::Shared);
+    select(&mut e, &[221]);
+    let err = e.apply_palette(1, Timing::default()).unwrap_err();
+    assert_eq!(err.to_string(), "Palette 1 Rood does not fit the selection");
+}
