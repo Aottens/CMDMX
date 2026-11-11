@@ -42,6 +42,8 @@ pub struct Command {
     pub selection: Vec<(bool, Item)>,
     /// The `@` level as typed (0..), before the percent conversion.
     pub level: Option<f32>,
+    /// PRG-100: `@ +n` / `@ -n`; `level` is then signed and moves from the current level.
+    pub relative: bool,
     /// `Palette n`: apply palette number n (PAL-10).
     pub palette: Option<u32>,
     /// `Lee n`: apply gel number n (PRG-68).
@@ -184,6 +186,7 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
         return Some(Command {
             selection: selection(body)?,
             level: None,
+            relative: false,
             palette: None,
             gel: None,
             locate: true,
@@ -207,16 +210,31 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
         return Some(Command {
             selection,
             level: None,
+            relative: false,
             palette: (!lee).then_some(number),
             gel: lee.then_some(number),
             locate: false,
         });
     }
+    let mut relative = false;
     let (sel, level) = match body.iter().position(|&t| t == "@") {
         Some(at) => {
             let (sel, rest) = body.split_at(at);
+            let signed = |s: &str, v: &str| -> Option<f32> {
+                Some(if s == "-" { -level(v)? } else { level(v)? })
+            };
             let value = match rest {
-                [_, v] => level(v)?,
+                [_, s @ ("+" | "-"), v] => {
+                    relative = true;
+                    signed(s, v)?
+                }
+                [_, v] => match v.split_at_checked(1) {
+                    Some((s @ ("+" | "-"), n)) => {
+                        relative = true;
+                        signed(s, n)?
+                    }
+                    _ => level(v)?,
+                },
                 _ => return None,
             };
             (sel, Some(value))
@@ -233,6 +251,7 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
     Some(Command {
         selection,
         level,
+        relative,
         palette: None,
         gel: None,
         locate: false,

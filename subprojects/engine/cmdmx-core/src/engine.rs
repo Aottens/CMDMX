@@ -7686,7 +7686,7 @@ impl Engine {
             return self.locate(&ALL_GROUPS);
         }
         let mut touched = Vec::new();
-        let level = cmd.level.map(|v| (v / 100.0).clamp(0.0, 1.0));
+        let level = cmd.level.map(|v| v / 100.0);
         if level.is_some() {
             let targets = typed
                 .clone()
@@ -7699,7 +7699,11 @@ impl Engine {
                 let mode = self.mode_of(item.fixture);
                 for l in mode.into_iter().flat_map(|m| m.item_attributes(item.cell)) {
                     if l.group == AttributeGroup::I && l.kind == AttributeKind::Htp {
-                        touched.push((item, l.name.to_string()));
+                        let start = match (cmd.relative, self.start_value(item, &l)) {
+                            (true, Value::Level(v)) => v,
+                            _ => 0.0,
+                        };
+                        touched.push((item, l.name.to_string(), start));
                     }
                 }
             }
@@ -7708,8 +7712,9 @@ impl Engine {
             self.replace_typed(list, typed_grid);
         }
         if let Some(level) = level {
-            for (item, name) in touched {
-                self.set_item_value(item, &name, level)?;
+            for (item, name, start) in touched {
+                let new = if cmd.relative { start + level } else { level };
+                self.set_item_value(item, &name, new.clamp(0.0, 1.0))?;
             }
         }
         Ok(())

@@ -174,3 +174,88 @@ fn prg_11_malformed_lines_are_refused_naming_the_line() {
     assert_eq!(selection(&e), vec![101]);
     assert!(e.programmer().is_empty());
 }
+
+// ---- PRG-100: a relative level ----------------------------------------------
+
+fn dimmer(e: &Engine, id: FixtureId) -> f32 {
+    match e.programmer().value(id, "Dimmer") {
+        Some(Value::Level(v)) => v,
+        other => panic!("{id}: {other:?}"),
+    }
+}
+
+fn near(a: f32, b: f32) -> bool {
+    (a - b).abs() < 1e-4
+}
+
+#[test]
+fn prg_100_plus_and_minus_move_from_the_programmer_level() {
+    let mut e = church();
+    run(&mut e, "201 @ 20 Enter").unwrap();
+    run(&mut e, "202 @ 60 Enter").unwrap();
+    run(&mut e, "201 Thro 202 @ + 10 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.3) && near(dimmer(&e, 202), 0.7));
+    run(&mut e, "201 Thro 202 @ - 25 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.05) && near(dimmer(&e, 202), 0.45));
+    // The joined form an OSC or IPC client may type.
+    run(&mut e, "201 @ +5 Enter").unwrap();
+    run(&mut e, "202 @ -5 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.1) && near(dimmer(&e, 202), 0.4));
+}
+
+#[test]
+fn prg_100_without_a_selection_it_acts_on_the_targets() {
+    let mut e = church();
+    run(&mut e, "201 Thro 202 @ 50 Enter").unwrap();
+    run(&mut e, "@ + 10 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.6) && near(dimmer(&e, 202), 0.6));
+}
+
+#[test]
+fn prg_100_clamps_to_0_and_100() {
+    let mut e = church();
+    run(&mut e, "201 @ 95 Enter").unwrap();
+    run(&mut e, "201 @ + 10 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 1.0));
+    run(&mut e, "201 @ - 150 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.0));
+}
+
+#[test]
+fn prg_100_without_a_programmer_value_it_starts_from_the_stage() {
+    use cmdmx_core::playback::{Playback, Values};
+    let mut e = church();
+    let mut v: Values = std::collections::BTreeMap::new();
+    v.entry(202.into())
+        .or_default()
+        .insert("Dimmer".to_string(), 0.4.into());
+    e.add_playback(Playback::new(1, 1, 1, v));
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    e.tick(0.025);
+    run(&mut e, "202 @ + 10 Enter").unwrap();
+    assert!(near(dimmer(&e, 202), 0.5), "{}", dimmer(&e, 202));
+    // Nothing on stage and nothing in the programmer: from 0.
+    run(&mut e, "203 @ - 10 Enter").unwrap();
+    assert!(near(dimmer(&e, 203), 0.0));
+    run(&mut e, "204 @ + 10 Enter").unwrap();
+    assert!(near(dimmer(&e, 204), 0.1));
+}
+
+#[test]
+fn prg_100_a_sign_without_a_number_is_refused_as_prg_11() {
+    let mut e = church();
+    run(&mut e, "201 @ 50 Enter").unwrap();
+    for line in [
+        "201 @ + Enter",
+        "201 @ - Enter",
+        "201 @ + + 5 Enter",
+        "201 @ +x Enter",
+    ] {
+        assert!(
+            matches!(run(&mut e, line), Err(CoreError::InvalidCommand(_))),
+            "{line}"
+        );
+    }
+    assert!(near(dimmer(&e, 201), 0.5));
+}

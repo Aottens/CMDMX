@@ -369,8 +369,8 @@ private struct WheelView: View {
     /// Whole steps already sent during the current drag (remainder stays in the translation).
     @State private var sentSteps = 0
 
-    /// 1 step per 4 pt of vertical movement.
-    private let pointsPerStep: CGFloat = 4
+    /// PRG-101: 1 step per point of vertical movement (0 to full = 255 pt).
+    private let pointsPerStep: CGFloat = 1
 
     /// IPC-46: the engine's reading, "3200 K"; "—" for black.
     private var kelvinText: String {
