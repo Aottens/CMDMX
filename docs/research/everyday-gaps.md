@@ -93,6 +93,8 @@ Spec'd as P1-40, approved by the owner 2026-11-10: F3 holds already (UI-42), IDE
 
 Added by the fifth review (M, owner 2026-11-08): M1 first.
 
+Spec'd as P1-41 (2026-11-12, approved by the owner): SHW-20..25. G4's second half holds already (a new show has a Serial node, OUT-25).
+
 Tracked already, not repeated here: Macros, Select If, Align, Scene Master, virtual faders, nested and
 time palettes, Merge from another show, Parking, Undo History, set list, Move In Dark (their specs'
 out-of-scope lists, mostly without a backlog row).
