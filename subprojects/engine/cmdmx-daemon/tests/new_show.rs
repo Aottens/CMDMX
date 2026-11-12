@@ -1,4 +1,4 @@
-//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), on the real binary: the switch, the files and the
+//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), and a copy (SHW-21), on the real binary: the switch, the files and the
 //! history live in the tick. What the new show holds is `cmdmx-core/tests/showfile.rs`.
 
 #![cfg(unix)]
@@ -245,4 +245,83 @@ fn shw_20_next_weeks_show_keeps_groups_and_palettes_and_empties_the_playbacks() 
     );
     let e = until(&mut app, "the refusal", |m| m["type"] == "error");
     assert!(e["message"].as_str().unwrap().contains("keep"), "{e}");
+}
+
+#[test]
+fn shw_21_save_copy_writes_a_copy_and_stays_in_the_open_show() {
+    let dir = std::env::temp_dir().join(format!("cmdmx-shw21-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let shows = dir.join("Shows");
+    let port = free_port();
+    let _daemon = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            .env("HOME", &dir)
+            .args(["--no-artnet", "--no-sacn", "--no-serial"])
+            .args(["--ipc-port", &port.to_string()])
+            .arg("--show-dir")
+            .arg(&shows)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut app = connect(port);
+    let demo = recv(&mut app);
+    assert_eq!(demo["show"]["name"], "Demo");
+    // A change the autosave has not written yet, and one undo step.
+    let fixture = demo["fixtures"][0]["id"].clone();
+    send(
+        &mut app,
+        json!({"cmd": "programmer.select", "fixture": fixture}),
+    );
+    send(&mut app, json!({"cmd": "group.record", "group": 77}));
+    until(&mut app, "the undo label", |m| {
+        m["type"] == "undo" && !m["undo"].is_null()
+    });
+
+    send(
+        &mut app,
+        json!({"cmd": "show.save_copy", "name": "Demo kopie"}),
+    );
+    // The copy holds the change.
+    let path = shows.join("Demo kopie.cmdmx.json");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let copy: Value = loop {
+        match std::fs::read_to_string(&path) {
+            Ok(text) => break serde_json::from_str(&text).unwrap(),
+            Err(_) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
+            Err(e) => panic!("{}: {e}", path.display()),
+        }
+    };
+    assert_eq!(copy["meta"]["name"], "Demo kopie");
+    assert!(copy["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g["id"] == 77));
+
+    // The open show stays: no switch, its undo history is kept.
+    send(&mut app, json!({"cmd": "undo"}));
+    let m = until(&mut app, "the undo or a switch", |m| {
+        m["type"] == "snapshot" || (m["type"] == "undo" && m["redo"] == "Record group 77")
+    });
+    assert_eq!(m["type"], "undo", "no new snapshot after a copy: {m}");
+    send(&mut app, json!({"cmd": "show.list"}));
+    let list = until(&mut app, "the list", |m| m["type"] == "show.list");
+    let names: Vec<&str> = list["shows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["name"].as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"Demo kopie"), "{names:?}");
+    // SHW-15/09: a taken or invalid name is refused, as a warning.
+    for (name, why) in [("Demo kopie", "already exists"), ("a/b", "not a show name")] {
+        send(&mut app, json!({"cmd": "show.save_copy", "name": name}));
+        let w = until(&mut app, "the refusal", |m| m["type"] == "warning");
+        assert!(w["message"].as_str().unwrap().contains(why), "{name}: {w}");
+    }
+    let now = recv(&mut connect(port));
+    assert_eq!(now["show"]["name"], "Demo");
 }

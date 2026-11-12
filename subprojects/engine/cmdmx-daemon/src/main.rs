@@ -347,6 +347,21 @@ fn main() {
                         write_library_file(&library, profile, fixtures, reply, &library_tx);
                     })
                 }
+                // SHW-21: write a copy under another name; nothing else changes.
+                ipc::Event::Command(ipc::Command::Show(shows::ShowRequest::SaveCopy { name })) => {
+                    if name.to_lowercase() == autosave.state().name.to_lowercase() {
+                        warn(&mut clients, &format!("{name} is already open"));
+                        continue;
+                    }
+                    let show = engine.to_show(shows::new_meta(&name, &wall));
+                    let job = shows::Job {
+                        path: shows.path(&name),
+                        json: show.to_json(),
+                        show,
+                    };
+                    hand_off(Some(job), &jobs, &mut autosave, &mut clients);
+                    Ok(())
+                }
                 // SHW-11/14/15: write the current show at once, then continue in the next one.
                 event
                 @ (ipc::Event::ShowOpened(_) | ipc::Event::Command(ipc::Command::Show(_))) => {
@@ -1113,7 +1128,7 @@ enum Class {
 /// UNDO-04: no wildcard, so a new command must be classed here to compile.
 fn class(cmd: &ipc::Command) -> Class {
     use ipc::Command::*;
-    use shows::ShowRequest::{List, New, Open, SaveAs};
+    use shows::ShowRequest::{List, New, Open, SaveAs, SaveCopy};
     match cmd {
         FaderSet { .. }
         | GrandMasterSet { .. }
@@ -1137,7 +1152,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | Fan { .. }
         | ColourModel { .. } => Class::Live,
         Show(New { .. } | Open { .. }) => Class::Reset,
-        Show(List | SaveAs { .. })
+        Show(List | SaveAs { .. } | SaveCopy { .. })
         | CueView { .. }
         | Usage(_)
         | Why(_)
@@ -3317,6 +3332,10 @@ mod tests {
         (r#"{"v":1,"cmd":"output.ports"}"#, Class::Neutral),
         (
             r#"{"v":1,"cmd":"show.save_as","name":"Kerk 2"}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":1,"cmd":"show.save_copy","name":"Kerk 2"}"#,
             Class::Neutral,
         ),
         (r#"{"v":1,"cmd":"cue.view","id":2,"cue":2}"#, Class::Neutral),

@@ -49,13 +49,17 @@ struct ShowView: View {
                     }
                     .padding(8)
                 }
-                PanelWindow(title: "Save as", framed: true, accessory: { EmptyView() }) {
+                PanelWindow(title: "Save as / copy", framed: true, accessory: { EmptyView() }) {
                     VStack(alignment: .leading, spacing: 6) {
                         TextField("name", text: $saveName).textFieldStyle(.roundedBorder)
                             .onSubmit { saveAs() }
-                        Button("Save As") { saveAs() }
-                            .buttonStyle(FlatButton())
-                            .disabled(saveName.isEmpty)
+                        HStack {
+                            Button("Save As") { saveAs() }
+                            // SHW-21: a copy under this name; the open show stays open.
+                            Button("Save Copy") { if !saveName.isEmpty { engine.saveShowCopy(saveName) } }
+                        }
+                        .buttonStyle(FlatButton())
+                        .disabled(saveName.isEmpty)
                     }
                     .padding(8)
                 }

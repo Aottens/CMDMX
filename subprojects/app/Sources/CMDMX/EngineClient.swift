@@ -2396,6 +2396,8 @@ final class EngineClient: ObservableObject {
     }
     func openShow(_ name: String) { patch("show.open", ["name": name]) }
     func saveShowAs(_ name: String) { patch("show.save_as", ["name": name]) }
+    /// SHW-21: a copy under a new name; the open show stays open.
+    func saveShowCopy(_ name: String) { patch("show.save_copy", ["name": name]) }
 
     /// Hides the last engine message (e.g. when the operator selects another row).
     func clearMessage() { lastMessage = nil }

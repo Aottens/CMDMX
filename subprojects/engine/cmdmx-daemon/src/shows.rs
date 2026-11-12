@@ -300,6 +300,10 @@ pub enum ShowRequest {
     SaveAs {
         name: String,
     },
+    /// SHW-21: write the show under a new name; the open show stays open.
+    SaveCopy {
+        name: String,
+    },
 }
 
 /// SHW-15: the `show` part of the snapshot and the `show` delta.

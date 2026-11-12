@@ -1691,6 +1691,9 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("show.open") => Ok(Command::Show(ShowRequest::Open {
             name: string(&v, "name")?,
         })),
+        Some("show.save_copy") => Ok(Command::Show(ShowRequest::SaveCopy {
+            name: string(&v, "name")?,
+        })),
         Some("show.save_as") => Ok(Command::Show(ShowRequest::SaveAs {
             name: string(&v, "name")?,
         })),
@@ -3994,7 +3997,9 @@ fn show_event(shows: &Shows, req: ShowRequest) -> Event {
             Ok(opened) => Event::ShowOpened(Box::new(opened)),
             Err(e) => Event::Warning(e),
         },
-        ShowRequest::New { name, .. } | ShowRequest::SaveAs { name } => {
+        ShowRequest::New { name, .. }
+        | ShowRequest::SaveAs { name }
+        | ShowRequest::SaveCopy { name } => {
             match valid_name(name).and_then(|()| match shows.exists(name) {
                 true => Err(format!("a show named {name} already exists")),
                 false => Ok(()),
@@ -4164,7 +4169,8 @@ fn serve_client(
                     | Command::Show(
                         ShowRequest::New { .. }
                         | ShowRequest::Open { .. }
-                        | ShowRequest::SaveAs { .. },
+                        | ShowRequest::SaveAs { .. }
+                        | ShowRequest::SaveCopy { .. },
                     ),
                 ) if locked.load(Ordering::Relaxed) => {
                     if events.send(Event::Warning(LOCKED.into())).is_err() {
@@ -6667,6 +6673,18 @@ mod tests {
             }))
         );
         assert!(parse_command(r#"{"v":1,"cmd":"show.new","name":"K","keep":"cues"}"#).is_err());
+    }
+
+    #[test]
+    fn shw_21_save_copy_parses() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.save_copy","name":"Kerk proef"}"#),
+            Ok(Command::Show(ShowRequest::SaveCopy {
+                name: "Kerk proef".into(),
+            }))
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"show.save_copy"}"#).is_err());
     }
 
     #[test]
