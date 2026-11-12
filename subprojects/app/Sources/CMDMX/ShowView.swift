@@ -11,6 +11,8 @@ struct ShowView: View {
     @State private var saveName = ""
     /// SHW-19/20: what New takes over ("looks" = patch, groups and palettes). Reset whenever the screen opens.
     @State private var keep = "looks"
+    /// SHW-24: Open runs this Mac's output nodes instead of those in the file. On by default, remembered.
+    @AppStorage("keepMacOutput") private var keepOutput = true
     /// Which show-switching button has been clicked once. New and Open change what is on stage,
     /// so they need a second click (SHW-17, PAT-10); Save As does not.
     @State private var armed: Armed?
@@ -36,6 +38,7 @@ struct ShowView: View {
                 PanelWindow(title: "Open", framed: true, accessory: { EmptyView() }) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(selection ?? "Select a show in the list").font(Typo.ui(11)).foregroundStyle(t.fg2)
+                        Toggle("Keep this Mac's output", isOn: $keepOutput).toggleStyle(.checkbox).font(Typo.ui(11))
                         switchButton(.open, "Open", selection)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,6 +92,7 @@ struct ShowView: View {
         .onChange(of: selection) { _, _ in armed = nil; engine.clearMessage() }
         .onChange(of: newName) { _, _ in armed = nil }
         .onChange(of: keep) { _, _ in armed = nil }
+        .onChange(of: keepOutput) { _, _ in armed = nil }
         .onChange(of: engine.show.name) { _, _ in armed = nil }
     }
 
@@ -100,7 +104,7 @@ struct ShowView: View {
             guard let name, !name.isEmpty else { return }
             if isArmed {
                 armed = nil
-                if kind == .open { engine.openShow(name) } else { engine.newShow(name, keep: keep == "none" ? nil : keep) }
+                if kind == .open { engine.openShow(name, keepOutput: keepOutput) } else { engine.newShow(name, keep: keep == "none" ? nil : keep) }
             } else {
                 armed = kind
             }

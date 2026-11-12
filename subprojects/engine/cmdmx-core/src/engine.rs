@@ -2696,12 +2696,21 @@ impl Engine {
         }
     }
 
+    /// SHW-24: take the output nodes of `other` (kinds, lines, names, ports, enabled and the
+    /// next node id, so ids are never reused) in place of this engine's own.
+    pub fn use_output_of(&mut self, other: &Engine) {
+        self.nodes = other.nodes.clone();
+        self.node_next_id = other.node_next_id;
+    }
+
     /// SHW-19/20: a new engine that keeps, per `keep`, nothing, the patch (profiles, output,
     /// settings) or also the groups and palettes. Playbacks and programmer start empty.
     /// Warnings are those of `from_show`.
     pub fn new_keeping(&self, keep: Keep) -> (Engine, Vec<String>) {
         if keep == Keep::Nothing {
-            return (Engine::new(Settings::default()), Vec::new());
+            let mut new = Engine::new(Settings::default());
+            new.use_output_of(self); // SHW-24
+            return (new, Vec::new());
         }
         let meta = || Meta {
             name: String::new(),

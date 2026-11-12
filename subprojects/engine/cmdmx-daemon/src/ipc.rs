@@ -1690,6 +1690,11 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         })),
         Some("show.open") => Ok(Command::Show(ShowRequest::Open {
             name: string(&v, "name")?,
+            keep_output: match v.get("output").and_then(|o| o.as_str()) {
+                None if v.get("output").is_none() => false,
+                Some("keep") => true,
+                _ => return Err("invalid \"output\" (expected \"keep\")".into()),
+            },
         })),
         Some("show.save_copy") => Ok(Command::Show(ShowRequest::SaveCopy {
             name: string(&v, "name")?,
@@ -3993,10 +3998,15 @@ pub fn answer_show_list(shows: &Shows) -> String {
 /// here, so the tick only switches. A refusal is a warning for every client (IPC-06).
 fn show_event(shows: &Shows, req: ShowRequest) -> Event {
     match &req {
-        ShowRequest::Open { name } => match valid_name(name).and_then(|()| shows.open(name)) {
-            Ok(opened) => Event::ShowOpened(Box::new(opened)),
-            Err(e) => Event::Warning(e),
-        },
+        ShowRequest::Open { name, keep_output } => {
+            match valid_name(name).and_then(|()| shows.open(name)) {
+                Ok(opened) => Event::ShowOpened(Box::new(Opened {
+                    keep_output: *keep_output,
+                    ..opened
+                })),
+                Err(e) => Event::Warning(e),
+            }
+        }
         ShowRequest::New { name, .. }
         | ShowRequest::SaveAs { name }
         | ShowRequest::SaveCopy { name } => {
@@ -6641,6 +6651,7 @@ mod tests {
                 r#"{"v":1,"cmd":"show.open","name":"Kerk"}"#,
                 ShowRequest::Open {
                     name: "Kerk".into(),
+                    keep_output: false,
                 },
             ),
             (
@@ -6673,6 +6684,22 @@ mod tests {
             }))
         );
         assert!(parse_command(r#"{"v":1,"cmd":"show.new","name":"K","keep":"cues"}"#).is_err());
+    }
+
+    #[test]
+    fn shw_24_open_keep_output_parses() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.open","name":"Kerk","output":"keep"}"#),
+            Ok(Command::Show(ShowRequest::Open {
+                name: "Kerk".into(),
+                keep_output: true,
+            }))
+        );
+        for bad in [r#""file""#, "true", "null"] {
+            let text = format!(r#"{{"v":1,"cmd":"show.open","name":"K","output":{bad}}}"#);
+            assert!(parse_command(&text).is_err(), "{text}");
+        }
     }
 
     #[test]

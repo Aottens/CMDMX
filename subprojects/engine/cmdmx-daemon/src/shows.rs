@@ -111,6 +111,8 @@ pub struct Opened {
     pub meta: Meta,
     pub show: Option<Show>,
     pub warnings: Vec<String>,
+    /// SHW-24: run this Mac's output nodes instead of those in the file.
+    pub keep_output: bool,
 }
 
 // The engine has no `Debug`; `Result::unwrap_err` wants one.
@@ -233,6 +235,7 @@ impl Shows {
             meta,
             show: Some(show),
             warnings,
+            keep_output: false,
         })
     }
 
@@ -277,6 +280,7 @@ impl Shows {
                 engine: demo(),
                 show: None,
                 warnings: Vec::new(),
+                keep_output: false,
             }
         });
         warnings.append(&mut opened.warnings);
@@ -296,6 +300,8 @@ pub enum ShowRequest {
     },
     Open {
         name: String,
+        /// SHW-24: run this Mac's output nodes instead of those in the file.
+        keep_output: bool,
     },
     SaveAs {
         name: String,

@@ -392,6 +392,7 @@ fn main() {
                         engine,
                         show: None,
                         warnings: Vec::new(),
+                        keep_output: false,
                     };
                     let save_as = matches!(
                         &event,
@@ -418,7 +419,11 @@ fn main() {
                         if !save_as {
                             history.clear();
                         }
-                        engine = next.engine;
+                        let mut new_engine = next.engine;
+                        if next.keep_output {
+                            new_engine.use_output_of(&engine); // SHW-24
+                        }
+                        engine = new_engine;
                         outputs.reconcile(engine.nodes());
                         autosave =
                             shows::Autosave::new(shows.path(&next.name), next.meta, next.show, now);

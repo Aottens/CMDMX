@@ -935,3 +935,39 @@ fn shw_20_keep_nothing_is_an_empty_show() {
     assert!(is.palettes.palettes.is_empty());
     assert!(is.playbacks.playbacks.is_empty());
 }
+
+// ---- SHW-24 ------------------------------------------------------------------
+
+#[test]
+fn shw_24_a_new_show_takes_the_running_output_with_every_keep() {
+    let mut old = rig_with_settings();
+    old.output_add_named(3, true, "Kerk".into(), NodeKind::default_artnet(3))
+        .unwrap();
+    let was = old.to_show(meta()).output;
+    for keep in [Keep::Nothing, Keep::Patch, Keep::Looks] {
+        let (new, warnings) = old.new_keeping(keep);
+        assert!(warnings.is_empty(), "{keep:?}: {warnings:?}");
+        assert_eq!(new.to_show(meta()).output, was, "{keep:?}");
+    }
+}
+
+#[test]
+fn shw_24_an_opened_show_can_take_the_running_output() {
+    let mut running = Engine::new(Default::default());
+    running
+        .output_add_named(2, false, "Eurolite".into(), NodeKind::default_artnet(2))
+        .unwrap();
+    let mut opened = rig_with_settings();
+    let before = opened.to_show(meta());
+    assert_ne!(before.output, running.to_show(meta()).output);
+    opened.use_output_of(&running);
+    let is = opened.to_show(meta());
+    assert_eq!(is.output, running.to_show(meta()).output);
+    assert_eq!(is.patch, before.patch);
+    assert_eq!(is.playbacks, before.playbacks);
+    // A node added afterwards gets an id the running output never used (OUT-13).
+    let id = opened
+        .output_add(4, true, NodeKind::default_artnet(4))
+        .unwrap();
+    assert!(running.nodes().all(|n| n.id != id));
+}

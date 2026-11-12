@@ -1,4 +1,4 @@
-//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), and a copy (SHW-21), on the real binary: the switch, the files and the
+//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), a copy (SHW-21) and this Mac's output (SHW-24), on the real binary: the switch, the files and the
 //! history live in the tick. What the new show holds is `cmdmx-core/tests/showfile.rs`.
 
 #![cfg(unix)]
@@ -324,4 +324,117 @@ fn shw_21_save_copy_writes_a_copy_and_stays_in_the_open_show() {
     }
     let now = recv(&mut connect(port));
     assert_eq!(now["show"]["name"], "Demo");
+}
+
+/// (id, line, name) of each output node in a snapshot or `outputs` delta.
+fn nodes(m: &Value) -> Vec<(u64, u64, String)> {
+    m["outputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|o| {
+            let name = o["name"].as_str().unwrap_or("").to_string();
+            (o["id"].as_u64().unwrap(), o["line"].as_u64().unwrap(), name)
+        })
+        .collect()
+}
+
+fn named(m: &Value, name: &str) -> bool {
+    nodes(m).iter().any(|n| n.2 == name)
+}
+
+#[test]
+fn shw_24_open_keeps_this_macs_output_when_asked_and_new_always_does() {
+    let dir = std::env::temp_dir().join(format!("cmdmx-shw24-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let shows = dir.join("Shows");
+    let port = free_port();
+    let _daemon = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            .env("HOME", &dir)
+            .args(["--no-artnet", "--no-sacn", "--no-serial"])
+            .args(["--ipc-port", &port.to_string()])
+            .arg("--show-dir")
+            .arg(&shows)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut app = connect(port);
+    let demo = recv(&mut app);
+    assert_eq!(demo["show"]["name"], "Demo");
+    send(
+        &mut app,
+        json!({"cmd": "output.add", "line": 3, "kind": "artnet", "name": "Kerk"}),
+    );
+    let running = until(&mut app, "the Kerk node", |m| {
+        m["type"] == "outputs" && named(m, "Kerk")
+    });
+
+    // New takes the running nodes, also without `keep`.
+    send(&mut app, json!({"cmd": "show.new", "name": "Thuis"}));
+    let thuis = until(&mut app, "the new show", |m| {
+        m["type"] == "snapshot" && m["show"]["name"] == "Thuis"
+    });
+    assert_eq!(nodes(&thuis), nodes(&running));
+    assert_eq!(len(&thuis["fixtures"]), 0);
+    send(
+        &mut app,
+        json!({"cmd": "output.add", "line": 4, "kind": "artnet", "name": "Studio"}),
+    );
+    until(&mut app, "the Studio node", |m| {
+        m["type"] == "outputs" && named(m, "Studio")
+    });
+
+    // Without `output` an Open uses the show's own nodes, as before.
+    send(&mut app, json!({"cmd": "show.open", "name": "Demo"}));
+    let demo = until(&mut app, "Demo", |m| {
+        m["type"] == "snapshot" && m["show"]["name"] == "Demo"
+    });
+    assert_eq!(nodes(&demo), nodes(&running));
+
+    // With `"output":"keep"` the running nodes stay, and the next save writes them into Thuis.
+    send(
+        &mut app,
+        json!({"cmd": "show.open", "name": "Thuis", "output": "keep"}),
+    );
+    let thuis = until(&mut app, "Thuis", |m| {
+        m["type"] == "snapshot" && m["show"]["name"] == "Thuis"
+    });
+    assert_eq!(nodes(&thuis), nodes(&running));
+    assert!(!named(&thuis, "Studio"));
+    send(&mut app, json!({"cmd": "show.open", "name": "Demo"}));
+    until(&mut app, "Demo again", |m| {
+        m["type"] == "snapshot" && m["show"]["name"] == "Demo"
+    });
+    let path = shows.join("Thuis.cmdmx.json");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let file: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let names: Vec<&str> = file["output"]["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["name"].as_str().unwrap_or(""))
+            .collect();
+        if !names.contains(&"Studio") {
+            assert!(names.contains(&"Kerk"), "{names:?}");
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "Thuis still has its own nodes: {names:?}"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    // Any other value is refused.
+    send(
+        &mut app,
+        json!({"cmd": "show.open", "name": "Thuis", "output": "file"}),
+    );
+    let e = until(&mut app, "the refusal", |m| m["type"] == "error");
+    assert!(e["message"].as_str().unwrap().contains("output"), "{e}");
 }
