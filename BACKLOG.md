@@ -298,7 +298,7 @@ workspace and may have to be reverted alone).
 | CTR-10 | App: a hidden workspace leaves the accessibility tree and a background press lands on the workspace on show, keeping each window's view state; run with background computer use and `app-cpu.sh`. | UI-81 | S | done (2026-11-11, #294; run `tests/manual/runs/2026-11-11-IDEA-38.md`) |
 
 ### Show files (IDEA-35 batch G, spec P1-41)
-Proposed 2026-11-12, waits for the owner's approval (`showfile.md`, *Owner questions (P1-41)*). M1 first; G4's second half holds
+Approved by the owner 2026-11-12, every recommendation accepted (`showfile.md`). M1 first; G4's second half holds
 already; *Merge from another show* stays P1-37.
 Builds: FIL-01 + FIL-02 + FIL-03 (one Show screen row: New, Save Copy and Open's output, the same commands); FIL-04 + FIL-05 (the
 shows folder's files); FIL-06 (the one M, apart).
@@ -403,7 +403,7 @@ after VS8-03, in any order.
 | P1-35 | Spec parking (IDEA-43, owner 2026-11-06: phase 1; a parked fixture is skipped live and kept in groups, palettes and cues for Unpark): PAT/PRG criteria checked against Titan's Park, build tasks; approved by the owner when this PR merges. | PAT, PRG, GRM, IPC, UI | S | done (2026-11-06, #258) |
 | P1-39 | Spec IDEA-35 batch E, patch and profiles (E1..E3, K10, M2, M3; K1 was done by P1-30), as PAT-37..47, LIB-41, LIB-42, IPC-62, UI-72..76; checks in `tests/manual/runs/2026-11-08-E-checks.md`; build tasks PTC-01..08; approved by owner 2026-11-08, the seven questions as recommended (`patch.md`); what stayed out became IDEA-49..54. | PAT, LIB, IPC, UI | S | done (2026-11-08, #283) |
 | P1-40 | Spec IDEA-35 batch F, controls and small things (F1, F2, F4..F7, K9, K12, L7, L8, M5, M6; F3 and IDEA-39 hold already), as CTL-69..71, OUT-42, PRG-99..101, PAL-35, PBK-53, CUE-64, UI-77..80; checks in `tests/manual/runs/2026-11-10-F-checks.md`; build tasks CTR-01..09; approved by the owner 2026-11-10, every recommendation accepted (`ui.md`). | CTL, OUT, PRG, PAL, PBK, CUE, UI | S | done (2026-11-10, #290) |
-| P1-41 | Spec IDEA-35 batch G, show files (M1, G1..G5; G4's second half holds already), as SHW-20..25; checks in `tests/manual/runs/2026-11-12-G-checks.md`; build tasks FIL-01..06; the owner approves the seven questions (`showfile.md`). | SHW, IPC, UI | S | todo |
+| P1-41 | Spec IDEA-35 batch G, show files (M1, G1..G5; G4's second half holds already), as SHW-20..25; checks in `tests/manual/runs/2026-11-12-G-checks.md`; build tasks FIL-01..06; approved by the owner 2026-11-12, every recommendation accepted (`showfile.md`). | SHW, IPC, UI | S | done (2026-11-12, #296) |
 | P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show; find Titan's page first; numbered criteria and build tasks; owner approves. | SHW, UI | S | todo |
 | P1-38 | Measure the engine's load in a release build on a rig of about 260 fixtures (M7, fifth gap review; owner 2026-11-08): the debug build took 78 % of a core against 10 % with 38 fixtures; write the result in a run file, and a budget like UI-70 only if it is too high. | ENG | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |

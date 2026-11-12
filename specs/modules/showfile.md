@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::show` (schema, (de)serialisation, migrations; pure) and `cmdmx-daemon`
 (shows folder, autosave, recovery, IPC), Show screen in `subprojects/app`.
-Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 proposed 2026-11-12 (P1-41). Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
+Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41). Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
 decision 5 (a show embeds its profiles).
 Behavioural reference: Titan *Shows* (new/load/save, the show carries its personalities), macOS
 autosave in place.
@@ -116,22 +116,22 @@ upgrade. The daemon always runs a show and saves it by itself; there is no Save 
 ### Working on many at once (IDEA-35 batch D, P1-36; approved by owner 2026-11-07)
 - **SHW-19** **A new show from this patch** (D2; amends SHW-15; Titan's New Show can only keep the DMX settings, the rest is our own choice, owner decision 2). `show.new {"name":"Kerk kerst","keep":"patch"}` saves the current show, then starts a show under the new name with the current patch: the fixtures with their numbers, names, addresses, modes and parked state, the show's own profiles, the output lines and the show settings. Groups, palettes, effect palettes, playbacks, cue lists, masters and the programmer start empty, the page is 1, and the undo history empties (UNDO-13). The old show's file is not touched, so nothing is lost. An existing name is refused as SHW-15. Without `keep` it stays SHW-15. Test `shw_19_…`.
 
-### Show files (IDEA-35 batch G, P1-41; proposed 2026-11-12, waits for the owner)
+### Show files (IDEA-35 batch G, P1-41; approved by owner 2026-11-12)
 Checks behind these criteria: `tests/manual/runs/2026-11-12-G-checks.md`. Titan reference: *Loading and saving shows*,
 *Clearing the console* and *Creating reports* (manual.avolites.com/docs/titan-basics/…). None of these changes the schema.
 
-- **SHW-20** **Next week's show** (M1, first; amends SHW-19, P1-41 question 2). `show.new {"name":"Kerk 16 nov","keep":"looks"}`
+- **SHW-20** **Next week's show** (M1, first; amends SHW-19, P1-41 decision 2). `show.new {"name":"Kerk 16 nov","keep":"looks"}`
   does what `keep: "patch"` does and also keeps the groups (with their grids and legends) and the palettes (effect palettes
   included, with their numbers and legends). Playbacks, cue lists, masters, page legends and the programmer start empty, the page
   is 1, the undo history empties (UNDO-13), and the old show's file is not touched. Any other `keep` value is refused as now. In the
   app, New's *Keep the patch* checkbox becomes a choice of three: *Empty*, *The patch*, *Patch, groups and palettes*; the last is
   the default. The two-step confirm (SHW-17) names what goes: "New Kerk 16 nov — playbacks and cue lists start empty". Test
   `shw_20_…`.
-- **SHW-21** **A copy that leaves you where you are** (G3, P1-41 question 3). `show.save_copy {name}` writes the current show
+- **SHW-21** **A copy that leaves you where you are** (G3, P1-41 decision 3). `show.save_copy {name}` writes the current show
   under a new name, as `show.save_as` would, and the open show stays open: its name, autosave, undo history and output do not
   change. An existing or invalid name is refused (SHW-09, SHW-15). The Show screen gains *Save Copy* beside *Save As*, on the same
   name field; neither changes what is on stage, so neither asks twice. Test `shw_21_…`.
-- **SHW-22** **Rename, delete and reveal a show** (G1; amends the out-of-scope list, P1-41 question 4).
+- **SHW-22** **Rename, delete and reveal a show** (G1; amends the out-of-scope list, P1-41 decision 4).
   `show.rename {name, to}` renames the file and its `.bak` (SHW-12); `to` follows SHW-09 and an existing name is refused.
   Renaming the open show first writes it (SHW-11), then renames, updates `state.json` and sends the `show` delta, so the open
   show carries on under its new name. `show.delete {name}` moves `<name>.cmdmx.json` and its `.bak` to the user's Trash
@@ -139,7 +139,7 @@ Checks behind these criteria: `tests/manual/runs/2026-11-12-G-checks.md`. Titan 
   ("Kerk is open: open another show first"). `show.list` also answers `dir`, the shows folder's absolute path. On the Show screen
   a selected row has *Rename* (with the name field), *Delete* (two-step, "Delete Kerk oud — it goes to the Trash") and
   *Show in Finder* (the app selects the file in Finder). Tests `shw_22_…`.
-- **SHW-23** **A file changed outside CMDMX is never overwritten** (G4, P1-41 question 5). The daemon remembers the size and
+- **SHW-23** **A file changed outside CMDMX is never overwritten** (G4, P1-41 decision 5). The daemon remembers the size and
   modified time of the open show's file after each write and each open. When they differ (someone copied a file over it):
   1. an autosave first renames that file to `<name> outside <yyyy-mm-dd hhmm>.cmdmx.json` (a valid name, SHW-09; ` 2`, ` 3` … when
      taken), then writes as usual, and warns once: "Kerk.cmdmx.json was changed outside CMDMX: kept as Kerk outside 2026-11-12
@@ -148,13 +148,13 @@ Checks behind these criteria: `tests/manual/runs/2026-11-12-G-checks.md`. Titan 
      running to `<name> before open <yyyy-mm-dd hhmm>.cmdmx.json`, and warns which file holds it. While the file is unchanged, Open of
      the open show is refused as now, with the hint "its file has not changed outside CMDMX".
   The check runs before each autosave and on `show.list` (one `stat`, never on the tick). Tests `shw_23_…`.
-- **SHW-24** **This Mac's output stays** (G2, P1-41 question 6; Titan asks the same when loading a show). `show.open {name,
+- **SHW-24** **This Mac's output stays** (G2, P1-41 decision 6; Titan asks the same when loading a show). `show.open {name,
   "output":"keep"}` opens the show with the output nodes that are running now (OUT-13: kinds, lines, names, ports, enabled) in
   place of the nodes in its file; the next autosave saves them into that show. Without `output` the show's own nodes are used, as
   now. `show.new` always takes the running nodes, with every `keep` value, so a new show at the church sends to the Eurolite at
   once; a line without fixtures sends zeros (OUT-29). In the app, Open's confirm gains a checkbox *Keep this Mac's output*, on by
   default and remembered by the app. Test `shw_24_…`.
-- **SHW-25** **A report of the show** (G5, P1-41 question 7; Titan: *Disk › Reports*). `show.report` writes one HTML file to
+- **SHW-25** **A report of the show** (G5, P1-41 decision 7; Titan: *Disk › Reports*). `show.report` writes one HTML file to
   `<shows folder>/Reports/<name> <yyyy-mm-dd hhmm>.html` and answers its absolute path to the asking client. It holds four tables,
   in this order, from the show as it is now: *Fixtures* (number, name, profile, mode, universe.address, parked), *Groups*
   (number, legend, member fixture numbers in order), *Palettes* (number, legend, kind, fixture count, attribute groups) and
@@ -215,7 +215,7 @@ on one shows folder.
    a git repository or a synced folder; the Show screen lists that folder.
 3. A daemon restart brings back the show only; live state starts fresh, as on Titan.
 
-## Owner questions (P1-41, batch G, proposed 2026-11-12)
+## Owner decisions (P1-41, batch G, 2026-11-12: every recommendation accepted)
 1. **What is in batch G:** M1 (SHW-20) first, then G1 (SHW-22), G2 (SHW-24), G3 (SHW-21), G4 (SHW-23) and G5 (SHW-25)? Recommended:
    yes. G4's second half holds already: a new show has a Serial node on line 1 (`port: "auto"`, OUT-25), and its dot turns amber, not
    green, when no interface is found. *Merge from another show* stays its own spec (P1-37). Not chosen: leaving the report (G5) for
