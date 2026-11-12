@@ -384,12 +384,8 @@ fn main() {
                     );
                     let next = match event {
                         ipc::Event::ShowOpened(opened) => Some(*opened),
-                        ipc::Event::Command(ipc::Command::Show(New { name, keep_patch })) => {
-                            let (new, warnings) = if keep_patch {
-                                engine.new_keeping_patch()
-                            } else {
-                                (Engine::new(Settings::default()), Vec::new())
-                            };
+                        ipc::Event::Command(ipc::Command::Show(New { name, keep })) => {
+                            let (new, warnings) = engine.new_keeping(keep);
                             Some(shows::Opened {
                                 warnings,
                                 ..fresh(name, new)

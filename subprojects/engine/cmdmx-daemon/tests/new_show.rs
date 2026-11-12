@@ -1,4 +1,4 @@
-//! A new show that keeps the patch (SHW-19), on the real binary: the switch, the files and the
+//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), on the real binary: the switch, the files and the
 //! history live in the tick. What the new show holds is `cmdmx-core/tests/showfile.rs`.
 
 #![cfg(unix)]
@@ -172,4 +172,77 @@ fn shw_19_new_show_keeps_the_patch_saves_the_old_show_and_empties_the_history() 
         m["type"] == "snapshot" && m["show"]["name"] == "Leeg"
     });
     assert_eq!(len(&empty["fixtures"]), 0);
+}
+
+#[test]
+fn shw_20_next_weeks_show_keeps_groups_and_palettes_and_empties_the_playbacks() {
+    let dir = std::env::temp_dir().join(format!("cmdmx-shw20-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let port = free_port();
+    let _daemon = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            .env("HOME", &dir)
+            .args(["--no-artnet", "--no-sacn", "--no-serial"])
+            .args(["--ipc-port", &port.to_string()])
+            .arg("--show-dir")
+            .arg(dir.join("Shows"))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut app = connect(port);
+    let demo = recv(&mut app);
+    assert_eq!(demo["show"]["name"], "Demo");
+    assert!(len(&demo["groups"]) > 0);
+    assert!(len(&demo["playbacks"]) > 0);
+    // A palette and a group, so there is something to keep.
+    send(
+        &mut app,
+        json!({"cmd": "programmer.select", "fixture": 201}),
+    );
+    send(
+        &mut app,
+        json!({"cmd": "programmer.set", "attribute": "White", "value": 1.0}),
+    );
+    send(
+        &mut app,
+        json!({"cmd": "palette.record", "window": "Colours", "handle": 1}),
+    );
+    let palettes = until(&mut app, "the palette", |m| {
+        m["type"] == "palettes" && len(&m["palettes"]) > 0
+    })["palettes"]
+        .clone();
+    send(&mut app, json!({"cmd": "group.record", "group": 77}));
+    until(&mut app, "the group", |m| {
+        m["type"] == "groups"
+            && m["groups"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|g| g["id"] == 77)
+    });
+
+    send(
+        &mut app,
+        json!({"cmd": "show.new", "name": "Kerk 16 nov", "keep": "looks"}),
+    );
+    let new = until(&mut app, "the new show", |m| {
+        m["type"] == "snapshot" && m["show"]["name"] == "Kerk 16 nov"
+    });
+    assert_eq!(new["fixtures"], demo["fixtures"]);
+    assert_eq!(len(&new["groups"]), len(&demo["groups"]) + 1);
+    assert_eq!(new["palettes"], palettes);
+    assert_eq!(len(&new["playbacks"]), 0);
+    assert_eq!(new["page"]["number"], 1);
+    assert!(new["undo"]["undo"].is_null(), "UNDO-13: {}", new["undo"]);
+
+    // Any other value is refused and the show keeps running.
+    send(
+        &mut app,
+        json!({"cmd": "show.new", "name": "Kerk 23 nov", "keep": "playbacks"}),
+    );
+    let e = until(&mut app, "the refusal", |m| m["type"] == "error");
+    assert!(e["message"].as_str().unwrap().contains("keep"), "{e}");
 }

@@ -9,8 +9,8 @@ struct ShowView: View {
     @State private var selection: String?
     @State private var newName = ""
     @State private var saveName = ""
-    /// UI-67: New starts from the open show's patch. Off whenever the screen opens.
-    @State private var keepPatch = false
+    /// SHW-19/20: what New takes over ("looks" = patch, groups and palettes). Reset whenever the screen opens.
+    @State private var keep = "looks"
     /// Which show-switching button has been clicked once. New and Open change what is on stage,
     /// so they need a second click (SHW-17, PAT-10); Save As does not.
     @State private var armed: Armed?
@@ -44,8 +44,7 @@ struct ShowView: View {
                 PanelWindow(title: "New", framed: true, accessory: { EmptyView() }) {
                     VStack(alignment: .leading, spacing: 6) {
                         TextField("name", text: $newName).textFieldStyle(.roundedBorder)
-                        Toggle("Keep the patch", isOn: $keepPatch).toggleStyle(.checkbox)
-                            .font(Typo.ui(11))
+                        keepPicker
                         switchButton(.new, "New", newName)
                     }
                     .padding(8)
@@ -82,10 +81,10 @@ struct ShowView: View {
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
-        .onAppear { keepPatch = false; engine.listShows() }
+        .onAppear { keep = "looks"; engine.listShows() }
         .onChange(of: selection) { _, _ in armed = nil; engine.clearMessage() }
         .onChange(of: newName) { _, _ in armed = nil }
-        .onChange(of: keepPatch) { _, _ in armed = nil }
+        .onChange(of: keep) { _, _ in armed = nil }
         .onChange(of: engine.show.name) { _, _ in armed = nil }
     }
 
@@ -97,7 +96,7 @@ struct ShowView: View {
             guard let name, !name.isEmpty else { return }
             if isArmed {
                 armed = nil
-                if kind == .open { engine.openShow(name) } else { engine.newShow(name, keepPatch: keepPatch) }
+                if kind == .open { engine.openShow(name) } else { engine.newShow(name, keep: keep == "none" ? nil : keep) }
             } else {
                 armed = kind
             }
@@ -110,10 +109,22 @@ struct ShowView: View {
     }
 
     private func armedLabel(_ kind: Armed, _ title: String, _ name: String?) -> String {
-        if kind == .new && keepPatch {
+        if kind == .new && keep == "looks" {
+            return "New \(name ?? "") — playbacks and cue lists start empty"
+        }
+        if kind == .new && keep == "patch" {
             return "New show \(name ?? "") with the patch of \(engine.show.name): groups, palettes and playbacks start empty"
         }
         return "Confirm \(title.lowercased()) \(name ?? "") — output changes now"
+    }
+
+    private var keepPicker: some View {
+        Picker("Keep", selection: $keep) {
+            Text("Empty").tag("none")
+            Text("The patch").tag("patch")
+            Text("Patch, groups and palettes").tag("looks")
+        }
+        .pickerStyle(.radioGroup).font(Typo.ui(11))
     }
 
     private func saveAs() {

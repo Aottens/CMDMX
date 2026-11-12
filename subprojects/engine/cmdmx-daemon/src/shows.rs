@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use cmdmx_core::engine::Engine;
+use cmdmx_core::engine::{Engine, Keep};
 use cmdmx_core::show::{Meta, Show};
 use serde::Serialize;
 
@@ -291,8 +291,8 @@ pub enum ShowRequest {
     List,
     New {
         name: String,
-        /// SHW-19: start from the open show's patch instead of an empty one.
-        keep_patch: bool,
+        /// SHW-19/20: what to take over from the open show.
+        keep: Keep,
     },
     Open {
         name: String,

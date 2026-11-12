@@ -1681,10 +1681,11 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("show.list") => Ok(Command::Show(ShowRequest::List)),
         Some("show.new") => Ok(Command::Show(ShowRequest::New {
             name: string(&v, "name")?,
-            keep_patch: match opt_string(&v, "keep")?.as_deref() {
-                None => false,
-                Some("patch") => true,
-                Some(_) => return Err("invalid \"keep\" (expected \"patch\")".into()),
+            keep: match opt_string(&v, "keep")?.as_deref() {
+                None => cmdmx_core::engine::Keep::Nothing,
+                Some("patch") => cmdmx_core::engine::Keep::Patch,
+                Some("looks") => cmdmx_core::engine::Keep::Looks,
+                Some(_) => return Err("invalid \"keep\" (expected \"patch\" or \"looks\")".into()),
             },
         })),
         Some("show.open") => Ok(Command::Show(ShowRequest::Open {
@@ -6627,7 +6628,7 @@ mod tests {
                 r#"{"v":1,"cmd":"show.new","name":"Kerst"}"#,
                 ShowRequest::New {
                     name: "Kerst".into(),
-                    keep_patch: false,
+                    keep: cmdmx_core::engine::Keep::Nothing,
                 },
             ),
             (
@@ -6662,10 +6663,26 @@ mod tests {
             parse_command(r#"{"v":1,"cmd":"show.new","name":"Kerst","keep":"patch"}"#),
             Ok(Command::Show(ShowRequest::New {
                 name: "Kerst".into(),
-                keep_patch: true,
+                keep: cmdmx_core::engine::Keep::Patch,
             }))
         );
         assert!(parse_command(r#"{"v":1,"cmd":"show.new","name":"K","keep":"cues"}"#).is_err());
+    }
+
+    #[test]
+    fn shw_20_keep_looks_parses() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.new","name":"Kerk 16 nov","keep":"looks"}"#),
+            Ok(Command::Show(ShowRequest::New {
+                name: "Kerk 16 nov".into(),
+                keep: cmdmx_core::engine::Keep::Looks,
+            }))
+        );
+        for bad in [r#""playbacks""#, r#""Looks""#, "true", "1"] {
+            let text = format!(r#"{{"v":1,"cmd":"show.new","name":"K","keep":{bad}}}"#);
+            assert!(parse_command(&text).is_err(), "{text}");
+        }
     }
 
     #[test]
