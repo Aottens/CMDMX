@@ -80,6 +80,7 @@ the backlog, not the whole idea.
 | IDEA-52 | Flip a moving head to its other yoke position | triaged; out of batch E (owner decision 7, P1-39) | 1, later | LIB, PRG |
 | IDEA-53 | Lamp on/off and fixture macros through the control channel | triaged; out of batch E (owner decision 7, P1-39) | 1, later | LIB, PRG, UI |
 | IDEA-54 | RDM patching: discover and address fixtures on an RDM-enabled Art-Net node | triaged; out of batch E (owner decision 7, P1-39) | 1, later | OUT, PAT |
+| IDEA-55 | Group buy of the desk's top panel, selling the extra panels to other builders | parked (owner, 2026-11-09) | 10, after HWB-07 | HW |
 | IDEA-56 | A screen visit keeps each workspace window's view state (IDEA-38 run, 2026-11-11) | triaged; awaiting phase confirmation | 1 proposed | UI |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
@@ -1015,6 +1016,17 @@ already be set by hand (LIB-15).
 RDM-capable node to test with. Titan needs an RDM-enabled Art-Net node as well; XLR does not carry it.
 **What it touches now:** nothing; `cmdmx-protocols` has output only.
 **Open question:** which RDM-capable node to test with.
+
+### IDEA-55 — Group buy of the desk's top panel (2026-11-09)
+**Found in:** the enclosure research (owner, in chat).
+**Intent:** order a batch of the bent, powder-coated top panel so the unit price drops, and sell the extra panels to other builders
+at about €200 each. Laser op Maat quoted about €110 ex VAT per panel at 5 pieces, bent and powder-coated (the trial model).
+**Triage:** parked (owner, 2026-11-09): first one panel for the owner's own desk, then see. If it returns: phase 10, after HWB-07.
+**What it touches now:** nothing. Owner decision 7 of HW-01 already allows selling kits later; HW-55 (CERN-OHL-S v2) allows selling
+as long as the design stays published.
+**Open questions:** is there demand before a desk exists; panel only, or a kit with the strip PCBs; selling privately or through a
+business (VAT, consumer return rights); shipping a large powder-coated panel without damage; the Fusion Personal licence is
+non-commercial, so does the final panel move to FreeCAD or a paid licence.
 
 ### IDEA-56 — A screen visit keeps each workspace window's view state (2026-11-11)
 **Found in:** the IDEA-38 run; not from the owner.
