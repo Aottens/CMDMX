@@ -98,6 +98,17 @@ jobs:
           EXECUTION: ${{ steps.claude.outputs.execution_file }}
           EARLIER_ROUND: ${{ steps.earlier.outputs.round }}
         run: |
+          # What Claude did: its last word, the tools it called and the tools it was refused. The action hides its
+          # output; this shows enough to tell a clean review from one that could not run its agents.
+          trace() {
+            [ -f "$EXECUTION" ] || return 0
+            { echo "<details><summary>Review trace</summary>"; echo; echo '```'
+              jq -r '[.[] | select(.type == "result")][-1] | "result: \(.result // "" | .[0:500])",
+                (.permission_denials // [] | .[] | "refused: \(.tool_name) \(.tool_input | tostring | .[0:150])")' "$EXECUTION"
+              jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")
+                | "\(.name) \(.input.command // .input.description // "" | tostring | .[0:150])"' "$EXECUTION"
+              echo '```'; echo "</details>"; } >> "$GITHUB_STEP_SUMMARY"
+          }
           mkdir findings
           if [ "$KEEP" = true ]; then
             cp earlier/findings.json earlier/round.txt findings/
@@ -108,9 +119,7 @@ jobs:
             exit 0
           elif [ "$OUTCOME" != success ] || ! printf '%s' "$OUTPUT" | jq -e '.findings | type == "array"' > /dev/null 2>&1; then
             echo "Not reviewed: the review failed (step outcome: ${OUTCOME:-none}, no usable structured output)." >> "$GITHUB_STEP_SUMMARY"
-            # Claude's own last word (e.g. a login or usage-limit message); the action hides its output otherwise.
-            [ -f "$EXECUTION" ] && jq -r '[.[] | select(.type == "result")][-1].result // empty' "$EXECUTION" \
-              | head -c 500 | sed 's/^/> /' >> "$GITHUB_STEP_SUMMARY"
+            trace
             exit 0
           else
             printf '%s' "$OUTPUT" | jq '.findings' > findings/findings.json
@@ -118,6 +127,7 @@ jobs:
             echo "## Review findings (round $(cat findings/round.txt))" >> "$GITHUB_STEP_SUMMARY"
           fi
           scripts/risk-gate.py --table findings/findings.json >> "$GITHUB_STEP_SUMMARY"
+          [ "$KEEP" = true ] || trace
 
       - uses: actions/upload-artifact@v4
         if: always() && hashFiles('findings/findings.json') != ''
