@@ -417,6 +417,16 @@ Builds: TRB-01 + TRB-02 (one question from the owner, how to see where the proje
 | TRB-02 | `scripts/dashboard.py`: a local page that follows `origin/main` by itself, with search and filters; run in the browser. | TRK-05..08 | S | done (2026-11-05, #248) |
 | TRB-03 | `scripts/dashboard.py` moves its default port off 7320, the remote's port (RMT-01), and the LaunchAgent follows; owner picks the port. | TRK-05 | S | todo |
 
+### Auto-review: the harness merges what is safe (spec `autoreview.md`, IDEA-57; approved by the owner 2026-11-13)
+Builds: ARB-01 + ARB-02 (one behaviour, review then gate: the gate reads the review's findings); ARB-03 alone (it changes
+gate 2, may have to be reverted alone, and waits for five PRs in shadow).
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| ARB-01 | `.github/workflows/review.yml`: Claude reviews every PR of this repo on GitHub with inline comments and writes `findings.json`, keeps the earlier review after a push of `low` files only; tried on its own PR. Needs the owner's `CLAUDE_CODE_OAUTH_TOKEN` secret and the Claude GitHub App on the repo. | ARV-01..04 | M | todo |
+| ARB-02 | `scripts/risk-gate.py` with `scripts/test_risk_gate.py` (every rule its id) and the `risk-gate` check: lane, labels, one comment on the PR, `## Tracking` names the lane; shadow only. Needs ARB-01. | ARV-05..09, ARV-17 | S | todo |
+| ARB-03 | Green merges by itself behind `AUTOMERGE`, amber's fix rounds, *Fixes from reviews* rows, the fix block and the patch tag in `CLAUDE.md`; repo settings (auto-merge, a ruleset with the three required checks); DECISIONS amends gate 2; run file of the first five PRs in shadow, then the owner turns it on. Needs ARB-02 and five PRs. | ARV-10..16 | S | todo |
+
 ## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions
 and PRs, no changes under `subprojects/engine` or `subprojects/app`, never ahead of a phase-1 task.

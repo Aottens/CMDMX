@@ -5,6 +5,27 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-13 — The harness reviews its own PRs and merges the safe ones; a tested rule decides, not a model (owner, IDEA-57)
+
+**Decision:** every PR gets a review by Claude on GitHub (`claude-code-action`, the code-review plugin). A fixed script,
+`scripts/risk-gate.py`, puts its findings against the impact of the changed paths and gives a lane: green merges by itself,
+amber is fixed by the harness first (at most two rounds), red goes to the owner as today. Core, protocols, daemon, specs,
+decisions, CLAUDE.md, CI, release scripts and hardware checklists are always red. It runs in shadow for five PRs before green
+may merge (`AUTOMERGE`). Leftover minor findings become `FIX` rows that the harness may build as fix blocks without asking;
+after an auto-merge of app or engine code Claude pushes the patch tag. Sub-releases and their gap review stay the owner's.
+Criteria in `specs/modules/autoreview.md`, approved 2026-11-13 with all five recommendations; gate 2 in `CLAUDE.md` is amended by ARB-03, not before.
+
+**Alternatives considered:** the owner keeps merging every PR (the handwork the owner wants gone); a model decides from its
+own review (no 2026 guidance trusts that; the same input must give the same answer); Claude's managed Code Review (Team or
+Enterprise plans only); letting the reviewer approve, as GitHub allows for Copilot (the author's own tool approving its work).
+
+**Reasoning:** the owner cannot catch a defect by reading a diff (2026-10-24), so gate 2 on a docs or UI PR adds a wait and
+little safety. Where a defect costs a show (output, merge, show files) the owner stays. A rule in code can be tested,
+read and reverted; shadow first shows on real PRs whether it would have merged something wrong.
+
+**Reversal trigger:** an auto-merged PR has to be reverted, or a fix follows within a week on more than one of the first
+five green PRs in shadow: `AUTOMERGE` goes off and the table of ARV-05/06 is tightened before it goes on again.
+
 ## 2026-11-11 — A hidden workspace stays built and is one accessibility element (UI-81, CTR-10; owner)
 
 **Decision:** Every workspace stays built in the ZStack; a hidden one gets `.accessibilityElement(children: .ignore)` beside

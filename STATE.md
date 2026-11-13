@@ -15,6 +15,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
    (M1 first, a New that keeps groups and palettes). Then batches I and J in the owner's order
    (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and Edit) stays apart from them.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
+3. Auto-review (IDEA-57, `specs/modules/autoreview.md`, spec approved): build ARB-01 + ARB-02 once the token below is
+   in, then five PRs in shadow before ARB-03 lets green PRs merge by themselves.
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
@@ -25,6 +27,9 @@ Runs only the owner can do (gate 3):
 - SPF-03 a real sleep during a running fade on the Eurolite and Art-Net (`tests/hardware/sleep.md`).
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
+
+For auto-review (ARB-01): run `claude setup-token`, store it with `gh secret set CLAUDE_CODE_OAUTH_TOKEN`, and install
+the Claude GitHub App on `Aottens/CMDMX` (github.com/apps/claude). Claude never handles the token.
 
 Programming and small checks:
 - Program the service in *Kerk* at home on Art-Net as `tests/hardware/church.md` asks (steady looks, *Front band*,
