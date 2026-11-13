@@ -82,6 +82,7 @@ the backlog, not the whole idea.
 | IDEA-54 | RDM patching: discover and address fixtures on an RDM-enabled Art-Net node | triaged; out of batch E (owner decision 7, P1-39) | 1, later | OUT, PAT |
 | IDEA-55 | Group buy of the desk's top panel, selling the extra panels to other builders | parked (owner, 2026-11-09) | 10, after HWB-07 | HW |
 | IDEA-56 | A screen visit keeps each workspace window's view state (IDEA-38 run, 2026-11-11) | triaged; awaiting phase confirmation | 1 proposed | UI |
+| IDEA-57 | The harness reviews its own PRs on GitHub, fixes what is safe and merges by itself where a mistake is cheap | specced 2026-11-13 (`autoreview.md`); ARB-01 todo | 1 (owner 2026-11-13: also for this project, now) | ARV, TRK |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.
@@ -1036,3 +1037,21 @@ start over.
 **Triage:** proposed phase 1, small; `ui.md` (UI-08). Owner to confirm the phase. Nothing touched now.
 **What it touches now:** `MainScreen.Frame`, which builds `Workspaces` only while no screen is on show.
 **Open question:** keep the workspaces built under a screen (as hidden workspaces are now), or move the view state into `UIState`?
+
+### IDEA-57 — The harness reviews, fixes and merges its own PRs where that is safe (2026-11-13)
+**Found in:** the owner, in chat: a harness that reviews its own PRs on GitHub, builds a risk matrix of the bugs still
+in them, and from that decides whether it may run a fix block and push by itself; "zoveel mogelijk handwerk
+automatiseren". After the research: "ik wil het gewoon zo gaan doen, ook voor dit project".
+**Research (2026-11-13):** every part exists, the deciding part does not. Claude Code's GitHub Action with the code-review
+plugin reviews a PR and comments inline; Claude's managed Code Review does the same but needs a Team or Enterprise plan and
+never approves or blocks; Auto-fix answers failing CI and review comments with pushed fixes but never merges; GitHub
+auto-merge merges once required checks pass. Practice in 2026: the agent may stop a merge but not decide one, the decision is
+a tested rule over paths and size, sensitive paths never merge by themselves, the risk is scored again at every push, and
+the decisions are logged. Sources: code.claude.com/docs/en/code-review, /github-actions, /claude-code-on-the-web (Auto-fix),
+/routines; augmentcode.com/guides/ai-agents-pull-request-approval-guardrails; github.com/spdolan/factory/pull/24;
+nhimg.org/faq/should-teams-allow-ai-agents-to-auto-merge-code-when-risk-scores-are-low;
+radar.firstaimovers.com/ai-pull-request-auto-merge-enterprise-guide-2026.
+**Triage:** phase 1 (owner, 2026-11-13); specced in `specs/modules/autoreview.md` (ARV-01..17), build tasks ARB-01..03.
+**What it touches now:** gate 2 in `CLAUDE.md` (amended by ARB-03, not before), CI, the repo settings (auto-merge, a ruleset
+on `main`), and the owner's `CLAUDE_CODE_OAUTH_TOKEN` secret.
+**Open questions:** the five of `autoreview.md`, answered by merging its PR.
