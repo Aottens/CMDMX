@@ -15,8 +15,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
    (M1 first, a New that keeps groups and palettes). Then batches I and J in the owner's order
    (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and Edit) stays apart from them.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
-3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): build ARB-01 + ARB-02 once the token below is in, then five PRs
-   in shadow before ARB-03 lets green PRs merge by themselves.
+3. Auto-review (IDEA-57, `specs/modules/autoreview.md`, spec approved): build ARB-01 + ARB-02 once the token below is
+   in, then five PRs in shadow before ARB-03 lets green PRs merge by themselves.
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
@@ -47,7 +47,6 @@ Programming and small checks:
 - The website's domain name. Find the Colourmotion logo (VS8-02).
 - Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-45, IDEA-47, IDEA-48, IDEA-49 and IDEA-56.
 - Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
-- The five questions of `autoreview.md` (merging its spec PR accepts the recommendations).
 
 ## Good to know
 - Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.

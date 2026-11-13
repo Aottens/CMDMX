@@ -3,8 +3,8 @@
 Owner: `.github/workflows/review.yml` (the review), `scripts/risk-gate.py` (the decision), the PR steps of a build
 session in `CLAUDE.md`. Tests: `scripts/test_risk_gate.py`.
 Status: asked for by the owner 2026-11-13 (IDEA-57: "zoveel mogelijk handwerk automatiseren", then "ik wil het
-gewoon zo gaan doen, ook voor dit project"); the owner approves these criteria and the recommended answers under
-*Owner questions* by merging their PR.
+gewoon zo gaan doen, ook voor dit project"). **ARV-01..17 approved by the owner 2026-11-13**, with the recommended
+answer to every question under *Owner questions*.
 
 The owner reviews and merges every PR (gate 2) but cannot catch a defect by reading a diff (DECISIONS 2026-10-24).
 A reviewer on GitHub that did not write the code, and a fixed rule that decides from its findings and the paths,
@@ -102,7 +102,7 @@ stays readable afterwards (sources in IDEA-57).
   itself.
 
 ## Owner questions
-Recommendation first; merging the PR accepts them.
+Answered by the owner 2026-11-13: every recommendation accepted ("ja, alle vijf").
 1. **Do medium PRs (app, control, profiles) with no findings merge by themselves?** Recommended: yes. Most PRs are
    there, and the core, protocols and daemon stay with the owner. Otherwise: only `low` PRs.
 2. **How many fix rounds before the owner?** Recommended: two. Each round is a full review on the owner's plan.

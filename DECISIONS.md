@@ -13,7 +13,7 @@ amber is fixed by the harness first (at most two rounds), red goes to the owner 
 decisions, CLAUDE.md, CI, release scripts and hardware checklists are always red. It runs in shadow for five PRs before green
 may merge (`AUTOMERGE`). Leftover minor findings become `FIX` rows that the harness may build as fix blocks without asking;
 after an auto-merge of app or engine code Claude pushes the patch tag. Sub-releases and their gap review stay the owner's.
-Criteria in `specs/modules/autoreview.md`; gate 2 in `CLAUDE.md` is amended by ARB-03, not before.
+Criteria in `specs/modules/autoreview.md`, approved 2026-11-13 with all five recommendations; gate 2 in `CLAUDE.md` is amended by ARB-03, not before.
 
 **Alternatives considered:** the owner keeps merging every PR (the handwork the owner wants gone); a model decides from its
 own review (no 2026 guidance trusts that; the same input must give the same answer); Claude's managed Code Review (Team or
