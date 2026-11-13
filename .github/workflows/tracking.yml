@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: git fetch -q --depth=1 origin main
       - run: scripts/test_tracking.py
+      - run: scripts/test_risk_gate.py
       - name: tracking summary (shown on the run page)
         run: set -o pipefail; scripts/check-tracking.py --summary origin/main | tee -a "$GITHUB_STEP_SUMMARY"
         env:
