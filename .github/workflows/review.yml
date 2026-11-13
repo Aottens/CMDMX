@@ -68,6 +68,8 @@ jobs:
           prompt: |
             /code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
 
+            Follow the command's steps exactly: launch the agents it names with the Task tool, in parallel where
+            it says so, and validate every issue with its own agent before you report it.
             Review again even if Claude has commented on this PR before: this workflow runs at every push.
             Do not skip the PR as automated or trivial: every PR here is written by Claude. Still stop for a
             closed or draft PR.
