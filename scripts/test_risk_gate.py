@@ -47,6 +47,44 @@ def test_arv_03_not_reviewed_reads_red():
     assert any("not reviewed" in r for r in reasons)
 
 
+def agent(description):
+    return {"type": "tool_use", "name": "Agent", "input": {"description": description, "prompt": "..."}}
+
+
+def execution(*tools):
+    """An execution file of claude-code-action: one assistant message per tool call, then the result."""
+    messages = [{"type": "system", "subtype": "init"}]
+    messages += [{"type": "assistant", "message": {"content": [{"type": "text", "text": "ok"}, t]}} for t in tools]
+    return messages + [{"type": "result", "result": '{"findings":[]}'}]
+
+
+FULL = [agent("Check PR eligibility"), agent("List CLAUDE.md files"), agent("Summarize PR"),
+        agent("CLAUDE.md compliance A"), agent("CLAUDE.md compliance B"), agent("Opus bug scan diff"),
+        {"type": "tool_use", "name": "Task", "input": {"description": "Opus bug scan logic"}}]
+
+
+def test_arv_03_review_without_its_agents_is_not_reviewed():
+    bash = {"type": "tool_use", "name": "Bash", "input": {"command": "gh pr diff 298"}}
+    assert gate.agents_launched(execution(*FULL, bash)) == 7
+    assert gate.review_ran(execution(*FULL, bash))
+    # Round 3 of #298: it prepared, then read the diff itself and returned no findings.
+    assert not gate.review_ran(execution(*FULL[:3], bash, bash))
+    assert not gate.review_ran([])
+
+
+def test_arv_03_cli_checks_the_review():
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        full, short = Path(tmp) / "full.json", Path(tmp) / "short.json"
+        full.write_text(json.dumps(execution(*FULL)))
+        short.write_text(json.dumps(execution(*FULL[:3])))
+        assert run("--check-review", str(full)).returncode == 0
+        done = run("--check-review", str(short))
+        assert done.returncode == 1 and "3" in done.stdout and "7" in done.stdout
+        assert run("--check-review", str(Path(tmp) / "missing.json")).returncode == 1
+
+
 def test_arv_04_low_only_push_keeps_the_review():
     assert gate.worst_impact(["STATE.md", "BACKLOG.md", "subprojects/app/STATE.md"]) == "low"
     assert gate.worst_impact(["STATE.md", "subprojects/app/Sources/X.swift"]) == "medium"
