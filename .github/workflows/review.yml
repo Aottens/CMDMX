@@ -95,6 +95,7 @@ jobs:
           KEEP: ${{ steps.scope.outputs.keep }}
           OUTCOME: ${{ steps.claude.outcome }}
           OUTPUT: ${{ steps.claude.outputs.structured_output }}
+          EXECUTION: ${{ steps.claude.outputs.execution_file }}
           EARLIER_ROUND: ${{ steps.earlier.outputs.round }}
         run: |
           mkdir findings
@@ -107,6 +108,9 @@ jobs:
             exit 0
           elif [ "$OUTCOME" != success ] || ! printf '%s' "$OUTPUT" | jq -e '.findings | type == "array"' > /dev/null 2>&1; then
             echo "Not reviewed: the review failed (step outcome: ${OUTCOME:-none}, no usable structured output)." >> "$GITHUB_STEP_SUMMARY"
+            # Claude's own last word (e.g. a login or usage-limit message); the action hides its output otherwise.
+            [ -f "$EXECUTION" ] && jq -r '[.[] | select(.type == "result")][-1].result // empty' "$EXECUTION" \
+              | head -c 500 | sed 's/^/> /' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           else
             printf '%s' "$OUTPUT" | jq '.findings' > findings/findings.json
