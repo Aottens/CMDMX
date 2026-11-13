@@ -68,9 +68,9 @@ stays readable afterwards (sources in IDEA-57).
 
 ## Acting on the lane
 - **ARV-10** Green: when the repository variable `AUTOMERGE` is `on`, auto-merge is switched on and GitHub merges once
-  the required checks pass (`engine (Rust)`, `tracking (BACKLOG, IDEAS)`, `risk-gate`). The merge is made by an
-  identity whose merge starts the workflows on `main`, not by the default `GITHUB_TOKEN`. With any other value of
-  `AUTOMERGE`, and when it is not set, the gate runs in shadow and the comment says *would merge*.
+  the required checks pass: every job of `ci.yml` and `tracking.yml` (the app build too) and `risk-gate`. The merge
+  is made by an identity whose merge starts the workflows on `main`, not by the default `GITHUB_TOKEN`. With any
+  other value of `AUTOMERGE`, and when it is not set, the gate runs in shadow and the comment says *would merge*.
 - **ARV-11** Amber: the build session, with Auto-fix on, fixes the confirmed findings in the same PR, each fix with a
   test that carries the id of the criterion it broke, and pushes; review and gate run again. At most two fix rounds:
   a third review that still has findings makes the PR red. A fix that needs a criterion changed is not made; the PR
