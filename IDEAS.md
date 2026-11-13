@@ -82,7 +82,7 @@ the backlog, not the whole idea.
 | IDEA-54 | RDM patching: discover and address fixtures on an RDM-enabled Art-Net node | triaged; out of batch E (owner decision 7, P1-39) | 1, later | OUT, PAT |
 | IDEA-55 | Group buy of the desk's top panel, selling the extra panels to other builders | parked (owner, 2026-11-09) | 10, after HWB-07 | HW |
 | IDEA-56 | A screen visit keeps each workspace window's view state (IDEA-38 run, 2026-11-11) | triaged; awaiting phase confirmation | 1 proposed | UI |
-| IDEA-57 | The harness reviews its own PRs on GitHub, fixes what is safe and merges by itself where a mistake is cheap | specced and approved 2026-11-13 (`autoreview.md`); ARB-01 todo | 1 (owner 2026-11-13: also for this project, now) | ARV, TRK |
+| IDEA-57 | The harness reviews its own PRs on GitHub, fixes what is safe and merges by itself where a mistake is cheap | specced and approved 2026-11-13 (`autoreview.md`); review and gate run in shadow, ARB-03 todo | 1 (owner 2026-11-13: also for this project, now) | ARV, TRK |
 
 ### IDEA-01 — More USB-DMX interfaces (2026-10-17)
 **Owner's intent:** the daemon now speaks only the ENTTEC Pro protocol; other interfaces must follow.

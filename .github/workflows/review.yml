@@ -1,0 +1,232 @@
+name: Review
+
+# Auto-review (specs/modules/autoreview.md). Job `review` lets Claude review the PR on every push
+# (ARV-01..04) and keeps its findings as an artifact; job `risk-gate` turns findings + changed paths
+# into a lane with scripts/risk-gate.py (ARV-05..09). Runs in shadow: nothing merges by itself here;
+# ARB-03 adds auto-merge behind the AUTOMERGE variable.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# A new push supersedes the running review.
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: review (Claude)
+    # Drafts get no review (ARV-01); forks get no secrets.
+    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      actions: read
+    env:
+      HAS_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: earlier findings of this branch (ARV-04)
+        # Newest by created_at: the API does not list artifacts in that order.
+        id: earlier
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=findings&per_page=100" \
+            | jq -r --arg b "$BRANCH" '[.artifacts[] | select(.workflow_run.head_branch == $b and (.expired | not))] | max_by(.created_at) | .workflow_run.id // empty') || id=
+          if [ -n "$id" ]; then gh run download "$id" -n findings -D earlier || true; fi
+          echo "round=$(cat earlier/round.txt 2>/dev/null || echo 0)" >> "$GITHUB_OUTPUT"
+
+      - name: keep the earlier review when only low files changed (ARV-04)
+        id: scope
+        if: github.event.action == 'synchronize' && hashFiles('earlier/findings.json') != ''
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          # A failing compare (e.g. after a force-push) means: review normally.
+          files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$AFTER" --jq '.files[].filename') || exit 0
+          [ "$(printf '%s\n' "$files" | scripts/risk-gate.py --impact)" = low ] && echo "keep=true" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: review with the code-review plugin (ARV-01, ARV-02)
+        id: claude
+        if: steps.scope.outputs.keep != 'true' && env.HAS_TOKEN == 'true'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1.0.275
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The run's own token, not the Claude App's: the App's token exchange refuses a workflow that differs
+          # from main's, so a PR that changes this file would never be reviewed. Comments come from github-actions.
+          github_token: ${{ github.token }}
+          plugin_marketplaces: https://github.com/anthropics/claude-plugins-official.git
+          plugins: code-review@claude-plugins-official
+          prompt: |
+            /code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+
+            Follow the command's steps exactly: launch the agents it names with the Task tool, in parallel where
+            it says so, and validate every issue with its own agent before you report it.
+            Review again even if Claude has commented on this PR before: this workflow runs at every push.
+            Do not skip the PR as automated or trivial: every PR here is written by Claude. Still stop for a
+            closed or draft PR.
+
+            Look for correctness against CLAUDE.md (show-proof rules, architecture constraints) and against the
+            acceptance criteria the PR title and body name (ids like ENG-01, ARV-05, defined in
+            specs/modules/*.md). Do not report style.
+
+            Give every issue a severity:
+            - blocker: breaks a show-proof rule, can stop or corrupt output, loses show data, or a criterion
+              the PR claims is not met at all.
+            - major: wrong behaviour a user or the harness would hit.
+            - minor: a small defect, a criterion partly met.
+            And a verdict: confirmed when the validation step checked it against the code, plausible when it
+            was flagged but validation could not settle it. Post inline comments only for confirmed issues.
+
+            At the end, return every issue in the structured output; findings: [] when there are none.
+          claude_args: |
+            --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Task,Agent"
+            --json-schema '{"type":"object","required":["findings"],"properties":{"findings":{"type":"array","items":{"type":"object","required":["file","line","severity","verdict","summary"],"properties":{"file":{"type":"string"},"line":{"type":"integer"},"severity":{"type":"string","enum":["blocker","major","minor"]},"verdict":{"type":"string","enum":["confirmed","plausible"]},"summary":{"type":"string"}}}}}}'
+
+      - name: write findings and summary (ARV-03, ARV-04)
+        if: always()
+        env:
+          KEEP: ${{ steps.scope.outputs.keep }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          OUTPUT: ${{ steps.claude.outputs.structured_output }}
+          EXECUTION: ${{ steps.claude.outputs.execution_file }}
+          EARLIER_ROUND: ${{ steps.earlier.outputs.round }}
+        run: |
+          # What Claude did: its last word, the tools it called and the tools it was refused. The action hides its
+          # output; this shows enough to tell a clean review from one that could not run its agents.
+          trace() {
+            [ -f "$EXECUTION" ] || return 0
+            { echo "<details><summary>Review trace</summary>"; echo; echo '```'
+              jq -r '[.[] | select(.type == "result")][-1] | "result: \(.result // "" | .[0:500])",
+                (.permission_denials // [] | .[] | "refused: \(.tool_name) \(.tool_input | tostring | .[0:150])")' "$EXECUTION"
+              jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")
+                | "\(.name) \(.input.command // .input.description // "" | tostring | .[0:150])"' "$EXECUTION"
+              echo '```'; echo "</details>"; } >> "$GITHUB_STEP_SUMMARY"
+          }
+          mkdir findings
+          if [ "$KEEP" = true ]; then
+            cp earlier/findings.json earlier/round.txt findings/
+            echo "## Review kept" >> "$GITHUB_STEP_SUMMARY"
+            echo "This push changed only low files, so the earlier review is kept (ARV-04)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$HAS_TOKEN" != true ]; then
+            echo "Not reviewed: the CLAUDE_CODE_OAUTH_TOKEN secret is not set." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          elif [ "$OUTCOME" != success ] || ! printf '%s' "$OUTPUT" | jq -e '.findings | type == "array"' > /dev/null 2>&1; then
+            echo "Not reviewed: the review failed (step outcome: ${OUTCOME:-none}, no usable structured output)." >> "$GITHUB_STEP_SUMMARY"
+            trace
+            exit 0
+          else
+            printf '%s' "$OUTPUT" | jq '.findings' > findings/findings.json
+            echo $((EARLIER_ROUND + 1)) > findings/round.txt
+            echo "## Review findings (round $(cat findings/round.txt))" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          scripts/risk-gate.py --table findings/findings.json >> "$GITHUB_STEP_SUMMARY"
+          [ "$KEEP" = true ] || trace
+
+      - uses: actions/upload-artifact@v4
+        if: always() && hashFiles('findings/findings.json') != ''
+        with:
+          name: findings
+          path: findings/
+          if-no-files-found: ignore
+
+  # The check name `risk-gate` is what ARV-09 and the required checks refer to.
+  risk-gate:
+    name: risk-gate
+    needs: review
+    if: ${{ !cancelled() && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      checks: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      R: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      # Absent artifact = not reviewed (the gate reads that as red).
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: findings
+          path: findings
+
+      - name: decide the lane (ARV-05..08)
+        id: gate
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          # The event payload may be stale: ask for the current title and body.
+          PR_TITLE=$(gh pr view "$PR" --json title --jq .title)
+          PR_BODY=$(gh pr view "$PR" --json body --jq .body)
+          export PR_TITLE PR_BODY
+          # ponytail: checks still running are not failures here; ARB-03's required checks hold the merge until they pass.
+          checks=()
+          while IFS= read -r name; do
+            [ -n "$name" ] && checks+=(--failed-check "$name")
+          done < <(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?per_page=100" \
+            --jq '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | select(.name != "risk-gate") | .name')
+          round=$(cat findings/round.txt 2>/dev/null || echo 1)
+          scripts/risk-gate.py --base "origin/$BASE_REF" --findings findings/findings.json --round "$round" \
+            "${checks[@]}" --comment comment.md --body-out body.md | tee gate.txt
+          echo "lane=$(head -n 1 gate.txt)" >> "$GITHUB_OUTPUT"
+          { echo "## risk-gate"; cat gate.txt; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: comment, label, auto-merge off, PR body (ARV-09, ARV-17)
+        env:
+          LANE: ${{ steps.gate.outputs.lane }}
+        run: |
+          # REST only: `gh pr edit` breaks on the classic-projects deprecation.
+          id=$(gh api --paginate "repos/$R/issues/$PR/comments" \
+            | jq -r '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- risk-gate -->")))][0].id // empty')
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$R/issues/comments/$id" -F body=@comment.md > /dev/null
+          else
+            gh api -X POST "repos/$R/issues/$PR/comments" -F body=@comment.md > /dev/null
+          fi
+
+          gh label create "risk: green" --force --color 0e8a16 --description "risk-gate: merges by itself"
+          gh label create "risk: amber" --force --color fbca04 --description "risk-gate: a fix is due"
+          gh label create "risk: owner" --force --color d93f0b --description "risk-gate: the owner decides"
+          case "$LANE" in
+            green) want="risk: green" ;;
+            amber) want="risk: amber" ;;
+            *) want="risk: owner" ;;
+          esac
+          for l in "risk: green" "risk: amber" "risk: owner"; do
+            [ "$l" = "$want" ] && continue
+            gh api -X DELETE "repos/$R/issues/$PR/labels/$(jq -rn --arg l "$l" '$l | @uri')" > /dev/null 2>&1 || true
+          done
+          gh api -X POST "repos/$R/issues/$PR/labels" -f "labels[]=$want" > /dev/null
+
+          if [ "$LANE" = red ]; then gh pr merge "$PR" --disable-auto -R "$R" || true; fi
+
+          # Edits by GITHUB_TOKEN start no workflow, so tracking.yml does not loop.
+          gh api -X PATCH "repos/$R/pulls/$PR" -F body=@body.md > /dev/null
+
+      - name: amber fails the check (ARV-09, ARV-11)
+        env:
+          LANE: ${{ steps.gate.outputs.lane }}
+        run: |
+          if [ "$LANE" = amber ]; then
+            echo "::error::amber: a fix is due (ARV-11)"
+            exit 1
+          fi
