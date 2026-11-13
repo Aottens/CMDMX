@@ -280,7 +280,10 @@ docs/screenshots/   README images
 ## How work happens
 
 Every feature starts as a spec with numbered acceptance criteria, then come failing tests, then
-code, and the owner reviews every pull request. Anything that touches hardware also gets a
-checklist that the owner runs on the real gear. Details are in [`CLAUDE.md`](CLAUDE.md).
+code, and the owner reviews every pull request. Claude also reviews every pull request on GitHub, and a tested
+risk gate ([`risk-gate.py`](scripts/risk-gate.py)) labels it `risk: green`, `risk: amber` or `risk: owner` from the
+findings and the paths it touches; for now it only advises ([`autoreview.md`](specs/modules/autoreview.md)).
+Anything that touches hardware also gets a checklist that the owner runs on the real gear. Details are in
+[`CLAUDE.md`](CLAUDE.md).
 
 Licence: to be decided.

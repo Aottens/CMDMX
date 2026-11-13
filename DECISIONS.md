@@ -5,6 +5,22 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-13 — The review hands its findings to the gate as an artifact; the gate writes the lane into the PR body
+
+**Decision:** the review job stores `findings.json` and the review round as the artifact `findings`; a push of `low` files
+only copies the newest such artifact of the branch forward instead of reviewing again (ARV-04), and the round counts real
+reviews (ARV-07). The `risk-gate` job puts a `Lane:` line under the PR's `## Tracking` (ARV-17). The failed checks it reads
+are those failed when it runs; checks still running count as not failed, since ARB-03's required checks hold the merge.
+
+**Alternatives considered:** a state file on a branch (a write to the repo on every PR); `check-tracking.py --summary`
+printing the lane (it runs locally, before any review exists); waiting in the gate for CI to finish (the app build takes
+long and a runner would sit idle).
+
+**Reasoning:** artifacts and the PR body need no extra storage or token, and edits by `GITHUB_TOKEN` start no workflow.
+
+**Reversal trigger:** artifacts expire before a PR's next push (90 days), or the gate's view of the checks lets a red PR
+through once ARB-03 is on.
+
 ## 2026-11-13 — The harness reviews its own PRs and merges the safe ones; a tested rule decides, not a model (owner, IDEA-57)
 
 **Decision:** every PR gets a review by Claude on GitHub (`claude-code-action`, the code-review plugin). A fixed script,
