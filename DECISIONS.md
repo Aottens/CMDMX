@@ -16,7 +16,9 @@ are those failed when it runs; checks still running count as not failed, since A
 printing the lane (it runs locally, before any review exists); waiting in the gate for CI to finish (the app build takes
 long and a runner would sit idle).
 
-**Reasoning:** artifacts and the PR body need no extra storage or token, and edits by `GITHUB_TOKEN` start no workflow.
+**Reasoning:** artifacts and the PR body need no extra storage or token, and edits by `GITHUB_TOKEN` start no workflow. The review
+runs with the run's own `GITHUB_TOKEN`, not the Claude App's: the App's token exchange skips any workflow that differs from
+`main`'s, so a PR that changes `review.yml` would never be reviewed. Its comments come from `github-actions`.
 
 **Reversal trigger:** artifacts expire before a PR's next push (90 days), or the gate's view of the checks lets a red PR
 through once ARB-03 is on.
