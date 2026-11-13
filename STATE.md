@@ -28,10 +28,6 @@ Runs only the owner can do (gate 3):
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
 
-For auto-review: GitHub refuses the `CLAUDE_CODE_OAUTH_TOKEN` secret (401, invalid bearer token). Run
-`claude setup-token` again, store only the token it prints with `gh secret set CLAUDE_CODE_OAUTH_TOKEN`. Claude never
-handles the token.
-
 Programming and small checks:
 - Program the service in *Kerk* at home on Art-Net as `tests/hardware/church.md` asks (steady looks, *Front band*,
   *Front spreker*), and say which fresnels are band and speaker. Use the release that goes on the church Mac: a show
