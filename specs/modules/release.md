@@ -34,9 +34,11 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
   without `v`. Any other `v*` tag (`v1`, `v0.2`, `v0.2.0-rc1`) fails the job before building,
   with a message naming the tag. Cargo crate versions are not the product version and are not
   changed by a release.
-- **REL-26** A sub-release (`0.x.0`) is a finished batch that changes what an operator can do or how they
-  work; the amount of code or PRs does not count. Everything else is a patch (`0.x.y`) and needs no review.
-  A batch of small things goes out as a patch or joins the next batch. After each sub-release comes a gap
+- **REL-26** *(amended 2026-11-14, owner: releases go by milestone)* A release goes out only when there is
+  something to install, on the owner's word; a finished batch alone is no reason. The next sub-release is
+  **1.0.0**, the release the first service runs on (VS4-03); until then batches land on `main` without a tag. A
+  patch (`0.9.y`, then `1.0.y`) goes out only for a defect that hits someone on an installed release; other fixes
+  wait for the next release. *(Was: a sub-release per finished batch, a patch for everything else.)* After each milestone release comes a gap
   review from a new angle, with the app running as well as the code read; an angle that gives no daily
   points any more is dropped (owner, 2026-11-02, DECISIONS).
 - **REL-02** The app's `Info.plist` carries `CFBundleShortVersionString` = the version and
