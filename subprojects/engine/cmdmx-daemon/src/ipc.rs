@@ -460,6 +460,15 @@ pub enum Command {
         id: PlaybackId,
         bpm: f32,
     },
+    /// CUE-65: `None` is the connected list.
+    ChaseSpeed {
+        id: Option<PlaybackId>,
+        steps: i32,
+    },
+    ChaseXfade {
+        id: Option<PlaybackId>,
+        steps: i32,
+    },
     /// `playback.options` with a `list`, `chase` or `master` object: merged with the stored
     /// value by the tick (IPC-27).
     PlaybackOptions {

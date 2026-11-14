@@ -461,6 +461,17 @@ impl Tick<'_> {
                         resolution: cmdmx_core::programmer::Resolution::Normal,
                     })
                 }
+                (Action::Speed(t) | Action::Xfade(t), ActionValue::Steps(steps)) => {
+                    let id = match t {
+                        Target::Connected => Some(None),
+                        t => resolve(engine, t).map(Some),
+                    };
+                    let steps = *steps;
+                    id.map(|id| match action {
+                        Action::Speed(_) => Command::ChaseSpeed { id, steps },
+                        _ => Command::ChaseXfade { id, steps },
+                    })
+                }
                 (_, ActionValue::Press) => self.press(action, keypad),
                 _ => None,
             };

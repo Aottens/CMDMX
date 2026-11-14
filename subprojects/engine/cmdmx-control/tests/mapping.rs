@@ -470,3 +470,22 @@ fn ctl_68_release_all_and_release_page_are_buttons() {
     assert_eq!(parse("release all").value_kind(), ValueKind::Button);
     assert_eq!(parse("release page").value_kind(), ValueKind::Button);
 }
+
+#[test]
+fn cue_65_speed_and_xfade_are_relative_with_the_targets_of_tap() {
+    for (s, a) in [
+        ("speed", Action::Speed(Target::Connected)),
+        ("speed 3", Action::Speed(Target::Slot(3))),
+        (
+            "xfade 2.3",
+            Action::Xfade(Target::PageSlot { page: 2, slot: 3 }),
+        ),
+        ("xfade playback 7", Action::Xfade(Target::Playback(7))),
+    ] {
+        assert_eq!(parse(s), a, "{s}");
+        assert_eq!(a.to_string(), s, "the catalogue line round-trips");
+        assert_eq!(a.value_kind(), ValueKind::Relative, "{s}");
+    }
+    assert!(Action::Speed(Target::Playback(7)).is_fixed());
+    assert!(!Action::Xfade(Target::Connected).is_fixed());
+}

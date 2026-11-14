@@ -132,6 +132,7 @@ An action is a short text. These are the actions you can bind:
 | `key clear`, `key locate`, `key highlight`, `key rem_dim`, `key undo`, `key redo`, `key all`, `key step_next`, `key step_prev` | the programmer keys |
 | `keypad 1`, `keypad @`, `keypad Thro`, `keypad Enter`, … | a key of the on-screen keypad, into the command line |
 | `wheel 2` | the second wheel of the attribute group that is open |
+| `speed`, `xfade` | an encoder that turns the connected chase's tempo (1 BPM per detent, to the BPM master it follows) or crossfade (1 % per detent); `speed 3` and `xfade playback 12` as with `go`. Refused on a cue list |
 | `attribute_group C` | opens an attribute group (`I P C G B E S FX`) |
 | `fan`, `fan line`, `fan mirror`, `fan wings`, `fan arrow`, `fan off` | Fan on and off, or with a curve |
 | `group 3`, `palette 12` | selects the group, or applies the palette |

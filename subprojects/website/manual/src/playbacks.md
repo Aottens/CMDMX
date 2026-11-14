@@ -271,6 +271,9 @@ for example `2/8 · 120`.
 twice or more in time with the music: the chase takes the average of your last few taps, and its
 next step falls on your tap. A pause of more than two seconds starts a new count. You can also
 type a tempo in the Go block's BPM field, or scroll over it (Shift for steps of 10, Option for 0.1).
+Beside it, the **xfade** field does the same for the crossfade, in whole percents (Shift for steps
+of 10). An encoder on a control surface can turn both: bind it to `speed` (1 BPM per detent) and
+`xfade` (1 % per detent), see [Control surfaces](controls.md#actions).
 Go, Back and Stop work on a chase too: see [Cue lists](cuelists.md#running-a-cue-list).
 
 ## Fixtures with cells

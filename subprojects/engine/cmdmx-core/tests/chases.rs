@@ -739,3 +739,106 @@ fn pbk_47_a_chase_falls_from_its_step() {
     run(&mut e, 2.025, 3.0);
     assert_eq!(common::dmx(&e, 21), 0);
 }
+
+// ---- CUE-65: a connected chase's speed and crossfade at hand (TTN-02) -------------------------
+//
+// API these tests fix: `Engine::nudge_speed(id: Option<PlaybackId>, steps: i32)` moves the tempo
+// by `steps` BPM (clamped to 1–600) where a typed tempo goes (CUE-34: the BPM master the chase
+// follows, else its own `bpm`); `Engine::nudge_crossfade(id, steps)` moves `chase.crossfade` by
+// `steps` % (clamped to 0–100). `None` = the connected list. Both are refused on anything that is
+// not a chase.
+
+fn crossfade(e: &Engine, id: u32) -> f32 {
+    e.playback(id).unwrap().chase.crossfade
+}
+
+#[test]
+fn cue_65_speed_steps_move_a_chases_tempo_by_one_bpm_each() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    e.nudge_speed(Some(1), 3).unwrap();
+    assert_eq!(bpm_of(&e, 1), 123.0);
+    e.nudge_speed(Some(1), -5).unwrap();
+    assert_eq!(bpm_of(&e, 1), 118.0);
+    e.set_bpm(1, 598.0).unwrap();
+    e.nudge_speed(Some(1), 4).unwrap();
+    assert_eq!(bpm_of(&e, 1), 600.0, "clamped at 600");
+    e.set_bpm(1, 2.0).unwrap();
+    e.nudge_speed(Some(1), -4).unwrap();
+    assert_eq!(bpm_of(&e, 1), 1.0, "clamped at 1");
+}
+
+#[test]
+fn cue_65_speed_on_a_chase_following_a_bpm_master_moves_the_master() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    let m = bpm_master(&mut e, 2, 100.0, 1.0, BpmFader::Unused);
+    source(&mut e, 1, SpeedSource::Bpm(1));
+    e.nudge_speed(Some(1), 2).unwrap();
+    assert_eq!(master_bpm(&e, m), 102.0);
+    assert_eq!(bpm_of(&e, 1), 120.0, "the chase's own tempo stays");
+}
+
+#[test]
+fn cue_65_xfade_steps_move_the_crossfade_by_one_percent_each() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    e.nudge_crossfade(Some(1), 10).unwrap();
+    assert_eq!(crossfade(&e, 1), 10.0);
+    e.nudge_crossfade(Some(1), -3).unwrap();
+    assert_eq!(crossfade(&e, 1), 7.0);
+    e.nudge_crossfade(Some(1), 200).unwrap();
+    assert_eq!(crossfade(&e, 1), 100.0, "clamped at 100 %");
+    e.nudge_crossfade(Some(1), -300).unwrap();
+    assert_eq!(crossfade(&e, 1), 0.0, "clamped at 0 %");
+}
+
+#[test]
+fn cue_65_without_an_id_they_act_on_the_connected_list() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    add_chase(
+        &mut e,
+        2,
+        2,
+        3,
+        opts(90.0, Direction::Forward, LoopAction::Loop),
+    );
+    e.connect_list(2).unwrap();
+    e.nudge_speed(None, 1).unwrap();
+    e.nudge_crossfade(None, 5).unwrap();
+    assert_eq!((bpm_of(&e, 2), crossfade(&e, 2)), (91.0, 5.0));
+    assert_eq!((bpm_of(&e, 1), crossfade(&e, 1)), (120.0, 0.0));
+}
+
+#[test]
+fn cue_65_speed_and_xfade_are_refused_on_anything_but_a_chase() {
+    let mut e = common::church();
+    e.add_playback(Playback {
+        cues: steps(1),
+        ..Playback::new(1, 1, 1, Values::new())
+    });
+    e.add_playback(Playback {
+        cues: steps(2),
+        ..Playback::new(2, 1, 2, Values::new())
+    });
+    let m = bpm_master(&mut e, 3, 100.0, 1.0, BpmFader::Unused);
+    for id in [1, 2, m] {
+        assert!(e.nudge_speed(Some(id), 1).is_err(), "speed on {id}");
+        assert!(e.nudge_crossfade(Some(id), 1).is_err(), "xfade on {id}");
+    }
+    e.connect_list(2).unwrap();
+    assert!(e.nudge_speed(None, 1).is_err(), "the connected cue list");
+    assert_eq!(master_bpm(&e, m), 100.0);
+}
+
+#[test]
+fn cue_65_speed_starts_from_the_tempo_a_bpm_fader_set() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    let m = bpm_master(&mut e, 2, 100.0, 2.0, BpmFader::Bpm);
+    source(&mut e, 1, SpeedSource::Bpm(1));
+    e.set_fader(m, 0.25, 0.0).unwrap(); // 60 BPM, ×2
+    e.nudge_speed(Some(1), 1).unwrap();
+    assert_eq!(
+        master_bpm(&e, m),
+        61.0,
+        "from the fader's 60, not the stored 100"
+    );
+    assert_eq!(e.effective_bpm(m), Some(122.0));
+}

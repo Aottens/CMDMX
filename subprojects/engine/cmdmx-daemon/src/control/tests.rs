@@ -2150,3 +2150,61 @@ fn cue_68_a_surface_go_carries_its_time() {
         "{cmds:?}"
     );
 }
+
+// --- CUE-65, CUE-66: the connected chase from a device ------------------------------------------
+
+const CHASE: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"cc","channel":1,"number":16},"action":"speed","encoding":"sign_magnitude"},
+  {"input":{"kind":"cc","channel":1,"number":17},"action":"xfade","encoding":"sign_magnitude"}
+]}"#;
+
+/// The demo engine with chases 990 on 9.1 and 991 on 9.2 (120 BPM, Forward), 991 connected.
+fn chase_engine() -> Engine {
+    use cmdmx_core::playback::{Kind, Playback};
+    let mut e = engine();
+    for (id, slot) in [(990, 1), (991, 2)] {
+        e.add_playback(Playback {
+            kind: Kind::Chase,
+            ..Playback::new(id, 9, slot, std::collections::BTreeMap::new())
+        });
+    }
+    e.connect_list(991).unwrap();
+    e
+}
+
+/// A control layer whose `nano` device has `mapping`, connected and enabled.
+fn with_mapping(test: &str, mapping: &str) -> Control {
+    let dir = tmp(test);
+    fs::write(dir.join("control/nano.json"), mapping).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    c
+}
+
+#[test]
+fn cue_65_speed_and_xfade_encoders_turn_the_connected_chase() {
+    let mut c = with_mapping("chase-speed", CHASE);
+    let mut e = chase_engine();
+    let mut h = History::default();
+    packet(&mut c, "nano", &[0xB0, 16, 3]); // three detents up
+    packet(&mut c, "nano", &[0xB0, 17, 5]);
+    let cmds = c.commands(&e, 1.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    let chase = |e: &Engine| e.playback(991).unwrap().chase.clone();
+    assert_eq!((chase(&e).bpm, chase(&e).crossfade), (123.0, 5.0));
+    packet(&mut c, "nano", &[0xB0, 16, 0x42]); // two detents down
+    let cmds = c.commands(&e, 1.1);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert_eq!(chase(&e).bpm, 121.0);
+    assert_eq!(
+        e.playback(990).unwrap().chase.bpm,
+        120.0,
+        "not the other chase"
+    );
+}

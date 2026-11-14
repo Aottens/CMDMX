@@ -3574,6 +3574,50 @@ impl Engine {
         self.set_tempo(id, bpm, None)
     }
 
+    /// CUE-65: move a connected chase's tempo `steps` BPM (1–600), where a typed tempo goes
+    /// (CUE-34). `None` is the connected list. Refused on anything but a chase.
+    pub fn nudge_speed(&mut self, id: Option<PlaybackId>, steps: i32) -> Result<(), CoreError> {
+        let id = self.chase_id(id)?;
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        let followed = match playback.chase.speed_source {
+            SpeedSource::Bpm(n) => self.find_master(MasterKind::Bpm, n),
+            _ => None,
+        };
+        // The tempo the master gives now before its multiplier (a fader move may have set it).
+        let current = match followed {
+            Some((mid, Master::Bpm(m))) => match self.master_multiplier(mid, m) {
+                x if x > 0.0 => self.master_tempo(mid, m) / x,
+                _ => m.bpm,
+            },
+            _ => playback.chase.bpm,
+        };
+        self.set_tempo(id, (current + steps as f32).clamp(1.0, 600.0), None)
+    }
+
+    /// CUE-65: move a chase's crossfade `steps` percent (0–100). `None` is the connected list.
+    /// Refused on anything but a chase.
+    pub fn nudge_crossfade(&mut self, id: Option<PlaybackId>, steps: i32) -> Result<(), CoreError> {
+        let id = self.chase_id(id)?;
+        let chase = &mut self.playback_mut(id)?.chase;
+        chase.crossfade = (chase.crossfade + steps as f32).clamp(0.0, 100.0);
+        Ok(())
+    }
+
+    /// CUE-65: `id`, or the connected list, when it is a chase.
+    fn chase_id(&self, id: Option<PlaybackId>) -> Result<PlaybackId, CoreError> {
+        let id = match id {
+            Some(id) => id,
+            None => self.connected().ok_or(CoreError::NoCueListConnected)?,
+        };
+        match self.playbacks.get(&id) {
+            Some(p) if p.kind == PlaybackKind::Chase => Ok(id),
+            Some(_) => Err(CoreError::InvalidCommand(format!(
+                "playback {id} is not a chase"
+            ))),
+            None => Err(CoreError::UnknownPlayback(id)),
+        }
+    }
+
     /// CUE-33, 34: a tempo for `id` goes to the BPM master a chase follows, else to the chase's
     /// own `bpm`, or to the BPM master itself; it clears the master's "fader moved last" (CUE-35).
     /// With `sync` the running chases on it start their next step at that tap time.
