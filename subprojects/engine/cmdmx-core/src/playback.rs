@@ -1240,6 +1240,8 @@ pub struct PlaybackState {
     pub(crate) falls: Vec<Release>,
     /// CUE-10..24: a cue list's current and next cue, pause, fades and link timer.
     pub(crate) run: ListRun,
+    /// CUE-68: when the last Go this list accepted reached the daemon.
+    pub(crate) last_go: Option<Timestamp>,
     /// CUE-33: the receive times of the last taps of this playback, the current series.
     pub(crate) taps: Vec<Timestamp>,
     /// CUE-35: a BPM master's fader moved after the last tap or typed tempo.

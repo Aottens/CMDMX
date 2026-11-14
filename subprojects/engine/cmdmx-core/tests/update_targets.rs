@@ -100,7 +100,7 @@ fn program(e: &mut Engine, id: u32, attribute: &str, l: f32) {
 
 fn go(e: &mut Engine, id: u32, times: u32) {
     for i in 0..times {
-        let now = f64::from(i) * 0.1;
+        let now = f64::from(i) * 0.5; // CUE-68: past the Go guard
         e.cuelist(Some(id), ListAction::Go, now).unwrap();
         e.tick(now);
     }

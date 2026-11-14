@@ -467,9 +467,12 @@ struct PlaybackSettings: Decodable, Equatable {
     let cueListFader: String
     let updateMode: String
     let handleButtons: HandleButtons
+    /// CUE-68: seconds a second Go on a list is ignored (0 = no guard).
+    let goGuard: Double
 
     private enum CodingKeys: String, CodingKey {
         case delay, overlap
+        case goGuard = "go_guard"
         case recordBy = "record_by", fadeIn = "fade_in", fadeOut = "fade_out"
         case releaseMask = "release_mask", releaseTime = "release_time"
         case autoConnect = "auto_connect", cueListFader = "cue_list_fader"
@@ -493,6 +496,7 @@ struct PlaybackSettings: Decodable, Equatable {
         cueListFader = (try? c.decode(String.self, forKey: .cueListFader)) ?? "KillWithOff"
         updateMode = (try? c.decode(String.self, forKey: .updateMode)) ?? "Forwards"
         handleButtons = (try? c.decode(HandleButtons.self, forKey: .handleButtons)) ?? HandleButtons()
+        goGuard = (try? c.decode(Double.self, forKey: .goGuard)) ?? 0.5
     }
 }
 

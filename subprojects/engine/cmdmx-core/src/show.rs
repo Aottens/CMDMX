@@ -21,7 +21,7 @@ use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId, It
 use crate::{CoreError, UniverseId};
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
-pub const SCHEMA_VERSION: u32 = 14;
+pub const SCHEMA_VERSION: u32 = 15;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
@@ -33,6 +33,14 @@ pub struct Meta {
 
 fn is_default<T: Default + PartialEq>(v: &T) -> bool {
     *v == T::default()
+}
+
+fn default_go_guard() -> f32 {
+    crate::engine::DEFAULT_GO_GUARD
+}
+
+fn is_default_go_guard(v: &f32) -> bool {
+    *v == default_go_guard()
 }
 
 fn is_default_lowlight(v: &f32) -> bool {
@@ -83,6 +91,12 @@ pub struct ShowSettings {
         skip_serializing_if = "is_default_lowlight"
     )]
     pub lowlight_level: f32,
+    /// CUE-68, SHW-26: left out while at the default.
+    #[serde(
+        default = "default_go_guard",
+        skip_serializing_if = "is_default_go_guard"
+    )]
+    pub go_guard: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -310,6 +324,13 @@ fn migrate(value: &mut serde_json::Value, version: u64) -> Vec<String> {
             show.insert("schema_version".into(), 14.into());
         }
         migrations.push("13 -> 14: output nodes may carry a name, nothing else changes".into());
+    }
+    if version < 15 {
+        if let Some(show) = value.as_object_mut() {
+            show.insert("schema_version".into(), 15.into());
+        }
+        migrations
+            .push("14 -> 15: batch I's options at their defaults, nothing else changes".into());
     }
     migrations
 }

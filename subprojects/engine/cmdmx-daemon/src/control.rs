@@ -473,10 +473,15 @@ impl Tick<'_> {
     fn press(&mut self, action: Action, keypad: &mut Vec<String>) -> Option<Command> {
         let engine = self.engine;
         let list = |t, action| match t {
-            Target::Connected => Some(Command::CuelistAction { id: None, action }),
+            Target::Connected => Some(Command::CuelistAction {
+                id: None,
+                action,
+                at: Some(self.now),
+            }),
             t => resolve(engine, t).map(|id| Command::CuelistAction {
                 id: Some(id),
                 action,
+                at: Some(self.now),
             }),
         };
         let page = |this: &mut Self, page: Option<u16>| {
@@ -491,6 +496,7 @@ impl Tick<'_> {
             Action::Release(Target::Connected) => Some(Command::CuelistAction {
                 id: None,
                 action: ListAction::Release,
+                at: Some(self.now),
             }),
             Action::Release(t) => resolve(engine, t).map(|id| Command::PlaybackRelease { id }),
             Action::ReleaseAll => Some(Command::PlaybackReleaseScope {

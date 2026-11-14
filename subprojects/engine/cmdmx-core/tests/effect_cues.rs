@@ -791,6 +791,12 @@ fn fx_27_entries_track_and_a_block_cue_stops_them_only_where_it_holds_something(
         p.cues[3].track = Track::Block;
     });
 
+    // CUE-68: the Gos come less than 0.5 s apart, so the guard is off.
+    e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+        go_guard: Some(0.0),
+        ..Default::default()
+    })
+    .unwrap();
     e.set_fader(pb, 1.0, 0.0).unwrap();
     e.cuelist(Some(pb), ListAction::Go, 0.0).unwrap();
     e.tick(0.0);
@@ -856,7 +862,7 @@ fn fx_28_a_malformed_entry_is_refused_at_load_and_the_rest_loads() {
 
 #[test]
 fn fx_29_schema_8_and_a_show_without_effects_has_no_effects_key() {
-    assert_eq!(SCHEMA_VERSION, 14);
+    assert_eq!(SCHEMA_VERSION, 15);
     let mut e = rig();
     select(&mut e, &[201]);
     e.set_programmer_value(201, "Dimmer", 0.7).unwrap();
@@ -864,12 +870,12 @@ fn fx_29_schema_8_and_a_show_without_effects_has_no_effects_key() {
     e.record_palette(&Record::at(Cell::new(Window::Beams, 1)))
         .unwrap();
     let json = e.to_show(meta()).to_json();
-    assert!(json.contains("\"schema_version\": 14"));
+    assert!(json.contains("\"schema_version\": 15"));
     assert!(!json.contains("\"effects\""), "{json}");
     assert!(!json.contains("\"palette\": null"));
 
     // The same show as schema 7 loads unchanged and saves byte-identical apart from the version.
-    let seven = json.replace("\"schema_version\": 14", "\"schema_version\": 7");
+    let seven = json.replace("\"schema_version\": 15", "\"schema_version\": 7");
     let (show, migrations) = Show::from_json(&seven).unwrap();
     assert!(
         migrations.iter().any(|m| m.starts_with("7 -> 8")),

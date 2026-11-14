@@ -196,7 +196,13 @@ pub struct Settings {
     pub clear_precedence: ClearPrecedence,
     pub clear_ltp: ClearLtp,
     pub lowlight_level: f32,
+    /// CUE-68: seconds a Go on a list is ignored after the last Go it accepted (0 = no guard).
+    pub go_guard: f32,
 }
+
+/// CUE-68: the Go guard's default and upper limit, in seconds.
+pub(crate) const DEFAULT_GO_GUARD: f32 = 0.5;
+pub(crate) const MAX_GO_GUARD: f32 = 2.0;
 
 /// PBK-12, PBK-20 (`settings.playback`): every field optional, all or nothing.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -214,6 +220,8 @@ pub struct PlaybackSettingsChange {
     pub cue_list_fader: Option<ListFader>,
     pub update_mode: Option<UpdateMode>,
     pub handle_buttons: Option<HandleButtons>,
+    /// CUE-68: 0..=2 s.
+    pub go_guard: Option<f32>,
 }
 
 /// PBK-09: the default record mask, every group.
@@ -255,6 +263,7 @@ impl Default for Settings {
             clear_precedence: ClearPrecedence::default(),
             clear_ltp: ClearLtp::default(),
             lowlight_level: default_lowlight(),
+            go_guard: DEFAULT_GO_GUARD,
         }
     }
 }
@@ -2634,6 +2643,7 @@ impl Engine {
                 clear_precedence: s.clear_precedence,
                 clear_ltp: s.clear_ltp,
                 lowlight_level: s.lowlight_level,
+                go_guard: s.go_guard,
             },
             profiles: self
                 .profiles
@@ -2766,6 +2776,7 @@ impl Engine {
             clear_precedence: s.clear_precedence,
             clear_ltp: s.clear_ltp,
             lowlight_level: s.lowlight_level,
+            go_guard: s.go_guard,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
@@ -2776,6 +2787,14 @@ impl Engine {
                 "lowlight_level {} is out of range, set to {}",
                 s.lowlight_level,
                 default_lowlight()
+            ));
+        }
+        // CUE-68: a guard out of range is left at its default.
+        if !(0.0..=MAX_GO_GUARD).contains(&s.go_guard) {
+            engine.settings.go_guard = DEFAULT_GO_GUARD;
+            warnings.push(format!(
+                "go_guard {} is out of range, set to {DEFAULT_GO_GUARD}",
+                s.go_guard
             ));
         }
         // CUE-39: a button a kind cannot have becomes the kind's BestPractice button.
@@ -3382,6 +3401,18 @@ impl Engine {
                 let last = format!("{} is the last cue", name(run.current));
                 return Err(CoreError::ListRefused(last));
             }
+            ListAction::Go if !run.paused() => {
+                if let Some(last) = self.states.get(&id).and_then(|s| s.last_go) {
+                    let guard = f64::from(self.settings.go_guard);
+                    if now - last < guard {
+                        return Err(CoreError::ListRefused(format!(
+                            "Go ignored: {:.1} s after the last Go (guard {:.1} s)",
+                            now - last,
+                            self.settings.go_guard
+                        )));
+                    }
+                }
+            }
             ListAction::Back if run.current.is_none() => {
                 let off = format!("{} is not running", name(None));
                 return Err(CoreError::ListRefused(off));
@@ -3408,6 +3439,9 @@ impl Engine {
             self.fire(id);
         }
         let state = self.live_state(id)?;
+        if matches!(action, ListAction::Go) {
+            state.last_go = Some(now);
+        }
         match action {
             ListAction::Next(n) => state.run.next = Some(n),
             // Back and Stop need a list that runs.
@@ -4048,6 +4082,11 @@ impl Engine {
         if let Some(overlap) = change.overlap {
             check_overlap(overlap)?;
         }
+        if let Some(g) = change.go_guard {
+            if !(0.0..=MAX_GO_GUARD).contains(&g) {
+                return Err(CoreError::InvalidTime(g));
+            }
+        }
         if let Some(v) = &change.handle_buttons {
             v.check()?;
         }
@@ -4087,6 +4126,9 @@ impl Engine {
         }
         if let Some(v) = change.release_time {
             s.release_time = v;
+        }
+        if let Some(v) = change.go_guard {
+            s.go_guard = v;
         }
         Ok(())
     }

@@ -439,6 +439,8 @@ pub enum Command {
     CuelistAction {
         id: Option<PlaybackId>,
         action: ListAction,
+        /// CUE-68: the receive time, set by `stamp`; `None` before it.
+        at: Option<f64>,
     },
     CuelistConnect {
         id: PlaybackId,
@@ -1383,6 +1385,11 @@ pub fn stamp(cmd: Command, at: f64) -> Command {
         Command::PlaybackButton { id, button, on, .. } => {
             Command::PlaybackButton { id, button, on, at }
         }
+        Command::CuelistAction { id, action, .. } => Command::CuelistAction {
+            id,
+            action,
+            at: Some(at),
+        },
         other => other,
     }
 }
@@ -1941,6 +1948,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             None => Command::CuelistAction {
                 id: None,
                 action: ListAction::Release,
+                at: None,
             },
         }),
         Some("playback.options" | "playback.times") => {
@@ -2012,6 +2020,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             overlap: opt_f32(&v, "overlap")?,
             release_mask: opt_field(&v, "release_mask", "an array of attribute groups")?,
             release_time: opt_f32(&v, "release_time")?,
+            go_guard: opt_f32(&v, "go_guard")?,
             auto_connect: opt_field(&v, "auto_connect", "true or false")?,
             cue_list_fader: opt_field(&v, "cue_list_fader", "KillWithOff or KillAtZero")?,
             update_mode: opt_field(&v, "update_mode", "Forwards, CueOnly, Backwards or Both")?,
@@ -2024,22 +2033,27 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("cuelist.go") => Ok(Command::CuelistAction {
             id: opt_uint(&v, "id")?,
             action: ListAction::Go,
+            at: None,
         }),
         Some("cuelist.back") => Ok(Command::CuelistAction {
             id: opt_uint(&v, "id")?,
             action: ListAction::Back,
+            at: None,
         }),
         Some("cuelist.stop") => Ok(Command::CuelistAction {
             id: opt_uint(&v, "id")?,
             action: ListAction::Stop,
+            at: None,
         }),
         Some("cuelist.goto") => Ok(Command::CuelistAction {
             id: opt_uint(&v, "id")?,
             action: ListAction::Goto(cue_number(&v, "cue")?),
+            at: None,
         }),
         Some("cuelist.next") => Ok(Command::CuelistAction {
             id: opt_uint(&v, "id")?,
             action: ListAction::Next(cue_number(&v, "cue")?),
+            at: None,
         }),
         Some("cuelist.connect") => Ok(Command::CuelistConnect {
             id: uint(&v, "id")?,
@@ -2383,6 +2397,7 @@ struct PlaybackSettingsInfo {
     cue_list_fader: ListFader,
     update_mode: UpdateMode,
     handle_buttons: HandleButtons,
+    go_guard: f32,
 }
 
 fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
@@ -2402,6 +2417,7 @@ fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
         cue_list_fader: s.cue_list_fader,
         update_mode: s.update_mode,
         handle_buttons: s.handle_buttons.clone(),
+        go_guard: s.go_guard,
     }
 }
 
@@ -7356,7 +7372,7 @@ mod tests {
             json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,"fade_out_as_in":true,"delay_out_as_in":true,
                    "overlap":100.0,"release_mask":[],"release_time":2.0,
                    "auto_connect":true,"cue_list_fader":"KillWithOff","update_mode":"Forwards",
-                   "handle_buttons":"BestPractice"})
+                   "handle_buttons":"BestPractice","go_guard":0.5})
         );
     }
 
@@ -8021,6 +8037,12 @@ mod tests {
     fn cue_40_a_running_transition_sends_small_deltas_with_its_progress() {
         let mut e = list_engine();
         let mut published = Published::new(&e, &[], &show_state());
+        // CUE-68: the two Gos come less than the guard apart; the guard is off.
+        e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+            go_guard: Some(0.0),
+            ..Default::default()
+        })
+        .unwrap();
         e.cuelist(Some(2), cmdmx_core::playback::ListAction::Go, 0.0)
             .unwrap();
         e.tick(0.0);
@@ -8784,8 +8806,23 @@ mod tests {
             parse_command(r#"{"v":1,"cmd":"playback.button","id":3,"button":"upper","on":true}"#)
                 .unwrap();
         assert_ne!(stamp(button.clone(), 1.5), button);
+        let connect = parse_command(r#"{"v":1,"cmd":"cuelist.connect","id":2}"#).unwrap();
+        assert_eq!(stamp(connect.clone(), 1.5), connect);
+    }
+
+    #[test]
+    fn cue_68_a_go_carries_its_receive_time_and_go_guard_parses() {
         let go = parse_command(r#"{"v":1,"cmd":"cuelist.go"}"#).unwrap();
-        assert_eq!(stamp(go.clone(), 1.5), go);
+        assert_ne!(stamp(go.clone(), 1.5), go, "a Go carries its time");
+        let set = parse_command(r#"{"v":1,"cmd":"settings.playback","go_guard":1.5}"#).unwrap();
+        assert_eq!(
+            set,
+            Command::SettingsPlayback(PlaybackSettingsChange {
+                go_guard: Some(1.5),
+                ..PlaybackSettingsChange::default()
+            })
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"settings.playback","go_guard":"half"}"#).is_err());
     }
 
     // ---- VS3-07: group masters over IPC (GRM-15, IPC-29) --------------------------------------

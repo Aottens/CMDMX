@@ -1354,21 +1354,24 @@ fn ctl_33_default_bindings() {
         cmds[3],
         Command::CuelistAction {
             id: None,
-            action: ListAction::Go
+            action: ListAction::Go,
+            ..
         }
     ));
     assert!(matches!(
         cmds[4],
         Command::CuelistAction {
             id: None,
-            action: ListAction::Stop
+            action: ListAction::Stop,
+            ..
         }
     ));
     assert!(matches!(
         cmds[5],
         Command::CuelistAction {
             id: None,
-            action: ListAction::Back
+            action: ListAction::Back,
+            ..
         }
     ));
     assert!(matches!(cmds[6], Command::Step { forward: true }));
@@ -2126,4 +2129,24 @@ fn ctl_70_mapping_device_changes_the_pattern_and_writes_the_file() {
     }
     assert_eq!(file(&dir, "nano")["device"], "*nano*|*Launchpad*");
     assert!(!dir.join("control/ghost.json").exists());
+}
+
+#[test]
+fn cue_68_a_surface_go_carries_its_time() {
+    use cmdmx_core::playback::ListAction;
+    let (mut c, _) = surface("mc-go-time", &["BCF2000"]);
+    let e = engine();
+    packet(&mut c, "BCF2000", &note(94, 127)); // Play = Go on the connected list
+    let cmds: Vec<Command> = c.commands(&e, 2.5).into_iter().map(|(_, c)| c).collect();
+    assert!(
+        matches!(
+            cmds[..],
+            [Command::CuelistAction {
+                id: None,
+                action: ListAction::Go,
+                at: Some(t)
+            }] if t == 2.5
+        ),
+        "{cmds:?}"
+    );
 }

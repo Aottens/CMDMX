@@ -130,8 +130,8 @@ fn out_13_output_is_the_last_key_with_nodes_sorted_by_id() {
     e.output_add(2, false, sacn(2)).unwrap();
     let text = e.to_show(meta()).to_json();
     let v: Json = serde_json::from_str(&text).unwrap();
-    assert_eq!(SCHEMA_VERSION, 14);
-    assert_eq!(v["schema_version"], json!(14));
+    assert_eq!(SCHEMA_VERSION, 15);
+    assert_eq!(v["schema_version"], json!(15));
     let last_key = text
         .lines()
         .rfind(|l| l.starts_with("  \"") && !l.starts_with("   "))
@@ -287,10 +287,10 @@ fn out_26_undo_takes_the_patch_add_and_its_nodes_back_in_one_step() {
 fn out_27_a_schema_5_show_gets_default_nodes_for_every_patched_universe() {
     let file = std::fs::read_to_string(V5_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 9, "{migrations:?}");
+    assert_eq!(migrations.len(), 10, "{migrations:?}");
     assert!(migrations[0].starts_with("5 -> 6"), "{migrations:?}");
     assert!(migrations[1].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
-    assert_eq!(show.schema_version, 14);
+    assert_eq!(show.schema_version, 15);
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     // The church rig patches universes 1 and 2.
@@ -513,7 +513,7 @@ fn out_28_bad_nodes_are_left_out_on_load_with_one_warning_each() {
 
 #[test]
 fn out_42_a_node_name_is_saved_at_schema_14_and_left_out_when_empty() {
-    assert_eq!(SCHEMA_VERSION, 14);
+    assert_eq!(SCHEMA_VERSION, 15);
     let mut e = Engine::new(Settings::default());
     let id = e
         .output_add_named(
@@ -524,7 +524,7 @@ fn out_42_a_node_name_is_saved_at_schema_14_and_left_out_when_empty() {
         )
         .unwrap();
     let v: Json = serde_json::from_str(&e.to_show(meta()).to_json()).unwrap();
-    assert_eq!(v["schema_version"], json!(14));
+    assert_eq!(v["schema_version"], json!(15));
     let saved = v["output"]["nodes"].as_array().unwrap();
     let named = saved.iter().find(|n| n["id"] == json!(id)).unwrap();
     assert_eq!(named["name"], json!("Kerk Eurolite"));
@@ -548,9 +548,9 @@ fn out_42_a_schema_13_show_loads_with_every_name_empty() {
         serde_json::from_str(&Engine::new(Settings::default()).to_show(meta()).to_json()).unwrap();
     v["schema_version"] = 13.into();
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert_eq!(migrations.len(), 2, "{migrations:?}");
     assert!(migrations[0].starts_with("13 -> 14"), "{migrations:?}");
-    assert_eq!(show.schema_version, 14);
+    assert_eq!(show.schema_version, 15);
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(e.nodes().count(), 3);
