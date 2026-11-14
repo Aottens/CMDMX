@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch and profiles are complete, and so are the controls and small things of the everyday gap review.
-Next: batch G (show files, FIL-01..06), the church Mac (VS4-07), then a first service on CMDMX (VS4-03).
+Patch, profiles, controls and the first show-file build are done: New keeps groups and palettes, Save Copy, Open keeps
+this Mac's output. Next: FIL-04..06 (rename, delete, files changed outside, the report), VS4-07, then VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -219,8 +219,11 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - An armed function or Record never does the normal action: every tap does what the table in the manual says or is refused with where it works, also a Flash or Swop; `Group 3 Enter` and `Palette 12 Enter` reach it from the command line, and Enter confirms a waiting Delete.
 - The show is one readable JSON file in `~/Documents/CMDMX/Shows/`, autosaved within
   5 seconds of a change, crash-safe, and opened again at start.
-- A new show can keep the patch: same fixtures, outputs and settings, with groups, palettes and playbacks empty. The old show
-  stays as it was.
+- New makes next week's show by default: the patch, groups and palettes stay, playbacks and cue lists start empty; or
+  only the patch, or nothing. The old show stays as it was, and a new show sends to the outputs that are running.
+- **Save Copy** keeps a copy under a new name and leaves you in the open show, Undo and all.
+- Open keeps this Mac's outputs (*Keep this Mac's output*, on by default and remembered), so a show from home plays on
+  the church's interface at once and saves it from then on.
 - Undo and redo of every edit, 100 steps, while live playing (Go, faders, Flash) is never
   touched; ⌘Z and ⇧⌘Z. A step from before the app opened reads *Undo (earlier)* and asks a second press.
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four

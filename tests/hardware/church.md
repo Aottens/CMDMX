@@ -123,6 +123,8 @@ Front fresnels (owner fills in once, then it is the same every week):
       faders on page 1, with legends
 - [ ] Switching from one steady look to another is one action (a Go or a fader) and fades, no snap
 - [ ] The show is saved and copied to the church Mac; it opens there with the same playbacks
+- [ ] Opened on the church Mac with *Keep this Mac's output* ticked (SHW-24, FIL-03): the Output screen keeps the
+      Eurolite node and the lamps answer at once; a New there (any *Keep* choice) sends to the Eurolite too
 
 ### Before the service (on the church Mac, ~30 min before)
 - [ ] Lightkey quit; CMDMX started; it opens *Kerk* (not Demo); the Output dot is green

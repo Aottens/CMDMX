@@ -11,9 +11,10 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch G, show files (spec approved): builds FIL-01 + FIL-02 + FIL-03, FIL-04 + FIL-05, then FIL-06
-   (M1 first, a New that keeps groups and palettes). Then batches I and J in the owner's order
-   (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and Edit) stays apart from them.
+1. IDEA-35 batch G, show files: build FIL-04 + FIL-05 (rename, delete to the Trash, a file changed outside), then
+   FIL-06 (the report). Then batches I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec
+   approved first. P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net)
+   needs a criterion.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
    in shadow; after five PRs through the gate, ARB-03 lets green PRs merge by themselves.
@@ -21,7 +22,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
 - VS4-03 the first service on CMDMX, Lightkey as fallback: pick a Sunday. It needs VS4-07 first and the programming
-  below (`tests/hardware/church.md`).
+  below (`tests/hardware/church.md`); the same run checks FIL-03 on the Eurolite (Open keeps this Mac's output).
 - VS4-07 the DMG on the church Mac, not in the week of a service; VS8-01 the DMG on the owner's own Mac, which still
   has the app from before the rename (`tests/hardware/release.md`).
 - SPF-03 a real sleep during a running fade on the Eurolite and Art-Net (`tests/hardware/sleep.md`).
