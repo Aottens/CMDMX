@@ -221,9 +221,14 @@ the PAT-09 shape.
   A new message type, so `v` stays 1 (IPC-41).
 
 ### Show file (SHW-b)
-The show messages (snapshot `show`, `show` delta, `show.list/new/open/save_as/save_copy`) are specified in
+The show messages (snapshot `show`, `show` delta, `show.list/new/open/save_as/save_copy/rename/delete`) are specified in
 `showfile.md` SHW-15, with `show.new {keep: "patch"|"looks"}` (SHW-19, SHW-20), `show.save_copy {name}` (SHW-21:
-written by the saver thread, no switch, no snapshot) and `show.open {name, output: "keep"}` (SHW-24). Wire details (SHW-b, within the approved criterion): `show.list` is
+written by the saver thread, no switch, no snapshot), `show.open {name, output: "keep"}` (SHW-24) and `show.rename
+{name, to}`, `show.delete {name}` and the `dir` of `show.list` (SHW-22: checked on the client thread, done on the tick;
+the open show is renamed by the saver thread, after any write it still has for the old name; every client gets the new
+`show.list` when a file has moved). SHW-23: the saver thread checks the open show's file (size and modified time) before
+each autosave and keeps a file changed outside aside; a `show.open` of the open show's own name is read on the client
+thread only when its file changed outside, and reaches the tick with the name that keeps the running show. Wire details (SHW-b, within the approved criterion): `show.list` is
 answered by the client thread like `library.*`; `modified` is the file's modification time as
 ISO-8601 UTC; names are checked (SHW-09) and an Open is read from disk in the client thread, so
 the tick never waits on a show file; a switch (new, open, save as) reaches the tick as one event,
@@ -368,7 +373,7 @@ New keys and messages only: `v` stays 1 (IPC-41).
   - the tick, running playbacks, fades, chases, effects, output and autosave go on untouched.
   `lock.set` with `on:true` while locked is refused like any other change (the first code stays); `on:false`
   while unlocked changes nothing and says nothing. The refusal covers the requests a client thread answers
-  itself: `show.new/open/save_as/save_copy`, `library.save_profile`, `library.save_channel_list`,
+  itself: `show.new/open/save_as/save_copy/rename/delete`, `library.save_profile`, `library.save_channel_list`,
   `library.import_gdtf`. A dropped surface input leaves device state alone: ports and decks come and go,
   a touch note still holds a motor and its release sends the motor back to the level, an OSC sender is
   still heard for feedback, a Stream Deck's key state still follows. At the unlock every surface gets its

@@ -51,8 +51,15 @@ holds every show in the shows folder; the open one is marked `open`.*
 Before you switch, the current show is saved. A name that is taken, a show that does not exist or
 a show that is already open is refused with a message, and the current show keeps running.
 
-CMDMX has no Delete or Rename. To remove a show you no longer need, delete its file in Finder
-(not the one that is open).
+A show selected in the list has three more buttons:
+
+- **Rename**: type the new name in the field next to it and click **Rename**. The file gets the new
+  name, and so does its `.bak` if it has one. Renaming the open show first saves it; you go on
+  working in it under the new name, with its Undo.
+- **Delete**: click **Delete**, then confirm (`Delete Kerk oud — it goes to the Trash`). The show
+  goes to the Trash, so you can still drag it back from there in Finder. The open show cannot be
+  deleted: open another show first.
+- **Show in Finder**: opens the shows folder in Finder with the show's file selected.
 
 ## What a show holds
 
@@ -92,6 +99,10 @@ version: the one before the change or the one after it.
   copied next to it as `<name>.cmdmx.json.bak`. The same happens when something in the show could
   not be loaded (for example a fixture whose profile is broken): it is left out with a message, and
   the `.bak` keeps the file as it was.
+- **The show file was changed outside CMDMX** (for example, a newer copy of the show was put over it
+  in Finder while it was open): CMDMX never writes over it. Before its next save, the engine renames
+  that file to `<name> outside <date> <time>.cmdmx.json` and says so once, then saves the show that
+  is running as usual. The Show screen also tells you when it lists the shows.
 - **A show from a newer version** is refused (`… was made by a newer CMDMX`) and not touched. Use
   the newer version of CMDMX to open it.
 
@@ -113,7 +124,10 @@ example *Sunday service 2026-11-01*); you go on in the original.
 
 1. In Finder, copy `<name>.cmdmx.json` from the shows folder to the same folder on the other Mac
    (`~/Documents/CMDMX/Shows/`). Make the folder if CMDMX has not run there yet.
-2. Open CMDMX on the other Mac, go to **Show**, select the show and click **Open**. Leave
+2. Open CMDMX on the other Mac, go to **Show**, select the show and click **Open**. If that show
+   was already open there, **Open** loads the copied file: the show that was running is first saved
+   as `<name> before open <date> <time>`, and a message names it. (Open of the open show is refused
+   while its file has not changed.) Leave
    **Keep this Mac's output** ticked to keep that Mac's outputs; untick it to bring the outputs of
    the first Mac along.
 3. Check the **Output** screen. With the box unticked, Art-Net and sACN nodes come along as they

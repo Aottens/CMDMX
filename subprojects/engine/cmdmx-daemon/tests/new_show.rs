@@ -1,4 +1,4 @@
-//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), a copy (SHW-21) and this Mac's output (SHW-24), on the real binary: the switch, the files and the
+//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), a copy (SHW-21), this Mac's output (SHW-24) and renaming and deleting shows (SHW-22), on the real binary: the switch, the files and the
 //! history live in the tick. What the new show holds is `cmdmx-core/tests/showfile.rs`.
 
 #![cfg(unix)]
@@ -449,4 +449,271 @@ fn shw_24_open_keeps_this_macs_output_when_asked_and_new_always_does() {
     );
     let e = until(&mut app, "the refusal", |m| m["type"] == "error");
     assert!(e["message"].as_str().unwrap().contains("output"), "{e}");
+}
+
+/// The names in a `show.list`.
+fn names(list: &Value) -> Vec<String> {
+    list["shows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["name"].as_str().unwrap().to_string())
+        .collect()
+}
+
+/// A file the saver writes soon, as JSON.
+fn read_soon(path: &std::path::Path, ok: impl Fn(&Value) -> bool) -> Value {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(v) = std::fs::read_to_string(path)
+            .ok()
+            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+            .filter(&ok)
+        {
+            return v;
+        }
+        assert!(Instant::now() < deadline, "{} never came", path.display());
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[test]
+fn shw_22_rename_and_delete_shows_and_rename_the_open_one() {
+    let dir = std::env::temp_dir().join(format!("cmdmx-shw22-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let shows = dir.join("Shows");
+    let port = free_port();
+    let _daemon = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            .env("HOME", &dir)
+            .args(["--no-artnet", "--no-sacn", "--no-serial"])
+            .args(["--ipc-port", &port.to_string()])
+            .arg("--show-dir")
+            .arg(&shows)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut app = connect(port);
+    let demo = recv(&mut app);
+    assert_eq!(demo["show"]["name"], "Demo");
+
+    // show.list answers the folder, for Show in Finder.
+    send(&mut app, json!({"cmd": "show.list"}));
+    let list = until(&mut app, "the list", |m| m["type"] == "show.list");
+    assert_eq!(list["dir"], shows.to_str().unwrap(), "{list}");
+
+    // Two shows that are not open.
+    for name in ["Kerk oud", "Zondag"] {
+        send(&mut app, json!({"cmd": "show.save_copy", "name": name}));
+        until(&mut app, "the copy", |m| {
+            m["type"] == "show.list" && names(m).contains(&name.to_string())
+        });
+    }
+    std::fs::write(shows.join("Kerk oud.cmdmx.json.bak"), "bak").unwrap();
+
+    // Rename one: the file and its .bak move, every client gets the new list.
+    send(
+        &mut app,
+        json!({"cmd": "show.rename", "name": "Kerk oud", "to": "Kerk archief"}),
+    );
+    let list = until(&mut app, "the renamed list", |m| {
+        m["type"] == "show.list" && names(m).contains(&"Kerk archief".to_string())
+    });
+    assert!(!names(&list).contains(&"Kerk oud".to_string()), "{list}");
+    assert!(shows.join("Kerk archief.cmdmx.json.bak").is_file());
+    assert!(!shows.join("Kerk oud.cmdmx.json.bak").exists());
+
+    // Refusals are warnings (IPC-06); the open show is never deleted.
+    for (cmd, why) in [
+        (
+            json!({"cmd": "show.rename", "name": "Kerk archief", "to": "zondag"}),
+            "already exists",
+        ),
+        (
+            json!({"cmd": "show.rename", "name": "Kerk archief", "to": "a/b"}),
+            "not a show name",
+        ),
+        (
+            json!({"cmd": "show.rename", "name": "Nope", "to": "Iets"}),
+            "no show named Nope",
+        ),
+        (
+            json!({"cmd": "show.delete", "name": "Nope"}),
+            "no show named Nope",
+        ),
+        (
+            json!({"cmd": "show.delete", "name": "Demo"}),
+            "Demo is open: open another show first",
+        ),
+    ] {
+        send(&mut app, cmd.clone());
+        let w = until(&mut app, "the refusal", |m| m["type"] == "warning");
+        assert!(w["message"].as_str().unwrap().contains(why), "{cmd}: {w}");
+    }
+
+    // Delete one: to the Trash (`<show-dir>/Trash` with --show-dir), with its .bak.
+    send(
+        &mut app,
+        json!({"cmd": "show.delete", "name": "Kerk archief"}),
+    );
+    until(&mut app, "the list without it", |m| {
+        m["type"] == "show.list" && !names(m).contains(&"Kerk archief".to_string())
+    });
+    assert!(shows.join("Trash/Kerk archief.cmdmx.json").is_file());
+    assert!(shows.join("Trash/Kerk archief.cmdmx.json.bak").is_file());
+    assert!(!shows.join("Kerk archief.cmdmx.json").exists());
+
+    // Rename the open show with a change not saved yet: written, renamed, and it carries on.
+    let fixture = demo["fixtures"][0]["id"].clone();
+    send(
+        &mut app,
+        json!({"cmd": "programmer.select", "fixture": fixture}),
+    );
+    send(&mut app, json!({"cmd": "group.record", "group": 77}));
+    until(&mut app, "the undo label", |m| {
+        m["type"] == "undo" && !m["undo"].is_null()
+    });
+    send(
+        &mut app,
+        json!({"cmd": "show.rename", "name": "Demo", "to": "Kerk"}),
+    );
+    let m = until(&mut app, "the show delta", |m| m["type"] == "show");
+    assert_eq!(m["name"], "Kerk", "{m}");
+    let saved = read_soon(&shows.join("Kerk.cmdmx.json"), |v| {
+        v["groups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|g| g["id"] == 77)
+    });
+    assert_eq!(saved["meta"]["name"], "Kerk");
+    assert!(!shows.join("Demo.cmdmx.json").exists());
+    read_soon(&shows.join("state.json"), |v| v["last_show"] == "Kerk");
+    // The same show under a new name: its undo history stays, no new snapshot.
+    send(&mut app, json!({"cmd": "undo"}));
+    let m = until(&mut app, "the undo or a switch", |m| {
+        m["type"] == "snapshot" || (m["type"] == "undo" && m["redo"] == "Record group 77")
+    });
+    assert_eq!(m["type"], "undo", "no new snapshot after a rename: {m}");
+    let now = recv(&mut connect(port));
+    assert_eq!(now["show"]["name"], "Kerk");
+}
+
+/// The first `<prefix>….cmdmx.json` in `dir`, once it is there.
+fn find_soon(dir: &std::path::Path, prefix: &str) -> std::path::PathBuf {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let found = std::fs::read_dir(dir).unwrap().flatten().find_map(|e| {
+            let name = e.file_name().into_string().ok()?;
+            (name.starts_with(prefix) && name.ends_with(".cmdmx.json")).then(|| e.path())
+        });
+        if let Some(p) = found {
+            return p;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "no {prefix}… in {}",
+            dir.display()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+fn says(m: &Value, what: &str) -> bool {
+    m["type"] == "warning" && m["message"].as_str().unwrap().contains(what)
+}
+
+#[test]
+fn shw_23_a_file_changed_outside_is_kept_and_open_of_the_open_show_reloads_it() {
+    let dir = std::env::temp_dir().join(format!("cmdmx-shw23-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let shows = dir.join("Shows");
+    let port = free_port();
+    let _daemon = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            .env("HOME", &dir)
+            .args(["--no-artnet", "--no-sacn", "--no-serial"])
+            .args(["--ipc-port", &port.to_string()])
+            .arg("--show-dir")
+            .arg(&shows)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut app = connect(port);
+    let demo = recv(&mut app);
+    let demo_fixtures = len(&demo["fixtures"]);
+    assert!(demo_fixtures > 0);
+    // An empty show Kerk; the Demo is written as it is left.
+    send(&mut app, json!({"cmd": "show.new", "name": "Kerk"}));
+    let snap = until(&mut app, "Kerk", |m| {
+        m["type"] == "snapshot" && m["show"]["name"] == "Kerk"
+    });
+    assert_eq!(len(&snap["fixtures"]), 0);
+    let kerk = shows.join("Kerk.cmdmx.json");
+    read_soon(&kerk, |_| true);
+    let demo_file = read_soon(&shows.join("Demo.cmdmx.json"), |_| true);
+
+    // Unchanged: Open of the open show is refused, with the hint.
+    send(&mut app, json!({"cmd": "show.open", "name": "Kerk"}));
+    until(&mut app, "the refusal", |m| {
+        says(
+            m,
+            "Kerk is already open: its file has not changed outside CMDMX",
+        )
+    });
+
+    // The Demo copied over Kerk in Finder: show.list tells, Open loads it from disk.
+    std::fs::write(&kerk, demo_file.to_string()).unwrap();
+    send(&mut app, json!({"cmd": "show.list"}));
+    until(&mut app, "the notice", |m| {
+        says(
+            m,
+            "Kerk.cmdmx.json was changed outside CMDMX: Open Kerk to load it",
+        )
+    });
+    send(&mut app, json!({"cmd": "show.open", "name": "Kerk"}));
+    let snap = until(&mut app, "the reload", |m| m["type"] == "snapshot");
+    assert_eq!(snap["show"]["name"], "Kerk");
+    assert_eq!(len(&snap["fixtures"]), demo_fixtures, "loaded from disk");
+    until(&mut app, "which file holds the running show", |m| {
+        says(m, "kept as Kerk before open 20")
+    });
+    let before = find_soon(&shows, "Kerk before open ");
+    let kept = read_soon(&before, |_| true);
+    assert_eq!(
+        len(&kept["patch"]["fixtures"]),
+        0,
+        "the show that ran, kept"
+    );
+
+    // Changed outside again, then a change in CMDMX: the autosave keeps the file aside first.
+    std::fs::write(&kerk, kept.to_string()).unwrap();
+    let fixture = snap["fixtures"][0]["id"].clone();
+    send(
+        &mut app,
+        json!({"cmd": "programmer.select", "fixture": fixture}),
+    );
+    send(&mut app, json!({"cmd": "group.record", "group": 77}));
+    until(&mut app, "the autosave's warning", |m| {
+        says(
+            m,
+            "Kerk.cmdmx.json was changed outside CMDMX: kept as Kerk outside 20",
+        )
+    });
+    let aside = find_soon(&shows, "Kerk outside ");
+    assert_eq!(len(&read_soon(&aside, |_| true)["patch"]["fixtures"]), 0);
+    let saved = read_soon(&kerk, |v| {
+        v["groups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|g| g["id"] == 77)
+    });
+    assert_eq!(len(&saved["patch"]["fixtures"]), demo_fixtures);
 }

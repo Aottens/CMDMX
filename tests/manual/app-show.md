@@ -43,11 +43,28 @@ Optional: an Art-Net monitor on universe 1.
       - Kerk is back, with 101 named `Links` and 102 named `Rechts`.
       - Output is as before.
 - [ ] Arm Open, then click another row. The button is no longer armed.
-- [ ] Open Kerk again while it is open. It is refused: "Kerk is already open".
+- [ ] Open Kerk again while it is open. It is refused: "Kerk is already open: its file has not changed outside CMDMX".
 - [ ] A show from a newer version is refused:
       - In Terminal, run `sed 's/"schema_version": 1/"schema_version": 9/' /tmp/cmdmx-shw-c/Kerk.cmdmx.json > /tmp/cmdmx-shw-c/Toekomst.cmdmx.json`.
       - Leave the Show screen and come back. The list shows Toekomst.
       - Open it. The warning says it was made by a newer CMDMX, and Kerk stays open.
+
+## Rename, delete and reveal (SHW-22)
+- [ ] Select a show that is not open, type a new name next to *Rename*, click *Rename*. The list shows the new name;
+      in Finder the file (and its `.bak`, if any) has it too.
+- [ ] Select the open show and rename it. The status bar shows the new name at once, Undo still works, and the old
+      file is gone from the folder.
+- [ ] Select a show that is not open, click *Delete*: it reads "Delete <name> — it goes to the Trash"; click again. The
+      list loses it and it is in the Trash (`<show-dir>/Trash/` with `--show-dir`).
+- [ ] Delete the open show: refused, "<name> is open: open another show first".
+- [ ] *Show in Finder* opens the shows folder with the file selected.
+
+## A file changed outside CMDMX (SHW-23)
+- [ ] With Kerk open, copy another show's file over `Kerk.cmdmx.json` in Finder or Terminal. Leave the Show screen and
+      come back: a message says the file was changed outside CMDMX.
+- [ ] Open Kerk: the copied show runs, and a message names `Kerk before open <date> <time>`, which holds the show that ran.
+- [ ] Copy a file over Kerk again, then change the show (record a group). Within a few seconds a message says it was
+      kept as `Kerk outside <date> <time>`; that file holds the copy, and `Kerk.cmdmx.json` holds the change.
 
 ## Taking over a show (WEB-36)
 A walk on a show the reader did not program, with only the chapter *Taking over a show* open: *Demo* or a show someone

@@ -11,8 +11,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch G, show files: build FIL-04 + FIL-05 (rename, delete to the Trash, a file changed outside), then
-   FIL-06 (the report). Then batches I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec
+1. IDEA-35 batch G, show files: build FIL-06 (a printable report of the show), the last task of the batch. Then
+   batches I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec
    approved first. P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net)
    needs a criterion.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).

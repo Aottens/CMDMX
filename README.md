@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls and the first show-file build are done: New keeps groups and palettes, Save Copy, Open keeps
-this Mac's output. Next: FIL-04..06 (rename, delete, files changed outside, the report), VS4-07, then VS4-03.
+Patch, profiles and controls are done; show files are nearly: next week's show, Save Copy, rename, delete to the Trash,
+and a file changed outside kept aside. Next: FIL-06 (a printable report of the show), VS4-07, then VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -224,6 +224,10 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - **Save Copy** keeps a copy under a new name and leaves you in the open show, Undo and all.
 - Open keeps this Mac's outputs (*Keep this Mac's output*, on by default and remembered), so a show from home plays on
   the church's interface at once and saves it from then on.
+- Rename, Delete (to the Trash, never the open show) and Show in Finder on the Show screen; the open show carries on
+  under its new name.
+- A show file changed outside CMDMX is never overwritten: it is kept aside before the next save, and Open of the open
+  show loads it after keeping the running show.
 - Undo and redo of every edit, 100 steps, while live playing (Go, faders, Flash) is never
   touched; ⌘Z and ⇧⌘Z. A step from before the app opened reads *Undo (earlier)* and asks a second press.
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four

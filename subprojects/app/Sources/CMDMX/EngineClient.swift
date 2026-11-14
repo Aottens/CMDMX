@@ -1720,6 +1720,8 @@ final class EngineClient: ObservableObject {
     /// last `show.list` (this client only).
     @Published private(set) var show = ShowState()
     @Published private(set) var shows: [ShowEntry] = []
+    /// SHW-22: the shows folder's absolute path, from the last `show.list`.
+    @Published private(set) var showsDir: String?
     /// RMT-15: the phone remote; default off until the snapshot says otherwise.
     @Published private(set) var remote = RemoteState()
 
@@ -2402,6 +2404,8 @@ final class EngineClient: ObservableObject {
     func saveShowAs(_ name: String) { patch("show.save_as", ["name": name]) }
     /// SHW-21: a copy under a new name; the open show stays open.
     func saveShowCopy(_ name: String) { patch("show.save_copy", ["name": name]) }
+    func renameShow(_ name: String, to: String) { patch("show.rename", ["name": name, "to": to]) }
+    func deleteShow(_ name: String) { patch("show.delete", ["name": name]) }
 
     /// Hides the last engine message (e.g. when the operator selects another row).
     func clearMessage() { lastMessage = nil }
@@ -2529,9 +2533,10 @@ final class EngineClient: ObservableObject {
         fileprivate let show: Tolerant<ShowState>?
         fileprivate let remote: Tolerant<RemoteState>?
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
+        fileprivate let dir: String?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, remote
+            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, remote
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -2655,6 +2660,7 @@ final class EngineClient: ObservableObject {
             if let state = incoming.remote?.value { remote = state }
         case "show.list":
             if let shows = incoming.shows?.value { self.shows = shows.compactMap(\.value) }
+            showsDir = incoming.dir
         case "library.manufacturers":
             if let reply = try? JSONDecoder().decode(ManufacturersReply.self, from: data),
                trimmedOrNil(reply.query) == lastManufacturersQuery { libraryManufacturers = reply.items }

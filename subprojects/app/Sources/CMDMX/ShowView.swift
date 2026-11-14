@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // Show screen (SHW-17): pure rendering of `engine.show` / `engine.shows` plus command sending.
 // No name rules or duplicate checks live here; the engine decides and refuses with a warning.
@@ -9,6 +10,7 @@ struct ShowView: View {
     @State private var selection: String?
     @State private var newName = ""
     @State private var saveName = ""
+    @State private var renameTo = ""
     /// SHW-19/20: what New takes over ("looks" = patch, groups and palettes). Reset whenever the screen opens.
     @State private var keep = "looks"
     /// SHW-24: Open runs this Mac's output nodes instead of those in the file. On by default, remembered.
@@ -17,7 +19,7 @@ struct ShowView: View {
     /// so they need a second click (SHW-17, PAT-10); Save As does not.
     @State private var armed: Armed?
 
-    private enum Armed { case new, open }
+    private enum Armed { case new, open, delete }
 
     private static let modifiedFormat = Date.FormatStyle(date: .abbreviated, time: .standard)
 
@@ -66,6 +68,7 @@ struct ShowView: View {
                     }
                     .padding(8)
                 }
+                PanelWindow(title: "Selected show", framed: true, accessory: { EmptyView() }) { selectedShow }
                 if let message = engine.lastMessage {
                     Text(message).font(Typo.ui(11)).foregroundStyle(t.amber)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -94,6 +97,49 @@ struct ShowView: View {
         .onChange(of: keep) { _, _ in armed = nil }
         .onChange(of: keepOutput) { _, _ in armed = nil }
         .onChange(of: engine.show.name) { _, _ in armed = nil }
+        .onChange(of: engine.shows) { _, shows in
+            if let s = selection, !shows.contains(where: { $0.name == s }) { selection = nil }
+        }
+    }
+
+    /// SHW-22: rename, delete (two-step, it goes to the Trash) and reveal the selected row.
+    private var selectedShow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            TextField("new name", text: $renameTo).textFieldStyle(.roundedBorder)
+            HStack {
+                Button("Rename") { if let selection { engine.renameShow(selection, to: renameTo) } }
+                    .disabled(selection == nil || renameTo.isEmpty)
+                Button("Show in Finder") { reveal() }
+                    .disabled(selection == nil || engine.showsDir == nil)
+            }
+            .buttonStyle(FlatButton())
+            deleteButton
+        }
+        .padding(8)
+    }
+
+    private var deleteButton: some View {
+        let isArmed = armed == .delete
+        return Button {
+            guard let selection else { return }
+            if isArmed {
+                armed = nil
+                engine.deleteShow(selection)
+            } else {
+                armed = .delete
+            }
+        } label: {
+            Text(isArmed ? "Delete \(selection ?? "") — it goes to the Trash" : "Delete")
+                .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+        }
+        .buttonStyle(FlatButton(fill: isArmed ? .red : nil))
+        .disabled(selection == nil)
+    }
+
+    private func reveal() {
+        guard let selection, let dir = engine.showsDir else { return }
+        let file = URL(fileURLWithPath: dir).appendingPathComponent(selection + ".cmdmx.json")
+        NSWorkspace.shared.activateFileViewerSelecting([file])
     }
 
     /// First click arms ("Confirm open Kerk — output changes now"), the second sends.

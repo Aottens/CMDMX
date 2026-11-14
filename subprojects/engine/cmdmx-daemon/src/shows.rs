@@ -9,6 +9,7 @@ use std::io::{self, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use cmdmx_core::engine::{Engine, Keep};
@@ -38,6 +39,21 @@ fn suffixed(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(p)
 }
 
+/// SHW-22: move `from` and, when there is one, its `.bak` to `to`. A missing `from` is fine
+/// (an unsaved show has no file yet).
+fn move_with_bak(from: &Path, to: &Path) -> io::Result<()> {
+    for (a, b) in [
+        (from.to_path_buf(), to.to_path_buf()),
+        (suffixed(from, ".bak"), suffixed(to, ".bak")),
+    ] {
+        match fs::rename(&a, &b) {
+            Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 /// SHW-11: write `<path>.tmp`, `fsync` it and rename it over `path`, so `path` is always either
 /// the previous or the new complete file. The folder is created when missing.
 pub fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
@@ -65,9 +81,8 @@ pub fn update_state(path: &Path, key: &str, value: serde_json::Value) -> io::Res
     write_atomic(path, &serde_json::Value::Object(state).to_string())
 }
 
-/// `YYYY-MM-DDTHH:MM:SSZ` (the core never reads the clock, SHW-01).
-pub fn iso_utc(t: SystemTime) -> String {
-    let secs = t.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
+/// (year, month, day, hour, minute, second) of seconds since the epoch, in UTC.
+fn civil(secs: u64) -> (u64, u64, u64, u64, u64, u64) {
     let (days, rem) = (secs / 86_400, secs % 86_400);
     // Days since 1970-01-01 to a civil date (Howard Hinnant's algorithm).
     let z = days + 719_468;
@@ -79,12 +94,75 @@ pub fn iso_utc(t: SystemTime) -> String {
     let day = doy - (153 * mp + 2) / 5 + 1;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = yoe + era * 400 + u64::from(month <= 2);
-    format!(
-        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
-        rem / 3600,
-        rem % 3600 / 60,
-        rem % 60
-    )
+    (year, month, day, rem / 3600, rem % 3600 / 60, rem % 60)
+}
+
+fn epoch_secs(t: SystemTime) -> u64 {
+    t.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
+}
+
+/// `YYYY-MM-DDTHH:MM:SSZ` (the core never reads the clock, SHW-01).
+pub fn iso_utc(t: SystemTime) -> String {
+    let (y, mo, d, h, mi, s) = civil(epoch_secs(t));
+    format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z")
+}
+
+/// SHW-23: `yyyy-mm-dd hhmm` in local time (UTC where the local zone is unknown).
+pub fn local_minute(t: SystemTime) -> String {
+    let secs = epoch_secs(t);
+    #[cfg(unix)]
+    {
+        // SAFETY: `tm` is plain data that localtime_r fills in; both pointers are valid.
+        let tm = unsafe {
+            let mut tm: libc::tm = std::mem::zeroed();
+            let at = secs as libc::time_t;
+            (!libc::localtime_r(&at, &mut tm).is_null()).then_some(tm)
+        };
+        if let Some(tm) = tm {
+            return format!(
+                "{:04}-{:02}-{:02} {:02}{:02}",
+                tm.tm_year + 1900,
+                tm.tm_mon + 1,
+                tm.tm_mday,
+                tm.tm_hour,
+                tm.tm_min
+            );
+        }
+    }
+    let (y, mo, d, h, mi, _) = civil(secs);
+    format!("{y:04}-{mo:02}-{d:02} {h:02}{mi:02}")
+}
+
+/// SHW-23: what a file looked like when we last wrote or read it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Stamp {
+    len: u64,
+    modified: SystemTime,
+}
+
+/// `None` when the file is missing or unreadable.
+fn stamp(path: &Path) -> Option<Stamp> {
+    let m = fs::metadata(path).ok()?;
+    Some(Stamp {
+        len: m.len(),
+        modified: m.modified().ok()?,
+    })
+}
+
+/// SHW-23: the open show's file and what we know of it.
+struct OpenFile {
+    path: PathBuf,
+    /// After our last write or open.
+    stamp: Option<Stamp>,
+    /// The outside stamp `show.list` has already told about.
+    told: Option<Stamp>,
+}
+
+/// The show name a path holds.
+fn file_show(path: &Path) -> String {
+    let file = path.file_name().map(|f| f.to_string_lossy().into_owned());
+    let file = file.unwrap_or_default();
+    file.strip_suffix(EXT).unwrap_or(&file).to_string()
 }
 
 /// Meta of a show that starts now.
@@ -113,6 +191,10 @@ pub struct Opened {
     pub warnings: Vec<String>,
     /// SHW-24: run this Mac's output nodes instead of those in the file.
     pub keep_output: bool,
+    /// SHW-23: the file as read (`None` for a show that was not read from disk).
+    pub stamp: Option<Stamp>,
+    /// SHW-23: a reload of the open show; the running show is written under this name first.
+    pub before: Option<String>,
 }
 
 // The engine has no `Debug`; `Result::unwrap_err` wants one.
@@ -129,11 +211,173 @@ impl std::fmt::Debug for Opened {
 pub struct Shows {
     dir: PathBuf,
     state_file: PathBuf,
+    /// SHW-22: where a deleted show goes.
+    trash: PathBuf,
+    /// SHW-23: the open show's file.
+    open: Mutex<Option<OpenFile>>,
 }
 
 impl Shows {
     pub fn new(dir: PathBuf, state_file: PathBuf) -> Shows {
-        Shows { dir, state_file }
+        let trash = dir.join("Trash");
+        Shows {
+            dir,
+            state_file,
+            trash,
+            open: Mutex::new(None),
+        }
+    }
+
+    /// SHW-22: delete into this folder (the user's Trash) instead of `<dir>/Trash`.
+    pub fn with_trash(self, trash: PathBuf) -> Shows {
+        Shows { trash, ..self }
+    }
+
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
+    fn open_file<R>(&self, f: impl FnOnce(&mut Option<OpenFile>) -> R) -> R {
+        f(&mut self.open.lock().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    /// SHW-23: `name` is the open show, its file as `stamp` says.
+    pub fn set_open(&self, name: &str, stamp: Option<Stamp>) {
+        let path = self.path(name);
+        self.open_file(|o| {
+            *o = Some(OpenFile {
+                path,
+                stamp,
+                told: None,
+            })
+        });
+    }
+
+    /// SHW-23: the open show's file moved to `to`.
+    pub fn rename_open(&self, to: &str) {
+        let path = self.path(to);
+        self.open_file(|o| {
+            if let Some(o) = o {
+                o.path = path;
+            }
+        });
+    }
+
+    /// SHW-23: `None` when `name` is not the open show, else whether its file changed outside.
+    /// The stat happens outside the lock.
+    pub fn outside(&self, name: &str) -> Option<bool> {
+        let (path, known) = self.open_file(|o| o.as_ref().map(|o| (o.path.clone(), o.stamp)))?;
+        if file_show(&path).to_lowercase() != name.to_lowercase() {
+            return None;
+        }
+        let now = stamp(&path);
+        Some(now.is_some() && now != known)
+    }
+
+    /// SHW-23: tell once per change that the open file changed outside.
+    pub fn outside_notice(&self) -> Option<String> {
+        let path = self.open_file(|o| o.as_ref().map(|o| o.path.clone()))?;
+        let now = stamp(&path);
+        self.open_file(|o| {
+            let o = o.as_mut().filter(|o| o.path == path)?;
+            if now.is_none() || now == o.stamp || now == o.told {
+                return None;
+            }
+            o.told = now;
+            let name = file_show(&path);
+            Some(format!(
+                "{name}{EXT} was changed outside CMDMX: Open {name} to load it, or the next save keeps it aside"
+            ))
+        })
+    }
+
+    /// SHW-23: `<name> <what> <yyyy-mm-dd hhmm>`, valid (SHW-09) and free.
+    pub fn aside_name(&self, name: &str, what: &str, now: SystemTime) -> String {
+        let tail = format!(" {what} {}", local_minute(now));
+        (1..)
+            .map(|n| {
+                let tail = if n == 1 {
+                    tail.clone()
+                } else {
+                    format!("{tail} {n}")
+                };
+                let keep = 64usize.saturating_sub(tail.chars().count());
+                format!("{}{tail}", name.chars().take(keep).collect::<String>())
+            })
+            .find(|c| !self.exists(c))
+            .unwrap_or_default()
+    }
+
+    /// SHW-23: before the saver writes `path`: when it is the open file and changed outside,
+    /// move it aside and say so.
+    /// `known` is the stamp from when the job was made; `last` is what the saver wrote itself.
+    fn keep_aside(
+        &self,
+        path: &Path,
+        known: Option<Option<Stamp>>,
+        last: Option<Stamp>,
+    ) -> io::Result<Option<String>> {
+        let now = stamp(path);
+        if known.is_none() || now.is_none() || now == known.flatten() || now == last {
+            return Ok(None);
+        }
+        let name = file_show(path);
+        let aside = self.aside_name(&name, "outside", SystemTime::now());
+        fs::rename(path, self.path(&aside))?;
+        Ok(Some(format!(
+            "{name}{EXT} was changed outside CMDMX: kept as {aside}"
+        )))
+    }
+
+    /// SHW-23: remember what the file looks like after our own write.
+    fn wrote(&self, path: &Path) -> Option<Stamp> {
+        let now = stamp(path);
+        self.open_file(|o| {
+            if let Some(o) = o.as_mut().filter(|o| o.path == path) {
+                o.stamp = now;
+            }
+        });
+        now
+    }
+
+    /// SHW-23: the stamp of `path` when it is the open file (memory only, no stat).
+    pub fn known(&self, path: &Path) -> Option<Option<Stamp>> {
+        self.open_file(|o| o.as_ref().filter(|o| o.path == path).map(|o| o.stamp))
+    }
+
+    /// SHW-22: rename a show's file and its `.bak`. `fs::rename` overwrites, so a taken name
+    /// is refused first.
+    pub fn rename(&self, name: &str, to: &str) -> Result<(), String> {
+        if !self.exists(name) {
+            return Err(format!("there is no show named {name}"));
+        }
+        if self.exists(to) {
+            return Err(format!("a show named {to} already exists"));
+        }
+        let (from, dest) = (self.path(name), self.path(to));
+        move_with_bak(&from, &dest).map_err(|e| format!("cannot rename {name}: {e}"))
+    }
+
+    /// SHW-22: move a show's file and its `.bak` to the Trash, never over what is there.
+    pub fn trash(&self, name: &str) -> Result<(), String> {
+        if !self.exists(name) {
+            return Err(format!("there is no show named {name}"));
+        }
+        let dest = fs::create_dir_all(&self.trash)
+            .map(|()| {
+                (1..)
+                    .map(|n| match n {
+                        1 => self.trash.join(format!("{name}{EXT}")),
+                        n => self.trash.join(format!("{name} {n}{EXT}")),
+                    })
+                    .find(|p| !p.exists())
+            })
+            .map_err(|e| format!("cannot delete {name}: {e}"))?;
+        match dest {
+            Some(dest) => move_with_bak(&self.path(name), &dest)
+                .map_err(|e| format!("cannot delete {name}: {e}")),
+            None => Err(format!("cannot delete {name}")),
+        }
     }
 
     pub fn path(&self, name: &str) -> PathBuf {
@@ -213,6 +457,7 @@ impl Shows {
             ),
             e => format!("{name}: {e}"),
         })?;
+        let stamp = stamp(&path);
         let (engine, lost) = Engine::from_show(&show);
         if !lost.is_empty() || !migrations.is_empty() {
             let bak = suffixed(&path, ".bak");
@@ -236,6 +481,8 @@ impl Shows {
             show: Some(show),
             warnings,
             keep_output: false,
+            stamp,
+            before: None,
         })
     }
 
@@ -281,6 +528,8 @@ impl Shows {
                 show: None,
                 warnings: Vec::new(),
                 keep_output: false,
+                stamp: None,
+                before: None,
             }
         });
         warnings.append(&mut opened.warnings);
@@ -310,6 +559,15 @@ pub enum ShowRequest {
     SaveCopy {
         name: String,
     },
+    /// SHW-22: rename a show; the open one is written under the new name first.
+    Rename {
+        name: String,
+        to: String,
+    },
+    /// SHW-22: move a show to the Trash; the open one is refused.
+    Delete {
+        name: String,
+    },
 }
 
 /// SHW-15: the `show` part of the snapshot and the `show` delta.
@@ -327,6 +585,11 @@ pub struct Job {
     pub show: Show,
     /// SHW-21: a Save Copy job; its client notice and fresh list follow the write.
     pub copy: bool,
+    /// SHW-22: move this file and its `.bak` to `path` before writing.
+    pub from: Option<PathBuf>,
+    /// SHW-23: `Some(stamp)` when `path` was the open file, with this known stamp, when the job
+    /// was made; `None` = no outside check.
+    pub known: Option<Option<Stamp>>,
 }
 
 /// SHW-11/13: the saver's answer to one [`Job`]; `at` is when the write ended.
@@ -336,6 +599,10 @@ pub struct Done {
     pub at: String,
     /// SHW-21: copied from the [`Job`].
     pub copy: bool,
+    /// SHW-23: the warning when a file changed outside was moved aside before this write.
+    pub kept: Option<String>,
+    /// SHW-22: copied from the [`Job`]; a file was moved.
+    pub from: Option<PathBuf>,
 }
 
 /// SHW-11/13: decides when the open show needs writing; the tick owns it, the saver writes.
@@ -378,7 +645,27 @@ impl Autosave {
             json: show.to_json(),
             show,
             copy: false,
+            from: None,
+            known: None,
         })
+    }
+
+    /// SHW-22: the open show carries on under `name`: its file moves, then it is written.
+    pub fn rename(&mut self, path: PathBuf, name: &str, engine: &Engine, wall: &str) -> Job {
+        let from = std::mem::replace(&mut self.path, path);
+        self.meta.name = name.into();
+        let show = engine.to_show(Meta {
+            modified: wall.into(),
+            ..self.meta.clone()
+        });
+        Job {
+            path: self.path.clone(),
+            json: show.to_json(),
+            show,
+            copy: false,
+            from: Some(from),
+            known: None,
+        }
     }
 
     /// At most every 5 s; a failed save is retried by the same rule (SHW-13).
@@ -431,16 +718,39 @@ impl Autosave {
 
 /// SHW-11: the thread that does the disk writes, so the tick never waits. A panic in a write
 /// is caught and comes back as a failed save.
-pub fn spawn_saver() -> io::Result<(Sender<Job>, Receiver<Done>)> {
+pub fn spawn_saver(shows: Arc<Shows>) -> io::Result<(Sender<Job>, Receiver<Done>)> {
     let (jobs, job_rx) = channel::<Job>();
     let (done_tx, done) = channel();
     std::thread::Builder::new()
         .name("show-saver".into())
         .spawn(move || {
+            // The stamp of the last file this thread wrote, per path.
+            let mut last: Option<(PathBuf, Stamp)> = None;
             for job in job_rx {
-                let result = catch_unwind(AssertUnwindSafe(|| write_atomic(&job.path, &job.json)))
-                    .unwrap_or_else(|_| Err(io::Error::other("the writer panicked")))
-                    .map_err(|e| e.to_string());
+                let mut kept = None;
+                let result = catch_unwind(AssertUnwindSafe(|| {
+                    match job.from.as_deref().filter(|f| *f != job.path) {
+                        Some(from) => move_with_bak(from, &job.path),
+                        None => Ok(()),
+                    }
+                    .and_then(|()| match job.copy {
+                        true => Ok(()),
+                        false => {
+                            let mine = last.as_ref().filter(|l| l.0 == job.path).map(|l| l.1);
+                            shows
+                                .keep_aside(&job.path, job.known, mine)
+                                .map(|k| kept = k)
+                        }
+                    })
+                    .and_then(|()| write_atomic(&job.path, &job.json))
+                    .map(|()| {
+                        if !job.copy {
+                            last = shows.wrote(&job.path).map(|st| (job.path.clone(), st));
+                        }
+                    })
+                }))
+                .unwrap_or_else(|_| Err(io::Error::other("the writer panicked")))
+                .map_err(|e| e.to_string());
                 let at = iso_utc(SystemTime::now());
                 if done_tx
                     .send(Done {
@@ -448,6 +758,8 @@ pub fn spawn_saver() -> io::Result<(Sender<Job>, Receiver<Done>)> {
                         result,
                         at,
                         copy: job.copy,
+                        kept,
+                        from: job.from,
                     })
                     .is_err()
                 {
@@ -471,6 +783,7 @@ mod tests {
     use cmdmx_core::show::{Meta, Show, SCHEMA_VERSION};
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::Arc;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     const WALL: &str = "2026-10-18T09:00:00Z";
@@ -719,7 +1032,9 @@ mod tests {
                 show: job.show,
                 result: Ok(()),
                 at: WALL.into(),
-                copy: false
+                copy: false,
+                kept: None,
+                from: None,
             })
             .is_none());
         assert!(a.poll(&e, 10.0, WALL).is_none());
@@ -747,12 +1062,12 @@ mod tests {
 
     #[test]
     fn shw_11_saver_thread_writes_the_job() {
-        let s = shows("saver");
+        let s = Arc::new(shows("saver"));
         let e = demo();
         let mut a = Autosave::new(s.path("Demo"), meta("Demo"), None, 0.0);
         let job = a.poll(&e, 5.0, WALL).unwrap();
         let json = job.json.clone();
-        let (jobs, done) = spawn_saver().unwrap();
+        let (jobs, done) = spawn_saver(Arc::clone(&s)).unwrap();
         jobs.send(job).unwrap();
         let done = done.recv_timeout(Duration::from_secs(5)).unwrap();
         assert!(done.result.is_ok(), "{:?}", done.result);
@@ -807,6 +1122,8 @@ mod tests {
                 result: Err("disk full".into()),
                 at: WALL.into(),
                 copy: false,
+                kept: None,
+                from: None,
             })
         };
         let job = a.poll(&e, 5.0, WALL).unwrap();
@@ -821,6 +1138,8 @@ mod tests {
             result: Ok(()),
             at: WALL.into(),
             copy: false,
+            kept: None,
+            from: None,
         });
         assert!(
             back.unwrap().contains("works again"),
@@ -934,6 +1253,295 @@ mod tests {
     fn shw_14_open_of_an_unknown_show_is_refused() {
         let s = shows("unknown");
         assert!(s.open("Nope").unwrap_err().contains("Nope"));
+    }
+
+    // ---- SHW-22 --------------------------------------------------------------
+
+    #[test]
+    fn shw_22_rename_moves_the_file_and_its_bak() {
+        let s = shows("rename");
+        let json = save(&s, "Kerk oud", &demo());
+        fs::write(bak_path(&s, "Kerk oud"), "old").unwrap();
+        s.rename("Kerk oud", "Kerk archief").unwrap();
+        assert!(!s.path("Kerk oud").exists());
+        assert!(!bak_path(&s, "Kerk oud").exists());
+        assert_eq!(fs::read_to_string(s.path("Kerk archief")).unwrap(), json);
+        assert_eq!(
+            fs::read_to_string(bak_path(&s, "Kerk archief")).unwrap(),
+            "old"
+        );
+    }
+
+    #[test]
+    fn shw_22_rename_refuses_an_unknown_show_and_a_taken_name() {
+        let s = shows("rename-refused");
+        save(&s, "Kerk", &demo());
+        let zondag = save(&s, "Zondag", &demo());
+        assert!(s.rename("Nope", "Iets").unwrap_err().contains("Nope"));
+        let err = s.rename("Kerk", "zondag").unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+        assert_eq!(fs::read_to_string(s.path("Zondag")).unwrap(), zondag);
+        assert!(s.path("Kerk").is_file(), "a refused rename moves nothing");
+    }
+
+    #[test]
+    fn shw_22_delete_moves_the_file_and_its_bak_to_the_trash() {
+        let s = shows("trash");
+        let trash = s.path("x").parent().unwrap().join("Trash");
+        save(&s, "Kerk oud", &demo());
+        fs::write(bak_path(&s, "Kerk oud"), "old").unwrap();
+        s.trash("Kerk oud").unwrap();
+        assert!(!s.path("Kerk oud").exists());
+        assert!(!bak_path(&s, "Kerk oud").exists());
+        assert!(trash.join("Kerk oud.cmdmx.json").is_file());
+        assert!(trash.join("Kerk oud.cmdmx.json.bak").is_file());
+        // A second show of that name never overwrites the first in the Trash.
+        save(&s, "Kerk oud", &demo());
+        s.trash("Kerk oud").unwrap();
+        assert!(trash.join("Kerk oud 2.cmdmx.json").is_file());
+        assert!(s.list().is_empty(), "the Trash folder holds no shows");
+        assert!(s.trash("Nope").unwrap_err().contains("Nope"));
+    }
+
+    #[test]
+    fn shw_22_the_trash_can_be_the_users_trash() {
+        let s = shows("trash-home");
+        let home_trash = s.state_file().parent().unwrap().join(".Trash");
+        let s = s.with_trash(home_trash.clone());
+        save(&s, "Kerk", &demo());
+        s.trash("Kerk").unwrap();
+        assert!(home_trash.join("Kerk.cmdmx.json").is_file());
+    }
+
+    #[test]
+    fn shw_22_the_folder_is_known() {
+        let s = shows("dir");
+        assert_eq!(s.dir(), s.path("x").parent().unwrap());
+    }
+
+    #[test]
+    fn shw_22_renaming_the_open_show_moves_its_file_and_bak_then_writes_it() {
+        let s = Arc::new(shows("rename-open"));
+        save(&s, "Demo", &demo());
+        fs::write(bak_path(&s, "Demo"), "bak").unwrap();
+        let mut e = demo();
+        let mut a = Autosave::new(
+            s.path("Demo"),
+            meta("Demo"),
+            Some(e.to_show(meta("Demo"))),
+            0.0,
+        );
+        e.patch_name(101, "Left wash").unwrap();
+        let job = a.rename(s.path("Kerk"), "Kerk", &e, WALL);
+        assert_eq!(a.state().name, "Kerk");
+        let (jobs, done) = spawn_saver(Arc::clone(&s)).unwrap();
+        jobs.send(job).unwrap();
+        let done = done.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(done.result.is_ok(), "{:?}", done.result);
+        assert!(a.finished(done).is_none());
+        assert!(!s.path("Demo").exists());
+        assert!(!bak_path(&s, "Demo").exists());
+        assert_eq!(fs::read_to_string(bak_path(&s, "Kerk")).unwrap(), "bak");
+        let saved = Show::from_json(&fs::read_to_string(s.path("Kerk")).unwrap())
+            .unwrap()
+            .0;
+        assert_eq!(saved.meta.name, "Kerk");
+        assert_eq!(saved.meta.created, WALL, "the same show, renamed");
+        assert!(fs::read_to_string(s.path("Kerk"))
+            .unwrap()
+            .contains("Left wash"));
+        assert!(
+            a.poll(&e, 10.0, WALL).is_none(),
+            "written under the new name: nothing left to save"
+        );
+    }
+
+    #[test]
+    fn shw_22_renaming_an_open_show_that_has_no_file_yet_writes_it() {
+        let s = Arc::new(shows("rename-unsaved"));
+        let e = demo();
+        let mut a = Autosave::new(s.path("Demo"), meta("Demo"), None, 0.0);
+        let job = a.rename(s.path("Kerk"), "Kerk", &e, WALL);
+        let (jobs, done) = spawn_saver(Arc::clone(&s)).unwrap();
+        jobs.send(job).unwrap();
+        let done = done.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(done.result.is_ok(), "{:?}", done.result);
+        assert!(s.path("Kerk").is_file());
+        assert!(!s.path("Demo").exists());
+    }
+
+    // ---- SHW-23 --------------------------------------------------------------
+
+    /// Kerk on disk, opened and known as the open show.
+    fn open_kerk(test: &str) -> (Arc<Shows>, Opened) {
+        let s = shows(test);
+        save(&s, "Kerk", &demo());
+        let opened = s.open("Kerk").unwrap();
+        assert!(opened.stamp.is_some(), "an opened file is stamped");
+        assert!(opened.before.is_none());
+        s.set_open("Kerk", opened.stamp);
+        (Arc::new(s), opened)
+    }
+
+    /// Someone copies another version of the show over its file.
+    fn copy_over(s: &Shows, name: &str) -> String {
+        let mut e = demo();
+        e.patch_name(101, "From home").unwrap();
+        let json = e.to_show(meta(name)).to_json();
+        fs::write(s.path(name), &json).unwrap();
+        set_mtime(&s.path(name), 60);
+        json
+    }
+
+    #[test]
+    fn shw_23_only_the_open_shows_file_is_watched() {
+        let (s, _) = open_kerk("outside-open");
+        save(&s, "Zondag", &demo());
+        assert_eq!(s.outside("Kerk"), Some(false));
+        assert_eq!(s.outside("kerk"), Some(false), "names ignore case");
+        assert_eq!(s.outside("Zondag"), None, "not the open show");
+        copy_over(&s, "Kerk");
+        assert_eq!(s.outside("Kerk"), Some(true));
+    }
+
+    #[test]
+    fn shw_23_show_list_tells_once_per_change() {
+        let (s, _) = open_kerk("outside-notice");
+        assert_eq!(s.outside_notice(), None);
+        copy_over(&s, "Kerk");
+        let n = s.outside_notice().unwrap();
+        assert!(
+            n.contains("Kerk.cmdmx.json was changed outside CMDMX: Open Kerk to load it"),
+            "{n}"
+        );
+        assert_eq!(s.outside_notice(), None, "once");
+        set_mtime(&s.path("Kerk"), 30);
+        assert!(s.outside_notice().is_some(), "a new change tells again");
+    }
+
+    #[test]
+    fn shw_23_an_autosave_keeps_a_file_changed_outside_aside() {
+        let (s, opened) = open_kerk("outside-autosave");
+        let copied = copy_over(&s, "Kerk");
+        let mut e = opened.engine;
+        let mut a = Autosave::new(s.path("Kerk"), opened.meta, opened.show, 0.0);
+        e.patch_name(101, "At church").unwrap();
+        let (jobs, done) = spawn_saver(Arc::clone(&s)).unwrap();
+        let mut job = a.poll(&e, 5.0, WALL).unwrap();
+        job.known = s.known(&job.path); // as `hand_off` does
+        jobs.send(job).unwrap();
+        let d = done.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(d.result.is_ok(), "{:?}", d.result);
+        let kept = d.kept.clone().unwrap();
+        assert!(
+            kept.starts_with("Kerk.cmdmx.json was changed outside CMDMX: kept as Kerk outside 20"),
+            "{kept}"
+        );
+        let aside = kept.split("kept as ").nth(1).unwrap();
+        assert_eq!(fs::read_to_string(s.path(aside)).unwrap(), copied);
+        assert!(fs::read_to_string(s.path("Kerk"))
+            .unwrap()
+            .contains("At church"));
+        a.finished(d);
+        // Its own write is not a change from outside.
+        assert_eq!(s.outside("Kerk"), Some(false));
+        e.patch_name(101, "Again").unwrap();
+        let mut job = a.poll(&e, 10.0, WALL).unwrap();
+        job.known = s.known(&job.path); // as `hand_off` does
+        jobs.send(job).unwrap();
+        let d = done.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(d.result.is_ok(), "{:?}", d.result);
+        assert!(d.kept.is_none(), "{:?}", d.kept);
+    }
+
+    #[test]
+    fn shw_23_the_last_flush_of_a_show_that_is_left_is_still_checked() {
+        let (s, opened) = open_kerk("outside-switch");
+        let mut e = opened.engine;
+        let mut a = Autosave::new(s.path("Kerk"), opened.meta, opened.show, 0.0);
+        e.patch_name(101, "Not saved yet").unwrap();
+        // The switch: the flush is made while Kerk is open, the next show is set at once.
+        let mut job = a.flush(&e, WALL).unwrap();
+        job.known = s.known(&job.path);
+        assert!(job.known.is_some(), "Kerk is the open file");
+        s.set_open("Zondag", None);
+        let copied = copy_over(&s, "Kerk");
+        let (jobs, done) = spawn_saver(Arc::clone(&s)).unwrap();
+        jobs.send(job).unwrap();
+        let d = done.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(d.result.is_ok(), "{:?}", d.result);
+        let kept = d.kept.expect("kept aside, never overwritten");
+        let aside = kept.split("kept as ").nth(1).unwrap();
+        assert_eq!(fs::read_to_string(s.path(aside)).unwrap(), copied);
+        assert_eq!(
+            s.known(&s.path("Kerk")),
+            None,
+            "Kerk is no longer the open file"
+        );
+    }
+
+    #[test]
+    fn shw_23_a_job_made_before_the_last_write_is_not_an_outside_change() {
+        let (s, opened) = open_kerk("outside-queued");
+        let mut e = opened.engine;
+        let mut a = Autosave::new(s.path("Kerk"), opened.meta, opened.show, 0.0);
+        e.patch_name(101, "One").unwrap();
+        let mut first = a.poll(&e, 5.0, WALL).unwrap();
+        first.known = s.known(&first.path);
+        e.patch_name(101, "Two").unwrap();
+        // A slow disk: the second job is made before the saver answered the first.
+        let mut second = a.poll(&e, 10.0, WALL).unwrap();
+        second.known = s.known(&second.path);
+        let (jobs, done) = spawn_saver(Arc::clone(&s)).unwrap();
+        jobs.send(first).unwrap();
+        jobs.send(second).unwrap();
+        for _ in 0..2 {
+            let d = done.recv_timeout(Duration::from_secs(5)).unwrap();
+            assert!(d.result.is_ok(), "{:?}", d.result);
+            assert!(d.kept.is_none(), "our own write: {:?}", d.kept);
+        }
+    }
+
+    #[test]
+    fn shw_23_a_renamed_open_show_is_still_its_own_file() {
+        let (s, opened) = open_kerk("outside-rename");
+        let mut a = Autosave::new(s.path("Kerk"), opened.meta, opened.show, 0.0);
+        let job = a.rename(s.path("Kerk 16 nov"), "Kerk 16 nov", &opened.engine, WALL);
+        s.rename_open("Kerk 16 nov");
+        let (jobs, done) = spawn_saver(Arc::clone(&s)).unwrap();
+        jobs.send(job).unwrap();
+        let d = done.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(d.result.is_ok(), "{:?}", d.result);
+        assert!(d.kept.is_none(), "{:?}", d.kept);
+        assert_eq!(d.from, Some(s.path("Kerk")));
+        assert_eq!(s.outside("Kerk 16 nov"), Some(false));
+        assert_eq!(s.outside("Kerk"), None);
+    }
+
+    #[test]
+    fn shw_23_an_aside_name_is_valid_and_free() {
+        let s = shows("aside-name");
+        let now = SystemTime::now();
+        let minute = local_minute(now);
+        assert_eq!(minute.len(), 15, "{minute}");
+        assert!(
+            minute.chars().enumerate().all(|(i, c)| match i {
+                4 | 7 => c == '-',
+                10 => c == ' ',
+                _ => c.is_ascii_digit(),
+            }),
+            "{minute}"
+        );
+        let first = s.aside_name("Kerk", "outside", now);
+        assert_eq!(first, format!("Kerk outside {minute}"));
+        save(&s, &first, &demo());
+        assert_eq!(
+            s.aside_name("Kerk", "outside", now),
+            format!("Kerk outside {minute} 2")
+        );
+        let name = s.aside_name(&"x".repeat(64), "before open", now);
+        assert!(valid_name(&name).is_ok(), "{name}");
+        assert!(name.ends_with(&format!(" before open {minute}")), "{name}");
     }
 
     // ---- times ---------------------------------------------------------------
