@@ -4,7 +4,7 @@
 Standard library only, no model, no network: the same input always gives the same lane (ARV-08).
 
 Usage:
-  risk-gate.py --impact < paths             worst impact of the paths on stdin (ARV-04)
+  risk-gate.py --keep-review FINDINGS < paths   exit 0 when the earlier review is kept (ARV-04)
   risk-gate.py --table findings.json        findings as a Markdown table for the job summary (ARV-03)
   risk-gate.py --check-review execution.json
       Counts the agents the review launched; exit 0 when it ran its reviewers, 1 when not (ARV-03).
@@ -81,6 +81,12 @@ def impact(path):
 
 def worst_impact(paths):
     return max((impact(p) for p in paths), key=ORDER.index, default="low")
+
+
+def keep_review(paths, findings):
+    # ARV-04: only low files changed, and none is named by a finding (BACKLOG.md and STATE.md excepted)
+    named = {f.get("file") for f in findings if isinstance(f, dict)} - {"BACKLOG.md", "STATE.md"}
+    return worst_impact(paths) == "low" and not named.intersection(paths)
 
 
 def worst_finding(findings):
@@ -178,7 +184,7 @@ def review_ran(messages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--impact", action="store_true")
+    ap.add_argument("--keep-review")
     ap.add_argument("--table")
     ap.add_argument("--check-review")
     ap.add_argument("--base")
@@ -188,8 +194,13 @@ def main():
     ap.add_argument("--comment")
     ap.add_argument("--body-out")
     args = ap.parse_args()
-    if args.impact:
-        print(worst_impact([p for p in sys.stdin.read().splitlines() if p.strip()]))
+    if args.keep_review:
+        paths = [p for p in sys.stdin.read().splitlines() if p.strip()]
+        earlier = load_findings(args.keep_review)
+        keep = earlier is not None and keep_review(paths, earlier)
+        print("keep the earlier review" if keep else "review again: no earlier findings" if earlier is None
+              else "review again: a changed file is not low or is named by a finding")
+        sys.exit(0 if keep else 1)
     elif args.table:
         print(findings_table(load_findings(args.table) or []), end="")
     elif args.check_review:

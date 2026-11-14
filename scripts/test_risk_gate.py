@@ -92,9 +92,37 @@ def test_arv_03_cli_checks_the_review():
 def test_arv_04_low_only_push_keeps_the_review():
     assert gate.worst_impact(["STATE.md", "BACKLOG.md", "subprojects/app/STATE.md"]) == "low"
     assert gate.worst_impact(["STATE.md", "subprojects/app/Sources/X.swift"]) == "medium"
-    done = run("--impact", stdin="STATE.md\nIDEAS.md\n")
-    assert done.returncode == 0 and done.stdout.strip() == "low"
-    assert run("--impact", stdin="STATE.md\nCLAUDE.md\n").stdout.strip() == "high"
+    assert gate.keep_review(["STATE.md", "IDEAS.md"], [f("minor", file="x.rs", line=7)])
+    assert gate.keep_review(["STATE.md"], [])
+    assert not gate.keep_review(["STATE.md", "subprojects/app/Sources/X.swift"], [])
+    assert not gate.keep_review(["STATE.md", "CLAUDE.md"], [])
+
+
+def test_arv_04_push_to_a_file_a_finding_names_is_reviewed_again():
+    found = [f("minor", file="docs/a.md", line=3)]
+    assert not gate.keep_review(["docs/a.md"], found)
+    assert not gate.keep_review(["STATE.md", "docs/a.md"], found)
+    assert gate.keep_review(["docs/b.md"], found)
+
+
+def test_arv_04_recording_never_starts_a_round():
+    found = [f("minor", file="BACKLOG.md", line=3), f("minor", file="STATE.md", line=5)]
+    assert gate.keep_review(["BACKLOG.md", "STATE.md"], found)
+    # A subproject's STATE.md is not where findings are recorded: a finding on it is reviewed again.
+    assert not gate.keep_review(["subprojects/app/STATE.md"], [f("minor", file="subprojects/app/STATE.md")])
+
+
+def test_arv_04_cli_keeps_or_reviews_again():
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "findings.json"
+        path.write_text(json.dumps([f("minor", file="docs/a.md", line=3)]))
+        assert run("--keep-review", str(path), stdin="STATE.md\nIDEAS.md\n").returncode == 0
+        assert run("--keep-review", str(path), stdin="STATE.md\ndocs/a.md\n").returncode == 1
+        assert run("--keep-review", str(path), stdin="CLAUDE.md\n").returncode == 1
+        # An earlier review that cannot be read is no review to keep.
+        assert run("--keep-review", str(Path(tmp) / "missing.json"), stdin="STATE.md\n").returncode == 1
 
 
 def test_arv_05_path_table():
