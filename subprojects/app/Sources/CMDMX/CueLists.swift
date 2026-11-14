@@ -55,6 +55,13 @@ struct GoBlock: View {
                 HStack(spacing: 2) {
                     KeyButton(label: "Tap", spec: "Tap the tempo", height: 30, action: { ui.learnOrRun("tap", engine) { engine.tapPlayback(list.id) } })
                     BPMField(id: list.id, bpm: list.live.bpm ?? list.stored.chase.bpm)
+                    // CUE-66: the direction; a click cycles Forward, Backward, Bounce, Random.
+                    let dirs = ["Forward", "Backward", "Bounce", "Random"]
+                    let dir = list.stored.chase.direction
+                    let next = dirs[((dirs.firstIndex(of: dir) ?? 0) + 1) % dirs.count]
+                    KeyButton(label: ["Forward": "\u{2192}", "Backward": "\u{2190}", "Bounce": "\u{2194}", "Random": "Rnd"][dir] ?? dir,
+                              spec: "Direction: \(dir) (click for \(next))", height: 30,
+                              action: { engine.setPlaybackOptions(list.id, ["chase": ["direction": next]]) })
                     // CUE-65: the crossfade beside the tempo, same field.
                     BPMField(id: list.id, bpm: list.stored.chase.crossfade, unit: "%", range: 0...100, whole: true,
                              help: "Crossfade: scroll to adjust, type a number and Return to set",

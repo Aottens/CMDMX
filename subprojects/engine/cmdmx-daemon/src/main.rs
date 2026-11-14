@@ -1186,6 +1186,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         }
         PlaybackBpm { id, bpm } => engine.set_bpm(id, bpm),
         ChaseSpeed { id, steps } => engine.nudge_speed(id, steps),
+        ChaseDirection { id, direction } => engine.set_chase_direction(id, direction),
         ChaseXfade { id, steps } => engine.nudge_crossfade(id, steps),
         // IPC-27: merge the partial objects into the stored ones; the engine checks the whole.
         PlaybackOptions {
@@ -1395,6 +1396,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | PageLegend { .. }
         | SettingsPlayback(_)
         | PlaybackOptions { .. }
+        | ChaseDirection { .. }
         | CueEdit { .. }
         | CueTimes { .. }
         | CueDelete { .. }

@@ -2208,3 +2208,23 @@ fn cue_65_speed_and_xfade_encoders_turn_the_connected_chase() {
         "not the other chase"
     );
 }
+
+const DIRECTION: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"note","channel":1,"number":80},"action":"direction backward"},
+  {"input":{"kind":"note","channel":1,"number":81},"action":"direction random 9.1"}
+]}"#;
+
+#[test]
+fn cue_66_direction_keys_set_a_chases_direction() {
+    use cmdmx_core::playback::Direction;
+    let mut c = with_mapping("chase-direction", DIRECTION);
+    let mut e = chase_engine();
+    let mut h = History::default();
+    press(&mut c, "nano", 80);
+    press(&mut c, "nano", 81);
+    let cmds = c.commands(&e, 1.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    let direction = |id| e.playback(id).unwrap().chase.direction;
+    assert_eq!(direction(991), Direction::Backward, "the connected chase");
+    assert_eq!(direction(990), Direction::Random, "the chase on 9.1");
+}

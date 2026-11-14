@@ -274,7 +274,14 @@ type a tempo in the Go block's BPM field, or scroll over it (Shift for steps of 
 Beside it, the **xfade** field does the same for the crossfade, in whole percents (Shift for steps
 of 10). An encoder on a control surface can turn both: bind it to `speed` (1 BPM per detent) and
 `xfade` (1 % per detent), see [Control surfaces](controls.md#actions).
-Go, Back and Stop work on a chase too: see [Cue lists](cuelists.md#running-a-cue-list).
+Go, Back and Stop work on a chase too: see [Cue lists](cuelists.md#running-a-cue-list). On a
+running chase that goes Forward or Backward, **Back** steps one back and turns the chase around:
+it runs Backward from there. **Go** steps one on and sets it to run Forward again, as Prev Step and
+Next Step do on a Titan. The direction stays, and is saved with the show. A Bounce or Random chase
+keeps its direction; Go and Back only step. The **direction button** in the Go block, next to the
+crossfade, shows the direction (→ Forward, ← Backward, ↔ Bounce, Random) and a click moves to the
+next one. On a control surface, `direction forward`, `direction backward`, `direction bounce` and
+`direction random` do the same.
 
 ## Fixtures with cells
 

@@ -208,6 +208,22 @@ impl fmt::Display for AttrGroup {
     }
 }
 
+/// CUE-66: a chase's direction, as the control vocabulary names it (the core has its own type).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChaseDirection {
+    Forward,
+    Backward,
+    Bounce,
+    Random,
+}
+
+const DIRECTIONS: [(&str, ChaseDirection); 4] = [
+    ("forward", ChaseDirection::Forward),
+    ("backward", ChaseDirection::Backward),
+    ("bounce", ChaseDirection::Bounce),
+    ("random", ChaseDirection::Random),
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Fader(Target),
@@ -221,6 +237,8 @@ pub enum Action {
     /// CUE-65: a relative reading moves the chase's tempo / crossfade.
     Speed(Target),
     Xfade(Target),
+    /// CUE-66: set the chase's direction.
+    Direction(ChaseDirection, Target),
     /// CTL-68: release everything, or the page shown.
     ReleaseAll,
     ReleasePage,
@@ -289,6 +307,11 @@ fn relative(name: &str, t: Target) -> Action {
     }
 }
 
+fn direction(name: &str, t: Target) -> Option<Action> {
+    let (_, d) = DIRECTIONS.iter().find(|(n, _)| *n == name)?;
+    Some(Action::Direction(*d, t))
+}
+
 fn parse_action(s: &str) -> Option<Action> {
     let words: Vec<&str> = s.split_whitespace().collect();
     Some(match words.as_slice() {
@@ -331,6 +354,9 @@ fn parse_action(s: &str) -> Option<Action> {
         [v @ ("speed" | "xfade")] => relative(v, Target::Connected),
         [v @ ("speed" | "xfade"), "playback", id] => relative(v, Target::Playback(num(id)?)),
         [v @ ("speed" | "xfade"), t] => relative(v, slot_target(t)?),
+        ["direction", d] => direction(d, Target::Connected)?,
+        ["direction", d, "playback", id] => direction(d, Target::Playback(num(id)?))?,
+        ["direction", d, t] => direction(d, slot_target(t)?)?,
         [v] => verb(v, Target::Connected)?,
         [v, "playback", id] => verb(v, Target::Playback(num(id)?))?,
         [v, t] => verb(v, slot_target(t)?)?,
@@ -367,6 +393,7 @@ impl Action {
                 | Action::Tap(t)
                 | Action::Speed(t)
                 | Action::Xfade(t)
+                | Action::Direction(_, t)
                 if matches!(t, Target::PageSlot { .. } | Target::Playback(_))
         )
     }
@@ -407,6 +434,13 @@ impl fmt::Display for Action {
             Action::Tap(t) => write!(f, "tap{}", Arg(*t)),
             Action::Speed(t) => write!(f, "speed{}", Arg(*t)),
             Action::Xfade(t) => write!(f, "xfade{}", Arg(*t)),
+            Action::Direction(d, t) => {
+                let name = DIRECTIONS
+                    .iter()
+                    .find(|(_, x)| x == d)
+                    .map_or("", |(n, _)| n);
+                write!(f, "direction {name}{}", Arg(*t))
+            }
             Action::ReleaseAll => f.write_str("release all"),
             Action::ReleasePage => f.write_str("release page"),
             Action::PageNext => f.write_str("page next"),

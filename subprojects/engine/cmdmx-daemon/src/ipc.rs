@@ -469,6 +469,11 @@ pub enum Command {
         id: Option<PlaybackId>,
         steps: i32,
     },
+    /// CUE-66: `None` is the connected list.
+    ChaseDirection {
+        id: Option<PlaybackId>,
+        direction: cmdmx_core::playback::Direction,
+    },
     /// `playback.options` with a `list`, `chase` or `master` object: merged with the stored
     /// value by the tick (IPC-27).
     PlaybackOptions {

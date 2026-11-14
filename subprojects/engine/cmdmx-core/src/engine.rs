@@ -37,8 +37,8 @@ use crate::palette::{
 use crate::patch::{Behaviour, BehaviourEdit, Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
     check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BpmFader, BpmMaster, Button,
-    ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, FaderMode,
-    GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
+    ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, Direction,
+    FaderMode, GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
     Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master, MasterKind,
     Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
     Priority, Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values, GROUP_SCALES,
@@ -3395,9 +3395,30 @@ impl Engine {
             legend => legend.to_string(),
         };
         let name = |current: Option<CueNumber>| current.map_or_else(list_name, cue_name);
+        // CUE-66: Go and Back on a running Forward or Backward chase step in the new direction.
+        // Go on a Forward chase keeps its CUE-32 path, so a step set with Set next still counts.
+        let forward = matches!(action, ListAction::Go);
+        let turns = matches!(action, ListAction::Go | ListAction::Back)
+            && playback.kind == PlaybackKind::Chase
+            && match playback.chase.direction {
+                Direction::Forward => !forward,
+                Direction::Backward => true,
+                _ => false,
+            }
+            && !run.paused()
+            && run.current.is_some()
+            && self.states.get(&id).is_some_and(|s| s.is_active());
+        let turn_to = turns.then(|| run.step_by(playback, forward));
         match action {
             ListAction::Release => return self.release_playback(id, now),
-            ListAction::Go if !run.paused() && run.next_cue(playback).is_none() => {
+            ListAction::Go | ListAction::Back if turn_to == Some(None) => {
+                let what = if forward { "last" } else { "first" };
+                let msg = format!("{} is the {what} cue", name(run.current));
+                return Err(CoreError::ListRefused(msg));
+            }
+            ListAction::Go
+                if turn_to.is_none() && !run.paused() && run.next_cue(playback).is_none() =>
+            {
                 let last = format!("{} is the last cue", name(run.current));
                 return Err(CoreError::ListRefused(last));
             }
@@ -3417,7 +3438,7 @@ impl Engine {
                 let off = format!("{} is not running", name(None));
                 return Err(CoreError::ListRefused(off));
             }
-            ListAction::Back if run.back_cue(playback).is_none() => {
+            ListAction::Back if turn_to.is_none() && run.back_cue(playback).is_none() => {
                 let first = format!("{} is the first cue", name(run.current));
                 return Err(CoreError::ListRefused(first));
             }
@@ -3438,6 +3459,14 @@ impl Engine {
         if matches!(action, ListAction::Go | ListAction::Goto(_)) {
             self.fire(id);
         }
+        if turn_to.is_some_and(|t| t.is_some()) {
+            let direction = if forward {
+                Direction::Forward
+            } else {
+                Direction::Backward
+            };
+            self.playback_mut(id)?.chase.direction = direction;
+        }
         let state = self.live_state(id)?;
         if matches!(action, ListAction::Go) {
             state.last_go = Some(now);
@@ -3446,7 +3475,10 @@ impl Engine {
             ListAction::Next(n) => state.run.next = Some(n),
             // Back and Stop need a list that runs.
             ListAction::Back | ListAction::Stop if !state.is_active() => {}
-            _ => state.run.pending.push(action),
+            _ => state
+                .run
+                .pending
+                .push(turn_to.flatten().map_or(action, ListAction::Goto)),
         }
         Ok(())
     }
@@ -3600,6 +3632,18 @@ impl Engine {
         let id = self.chase_id(id)?;
         let chase = &mut self.playback_mut(id)?.chase;
         chase.crossfade = (chase.crossfade + steps as f32).clamp(0.0, 100.0);
+        Ok(())
+    }
+
+    /// CUE-66: set a chase's direction. `None` is the connected list. Refused on anything but a
+    /// chase.
+    pub fn set_chase_direction(
+        &mut self,
+        id: Option<PlaybackId>,
+        direction: Direction,
+    ) -> Result<(), CoreError> {
+        let id = self.chase_id(id)?;
+        self.playback_mut(id)?.chase.direction = direction;
         Ok(())
     }
 

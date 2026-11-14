@@ -519,6 +519,21 @@ impl Tick<'_> {
             Action::Tap(t) => {
                 resolve(engine, t).map(|id| Command::PlaybackTap { id, at: self.now })
             }
+            Action::Direction(d, t) => {
+                use cmdmx_control::action::ChaseDirection as C;
+                use cmdmx_core::playback::Direction as D;
+                let direction = match d {
+                    C::Forward => D::Forward,
+                    C::Backward => D::Backward,
+                    C::Bounce => D::Bounce,
+                    C::Random => D::Random,
+                };
+                let id = match t {
+                    Target::Connected => Some(None),
+                    t => resolve(engine, t).map(Some),
+                };
+                id.map(|id| Command::ChaseDirection { id, direction })
+            }
             Action::PageNext => {
                 let next = self.page.checked_add(1);
                 page(self, next)
