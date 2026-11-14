@@ -97,6 +97,9 @@ struct ShowView: View {
         .onChange(of: keep) { _, _ in armed = nil }
         .onChange(of: keepOutput) { _, _ in armed = nil }
         .onChange(of: engine.show.name) { _, _ in armed = nil }
+        .onChange(of: engine.shows) { _, shows in
+            if let s = selection, !shows.contains(where: { $0.name == s }) { selection = nil }
+        }
     }
 
     /// SHW-22: rename, delete (two-step, it goes to the Trash) and reveal the selected row.
