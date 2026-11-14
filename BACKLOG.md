@@ -312,6 +312,27 @@ shows folder's files); FIL-06 (the one M, apart).
 | FIL-05 | Daemon and app: a file changed outside CMDMX is kept aside, and Open of the open show reloads it; `shw_23_…`; manual and run. | SHW-23 | S | done (2026-11-14, #303; run `tests/manual/runs/2026-11-14-FIL-04-05.md`) |
 | FIL-06 | Core, daemon and app: a printable HTML report of fixtures, groups, palettes and playbacks; `shw_25_…`; manual and run. | SHW-25 | M | done (2026-11-14, #304; run `tests/manual/runs/2026-11-14-FIL-06.md`) |
 
+### Behaviour that differs from Titan (IDEA-35 batch I, spec P1-42)
+Approved by the owner 2026-11-14, every recommendation accepted (`cuelists.md`, *Owner decisions (P1-42)*). I1, I3, I6 and K6 went into
+batch B; the rest of I with K4, K5, L4 and M4. The first build that saves a new option raises the schema to 15 (SHW-26).
+Builds: TTN-05 + TTN-02 + TTN-03 (the Go and the connected chase: Go block, control vocabulary, CUE-32's code; K4 first);
+TTN-04 + TTN-06 + TTN-10 (the cues in the Cue list window: follow, legends at recording, blocks of rows; the one M);
+TTN-07 + TTN-08 + TTN-09 (shapes on playbacks: one function, `with_effect`, and the Handle tab); TTN-01 (the command line apart,
+so it can be reverted alone if keypad habits disagree).
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| TTN-01 | Core and app: `@ @` is full and the setting *Channel levels* gives Titan's single-digit mode; `prg_102_…`, `prg_103_…`, `shw_26_…`; manual and run on the keypad and Mac keys. | PRG-102, PRG-103, SHW-26 | S | todo |
+| TTN-02 | Core, daemon and app: a crossfade field in the Go block and the `speed` and `xfade` control actions on the connected chase; `cue_65_…`; manual and run on Art-Net. | CUE-65 | S | todo |
+| TTN-03 | Core and app: Go and Back set a Forward or Backward chase's direction, a direction button in the Go block and a `direction` control action; `cue_66_…`; manual and run on Art-Net. | CUE-66 | S | todo |
+| TTN-04 | App: the Cue list window follows the live cue, with a Follow toggle; manual and run on a list of 40 cues. | CUE-67 | S | todo |
+| TTN-05 | Core, daemon and app: a second Go within `go_guard` (default 0.5 s) is ignored with a warning; `cue_68_…`, `shw_26_…`; manual and run with two Space presses. | CUE-68, SHW-26 | S | todo |
+| TTN-06 | Core and app: an automatic legend for a new playback or cue from its group and palettes, and a Legend softkey after a store; `pbk_54_…`, `shw_26_…`; manual and run. | PBK-54, SHW-26 | S | todo |
+| TTN-07 | Core and app: the playback option Shape size (Fader, Fixed, HTP Fader); `fx_46_…`, `shw_26_…`; manual and run on Art-Net. | FX-46, SHW-26 | S | todo |
+| TTN-08 | Core and app: a held Swop stops other playbacks' shapes, all or dimmer only by the setting Swop stops; `fx_47_…`, `shw_26_…`; manual and run on Art-Net. | FX-47, SHW-26 | S | todo |
+| TTN-09 | Core and app: the playback option Mask shapes per attribute group; `fx_48_…`, `shw_26_…`; manual and run on Art-Net. | FX-48, SHW-26 | S | todo |
+| TTN-10 | Core, daemon and app: move or copy a block of cues to a number, the end or another list; `cue_69_…`; manual and run. | CUE-69 | M | todo |
+
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
 park buttons on the phone come with PRK-02.
@@ -404,6 +425,7 @@ after VS8-03, in any order.
 | P1-39 | Spec IDEA-35 batch E, patch and profiles (E1..E3, K10, M2, M3; K1 was done by P1-30), as PAT-37..47, LIB-41, LIB-42, IPC-62, UI-72..76; checks in `tests/manual/runs/2026-11-08-E-checks.md`; build tasks PTC-01..08; approved by owner 2026-11-08, the seven questions as recommended (`patch.md`); what stayed out became IDEA-49..54. | PAT, LIB, IPC, UI | S | done (2026-11-08, #283) |
 | P1-40 | Spec IDEA-35 batch F, controls and small things (F1, F2, F4..F7, K9, K12, L7, L8, M5, M6; F3 and IDEA-39 hold already), as CTL-69..71, OUT-42, PRG-99..101, PAL-35, PBK-53, CUE-64, UI-77..80; checks in `tests/manual/runs/2026-11-10-F-checks.md`; build tasks CTR-01..09; approved by the owner 2026-11-10, every recommendation accepted (`ui.md`). | CTL, OUT, PRG, PAL, PBK, CUE, UI | S | done (2026-11-10, #290) |
 | P1-41 | Spec IDEA-35 batch G, show files (M1, G1..G5; G4's second half holds already), as SHW-20..25; checks in `tests/manual/runs/2026-11-12-G-checks.md`; build tasks FIL-01..06; approved by the owner 2026-11-12, every recommendation accepted (`showfile.md`). | SHW, IPC, UI | S | done (2026-11-12, #296) |
+| P1-42 | Spec IDEA-35 batch I, behaviour that differs from Titan (I2, I4, I5, I7, I8, I9, K4, K5, L4, M4; I1, I3, I6, K6 were batch B), as PRG-102, 103, CUE-65..69, PBK-54, FX-46..48, SHW-26; checks in `tests/manual/runs/2026-11-14-I-checks.md`; build tasks TTN-01..10; approved by the owner 2026-11-14, every recommendation accepted (`cuelists.md`). | PRG, CUE, PBK, FX, SHW | S | done (2026-11-14, #306) |
 | P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show; find Titan's page first; numbered criteria and build tasks; owner approves. | SHW, UI | S | todo |
 | P1-38 | Measure the engine's load in a release build on a rig of about 260 fixtures (M7, fifth gap review; owner 2026-11-08): the debug build took 78 % of a core against 10 % with 38 fixtures; write the result in a run file, and a budget like UI-70 only if it is too high. | ENG | S | todo |
 | TST-01 | Daemon tests never send DMX: every test that starts the daemon passes `--no-artnet --no-sacn --no-serial` (`client_loss`, `lock`, `message_history`, `remote` start Demo with Art-Net on, `message_history` with serial on), checked by one test over `tests/*.rs`; needs a criterion first (found in the FIL-01..03 run). | — | S | todo |

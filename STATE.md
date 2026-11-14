@@ -12,7 +12,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. Batches I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. No tag after
+1. IDEA-35 batch I, behaviour that differs from Titan: builds TTN-01..10 as `BACKLOG.md` groups them,
+   the Go guard (TTN-05) first. Then batch J, its spec approved first (`docs/research/everyday-gaps.md`). No tag after
    a batch: the next release is the one the first service runs on, and the gap review follows it (REL-26).
    P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net) needs a criterion.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
