@@ -5,8 +5,8 @@ session in `CLAUDE.md`. Tests: `scripts/test_risk_gate.py`.
 Status: asked for by the owner 2026-11-13 (IDEA-57: "zoveel mogelijk handwerk automatiseren", then "ik wil het
 gewoon zo gaan doen, ook voor dit project"). **ARV-01..17 approved by the owner 2026-11-13**, with the recommended
 answer to every question under *Owner questions*. ARV-12..14 amended and ARV-18 added 2026-11-14 (owner: "bij oranje en
-rood de problemen teruggeven aan het project, zodat het harnas ze bij een volgende stap meeneemt"), **awaiting the
-owner's approval**.
+rood de problemen teruggeven aan het project, zodat het harnas ze bij een volgende stap meeneemt"), **approved by
+the owner 2026-11-14**.
 
 The owner reviews and merges every PR (gate 2) but cannot catch a defect by reading a diff (DECISIONS 2026-10-24).
 A reviewer on GitHub that did not write the code, and a fixed rule that decides from its findings and the paths,
