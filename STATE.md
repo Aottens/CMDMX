@@ -16,7 +16,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
    (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and Edit) stays apart from them.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
-   in shadow; after five PRs through the gate, ARB-03 lets green PRs merge by themselves.
+   in shadow. ARB-05 next (unrecorded findings make green amber); after five PRs through the gate, ARB-03 lets
+   green PRs merge by themselves.
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):

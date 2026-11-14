@@ -4,7 +4,9 @@ Owner: `.github/workflows/review.yml` (the review), `scripts/risk-gate.py` (the 
 session in `CLAUDE.md`. Tests: `scripts/test_risk_gate.py`.
 Status: asked for by the owner 2026-11-13 (IDEA-57: "zoveel mogelijk handwerk automatiseren", then "ik wil het
 gewoon zo gaan doen, ook voor dit project"). **ARV-01..17 approved by the owner 2026-11-13**, with the recommended
-answer to every question under *Owner questions*.
+answer to every question under *Owner questions*. ARV-04, ARV-09, ARV-11..14 amended and ARV-18 added 2026-11-14 (owner: "bij oranje en
+rood de problemen teruggeven aan het project, zodat het harnas ze bij een volgende stap meeneemt"), **approved by
+the owner 2026-11-14**.
 
 The owner reviews and merges every PR (gate 2) but cannot catch a defect by reading a diff (DECISIONS 2026-10-24).
 A reviewer on GitHub that did not write the code, and a fixed rule that decides from its findings and the paths,
@@ -17,7 +19,7 @@ stays readable afterwards (sources in IDEA-57).
 - **Finding:** one defect the review reports: file, line, severity (`blocker`, `major`, `minor`), verdict
   (`confirmed` when checked against the code, `plausible` when not) and one sentence.
 - **Impact:** how much a defect in a changed file can cost, `low`, `medium` or `high` (ARV-05).
-- **Lane:** what happens to the PR: `green` (merges by itself), `amber` (the harness fixes it first) or `red` (the
+- **Lane:** what happens to the PR: `green` (merges by itself), `amber` (the harness fixes or records it first) or `red` (the
   owner decides).
 - **Shadow:** the gate decides and says so, but nothing merges by itself.
 
@@ -34,7 +36,10 @@ stays readable afterwards (sources in IDEA-57).
   name (three to prepare, four to review) has failed too, whatever it returned: an empty list from a review that did
   not run its reviewers must not read as a clean review (owner, 2026-11-13, found on #298).
 - **ARV-04** A push that changes only `low` files keeps the earlier review: no new review runs, and the gate reads the
-  last `findings.json` of the PR. So rewriting `STATE.md` or adding backlog rows does not start another round.
+  last `findings.json` of the PR. So rewriting `STATE.md` or adding backlog rows does not start another round. A push
+  that changes a file a finding of the last review names, other than `BACKLOG.md` and `STATE.md`, is reviewed again,
+  whatever its impact, so a fixed finding does not stay on the PR. A finding in those two files that the PR fixes is
+  recorded as a `FIX-nn` row that is already `done`, so recording never starts a round.
 
 ## The gate
 - **ARV-05** `scripts/risk-gate.py` gives each changed file an impact from one table at the top of the script; the
@@ -64,9 +69,12 @@ stays readable afterwards (sources in IDEA-57).
   findings, checks and round always give the same lane. It prints the lane and one line per reason. Every rule above
   has a test in `scripts/test_risk_gate.py` that carries its id.
 - **ARV-09** The gate runs as the check `risk-gate` after every review and after every push that keeps one (ARV-04).
-  Green passes; amber fails (a fix is due); red passes, turns auto-merge off on the PR and labels it `risk: owner`,
+  Green passes; amber fails (a fix or a record is due); red passes, turns auto-merge off on the PR and labels it `risk: owner`,
   so the owner merges as today. It keeps one comment on the PR up to date with the table, the PR's cell, the lane and
   the reasons, and sets one label of `risk: green`, `risk: amber`, `risk: owner`.
+- **ARV-18** The gate names every finding of the last review whose `file:line` the PR's own changes to `BACKLOG.md`
+  and `STATE.md` do not contain, as the reason `not recorded: <file:line>`. A green PR with such a finding is amber,
+  so the harness records it (ARV-13) before it merges; on red the comment shows what is still to be recorded.
 
 ## Acting on the lane
 - **ARV-10** Green: when the repository variable `AUTOMERGE` is `on`, auto-merge is switched on and GitHub merges once
@@ -76,14 +84,25 @@ stays readable afterwards (sources in IDEA-57).
 - **ARV-11** Amber: the build session, with Auto-fix on, fixes the confirmed findings in the same PR, each fix with a
   test that carries the id of the criterion it broke, and pushes; review and gate run again. At most two fix rounds:
   a third review that still has findings makes the PR red. A fix that needs a criterion changed is not made; the PR
-  goes red with that question for the owner.
-- **ARV-12** Red: the session says so in chat with the gate's reasons, and the owner reviews and merges as today.
-- **ARV-13** Minor findings a green PR leaves become rows under *Fixes from reviews* in `BACKLOG.md`
-  (`FIX-nn`: the finding, the file, the criterion it breaks) in that PR, before it merges (ARV-04 keeps that push
-  from starting a new round).
+  goes red with that question for the owner. An amber whose only reasons are `not recorded` (ARV-18) is cleared by
+  recording (ARV-13), not by a fix round.
+- **ARV-12** Red: the session first records the findings the PR leaves (ARV-13), then says so in chat with the gate's
+  reasons, and the owner reviews and merges as today. With a confirmed blocker the owner either has it fixed in the PR
+  (review and gate run again) or merges it as it is, recorded.
+- **ARV-13** Every finding of the PR's last review that the PR does not fix is recorded in that PR before it merges,
+  whatever its lane, so nothing a review found is left only in a closed PR (ARV-04 keeps that push from starting a
+  new round):
+  - a defect as a row under *Fixes from reviews* in `BACKLOG.md`: `FIX-nn`, the finding, its `file:line`, the
+    criterion it breaks, the PR, and `plausible` when that is its verdict;
+  - a finding whose fix needs a criterion changed (ARV-11) as an item under *Owner to decide* in `STATE.md`, with
+    its `file:line` and the criterion;
+  - a blocker too, marked `blocker`, so one the owner merges as it is stays known (ARV-12).
+
+  A row whose finding a later review of the same PR no longer reports is removed again in that PR.
 - **ARV-14** A fix block: the harness may build open `FIX-nn` rows without asking the owner, since they repair
   criteria that exist and need no spec. At most three rows per build, in its own session, branch and PR, through the
-  same review and gate. It starts none while another fix block's PR is open.
+  same review and gate. It starts none while another fix block's PR is open. A `plausible` row is first checked
+  against the code; one that is no defect is closed `done (<date>, not a defect)` without a change.
 - **ARV-15** After an auto-merged PR that changes the app or the engine, Claude pushes the patch tag (`0.x.y`) within
   the hour, with release notes as WEB-37 asks, and checks that the release has its DMG. A sub-release (`0.x.0`,
   REL-26) and its gap review stay with the owner.
