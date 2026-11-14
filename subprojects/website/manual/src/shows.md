@@ -61,6 +61,23 @@ A show selected in the list has three more buttons:
   deleted: open another show first.
 - **Show in Finder**: opens the shows folder in Finder with the show's file selected.
 
+## A report of the show
+
+Click **Report** under the open show's name to get the show on paper. CMDMX writes one page with
+four tables and opens it in your web browser:
+
+- **Fixtures**: number, name, profile, mode, universe and address, and whether it is parked;
+- **Groups**: number, legend and the fixture numbers in the group's order;
+- **Palettes**: number, legend, kind (colour, position or beam), how many fixtures it holds (or
+  *global* or *by type*) and the attribute groups in it;
+- **Playbacks**: page, handle, legend and kind, and for a cue list or chase each cue with its
+  number, legend, fade in, fade out and delay.
+
+The show's name and the time are at the top. Print it from the browser (**File › Print**) on A4,
+or choose **Save as PDF** there. The file stays in the *Reports* folder next to your shows, named
+after the show and the minute, for example `Kerk 2026-11-15 0930.html`. The report only reads the
+show: it changes nothing on stage. If the file cannot be written, a message says why.
+
 ## What a show holds
 
 A show holds what you programmed and expect back after a restart:

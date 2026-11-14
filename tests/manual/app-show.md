@@ -66,6 +66,14 @@ Optional: an Art-Net monitor on universe 1.
 - [ ] Copy a file over Kerk again, then change the show (record a group). Within a few seconds a message says it was
       kept as `Kerk outside <date> <time>`; that file holds the copy, and `Kerk.cmdmx.json` holds the change.
 
+## A report of the show (SHW-25)
+- [ ] With Kerk open, click *Report* under the show's name: the browser opens `Kerk <date> <time>.html` from the *Reports*
+      folder next to the shows, titled *Kerk — <date> <time>*.
+- [ ] It holds Fixtures, Groups, Palettes and Playbacks in that order; a parked fixture says `yes`, a cue list lists its cues
+      with their times, and a legend with `&` or `<` reads as typed.
+- [ ] *File › Print* shows it on A4 portrait without cut-off columns; *Save as PDF* writes a PDF.
+- [ ] Lock the console (the app hides the Show screen) and send `show.report` over IPC: the engine still answers the path.
+
 ## Taking over a show (WEB-36)
 A walk on a show the reader did not program, with only the chapter *Taking over a show* open: *Demo* or a show someone
 else made, in a temp `--show-dir`. Note what the chapter did not answer.
