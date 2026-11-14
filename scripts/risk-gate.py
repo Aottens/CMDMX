@@ -6,6 +6,9 @@ Standard library only, no model, no network: the same input always gives the sam
 Usage:
   risk-gate.py --impact < paths             worst impact of the paths on stdin (ARV-04)
   risk-gate.py --table findings.json        findings as a Markdown table for the job summary (ARV-03)
+  risk-gate.py --check-review execution.json
+      Counts the agents the review launched; exit 0 when it ran its reviewers, 1 when not (ARV-03).
+      Used by .github/workflows/review.yml before it writes findings.json.
   risk-gate.py --base origin/main [--findings findings.json] [--round N] [--failed-check NAME]...
                [--comment out.md] [--body-out body.md]
       Decides from `git diff --numstat <base>...HEAD`; PR_TITLE and PR_BODY come from the environment.
@@ -42,6 +45,10 @@ PATHS = [
 ]
 ORDER = ["low", "medium", "high"]
 SEVERITIES = ["minor", "major", "blocker"]
+# ARV-03: the code-review plugin's steps launch three agents to prepare and four to review; a review that
+# launched fewer did not run its reviewers.
+# ponytail: counts launches, not what the agents did; read their results if that ever proves too little.
+MIN_AGENTS = 7
 MAX_LINES = 600
 MAX_FIX_ROUNDS = 2
 NOT_COUNTED = ("Cargo.lock", "touchosc/CMDMX.touchosc", "touchosc/addresses.txt")
@@ -143,10 +150,27 @@ def load_findings(path):
     return data if isinstance(data, list) else None
 
 
+def agents_launched(messages):
+    """Agent launches in a claude-code-action execution file (a list of SDK messages)."""
+    count = 0
+    for m in messages if isinstance(messages, list) else []:
+        body = m.get("message") if isinstance(m, dict) and m.get("type") == "assistant" else None
+        content = body.get("content") if isinstance(body, dict) else None
+        for block in content if isinstance(content, list) else []:
+            if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") in ("Agent", "Task"):
+                count += 1
+    return count
+
+
+def review_ran(messages):
+    return agents_launched(messages) >= MIN_AGENTS
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--impact", action="store_true")
     ap.add_argument("--table")
+    ap.add_argument("--check-review")
     ap.add_argument("--base")
     ap.add_argument("--findings")
     ap.add_argument("--round", type=int, default=1)
@@ -158,6 +182,12 @@ def main():
         print(worst_impact([p for p in sys.stdin.read().splitlines() if p.strip()]))
     elif args.table:
         print(findings_table(load_findings(args.table) or []), end="")
+    elif args.check_review:
+        messages = load_findings(args.check_review) or []
+        n = agents_launched(messages)
+        ok = review_ran(messages)
+        print(f"review ran {n} agents" + ("" if ok else f", the plugin's steps need {MIN_AGENTS}"))
+        sys.exit(0 if ok else 1)
     elif args.base:
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         diff = subprocess.run(["git", "diff", "--numstat", "--no-renames", f"{args.base}...HEAD"], cwd=root,

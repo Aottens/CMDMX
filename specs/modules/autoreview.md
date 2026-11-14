@@ -30,7 +30,9 @@ stays readable afterwards (sources in IDEA-57).
   the criteria the PR names, not for style, and gives every finding a severity and a verdict.
 - **ARV-03** The review job writes its findings as `findings.json` (a list of finding objects) to the job's artifacts
   and a table of them to the job summary. Without the secret, or when the review fails, it writes no file and the
-  summary says why; the gate then reads *not reviewed*.
+  summary says why; the gate then reads *not reviewed*. A review that launched fewer agents than the plugin's steps
+  name (three to prepare, four to review) has failed too, whatever it returned: an empty list from a review that did
+  not run its reviewers must not read as a clean review (owner, 2026-11-13, found on #298).
 - **ARV-04** A push that changes only `low` files keeps the earlier review: no new review runs, and the gate reads the
   last `findings.json` of the PR. So rewriting `STATE.md` or adding backlog rows does not start another round.
 

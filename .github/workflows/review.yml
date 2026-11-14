@@ -89,6 +89,7 @@ jobs:
 
             At the end, return every issue in the structured output; findings: [] when there are none.
           claude_args: |
+            --model claude-opus-5-5
             --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Task,Agent"
             --json-schema '{"type":"object","required":["findings"],"properties":{"findings":{"type":"array","items":{"type":"object","required":["file","line","severity","verdict","summary"],"properties":{"file":{"type":"string"},"line":{"type":"integer"},"severity":{"type":"string","enum":["blocker","major","minor"]},"verdict":{"type":"string","enum":["confirmed","plausible"]},"summary":{"type":"string"}}}}}}'
 
@@ -122,6 +123,11 @@ jobs:
             exit 0
           elif [ "$OUTCOME" != success ] || ! printf '%s' "$OUTPUT" | jq -e '.findings | type == "array"' > /dev/null 2>&1; then
             echo "Not reviewed: the review failed (step outcome: ${OUTCOME:-none}, no usable structured output)." >> "$GITHUB_STEP_SUMMARY"
+            trace
+            exit 0
+          elif ! ran=$(scripts/risk-gate.py --check-review "$EXECUTION"); then
+            # An empty list from a review that skipped its reviewers is no clean review (ARV-03).
+            echo "Not reviewed: $ran." >> "$GITHUB_STEP_SUMMARY"
             trace
             exit 0
           else
