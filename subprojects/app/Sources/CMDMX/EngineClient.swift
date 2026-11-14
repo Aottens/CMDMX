@@ -2272,6 +2272,14 @@ final class EngineClient: ObservableObject {
     func renumberCue(_ id: Int, cue: Double, to: Double) { patch("cue.renumber", ["id": id, "cue": cue, "to": to]) }
     func renumberAllCues(_ id: Int) { patch("cue.renumber_all", ["id": id]) }
     func copyCue(_ id: Int, cue: Double, to: Double) { patch("cue.copy", ["id": id, "cue": cue, "to": to]) }
+    /// CUE-69: a block of cues to a number (nil = after the target's last cue), of this list or of `target`.
+    func copyCues(_ id: Int, cues: [Double], to: Double?, target: Int?) { cueBlock("cue.copy", id, cues, to, target) }
+    func moveCues(_ id: Int, cues: [Double], to: Double?, target: Int?) { cueBlock("cue.move", id, cues, to, target) }
+    private func cueBlock(_ cmd: String, _ id: Int, _ cues: [Double], _ to: Double?, _ target: Int?) {
+        var fields: [String: Any] = ["id": id, "cues": cues, "to": to.map { $0 as Any } ?? "end"]
+        if let target, target != id { fields["target"] = target }
+        patch(cmd, fields)
+    }
     /// CUE-54: the reply lands in `cueView`.
     func viewCue(_ id: Int, cue: Double) { sendJSON("cue.view", ["id": id, "cue": cue]) }
     func removeCueValue(_ id: Int, cue: Double, fixture: Int, cell: Int? = nil, attribute: String?) {

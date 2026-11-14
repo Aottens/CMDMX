@@ -86,6 +86,11 @@ final class TokenLine: ObservableObject {
             clear()
             return
         }
+        if end == "Enter", let n = onlyNumber, ui.cueBlockPicking {   // CUE-69: Enter sends the picked cues to that number
+            ui.sendCueBlock(engine, to: n)
+            clear()
+            return
+        }
         if tokens.isEmpty {
             if end == "Enter" {
                 if ui.function == .update { ui.updateStore(engine); return }   // PBK-49

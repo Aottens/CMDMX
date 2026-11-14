@@ -144,6 +144,16 @@ has no Times view. In this view a tap selects a time and does not change Next:
   function armed, **⇧-tap** a range of rows or **⌘-tap** to add or drop one; softkey A names the count. Every cue of
   a playback cannot go at once: delete the playback instead.
 
+**Move or copy a block of cues**, a song of four cues for instance: arm **Move** or **Copy** and tap a row; **⇧-tap**
+picks a range, **⌘-tap** adds or drops one. Then type the first new number and press **Enter** (or **Renumber** for Move,
+**Copy** for Copy), or press **End** to put them after the last cue. The cues keep their order and take that number,
+the next whole number and so on: Q10–Q13 to 21 become Q21–Q24. To send them to another cue list or chase, tap its
+handle before the number ("Move 4 cues to 1.3: type the first number"). If a new number is already taken by a cue that
+is not moving, nothing happens and the message names it ("Q21 is in the way: renumber or pick another number"): nothing
+is renumbered without asking. A copy is the whole cue, legend, times, effects and switched-off values included; a moved
+cue keeps what it holds, and in a tracking list it tracks from the cues before its new place. The live cue of a running
+list cannot move to another list, and a list cannot give away all its cues. One Undo takes the whole block back.
+
 **Record**, then a tap on a row, records onto that cue: **Replace**, **Merge** or **Update**.
 **Include**, then a tap on a row, puts what that cue holds itself in the programmer: nothing tracked and
 nothing that is off, so **Merge** afterwards turns nothing tracked into a value of this cue. See

@@ -634,6 +634,19 @@ private struct Softkeys: View {
             keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
             return ("Cue · \(name)", keys)
         }
+        if ui.cueBlockPicking, let f = ui.function {   // CUE-69: the picked cues go to a number, the end, or another list
+            var keys: [Softkey?] = Array(repeating: nil, count: 7)
+            let title = f == .copy ? "Copy" : "Renumber"
+            keys[0] = Softkey(name: title, sub: "number on the line") {
+                guard let n = line.onlyNumber else { return engine.say("\(title): type the first cue number on the keypad first.") }
+                ui.sendCueBlock(engine, to: n)
+                line.clear()
+            }
+            keys[1] = Softkey(name: "End", sub: "after the last cue") { ui.sendCueBlock(engine, to: nil) }
+            keys[3] = menuLatchKey
+            keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
+            return ("Cue · \(name)", keys)
+        }
         func numbered(_ title: String, _ send: @escaping (Double) -> Void) -> Softkey {
             Softkey(name: title, sub: "number on the line") {
                 guard let n = line.onlyNumber else { return engine.say("\(title): type the cue number on the keypad first.") }

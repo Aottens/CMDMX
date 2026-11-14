@@ -376,7 +376,7 @@ private struct CueListWindow: View {
         .overlay(alignment: .leading) { if current { Rectangle().fill(t.green).frame(width: 3) } }
         .overlay { if next { Rectangle().strokeBorder(t.fg2, lineWidth: 1) } }
         .overlay(alignment: .bottom) { HLine() }
-        .overlay { if ui.cueDelete && ui.cueMenu?.playback == list.id && ui.cuePicks.contains(cue.number) { Rectangle().fill(t.red.opacity(0.18)).overlay(Rectangle().strokeBorder(t.red, lineWidth: 2)) } }   // UI-64
+        .overlay { if (ui.cueDelete || ui.cueBlockPicking) && ui.cueMenu?.playback == list.id && ui.cuePicks.contains(cue.number) { Rectangle().fill(t.red.opacity(0.18)).overlay(Rectangle().strokeBorder(t.red, lineWidth: 2)) } }   // UI-64
     }
 
     /// UI-51: a row of the Times view. A tap selects one time cell and never sets Next; armed, the whole row is the target (UI-42).
@@ -468,12 +468,24 @@ private struct CueListWindow: View {
         case .include:
             engine.includePlayback(list.id, cue: cue.number, mask: ui.orderedRecordMask)   // PBK-48
             ui.cancelModes()
-        case .copy:
-            openCueMenu()
-            engine.say("Copy cue \(plain(cue.number)): type the number, then Copy.")
-        case .move:
-            openCueMenu()
-            engine.say("Move cue \(plain(cue.number)): type the number, then Renumber.")
+        case .copy, .move:
+            // CUE-69: picks rows like Delete (⇧ a range, ⌘ one more); a number and Enter, Copy / Renumber or End sends them.
+            let name = ui.function?.rawValue ?? ""
+            let flags = NSApp.currentEvent?.modifierFlags ?? []
+            if flags.contains(.shift) || flags.contains(.command), ui.cueBlockPicking, ui.cueMenu?.playback == list.id {
+                ui.cuePicks = extended(ui.cuePicks, with: cue.number, in: list.stored.cues.map(\.number), range: flags.contains(.shift))
+                if let last = ui.cuePicks.last, !ui.cuePicks.contains(ui.cueMenu?.cue ?? -1) { ui.cueMenu = CueRef(playback: list.id, cue: last) }
+                if ui.cuePicks.isEmpty { ui.cueMenu = nil; ui.cueBlockTarget = nil; engine.say("\(name): nothing picked.") }
+            } else {
+                openCueMenu()
+                ui.cueBlockTarget = nil
+                ui.cuePicks = [cue.number]
+            }
+            let n = ui.cuePicks.count
+            if n > 0 {
+                engine.say(n == 1 ? "\(name) cue \(plain(cue.number)): type the first number, then Enter or \(name == "Copy" ? "Copy" : "Renumber"), End, or tap a list's handle."
+                                  : "\(name) \(n) cues: type the first number, then Enter or \(name == "Copy" ? "Copy" : "Renumber"), End, or tap a list's handle.")
+            }
         case .delete:
             // UI-64: ⇧ / ⌘ on a row while this list's Delete waits picks more cues.
             let flags = NSApp.currentEvent?.modifierFlags ?? []
