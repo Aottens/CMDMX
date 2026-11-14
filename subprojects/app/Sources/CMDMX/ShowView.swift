@@ -33,6 +33,7 @@ struct ShowView: View {
                             Text(engine.show.ageText(now: context.date)).font(Typo.ui(11))
                                 .foregroundStyle(engine.show.autosaveOk ? t.fg2 : t.amber)
                         }
+                        Button("Report") { engine.showReport() }.buttonStyle(FlatButton())
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)

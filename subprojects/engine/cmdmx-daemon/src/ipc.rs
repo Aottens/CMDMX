@@ -527,6 +527,8 @@ pub enum Command {
     },
     /// IPC-38: the show's copy of a profile; the tick also writes the library file.
     ProfileSave(Profile),
+    /// SHW-25: handed to the tick as `Event::ShowReport`, never applied.
+    ShowReport,
     CueRemove {
         id: PlaybackId,
         cue: CueNumber,
@@ -835,6 +837,10 @@ pub enum Event {
     /// IPC-37: the answer goes to the asking client only.
     PatchProfile {
         key: String,
+        reply: SyncSender<String>,
+    },
+    /// SHW-25: the tick renders the report; the writer answers the path to `reply`.
+    ShowReport {
         reply: SyncSender<String>,
     },
     /// IPC-38: the tick saves the profile into the show; the outcome of the library write
@@ -1641,6 +1647,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             serde_json::from_value(v.get("profile").cloned().unwrap_or_default())
                 .map_err(|e| format!("missing or invalid \"profile\": {e}"))?,
         ))),
+        Some("show.report") => Ok(Command::ShowReport),
         Some("patch.profile") => Ok(Command::PatchProfile {
             profile: string(&v, "profile")?,
         }),
@@ -4275,6 +4282,12 @@ fn serve_client(
                 Ok(Command::PatchProfile { profile: key }) => {
                     let reply = reply.clone();
                     if events.send(Event::PatchProfile { key, reply }).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::ShowReport) => {
+                    let reply = reply.clone();
+                    if events.send(Event::ShowReport { reply }).is_err() {
                         return;
                     }
                 }

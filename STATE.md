@@ -7,14 +7,14 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Now
 - Phase 1: a well-working general DMX console. Its finish line is a real Sunday service on CMDMX (VS4-03).
 - The church keeps running on Lightkey until Christmas, then on CMDMX (owner, 2026-11-06).
-- IDEA-35 batches D (working on many at once), E (patch and profiles) and F (controls and small things) are complete.
+- IDEA-35 batches D (working on many at once), E (patch and profiles), F (controls and small things) and G (show files)
+  are complete.
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch G, show files: build FIL-06 (a printable report of the show), the last task of the batch. Then
-   batches I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec
-   approved first. P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net)
-   needs a criterion.
+1. Batch G is done: cut its sub-release, then its gap review with the app running, from a new angle. Then batches
+   I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and
+   Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net) needs a criterion.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
    in shadow; a finding a PR leaves unfixed must be recorded first. After five PRs through the gate, ARB-03 lets

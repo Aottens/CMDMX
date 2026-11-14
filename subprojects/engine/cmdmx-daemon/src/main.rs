@@ -335,6 +335,19 @@ fn main() {
                     drop(reply.try_send(msg));
                     Ok(())
                 }
+                // SHW-25: rendered here, written off the tick.
+                ipc::Event::ShowReport { reply } => {
+                    let name = autosave.state().name;
+                    let show = engine.to_show(shows::new_meta(&name, &wall));
+                    let minute = shows::local_minute(SystemTime::now());
+                    let html = cmdmx_core::report::render(&show, &minute);
+                    let path = shows
+                        .dir()
+                        .join("Reports")
+                        .join(format!("{name} {minute}.html"));
+                    write_report(path, html, reply, &library_tx);
+                    Ok(())
+                }
                 // IPC-38: the show first (one undo step), then the library file off the tick.
                 ipc::Event::ProfileSave { profile, reply } => {
                     let saved = run(
@@ -802,6 +815,39 @@ fn write_library_file(
     }
 }
 
+/// SHW-25: write the report on a thread of its own; the path goes to the asking client.
+fn write_report(
+    path: std::path::PathBuf,
+    html: String,
+    reply: std::sync::mpsc::SyncSender<String>,
+    warnings: &std::sync::mpsc::Sender<String>,
+) {
+    let failed = warnings.clone();
+    let spawned = std::thread::Builder::new()
+        .name("report".into())
+        .spawn(move || {
+            let written = (|| {
+                if let Some(dir) = path.parent() {
+                    std::fs::create_dir_all(dir)?;
+                }
+                shows::write_atomic(&path, &html)
+            })();
+            match written {
+                Ok(()) => drop(
+                    reply.try_send(
+                        serde_json::json!({"v": ipc::PROTOCOL, "type": "show.report",
+                        "path": path.to_string_lossy()})
+                        .to_string(),
+                    ),
+                ),
+                Err(e) => drop(failed.send(format!("Cannot write the report: {e}"))),
+            }
+        });
+    if let Err(e) = spawned {
+        drop(warnings.send(format!("Cannot write the report: {e}")));
+    }
+}
+
 /// IPC-53: a release of a Flash or Swop that was held when the lock came.
 fn lets_go(engine: &Engine, c: &ipc::Command) -> bool {
     use ipc::Command::*;
@@ -1173,7 +1219,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             update_mode,
         } => engine.update(&playbacks, &palettes, update_mode),
         // Answered through `Event::PatchProfile` (IPC-37).
-        PatchProfile { .. } => Ok(()),
+        PatchProfile { .. } | ShowReport => Ok(()),
         ProfileSave(p) => engine
             .save_profile(&format!("{}/{}", p.manufacturer, p.model), p)
             .map(drop),
@@ -1264,6 +1310,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | OutputWatch(_)
         | UpdateTargets
         | PatchProfile { .. }
+        | ShowReport
         | Control(_)
         | LockSet { .. }
         | RemoteSetLogin { .. }
@@ -3432,6 +3479,7 @@ mod tests {
         (r#"{"v":1,"cmd":"show.new","name":"Kerst"}"#, Class::Reset),
         (r#"{"v":1,"cmd":"show.open","name":"Kerk"}"#, Class::Reset),
         (r#"{"v":1,"cmd":"show.list"}"#, Class::Neutral),
+        (r#"{"v":1,"cmd":"show.report"}"#, Class::Neutral),
         (
             r#"{"v":1,"cmd":"remote.set_login","username":"a","password":"b"}"#,
             Class::Neutral,

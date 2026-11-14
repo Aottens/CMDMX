@@ -166,7 +166,15 @@ Checks behind these criteria: `tests/manual/runs/2026-11-12-G-checks.md`. Titan 
   show's name and the time are its title; it has no scripts and no outside links, and prints on A4 from a browser (PDF via
   the macOS print dialog). `cmdmx-core` renders the HTML from the show (pure, test `shw_25_…`); the daemon only
   writes the file. On the Show screen *Report* writes it and the app opens it in the default browser. A failed write is a warning
-  (IPC-06).
+  (IPC-06). Made concrete in the FIL-06 build (2026-11-14): `cmdmx_core::report::render(show, time)`, the title
+  `<name> — <yyyy-mm-dd hhmm>`; each table follows an `<h2>` with its name; fixtures sort by number, groups and palettes by
+  number, playbacks by page then handle; mode is the profile's first mode when none is set, parked is `yes` or empty; members
+  are fixture numbers (a cell as `31.2`) joined by `, `; a palette's kind is its window (*Colour*, *Position*, *Beam*), its
+  fixture count says `global` or `by type` for a global or shared palette, and its groups are the letters of the attributes
+  it holds (`I P C G B E S FX` order, an attribute no profile has is FX); a playback's kind is *Memory*, *Cue list*, *Chase*,
+  *BPM master*, *Rate master* or *Group master*, and each cue of a cue list or chase is a row of its own below it, with fade
+  out As In shown as the time it takes. Names and legends are HTML-escaped. `show.report` is information, so the lock does
+  not refuse it (IPC-50).
 
 ## Schema sketch (v1)
 

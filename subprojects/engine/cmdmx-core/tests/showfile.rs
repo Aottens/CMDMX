@@ -971,3 +971,224 @@ fn shw_24_an_opened_show_can_take_the_running_output() {
         .unwrap();
     assert!(running.nodes().all(|n| n.id != id));
 }
+
+// ---- SHW-25 ------------------------------------------------------------------
+
+/// The cells of each `<tr>` with `<td>` cells in the table that follows `<h2>{name}</h2>`, as
+/// written (escaped). Header rows (`<th>`) are left out.
+fn report_table(html: &str, name: &str) -> Vec<Vec<String>> {
+    let start = html
+        .find(&format!("<h2>{name}</h2>"))
+        .unwrap_or_else(|| panic!("no <h2>{name}</h2>"));
+    let rest = &html[start..];
+    let table = &rest[..rest.find("</table>").expect("table end")];
+    table
+        .split("<tr")
+        .skip(1)
+        .map(|row| {
+            row.split("<td")
+                .skip(1)
+                .map(|cell| {
+                    let open = cell.find('>').unwrap() + 1;
+                    cell[open..cell.find("</td>").unwrap()].to_string()
+                })
+                .collect::<Vec<_>>()
+        })
+        .filter(|cells| !cells.is_empty())
+        .collect()
+}
+
+fn row(cells: &[&str]) -> Vec<String> {
+    cells.iter().map(|c| c.to_string()).collect()
+}
+
+/// The rig plus: fixture 301 numbered 31, the organ par parked, group 4's legend, a Position
+/// palette on 101, a cue list on 2/5 and a chase on 2/6.
+fn report_rig() -> Engine {
+    use cmdmx_core::palette::{Cell, Record, Window};
+    use cmdmx_core::playback::{Cue, CueNumber, Kind};
+    let mut e = rig();
+    e.patch_renumber(301, 31).unwrap();
+    e.patch_park(&[401]).unwrap();
+    e.set_group_legend(4, "Spots <back>").unwrap();
+    common::select(&mut e, &[101]);
+    e.set_programmer_value(101, "Pan", 0.5).unwrap();
+    e.record_palette(&Record::at(Cell::new(Window::Positions, 1)))
+        .unwrap();
+    e.clear_selection();
+    let values = || {
+        BTreeMap::from([(
+            Item::fixture(101),
+            BTreeMap::from([("Dimmer".to_string(), 1.0.into())]),
+        )])
+    };
+    let cue = |number: f64, legend: &str, fade_in: f32, fade_out: Option<f32>, delay: f32| Cue {
+        number: CueNumber::new(number).unwrap(),
+        legend: legend.into(),
+        fade_in,
+        fade_out,
+        delay,
+        ..Cue::new(values())
+    };
+    e.add_playback(Playback {
+        legend: "Dienst & zegen".into(),
+        cues: vec![
+            cue(1.0, "Intro", 2.0, Some(4.0), 0.0),
+            cue(2.5, "Preek", 3.0, None, 1.0),
+        ],
+        ..Playback::new(3, 2, 5, values())
+    });
+    e.add_playback(Playback {
+        kind: Kind::Chase,
+        cues: vec![cue(1.0, "", 0.5, None, 0.0), cue(2.0, "", 0.5, None, 0.0)],
+        ..Playback::new(4, 2, 6, values())
+    });
+    e
+}
+
+#[test]
+fn shw_25_the_report_holds_four_tables_in_order_under_a_title() {
+    let mut m = meta();
+    m.name = "Kerk <proef>".into();
+    let html = cmdmx_core::report::render(&report_rig().to_show(m), "2026-11-14 1430");
+    assert!(html.starts_with("<!DOCTYPE html>"), "{html}");
+    assert!(
+        html.contains("<title>Kerk &lt;proef&gt; — 2026-11-14 1430</title>"),
+        "{html}"
+    );
+    assert!(html.contains("<h1>Kerk &lt;proef&gt; — 2026-11-14 1430</h1>"));
+    let at = |name: &str| html.find(&format!("<h2>{name}</h2>")).unwrap();
+    assert!(at("Fixtures") < at("Groups"));
+    assert!(at("Groups") < at("Palettes"));
+    assert!(at("Palettes") < at("Playbacks"));
+}
+
+#[test]
+fn shw_25_fixtures_by_number_with_profile_mode_address_and_parked() {
+    let show = report_rig().to_show(meta());
+    let rows = report_table(&cmdmx_core::report::render(&show, "t"), "Fixtures");
+    assert_eq!(rows.len(), show.patch.fixtures.len());
+    // 301 is numbered 31, so it comes first; mode None is the profile's first mode.
+    assert_eq!(rows[0], row(&["31", "", "dimmer", "default", "1.35", ""]));
+    assert_eq!(rows[1], row(&["101", "", "wash", "default", "1.1", ""]));
+    assert_eq!(
+        *rows.last().unwrap(),
+        row(&[
+            "401",
+            "Organ par",
+            "Showtec/LED Par 56",
+            "6 Channel",
+            "2.1",
+            "yes"
+        ])
+    );
+}
+
+#[test]
+fn shw_25_groups_list_member_numbers_in_recorded_order() {
+    let show = report_rig().to_show(meta());
+    let rows = report_table(&cmdmx_core::report::render(&show, "t"), "Groups");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0][0], "1");
+    assert!(
+        rows[0][2].starts_with("101, 102, 103, 104, 201"),
+        "{:?}",
+        rows[0]
+    );
+    assert_eq!(
+        rows[1],
+        row(&["4", "Spots &lt;back&gt;", "306, 305, 304, 303, 302, 31"])
+    );
+}
+
+#[test]
+fn shw_25_palettes_show_kind_fixture_count_and_groups() {
+    use cmdmx_core::palette::{GlobalValue, Window};
+    use cmdmx_core::show::ShowPalette;
+    use cmdmx_core::value::Value;
+    let mut show = report_rig().to_show(meta());
+    let ShowPalette::Palette(p) = &mut show.palettes.palettes[0] else {
+        panic!("not a palette")
+    };
+    // Pan on 101 alone, per fixture (Auto recorded it shared by type, PAL-04).
+    p.shared.clear();
+    p.fixtures = BTreeMap::from([(
+        Item::fixture(101),
+        BTreeMap::from([("Pan".to_string(), Value::Level(0.5))]),
+    )]);
+    let p = p.clone();
+    let number = p.number;
+    // A global Colour palette and a shared Beam palette beside it.
+    let mut global = p.clone();
+    global.number = number + 1;
+    global.window = Window::Colours;
+    global.legend = "Warm".into();
+    global.fixtures.clear();
+    global
+        .global
+        .insert("Colour".into(), GlobalValue::Value(Value::Level(0.5)));
+    let mut shared = p;
+    shared.number = number + 2;
+    shared.window = Window::Beams;
+    shared.fixtures.clear();
+    shared.shared.insert(
+        "wash".into(),
+        BTreeMap::from([
+            ("Zoom".to_string(), Value::Level(0.5)),
+            ("Dimmer".to_string(), Value::Level(1.0)),
+            ("Haze".to_string(), Value::Level(1.0)),
+        ]),
+    );
+    show.palettes.palettes.push(ShowPalette::Palette(shared));
+    show.palettes.palettes.push(ShowPalette::Palette(global));
+    let rows = report_table(&cmdmx_core::report::render(&show, "t"), "Palettes");
+    let n = |k: u32| k.to_string();
+    assert_eq!(
+        rows,
+        [
+            row(&[&n(number), "", "Position", "1", "P"]),
+            row(&[&n(number + 1), "Warm", "Colour", "global", "C"]),
+            row(&[&n(number + 2), "", "Beam", "by type", "I B FX"]),
+        ]
+    );
+}
+
+#[test]
+fn shw_25_playbacks_by_page_and_handle_with_a_row_per_cue() {
+    let show = report_rig().to_show(meta());
+    let rows = report_table(&cmdmx_core::report::render(&show, "t"), "Playbacks");
+    let empty = ["", "", "", ""];
+    let cue = |c: [&str; 5]| row(&[&empty[..], &c[..]].concat());
+    assert_eq!(
+        rows,
+        [
+            row(&["1", "1", "", "Memory", "", "", "", "", ""]),
+            row(&["1", "2", "", "Memory", "", "", "", "", ""]),
+            row(&[
+                "2",
+                "5",
+                "Dienst &amp; zegen",
+                "Cue list",
+                "",
+                "",
+                "",
+                "",
+                ""
+            ]),
+            cue(["1", "Intro", "2", "4", "0"]),
+            cue(["2.5", "Preek", "3", "3", "1"]),
+            row(&["2", "6", "", "Chase", "", "", "", "", ""]),
+            cue(["1", "", "0.5", "0.5", "0"]),
+            cue(["2", "", "0.5", "0.5", "0"]),
+        ]
+    );
+}
+
+#[test]
+fn shw_25_the_report_stands_alone_and_prints_on_a4() {
+    let html = cmdmx_core::report::render(&report_rig().to_show(meta()), "t");
+    for banned in ["<script", "<link", "src=", "http:", "https:", "url("] {
+        assert!(!html.contains(banned), "{banned} in the report");
+    }
+    assert!(html.contains("size: A4"), "{html}");
+}

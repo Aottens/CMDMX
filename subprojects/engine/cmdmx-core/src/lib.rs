@@ -35,6 +35,7 @@ pub mod patch;
 pub mod playback;
 pub mod profile;
 pub mod programmer;
+pub mod report;
 pub mod scenario;
 pub mod show;
 pub mod undo;

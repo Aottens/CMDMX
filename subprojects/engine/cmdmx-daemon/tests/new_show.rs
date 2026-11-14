@@ -1,4 +1,4 @@
-//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), a copy (SHW-21), this Mac's output (SHW-24) and renaming and deleting shows (SHW-22), on the real binary: the switch, the files and the
+//! A new show that keeps the patch (SHW-19) or the looks (SHW-20), a copy (SHW-21), this Mac's output (SHW-24), renaming and deleting shows (SHW-22) and the report (SHW-25), on the real binary: the switch, the files and the
 //! history live in the tick. What the new show holds is `cmdmx-core/tests/showfile.rs`.
 
 #![cfg(unix)]
@@ -716,4 +716,94 @@ fn shw_23_a_file_changed_outside_is_kept_and_open_of_the_open_show_reloads_it() 
             .any(|g| g["id"] == 77)
     });
     assert_eq!(len(&saved["patch"]["fixtures"]), demo_fixtures);
+}
+
+#[test]
+fn shw_25_report_writes_into_reports_and_answers_the_asker_only() {
+    let dir = std::env::temp_dir().join(format!("cmdmx-shw25-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let shows = dir.join("Shows");
+    let port = free_port();
+    let _daemon = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            .env("HOME", &dir)
+            .args(["--no-artnet", "--no-sacn", "--no-serial"])
+            .args(["--ipc-port", &port.to_string()])
+            .arg("--show-dir")
+            .arg(&shows)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut app = connect(port);
+    assert_eq!(recv(&mut app)["show"]["name"], "Demo");
+    let mut other = connect(port);
+    assert_eq!(recv(&mut other)["type"], "snapshot");
+
+    // The file lands in <shows folder>/Reports as "Demo yyyy-mm-dd hhmm.html".
+    send(&mut app, json!({"cmd": "show.report"}));
+    let answer = until(&mut app, "the report", |m| m["type"] == "show.report");
+    let path = std::path::PathBuf::from(answer["path"].as_str().unwrap());
+    assert!(path.is_absolute(), "{answer}");
+    assert_eq!(path.parent().unwrap(), shows.join("Reports"));
+    let file = path.file_name().unwrap().to_str().unwrap();
+    let minute = file
+        .strip_prefix("Demo ")
+        .and_then(|f| f.strip_suffix(".html"))
+        .unwrap_or_else(|| panic!("{file}"));
+    let digits: String = minute.chars().filter(char::is_ascii_digit).collect();
+    assert_eq!((minute.len(), digits.len()), (15, 12), "{minute}");
+    let html = std::fs::read_to_string(&path).unwrap();
+    assert!(html.contains(&format!("<title>Demo — {minute}</title>")));
+    for table in ["Fixtures", "Groups", "Palettes", "Playbacks"] {
+        assert!(html.contains(&format!("<h2>{table}</h2>")), "{table}");
+    }
+
+    // The other client never sees the answer: its own list comes first.
+    send(&mut other, json!({"cmd": "show.list"}));
+    let first = until(&mut other, "the list", |m| {
+        m["type"] == "show.list" || m["type"] == "show.report"
+    });
+    assert_eq!(first["type"], "show.list");
+
+    // A report changes nothing, so the lock does not refuse it (IPC-50).
+    send(
+        &mut app,
+        json!({"cmd": "lock.set", "on": true, "code": "1234"}),
+    );
+    until(&mut app, "the lock", |m| {
+        m["type"] == "locked" && m["locked"] == true
+    });
+    send(&mut app, json!({"cmd": "show.report"}));
+    let locked = until(&mut app, "the answer", |m| {
+        m["type"] == "warning" || m["type"] == "show.report"
+    });
+    assert_eq!(locked["type"], "show.report", "{locked}");
+    send(
+        &mut app,
+        json!({"cmd": "lock.set", "on": false, "code": "1234"}),
+    );
+    until(&mut app, "the unlock", |m| {
+        m["type"] == "locked" && m["locked"] == false
+    });
+
+    // A report that cannot be written is a warning (IPC-06) and the engine runs on.
+    std::fs::remove_dir_all(shows.join("Reports")).unwrap();
+    std::fs::write(shows.join("Reports"), "not a folder").unwrap();
+    send(&mut app, json!({"cmd": "show.report"}));
+    let w = until(&mut app, "the warning", |m| {
+        m["type"] == "warning" || m["type"] == "show.report"
+    });
+    assert_eq!(w["type"], "warning", "{w}");
+    assert!(
+        w["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("Cannot write the report"),
+        "{w}"
+    );
+    send(&mut app, json!({"cmd": "show.list"}));
+    until(&mut app, "the list", |m| m["type"] == "show.list");
 }

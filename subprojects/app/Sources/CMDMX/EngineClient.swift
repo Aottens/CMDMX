@@ -2392,6 +2392,8 @@ final class EngineClient: ObservableObject {
     // Show commands (SHW-15). The engine checks names and refuses with a warning.
 
     func listShows() { sendJSON("show.list") }
+    /// SHW-25: the daemon writes the report and answers its path.
+    func showReport() { sendJSON("show.report") }
     /// `keep`: nil (empty), "patch" or "looks" (SHW-19/20).
     func newShow(_ name: String, keep: String? = nil) {
         patch("show.new", keep.map { ["name": name, "keep": $0] } ?? ["name": name])
@@ -2424,7 +2426,7 @@ final class EngineClient: ObservableObject {
     }
 
     /// The app's own reads, not the operator's commands (REL-27).
-    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "output.watch", "control.mapping", "effect.wheels"]
+    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "show.report", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "output.watch", "control.mapping", "effect.wheels"]
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
@@ -2534,9 +2536,10 @@ final class EngineClient: ObservableObject {
         fileprivate let remote: Tolerant<RemoteState>?
         fileprivate let shows: Tolerant<[Tolerant<ShowEntry>]>?
         fileprivate let dir: String?
+        fileprivate let path: String?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, remote
+            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -2661,6 +2664,9 @@ final class EngineClient: ObservableObject {
         case "show.list":
             if let shows = incoming.shows?.value { self.shows = shows.compactMap(\.value) }
             showsDir = incoming.dir
+        case "show.report":
+            if let path = incoming.path, NSWorkspace.shared.open(URL(fileURLWithPath: path)) { break }
+            say("The report could not be opened.")
         case "library.manufacturers":
             if let reply = try? JSONDecoder().decode(ManufacturersReply.self, from: data),
                trimmedOrNil(reply.query) == lastManufacturersQuery { libraryManufacturers = reply.items }
