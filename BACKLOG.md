@@ -308,8 +308,8 @@ shows folder's files); FIL-06 (the one M, apart).
 | FIL-01 | Core, daemon and app: New keeps the patch, groups and palettes, a choice of three with that as default; `shw_20_…`; manual and run on Art-Net. | SHW-20 | S | done (2026-11-14, #301; run `tests/manual/runs/2026-11-12-FIL-01-02-03.md`) |
 | FIL-02 | Daemon and app: Save Copy stays in the open show; `shw_21_…`; manual and run. | SHW-21 | S | done (2026-11-14, #301; run `tests/manual/runs/2026-11-12-FIL-01-02-03.md`) |
 | FIL-03 | Daemon and app: Open keeps this Mac's output when asked, New always does; `shw_24_…`; manual and run on Art-Net with the Eurolite. | SHW-24 | S | gate3: `tests/hardware/church.md` |
-| FIL-04 | Daemon and app: rename, delete to the Trash and Show in Finder on the Show screen; `shw_22_…`; manual and run. | SHW-22 | S | todo |
-| FIL-05 | Daemon and app: a file changed outside CMDMX is kept aside, and Open of the open show reloads it; `shw_23_…`; manual and run. | SHW-23 | S | todo |
+| FIL-04 | Daemon and app: rename, delete to the Trash and Show in Finder on the Show screen; `shw_22_…`; manual and run. | SHW-22 | S | done (2026-11-14, #303; run `tests/manual/runs/2026-11-14-FIL-04-05.md`) |
+| FIL-05 | Daemon and app: a file changed outside CMDMX is kept aside, and Open of the open show reloads it; `shw_23_…`; manual and run. | SHW-23 | S | done (2026-11-14, #303; run `tests/manual/runs/2026-11-14-FIL-04-05.md`) |
 | FIL-06 | Core, daemon and app: a printable HTML report of fixtures, groups, palettes and playbacks; `shw_25_…`; manual and run. | SHW-25 | M | todo |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)

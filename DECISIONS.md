@@ -5,6 +5,21 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-14 — A file changed outside: show.list only tells; the saver checks against the stamp at hand-over (FIL-05)
+
+**Decision:** SHW-23's check on `show.list` warns once per change ("… Open Kerk to load it, or the next save keeps it
+aside") and moves nothing, so Open of the open show can still load the copied file. Each save job carries the open file's
+stamp (size, modified time) from when the tick handed it over; the saver keeps a file aside only when it differs from that
+stamp and from the saver's own last write.
+
+**Alternatives considered:** keeping the file aside on `show.list` (then Open of the open show could never load a copied
+file, the flow decision 5 of P1-41 is for); checking against the open file as the saver sees it (a switch sets the next
+show at once, so the last flush of the show being left skipped the check and overwrote a copied file; found in review).
+
+**Reasoning:** nothing is ever lost, and the tick never stats a file.
+
+**Reversal trigger:** the owner wants the list to keep files aside as well.
+
 ## 2026-11-14 — The review's orchestrator runs on Opus (owner)
 
 **Decision:** `review.yml` passes `--model claude-opus-5-5` to the code-review plugin's orchestrator.

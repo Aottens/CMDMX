@@ -1,8 +1,9 @@
 # app — State
 
-_Last updated: 2026-11-14 (FIL-01, FIL-02, FIL-03)_
+_Last updated: 2026-11-14 (FIL-04, FIL-05)_
 
 ## Current step
+FIL-04 (2026-11-14, SHW-22): *Selected show* panel in `ShowView` (`selectedShow`, `deleteButton`): Rename with its own field (`EngineClient.renameShow`), Delete with the two-step arm (`Armed.delete`, `deleteShow`) and Show in Finder (`NSWorkspace.activateFileViewerSelecting` on `showsDir`, the `dir` of `show.list`). A selection the new list no longer holds is cleared (found in the run). FIL-05 needed no app code: its messages are warnings. `app-cpu.sh`: idle 4.6 %, demo 12.1 %. Run: `tests/manual/runs/2026-11-14-FIL-04-05.md`.
 FIL-01..03 (2026-11-14, SHW-20, SHW-21, SHW-24): `ShowView.keep` (`none`, `patch`, `looks`; `looks` on appear) in the radio group `keepPicker` replaces `keepPatch`; `armedLabel` names what goes per choice. *Save Copy* sits beside *Save As* (`EngineClient.saveShowCopy`); the daemon's notice and pushed `show.list` show the result. `@AppStorage("keepMacOutput")` (default true) is the Open panel's *Keep this Mac's output*, passed to `openShow(_:keepOutput:)`. `app-cpu.sh`: idle 2.6 %, demo 11.7 %.
 CTR-06, CTR-08, CTR-09 (2026-11-11, PRG-100, PRG-101, CUE-64, PBK-53): `MacKeys.handle` turns `+`/`=`/`-` right after `@` into a sign token instead of And/Thro. `WheelView.pointsPerStep` is 1 (255 pt from 0 to full) and the MixBar drag counts whole points. `GoBlock`'s `LiveLabel` reads `fader 0 % · no output` at 0. `UIState.wholePagePhrase` names a page the picks fill ("page 2 Pasen"), used by `sayPicks` and the Delete/Copy softkey line. Computer use could not send keystrokes to the app, so the Mac keys after `@` wait in `tests/manual/app-programmer.md`. Run: `tests/manual/runs/2026-11-11-CTR-06-08-09.md`.
 CTR-10 (2026-11-11, UI-81): `Workspaces` gives each hidden workspace `.accessibilityElement(children: .ignore)` beside `.accessibilityHidden`, which on macOS alone left the children in the tree (IDEA-38). Every workspace stays built, so view state survives a switch; a screen visit still rebuilds them (IDEA-56). Run: `tests/manual/runs/2026-11-11-IDEA-38.md`.
