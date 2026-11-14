@@ -314,6 +314,7 @@ private struct Softkeys: View {
         if let function = ui.function { return functionContext(function) }
         if let cells = ui.liveTimeCells(engine) { return timesContext(cells) }
         if ui.paletteMenu { return paletteContext }
+        if let mark = ui.storedMark { return storedContext(mark) }   // PBK-54: until the selection changes, Esc or a function
         // UI-33a: Order and Pattern open from the Fan context too and win over it.
         if !engine.programmer.selection.isEmpty {
             if ui.selectionMenu == "Order" { return orderContext }
@@ -589,6 +590,20 @@ private struct Softkeys: View {
         ])
     }
 
+    /// PBK-54: right after a store, Legend opens the editor of what was stored: a new playback's legend, or the new
+    /// cue (the number now on the handle that was not there before). Cleared by the next function, Record or Esc.
+    private func storedContext(_ mark: (page: Int, slot: Int, before: Set<Double>)) -> (name: String, keys: [Softkey?]) {
+        let legend = Softkey(name: "Legend", sub: "of what you stored") {
+            guard let info = engine.playbacks.first(where: { $0.stored.page == mark.page && $0.stored.slot == mark.slot }) else {
+                return engine.say("Nothing stored on \(mark.page).\(mark.slot).")
+            }
+            let new = info.stored.cues.map(\.number).filter { !mark.before.contains($0) }.min()
+            if mark.before.isEmpty { ui.playbackLegendEditing = PlaybackRef(id: info.id) }
+            else if let new { ui.cueLegendEditing = CueRef(playback: info.id, cue: new) }
+        }
+        return ("Stored · \(mark.page).\(mark.slot)", [legend])
+    }
+
     /// This record's Record By: the operator's choice, else the engine's setting (PAL-25).
     /// For a playback record (a used handle tapped) the default is the cue setting (PBK-10).
     private var recordBy: String {
@@ -616,6 +631,19 @@ private struct Softkeys: View {
                 ui.confirmDelete(engine)   // UI-46
             }
             if ui.function == .delete { keys[3] = menuLatchKey }   // UI-65: a right-click's Delete has no function to latch
+            keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
+            return ("Cue · \(name)", keys)
+        }
+        if ui.cueBlockPicking, let f = ui.function {   // CUE-69: the picked cues go to a number, the end, or another list
+            var keys: [Softkey?] = Array(repeating: nil, count: 7)
+            let title = f == .copy ? "Copy" : "Renumber"
+            keys[0] = Softkey(name: title, sub: "number on the line") {
+                guard let n = line.onlyNumber else { return engine.say("\(title): type the first cue number on the keypad first.") }
+                ui.sendCueBlock(engine, to: n)
+                line.clear()
+            }
+            keys[1] = Softkey(name: "End", sub: "after the last cue") { ui.sendCueBlock(engine, to: nil) }
+            keys[3] = menuLatchKey
             keys[6] = Softkey(name: "Cancel", action: { engine.endArmedMessage(); ui.cancelModes() })
             return ("Cue · \(name)", keys)
         }
@@ -889,6 +917,7 @@ private struct Softkeys: View {
         .frame(width: 120)
         .background(t.panel)
         .onChange(of: engine.programmer.selection.isEmpty) { _, empty in if empty { ui.selectionMenu = nil } }
+        .onChange(of: engine.programmer.selection) { _, _ in ui.storedMark = nil }   // PBK-54: a new look ends Legend
         .onChange(of: ui.function) { _, f in if f == .update { engine.askUpdateTargets() } }
     }
 }

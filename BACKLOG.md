@@ -325,13 +325,13 @@ so it can be reverted alone if keypad habits disagree).
 | TTN-01 | Core and app: `@ @` is full and the setting *Channel levels* gives Titan's single-digit mode; `prg_102_…`, `prg_103_…`, `shw_26_…`; manual and run on the keypad and Mac keys. | PRG-102, PRG-103, SHW-26 | S | todo |
 | TTN-02 | Core, daemon and app: a crossfade field in the Go block and the `speed` and `xfade` control actions on the connected chase; `cue_65_…`; manual and run on Art-Net. | CUE-65 | S | done (2026-11-14, #307; run `tests/manual/runs/2026-11-14-TTN-05-02-03.md`) |
 | TTN-03 | Core and app: Go and Back set a Forward or Backward chase's direction, a direction button in the Go block and a `direction` control action; `cue_66_…`; manual and run on Art-Net. | CUE-66 | S | done (2026-11-14, #307; run `tests/manual/runs/2026-11-14-TTN-05-02-03.md`) |
-| TTN-04 | App: the Cue list window follows the live cue, with a Follow toggle; manual and run on a list of 40 cues. | CUE-67 | S | todo |
+| TTN-04 | App: the Cue list window follows the live cue, with a Follow toggle; manual and run on a list of 40 cues. | CUE-67 | S | done (2026-11-14, #308; run `tests/manual/runs/2026-11-14-TTN-04-06-10.md`) |
 | TTN-05 | Core, daemon and app: a second Go within `go_guard` (default 0.5 s) is ignored with a warning; `cue_68_…`, `shw_26_…`; manual and run with two Space presses. | CUE-68, SHW-26 | S | done (2026-11-14, #307; run `tests/manual/runs/2026-11-14-TTN-05-02-03.md`) |
-| TTN-06 | Core and app: an automatic legend for a new playback or cue from its group and palettes, and a Legend softkey after a store; `pbk_54_…`, `shw_26_…`; manual and run. | PBK-54, SHW-26 | S | todo |
+| TTN-06 | Core and app: an automatic legend for a new playback or cue from its group and palettes, and a Legend softkey after a store; `pbk_54_…`, `shw_26_…`; manual and run. | PBK-54, SHW-26 | S | done (2026-11-14, #308; run `tests/manual/runs/2026-11-14-TTN-04-06-10.md`) |
 | TTN-07 | Core and app: the playback option Shape size (Fader, Fixed, HTP Fader); `fx_46_…`, `shw_26_…`; manual and run on Art-Net. | FX-46, SHW-26 | S | todo |
 | TTN-08 | Core and app: a held Swop stops other playbacks' shapes, all or dimmer only by the setting Swop stops; `fx_47_…`, `shw_26_…`; manual and run on Art-Net. | FX-47, SHW-26 | S | todo |
 | TTN-09 | Core and app: the playback option Mask shapes per attribute group; `fx_48_…`, `shw_26_…`; manual and run on Art-Net. | FX-48, SHW-26 | S | todo |
-| TTN-10 | Core, daemon and app: move or copy a block of cues to a number, the end or another list; `cue_69_…`; manual and run. | CUE-69 | M | todo |
+| TTN-10 | Core, daemon and app: move or copy a block of cues to a number, the end or another list; `cue_69_…`; manual and run. | CUE-69 | M | done (2026-11-14, #308; run `tests/manual/runs/2026-11-14-TTN-04-06-10.md`) |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
@@ -429,6 +429,7 @@ after VS8-03, in any order.
 | P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show; find Titan's page first; numbered criteria and build tasks; owner approves. | SHW, UI | S | todo |
 | P1-38 | Measure the engine's load in a release build on a rig of about 260 fixtures (M7, fifth gap review; owner 2026-11-08): the debug build took 78 % of a core against 10 % with 38 fixtures; write the result in a run file, and a budget like UI-70 only if it is too high. | ENG | S | todo |
 | TST-01 | Daemon tests never send DMX: every test that starts the daemon passes `--no-artnet --no-sacn --no-serial` (`client_loss`, `lock`, `message_history`, `remote` start Demo with Art-Net on, `message_history` with serial on), checked by one test over `tests/*.rs`; needs a criterion first (found in the FIL-01..03 run). | — | S | todo |
+| DEF-06 | Core: an Undo or Redo that takes away a running list's current or next cue (a Renumber or a block Move undone) leaves the list on a cue that exists, so Go goes on; needs a criterion first, amending UNDO-10 (found in the TTN-04, 06, 10 run: Go did nothing, without a message). | — | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ### Tracking: the state stays true (spec `tracking.md`)

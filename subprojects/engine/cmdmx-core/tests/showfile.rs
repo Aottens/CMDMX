@@ -1193,7 +1193,7 @@ fn shw_25_the_report_stands_alone_and_prints_on_a4() {
     assert!(html.contains("size: A4"), "{html}");
 }
 
-// ---- SHW-26: schema 15, batch I's new options (TTN-05 adds `go_guard`) ---------------------
+// ---- SHW-26: schema 15, batch I's new options (TTN-05 adds `go_guard`, TTN-06 `auto_legend`) ---------------------
 
 #[test]
 fn shw_26_go_guard_is_left_out_at_its_default_and_saved_otherwise() {
@@ -1217,6 +1217,26 @@ fn shw_26_go_guard_is_left_out_at_its_default_and_saved_otherwise() {
 }
 
 #[test]
+fn shw_26_auto_legend_is_left_out_at_its_default_and_saved_otherwise() {
+    let mut e = rig();
+    let v = as_json(&e.to_show(meta()));
+    assert!(
+        v["settings"].get("auto_legend").is_none(),
+        "on is the default"
+    );
+    e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+        auto_legend: Some(false),
+        ..Default::default()
+    })
+    .unwrap();
+    let v = as_json(&e.to_show(meta()));
+    assert_eq!(v["settings"]["auto_legend"], json!(false));
+    let (loaded, warnings) = load(&v);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert!(!loaded.settings().auto_legend);
+}
+
+#[test]
 fn shw_26_a_schema_14_show_loads_with_every_default() {
     let mut v = as_json(&rig().to_show(meta()));
     v["schema_version"] = json!(14);
@@ -1226,6 +1246,7 @@ fn shw_26_a_schema_14_show_loads_with_every_default() {
     let (e, warnings) = Engine::from_show(&show);
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(e.settings().go_guard, 0.5);
+    assert!(e.settings().auto_legend);
     assert_eq!(
         as_json(&e.to_show(meta())),
         as_json(&rig().to_show(meta())),

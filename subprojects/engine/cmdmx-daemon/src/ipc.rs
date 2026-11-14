@@ -34,7 +34,7 @@ use cmdmx_core::palette::{
 };
 use cmdmx_core::patch::{Behaviour, BehaviourEdit, Fixture, FixtureId, Handle, PatchAdd};
 use cmdmx_core::playback::{
-    AddCue, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
+    AddCue, BlockTo, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Layout, Link,
     ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
     PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, UpdateTarget, Values,
@@ -512,6 +512,15 @@ pub enum Command {
         id: PlaybackId,
         cue: CueNumber,
         to: CueNumber,
+    },
+    /// CUE-69: `cue.move` / `cue.copy` with `cues`: a block to a number or "end", of this list
+    /// or of `target`.
+    CueBlock {
+        id: PlaybackId,
+        cues: Vec<CueNumber>,
+        to: BlockTo,
+        target: Option<PlaybackId>,
+        copy: bool,
     },
     /// CTL-40: handed to the tick as `Event::ControlMapping`, never applied.
     ControlMapping {
@@ -2036,6 +2045,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             release_time: opt_f32(&v, "release_time")?,
             go_guard: opt_f32(&v, "go_guard")?,
             auto_connect: opt_field(&v, "auto_connect", "true or false")?,
+            auto_legend: opt_field(&v, "auto_legend", "true or false")?,
             cue_list_fader: opt_field(&v, "cue_list_fader", "KillWithOff or KillAtZero")?,
             update_mode: opt_field(&v, "update_mode", "Forwards, CueOnly, Backwards or Both")?,
             handle_buttons: opt_field(
@@ -2144,11 +2154,25 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("cue.renumber_all") => Ok(Command::CueRenumberAll {
             id: uint(&v, "id")?,
         }),
-        Some("cue.copy") => Ok(Command::CueCopy {
+        Some("cue.copy") if v.get("cues").is_none() => Ok(Command::CueCopy {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
             to: cue_number(&v, "to")?,
         }),
+        Some(c @ ("cue.copy" | "cue.move")) => {
+            // CUE-69: "to" is a cue number or "end".
+            let to = match v.get("to") {
+                Some(serde_json::Value::String(s)) if s == "end" => BlockTo::End,
+                _ => BlockTo::Number(cue_number(&v, "to")?),
+            };
+            Ok(Command::CueBlock {
+                id: uint(&v, "id")?,
+                cues: one_or_list(&v, "cue", "cues", |n| CueNumber::new(n.as_f64()?))?,
+                to,
+                target: opt_uint(&v, "target")?,
+                copy: c == "cue.copy",
+            })
+        }
         Some("cue.view") => Ok(Command::CueView {
             id: uint(&v, "id")?,
             cue: cue_number(&v, "cue")?,
@@ -2412,6 +2436,7 @@ struct PlaybackSettingsInfo {
     update_mode: UpdateMode,
     handle_buttons: HandleButtons,
     go_guard: f32,
+    auto_legend: bool,
 }
 
 fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
@@ -2432,6 +2457,7 @@ fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
         update_mode: s.update_mode,
         handle_buttons: s.handle_buttons.clone(),
         go_guard: s.go_guard,
+        auto_legend: s.auto_legend,
     }
 }
 
@@ -7386,7 +7412,7 @@ mod tests {
             json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,"fade_out_as_in":true,"delay_out_as_in":true,
                    "overlap":100.0,"release_mask":[],"release_time":2.0,
                    "auto_connect":true,"cue_list_fader":"KillWithOff","update_mode":"Forwards",
-                   "handle_buttons":"BestPractice","go_guard":0.5})
+                   "handle_buttons":"BestPractice","go_guard":0.5,"auto_legend":true})
         );
     }
 

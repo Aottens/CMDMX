@@ -106,6 +106,11 @@ its handle and how many cues it has. Each row is a cue:
 The current cue is green, the next one has an outline, and a fading cue shows its progress along
 the bottom of its row.
 
+The window **follows** the live cue: after a Go, Back, a link, Go to Cue or another connected list it scrolls so
+the current cue and the one after it are in sight, with one row above when there is room. A cue that was already
+in sight does not scroll. **Follow** at the top of the window turns this off and on; the app remembers it. Scrolling
+by hand does not turn it off, so the next Go brings the live cue back.
+
 **Tap a row** to make that cue the next one. Nothing changes on stage until you press Go, so a
 tap in the list can never cue the wrong thing. **View** at the end of a row shows the
 [Cue view](#the-cue-view) and **⋯** the cue softkeys; neither changes the stage either. With a function
@@ -138,6 +143,16 @@ has no Times view. In this view a tap selects a time and does not change Next:
   playback instead. The message says when it is the live cue: the output stays until the next Go. With the **Delete**
   function armed, **⇧-tap** a range of rows or **⌘-tap** to add or drop one; softkey A names the count. Every cue of
   a playback cannot go at once: delete the playback instead.
+
+**Move or copy a block of cues**, a song of four cues for instance: arm **Move** or **Copy** and tap a row; **⇧-tap**
+picks a range, **⌘-tap** adds or drops one. Then type the first new number and press **Enter** (or **Renumber** for Move,
+**Copy** for Copy), or press **End** to put them after the last cue. The cues keep their order and take that number,
+the next whole number and so on: Q10–Q13 to 21 become Q21–Q24. To send them to another cue list or chase, tap its
+handle before the number ("Move 4 cues to 1.3: type the first number"). If a new number is already taken by a cue that
+is not moving, nothing happens and the message names it ("Q21 is in the way: renumber or pick another number"): nothing
+is renumbered without asking. A copy is the whole cue, legend, times, effects and switched-off values included; a moved
+cue keeps what it holds, and in a tracking list it tracks from the cues before its new place. The live cue of a running
+list cannot move to another list, and a list cannot give away all its cues. One Undo takes the whole block back.
 
 **Record**, then a tap on a row, records onto that cue: **Replace**, **Merge** or **Update**.
 **Include**, then a tap on a row, puts what that cue holds itself in the programmer: nothing tracked and

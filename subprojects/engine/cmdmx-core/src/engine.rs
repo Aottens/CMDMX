@@ -36,13 +36,13 @@ use crate::palette::{
 };
 use crate::patch::{Behaviour, BehaviourEdit, Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
-    check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BpmFader, BpmMaster, Button,
-    ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, Direction,
-    FaderMode, GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
-    Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master, MasterKind,
-    Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
-    Priority, Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values, GROUP_SCALES,
-    PAGES,
+    check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BlockTo, BpmFader, BpmMaster,
+    Button, ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView,
+    Direction, FaderMode, GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons,
+    KillPoint, Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master,
+    MasterKind, Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord,
+    PlaybackState, Priority, Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values,
+    GROUP_SCALES, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -198,6 +198,8 @@ pub struct Settings {
     pub lowlight_level: f32,
     /// CUE-68: seconds a Go on a list is ignored after the last Go it accepted (0 = no guard).
     pub go_guard: f32,
+    /// PBK-54: a cue a record creates gets an automatic legend.
+    pub auto_legend: bool,
 }
 
 /// CUE-68: the Go guard's default and upper limit, in seconds.
@@ -222,6 +224,8 @@ pub struct PlaybackSettingsChange {
     pub handle_buttons: Option<HandleButtons>,
     /// CUE-68: 0..=2 s.
     pub go_guard: Option<f32>,
+    /// PBK-54.
+    pub auto_legend: Option<bool>,
 }
 
 /// PBK-09: the default record mask, every group.
@@ -264,6 +268,7 @@ impl Default for Settings {
             clear_ltp: ClearLtp::default(),
             lowlight_level: default_lowlight(),
             go_guard: DEFAULT_GO_GUARD,
+            auto_legend: true,
         }
     }
 }
@@ -2644,6 +2649,7 @@ impl Engine {
                 clear_ltp: s.clear_ltp,
                 lowlight_level: s.lowlight_level,
                 go_guard: s.go_guard,
+                auto_legend: s.auto_legend,
             },
             profiles: self
                 .profiles
@@ -2777,6 +2783,7 @@ impl Engine {
             clear_ltp: s.clear_ltp,
             lowlight_level: s.lowlight_level,
             go_guard: s.go_guard,
+            auto_legend: s.auto_legend,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
@@ -4230,6 +4237,9 @@ impl Engine {
         if let Some(v) = change.go_guard {
             s.go_guard = v;
         }
+        if let Some(v) = change.auto_legend {
+            s.auto_legend = v;
+        }
         Ok(())
     }
 
@@ -4381,11 +4391,14 @@ impl Engine {
             if let Some(kind @ (PlaybackKind::Chase | PlaybackKind::Cues)) = record.kind {
                 playback.kind = kind;
             }
+            let legend = self.auto_legend(&values);
             playback.cues = vec![Cue {
                 effects,
                 order,
+                legend: legend.clone(),
                 ..self.new_cue(values, number)
             }];
+            playback.legend = legend;
             let id = playback.id;
             self.add_playback(playback);
             return Ok(id);
@@ -4396,6 +4409,7 @@ impl Engine {
             let cue = Cue {
                 effects,
                 order,
+                legend: self.auto_legend(&values),
                 ..self.new_cue(values, number)
             };
             if let Some(playback) = self.playbacks.get_mut(&id) {
@@ -4679,6 +4693,77 @@ impl Engine {
         }
     }
 
+    /// PBK-54: the legend of a cue a record creates; empty when `auto_legend` is off.
+    fn auto_legend(&self, values: &Values) -> String {
+        const SEP: &str = " · ";
+        const MAX: usize = palette::MAX_LEGEND;
+        if !self.settings.auto_legend {
+            return String::new();
+        }
+        let fixtures: BTreeSet<FixtureId> = values.keys().map(|i| i.fixture).collect();
+        if fixtures.is_empty() {
+            return String::new();
+        }
+        let mut parts: Vec<String> = Vec::new();
+        let group = self.groups.iter().find(|(id, members)| {
+            let set: BTreeSet<FixtureId> = members.iter().map(|i| i.fixture).collect();
+            set == fixtures && self.group_legends.get(id).is_some_and(|l| !l.is_empty())
+        });
+        if let Some((id, _)) = group {
+            parts.extend(self.group_legends.get(id).cloned());
+        }
+        // (lowest attribute group it is referenced from, palette number) per palette.
+        let mut keyed: BTreeMap<PaletteId, (AttributeGroup, u32)> = BTreeMap::new();
+        for attrs in values.values() {
+            for (name, stored) in attrs {
+                let Stored::Reference(r) = stored else {
+                    continue;
+                };
+                let Some(pal) = self.palettes.get(&r.palette) else {
+                    continue;
+                };
+                let key = (self.attribute_group(name), pal.number);
+                let slot = keyed.entry(r.palette).or_insert(key);
+                *slot = (*slot).min(key);
+            }
+        }
+        let mut keyed: Vec<_> = keyed.into_iter().collect();
+        keyed.sort_by_key(|(_, k)| *k);
+        for (id, _) in keyed {
+            if let Some(pal) = self.palettes.get(&id).filter(|p| !p.legend.is_empty()) {
+                parts.push(pal.legend.clone());
+            }
+        }
+        if parts.is_empty() {
+            let numbers: BTreeSet<u32> = fixtures
+                .iter()
+                .filter_map(|f| self.fixtures.get(f).map(|f| f.number))
+                .collect();
+            return if numbers.len() <= 3 {
+                numbers
+                    .iter()
+                    .map(u32::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                format!("{} fixtures", fixtures.len())
+            };
+        }
+        let joined = parts.join(SEP);
+        if joined.chars().count() <= MAX {
+            return joined;
+        }
+        while parts.len() > 1 {
+            parts.pop();
+            let cut = format!("{}…", parts.join(SEP));
+            if cut.chars().count() <= MAX {
+                return cut;
+            }
+        }
+        let first: String = parts.concat().chars().take(MAX - 1).collect();
+        format!("{first}…")
+    }
+
     /// PBK-12: a new cue with the times of the settings and link `Wait`.
     fn new_cue(&self, values: Values, number: CueNumber) -> Cue {
         let s = &self.settings;
@@ -4883,6 +4968,134 @@ impl Engine {
         playback.cues.sort_by_key(|c| c.number);
         if let Some(state) = self.states.get_mut(&id) {
             state.run.edited = true; // CUE-53
+        }
+        Ok(())
+    }
+
+    /// CUE-69: move a block of cues to `to`, `to` + 1, … (or after the last cue) of this list
+    /// or of `target`; refused as a whole, changing nothing.
+    pub fn move_cues(
+        &mut self,
+        id: PlaybackId,
+        cues: &[CueNumber],
+        to: BlockTo,
+        target: Option<PlaybackId>,
+    ) -> Result<(), CoreError> {
+        self.block_cues(id, cues, to, target, false)
+    }
+
+    /// CUE-69: copy a block of cues whole to `to`, `to` + 1, … (or after the last cue).
+    pub fn copy_cues(
+        &mut self,
+        id: PlaybackId,
+        cues: &[CueNumber],
+        to: BlockTo,
+        target: Option<PlaybackId>,
+    ) -> Result<(), CoreError> {
+        self.block_cues(id, cues, to, target, true)
+    }
+
+    /// CUE-69: what `move_cues` and `copy_cues` share; everything is checked before anything
+    /// changes.
+    fn block_cues(
+        &mut self,
+        id: PlaybackId,
+        cues: &[CueNumber],
+        to: BlockTo,
+        target: Option<PlaybackId>,
+        copy: bool,
+    ) -> Result<(), CoreError> {
+        let source = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        let block: BTreeSet<_> = cues.iter().copied().collect();
+        if block.is_empty() {
+            return Err(CoreError::InvalidCommand(
+                "expected at least one cue".to_string(),
+            ));
+        }
+        if let Some(&c) = block
+            .iter()
+            .find(|c| !source.cues.iter().any(|x| x.number == **c))
+        {
+            return Err(CoreError::UnknownCue(c));
+        }
+        let tid = target.unwrap_or(id);
+        let dest = (self.playbacks.get(&tid)).ok_or(CoreError::UnknownPlayback(tid))?;
+        if !is_list(dest) {
+            return Err(CoreError::NotACueList(tid));
+        }
+        let start = match to {
+            BlockTo::Number(n) => n,
+            BlockTo::End => {
+                let last = dest.cues.last().map_or(0.0, |c| c.number.as_f64());
+                CueNumber::new(last.floor() + 1.0).ok_or(CoreError::InvalidCueNumber)?
+            }
+        };
+        if !start.is_valid() {
+            return Err(CoreError::InvalidCueNumber);
+        }
+        let numbers = (0..block.len())
+            .map(|i| CueNumber::new(start.as_f64() + i as f64).filter(|n| n.is_valid()))
+            .collect::<Option<Vec<_>>>()
+            .ok_or(CoreError::InvalidCueNumber)?;
+        let same = tid == id;
+        let moving = !copy && same;
+        if let Some(n) = numbers.iter().find(|n| {
+            (dest.cues.iter()).any(|c| c.number == **n && !(moving && block.contains(&c.number)))
+        }) {
+            return Err(CoreError::ListRefused(format!(
+                "Q{n} is in the way: renumber or pick another number"
+            )));
+        }
+        if !copy && !same {
+            if block.len() >= source.cues.len() {
+                let last = block.last().copied().unwrap_or_default();
+                return Err(CoreError::LastCue(last));
+            }
+            let live = self.states.get(&id).and_then(|s| s.run.current);
+            if let Some(c) = live.filter(|c| block.contains(c)) {
+                return Err(CoreError::ListRefused(format!(
+                    "Q{c} is live on {}.{}",
+                    source.page, source.slot
+                )));
+            }
+        }
+        let renamed: Vec<Cue> = (source.cues.iter().filter(|c| block.contains(&c.number)))
+            .zip(&numbers)
+            .map(|(c, &number)| Cue {
+                number,
+                ..c.clone()
+            })
+            .collect();
+        let map: BTreeMap<CueNumber, CueNumber> =
+            block.iter().copied().zip(numbers.iter().copied()).collect();
+        if !copy {
+            let playback = self.playback_mut(id)?;
+            playback.cues.retain(|c| !block.contains(&c.number));
+        }
+        let playback = self.playback_mut(tid)?;
+        playback.cues.extend(renamed);
+        playback.cues.sort_by_key(|c| c.number);
+        if moving {
+            if let Some(run) = self.states.get_mut(&id).map(|s| &mut s.run) {
+                run.renumbered(|n| map.get(&n).copied().unwrap_or(n));
+            }
+        } else if !copy {
+            // The cue after a moved-out next cue is next (as `delete_cue`).
+            let after =
+                (self.playbacks.get(&id)).zip(self.states.get(&id).and_then(|s| s.run.next));
+            let after = after
+                .filter(|(_, next)| block.contains(next))
+                .and_then(|(p, next)| p.cue_after(next));
+            if let Some(run) = self.states.get_mut(&id).map(|s| &mut s.run) {
+                if run.next.is_some_and(|n| block.contains(&n)) {
+                    run.next = after;
+                }
+            }
+        }
+        for touched in [id, tid] {
+            if let Some(state) = self.states.get_mut(&touched) {
+                state.run.edited = true; // CUE-53
+            }
         }
         Ok(())
     }

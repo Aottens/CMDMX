@@ -469,10 +469,12 @@ struct PlaybackSettings: Decodable, Equatable {
     let handleButtons: HandleButtons
     /// CUE-68: seconds a second Go on a list is ignored (0 = no guard).
     let goGuard: Double
+    /// PBK-54: a cue a record creates gets an automatic legend.
+    let autoLegend: Bool
 
     private enum CodingKeys: String, CodingKey {
         case delay, overlap
-        case goGuard = "go_guard"
+        case goGuard = "go_guard", autoLegend = "auto_legend"
         case recordBy = "record_by", fadeIn = "fade_in", fadeOut = "fade_out"
         case releaseMask = "release_mask", releaseTime = "release_time"
         case autoConnect = "auto_connect", cueListFader = "cue_list_fader"
@@ -497,6 +499,7 @@ struct PlaybackSettings: Decodable, Equatable {
         updateMode = (try? c.decode(String.self, forKey: .updateMode)) ?? "Forwards"
         handleButtons = (try? c.decode(HandleButtons.self, forKey: .handleButtons)) ?? HandleButtons()
         goGuard = (try? c.decode(Double.self, forKey: .goGuard)) ?? 0.5
+        autoLegend = (try? c.decode(Bool.self, forKey: .autoLegend)) ?? true
     }
 }
 
@@ -2191,6 +2194,11 @@ final class EngineClient: ObservableObject {
         if let mode { fields["mode"] = mode }
         if let cue { fields["cue"] = cue }
         if let updateMode { fields["update_mode"] = updateMode }
+        // PBK-54: a record that may create a playback or a cue is remembered for the Legend softkey.
+        if mode == nil || mode == "Append" || mode == "Insert" {
+            let before = playbacks.first { $0.stored.page == page && $0.stored.slot == slot }
+            onStore?(page, slot, Set(before?.stored.cues.map(\.number) ?? []))
+        }
         patch("playback.record", fields)
     }
     /// IPC-26: `kind` is Bpm or Rate; the engine picks the master's number.
@@ -2264,6 +2272,14 @@ final class EngineClient: ObservableObject {
     func renumberCue(_ id: Int, cue: Double, to: Double) { patch("cue.renumber", ["id": id, "cue": cue, "to": to]) }
     func renumberAllCues(_ id: Int) { patch("cue.renumber_all", ["id": id]) }
     func copyCue(_ id: Int, cue: Double, to: Double) { patch("cue.copy", ["id": id, "cue": cue, "to": to]) }
+    /// CUE-69: a block of cues to a number (nil = after the target's last cue), of this list or of `target`.
+    func copyCues(_ id: Int, cues: [Double], to: Double?, target: Int?) { cueBlock("cue.copy", id, cues, to, target) }
+    func moveCues(_ id: Int, cues: [Double], to: Double?, target: Int?) { cueBlock("cue.move", id, cues, to, target) }
+    private func cueBlock(_ cmd: String, _ id: Int, _ cues: [Double], _ to: Double?, _ target: Int?) {
+        var fields: [String: Any] = ["id": id, "cues": cues, "to": to.map { $0 as Any } ?? "end"]
+        if let target, target != id { fields["target"] = target }
+        patch(cmd, fields)
+    }
     /// CUE-54: the reply lands in `cueView`.
     func viewCue(_ id: Int, cue: Double) { sendJSON("cue.view", ["id": id, "cue": cue]) }
     func removeCueValue(_ id: Int, cue: Double, fixture: Int, cell: Int? = nil, attribute: String?) {
@@ -2357,6 +2373,8 @@ final class EngineClient: ObservableObject {
     }
     /// UI-50: set by the Frame; whether a function is armed when the app says something.
     var isArmed: () -> Bool = { false }
+    /// PBK-54: told (page, slot, the cue numbers there before) when a record may create something; the UI keeps it.
+    var onStore: ((Int, Int, Set<Double>) -> Void)?
     /// UI-64: counts warnings and errors, so a send can tell whether the engine refused it. Not published.
     private(set) var refusals = 0
     /// UI-50: the text the app said because a function was armed.
