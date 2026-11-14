@@ -3,7 +3,8 @@
 Owner: `cmdmx-core::effect` (shapes, entries, clocks; pure), the merge in `cmdmx-core::engine`,
 `cmdmx-daemon` (IPC) and `subprojects/app` (Shapes workspace).
 Status: **FX-01..44 approved by owner 2026-10-29 (P2-01, IDEA-18), the four owner decisions as proposed**;
-**FX-45 and the FX-06, 07, 14, 38 amendments (selection orders, P2-02) approved by owner 2026-10-29**.
+**FX-45 and the FX-06, 07, 14, 38 amendments (selection orders, P2-02) approved by owner 2026-10-29**. FX-46..48 proposed
+2026-11-14 (IDEA-35 batch I, P1-42).
 Structural choices: ADR-011 (on top of ADR-007). Merge order: `engine-merge.md` ENG-14..19.
 Behavioural reference: Avolites Titan v19 manual, *Shapes and Effects* — Shape Generator
 (https://manual.avolites.com/docs/effects/shape-generator) and Key Frame Shapes
@@ -316,6 +317,28 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   dimmer chase, a circle around a position palette, a rainbow wave on the pars, speed on a BPM
   master with Tap, a cue list with a timed Go from a circle to an eight, record an effect palette
   and recall it on another selection; the owner judges by eye on the tiles and in the run file.
+
+### Shapes on playbacks (IDEA-35 batch I, P1-42; proposed 2026-11-14, waits for the owner)
+Checks: `tests/manual/runs/2026-11-14-I-checks.md`. Titan: *Playback Options* (Effects tab: *Shape Size*), *User Settings*
+(*Swop Shapes*), and, search only, the v14 release notes (*Mask Shapes* replaced *Block Shapes*). Questions in `cuelists.md`,
+*Owner questions (P1-42)*.
+- **FX-46** **Shape size per playback** (I8; amends FX-25 and owner decision 3; P1-42 question 8). A playback option
+  `shape_size`: `Fader` (default, FX-25 as now), `Fixed` (no entry follows *m*: the size is the recorded size and an absolute
+  effect on an `Htp` attribute is not scaled by *m*) or `HtpFader` (entries on `Htp` attributes follow *m* as FX-25, the others
+  are `Fixed`). The kill point still ends every entry with its playback (PBK-19). Playback Options show it on the Handle tab of a
+  memory, cue list and chase as *Shape size: fader / fixed / dimmer shapes on fader*. Tests `fx_46_…`.
+- **FX-47** **Swop stops shapes** (I9, as Titan's *Swop Shapes*; makes PBK-27 true for effects; P1-42 question 8). While another
+  playback's Swop is held (PBK-27), a playback's effects act according to the playback setting `swop_shapes`: `All` (default,
+  Titan) none of them acts, so the attribute shows its base; `Intensity` only its effects on `Htp` attributes stop. The
+  programmer's effects never stop, and the Swop owner's own effects run. Released, they continue on their clocks, which kept
+  running (FX-24). Playback settings show it as *Swop stops: all shapes / dimmer shapes*. Tests `fx_47_…`.
+- **FX-48** **Mask Shapes** (I9, Titan's *Mask Shapes*, which replaced *Block Shapes*; amends ENG-15; P1-42 question 9). A
+  playback option `mask_shapes`, a set of attribute groups (I P C G B E S; default none). While the playback is active, no effect
+  of another playback that was activated before it, at its priority or lower, acts on the attributes of those groups of the
+  fixtures its current cue holds values or entries for; its own effects and the programmer's are not masked, and a playback
+  activated later is not masked either (LTP, ENG-15). Playback Options show it on the Handle tab as one toggle per group,
+  *Mask shapes*. Tests `fx_48_…`: a position chase on 1.1 masked by a static position cue on 1.2 for G, the dimmer chase of 1.1
+  untouched, 1.1 fired again after 1.2 runs its chase again.
 
 ## Scenario test format
 Scenario files `tests/scenarios/FX-nn-*.json` (format of `engine-merge.md`) gain an `effect`

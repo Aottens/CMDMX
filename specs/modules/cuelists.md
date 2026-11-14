@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (cue lists, chases and masters are playbacks), `cmdmx-daemon`
 (IPC, tap timestamps), the Go block, Cue list window, strips and Playback Options in
 `subprojects/app`.
-Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.** CUE-56..62: approved by owner 2026-11-04 (IDEA-35 batch B, P1-29).
+Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.** CUE-56..62: approved by owner 2026-11-04 (IDEA-35 batch B, P1-29). CUE-65..69 proposed 2026-11-14 (IDEA-35 batch I, P1-42).
 Behavioural reference: Avolites Titan v19 manual, *Cue Lists* (https://manual.avolites.com/docs/cue-lists:
 Creating, Playback, Editing, Timing, Options), *Chases* (https://manual.avolites.com/docs/chases:
 Playback, Timing, Options) and *Running the Show → Playback controls* (speed masters, key
@@ -561,6 +561,52 @@ Titan pages used: *Cue List Timing*, *Creating a Cue List*, *Editing Cue Lists*,
 - **CUE-64** **A Go with the fader at 0 says why it is dark** (K12; CUE-15 and CUE-42 stay). While the list's fader is at 0 %, the
   amber text in the Go block reads "fader 0 % · no output"; between 0 and 99.5 % it stays "fader n %". Checked by hand.
 
+### Behaviour that differs from Titan (IDEA-35 batch I, P1-42; proposed 2026-11-14, waits for the owner)
+Checks behind these criteria: `tests/manual/runs/2026-11-14-I-checks.md`. Titan pages used: *Chase Playback*, *Chase Options*,
+*Cue List Playback*, *Editing Cue Lists*, *Creating a Cue List*. What a page does not say is marked as our own choice. The rest of
+batch I is PRG-102, 103 (`programmer.md`), PBK-54 (`playbacks.md`), FX-46..48 (`effects.md`) and SHW-26 (`showfile.md`); the
+questions are below, *Owner questions (P1-42)*.
+- **CUE-65** **A connected chase's speed and crossfade at hand** (I4; amends CUE-42; P1-42 question 3; Titan: the left wheel
+  is speed, the right wheel crossfade while a chase is connected). The Go block of a chase shows crossfade as a field beside the
+  BPM field (CUE-34): scroll to adjust in whole percents, type to set, saved to `chase.crossfade` as the Chase tab does. The
+  control vocabulary gains `speed` and `xfade` (relative, same targets as `tap`, none = the connected list): a turn of one step
+  moves the tempo by 1 BPM (to the BPM master the chase follows, as CUE-34) or the crossfade by 1 %; on a list that is not a chase
+  they are refused. The attribute wheels stay attribute wheels. Tests `cue_65_…` for the two actions; the field by hand.
+- **CUE-66** **Go and Back set a chase's direction** (I7; amends CUE-32; P1-42 question 4; Titan: Next Step and Prev Step set the
+  direction of the connected chase). On a running chase whose direction is `Forward` or `Backward`, Back starts the previous step
+  and sets `Backward`, and Go starts the next step and sets `Forward`; the direction is saved, as a tapped tempo is (CUE-33). On
+  `Bounce` and `Random` Go and Back step as CUE-32 and leave the direction alone (our own choice: a key press never undoes a
+  bounce). The Go block of a chase gains a direction button that cycles Forward, Backward, Bounce, Random (Titan: ↔ for bounce,
+  Review for random); the control vocabulary gains `direction <forward|backward|bounce|random>` with the targets of `tap`.
+  Tests `cue_66_…`.
+- **CUE-67** **The Cue list window follows the live cue** (I5; amends CUE-43; P1-42 question 5; Titan: Playback View scrolls to
+  keep the active cue in sight). When the current cue of the shown list changes (Go, Back, a link, Go to cue, a connect), the window
+  scrolls so that the current row and the row after it are in sight, with one row above when there is room; a cue that was already
+  in sight does not scroll. A **Follow** toggle in the window's header (on by default, remembered by the app) turns it off; a hand
+  scroll does not, so the next Go brings the live cue back. Checked by hand on a list of 40 cues.
+- **CUE-68** **A second Go too soon is ignored** (K4; amends CUE-10, CUE-32; P1-42 question 6; Titan documents no guard, so this
+  is our own choice: Space and a mouse repeat easily in the dark). The playback setting `go_guard` (0–2 s in 0.1 s steps,
+  default 0.5 s; 0 = no guard, as Titan) refuses a Go on a list or chase that comes less than `go_guard` after the last Go it
+  accepted on that list, with the warning "Go ignored: 0.3 s after the last Go (guard 0.5 s)". The time is when the daemon receives
+  the command, passed to the core with the action, as a tap is (CUE-33). Every source counts the same (app, Space, a surface, the
+  phone, OSC). Back, Stop, Go to cue, Set next and a Go that resumes a paused list are never guarded. Playback settings show it as
+  *Ignore a second Go within*. Tests `cue_68_…`.
+- **CUE-69** **Move or copy a block of cues** (M4; amends CUE-08, CUE-63's out-of-scope note; P1-42 question 10; Titan: Copy or
+  Move, a block of cues, `@ n`). `cue.move {id, cues: [3, 4, 5, 6], to, target?}` and `cue.copy {id, cues, to, target?}`:
+  - the cues, in number order, become a block numbered `to`, `to` + 1, …; `to: "end"` starts the block at the first whole number
+    after the last cue of the target (Titan `@ @`). `target` is another cue list or chase (default the same list); a memory or a
+    master as target is refused;
+  - nothing changes when a cue is unknown, a new number is not valid (CUE definitions), or a new number is held by a cue of the
+    target that is not itself moving; the warning names the first ("Q21 is in the way: renumber or pick another number");
+  - Copy keeps what `cue.copy` keeps (CUE-08) plus effects and dormant values (CUE-59, 61). Move keeps the cues themselves, so
+    hard values stay hard; in a tracking list what a cue tracks follows its new place, as after a renumber (CUE-08, 51). Moving
+    every cue out of a list, or moving the live cue of a running list to another list, is refused ("Q3 is live on 1.1");
+  - the current and next cue follow their cue (CUE-08). One undo step.
+  In the app, Move or Copy armed, then cue rows picked as for Delete (UI-64: a tap, ⇧ for a range, ⌘ for one more), then a number
+  and Enter on the keypad, or *End*; a tap on another list's handle before the number makes it the target ("Move 4 cues to 1.3:
+  type the first number"). Tests `cue_69_…`: a song of four cues moved after Q20, a copy to another list, a block that collides,
+  tracking after a move, one undo.
+
 ## Scenario test format
 Scenario playback entries gain the CUE-38 fields (`kind`, `list`, `chase`, `master`, and per cue
 `number`, `legend`, `link`, `track`, `group_times`; `number` may be left out and then counts 1, 2, 3 … in
@@ -606,9 +652,45 @@ Dark; Cue Release; disabling a cue; Cue Links Disabled; link offsets in %;
 per-attribute or per-fixture times; per-step times, fixture overlap and speed multipliers (×/÷)
 on chases; LocalClock and Edge Sync; Ableton or MIDI-clock sync (IDEA-16, phase 2); the Rate
 Grand Master; Size masters and shapes following masters (phase 2); key profiles per user and
-beyond the two handle buttons (CUE-25); a Cue / Connect key on the keypad; copying cues between
-lists; Quick Build and Record Stage; autoloads, macros and timecode / MIDI triggers in cues
+beyond the two handle buttons (CUE-25); a Cue / Connect key on the keypad; Quick Build and Record Stage; autoloads, macros and timecode / MIDI triggers in cues
 (phase 3 for timecode); Blind editing; the set list.
+
+## Owner questions (P1-42, batch I, proposed 2026-11-14)
+1. **What is in batch I:** I2 (PRG-102, 103), I4 (CUE-65), I5 (CUE-67), I7 (CUE-66), I8 (FX-46), I9 as Titan has it now
+   (FX-47, 48), K4 (CUE-68), K5 with L4 (PBK-54) and M4 (CUE-69), with schema 15 for the new options (SHW-26)? Recommended: yes.
+   I1, I3, I6 and K6 went into batch B (P1-29). Not chosen: also the *Absent and untracked* list (Record By Fixture, Temporary
+   Speed, Tempo Units and the rest): none of it was seen in a run, and none is daily.
+2. **Keypad level (PRG-102, 103):** `@ @` gives full, and a setting *Channel levels* with Titan's single-digit mode, two digits
+   by default? Recommended: yes; `@ v` as v % is already Titan's default, so only `@ @` changes what anyone types today. Not
+   chosen: `@ @` only, leaving single-digit out (the church does not need it, but a Titan operator will look for it).
+3. **A connected chase's speed and crossfade (CUE-65):** a crossfade field in the Go block beside BPM, and `speed` and `xfade` in
+   the control vocabulary, so an encoder of the BCF2000 or the desk does what Titan's wheels do? Recommended: yes. Not chosen:
+   the attribute wheels turning into chase wheels when a chase connects (Titan), which changes what a wheel does under the
+   operator's hand while programming.
+4. **Chase direction (CUE-66):** Go sets Forward and Back sets Backward on a running Forward or Backward chase, saved; Bounce and
+   Random only from the Go block's direction button or Options? Recommended: yes. Not chosen: Go and Back always setting the
+   direction (the manual does not say what Titan does to a bouncing chase), or never (as now).
+5. **The Cue list window follows (CUE-67):** on by default, with a *Follow* toggle; a hand scroll lasts until the next cue
+   change? Recommended: yes. Not chosen: always following with no toggle, or a hand scroll stopping the follow until it is turned
+   on again.
+6. **A second Go too soon (CUE-68):** a guard of 0.5 s by default, 0 for Titan's behaviour? Recommended: yes; K4 lost a cue to
+   two Space presses 0.4 s apart, and a deliberate skip takes more than half a second. Not chosen: no guard (Titan), or a guard
+   only while the last Go's fade runs (a 0 s cue would never be guarded).
+7. **Legends at recording (PBK-54):** an automatic legend for a new playback and a new cue, made from the group and the palettes
+   it holds, as a setting that is on by default, and a *Legend* softkey right after a store? Recommended: yes; a stand-in reads
+   "Front · Blauw" where now there is "1.3". Not chosen: the softkey only (Titan documents no automatic cue legend; its *Auto
+   Legend* is for palettes, where our automatic icons already are), or plain "Q1", "Q2" (says no more than the number).
+8. **Shapes and the fader, and Swop (FX-46, FX-47):** Titan's *Shape Size* per playback (Fixed, Fader, HTP Fader; default Fader,
+   as now) and *Swop Shapes* (All, Intensity; default All)? Recommended: yes. With All, a Swop also stops another playback's
+   position or colour effect, which no show does today; Intensity only makes PBK-27 true for dimmer effects. Not chosen: default
+   Intensity (smaller change, not Titan), or *Speed on fader* (stays out, with Size masters, `effects.md`).
+9. **Mask Shapes (FX-48):** in this batch? Recommended: yes; it is the only way to stop another playback's circle from a cue,
+   since effects do not add up and a relative effect runs around any position (ENG-15). Not chosen: an IDEA for later, as Titan
+   dropped the name Block Shapes and nobody asked for it yet.
+10. **A block of cues (CUE-69):** the block takes the numbers from `n` up, `End` after the last cue, and another list as target,
+    with a cue in the way refusing the whole move? Recommended: yes; a song of four cues moves in one action, and nothing is
+    renumbered without asking. Not chosen: inserting after `n` and renumbering the cues behind it (changes numbers the operator
+    may have written on the service sheet), or the same list only.
 
 ## Owner decisions (P1-29, 2026-11-04: every recommendation accepted)
 1. **Third review:** K6, K11, I6 and IDEA-36 go in this batch. Not chosen: leaving them in I, B or their own place.
