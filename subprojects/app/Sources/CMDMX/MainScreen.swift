@@ -131,7 +131,7 @@ final class UIState: ObservableObject {
     var fieldEscaped = false
     /// Record armed with the Record function button (UI-16); the next group or palette tap records.
     /// Disarming forgets the record choices below (they hold for one record only, PAL-29).
-    @Published var recordArmed = false { didSet { if recordArmed { timeCells = nil } else { resetRecord() } } }
+    @Published var recordArmed = false { didSet { if recordArmed { timeCells = nil; storedMark = nil } else { resetRecord() } } }
     /// Record + tap on a used cell: waiting for Replace / Merge / Quick Merge (PAL-06).
     @Published var usedCell: UsedCell? { didSet { if usedCell != nil { usedCue = nil; usedGroup = nil } } }
     /// Record + tap on a used handle: waiting for Replace / Merge (PBK-38).
@@ -212,6 +212,8 @@ final class UIState: ObservableObject {
     @Published var cueValue: CuePick?
     @Published var cueRemoveConfirm = false
     @Published var cueLegendEditing: CueRef?
+    /// PBK-54: what the last record may have created (page, slot, the cue numbers there before); the Legend softkey opens its editor.
+    @Published var storedMark: (page: Int, slot: Int, before: Set<Double>)?
     /// The cue the Times tab opens on (Edit Times on a row).
     @Published var optionsCue: Double?
     /// Set Overlap (PAL-29): the overlap in % for the next palette tap only.
@@ -412,6 +414,7 @@ final class UIState: ObservableObject {
 
     /// Disarms Record and every palette function.
     func cancelModes() {
+        storedMark = nil
         patchSwapFrom = nil
         recordArmed = false
         function = nil; pickKind = nil; picks = []; moveFixture = nil; cuePicks = []; swapIfRequired = false; releasePage = nil
@@ -597,6 +600,7 @@ private struct Frame: View {
         .onChange(of: ui.modesOpen) { _, open in if !open { engine.endArmedMessage() } }
         .onAppear {
             engine.isArmed = { [ui] in MainActor.assumeIsolated { ui.modesOpen } }
+            engine.onStore = { [ui] page, slot, before in MainActor.assumeIsolated { ui.storedMark = (page, slot, before) } }
             // Mac keys (UI-19): the monitor stays installed; the handler checks the Keys toggle.
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [ui, line, engine] event in
                 MainActor.assumeIsolated { MacKeys.handle(event, ui: ui, line: line, engine: engine) } ? nil : event

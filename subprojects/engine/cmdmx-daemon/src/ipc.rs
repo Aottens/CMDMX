@@ -2036,6 +2036,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             release_time: opt_f32(&v, "release_time")?,
             go_guard: opt_f32(&v, "go_guard")?,
             auto_connect: opt_field(&v, "auto_connect", "true or false")?,
+            auto_legend: opt_field(&v, "auto_legend", "true or false")?,
             cue_list_fader: opt_field(&v, "cue_list_fader", "KillWithOff or KillAtZero")?,
             update_mode: opt_field(&v, "update_mode", "Forwards, CueOnly, Backwards or Both")?,
             handle_buttons: opt_field(
@@ -2412,6 +2413,7 @@ struct PlaybackSettingsInfo {
     update_mode: UpdateMode,
     handle_buttons: HandleButtons,
     go_guard: f32,
+    auto_legend: bool,
 }
 
 fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
@@ -2432,6 +2434,7 @@ fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
         update_mode: s.update_mode,
         handle_buttons: s.handle_buttons.clone(),
         go_guard: s.go_guard,
+        auto_legend: s.auto_legend,
     }
 }
 
@@ -7386,7 +7389,7 @@ mod tests {
             json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,"fade_out_as_in":true,"delay_out_as_in":true,
                    "overlap":100.0,"release_mask":[],"release_time":2.0,
                    "auto_connect":true,"cue_list_fader":"KillWithOff","update_mode":"Forwards",
-                   "handle_buttons":"BestPractice","go_guard":0.5})
+                   "handle_buttons":"BestPractice","go_guard":0.5,"auto_legend":true})
         );
     }
 

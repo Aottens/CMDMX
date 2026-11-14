@@ -198,6 +198,8 @@ pub struct Settings {
     pub lowlight_level: f32,
     /// CUE-68: seconds a Go on a list is ignored after the last Go it accepted (0 = no guard).
     pub go_guard: f32,
+    /// PBK-54: a cue a record creates gets an automatic legend.
+    pub auto_legend: bool,
 }
 
 /// CUE-68: the Go guard's default and upper limit, in seconds.
@@ -222,6 +224,8 @@ pub struct PlaybackSettingsChange {
     pub handle_buttons: Option<HandleButtons>,
     /// CUE-68: 0..=2 s.
     pub go_guard: Option<f32>,
+    /// PBK-54.
+    pub auto_legend: Option<bool>,
 }
 
 /// PBK-09: the default record mask, every group.
@@ -264,6 +268,7 @@ impl Default for Settings {
             clear_ltp: ClearLtp::default(),
             lowlight_level: default_lowlight(),
             go_guard: DEFAULT_GO_GUARD,
+            auto_legend: true,
         }
     }
 }
@@ -2644,6 +2649,7 @@ impl Engine {
                 clear_ltp: s.clear_ltp,
                 lowlight_level: s.lowlight_level,
                 go_guard: s.go_guard,
+                auto_legend: s.auto_legend,
             },
             profiles: self
                 .profiles
@@ -2777,6 +2783,7 @@ impl Engine {
             clear_ltp: s.clear_ltp,
             lowlight_level: s.lowlight_level,
             go_guard: s.go_guard,
+            auto_legend: s.auto_legend,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
@@ -4230,6 +4237,9 @@ impl Engine {
         if let Some(v) = change.go_guard {
             s.go_guard = v;
         }
+        if let Some(v) = change.auto_legend {
+            s.auto_legend = v;
+        }
         Ok(())
     }
 
@@ -4381,11 +4391,14 @@ impl Engine {
             if let Some(kind @ (PlaybackKind::Chase | PlaybackKind::Cues)) = record.kind {
                 playback.kind = kind;
             }
+            let legend = self.auto_legend(&values);
             playback.cues = vec![Cue {
                 effects,
                 order,
+                legend: legend.clone(),
                 ..self.new_cue(values, number)
             }];
+            playback.legend = legend;
             let id = playback.id;
             self.add_playback(playback);
             return Ok(id);
@@ -4396,6 +4409,7 @@ impl Engine {
             let cue = Cue {
                 effects,
                 order,
+                legend: self.auto_legend(&values),
                 ..self.new_cue(values, number)
             };
             if let Some(playback) = self.playbacks.get_mut(&id) {
@@ -4677,6 +4691,77 @@ impl Engine {
         } else {
             Err(nothing)
         }
+    }
+
+    /// PBK-54: the legend of a cue a record creates; empty when `auto_legend` is off.
+    fn auto_legend(&self, values: &Values) -> String {
+        const SEP: &str = " · ";
+        const MAX: usize = palette::MAX_LEGEND;
+        if !self.settings.auto_legend {
+            return String::new();
+        }
+        let fixtures: BTreeSet<FixtureId> = values.keys().map(|i| i.fixture).collect();
+        if fixtures.is_empty() {
+            return String::new();
+        }
+        let mut parts: Vec<String> = Vec::new();
+        let group = self.groups.iter().find(|(id, members)| {
+            let set: BTreeSet<FixtureId> = members.iter().map(|i| i.fixture).collect();
+            set == fixtures && self.group_legends.get(id).is_some_and(|l| !l.is_empty())
+        });
+        if let Some((id, _)) = group {
+            parts.extend(self.group_legends.get(id).cloned());
+        }
+        // (lowest attribute group it is referenced from, palette number) per palette.
+        let mut keyed: BTreeMap<PaletteId, (AttributeGroup, u32)> = BTreeMap::new();
+        for attrs in values.values() {
+            for (name, stored) in attrs {
+                let Stored::Reference(r) = stored else {
+                    continue;
+                };
+                let Some(pal) = self.palettes.get(&r.palette) else {
+                    continue;
+                };
+                let key = (self.attribute_group(name), pal.number);
+                let slot = keyed.entry(r.palette).or_insert(key);
+                *slot = (*slot).min(key);
+            }
+        }
+        let mut keyed: Vec<_> = keyed.into_iter().collect();
+        keyed.sort_by_key(|(_, k)| *k);
+        for (id, _) in keyed {
+            if let Some(pal) = self.palettes.get(&id).filter(|p| !p.legend.is_empty()) {
+                parts.push(pal.legend.clone());
+            }
+        }
+        if parts.is_empty() {
+            let numbers: BTreeSet<u32> = fixtures
+                .iter()
+                .filter_map(|f| self.fixtures.get(f).map(|f| f.number))
+                .collect();
+            return if numbers.len() <= 3 {
+                numbers
+                    .iter()
+                    .map(u32::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                format!("{} fixtures", fixtures.len())
+            };
+        }
+        let joined = parts.join(SEP);
+        if joined.chars().count() <= MAX {
+            return joined;
+        }
+        while parts.len() > 1 {
+            parts.pop();
+            let cut = format!("{}…", parts.join(SEP));
+            if cut.chars().count() <= MAX {
+                return cut;
+            }
+        }
+        let first: String = parts.concat().chars().take(MAX - 1).collect();
+        format!("{first}…")
     }
 
     /// PBK-12: a new cue with the times of the settings and link `Wait`.

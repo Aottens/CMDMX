@@ -332,7 +332,7 @@ fn cue_03_append_adds_a_cue_after_the_last_whole_number() {
     assert_eq!(new.fade_in, 2.0, "times from the PBK-12 settings");
     assert_eq!(
         (new.legend.as_str(), new.link, new.track),
-        ("", Link::Wait, Track::Track)
+        ("204", Link::Wait, Track::Track)
     );
     program(&mut e, 205, "Dimmer", 0.7);
     e.record_playback(&append()).unwrap();

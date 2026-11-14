@@ -154,7 +154,7 @@ enum MacKeys {
         if event.isARepeat { return true }   // a held key counts once
         if window.firstResponder is NSText { ui.fieldEscaped = true; window.makeFirstResponder(nil); return true }
         // The keypad's Exit; a line hidden behind a screen does not count.
-        if ui.modesOpen || (ui.screen == nil && !line.tokens.isEmpty) { line.clear(); ui.cancelModes(); return true }
+        if ui.modesOpen || ui.storedMark != nil || (ui.screen == nil && !line.tokens.isEmpty) { line.clear(); ui.cancelModes(); return true }
         // Patch and Control have their own cancelAction (a nested level, the profile editor or deck focus goes first).
         if ui.screen == .patch || ui.screen == .control { return false }
         if ui.screen != nil { ui.screen = nil; return true }
