@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; **PRG-85..95 (group handle actions, P1-24) approved by owner 2026-11-01**; **PRG-96 (GRP-04) approved by owner 2026-11-01**. PRG-102, 103 proposed 2026-11-14 (IDEA-35 batch I, P1-42).
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; **PRG-85..95 (group handle actions, P1-24) approved by owner 2026-11-01**; **PRG-96 (GRP-04) approved by owner 2026-11-01**. PRG-102, 103 approved by owner 2026-11-14 (IDEA-35 batch I, P1-42).
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -627,9 +627,9 @@ Selection, sub-selection and contents rules (PRG-01..11, 14..22, 27..29) are uni
 - **PRG-101** **The level wheel's travel** (F6). Dragging a wheel in the app moves one step per point, so 0 to full takes 255 pt
   in place of about 1020 pt. Option (fine) and Shift (coarse) keep their meaning (PRG-19). The scroll wheel is unchanged. Checked by hand.
 
-### Keypad level (IDEA-35 batch I, P1-42; proposed 2026-11-14, waits for the owner)
+### Keypad level (IDEA-35 batch I, P1-42; approved by owner 2026-11-14)
 Checks: `tests/manual/runs/2026-11-14-I-checks.md`. Titan: *Titan Commands Quick Reference* and *User Settings* (Formatting tab,
-*Channel Levels*). Questions in `cuelists.md`, *Owner questions (P1-42)*.
+*Channel Levels*). Questions in `cuelists.md`, *Owner decisions (P1-42)*.
 - **PRG-102** **`@ @` is full** (I2; amends PRG-09; P1-42 question 2). `@ @ Enter`, with or without a selection expression before
   it, sets the targets' intensity to 100 % as `@ 100` does (`Group 2 @ @ Enter`, `201 Thro 205 @ @ Enter`). `@ @ @` and `@ @ 5` refuse
   as PRG-11. On the Mac keys (Keys live) a second `@` typed after `@` is the same token. Tests `prg_102_…`.

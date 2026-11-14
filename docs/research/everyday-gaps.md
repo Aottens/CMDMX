@@ -159,7 +159,7 @@ Added by the fourth review (L, owner 2026-11-05): L4.
 
 Added by the fifth review (M, owner 2026-11-08): M4.
 
-Spec'd as P1-42 (2026-11-14, awaiting the owner): PRG-102, 103, CUE-65..69, PBK-54, FX-46..48, SHW-26. I9 as Titan has it now: *Mask Shapes* and *Swop Shapes*.
+Spec'd as P1-42 (approved by the owner 2026-11-14): PRG-102, 103, CUE-65..69, PBK-54, FX-46..48, SHW-26. I9 as Titan has it now: *Mask Shapes* and *Swop Shapes*.
 
 ## J. Input paths and what you can see
 1. Attribute values cannot be typed: the command grammar has level, palette and gel only (`command.rs`).

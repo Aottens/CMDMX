@@ -3,8 +3,8 @@
 Owner: `cmdmx-core::effect` (shapes, entries, clocks; pure), the merge in `cmdmx-core::engine`,
 `cmdmx-daemon` (IPC) and `subprojects/app` (Shapes workspace).
 Status: **FX-01..44 approved by owner 2026-10-29 (P2-01, IDEA-18), the four owner decisions as proposed**;
-**FX-45 and the FX-06, 07, 14, 38 amendments (selection orders, P2-02) approved by owner 2026-10-29**. FX-46..48 proposed
-2026-11-14 (IDEA-35 batch I, P1-42).
+**FX-45 and the FX-06, 07, 14, 38 amendments (selection orders, P2-02) approved by owner 2026-10-29**. FX-46..48 approved by
+owner 2026-11-14 (IDEA-35 batch I, P1-42).
 Structural choices: ADR-011 (on top of ADR-007). Merge order: `engine-merge.md` ENG-14..19.
 Behavioural reference: Avolites Titan v19 manual, *Shapes and Effects* — Shape Generator
 (https://manual.avolites.com/docs/effects/shape-generator) and Key Frame Shapes
@@ -318,10 +318,10 @@ with good defaults; what made Titan quick (relative shapes, Size/Speed/Spread on
   master with Tap, a cue list with a timed Go from a circle to an eight, record an effect palette
   and recall it on another selection; the owner judges by eye on the tiles and in the run file.
 
-### Shapes on playbacks (IDEA-35 batch I, P1-42; proposed 2026-11-14, waits for the owner)
+### Shapes on playbacks (IDEA-35 batch I, P1-42; approved by owner 2026-11-14)
 Checks: `tests/manual/runs/2026-11-14-I-checks.md`. Titan: *Playback Options* (Effects tab: *Shape Size*), *User Settings*
 (*Swop Shapes*), and, search only, the v14 release notes (*Mask Shapes* replaced *Block Shapes*). Questions in `cuelists.md`,
-*Owner questions (P1-42)*.
+*Owner decisions (P1-42)*.
 - **FX-46** **Shape size per playback** (I8; amends FX-25 and owner decision 3; P1-42 question 8). A playback option
   `shape_size`: `Fader` (default, FX-25 as now), `Fixed` (no entry follows *m*: the size is the recorded size and an absolute
   effect on an `Htp` attribute is not scaled by *m*) or `HtpFader` (entries on `Htp` attributes follow *m* as FX-25, the others

@@ -12,7 +12,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch I, behaviour that differs from Titan: its spec (P1-42) waits for the owner, then builds TTN-01..10,
+1. IDEA-35 batch I, behaviour that differs from Titan: builds TTN-01..10 as `BACKLOG.md` groups them,
    the Go guard (TTN-05) first. Then batch J, its spec approved first (`docs/research/everyday-gaps.md`). No tag after
    a batch: the next release is the one the first service runs on, and the gap review follows it (REL-26).
    P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net) needs a criterion.
@@ -32,8 +32,6 @@ Runs only the owner can do (gate 3):
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
 
 Programming and small checks:
-- Batch I's spec (P1-42): approve it and answer its ten questions (`specs/modules/cuelists.md`,
-  *Owner questions (P1-42)*).
 - Program the service in *Kerk* at home on Art-Net as `tests/hardware/church.md` asks (steady looks, *Front band*,
   *Front spreker*), and say which fresnels are band and speaker. Use the release that goes on the church Mac: a show
   saved with a newer schema does not open on an older one.

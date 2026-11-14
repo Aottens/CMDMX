@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (cue lists, chases and masters are playbacks), `cmdmx-daemon`
 (IPC, tap timestamps), the Go block, Cue list window, strips and Playback Options in
 `subprojects/app`.
-Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.** CUE-56..62: approved by owner 2026-11-04 (IDEA-35 batch B, P1-29). CUE-65..69 proposed 2026-11-14 (IDEA-35 batch I, P1-42).
+Status: **approved by owner 2026-10-21 (P1-08, gate 1); owner decisions at the end.** CUE-56..62: approved by owner 2026-11-04 (IDEA-35 batch B, P1-29). CUE-65..69 approved by owner 2026-11-14 (IDEA-35 batch I, P1-42).
 Behavioural reference: Avolites Titan v19 manual, *Cue Lists* (https://manual.avolites.com/docs/cue-lists:
 Creating, Playback, Editing, Timing, Options), *Chases* (https://manual.avolites.com/docs/chases:
 Playback, Timing, Options) and *Running the Show → Playback controls* (speed masters, key
@@ -561,11 +561,11 @@ Titan pages used: *Cue List Timing*, *Creating a Cue List*, *Editing Cue Lists*,
 - **CUE-64** **A Go with the fader at 0 says why it is dark** (K12; CUE-15 and CUE-42 stay). While the list's fader is at 0 %, the
   amber text in the Go block reads "fader 0 % · no output"; between 0 and 99.5 % it stays "fader n %". Checked by hand.
 
-### Behaviour that differs from Titan (IDEA-35 batch I, P1-42; proposed 2026-11-14, waits for the owner)
+### Behaviour that differs from Titan (IDEA-35 batch I, P1-42; approved by owner 2026-11-14)
 Checks behind these criteria: `tests/manual/runs/2026-11-14-I-checks.md`. Titan pages used: *Chase Playback*, *Chase Options*,
 *Cue List Playback*, *Editing Cue Lists*, *Creating a Cue List*. What a page does not say is marked as our own choice. The rest of
 batch I is PRG-102, 103 (`programmer.md`), PBK-54 (`playbacks.md`), FX-46..48 (`effects.md`) and SHW-26 (`showfile.md`); the
-questions are below, *Owner questions (P1-42)*.
+questions are below, *Owner decisions (P1-42)*.
 - **CUE-65** **A connected chase's speed and crossfade at hand** (I4; amends CUE-42; P1-42 question 3; Titan: the left wheel
   is speed, the right wheel crossfade while a chase is connected). The Go block of a chase shows crossfade as a field beside the
   BPM field (CUE-34): scroll to adjust in whole percents, type to set, saved to `chase.crossfade` as the Chase tab does. The
@@ -655,7 +655,7 @@ Grand Master; Size masters and shapes following masters (phase 2); key profiles 
 beyond the two handle buttons (CUE-25); a Cue / Connect key on the keypad; Quick Build and Record Stage; autoloads, macros and timecode / MIDI triggers in cues
 (phase 3 for timecode); Blind editing; the set list.
 
-## Owner questions (P1-42, batch I, proposed 2026-11-14)
+## Owner decisions (P1-42, batch I, 2026-11-14: every recommendation accepted)
 1. **What is in batch I:** I2 (PRG-102, 103), I4 (CUE-65), I5 (CUE-67), I7 (CUE-66), I8 (FX-46), I9 as Titan has it now
    (FX-47, 48), K4 (CUE-68), K5 with L4 (PBK-54) and M4 (CUE-69), with schema 15 for the new options (SHW-26)? Recommended: yes.
    I1, I3, I6 and K6 went into batch B (P1-29). Not chosen: also the *Absent and untracked* list (Record By Fixture, Temporary

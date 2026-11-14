@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::show` (schema, (de)serialisation, migrations; pure) and `cmdmx-daemon`
 (shows folder, autosave, recovery, IPC), Show screen in `subprojects/app`.
-Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41); SHW-26 proposed 2026-11-14 (P1-42). Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
+Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41); SHW-26 approved by owner 2026-11-14 (P1-42). Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
 decision 5 (a show embeds its profiles).
 Behavioural reference: Titan *Shows* (new/load/save, the show carries its personalities), macOS
 autosave in place.
@@ -176,7 +176,7 @@ Checks behind these criteria: `tests/manual/runs/2026-11-12-G-checks.md`. Titan 
   out As In shown as the time it takes. Names and legends are HTML-escaped. `show.report` is information, so the lock does
   not refuse it (IPC-50).
 
-### Batch I's new options (IDEA-35 batch I, P1-42; proposed 2026-11-14, waits for the owner)
+### Batch I's new options (IDEA-35 batch I, P1-42; approved by owner 2026-11-14)
 - **SHW-26** **Schema 15** (SHW-04 migration from 14; P1-42 question 1). The show's settings gain `channel_levels` (PRG-103),
   `go_guard` (CUE-68), `auto_legend` (PBK-54) and `swop_shapes` (FX-47); each playback gains `shape_size` (FX-46) and
   `mask_shapes` (FX-48). Each is left out while it holds its default, and a schema 14 show loads with every default, so it keeps

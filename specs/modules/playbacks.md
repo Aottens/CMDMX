@@ -3,7 +3,7 @@
 Owner: `cmdmx-core::playback` (pure: storage, recording, fader modes, release, flash/swop),
 `cmdmx-daemon` (IPC), the playback area and Playback Options in `subprojects/app`.
 Status: **PBK-01..05 approved by owner 2026-10-18 (VS1-06 subset); PBK-06..45 approved by owner
-2026-10-18 (P1-04), owner decisions at the end.** PBK-15 amended for P2-02 (cue `order`, approved by owner 2026-10-29). PBK-46: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25). PBK-47..49: approved by owner 2026-11-04 (IDEA-35 batch B, P1-29). PBK-54 proposed 2026-11-14 (IDEA-35 batch I, P1-42).
+2026-10-18 (P1-04), owner decisions at the end.** PBK-15 amended for P2-02 (cue `order`, approved by owner 2026-10-29). PBK-46: approved by owner 2026-11-01 (IDEA-35 batch A, P1-25). PBK-47..49: approved by owner 2026-11-04 (IDEA-35 batch B, P1-29). PBK-54 approved by owner 2026-11-14 (IDEA-35 batch I, P1-42).
 Behavioural reference: Avolites Titan v19 manual, *Cues* (https://manual.avolites.com/docs/cues:
 Creating a Cue, Cue Playback, Cue Timing, Playback Options, Copying/Moving/Linking/Deleting) and
 the Titan analysis doc linked in `PROJECT.md`. UI reference: UI v0.1 (`specs/ux/main-screen.html`:
@@ -332,10 +332,10 @@ From `docs/research/everyday-gaps.md` D; checked in `tests/manual/runs/2026-11-0
   every occupied handle of a page, the page's legend empties. Both happen in the same undo step. A copy or delete of part of a page leaves
   legends alone. The app's confirm names the legend ("Delete 12 playbacks of page 2 Pasen?"). Tests `pbk_53_…`.
 
-### Legends at recording (IDEA-35 batch I, P1-42; proposed 2026-11-14, waits for the owner)
+### Legends at recording (IDEA-35 batch I, P1-42; approved by owner 2026-11-14)
 Checks: `tests/manual/runs/2026-11-14-I-checks.md`. Titan: *Creating a Cue List* (a legend can be typed while recording) and
 *User Settings* (*Auto Legend*, which the manual ties to palettes). The automatic cue legend is our own choice. Questions in
-`cuelists.md`, *Owner questions (P1-42)*.
+`cuelists.md`, *Owner decisions (P1-42)*.
 - **PBK-54** **A new playback or cue says what it holds** (K5, L4; amends PBK-31, CUE-02; P1-42 question 7). With the playback
   setting `auto_legend` on (default on), each cue a record makes with an empty legend (a new playback, Append, Insert, a cue
   number, CUE-62's build) gets an automatic legend, and a new playback takes its first cue's:

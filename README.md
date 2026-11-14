@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch, profiles, controls and show files are done, with next week's show, Save Copy and a printable report of the show.
-Next: batch I (where CMDMX differs from Titan) after its spec P1-42, then VS4-07 and VS4-03, the first service on CMDMX.
+Next: batch I, where CMDMX differs from Titan (TTN-01..10, TTN-05 first), then VS4-07 and VS4-03, the first service.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
