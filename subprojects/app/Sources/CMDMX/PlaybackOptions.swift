@@ -679,7 +679,7 @@ private struct SettingsTab: View {
                 NumberField(value: s.goGuard, unit: "s") { engine.setPlaybackSettings(["go_guard": $0]) }
             }
             OptionRow(label: "Automatic legends", note: "A new playback or cue is named after its group and palettes, else its fixture numbers.") {
-                Toggle("", isOn: Binding(get: { s.autoLegend }, set: { engine.setPlaybackSettings(["auto_legend": $0]) })).labelsHidden()
+                Choice(options: yesNo(true), selected: s.autoLegend) { engine.setPlaybackSettings(["auto_legend": $0]) }
             }
             OptionRow(label: "Handle buttons", note: "Best practice: Go on lists, Tap on chases. Titan: Swop / Flash everywhere. Custom: a pair per kind.") {
                 Choice(options: [("Best practice", "BestPractice"), ("Titan", "Titan"), ("Custom", "Custom")], selected: s.handleButtons.mode) { mode in
