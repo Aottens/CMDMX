@@ -38,6 +38,21 @@ fn suffixed(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(p)
 }
 
+/// SHW-22: move `from` and, when there is one, its `.bak` to `to`. A missing `from` is fine
+/// (an unsaved show has no file yet).
+fn move_with_bak(from: &Path, to: &Path) -> io::Result<()> {
+    for (a, b) in [
+        (from.to_path_buf(), to.to_path_buf()),
+        (suffixed(from, ".bak"), suffixed(to, ".bak")),
+    ] {
+        match fs::rename(&a, &b) {
+            Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 /// SHW-11: write `<path>.tmp`, `fsync` it and rename it over `path`, so `path` is always either
 /// the previous or the new complete file. The folder is created when missing.
 pub fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
@@ -129,11 +144,62 @@ impl std::fmt::Debug for Opened {
 pub struct Shows {
     dir: PathBuf,
     state_file: PathBuf,
+    /// SHW-22: where a deleted show goes.
+    trash: PathBuf,
 }
 
 impl Shows {
     pub fn new(dir: PathBuf, state_file: PathBuf) -> Shows {
-        Shows { dir, state_file }
+        let trash = dir.join("Trash");
+        Shows {
+            dir,
+            state_file,
+            trash,
+        }
+    }
+
+    /// SHW-22: delete into this folder (the user's Trash) instead of `<dir>/Trash`.
+    pub fn with_trash(self, trash: PathBuf) -> Shows {
+        Shows { trash, ..self }
+    }
+
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
+    /// SHW-22: rename a show's file and its `.bak`. `fs::rename` overwrites, so a taken name
+    /// is refused first.
+    pub fn rename(&self, name: &str, to: &str) -> Result<(), String> {
+        if !self.exists(name) {
+            return Err(format!("there is no show named {name}"));
+        }
+        if self.exists(to) {
+            return Err(format!("a show named {to} already exists"));
+        }
+        let (from, dest) = (self.path(name), self.path(to));
+        move_with_bak(&from, &dest).map_err(|e| format!("cannot rename {name}: {e}"))
+    }
+
+    /// SHW-22: move a show's file and its `.bak` to the Trash, never over what is there.
+    pub fn trash(&self, name: &str) -> Result<(), String> {
+        if !self.exists(name) {
+            return Err(format!("there is no show named {name}"));
+        }
+        let dest = fs::create_dir_all(&self.trash)
+            .map(|()| {
+                (1..)
+                    .map(|n| match n {
+                        1 => self.trash.join(format!("{name}{EXT}")),
+                        n => self.trash.join(format!("{name} {n}{EXT}")),
+                    })
+                    .find(|p| !p.exists())
+            })
+            .map_err(|e| format!("cannot delete {name}: {e}"))?;
+        match dest {
+            Some(dest) => move_with_bak(&self.path(name), &dest)
+                .map_err(|e| format!("cannot delete {name}: {e}")),
+            None => Err(format!("cannot delete {name}")),
+        }
     }
 
     pub fn path(&self, name: &str) -> PathBuf {
@@ -310,6 +376,15 @@ pub enum ShowRequest {
     SaveCopy {
         name: String,
     },
+    /// SHW-22: rename a show; the open one is written under the new name first.
+    Rename {
+        name: String,
+        to: String,
+    },
+    /// SHW-22: move a show to the Trash; the open one is refused.
+    Delete {
+        name: String,
+    },
 }
 
 /// SHW-15: the `show` part of the snapshot and the `show` delta.
@@ -327,6 +402,8 @@ pub struct Job {
     pub show: Show,
     /// SHW-21: a Save Copy job; its client notice and fresh list follow the write.
     pub copy: bool,
+    /// SHW-22: move this file and its `.bak` to `path` before writing.
+    pub from: Option<PathBuf>,
 }
 
 /// SHW-11/13: the saver's answer to one [`Job`]; `at` is when the write ended.
@@ -378,7 +455,25 @@ impl Autosave {
             json: show.to_json(),
             show,
             copy: false,
+            from: None,
         })
+    }
+
+    /// SHW-22: the open show carries on under `name`: its file moves, then it is written.
+    pub fn rename(&mut self, path: PathBuf, name: &str, engine: &Engine, wall: &str) -> Job {
+        let from = std::mem::replace(&mut self.path, path);
+        self.meta.name = name.into();
+        let show = engine.to_show(Meta {
+            modified: wall.into(),
+            ..self.meta.clone()
+        });
+        Job {
+            path: self.path.clone(),
+            json: show.to_json(),
+            show,
+            copy: false,
+            from: Some(from),
+        }
     }
 
     /// At most every 5 s; a failed save is retried by the same rule (SHW-13).
@@ -438,9 +533,15 @@ pub fn spawn_saver() -> io::Result<(Sender<Job>, Receiver<Done>)> {
         .name("show-saver".into())
         .spawn(move || {
             for job in job_rx {
-                let result = catch_unwind(AssertUnwindSafe(|| write_atomic(&job.path, &job.json)))
-                    .unwrap_or_else(|_| Err(io::Error::other("the writer panicked")))
-                    .map_err(|e| e.to_string());
+                let result = catch_unwind(AssertUnwindSafe(|| {
+                    match job.from.as_deref().filter(|f| *f != job.path) {
+                        Some(from) => move_with_bak(from, &job.path),
+                        None => Ok(()),
+                    }
+                    .and_then(|()| write_atomic(&job.path, &job.json))
+                }))
+                .unwrap_or_else(|_| Err(io::Error::other("the writer panicked")))
+                .map_err(|e| e.to_string());
                 let at = iso_utc(SystemTime::now());
                 if done_tx
                     .send(Done {
@@ -934,6 +1035,121 @@ mod tests {
     fn shw_14_open_of_an_unknown_show_is_refused() {
         let s = shows("unknown");
         assert!(s.open("Nope").unwrap_err().contains("Nope"));
+    }
+
+    // ---- SHW-22 --------------------------------------------------------------
+
+    #[test]
+    fn shw_22_rename_moves_the_file_and_its_bak() {
+        let s = shows("rename");
+        let json = save(&s, "Kerk oud", &demo());
+        fs::write(bak_path(&s, "Kerk oud"), "old").unwrap();
+        s.rename("Kerk oud", "Kerk archief").unwrap();
+        assert!(!s.path("Kerk oud").exists());
+        assert!(!bak_path(&s, "Kerk oud").exists());
+        assert_eq!(fs::read_to_string(s.path("Kerk archief")).unwrap(), json);
+        assert_eq!(
+            fs::read_to_string(bak_path(&s, "Kerk archief")).unwrap(),
+            "old"
+        );
+    }
+
+    #[test]
+    fn shw_22_rename_refuses_an_unknown_show_and_a_taken_name() {
+        let s = shows("rename-refused");
+        save(&s, "Kerk", &demo());
+        let zondag = save(&s, "Zondag", &demo());
+        assert!(s.rename("Nope", "Iets").unwrap_err().contains("Nope"));
+        let err = s.rename("Kerk", "zondag").unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+        assert_eq!(fs::read_to_string(s.path("Zondag")).unwrap(), zondag);
+        assert!(s.path("Kerk").is_file(), "a refused rename moves nothing");
+    }
+
+    #[test]
+    fn shw_22_delete_moves_the_file_and_its_bak_to_the_trash() {
+        let s = shows("trash");
+        let trash = s.path("x").parent().unwrap().join("Trash");
+        save(&s, "Kerk oud", &demo());
+        fs::write(bak_path(&s, "Kerk oud"), "old").unwrap();
+        s.trash("Kerk oud").unwrap();
+        assert!(!s.path("Kerk oud").exists());
+        assert!(!bak_path(&s, "Kerk oud").exists());
+        assert!(trash.join("Kerk oud.cmdmx.json").is_file());
+        assert!(trash.join("Kerk oud.cmdmx.json.bak").is_file());
+        // A second show of that name never overwrites the first in the Trash.
+        save(&s, "Kerk oud", &demo());
+        s.trash("Kerk oud").unwrap();
+        assert!(trash.join("Kerk oud 2.cmdmx.json").is_file());
+        assert!(s.list().is_empty(), "the Trash folder holds no shows");
+        assert!(s.trash("Nope").unwrap_err().contains("Nope"));
+    }
+
+    #[test]
+    fn shw_22_the_trash_can_be_the_users_trash() {
+        let s = shows("trash-home");
+        let home_trash = s.state_file().parent().unwrap().join(".Trash");
+        let s = s.with_trash(home_trash.clone());
+        save(&s, "Kerk", &demo());
+        s.trash("Kerk").unwrap();
+        assert!(home_trash.join("Kerk.cmdmx.json").is_file());
+    }
+
+    #[test]
+    fn shw_22_the_folder_is_known() {
+        let s = shows("dir");
+        assert_eq!(s.dir(), s.path("x").parent().unwrap());
+    }
+
+    #[test]
+    fn shw_22_renaming_the_open_show_moves_its_file_and_bak_then_writes_it() {
+        let s = shows("rename-open");
+        save(&s, "Demo", &demo());
+        fs::write(bak_path(&s, "Demo"), "bak").unwrap();
+        let mut e = demo();
+        let mut a = Autosave::new(
+            s.path("Demo"),
+            meta("Demo"),
+            Some(e.to_show(meta("Demo"))),
+            0.0,
+        );
+        e.patch_name(101, "Left wash").unwrap();
+        let job = a.rename(s.path("Kerk"), "Kerk", &e, WALL);
+        assert_eq!(a.state().name, "Kerk");
+        let (jobs, done) = spawn_saver().unwrap();
+        jobs.send(job).unwrap();
+        let done = done.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(done.result.is_ok(), "{:?}", done.result);
+        assert!(a.finished(done).is_none());
+        assert!(!s.path("Demo").exists());
+        assert!(!bak_path(&s, "Demo").exists());
+        assert_eq!(fs::read_to_string(bak_path(&s, "Kerk")).unwrap(), "bak");
+        let saved = Show::from_json(&fs::read_to_string(s.path("Kerk")).unwrap())
+            .unwrap()
+            .0;
+        assert_eq!(saved.meta.name, "Kerk");
+        assert_eq!(saved.meta.created, WALL, "the same show, renamed");
+        assert!(fs::read_to_string(s.path("Kerk"))
+            .unwrap()
+            .contains("Left wash"));
+        assert!(
+            a.poll(&e, 10.0, WALL).is_none(),
+            "written under the new name: nothing left to save"
+        );
+    }
+
+    #[test]
+    fn shw_22_renaming_an_open_show_that_has_no_file_yet_writes_it() {
+        let s = shows("rename-unsaved");
+        let e = demo();
+        let mut a = Autosave::new(s.path("Demo"), meta("Demo"), None, 0.0);
+        let job = a.rename(s.path("Kerk"), "Kerk", &e, WALL);
+        let (jobs, done) = spawn_saver().unwrap();
+        jobs.send(job).unwrap();
+        let done = done.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(done.result.is_ok(), "{:?}", done.result);
+        assert!(s.path("Kerk").is_file());
+        assert!(!s.path("Demo").exists());
     }
 
     // ---- times ---------------------------------------------------------------

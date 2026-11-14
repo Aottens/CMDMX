@@ -1699,6 +1699,13 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("show.save_copy") => Ok(Command::Show(ShowRequest::SaveCopy {
             name: string(&v, "name")?,
         })),
+        Some("show.rename") => Ok(Command::Show(ShowRequest::Rename {
+            name: string(&v, "name")?,
+            to: string(&v, "to")?,
+        })),
+        Some("show.delete") => Ok(Command::Show(ShowRequest::Delete {
+            name: string(&v, "name")?,
+        })),
         Some("show.save_as") => Ok(Command::Show(ShowRequest::SaveAs {
             name: string(&v, "name")?,
         })),
@@ -3991,7 +3998,10 @@ pub fn write_user_profile(
 
 /// SHW-15: the reply to `show.list`, to the asking client only.
 pub fn answer_show_list(shows: &Shows) -> String {
-    serde_json::json!({"v": PROTOCOL, "type": "show.list", "shows": shows.list()}).to_string()
+    // SHW-22: the folder, so the app can reveal a file in Finder.
+    let dir = std::path::absolute(shows.dir()).unwrap_or_else(|_| shows.dir().to_path_buf());
+    serde_json::json!({"v": PROTOCOL, "type": "show.list", "shows": shows.list(), "dir": dir})
+        .to_string()
 }
 
 /// SHW-15: what a show request becomes. Names are checked here (SHW-09) and an Open is read
@@ -4018,6 +4028,21 @@ fn show_event(shows: &Shows, req: ShowRequest) -> Event {
                 Err(e) => Event::Warning(e),
             }
         }
+        ShowRequest::Rename { name, to } => {
+            match valid_name(name)
+                .and_then(|()| valid_name(to))
+                .and_then(|()| match shows.exists(to) {
+                    true => Err(format!("a show named {to} already exists")),
+                    false => Ok(()),
+                }) {
+                Ok(()) => Event::Command(Command::Show(req)),
+                Err(e) => Event::Warning(e),
+            }
+        }
+        ShowRequest::Delete { name } => match valid_name(name) {
+            Ok(()) => Event::Command(Command::Show(req)),
+            Err(e) => Event::Warning(e),
+        },
         ShowRequest::List => Event::Command(Command::Show(req)),
     }
 }
@@ -4180,7 +4205,9 @@ fn serve_client(
                         ShowRequest::New { .. }
                         | ShowRequest::Open { .. }
                         | ShowRequest::SaveAs { .. }
-                        | ShowRequest::SaveCopy { .. },
+                        | ShowRequest::SaveCopy { .. }
+                        | ShowRequest::Rename { .. }
+                        | ShowRequest::Delete { .. },
                     ),
                 ) if locked.load(Ordering::Relaxed) => {
                     if events.send(Event::Warning(LOCKED.into())).is_err() {
@@ -6750,6 +6777,73 @@ mod tests {
         assert_eq!(v["shows"].as_array().unwrap().len(), 1);
         assert_eq!(v["shows"][0]["name"], "Kerk");
         assert!(v["shows"][0]["modified"].as_str().unwrap().ends_with('Z'));
+    }
+
+    #[test]
+    fn shw_22_rename_and_delete_parse() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.rename","name":"Kerk oud","to":"Kerk archief"}"#),
+            Ok(Command::Show(ShowRequest::Rename {
+                name: "Kerk oud".into(),
+                to: "Kerk archief".into(),
+            }))
+        );
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.delete","name":"Kerk oud"}"#),
+            Ok(Command::Show(ShowRequest::Delete {
+                name: "Kerk oud".into(),
+            }))
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"show.rename","name":"Kerk"}"#,
+            r#"{"v":1,"cmd":"show.rename","to":"Kerk"}"#,
+            r#"{"v":1,"cmd":"show.delete"}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn shw_22_show_list_answers_the_folder() {
+        let dir = std::env::temp_dir().join(format!("cmdmx-shw-22-dir-{}", std::process::id()));
+        let shows = crate::shows::Shows::new(dir.join("Shows"), dir.join("state.json"));
+        let v = parse(&answer_show_list(&shows));
+        assert_eq!(v["dir"], dir.join("Shows").to_str().unwrap());
+        assert!(v["shows"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn shw_22_a_new_name_is_checked_before_the_tick() {
+        let dir = std::env::temp_dir().join(format!("cmdmx-shw-22-names-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let shows = crate::shows::Shows::new(dir.join("Shows"), dir.join("state.json"));
+        crate::shows::write_atomic(&shows.path("Zondag"), "{}").unwrap();
+        let rename = |to: &str| {
+            show_event(
+                &shows,
+                ShowRequest::Rename {
+                    name: "Kerk".into(),
+                    to: to.into(),
+                },
+            )
+        };
+        for (to, why) in [("a/b", "not a show name"), ("zondag", "already exists")] {
+            match rename(to) {
+                Event::Warning(w) => assert!(w.contains(why), "{to}: {w}"),
+                _ => panic!("{to}: not refused"),
+            }
+        }
+        assert!(matches!(rename("Kerk archief"), Event::Command(_)));
+        assert!(matches!(
+            show_event(
+                &shows,
+                ShowRequest::Delete {
+                    name: "Kerk".into()
+                }
+            ),
+            Event::Command(_)
+        ));
     }
 
     // ---- PBK-03 --------------------------------------------------------------

@@ -175,6 +175,8 @@ fn ipc_50_a_changing_command_is_refused_and_information_still_answers() {
         json!({"cmd": "show.new", "name": "Other"}),
         json!({"cmd": "show.save_as", "name": "Other"}),
         json!({"cmd": "show.save_copy", "name": "Other"}),
+        json!({"cmd": "show.rename", "name": "Demo", "to": "Other"}),
+        json!({"cmd": "show.delete", "name": "Other"}),
         json!({"cmd": "show.open", "name": "No such show"}),
         json!({"cmd": "library.import_gdtf", "path": "/no/such/file.gdtf"}),
     ] {

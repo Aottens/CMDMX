@@ -51,8 +51,15 @@ holds every show in the shows folder; the open one is marked `open`.*
 Before you switch, the current show is saved. A name that is taken, a show that does not exist or
 a show that is already open is refused with a message, and the current show keeps running.
 
-CMDMX has no Delete or Rename. To remove a show you no longer need, delete its file in Finder
-(not the one that is open).
+A show selected in the list has three more buttons:
+
+- **Rename**: type the new name in the field next to it and click **Rename**. The file gets the new
+  name, and so does its `.bak` if it has one. Renaming the open show first saves it; you go on
+  working in it under the new name, with its Undo.
+- **Delete**: click **Delete**, then confirm (`Delete Kerk oud — it goes to the Trash`). The show
+  goes to the Trash, so you can still drag it back from there in Finder. The open show cannot be
+  deleted: open another show first.
+- **Show in Finder**: opens the shows folder in Finder with the show's file selected.
 
 ## What a show holds
 
