@@ -461,6 +461,17 @@ impl Tick<'_> {
                         resolution: cmdmx_core::programmer::Resolution::Normal,
                     })
                 }
+                (Action::Speed(t) | Action::Xfade(t), ActionValue::Steps(steps)) => {
+                    let id = match t {
+                        Target::Connected => Some(None),
+                        t => resolve(engine, t).map(Some),
+                    };
+                    let steps = *steps;
+                    id.map(|id| match action {
+                        Action::Speed(_) => Command::ChaseSpeed { id, steps },
+                        _ => Command::ChaseXfade { id, steps },
+                    })
+                }
                 (_, ActionValue::Press) => self.press(action, keypad),
                 _ => None,
             };
@@ -473,10 +484,15 @@ impl Tick<'_> {
     fn press(&mut self, action: Action, keypad: &mut Vec<String>) -> Option<Command> {
         let engine = self.engine;
         let list = |t, action| match t {
-            Target::Connected => Some(Command::CuelistAction { id: None, action }),
+            Target::Connected => Some(Command::CuelistAction {
+                id: None,
+                action,
+                at: Some(self.now),
+            }),
             t => resolve(engine, t).map(|id| Command::CuelistAction {
                 id: Some(id),
                 action,
+                at: Some(self.now),
             }),
         };
         let page = |this: &mut Self, page: Option<u16>| {
@@ -491,6 +507,7 @@ impl Tick<'_> {
             Action::Release(Target::Connected) => Some(Command::CuelistAction {
                 id: None,
                 action: ListAction::Release,
+                at: Some(self.now),
             }),
             Action::Release(t) => resolve(engine, t).map(|id| Command::PlaybackRelease { id }),
             Action::ReleaseAll => Some(Command::PlaybackReleaseScope {
@@ -501,6 +518,21 @@ impl Tick<'_> {
             }),
             Action::Tap(t) => {
                 resolve(engine, t).map(|id| Command::PlaybackTap { id, at: self.now })
+            }
+            Action::Direction(d, t) => {
+                use cmdmx_control::action::ChaseDirection as C;
+                use cmdmx_core::playback::Direction as D;
+                let direction = match d {
+                    C::Forward => D::Forward,
+                    C::Backward => D::Backward,
+                    C::Bounce => D::Bounce,
+                    C::Random => D::Random,
+                };
+                let id = match t {
+                    Target::Connected => Some(None),
+                    t => resolve(engine, t).map(Some),
+                };
+                id.map(|id| Command::ChaseDirection { id, direction })
             }
             Action::PageNext => {
                 let next = self.page.checked_add(1);

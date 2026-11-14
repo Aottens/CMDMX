@@ -56,6 +56,20 @@ struct GoBlock: View {
                     KeyButton(label: "Tap", spec: "Tap the tempo", height: 30, action: { ui.learnOrRun("tap", engine) { engine.tapPlayback(list.id) } })
                     BPMField(id: list.id, bpm: list.live.bpm ?? list.stored.chase.bpm)
                 }
+                // CUE-65, 66: a row of its own, so the tempo keeps its width ("128.5 BPM").
+                HStack(spacing: 2) {
+                    // CUE-66: the direction; a click cycles Forward, Backward, Bounce, Random.
+                    let dirs = ["Forward", "Backward", "Bounce", "Random"]
+                    let dir = list.stored.chase.direction
+                    let next = dirs[((dirs.firstIndex(of: dir) ?? 0) + 1) % dirs.count]
+                    KeyButton(label: ["Forward": "\u{2192}", "Backward": "\u{2190}", "Bounce": "\u{2194}", "Random": "Rnd"][dir] ?? dir,
+                              spec: "Direction: \(dir) (click for \(next))", height: 30,
+                              action: { engine.setPlaybackOptions(list.id, ["chase": ["direction": next]]) })
+                    // CUE-65: the crossfade, the same field as the tempo.
+                    BPMField(id: list.id, bpm: list.stored.chase.crossfade, unit: "% xfade", range: 0...100, whole: true,
+                             help: "Crossfade: scroll to adjust, type a number and Return to set",
+                             set: { engine, id, n in engine.setPlaybackOptions(id, ["chase": ["crossfade": n]]) })
+                }
             }
             HStack(spacing: 2) {
                 // CTL-42: in Learn mode the keys are live without a list and arm Learn for their plain action.
@@ -165,6 +179,12 @@ private struct BPMField: View {
     @EnvironmentObject private var engine: EngineClient
     let id: Int
     let bpm: Double
+    /// CUE-65: the same field also carries the crossfade (percent, whole steps).
+    var unit = "BPM"
+    var range: ClosedRange<Double> = 1...600
+    var whole = false
+    var help = "BPM: scroll to adjust, type a number and Return to set"
+    var set: (EngineClient, Int, Double) -> Void = { engine, id, n in engine.setBPM(id, n) }
     @EnvironmentObject private var ui: UIState
     @State private var text = ""
     @FocusState private var focused: Bool
@@ -174,18 +194,22 @@ private struct BPMField: View {
             TextField("", text: $text).textFieldStyle(.plain).multilineTextAlignment(.trailing)
                 .font(Typo.mono(Typo.large)).focused($focused).onSubmit(send)
                 .onChange(of: focused) { _, now in if !now { if ui.fieldEscaped { text = shown } else { send() } } }   // UI-44
-            Text("BPM").font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
+            Text(unit).font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1).fixedSize()
         }
         .padding(.horizontal, 6).frame(maxWidth: .infinity).frame(height: 30)
         .background(RoundedRectangle(cornerRadius: radius).fill(t.surf2))
         .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(focused ? t.blue : t.line2, lineWidth: 1))
         .background(ScrollCatcher { steps, flags in
-            let unit = flags.contains(.option) ? 0.1 : flags.contains(.shift) ? 10.0 : 1.0
-            engine.setBPM(id, min(600, max(1, bpm + Double(steps) * unit)))
+            let unit = flags.contains(.option) && !whole ? 0.1 : flags.contains(.shift) ? 10.0 : 1.0
+            apply(min(range.upperBound, max(range.lowerBound, bpm + Double(steps) * unit)))
         })
         .onAppear { text = shown }
         .onChange(of: bpm) { _, _ in if !focused { text = shown } }
-        .help("BPM: scroll to adjust, type a number and Return to set")
+        .help(help)
+    }
+
+    private func apply(_ n: Double) {
+        set(engine, id, n)
     }
 
     private var shown: String { plain((bpm * 10).rounded() / 10) }
@@ -193,7 +217,7 @@ private struct BPMField: View {
     /// Shows what was sent, as NumberField does (VS3-05 run: the old tempo stayed in the field).
     private func send() {
         if let n = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")), n != bpm {
-            engine.setBPM(id, n)
+            apply(n)
             text = plain((n * 10).rounded() / 10)
         } else {
             text = shown

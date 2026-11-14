@@ -204,6 +204,21 @@ impl ListRun {
         }
     }
 
+    /// CUE-66: the step after (`forward`) or before the current one, wrapping with `Loop`.
+    pub(crate) fn step_by(&self, playback: &Playback, forward: bool) -> Option<CueNumber> {
+        let cues = &playback.cues;
+        let at = cues.iter().position(|c| Some(c.number) == self.current)?;
+        let number = |i: usize| cues.get(i).map(|c| c.number);
+        let wrap = |i: usize| number(i).filter(|_| playback.chase.looping == LoopAction::Loop);
+        match forward {
+            true => number(at + 1).or_else(|| wrap(0)),
+            false => at
+                .checked_sub(1)
+                .and_then(number)
+                .or_else(|| wrap(cues.len().saturating_sub(1))),
+        }
+    }
+
     pub(crate) fn live(&self, playback: &Playback) -> ListLive {
         ListLive {
             current: self.current,
@@ -426,6 +441,16 @@ impl ListRun {
         self.phase = 0.0;
         self.next = self.chase_next(cx.playback, index);
         self.transition(cx, index, How::Run);
+    }
+
+    /// CUE-66: the direction changed; the step after the current one is chosen again.
+    pub(crate) fn redirect(&mut self, playback: &Playback) {
+        let at = self
+            .current
+            .and_then(|cue| playback.cues.iter().position(|c| c.number == cue));
+        if let Some(at) = at {
+            self.next = self.chase_next(playback, at);
+        }
     }
 
     /// CUE-30: the step after the one at `at`, none at the end of a `StopOnFinal` round.

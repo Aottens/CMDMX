@@ -514,6 +514,12 @@ mod tests {
         e.set_playback_legend(2, "Lied", None, None).unwrap();
         e.set_fader(1, 0.0, 0.0).unwrap();
         e.set_fader(2, 1.0, 0.0).unwrap();
+        // CUE-68: the two Gos come less than the guard apart; the guard is off.
+        e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+            go_guard: Some(0.0),
+            ..Default::default()
+        })
+        .unwrap();
         e.cuelist(Some(2), ListAction::Go, 0.0).unwrap();
         e.tick(0.025);
         e.cuelist(Some(2), ListAction::Go, 0.05).unwrap();

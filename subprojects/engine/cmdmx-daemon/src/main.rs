@@ -1167,7 +1167,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             Ok(())
         }
         SettingsPlayback(change) => engine.set_playback_settings(&change),
-        CuelistAction { id, action } => engine.cuelist(id, action, now),
+        CuelistAction { id, action, at } => engine.cuelist(id, action, at.unwrap_or(now)),
         CuelistConnect { id } => engine.connect_list(id),
         PlaybackButton { id, button, on, at } => engine.press_button(id, button, on, at),
         PlaybackTap { id, at } => engine.tap(id, at),
@@ -1185,6 +1185,9 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             Ok(())
         }
         PlaybackBpm { id, bpm } => engine.set_bpm(id, bpm),
+        ChaseSpeed { id, steps } => engine.nudge_speed(id, steps),
+        ChaseDirection { id, direction } => engine.set_chase_direction(id, direction),
+        ChaseXfade { id, steps } => engine.nudge_crossfade(id, steps),
         // IPC-27: merge the partial objects into the stored ones; the engine checks the whole.
         PlaybackOptions {
             id,
@@ -1295,6 +1298,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | EffectTap { .. }
         | EffectWheels { .. }
         | PlaybackBpm { .. }
+        | ChaseSpeed { .. }
+        | ChaseXfade { .. }
         | CuelistAction { .. }
         | CuelistConnect { .. }
         | AttributeGroup { .. }
@@ -1391,6 +1396,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | PageLegend { .. }
         | SettingsPlayback(_)
         | PlaybackOptions { .. }
+        | ChaseDirection { .. }
         | CueEdit { .. }
         | CueTimes { .. }
         | CueDelete { .. }
@@ -3139,6 +3145,12 @@ mod tests {
     #[test]
     fn cue_41_running_commands_reach_the_engine() {
         let mut engine = demo_engine().unwrap();
+        // CUE-68: every command here arrives at time 0, so the Go guard is off.
+        send(
+            &mut engine,
+            r#"{"v":1,"cmd":"settings.playback","go_guard":0}"#,
+        )
+        .unwrap();
         engine
             .execute_command(&["201", "@", "100", "Enter"])
             .unwrap();
@@ -3198,6 +3210,39 @@ mod tests {
         engine.tick(0.1);
         assert!(!engine.playback_state(id).unwrap().is_active());
         assert!(send(&mut engine, r#"{"v":1,"cmd":"cuelist.goto","cue":9}"#).is_err());
+    }
+
+    #[test]
+    fn cue_68_a_go_is_guarded_by_its_receive_time_not_the_tick() {
+        let mut engine = demo_engine().unwrap();
+        engine
+            .execute_command(&["201", "@", "100", "Enter"])
+            .unwrap();
+        for _ in 0..3 {
+            send(
+                &mut engine,
+                r#"{"v":1,"cmd":"playback.record","page":3,"slot":1,"mode":"Append"}"#,
+            )
+            .unwrap();
+        }
+        let id = at(&engine, 3, 1);
+        let go =
+            || ipc::parse_command(&format!(r#"{{"v":1,"cmd":"cuelist.go","id":{id}}}"#)).unwrap();
+        // Both arrive before the same tick at 9.0: received 0.3 s apart, so the second is too soon.
+        apply(&mut engine, ipc::stamp(go(), 8.5), 9.0).unwrap();
+        let err = apply(&mut engine, ipc::stamp(go(), 8.8), 9.0).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            CoreError::ListRefused("Go ignored: 0.3 s after the last Go (guard 0.5 s)".into())
+                .to_string()
+        );
+        send(
+            &mut engine,
+            r#"{"v":1,"cmd":"settings.playback","go_guard":0}"#,
+        )
+        .unwrap();
+        assert_eq!(engine.settings().go_guard, 0.0);
+        apply(&mut engine, ipc::stamp(go(), 8.8), 9.0).unwrap();
     }
 
     #[test]

@@ -37,8 +37,8 @@ use crate::palette::{
 use crate::patch::{Behaviour, BehaviourEdit, Fixture, FixtureId, Handle, PatchAdd};
 use crate::playback::{
     check_bpm, fade_progress, merge_order, stagger_ranks, AddCue, BpmFader, BpmMaster, Button,
-    ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, FaderMode,
-    GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
+    ButtonKind, ChaseOptions, Cue, CueChange, CueEffect, CueNumber, CueValue, CueView, Direction,
+    FaderMode, GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint,
     Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master, MasterKind,
     Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord, PlaybackState,
     Priority, Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values, GROUP_SCALES,
@@ -196,7 +196,13 @@ pub struct Settings {
     pub clear_precedence: ClearPrecedence,
     pub clear_ltp: ClearLtp,
     pub lowlight_level: f32,
+    /// CUE-68: seconds a Go on a list is ignored after the last Go it accepted (0 = no guard).
+    pub go_guard: f32,
 }
+
+/// CUE-68: the Go guard's default and upper limit, in seconds.
+pub(crate) const DEFAULT_GO_GUARD: f32 = 0.5;
+pub(crate) const MAX_GO_GUARD: f32 = 2.0;
 
 /// PBK-12, PBK-20 (`settings.playback`): every field optional, all or nothing.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -214,6 +220,8 @@ pub struct PlaybackSettingsChange {
     pub cue_list_fader: Option<ListFader>,
     pub update_mode: Option<UpdateMode>,
     pub handle_buttons: Option<HandleButtons>,
+    /// CUE-68: 0..=2 s.
+    pub go_guard: Option<f32>,
 }
 
 /// PBK-09: the default record mask, every group.
@@ -255,6 +263,7 @@ impl Default for Settings {
             clear_precedence: ClearPrecedence::default(),
             clear_ltp: ClearLtp::default(),
             lowlight_level: default_lowlight(),
+            go_guard: DEFAULT_GO_GUARD,
         }
     }
 }
@@ -2634,6 +2643,7 @@ impl Engine {
                 clear_precedence: s.clear_precedence,
                 clear_ltp: s.clear_ltp,
                 lowlight_level: s.lowlight_level,
+                go_guard: s.go_guard,
             },
             profiles: self
                 .profiles
@@ -2766,6 +2776,7 @@ impl Engine {
             clear_precedence: s.clear_precedence,
             clear_ltp: s.clear_ltp,
             lowlight_level: s.lowlight_level,
+            go_guard: s.go_guard,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
@@ -2776,6 +2787,14 @@ impl Engine {
                 "lowlight_level {} is out of range, set to {}",
                 s.lowlight_level,
                 default_lowlight()
+            ));
+        }
+        // CUE-68: a guard out of range is left at its default.
+        if !(0.0..=MAX_GO_GUARD).contains(&s.go_guard) {
+            engine.settings.go_guard = DEFAULT_GO_GUARD;
+            warnings.push(format!(
+                "go_guard {} is out of range, set to {DEFAULT_GO_GUARD}",
+                s.go_guard
             ));
         }
         // CUE-39: a button a kind cannot have becomes the kind's BestPractice button.
@@ -3376,17 +3395,50 @@ impl Engine {
             legend => legend.to_string(),
         };
         let name = |current: Option<CueNumber>| current.map_or_else(list_name, cue_name);
+        // CUE-66: Go and Back on a running Forward or Backward chase step in the new direction.
+        // Go on a Forward chase keeps its CUE-32 path, so a step set with Set next still counts.
+        let forward = matches!(action, ListAction::Go);
+        let turns = matches!(action, ListAction::Go | ListAction::Back)
+            && playback.kind == PlaybackKind::Chase
+            && match playback.chase.direction {
+                Direction::Forward => !forward,
+                Direction::Backward => true,
+                _ => false,
+            }
+            && !run.paused()
+            && run.current.is_some()
+            && self.states.get(&id).is_some_and(|s| s.is_active());
+        let turn_to = turns.then(|| run.step_by(playback, forward));
         match action {
             ListAction::Release => return self.release_playback(id, now),
-            ListAction::Go if !run.paused() && run.next_cue(playback).is_none() => {
+            ListAction::Go | ListAction::Back if turn_to == Some(None) => {
+                let what = if forward { "last" } else { "first" };
+                let msg = format!("{} is the {what} cue", name(run.current));
+                return Err(CoreError::ListRefused(msg));
+            }
+            ListAction::Go
+                if turn_to.is_none() && !run.paused() && run.next_cue(playback).is_none() =>
+            {
                 let last = format!("{} is the last cue", name(run.current));
                 return Err(CoreError::ListRefused(last));
+            }
+            ListAction::Go if !run.paused() => {
+                if let Some(last) = self.states.get(&id).and_then(|s| s.last_go) {
+                    let guard = f64::from(self.settings.go_guard);
+                    if now - last < guard {
+                        return Err(CoreError::ListRefused(format!(
+                            "Go ignored: {:.1} s after the last Go (guard {:.1} s)",
+                            now - last,
+                            self.settings.go_guard
+                        )));
+                    }
+                }
             }
             ListAction::Back if run.current.is_none() => {
                 let off = format!("{} is not running", name(None));
                 return Err(CoreError::ListRefused(off));
             }
-            ListAction::Back if run.back_cue(playback).is_none() => {
+            ListAction::Back if turn_to.is_none() && run.back_cue(playback).is_none() => {
                 let first = format!("{} is the first cue", name(run.current));
                 return Err(CoreError::ListRefused(first));
             }
@@ -3407,12 +3459,26 @@ impl Engine {
         if matches!(action, ListAction::Go | ListAction::Goto(_)) {
             self.fire(id);
         }
+        if turn_to.is_some_and(|t| t.is_some()) {
+            let direction = if forward {
+                Direction::Forward
+            } else {
+                Direction::Backward
+            };
+            self.playback_mut(id)?.chase.direction = direction;
+        }
         let state = self.live_state(id)?;
+        if matches!(action, ListAction::Go) {
+            state.last_go = Some(now);
+        }
         match action {
             ListAction::Next(n) => state.run.next = Some(n),
             // Back and Stop need a list that runs.
             ListAction::Back | ListAction::Stop if !state.is_active() => {}
-            _ => state.run.pending.push(action),
+            _ => state
+                .run
+                .pending
+                .push(turn_to.flatten().map_or(action, ListAction::Goto)),
         }
         Ok(())
     }
@@ -3538,6 +3604,74 @@ impl Engine {
     pub fn set_bpm(&mut self, id: PlaybackId, bpm: f32) -> Result<(), CoreError> {
         check_bpm(bpm)?;
         self.set_tempo(id, bpm, None)
+    }
+
+    /// CUE-65: move a connected chase's tempo `steps` BPM (1–600), where a typed tempo goes
+    /// (CUE-34). `None` is the connected list. Refused on anything but a chase.
+    pub fn nudge_speed(&mut self, id: Option<PlaybackId>, steps: i32) -> Result<(), CoreError> {
+        let id = self.chase_id(id)?;
+        let playback = (self.playbacks.get(&id)).ok_or(CoreError::UnknownPlayback(id))?;
+        let followed = match playback.chase.speed_source {
+            SpeedSource::Bpm(n) => self.find_master(MasterKind::Bpm, n),
+            _ => None,
+        };
+        // The tempo the master gives now before its multiplier (a fader move may have set it).
+        let current = match followed {
+            Some((mid, Master::Bpm(m))) => match self.master_multiplier(mid, m) {
+                x if x > 0.0 => self.master_tempo(mid, m) / x,
+                _ => m.bpm,
+            },
+            _ => playback.chase.bpm,
+        };
+        self.set_tempo(id, (current + steps as f32).clamp(1.0, 600.0), None)
+    }
+
+    /// CUE-65: move a chase's crossfade `steps` percent (0–100). `None` is the connected list.
+    /// Refused on anything but a chase.
+    pub fn nudge_crossfade(&mut self, id: Option<PlaybackId>, steps: i32) -> Result<(), CoreError> {
+        let id = self.chase_id(id)?;
+        let chase = &mut self.playback_mut(id)?.chase;
+        chase.crossfade = (chase.crossfade + steps as f32).clamp(0.0, 100.0);
+        Ok(())
+    }
+
+    /// CUE-66: set a chase's direction. `None` is the connected list. Refused on anything but a
+    /// chase.
+    pub fn set_chase_direction(
+        &mut self,
+        id: Option<PlaybackId>,
+        direction: Direction,
+    ) -> Result<(), CoreError> {
+        let id = self.chase_id(id)?;
+        self.playback_mut(id)?.chase.direction = direction;
+        self.redirect_chase(id);
+        Ok(())
+    }
+
+    /// CUE-66: a running chase takes the very next step in its new direction.
+    fn redirect_chase(&mut self, id: PlaybackId) {
+        let chase = self
+            .playbacks
+            .get(&id)
+            .filter(|p| p.kind == PlaybackKind::Chase);
+        if let (Some(playback), Some(state)) = (chase, self.states.get_mut(&id)) {
+            state.run.redirect(playback);
+        }
+    }
+
+    /// CUE-65: `id`, or the connected list, when it is a chase.
+    fn chase_id(&self, id: Option<PlaybackId>) -> Result<PlaybackId, CoreError> {
+        let id = match id {
+            Some(id) => id,
+            None => self.connected().ok_or(CoreError::NoCueListConnected)?,
+        };
+        match self.playbacks.get(&id) {
+            Some(p) if p.kind == PlaybackKind::Chase => Ok(id),
+            Some(_) => Err(CoreError::InvalidCommand(format!(
+                "playback {id} is not a chase"
+            ))),
+            None => Err(CoreError::UnknownPlayback(id)),
+        }
     }
 
     /// CUE-33, 34: a tempo for `id` goes to the BPM master a chase follows, else to the chase's
@@ -4048,6 +4182,11 @@ impl Engine {
         if let Some(overlap) = change.overlap {
             check_overlap(overlap)?;
         }
+        if let Some(g) = change.go_guard {
+            if !(0.0..=MAX_GO_GUARD).contains(&g) {
+                return Err(CoreError::InvalidTime(g));
+            }
+        }
         if let Some(v) = &change.handle_buttons {
             v.check()?;
         }
@@ -4087,6 +4226,9 @@ impl Engine {
         }
         if let Some(v) = change.release_time {
             s.release_time = v;
+        }
+        if let Some(v) = change.go_guard {
+            s.go_guard = v;
         }
         Ok(())
     }
@@ -5403,7 +5545,9 @@ impl Engine {
         if let Some(v) = &change.list {
             playback.list = v.clone();
         }
+        let mut redirect = false;
         if let Some(v) = &change.chase {
+            redirect = playback.chase.direction != v.direction;
             playback.chase = v.clone();
         }
         if let Some(v) = &change.master {
@@ -5453,6 +5597,9 @@ impl Engine {
         let no_flash = matches!(&change.master, Some(Master::Group(m)) if !m.enabled || m.mode == GroupMode::TakeOver);
         if let (true, Some(state)) = (no_flash, self.states.get_mut(&id)) {
             (state.flash, state.swop, state.latched) = (false, false, false);
+        }
+        if redirect {
+            self.redirect_chase(id);
         }
         Ok(())
     }

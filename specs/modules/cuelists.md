@@ -574,7 +574,10 @@ questions are below, *Owner decisions (P1-42)*.
   they are refused. The attribute wheels stay attribute wheels. Tests `cue_65_…` for the two actions; the field by hand.
 - **CUE-66** **Go and Back set a chase's direction** (I7; amends CUE-32; P1-42 question 4; Titan: Next Step and Prev Step set the
   direction of the connected chase). On a running chase whose direction is `Forward` or `Backward`, Back starts the previous step
-  and sets `Backward`, and Go starts the next step and sets `Forward`; the direction is saved, as a tapped tempo is (CUE-33). On
+  and sets `Backward`, and Go starts the next step and sets `Forward`; the step is taken in the new direction, so Back starts step
+  *n* − 1 and Go step *n* + 1 whatever the direction was, wrapping with `Loop` and refused past the end with `StopOnFinal` as
+  CUE-32 (clarified in TTN-03: CUE-32's "one step against the direction" would make Back on a `Backward` chase go up). A paused
+  chase steps as CUE-32 and keeps its direction. The direction is saved, as a tapped tempo is (CUE-33). On
   `Bounce` and `Random` Go and Back step as CUE-32 and leave the direction alone (our own choice: a key press never undoes a
   bounce). The Go block of a chase gains a direction button that cycles Forward, Backward, Bounce, Random (Titan: ↔ for bounce,
   Review for random); the control vocabulary gains `direction <forward|backward|bounce|random>` with the targets of `tap`.

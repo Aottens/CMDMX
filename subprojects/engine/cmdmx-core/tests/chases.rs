@@ -471,6 +471,7 @@ fn cue_32_back_wraps_with_loop_and_is_refused_at_the_start_without() {
     let mut e = chase(4, opts(60.0, Direction::Backward, LoopAction::Loop));
     act(&mut e, ListAction::Go, 0.0);
     assert_eq!(step(&e), Some(4.0), "Backward starts on the last step");
+    act(&mut e, ListAction::Stop, 0.25); // CUE-66: on a running chase Back would step down
     act(&mut e, ListAction::Back, 0.5);
     assert_eq!(step(&e), Some(1.0), "against Backward is n + 1, wrapping");
 }
@@ -738,4 +739,263 @@ fn pbk_47_a_chase_falls_from_its_step() {
     assert_eq!(step(&e), None, "the chase stopped");
     run(&mut e, 2.025, 3.0);
     assert_eq!(common::dmx(&e, 21), 0);
+}
+
+// ---- CUE-65: a connected chase's speed and crossfade at hand (TTN-02) -------------------------
+//
+// API these tests fix: `Engine::nudge_speed(id: Option<PlaybackId>, steps: i32)` moves the tempo
+// by `steps` BPM (clamped to 1–600) where a typed tempo goes (CUE-34: the BPM master the chase
+// follows, else its own `bpm`); `Engine::nudge_crossfade(id, steps)` moves `chase.crossfade` by
+// `steps` % (clamped to 0–100). `None` = the connected list. Both are refused on anything that is
+// not a chase.
+
+fn crossfade(e: &Engine, id: u32) -> f32 {
+    e.playback(id).unwrap().chase.crossfade
+}
+
+#[test]
+fn cue_65_speed_steps_move_a_chases_tempo_by_one_bpm_each() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    e.nudge_speed(Some(1), 3).unwrap();
+    assert_eq!(bpm_of(&e, 1), 123.0);
+    e.nudge_speed(Some(1), -5).unwrap();
+    assert_eq!(bpm_of(&e, 1), 118.0);
+    e.set_bpm(1, 598.0).unwrap();
+    e.nudge_speed(Some(1), 4).unwrap();
+    assert_eq!(bpm_of(&e, 1), 600.0, "clamped at 600");
+    e.set_bpm(1, 2.0).unwrap();
+    e.nudge_speed(Some(1), -4).unwrap();
+    assert_eq!(bpm_of(&e, 1), 1.0, "clamped at 1");
+}
+
+#[test]
+fn cue_65_speed_on_a_chase_following_a_bpm_master_moves_the_master() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    let m = bpm_master(&mut e, 2, 100.0, 1.0, BpmFader::Unused);
+    source(&mut e, 1, SpeedSource::Bpm(1));
+    e.nudge_speed(Some(1), 2).unwrap();
+    assert_eq!(master_bpm(&e, m), 102.0);
+    assert_eq!(bpm_of(&e, 1), 120.0, "the chase's own tempo stays");
+}
+
+#[test]
+fn cue_65_xfade_steps_move_the_crossfade_by_one_percent_each() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    e.nudge_crossfade(Some(1), 10).unwrap();
+    assert_eq!(crossfade(&e, 1), 10.0);
+    e.nudge_crossfade(Some(1), -3).unwrap();
+    assert_eq!(crossfade(&e, 1), 7.0);
+    e.nudge_crossfade(Some(1), 200).unwrap();
+    assert_eq!(crossfade(&e, 1), 100.0, "clamped at 100 %");
+    e.nudge_crossfade(Some(1), -300).unwrap();
+    assert_eq!(crossfade(&e, 1), 0.0, "clamped at 0 %");
+}
+
+#[test]
+fn cue_65_without_an_id_they_act_on_the_connected_list() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    add_chase(
+        &mut e,
+        2,
+        2,
+        3,
+        opts(90.0, Direction::Forward, LoopAction::Loop),
+    );
+    e.connect_list(2).unwrap();
+    e.nudge_speed(None, 1).unwrap();
+    e.nudge_crossfade(None, 5).unwrap();
+    assert_eq!((bpm_of(&e, 2), crossfade(&e, 2)), (91.0, 5.0));
+    assert_eq!((bpm_of(&e, 1), crossfade(&e, 1)), (120.0, 0.0));
+}
+
+#[test]
+fn cue_65_speed_and_xfade_are_refused_on_anything_but_a_chase() {
+    let mut e = common::church();
+    e.add_playback(Playback {
+        cues: steps(1),
+        ..Playback::new(1, 1, 1, Values::new())
+    });
+    e.add_playback(Playback {
+        cues: steps(2),
+        ..Playback::new(2, 1, 2, Values::new())
+    });
+    let m = bpm_master(&mut e, 3, 100.0, 1.0, BpmFader::Unused);
+    for id in [1, 2, m] {
+        assert!(e.nudge_speed(Some(id), 1).is_err(), "speed on {id}");
+        assert!(e.nudge_crossfade(Some(id), 1).is_err(), "xfade on {id}");
+    }
+    e.connect_list(2).unwrap();
+    assert!(e.nudge_speed(None, 1).is_err(), "the connected cue list");
+    assert_eq!(master_bpm(&e, m), 100.0);
+}
+
+#[test]
+fn cue_65_speed_starts_from_the_tempo_a_bpm_fader_set() {
+    let mut e = chase(4, opts(120.0, Direction::Forward, LoopAction::Loop));
+    let m = bpm_master(&mut e, 2, 100.0, 2.0, BpmFader::Bpm);
+    source(&mut e, 1, SpeedSource::Bpm(1));
+    e.set_fader(m, 0.25, 0.0).unwrap(); // 60 BPM, ×2
+    e.nudge_speed(Some(1), 1).unwrap();
+    assert_eq!(
+        master_bpm(&e, m),
+        61.0,
+        "from the fader's 60, not the stored 100"
+    );
+    assert_eq!(e.effective_bpm(m), Some(122.0));
+}
+
+// ---- CUE-66: Go and Back set a chase's direction (TTN-03) -------------------------------------
+//
+// API these tests fix: on a running chase (active, not paused) whose direction is `Forward` or
+// `Backward`, Back sets `chase.direction` to `Backward` and starts step n − 1, Go sets `Forward`
+// and starts step n + 1, whatever the direction was (Titan's Prev Step and Next Step); both wrap
+// with `Loop` and are refused past the end with `StopOnFinal`, changing nothing (CUE-32, 49).
+// `Bounce` and `Random` step as CUE-32 and keep their direction; a paused chase keeps it too.
+// `Engine::set_chase_direction(id: Option<PlaybackId>, Direction)` sets it (`None` = the
+// connected list) and is refused on anything that is not a chase.
+
+fn direction(e: &Engine) -> Direction {
+    e.playback(1).unwrap().chase.direction
+}
+
+#[test]
+fn cue_66_back_runs_a_forward_chase_backward_and_go_runs_it_forward_again() {
+    let mut e = chase(4, opts(60.0, Direction::Forward, LoopAction::Loop));
+    act(&mut e, ListAction::Go, 0.0);
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    run(&mut e, 0.025, 2.0);
+    assert_eq!(step(&e), Some(3.0));
+    act(&mut e, ListAction::Back, 2.1);
+    assert_eq!(step(&e), Some(2.0));
+    assert_eq!(direction(&e), Direction::Backward);
+    run(&mut e, 2.125, 3.2);
+    assert_eq!(step(&e), Some(1.0), "the clock now runs it backward");
+    act(&mut e, ListAction::Go, 3.3);
+    assert_eq!(step(&e), Some(2.0));
+    assert_eq!(direction(&e), Direction::Forward);
+    run(&mut e, 3.325, 4.4);
+    assert_eq!(step(&e), Some(3.0), "and forward again");
+}
+
+#[test]
+fn cue_66_on_a_backward_chase_back_steps_down_and_go_steps_up() {
+    let mut e = chase(4, opts(60.0, Direction::Backward, LoopAction::Loop));
+    act(&mut e, ListAction::Go, 0.0);
+    assert_eq!(step(&e), Some(4.0), "Backward starts on the last step");
+    act(&mut e, ListAction::Back, 0.5);
+    assert_eq!(
+        step(&e),
+        Some(3.0),
+        "Back is n − 1 whatever the direction was"
+    );
+    assert_eq!(direction(&e), Direction::Backward);
+    act(&mut e, ListAction::Go, 1.0);
+    assert_eq!(step(&e), Some(4.0), "Go is n + 1");
+    assert_eq!(direction(&e), Direction::Forward);
+    act(&mut e, ListAction::Go, 1.6);
+    assert_eq!(step(&e), Some(1.0), "Loop wraps");
+}
+
+#[test]
+fn cue_66_stop_on_final_refuses_a_step_past_either_end_and_keeps_the_direction() {
+    let mut e = chase(3, opts(60.0, Direction::Forward, LoopAction::StopOnFinal));
+    act(&mut e, ListAction::Go, 0.0);
+    assert!(e.cuelist(Some(1), ListAction::Back, 0.2).is_err());
+    assert_eq!(direction(&e), Direction::Forward);
+
+    let mut e = chase(3, opts(60.0, Direction::Backward, LoopAction::StopOnFinal));
+    act(&mut e, ListAction::Go, 0.0);
+    assert_eq!(step(&e), Some(3.0));
+    assert!(e.cuelist(Some(1), ListAction::Go, 0.6).is_err());
+    assert_eq!(direction(&e), Direction::Backward);
+}
+
+#[test]
+fn cue_66_bounce_and_random_keep_their_direction() {
+    for d in [Direction::Bounce, Direction::Random] {
+        let mut e = chase(4, opts(60.0, d, LoopAction::Loop));
+        act(&mut e, ListAction::Go, 0.0);
+        act(&mut e, ListAction::Go, 0.6);
+        act(&mut e, ListAction::Back, 0.7);
+        assert_eq!(direction(&e), d);
+    }
+}
+
+#[test]
+fn cue_66_a_paused_chase_steps_as_before_and_keeps_its_direction() {
+    let mut e = chase(4, opts(60.0, Direction::Forward, LoopAction::Loop));
+    act(&mut e, ListAction::Go, 0.0);
+    act(&mut e, ListAction::Stop, 0.5);
+    act(&mut e, ListAction::Back, 0.6);
+    assert_eq!(step(&e), Some(4.0), "CUE-32: one step back, wrapping");
+    assert!(e.list_live(1).unwrap().paused);
+    assert_eq!(direction(&e), Direction::Forward);
+}
+
+#[test]
+fn cue_66_the_direction_back_set_is_saved() {
+    let mut e = chase(4, opts(60.0, Direction::Forward, LoopAction::Loop));
+    act(&mut e, ListAction::Go, 0.0);
+    act(&mut e, ListAction::Back, 0.5);
+    let (loaded, _) = Engine::from_show(&e.to_show(meta()));
+    assert_eq!(
+        loaded.playback(1).unwrap().chase.direction,
+        Direction::Backward
+    );
+}
+
+#[test]
+fn cue_66_set_chase_direction_sets_a_chase_and_refuses_anything_else() {
+    let mut e = chase(4, opts(60.0, Direction::Forward, LoopAction::Loop));
+    e.set_chase_direction(Some(1), Direction::Random).unwrap();
+    assert_eq!(direction(&e), Direction::Random);
+    e.connect_list(1).unwrap();
+    e.set_chase_direction(None, Direction::Bounce).unwrap();
+    assert_eq!(direction(&e), Direction::Bounce);
+    e.add_playback(Playback {
+        cues: steps(2),
+        ..Playback::new(2, 1, 2, Values::new())
+    });
+    assert!(e.set_chase_direction(Some(2), Direction::Forward).is_err());
+    e.connect_list(2).unwrap();
+    assert!(e.set_chase_direction(None, Direction::Forward).is_err());
+}
+
+#[test]
+fn cue_66_go_on_a_forward_chase_still_takes_a_step_set_with_set_next() {
+    let mut e = chase(4, opts(60.0, Direction::Forward, LoopAction::Loop));
+    act(&mut e, ListAction::Go, 0.0);
+    e.cuelist(Some(1), ListAction::Next(q(3.0)), 0.2).unwrap();
+    act(&mut e, ListAction::Go, 0.6);
+    assert_eq!(step(&e), Some(3.0));
+    assert_eq!(direction(&e), Direction::Forward);
+}
+
+#[test]
+fn cue_66_a_new_direction_takes_the_very_next_step() {
+    // Found in the TTN-03 run: the step after the current one was chosen when the step started,
+    // so a chase turned by the direction button still took one step the old way.
+    let mut e = chase(4, opts(60.0, Direction::Forward, LoopAction::Loop));
+    act(&mut e, ListAction::Go, 0.0);
+    run(&mut e, 0.025, 1.0);
+    assert_eq!(step(&e), Some(2.0));
+    e.set_chase_direction(Some(1), Direction::Backward).unwrap();
+    let next = |e: &Engine| e.list_live(1).unwrap().next.map(CueNumber::as_f64);
+    assert_eq!(next(&e), Some(1.0));
+    run(&mut e, 1.025, 2.0);
+    assert_eq!(step(&e), Some(1.0));
+    // The Chase tab and the Go block's button send `playback.options`: the same.
+    let mut options = e.playback(1).unwrap().chase.clone();
+    options.direction = Direction::Forward;
+    e.change_playback(
+        1,
+        &PlaybackChange {
+            chase: Some(options),
+            ..PlaybackChange::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(next(&e), Some(2.0));
+    run(&mut e, 2.025, 3.0);
+    assert_eq!(step(&e), Some(2.0));
 }

@@ -12,9 +12,10 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch I, behaviour that differs from Titan: builds TTN-01..10 as `BACKLOG.md` groups them,
-   the Go guard (TTN-05) first. Then batch J, its spec approved first (`docs/research/everyday-gaps.md`). No tag after
-   a batch: the next release is the one the first service runs on, and the gap review follows it (REL-26).
+1. IDEA-35 batch I, behaviour that differs from Titan: the other builds as `BACKLOG.md` groups them, TTN-04 + TTN-06 +
+   TTN-10 next, then TTN-07 + TTN-08 + TTN-09 and TTN-01; they add their keys to schema 15. Then batch J, its spec
+   approved first (`docs/research/everyday-gaps.md`). No tag after a batch: the next release is the one the first
+   service runs on, and the gap review follows it (REL-26).
    P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net) needs a criterion.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,

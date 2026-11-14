@@ -1354,21 +1354,24 @@ fn ctl_33_default_bindings() {
         cmds[3],
         Command::CuelistAction {
             id: None,
-            action: ListAction::Go
+            action: ListAction::Go,
+            ..
         }
     ));
     assert!(matches!(
         cmds[4],
         Command::CuelistAction {
             id: None,
-            action: ListAction::Stop
+            action: ListAction::Stop,
+            ..
         }
     ));
     assert!(matches!(
         cmds[5],
         Command::CuelistAction {
             id: None,
-            action: ListAction::Back
+            action: ListAction::Back,
+            ..
         }
     ));
     assert!(matches!(cmds[6], Command::Step { forward: true }));
@@ -2126,4 +2129,102 @@ fn ctl_70_mapping_device_changes_the_pattern_and_writes_the_file() {
     }
     assert_eq!(file(&dir, "nano")["device"], "*nano*|*Launchpad*");
     assert!(!dir.join("control/ghost.json").exists());
+}
+
+#[test]
+fn cue_68_a_surface_go_carries_its_time() {
+    use cmdmx_core::playback::ListAction;
+    let (mut c, _) = surface("mc-go-time", &["BCF2000"]);
+    let e = engine();
+    packet(&mut c, "BCF2000", &note(94, 127)); // Play = Go on the connected list
+    let cmds: Vec<Command> = c.commands(&e, 2.5).into_iter().map(|(_, c)| c).collect();
+    assert!(
+        matches!(
+            cmds[..],
+            [Command::CuelistAction {
+                id: None,
+                action: ListAction::Go,
+                at: Some(t)
+            }] if t == 2.5
+        ),
+        "{cmds:?}"
+    );
+}
+
+// --- CUE-65, CUE-66: the connected chase from a device ------------------------------------------
+
+const CHASE: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"cc","channel":1,"number":16},"action":"speed","encoding":"sign_magnitude"},
+  {"input":{"kind":"cc","channel":1,"number":17},"action":"xfade","encoding":"sign_magnitude"}
+]}"#;
+
+/// The demo engine with chases 990 on 9.1 and 991 on 9.2 (120 BPM, Forward), 991 connected.
+fn chase_engine() -> Engine {
+    use cmdmx_core::playback::{Kind, Playback};
+    let mut e = engine();
+    for (id, slot) in [(990, 1), (991, 2)] {
+        e.add_playback(Playback {
+            kind: Kind::Chase,
+            ..Playback::new(id, 9, slot, std::collections::BTreeMap::new())
+        });
+    }
+    e.connect_list(991).unwrap();
+    e
+}
+
+/// A control layer whose `nano` device has `mapping`, connected and enabled.
+fn with_mapping(test: &str, mapping: &str) -> Control {
+    let dir = tmp(test);
+    fs::write(dir.join("control/nano.json"), mapping).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    c
+}
+
+#[test]
+fn cue_65_speed_and_xfade_encoders_turn_the_connected_chase() {
+    let mut c = with_mapping("chase-speed", CHASE);
+    let mut e = chase_engine();
+    let mut h = History::default();
+    packet(&mut c, "nano", &[0xB0, 16, 3]); // three detents up
+    packet(&mut c, "nano", &[0xB0, 17, 5]);
+    let cmds = c.commands(&e, 1.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    let chase = |e: &Engine| e.playback(991).unwrap().chase.clone();
+    assert_eq!((chase(&e).bpm, chase(&e).crossfade), (123.0, 5.0));
+    packet(&mut c, "nano", &[0xB0, 16, 0x42]); // two detents down
+    let cmds = c.commands(&e, 1.1);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert_eq!(chase(&e).bpm, 121.0);
+    assert_eq!(
+        e.playback(990).unwrap().chase.bpm,
+        120.0,
+        "not the other chase"
+    );
+}
+
+const DIRECTION: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"note","channel":1,"number":80},"action":"direction backward"},
+  {"input":{"kind":"note","channel":1,"number":81},"action":"direction random 9.1"}
+]}"#;
+
+#[test]
+fn cue_66_direction_keys_set_a_chases_direction() {
+    use cmdmx_core::playback::Direction;
+    let mut c = with_mapping("chase-direction", DIRECTION);
+    let mut e = chase_engine();
+    let mut h = History::default();
+    press(&mut c, "nano", 80);
+    press(&mut c, "nano", 81);
+    let cmds = c.commands(&e, 1.0);
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    let direction = |id| e.playback(id).unwrap().chase.direction;
+    assert_eq!(direction(991), Direction::Backward, "the connected chase");
+    assert_eq!(direction(990), Direction::Random, "the chase on 9.1");
 }

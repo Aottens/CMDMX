@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-14 — Go and Back turn a chase: the step is taken in the new direction (TTN-03, CUE-66)
+
+**Decision:** On a running Forward or Backward chase, Back starts step *n* − 1 and sets Backward, Go starts step *n* + 1 and sets Forward, whatever the direction was. A change of direction (Go, Back, the Go block's button, `direction`, the Chase tab) chooses the next step again at once. Go on a Forward chase keeps CUE-32's path, so a step set with Set next still counts. The Go guard (CUE-68) counts a Go from the time the daemon received it, not the tick.
+
+**Alternatives considered:** CUE-32's "one step against the direction" with the new direction set after it, which makes Back on a Backward chase go up; keeping the next step chosen at the step's start until the step after.
+
+**Reasoning:** Titan's Prev Step and Next Step move to the previous or next step number and set the direction; CUE-66's wording allowed both readings, so the spec text now says it. The run showed a turned chase taking one more step the old way.
+
+**Reversal trigger:** the owner reads CUE-66 the other way.
+
 ## 2026-11-14 — Releases go by milestone, 1.0.0 is the first service (owner; amends 2026-11-02 and 2026-11-13)
 
 **Decision:** a release goes out only when there is something to install, not after each batch: 15 tags in 12 days (v0.3.0

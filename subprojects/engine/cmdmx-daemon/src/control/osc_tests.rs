@@ -268,7 +268,8 @@ fn ctl_36_buttons_press_release_and_tap() {
             },
             Command::CuelistAction {
                 id: None,
-                action: ListAction::Go
+                action: ListAction::Go,
+                at: Some(0.0)
             },
         ]
     );

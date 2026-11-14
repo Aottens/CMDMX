@@ -78,6 +78,18 @@ What the keys do:
 When Go reaches the last cue, the list stays there: Go has nothing next. With **Loop** on the Cue
 list tab set to *Loop*, the first cue comes next after the last one.
 
+### A second Go too soon
+
+Space and a mouse repeat easily in the dark. A Go that comes less than half a second after the last
+Go the same list took is ignored, with the warning "Go ignored: 0.3 s after the last Go (guard
+0.5 s)", so a double press never skips a cue. It counts the same from every source: the Go block,
+Space, a handle button, a control surface, the phone or OSC. Back, Stop, Go to cue, setting the
+next cue and a Go that resumes a paused list are never ignored. Each list has its own guard, so two
+lists can get Go at once.
+
+The time is the setting **Ignore a second Go within** on the Settings tab of Options, 0 to 2 s
+(default 0.5 s). Set it to 0 for no guard, as on a Titan. It is saved with the show.
+
 ## The Cue list window
 
 The Cue list window is in the **Playbacks** workspace (F4). Its title shows the connected list,

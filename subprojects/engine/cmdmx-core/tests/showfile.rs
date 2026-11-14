@@ -154,7 +154,7 @@ fn shw_01_top_level_keys_in_order() {
     );
     let v: Json = serde_json::from_str(&json).unwrap();
     assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
-    assert_eq!(SCHEMA_VERSION, 14); // OUT-13, PRG-52, FX-29, CUE-58
+    assert_eq!(SCHEMA_VERSION, 15); // OUT-13, PRG-52, FX-29, CUE-58, SHW-26
     assert_eq!(
         v["meta"],
         json!({"name": "Church demo", "created": "2026-10-18T09:00:00Z",
@@ -573,7 +573,7 @@ fn grm_13_a_restart_keeps_the_masters_level_and_the_stage() {
 fn grm_13_a_schema_4_show_is_migrated() {
     let file = std::fs::read_to_string(V4_SHOW).unwrap();
     let (show, migrations) = Show::from_json(&file).unwrap();
-    assert_eq!(migrations.len(), 10, "{migrations:?}");
+    assert_eq!(migrations.len(), 11, "{migrations:?}");
     assert!(migrations[0].starts_with("4 -> 5"), "{migrations:?}");
     assert!(migrations[1].starts_with("5 -> 6"), "{migrations:?}"); // OUT-27
     assert!(migrations[2].starts_with("6 -> 7"), "{migrations:?}"); // PRG-52
@@ -658,7 +658,7 @@ fn schema_10(out: Json, edit: impl FnOnce(&mut Json)) -> Json {
 
 fn first_cue_of(v: &Json) -> (Show, cmdmx_core::playback::Cue) {
     let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
-    assert_eq!(migrations.len(), 4, "{migrations:?}");
+    assert_eq!(migrations.len(), 5, "{migrations:?}");
     assert!(migrations[0].starts_with("10 -> 11"), "{migrations:?}");
     let (e, _) = Engine::from_show(&show);
     let cue = e.playbacks().next().unwrap().cues[0].clone();
@@ -775,7 +775,7 @@ fn cue_58_as_in_and_empty_are_absent_in_the_file() {
     e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange::default())
         .unwrap();
     let v = as_json(&e.to_show(meta()));
-    assert_eq!(v["schema_version"], json!(14));
+    assert_eq!(v["schema_version"], json!(SCHEMA_VERSION));
     for pb in v["playbacks"]["playbacks"].as_array().unwrap() {
         for cue in pb["cues"].as_array().unwrap() {
             for key in ["fade_out", "delay_out", "dormant"] {
@@ -828,7 +828,7 @@ fn cue_58_out_times_out_of_range_load_as_as_in_with_one_warning_each() {
 #[test]
 fn cue_58_schema_15_is_refused() {
     let mut v = as_json(&rig().to_show(meta()));
-    v["schema_version"] = json!(15);
+    v["schema_version"] = json!(16);
     assert!(Show::from_json(&v.to_string()).is_err());
 }
 
@@ -1191,4 +1191,55 @@ fn shw_25_the_report_stands_alone_and_prints_on_a4() {
         assert!(!html.contains(banned), "{banned} in the report");
     }
     assert!(html.contains("size: A4"), "{html}");
+}
+
+// ---- SHW-26: schema 15, batch I's new options (TTN-05 adds `go_guard`) ---------------------
+
+#[test]
+fn shw_26_go_guard_is_left_out_at_its_default_and_saved_otherwise() {
+    let mut e = rig();
+    let v = as_json(&e.to_show(meta()));
+    assert_eq!(v["schema_version"], json!(15));
+    assert!(
+        v["settings"].get("go_guard").is_none(),
+        "0.5 is the default"
+    );
+    e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+        go_guard: Some(1.2),
+        ..Default::default()
+    })
+    .unwrap();
+    let v = as_json(&e.to_show(meta()));
+    assert_eq!(v["settings"]["go_guard"], json!(1.2));
+    let (loaded, warnings) = load(&v);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(loaded.settings().go_guard, 1.2);
+}
+
+#[test]
+fn shw_26_a_schema_14_show_loads_with_every_default() {
+    let mut v = as_json(&rig().to_show(meta()));
+    v["schema_version"] = json!(14);
+    let (show, migrations) = Show::from_json(&v.to_string()).unwrap();
+    assert_eq!(migrations.len(), 1, "{migrations:?}");
+    assert!(migrations[0].starts_with("14 -> 15"), "{migrations:?}");
+    let (e, warnings) = Engine::from_show(&show);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(e.settings().go_guard, 0.5);
+    assert_eq!(
+        as_json(&e.to_show(meta())),
+        as_json(&rig().to_show(meta())),
+        "it keeps everything it had"
+    );
+}
+
+#[test]
+fn shw_26_a_go_guard_out_of_range_loads_at_its_default_with_a_warning() {
+    let mut v = as_json(&rig().to_show(meta()));
+    v["settings"]["go_guard"] = json!(5.0);
+    let (show, _) = Show::from_json(&v.to_string()).unwrap();
+    let (e, warnings) = Engine::from_show(&show);
+    assert_eq!(e.settings().go_guard, 0.5);
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(warnings[0].contains("go_guard"), "{warnings:?}");
 }

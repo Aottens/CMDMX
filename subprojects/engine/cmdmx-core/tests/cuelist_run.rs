@@ -2196,7 +2196,7 @@ fn pbk_48_without_a_cue_a_running_list_gives_its_current_and_one_that_is_off_is_
     assert!(refused.to_string().starts_with("Name a cue"), "{refused}");
     assert!(e.programmer().is_empty(), "a refusal changes nothing");
     act(&mut e, ListAction::Go, 0.0);
-    act(&mut e, ListAction::Go, 0.1);
+    act(&mut e, ListAction::Go, 0.5); // CUE-68: past the Go guard
     assert_eq!(current(&e), Some(2.0));
     e.include_playback(1, None, None).unwrap();
     assert_eq!(in_programmer(&e, 202, "Dimmer"), Some(1.0));
@@ -2291,4 +2291,165 @@ fn pbk_48_unknown_and_empty_are_refused() {
     let refused = e.include_playback(1, Some(q(2.0)), None).unwrap_err();
     assert_eq!(refused.to_string(), "Q2 holds nothing to include");
     assert!(e.programmer().is_empty());
+}
+
+// ---- CUE-68: a second Go too soon is ignored (TTN-05) --------------------------------------
+//
+// API these tests fix: `Settings::go_guard: f32` (s, default 0.5) and
+// `PlaybackSettingsChange::go_guard: Option<f32>` (0–2, else refused as a whole). `cuelist`'s
+// `now` is the time the daemon received the command. A Go that comes less than `go_guard` after
+// the last Go the list accepted is refused with `CoreError::ListRefused("Go ignored: 0.3 s after
+// the last Go (guard 0.5 s)")` and changes nothing. Back, Stop, Go to cue, Set next and a Go that
+// resumes a paused list are never guarded.
+
+fn guard(e: &mut Engine, seconds: f32) -> Result<(), cmdmx_core::CoreError> {
+    e.set_playback_settings(&PlaybackSettingsChange {
+        go_guard: Some(seconds),
+        ..PlaybackSettingsChange::default()
+    })
+}
+
+#[test]
+fn cue_68_the_guard_is_half_a_second_by_default() {
+    assert_eq!(cmdmx_core::engine::Settings::default().go_guard, 0.5);
+}
+
+#[test]
+fn cue_68_a_second_go_within_the_guard_is_ignored_with_a_warning() {
+    let mut e = three();
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    act(&mut e, ListAction::Go, 1.0);
+    assert_eq!(current(&e), Some(1.0));
+    let refused = e.cuelist(Some(1), ListAction::Go, 1.3).unwrap_err();
+    assert_eq!(
+        refused,
+        cmdmx_core::CoreError::ListRefused(
+            "Go ignored: 0.3 s after the last Go (guard 0.5 s)".into()
+        )
+    );
+    tick(&mut e, 1.3);
+    assert_eq!(current(&e), Some(1.0), "the second Go changed nothing");
+    act(&mut e, ListAction::Go, 1.5);
+    assert_eq!(
+        current(&e),
+        Some(2.0),
+        "0.5 s after the last accepted Go is not too soon"
+    );
+}
+
+#[test]
+fn cue_68_a_refused_go_does_not_restart_the_guard() {
+    let mut e = three();
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    act(&mut e, ListAction::Go, 1.0);
+    assert!(e.cuelist(Some(1), ListAction::Go, 1.4).is_err());
+    act(&mut e, ListAction::Go, 1.6);
+    assert_eq!(
+        current(&e),
+        Some(2.0),
+        "counted from the Go at 1.0, not the refused one"
+    );
+}
+
+#[test]
+fn cue_68_a_guard_of_zero_is_titan() {
+    let mut e = three();
+    guard(&mut e, 0.0).unwrap();
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    act(&mut e, ListAction::Go, 1.0);
+    act(&mut e, ListAction::Go, 1.0);
+    assert_eq!(current(&e), Some(2.0));
+}
+
+#[test]
+fn cue_68_the_guard_is_set_from_zero_to_two_seconds() {
+    let mut e = three();
+    guard(&mut e, 2.0).unwrap();
+    assert_eq!(e.settings().go_guard, 2.0);
+    for bad in [-0.1, 2.1, f32::NAN] {
+        assert!(guard(&mut e, bad).is_err(), "{bad}");
+        assert_eq!(
+            e.settings().go_guard,
+            2.0,
+            "a refused value changes nothing"
+        );
+    }
+    guard(&mut e, 1.0).unwrap();
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    act(&mut e, ListAction::Go, 1.0);
+    let refused = e.cuelist(Some(1), ListAction::Go, 1.7).unwrap_err();
+    assert_eq!(
+        refused,
+        cmdmx_core::CoreError::ListRefused(
+            "Go ignored: 0.7 s after the last Go (guard 1.0 s)".into()
+        )
+    );
+}
+
+#[test]
+fn cue_68_back_goto_next_and_stop_are_never_guarded() {
+    let mut e = three();
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    act(&mut e, ListAction::Go, 1.0);
+    act(&mut e, ListAction::Go, 1.5);
+    assert_eq!(current(&e), Some(2.0));
+    act(&mut e, ListAction::Back, 1.6);
+    assert_eq!(current(&e), Some(1.0));
+    act(&mut e, ListAction::Goto(q(3.0)), 1.65);
+    assert_eq!(current(&e), Some(3.0));
+    e.cuelist(Some(1), ListAction::Next(q(2.0)), 1.7).unwrap();
+    e.cuelist(Some(1), ListAction::Stop, 1.75).unwrap();
+}
+
+#[test]
+fn cue_68_a_go_that_resumes_a_paused_chase_is_never_guarded() {
+    let mut e = common::church();
+    e.add_playback(Playback {
+        kind: Kind::Chase,
+        cues: vec![
+            cue(1.0, &[(201, "Dimmer", 1.0)]),
+            cue(2.0, &[(202, "Dimmer", 1.0)]),
+        ],
+        ..Playback::new(1, 1, 1, Values::new())
+    });
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    act(&mut e, ListAction::Go, 1.0);
+    act(&mut e, ListAction::Stop, 1.1);
+    assert!(live(&e).paused);
+    act(&mut e, ListAction::Go, 1.2);
+    assert!(!live(&e).paused, "resumed 0.2 s after the Go");
+    assert!(
+        e.cuelist(Some(1), ListAction::Go, 1.3).is_err(),
+        "a resume is a Go the list accepted, so the guard counts from it"
+    );
+}
+
+#[test]
+fn cue_68_each_list_has_its_own_guard() {
+    let mut e = three();
+    add(
+        &mut e,
+        2,
+        1,
+        2,
+        vec![
+            cue(1.0, &[(204, "Dimmer", 1.0)]),
+            cue(2.0, &[(205, "Dimmer", 1.0)]),
+        ],
+    );
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.set_fader(2, 1.0, 0.0).unwrap();
+    e.cuelist(Some(1), ListAction::Go, 1.0).unwrap();
+    e.cuelist(Some(2), ListAction::Go, 1.1).unwrap();
+}
+
+#[test]
+fn cue_68_a_handle_button_go_is_guarded_too() {
+    let mut e = three(); // best practice: the upper button of a cue list is Go (CUE-25)
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.press_button(1, HandleButton::Upper, true, 1.0).unwrap();
+    tick(&mut e, 1.0);
+    assert!(e.press_button(1, HandleButton::Upper, true, 1.2).is_err());
+    tick(&mut e, 1.2);
+    assert_eq!(current(&e), Some(1.0));
 }
