@@ -4009,9 +4009,19 @@ pub fn answer_show_list(shows: &Shows) -> String {
 fn show_event(shows: &Shows, req: ShowRequest) -> Event {
     match &req {
         ShowRequest::Open { name, keep_output } => {
+            // SHW-23: the open show is only loaded again when its file changed outside.
+            let outside = shows.outside(name);
+            if outside == Some(false) {
+                return Event::Warning(format!(
+                    "{name} is already open: its file has not changed outside CMDMX"
+                ));
+            }
             match valid_name(name).and_then(|()| shows.open(name)) {
                 Ok(opened) => Event::ShowOpened(Box::new(Opened {
                     keep_output: *keep_output,
+                    before: outside.map(|_| {
+                        shows.aside_name(&opened.name, "before open", std::time::SystemTime::now())
+                    }),
                     ..opened
                 })),
                 Err(e) => Event::Warning(e),
@@ -4243,6 +4253,12 @@ fn serve_client(
                 Ok(Command::Show(ShowRequest::List)) => {
                     if ws.send(Message::text(answer_show_list(shows))).is_err() {
                         return;
+                    }
+                    // SHW-23: the open file changed outside; tell once per change.
+                    if let Some(msg) = shows.outside_notice() {
+                        if events.send(Event::Warning(msg)).is_err() {
+                            return;
+                        }
                     }
                 }
                 Ok(Command::Show(req)) => {
@@ -6844,6 +6860,54 @@ mod tests {
             ),
             Event::Command(_)
         ));
+    }
+
+    #[test]
+    fn shw_23_open_of_the_open_show_reloads_only_a_file_changed_outside() {
+        let dir = std::env::temp_dir().join(format!("cmdmx-shw-23-open-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let shows = crate::shows::Shows::new(dir.join("Shows"), dir.join("state.json"));
+        let json = engine()
+            .to_show(cmdmx_core::show::Meta {
+                name: "Kerk".into(),
+                created: "2026-10-18T09:00:00Z".into(),
+                modified: "2026-10-18T09:00:00Z".into(),
+                app_version: "0.1.0".into(),
+            })
+            .to_json();
+        crate::shows::write_atomic(&shows.path("Kerk"), &json).unwrap();
+        let opened = shows.open("Kerk").unwrap();
+        shows.set_open("Kerk", opened.stamp);
+        let open = || {
+            show_event(
+                &shows,
+                ShowRequest::Open {
+                    name: "Kerk".into(),
+                    keep_output: false,
+                },
+            )
+        };
+        match open() {
+            Event::Warning(w) => assert!(
+                w.contains("Kerk is already open: its file has not changed outside CMDMX"),
+                "{w}"
+            ),
+            _ => panic!("not refused"),
+        }
+        std::fs::write(shows.path("Kerk"), format!("{json}\n")).unwrap();
+        match open() {
+            Event::ShowOpened(o) => {
+                assert_eq!(o.name, "Kerk");
+                assert!(
+                    o.before
+                        .as_deref()
+                        .is_some_and(|b| b.starts_with("Kerk before open 20")),
+                    "{:?}",
+                    o.before
+                );
+            }
+            _ => panic!("not reloaded"),
+        }
     }
 
     // ---- PBK-03 --------------------------------------------------------------

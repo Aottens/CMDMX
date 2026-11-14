@@ -149,7 +149,9 @@ Checks behind these criteria: `tests/manual/runs/2026-11-12-G-checks.md`. Titan 
   2. `show.open` of the open show's own name loads the file from disk instead of being refused, after writing the show that is
      running to `<name> before open <yyyy-mm-dd hhmm>.cmdmx.json`, and warns which file holds it. While the file is unchanged, Open of
      the open show is refused as now, with the hint "its file has not changed outside CMDMX".
-  The check runs before each autosave and on `show.list` (one `stat`, never on the tick). Tests `shw_23_…`.
+  The check runs before each autosave and on `show.list` (one `stat`, never on the tick). On `show.list` it only tells, once
+  per change: "Kerk.cmdmx.json was changed outside CMDMX: Open Kerk to load it, or the next save keeps it aside" (made
+  concrete in the FIL-05 build, 2026-11-14). Tests `shw_23_…`.
 - **SHW-24** **This Mac's output stays** (G2, P1-41 decision 6; Titan asks the same when loading a show). `show.open {name,
   "output":"keep"}` opens the show with the output nodes that are running now (OUT-13: kinds, lines, names, ports, enabled) in
   place of the nodes in its file; the next autosave saves them into that show. Without `output` the show's own nodes are used, as

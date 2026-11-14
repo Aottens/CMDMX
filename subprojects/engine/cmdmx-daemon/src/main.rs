@@ -148,11 +148,11 @@ fn main() {
     // OUT-29: the show's nodes, kept running; reconciled again after every drain of events.
     let mut outputs = output::Outputs::new(cli.kill, Box::new(output::spawn_node));
     outputs.reconcile(engine.nodes());
-    // SHW-22: the new name of a show whose rename the saver has not answered yet.
-    let mut renamed_to: Option<String> = None;
+    // SHW-23: the open show's file and its stamp.
+    shows.set_open(&opened.name, opened.stamp);
     let mut autosave =
         shows::Autosave::new(shows.path(&opened.name), opened.meta, opened.show, 0.0);
-    let (jobs, saved) = match shows::spawn_saver() {
+    let (jobs, saved) = match shows::spawn_saver(Arc::clone(&shows)) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("cmdmx-daemon: cannot start the saver thread: {e}");
@@ -362,8 +362,9 @@ fn main() {
                         show,
                         copy: true,
                         from: None,
+                        known: None,
                     };
-                    hand_off(Some(job), &jobs, &mut autosave, &mut clients);
+                    hand_off(&shows, Some(job), &jobs, &mut autosave, &mut clients);
                     Ok(())
                 }
                 // SHW-22: delete a show that is not open.
@@ -389,8 +390,8 @@ fn main() {
                 })) => {
                     if name.to_lowercase() == autosave.state().name.to_lowercase() {
                         let job = autosave.rename(shows.path(&to), &to, &engine, &wall);
-                        renamed_to = Some(to.clone());
-                        hand_off(Some(job), &jobs, &mut autosave, &mut clients);
+                        shows.rename_open(&to);
+                        hand_off(&shows, Some(job), &jobs, &mut autosave, &mut clients);
                         if let Err(e) = shows.remember(&to) {
                             warn(&mut clients, &format!("cannot remember the open show: {e}"));
                         }
@@ -413,19 +414,43 @@ fn main() {
                         )) => Some(name),
                         _ => None,
                     };
+                    // SHW-23: a reload of the open show, after its file changed outside.
+                    let before = match &event {
+                        ipc::Event::ShowOpened(opened) => opened.before.clone(),
+                        _ => None,
+                    };
                     // Also keeps a New or Save As off the open show's own file.
-                    if let Some(n) =
-                        target.filter(|n| n.to_lowercase() == autosave.state().name.to_lowercase())
+                    if let Some(n) = target
+                        .filter(|_| before.is_none())
+                        .filter(|n| n.to_lowercase() == autosave.state().name.to_lowercase())
                     {
                         warn(&mut clients, &format!("{n} is already open"));
                         continue;
                     }
-                    hand_off(
-                        autosave.flush(&engine, &wall),
-                        &jobs,
-                        &mut autosave,
-                        &mut clients,
-                    );
+                    match &before {
+                        // ponytail: a job still queued for the old file can race this reload
+                        // (rare; nothing is lost, the loaded show is in memory and autosaves
+                        // on its next change).
+                        Some(b) => {
+                            let show = engine.to_show(shows::new_meta(b, &wall));
+                            let job = shows::Job {
+                                path: shows.path(b),
+                                json: show.to_json(),
+                                show,
+                                copy: false,
+                                from: None,
+                                known: None,
+                            };
+                            hand_off(&shows, Some(job), &jobs, &mut autosave, &mut clients);
+                        }
+                        None => hand_off(
+                            &shows,
+                            autosave.flush(&engine, &wall),
+                            &jobs,
+                            &mut autosave,
+                            &mut clients,
+                        ),
+                    }
                     let fresh = |name: String, engine: Engine| shows::Opened {
                         meta: shows::new_meta(&name, &wall),
                         name,
@@ -433,6 +458,8 @@ fn main() {
                         show: None,
                         warnings: Vec::new(),
                         keep_output: false,
+                        stamp: None,
+                        before: None,
                     };
                     let save_as = matches!(
                         &event,
@@ -465,11 +492,13 @@ fn main() {
                         }
                         engine = new_engine;
                         outputs.reconcile(engine.nodes());
+                        shows.set_open(&next.name, next.stamp);
                         autosave =
                             shows::Autosave::new(shows.path(&next.name), next.meta, next.show, now);
                         // SHW-15: Save As and New write under the new name at once, so the file
                         // exists for `show.list`, `show.open` and the name check.
                         hand_off(
+                            &shows,
                             autosave.flush(&engine, &wall),
                             &jobs,
                             &mut autosave,
@@ -496,6 +525,15 @@ fn main() {
                         ));
                         for w in &next.warnings {
                             warn(&mut clients, w);
+                        }
+                        if let Some(b) = &before {
+                            warn(
+                                &mut clients,
+                                &format!(
+                                    "{} was loaded from its file; the show that was running is kept as {b}",
+                                    next.name
+                                ),
+                            );
                         }
                     }
                     Ok(())
@@ -581,11 +619,10 @@ fn main() {
         while let Ok(done) = saved.try_recv() {
             // SHW-21: a copy on disk is told to every client, with the new list.
             let copied = (done.copy && done.result.is_ok()).then(|| done.show.meta.name.clone());
-            // SHW-22: a renamed show's file has moved only now (its job names the new show).
-            let moved =
-                done.result.is_ok() && renamed_to.as_deref() == Some(done.show.meta.name.as_str());
-            if moved {
-                renamed_to = None;
+            // SHW-22: a renamed show's file has moved only now.
+            let moved = done.result.is_ok() && done.from.is_some();
+            if let Some(w) = &done.kept {
+                warn(&mut clients, w);
             }
             if let Some(w) = autosave.finished(done) {
                 warn(&mut clients, &w);
@@ -599,6 +636,7 @@ fn main() {
             }
         }
         hand_off(
+            &shows,
             autosave.poll(&engine, now, &wall),
             &jobs,
             &mut autosave,
@@ -673,6 +711,7 @@ fn main() {
             report(&engine);
             // REL-14: write pending show changes and wait for the saver to finish (max 3 s).
             hand_off(
+                &shows,
                 autosave.flush(&engine, &wall),
                 &jobs,
                 &mut autosave,
@@ -788,18 +827,23 @@ fn warn(clients: &mut ipc::Clients, msg: &str) {
 /// SHW-11/13: give a job to the saver. A saver that has stopped counts as a failed save.
 /// Never waits.
 fn hand_off(
+    shows: &shows::Shows,
     job: Option<shows::Job>,
     jobs: &Sender<shows::Job>,
     autosave: &mut shows::Autosave,
     clients: &mut ipc::Clients,
 ) {
-    let Some(job) = job else { return };
+    let Some(mut job) = job else { return };
+    // SHW-23: the file's stamp as it is now, not when the saver gets to the job.
+    job.known = shows.known(&job.path);
     if let Err(e) = jobs.send(job) {
         let done = shows::Done {
             show: e.0.show,
             result: Err("the saver thread has stopped".into()),
             at: String::new(),
             copy: false,
+            kept: None,
+            from: None,
         };
         if let Some(w) = autosave.finished(done) {
             warn(clients, &w);

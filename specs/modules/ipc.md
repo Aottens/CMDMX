@@ -226,7 +226,9 @@ The show messages (snapshot `show`, `show` delta, `show.list/new/open/save_as/sa
 written by the saver thread, no switch, no snapshot), `show.open {name, output: "keep"}` (SHW-24) and `show.rename
 {name, to}`, `show.delete {name}` and the `dir` of `show.list` (SHW-22: checked on the client thread, done on the tick;
 the open show is renamed by the saver thread, after any write it still has for the old name; every client gets the new
-`show.list` when a file has moved). Wire details (SHW-b, within the approved criterion): `show.list` is
+`show.list` when a file has moved). SHW-23: the saver thread checks the open show's file (size and modified time) before
+each autosave and keeps a file changed outside aside; a `show.open` of the open show's own name is read on the client
+thread only when its file changed outside, and reaches the tick with the name that keeps the running show. Wire details (SHW-b, within the approved criterion): `show.list` is
 answered by the client thread like `library.*`; `modified` is the file's modification time as
 ISO-8601 UTC; names are checked (SHW-09) and an Open is read from disk in the client thread, so
 the tick never waits on a show file; a switch (new, open, save as) reaches the tick as one event,
