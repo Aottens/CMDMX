@@ -305,9 +305,9 @@ shows folder's files); FIL-06 (the one M, apart).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| FIL-01 | Core, daemon and app: New keeps the patch, groups and palettes, a choice of three with that as default; `shw_20_…`; manual and run on Art-Net. | SHW-20 | S | todo |
-| FIL-02 | Daemon and app: Save Copy stays in the open show; `shw_21_…`; manual and run. | SHW-21 | S | todo |
-| FIL-03 | Daemon and app: Open keeps this Mac's output when asked, New always does; `shw_24_…`; manual and run on Art-Net with the Eurolite. | SHW-24 | S | todo |
+| FIL-01 | Core, daemon and app: New keeps the patch, groups and palettes, a choice of three with that as default; `shw_20_…`; manual and run on Art-Net. | SHW-20 | S | done (2026-11-14, #301; run `tests/manual/runs/2026-11-12-FIL-01-02-03.md`) |
+| FIL-02 | Daemon and app: Save Copy stays in the open show; `shw_21_…`; manual and run. | SHW-21 | S | done (2026-11-14, #301; run `tests/manual/runs/2026-11-12-FIL-01-02-03.md`) |
+| FIL-03 | Daemon and app: Open keeps this Mac's output when asked, New always does; `shw_24_…`; manual and run on Art-Net with the Eurolite. | SHW-24 | S | gate3: `tests/hardware/church.md` |
 | FIL-04 | Daemon and app: rename, delete to the Trash and Show in Finder on the Show screen; `shw_22_…`; manual and run. | SHW-22 | S | todo |
 | FIL-05 | Daemon and app: a file changed outside CMDMX is kept aside, and Open of the open show reloads it; `shw_23_…`; manual and run. | SHW-23 | S | todo |
 | FIL-06 | Core, daemon and app: a printable HTML report of fixtures, groups, palettes and playbacks; `shw_25_…`; manual and run. | SHW-25 | M | todo |
@@ -406,6 +406,7 @@ after VS8-03, in any order.
 | P1-41 | Spec IDEA-35 batch G, show files (M1, G1..G5; G4's second half holds already), as SHW-20..25; checks in `tests/manual/runs/2026-11-12-G-checks.md`; build tasks FIL-01..06; approved by the owner 2026-11-12, every recommendation accepted (`showfile.md`). | SHW, IPC, UI | S | done (2026-11-12, #296) |
 | P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show; find Titan's page first; numbered criteria and build tasks; owner approves. | SHW, UI | S | todo |
 | P1-38 | Measure the engine's load in a release build on a rig of about 260 fixtures (M7, fifth gap review; owner 2026-11-08): the debug build took 78 % of a core against 10 % with 38 fixtures; write the result in a run file, and a budget like UI-70 only if it is too high. | ENG | S | todo |
+| TST-01 | Daemon tests never send DMX: every test that starts the daemon passes `--no-artnet --no-sacn --no-serial` (`client_loss`, `lock`, `message_history`, `remote` start Demo with Art-Net on, `message_history` with serial on), checked by one test over `tests/*.rs`; needs a criterion first (found in the FIL-01..03 run). | — | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ### Tracking: the state stays true (spec `tracking.md`)

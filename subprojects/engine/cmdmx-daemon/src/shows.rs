@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use cmdmx_core::engine::Engine;
+use cmdmx_core::engine::{Engine, Keep};
 use cmdmx_core::show::{Meta, Show};
 use serde::Serialize;
 
@@ -111,6 +111,8 @@ pub struct Opened {
     pub meta: Meta,
     pub show: Option<Show>,
     pub warnings: Vec<String>,
+    /// SHW-24: run this Mac's output nodes instead of those in the file.
+    pub keep_output: bool,
 }
 
 // The engine has no `Debug`; `Result::unwrap_err` wants one.
@@ -233,6 +235,7 @@ impl Shows {
             meta,
             show: Some(show),
             warnings,
+            keep_output: false,
         })
     }
 
@@ -277,6 +280,7 @@ impl Shows {
                 engine: demo(),
                 show: None,
                 warnings: Vec::new(),
+                keep_output: false,
             }
         });
         warnings.append(&mut opened.warnings);
@@ -291,13 +295,19 @@ pub enum ShowRequest {
     List,
     New {
         name: String,
-        /// SHW-19: start from the open show's patch instead of an empty one.
-        keep_patch: bool,
+        /// SHW-19/20: what to take over from the open show.
+        keep: Keep,
     },
     Open {
         name: String,
+        /// SHW-24: run this Mac's output nodes instead of those in the file.
+        keep_output: bool,
     },
     SaveAs {
+        name: String,
+    },
+    /// SHW-21: write the show under a new name; the open show stays open.
+    SaveCopy {
         name: String,
     },
 }
@@ -315,6 +325,8 @@ pub struct Job {
     pub path: PathBuf,
     pub json: String,
     pub show: Show,
+    /// SHW-21: a Save Copy job; its client notice and fresh list follow the write.
+    pub copy: bool,
 }
 
 /// SHW-11/13: the saver's answer to one [`Job`]; `at` is when the write ended.
@@ -322,6 +334,8 @@ pub struct Done {
     pub show: Show,
     pub result: Result<(), String>,
     pub at: String,
+    /// SHW-21: copied from the [`Job`].
+    pub copy: bool,
 }
 
 /// SHW-11/13: decides when the open show needs writing; the tick owns it, the saver writes.
@@ -363,6 +377,7 @@ impl Autosave {
             path: self.path.clone(),
             json: show.to_json(),
             show,
+            copy: false,
         })
     }
 
@@ -432,6 +447,7 @@ pub fn spawn_saver() -> io::Result<(Sender<Job>, Receiver<Done>)> {
                         show: job.show,
                         result,
                         at,
+                        copy: job.copy,
                     })
                     .is_err()
                 {
@@ -702,7 +718,8 @@ mod tests {
             .finished(Done {
                 show: job.show,
                 result: Ok(()),
-                at: WALL.into()
+                at: WALL.into(),
+                copy: false
             })
             .is_none());
         assert!(a.poll(&e, 10.0, WALL).is_none());
@@ -789,6 +806,7 @@ mod tests {
                 show: job.show,
                 result: Err("disk full".into()),
                 at: WALL.into(),
+                copy: false,
             })
         };
         let job = a.poll(&e, 5.0, WALL).unwrap();
@@ -802,6 +820,7 @@ mod tests {
             show: job.show,
             result: Ok(()),
             at: WALL.into(),
+            copy: false,
         });
         assert!(
             back.unwrap().contains("works again"),

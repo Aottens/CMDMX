@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 
 use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use cmdmx_core::colour::ColourModel;
-use cmdmx_core::engine::Engine;
+use cmdmx_core::engine::{Engine, Keep};
 use cmdmx_core::output::NodeKind;
 use cmdmx_core::patch::{Fixture, PatchAdd};
 use cmdmx_core::playback::{
@@ -846,7 +846,7 @@ fn shw_19_a_new_show_keeps_the_patch_and_empties_the_rest() {
     old.set_page_legend(2, "Band").unwrap();
     old.set_page(2).unwrap();
 
-    let (new, warnings) = old.new_keeping_patch();
+    let (new, warnings) = old.new_keeping(Keep::Patch);
     assert!(warnings.is_empty(), "{warnings:?}");
 
     let was = old.to_show(meta());
@@ -871,4 +871,103 @@ fn shw_19_a_new_show_keeps_the_patch_and_empties_the_rest() {
     // The old show is not changed by making the new one.
     assert_eq!(old.page(), 2);
     assert!(!old.to_show(meta()).playbacks.playbacks.is_empty());
+}
+
+// ---- SHW-20 ------------------------------------------------------------------
+
+#[test]
+fn shw_20_next_weeks_show_keeps_patch_groups_and_palettes_and_empties_the_rest() {
+    use cmdmx_core::palette::{Cell, Record, Window};
+    use cmdmx_core::programmer::GridShortcut;
+    let mut old = rig_with_settings();
+    old.patch_park(&[401]).unwrap();
+    // A group with a grid and a legend, next to the rig's groups 1 and 4.
+    common::select(&mut old, &[101, 102, 103, 104]);
+    old.grid_shortcut(GridShortcut::OutsideIn).unwrap();
+    old.record_group(7).unwrap();
+    old.set_group_legend(7, "Washes").unwrap();
+    old.clear_selection();
+    common::select(&mut old, &[101]);
+    old.set_programmer_value(101, "Pan", 0.5).unwrap();
+    old.record_palette(&Record::at(Cell::new(Window::Positions, 1)))
+        .unwrap();
+    old.set_page_legend(2, "Band").unwrap();
+    old.set_page(2).unwrap();
+
+    let (new, warnings) = old.new_keeping(Keep::Looks);
+    assert!(warnings.is_empty(), "{warnings:?}");
+
+    let was = old.to_show(meta());
+    let blank = Engine::new(Default::default()).to_show(meta());
+    let is = new.to_show(meta());
+    // What `keep: "patch"` keeps (SHW-19).
+    assert_eq!(is.patch, was.patch);
+    assert_eq!(is.profiles, was.profiles);
+    assert_eq!(is.output, was.output);
+    assert_eq!(is.settings, was.settings);
+    // And the looks: groups with grids and legends, palettes (effect palettes are palettes) with
+    // their numbers, legends and next id.
+    assert_eq!(is.groups, was.groups);
+    assert!(is
+        .groups
+        .iter()
+        .any(|g| g.id == 7 && g.grid.is_some() && g.legend == "Washes"));
+    assert_eq!(is.palettes, was.palettes);
+    assert!(!is.palettes.palettes.is_empty());
+    // What changes each week starts empty.
+    assert_eq!(is.pages, blank.pages);
+    assert_eq!(is.playbacks, blank.playbacks);
+    assert_eq!(new.page(), 1);
+    assert!(new.programmer_view().selection.is_empty());
+    assert!(new.programmer_view().contents.is_empty());
+    // The old show is not changed by making the new one.
+    assert_eq!(old.page(), 2);
+    assert!(!old.to_show(meta()).playbacks.playbacks.is_empty());
+}
+
+#[test]
+fn shw_20_keep_nothing_is_an_empty_show() {
+    let (new, warnings) = rig_with_settings().new_keeping(Keep::Nothing);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    let is = new.to_show(meta());
+    assert!(is.patch.fixtures.is_empty());
+    assert!(is.groups.is_empty());
+    assert!(is.palettes.palettes.is_empty());
+    assert!(is.playbacks.playbacks.is_empty());
+}
+
+// ---- SHW-24 ------------------------------------------------------------------
+
+#[test]
+fn shw_24_a_new_show_takes_the_running_output_with_every_keep() {
+    let mut old = rig_with_settings();
+    old.output_add_named(3, true, "Kerk".into(), NodeKind::default_artnet(3))
+        .unwrap();
+    let was = old.to_show(meta()).output;
+    for keep in [Keep::Nothing, Keep::Patch, Keep::Looks] {
+        let (new, warnings) = old.new_keeping(keep);
+        assert!(warnings.is_empty(), "{keep:?}: {warnings:?}");
+        assert_eq!(new.to_show(meta()).output, was, "{keep:?}");
+    }
+}
+
+#[test]
+fn shw_24_an_opened_show_can_take_the_running_output() {
+    let mut running = Engine::new(Default::default());
+    running
+        .output_add_named(2, false, "Eurolite".into(), NodeKind::default_artnet(2))
+        .unwrap();
+    let mut opened = rig_with_settings();
+    let before = opened.to_show(meta());
+    assert_ne!(before.output, running.to_show(meta()).output);
+    opened.use_output_of(&running);
+    let is = opened.to_show(meta());
+    assert_eq!(is.output, running.to_show(meta()).output);
+    assert_eq!(is.patch, before.patch);
+    assert_eq!(is.playbacks, before.playbacks);
+    // A node added afterwards gets an id the running output never used (OUT-13).
+    let id = opened
+        .output_add(4, true, NodeKind::default_artnet(4))
+        .unwrap();
+    assert!(running.nodes().all(|n| n.id != id));
 }

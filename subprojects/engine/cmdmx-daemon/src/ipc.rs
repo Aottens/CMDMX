@@ -1681,13 +1681,22 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         Some("show.list") => Ok(Command::Show(ShowRequest::List)),
         Some("show.new") => Ok(Command::Show(ShowRequest::New {
             name: string(&v, "name")?,
-            keep_patch: match opt_string(&v, "keep")?.as_deref() {
-                None => false,
-                Some("patch") => true,
-                Some(_) => return Err("invalid \"keep\" (expected \"patch\")".into()),
+            keep: match opt_string(&v, "keep")?.as_deref() {
+                None => cmdmx_core::engine::Keep::Nothing,
+                Some("patch") => cmdmx_core::engine::Keep::Patch,
+                Some("looks") => cmdmx_core::engine::Keep::Looks,
+                Some(_) => return Err("invalid \"keep\" (expected \"patch\" or \"looks\")".into()),
             },
         })),
         Some("show.open") => Ok(Command::Show(ShowRequest::Open {
+            name: string(&v, "name")?,
+            keep_output: match v.get("output").and_then(|o| o.as_str()) {
+                None if v.get("output").is_none() => false,
+                Some("keep") => true,
+                _ => return Err("invalid \"output\" (expected \"keep\")".into()),
+            },
+        })),
+        Some("show.save_copy") => Ok(Command::Show(ShowRequest::SaveCopy {
             name: string(&v, "name")?,
         })),
         Some("show.save_as") => Ok(Command::Show(ShowRequest::SaveAs {
@@ -3989,11 +3998,18 @@ pub fn answer_show_list(shows: &Shows) -> String {
 /// here, so the tick only switches. A refusal is a warning for every client (IPC-06).
 fn show_event(shows: &Shows, req: ShowRequest) -> Event {
     match &req {
-        ShowRequest::Open { name } => match valid_name(name).and_then(|()| shows.open(name)) {
-            Ok(opened) => Event::ShowOpened(Box::new(opened)),
-            Err(e) => Event::Warning(e),
-        },
-        ShowRequest::New { name, .. } | ShowRequest::SaveAs { name } => {
+        ShowRequest::Open { name, keep_output } => {
+            match valid_name(name).and_then(|()| shows.open(name)) {
+                Ok(opened) => Event::ShowOpened(Box::new(Opened {
+                    keep_output: *keep_output,
+                    ..opened
+                })),
+                Err(e) => Event::Warning(e),
+            }
+        }
+        ShowRequest::New { name, .. }
+        | ShowRequest::SaveAs { name }
+        | ShowRequest::SaveCopy { name } => {
             match valid_name(name).and_then(|()| match shows.exists(name) {
                 true => Err(format!("a show named {name} already exists")),
                 false => Ok(()),
@@ -4163,7 +4179,8 @@ fn serve_client(
                     | Command::Show(
                         ShowRequest::New { .. }
                         | ShowRequest::Open { .. }
-                        | ShowRequest::SaveAs { .. },
+                        | ShowRequest::SaveAs { .. }
+                        | ShowRequest::SaveCopy { .. },
                     ),
                 ) if locked.load(Ordering::Relaxed) => {
                     if events.send(Event::Warning(LOCKED.into())).is_err() {
@@ -6627,13 +6644,14 @@ mod tests {
                 r#"{"v":1,"cmd":"show.new","name":"Kerst"}"#,
                 ShowRequest::New {
                     name: "Kerst".into(),
-                    keep_patch: false,
+                    keep: cmdmx_core::engine::Keep::Nothing,
                 },
             ),
             (
                 r#"{"v":1,"cmd":"show.open","name":"Kerk"}"#,
                 ShowRequest::Open {
                     name: "Kerk".into(),
+                    keep_output: false,
                 },
             ),
             (
@@ -6662,10 +6680,54 @@ mod tests {
             parse_command(r#"{"v":1,"cmd":"show.new","name":"Kerst","keep":"patch"}"#),
             Ok(Command::Show(ShowRequest::New {
                 name: "Kerst".into(),
-                keep_patch: true,
+                keep: cmdmx_core::engine::Keep::Patch,
             }))
         );
         assert!(parse_command(r#"{"v":1,"cmd":"show.new","name":"K","keep":"cues"}"#).is_err());
+    }
+
+    #[test]
+    fn shw_24_open_keep_output_parses() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.open","name":"Kerk","output":"keep"}"#),
+            Ok(Command::Show(ShowRequest::Open {
+                name: "Kerk".into(),
+                keep_output: true,
+            }))
+        );
+        for bad in [r#""file""#, "true", "null"] {
+            let text = format!(r#"{{"v":1,"cmd":"show.open","name":"K","output":{bad}}}"#);
+            assert!(parse_command(&text).is_err(), "{text}");
+        }
+    }
+
+    #[test]
+    fn shw_21_save_copy_parses() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.save_copy","name":"Kerk proef"}"#),
+            Ok(Command::Show(ShowRequest::SaveCopy {
+                name: "Kerk proef".into(),
+            }))
+        );
+        assert!(parse_command(r#"{"v":1,"cmd":"show.save_copy"}"#).is_err());
+    }
+
+    #[test]
+    fn shw_20_keep_looks_parses() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.new","name":"Kerk 16 nov","keep":"looks"}"#),
+            Ok(Command::Show(ShowRequest::New {
+                name: "Kerk 16 nov".into(),
+                keep: cmdmx_core::engine::Keep::Looks,
+            }))
+        );
+        for bad in [r#""playbacks""#, r#""Looks""#, "true", "1"] {
+            let text = format!(r#"{{"v":1,"cmd":"show.new","name":"K","keep":{bad}}}"#);
+            assert!(parse_command(&text).is_err(), "{text}");
+        }
     }
 
     #[test]

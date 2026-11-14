@@ -718,6 +718,14 @@ struct Gone {
     value: Value,
 }
 
+/// SHW-19/20: what a new show takes over from the open one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Keep {
+    Nothing,
+    Patch,
+    Looks,
+}
+
 impl Engine {
     pub fn new(settings: Settings) -> Self {
         Engine {
@@ -2688,9 +2696,22 @@ impl Engine {
         }
     }
 
-    /// SHW-19: a new engine with this one's patch, profiles, output and settings, and no
-    /// groups, palettes, playbacks or programmer. Warnings are those of `from_show`.
-    pub fn new_keeping_patch(&self) -> (Engine, Vec<String>) {
+    /// SHW-24: take the output nodes of `other` (kinds, lines, names, ports, enabled and the
+    /// next node id, so ids are never reused) in place of this engine's own.
+    pub fn use_output_of(&mut self, other: &Engine) {
+        self.nodes = other.nodes.clone();
+        self.node_next_id = other.node_next_id;
+    }
+
+    /// SHW-19/20: a new engine that keeps, per `keep`, nothing, the patch (profiles, output,
+    /// settings) or also the groups and palettes. Playbacks and programmer start empty.
+    /// Warnings are those of `from_show`.
+    pub fn new_keeping(&self, keep: Keep) -> (Engine, Vec<String>) {
+        if keep == Keep::Nothing {
+            let mut new = Engine::new(Settings::default());
+            new.use_output_of(self); // SHW-24
+            return (new, Vec::new());
+        }
         let meta = || Meta {
             name: String::new(),
             created: String::new(),
@@ -2698,12 +2719,18 @@ impl Engine {
             app_version: String::new(),
         };
         let blank = Engine::new(Settings::default()).to_show(meta());
+        let mine = self.to_show(meta());
+        let (groups, palettes) = if keep == Keep::Looks {
+            (mine.groups.clone(), mine.palettes.clone())
+        } else {
+            (blank.groups, blank.palettes)
+        };
         let show = Show {
-            groups: blank.groups,
-            palettes: blank.palettes,
+            groups,
+            palettes,
             pages: blank.pages,
             playbacks: blank.playbacks,
-            ..self.to_show(meta())
+            ..mine
         };
         Engine::from_show(&show)
     }

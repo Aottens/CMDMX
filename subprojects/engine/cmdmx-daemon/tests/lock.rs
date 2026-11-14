@@ -174,6 +174,7 @@ fn ipc_50_a_changing_command_is_refused_and_information_still_answers() {
         // The app thread's own requests: nothing is read or written first.
         json!({"cmd": "show.new", "name": "Other"}),
         json!({"cmd": "show.save_as", "name": "Other"}),
+        json!({"cmd": "show.save_copy", "name": "Other"}),
         json!({"cmd": "show.open", "name": "No such show"}),
         json!({"cmd": "library.import_gdtf", "path": "/no/such/file.gdtf"}),
     ] {

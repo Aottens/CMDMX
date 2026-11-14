@@ -347,6 +347,22 @@ fn main() {
                         write_library_file(&library, profile, fixtures, reply, &library_tx);
                     })
                 }
+                // SHW-21: write a copy under another name; nothing else changes.
+                ipc::Event::Command(ipc::Command::Show(shows::ShowRequest::SaveCopy { name })) => {
+                    if name.to_lowercase() == autosave.state().name.to_lowercase() {
+                        warn(&mut clients, &format!("{name} is already open"));
+                        continue;
+                    }
+                    let show = engine.to_show(shows::new_meta(&name, &wall));
+                    let job = shows::Job {
+                        path: shows.path(&name),
+                        json: show.to_json(),
+                        show,
+                        copy: true,
+                    };
+                    hand_off(Some(job), &jobs, &mut autosave, &mut clients);
+                    Ok(())
+                }
                 // SHW-11/14/15: write the current show at once, then continue in the next one.
                 event
                 @ (ipc::Event::ShowOpened(_) | ipc::Event::Command(ipc::Command::Show(_))) => {
@@ -377,6 +393,7 @@ fn main() {
                         engine,
                         show: None,
                         warnings: Vec::new(),
+                        keep_output: false,
                     };
                     let save_as = matches!(
                         &event,
@@ -384,12 +401,8 @@ fn main() {
                     );
                     let next = match event {
                         ipc::Event::ShowOpened(opened) => Some(*opened),
-                        ipc::Event::Command(ipc::Command::Show(New { name, keep_patch })) => {
-                            let (new, warnings) = if keep_patch {
-                                engine.new_keeping_patch()
-                            } else {
-                                (Engine::new(Settings::default()), Vec::new())
-                            };
+                        ipc::Event::Command(ipc::Command::Show(New { name, keep })) => {
+                            let (new, warnings) = engine.new_keeping(keep);
                             Some(shows::Opened {
                                 warnings,
                                 ..fresh(name, new)
@@ -407,7 +420,11 @@ fn main() {
                         if !save_as {
                             history.clear();
                         }
-                        engine = next.engine;
+                        let mut new_engine = next.engine;
+                        if next.keep_output {
+                            new_engine.use_output_of(&engine); // SHW-24
+                        }
+                        engine = new_engine;
                         outputs.reconcile(engine.nodes());
                         autosave =
                             shows::Autosave::new(shows.path(&next.name), next.meta, next.show, now);
@@ -523,8 +540,14 @@ fn main() {
         }
         // SHW-11/13: the saver does the disk work; the tick only hands over a copy.
         while let Ok(done) = saved.try_recv() {
+            // SHW-21: a copy on disk is told to every client, with the new list.
+            let copied = (done.copy && done.result.is_ok()).then(|| done.show.meta.name.clone());
             if let Some(w) = autosave.finished(done) {
                 warn(&mut clients, &w);
+            }
+            if let Some(name) = copied {
+                clients.notice(&format!("Saved a copy as {name}"));
+                clients.broadcast(&ipc::answer_show_list(&shows));
             }
         }
         hand_off(
@@ -728,6 +751,7 @@ fn hand_off(
             show: e.0.show,
             result: Err("the saver thread has stopped".into()),
             at: String::new(),
+            copy: false,
         };
         if let Some(w) = autosave.finished(done) {
             warn(clients, &w);
@@ -1117,7 +1141,7 @@ enum Class {
 /// UNDO-04: no wildcard, so a new command must be classed here to compile.
 fn class(cmd: &ipc::Command) -> Class {
     use ipc::Command::*;
-    use shows::ShowRequest::{List, New, Open, SaveAs};
+    use shows::ShowRequest::{List, New, Open, SaveAs, SaveCopy};
     match cmd {
         FaderSet { .. }
         | GrandMasterSet { .. }
@@ -1141,7 +1165,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | Fan { .. }
         | ColourModel { .. } => Class::Live,
         Show(New { .. } | Open { .. }) => Class::Reset,
-        Show(List | SaveAs { .. })
+        Show(List | SaveAs { .. } | SaveCopy { .. })
         | CueView { .. }
         | Usage(_)
         | Why(_)
@@ -3321,6 +3345,10 @@ mod tests {
         (r#"{"v":1,"cmd":"output.ports"}"#, Class::Neutral),
         (
             r#"{"v":1,"cmd":"show.save_as","name":"Kerk 2"}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":1,"cmd":"show.save_copy","name":"Kerk 2"}"#,
             Class::Neutral,
         ),
         (r#"{"v":1,"cmd":"cue.view","id":2,"cue":2}"#, Class::Neutral),

@@ -11,7 +11,7 @@ The status bar shows the open show and how long ago it was saved. To see the oth
 in the rail on the left, or the **Disk** function key. The open show is marked `open` in the list.
 
 To open another: select it in the list, press **Open**, then press **Open** again to confirm.
-**(stage)** The stage changes to that show. **Save As** makes a copy under a new name and changes
+**(stage)** The stage changes to that show. **Save Copy** keeps a copy under a new name and changes
 nothing on stage. More in [The Show screen](shows.md#the-show-screen).
 
 ## What is on the handles and pages
