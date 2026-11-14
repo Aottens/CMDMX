@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls and show files are done, with next week's show, Save Copy and a printable report of the show.
-Next: batch I, where CMDMX differs from Titan (TTN-01..10, TTN-05 first), then VS4-07 and VS4-03, the first service.
+Patch, profiles, controls and show files are done; batch I, where CMDMX differs from Titan, has its Go guard and
+connected chase. Next: TTN-04, TTN-06, TTN-10, TTN-07, TTN-08, TTN-09 and TTN-01, then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -187,9 +187,11 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   and Update offers what it can store into, cues and palettes, on softkeys. Create List and Create Chase stay in
   Record, so a list is built by making a look and tapping its handle. The current cue reads large and
   green, the next small and grey. Playback Options shows only what applies to the playback type. With the list's
-  fader at 0 the Go block reads `fader 0 % · no output`.
+  fader at 0 the Go block reads `fader 0 % · no output`. A second Go within half a second is ignored with a warning, so
+  a double press on Space never skips a cue (*Ignore a second Go within*, 0 for none).
 - Chases at a BPM with crossfade and direction, Tap tempo, and BPM and Rate masters that drive
-  several chases at once.
+  several chases at once. The Go block sets tempo, crossfade and direction; Back runs a chase backward and Go forward
+  again, as on a Titan, and an encoder bound to `speed`, `xfade` or `direction` does the same from a surface.
 - Group masters: a group on a fader masters its fixtures' intensity (Scale, HTP, Limit or Take
   Over), whatever puts them there. A master that holds its group down shows an amber GRP tag from any
   page, is listed in Active playbacks and is named when a show opens.

@@ -323,10 +323,10 @@ so it can be reverted alone if keypad habits disagree).
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
 | TTN-01 | Core and app: `@ @` is full and the setting *Channel levels* gives Titan's single-digit mode; `prg_102_…`, `prg_103_…`, `shw_26_…`; manual and run on the keypad and Mac keys. | PRG-102, PRG-103, SHW-26 | S | todo |
-| TTN-02 | Core, daemon and app: a crossfade field in the Go block and the `speed` and `xfade` control actions on the connected chase; `cue_65_…`; manual and run on Art-Net. | CUE-65 | S | todo |
-| TTN-03 | Core and app: Go and Back set a Forward or Backward chase's direction, a direction button in the Go block and a `direction` control action; `cue_66_…`; manual and run on Art-Net. | CUE-66 | S | todo |
+| TTN-02 | Core, daemon and app: a crossfade field in the Go block and the `speed` and `xfade` control actions on the connected chase; `cue_65_…`; manual and run on Art-Net. | CUE-65 | S | done (2026-11-14, #307; run `tests/manual/runs/2026-11-14-TTN-05-02-03.md`) |
+| TTN-03 | Core and app: Go and Back set a Forward or Backward chase's direction, a direction button in the Go block and a `direction` control action; `cue_66_…`; manual and run on Art-Net. | CUE-66 | S | done (2026-11-14, #307; run `tests/manual/runs/2026-11-14-TTN-05-02-03.md`) |
 | TTN-04 | App: the Cue list window follows the live cue, with a Follow toggle; manual and run on a list of 40 cues. | CUE-67 | S | todo |
-| TTN-05 | Core, daemon and app: a second Go within `go_guard` (default 0.5 s) is ignored with a warning; `cue_68_…`, `shw_26_…`; manual and run with two Space presses. | CUE-68, SHW-26 | S | todo |
+| TTN-05 | Core, daemon and app: a second Go within `go_guard` (default 0.5 s) is ignored with a warning; `cue_68_…`, `shw_26_…`; manual and run with two Space presses. | CUE-68, SHW-26 | S | done (2026-11-14, #307; run `tests/manual/runs/2026-11-14-TTN-05-02-03.md`) |
 | TTN-06 | Core and app: an automatic legend for a new playback or cue from its group and palettes, and a Legend softkey after a store; `pbk_54_…`, `shw_26_…`; manual and run. | PBK-54, SHW-26 | S | todo |
 | TTN-07 | Core and app: the playback option Shape size (Fader, Fixed, HTP Fader); `fx_46_…`, `shw_26_…`; manual and run on Art-Net. | FX-46, SHW-26 | S | todo |
 | TTN-08 | Core and app: a held Swop stops other playbacks' shapes, all or dimmer only by the setting Swop stops; `fx_47_…`, `shw_26_…`; manual and run on Art-Net. | FX-47, SHW-26 | S | todo |
