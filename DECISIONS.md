@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-14 — The review's orchestrator runs on Opus (owner)
+
+**Decision:** `review.yml` passes `--model claude-opus-5-5` to the code-review plugin's orchestrator.
+
+**Alternatives considered:** the action's default, Sonnet, which skipped the plugin's review agents in two of four runs on
+#298 and #299 (ARV-03 then reads *not reviewed*, so the PR goes to the owner).
+
+**Reasoning:** a review that does not run its reviewers is no review; Opus follows the command's steps more reliably. It
+costs more of the owner's subscription per review.
+
+**Reversal trigger:** the shadow PRs (ARV-16) show Opus still skipping agents, or the reviews take too much of the plan.
+
 ## 2026-11-13 — The review hands its findings to the gate as an artifact; the gate writes the lane into the PR body
 
 **Decision:** the review job stores `findings.json` and the review round as the artifact `findings`; a push of `low` files
