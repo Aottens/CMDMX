@@ -106,6 +106,11 @@ its handle and how many cues it has. Each row is a cue:
 The current cue is green, the next one has an outline, and a fading cue shows its progress along
 the bottom of its row.
 
+The window **follows** the live cue: after a Go, Back, a link, Go to Cue or another connected list it scrolls so
+the current cue and the one after it are in sight, with one row above when there is room. A cue that was already
+in sight does not scroll. **Follow** at the top of the window turns this off and on; the app remembers it. Scrolling
+by hand does not turn it off, so the next Go brings the live cue back.
+
 **Tap a row** to make that cue the next one. Nothing changes on stage until you press Go, so a
 tap in the list can never cue the wrong thing. **View** at the end of a row shows the
 [Cue view](#the-cue-view) and **⋯** the cue softkeys; neither changes the stage either. With a function
