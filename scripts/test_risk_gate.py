@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17). Run: scripts/test_risk_gate.py"""
+"""Tests for the risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17, ARV-18). Run: scripts/test_risk_gate.py"""
 import ast
 import importlib.util
 import subprocess
@@ -23,6 +23,10 @@ gate = load()
 
 def f(severity, verdict="confirmed", file="a.rs", line=1):
     return {"file": file, "line": line, "severity": severity, "verdict": verdict, "summary": f"{severity} thing"}
+
+
+# A BACKLOG.md row that records the default finding f() (ARV-13, ARV-18).
+RECORDED = "| FIX-01 | thing | `a.rs:1` | ENG-01 | #300 | todo |"
 
 
 def files(*paths, lines=10):
@@ -124,7 +128,7 @@ def test_arv_06_matrix():
     for severity, lanes in expected.items():
         for impact, want in zip(("low", "medium", "high"), lanes):
             found = [f(severity)] if severity else []
-            lane, reasons = gate.decide(files(paths[impact]), found)
+            lane, reasons = gate.decide(files(paths[impact]), found, recorded=RECORDED)
             assert lane == want, (severity, impact, lane, reasons)
 
 
@@ -133,7 +137,8 @@ def test_arv_06_plausible_counts_one_lower():
     assert gate.worst_finding([f("major", "plausible")]) == "minor"
     assert gate.worst_finding([f("minor", "plausible")]) is None
     assert gate.worst_finding([f("minor", "plausible"), f("major")]) == "major"
-    assert gate.decide(files("subprojects/app/Sources/A.swift"), [f("minor", "plausible")])[0] == "green"
+    assert gate.decide(files("subprojects/app/Sources/A.swift"), [f("minor", "plausible")],
+                       recorded=RECORDED)[0] == "green"
 
 
 def test_arv_07_failed_check_is_red():
@@ -157,7 +162,7 @@ def test_arv_07_lock_file_and_touchosc_output_not_counted():
 def test_arv_07_fix_rounds_used_up_is_red():
     found = [f("minor")]
     low = files("README.md")
-    assert gate.decide(low, found, review_round=2)[0] == "green"
+    assert gate.decide(low, found, review_round=2, recorded=RECORDED)[0] == "green"
     lane, reasons = gate.decide(low, found, review_round=3)
     assert lane == "red" and any("round" in r for r in reasons)
     assert gate.decide(low, [], review_round=3)[0] == "green"
@@ -201,6 +206,82 @@ def test_arv_08_cli_prints_lane_then_reasons():
     lines = done.stdout.splitlines()
     assert lines[0] == "red"
     assert any(line.startswith("- ") and "not reviewed" in line for line in lines[1:])
+
+
+def test_arv_18_unrecorded_finding_makes_green_amber():
+    lane, reasons = gate.decide(files("README.md"), [f("minor", file="x.rs", line=7)])
+    assert lane == "amber", reasons
+    assert "not recorded: x.rs:7" in reasons
+    # A plausible minor counts as none, but it is still a finding to record.
+    lane, reasons = gate.decide(files("README.md"), [f("minor", "plausible", file="x.rs", line=7)])
+    assert lane == "amber" and "not recorded: x.rs:7" in reasons
+
+
+def test_arv_18_recorded_finding_stays_green():
+    row = "+| FIX-03 | off by one | `subprojects/x.rs:7` | ENG-01 | #300 | todo |"
+    lane, reasons = gate.decide(files("README.md"), [f("minor", file="subprojects/x.rs", line=7)], recorded=row)
+    assert lane == "green", reasons
+    assert not any(r.startswith("not recorded") for r in reasons)
+
+
+def test_arv_18_file_and_line_match_exactly():
+    found = [f("minor", file="x.rs", line=7)]
+    for text in ("`x.rs:70`", "`x.rs:17`", "`lib/x.rs:7`", "`xx.rs:7`", "x.rs line 7"):
+        lane, reasons = gate.decide(files("README.md"), found, recorded=text)
+        assert lane == "amber" and "not recorded: x.rs:7" in reasons, text
+    for text in ("`x.rs:7`", "x.rs:7, x.rs:9", "(x.rs:7)"):
+        assert gate.decide(files("README.md"), found, recorded=text)[0] == "green", text
+
+
+def test_arv_18_every_unrecorded_finding_is_named():
+    found = [f("minor", file="a.rs", line=1), f("minor", file="b.rs", line=2), f("minor", file="c.rs", line=3)]
+    lane, reasons = gate.decide(files("README.md"), found, recorded="`b.rs:2`")
+    assert lane == "amber"
+    assert "not recorded: a.rs:1" in reasons and "not recorded: c.rs:3" in reasons
+    assert "not recorded: b.rs:2" not in reasons
+
+
+def test_arv_18_red_stays_red_and_shows_what_to_record():
+    lane, reasons = gate.decide(files("README.md"), [f("blocker", file="x.rs", line=7)])
+    assert lane == "red" and "not recorded: x.rs:7" in reasons
+    lane, reasons = gate.decide(files("CLAUDE.md"), [f("minor", file="x.rs", line=7)])
+    assert lane == "red" and "not recorded: x.rs:7" in reasons
+    lane, reasons = gate.decide(files("README.md"), [f("major", file="x.rs", line=7)])
+    assert lane == "amber" and "not recorded: x.rs:7" in reasons
+
+
+def test_arv_18_not_reviewed_or_clean_names_nothing():
+    for found in (None, []):
+        reasons = gate.decide(files("README.md"), found)[1]
+        assert not any(r.startswith("not recorded") for r in reasons), found
+
+
+def test_arv_18_only_added_lines_record():
+    diff = "\n".join([
+        "diff --git a/BACKLOG.md b/BACKLOG.md",
+        "--- a/BACKLOG.md",
+        "+++ b/BACKLOG.md",
+        "@@ -1,2 +1,2 @@",
+        " | FIX-01 | kept | `k.rs:1` | ENG-01 | #299 | todo |",
+        "-| FIX-02 | gone | `g.rs:2` | ENG-01 | #299 | todo |",
+        "+| FIX-03 | new | `n.rs:3` | ENG-01 | #300 | todo |",
+    ])
+    text = gate.added_lines(diff)
+    assert "n.rs:3" in text
+    assert "k.rs:1" not in text and "g.rs:2" not in text and "b/BACKLOG.md" not in text
+
+
+def test_arv_18_cli_reads_the_findings():
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "findings.json"
+        path.write_text(json.dumps([f("minor", file="nowhere/x.rs", line=7)]))
+        done = run("--base", "HEAD", "--findings", str(path))
+    assert done.returncode == 0, done.stderr
+    lines = done.stdout.splitlines()
+    assert lines[0] == "amber", lines
+    assert "- not recorded: nowhere/x.rs:7" in lines
 
 
 def test_arv_09_labels():
