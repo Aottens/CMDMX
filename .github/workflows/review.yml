@@ -42,7 +42,7 @@ jobs:
           if [ -n "$id" ]; then gh run download "$id" -n findings -D earlier || true; fi
           echo "round=$(cat earlier/round.txt 2>/dev/null || echo 0)" >> "$GITHUB_OUTPUT"
 
-      - name: keep the earlier review when only low files changed (ARV-04)
+      - name: keep the earlier review when only low files changed and none a finding names (ARV-04)
         id: scope
         if: github.event.action == 'synchronize' && hashFiles('earlier/findings.json') != ''
         env:
@@ -51,7 +51,7 @@ jobs:
         run: |
           # A failing compare (e.g. after a force-push) means: review normally.
           files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$AFTER" --jq '.files[].filename') || exit 0
-          [ "$(printf '%s\n' "$files" | scripts/risk-gate.py --impact)" = low ] && echo "keep=true" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$files" | scripts/risk-gate.py --keep-review earlier/findings.json && echo "keep=true" >> "$GITHUB_OUTPUT"
           exit 0
 
       - name: review with the code-review plugin (ARV-01, ARV-02)
@@ -117,7 +117,7 @@ jobs:
           if [ "$KEEP" = true ]; then
             cp earlier/findings.json earlier/round.txt findings/
             echo "## Review kept" >> "$GITHUB_STEP_SUMMARY"
-            echo "This push changed only low files, so the earlier review is kept (ARV-04)." >> "$GITHUB_STEP_SUMMARY"
+            echo "This push changed only low files and none a finding names, so the earlier review is kept (ARV-04)." >> "$GITHUB_STEP_SUMMARY"
           elif [ "$HAS_TOKEN" != true ]; then
             echo "Not reviewed: the CLAUDE_CODE_OAUTH_TOKEN secret is not set." >> "$GITHUB_STEP_SUMMARY"
             exit 0

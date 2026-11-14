@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""The risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17): paths, findings, checks and round give a lane.
+"""The risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17..18): paths, findings, checks and round give a lane.
 
 Standard library only, no model, no network: the same input always gives the same lane (ARV-08).
 
 Usage:
-  risk-gate.py --impact < paths             worst impact of the paths on stdin (ARV-04)
+  risk-gate.py --keep-review FINDINGS < paths   exit 0 when the earlier review is kept (ARV-04)
   risk-gate.py --table findings.json        findings as a Markdown table for the job summary (ARV-03)
   risk-gate.py --check-review execution.json
       Counts the agents the review launched; exit 0 when it ran its reviewers, 1 when not (ARV-03).
@@ -12,6 +12,7 @@ Usage:
   risk-gate.py --base origin/main [--findings findings.json] [--round N] [--failed-check NAME]...
                [--comment out.md] [--body-out body.md]
       Decides from `git diff --numstat <base>...HEAD`; PR_TITLE and PR_BODY come from the environment.
+      Findings whose file:line the PR's added BACKLOG.md/STATE.md lines lack make a green lane amber (ARV-18).
       Prints the lane, then one "- reason" line per reason. Always exits 0; the workflow acts on the lane.
 """
 import argparse
@@ -82,6 +83,12 @@ def worst_impact(paths):
     return max((impact(p) for p in paths), key=ORDER.index, default="low")
 
 
+def keep_review(paths, findings):
+    # ARV-04: only low files changed, and none is named by a finding (BACKLOG.md and STATE.md excepted)
+    named = {f.get("file") for f in findings if isinstance(f, dict)} - {"BACKLOG.md", "STATE.md"}
+    return worst_impact(paths) == "low" and not named.intersection(paths)
+
+
 def worst_finding(findings):
     """Worst severity (None, minor, major, blocker); a plausible finding counts one lower."""
     levels = [SEVERITIES.index(x["severity"]) - (x.get("verdict") == "plausible") for x in findings]
@@ -93,7 +100,7 @@ def count_lines(rows):
     return sum(n(a) + n(d) for a, d, path in rows if not is_cargo_lock(path) and path not in NOT_COUNTED)
 
 
-def decide(rows, findings, review_round=1, failed_checks=(), title="", body=""):
+def decide(rows, findings, review_round=1, failed_checks=(), title="", body="", recorded=""):
     worst = worst_finding(findings or [])
     level = worst_impact([path for _, _, path in rows])
     lane = MATRIX[worst or "none"][ORDER.index(level)]
@@ -108,7 +115,16 @@ def decide(rows, findings, review_round=1, failed_checks=(), title="", body=""):
         red.append(f"fix rounds used up: review round {review_round} still has findings")
     if re.search(r"sub-release|(?<![\w.])v?\d+\.\d+\.0(?![\w.])", f"{title}\n{body}"):
         red.append("names a sub-release")
-    return ("red" if red else lane), reasons + red
+    # ARV-18: every finding must be recorded by file:line in the PR's added BACKLOG.md/STATE.md lines.
+    where = [f"{x['file']}:{x['line']}" for x in findings or []]
+    unrecorded = [f"not recorded: {w}" for w in where if not re.search(rf"(?<![\w./-]){re.escape(w)}(?!\d)", recorded)]
+    if lane == "green" and unrecorded:
+        lane = "amber"
+    return ("red" if red else lane), reasons + red + unrecorded
+
+
+def added_lines(diff):
+    return "\n".join(l[1:] for l in diff.splitlines() if l.startswith("+") and not l.startswith("+++"))
 
 
 def label(lane):
@@ -168,7 +184,7 @@ def review_ran(messages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--impact", action="store_true")
+    ap.add_argument("--keep-review")
     ap.add_argument("--table")
     ap.add_argument("--check-review")
     ap.add_argument("--base")
@@ -178,8 +194,13 @@ def main():
     ap.add_argument("--comment")
     ap.add_argument("--body-out")
     args = ap.parse_args()
-    if args.impact:
-        print(worst_impact([p for p in sys.stdin.read().splitlines() if p.strip()]))
+    if args.keep_review:
+        paths = [p for p in sys.stdin.read().splitlines() if p.strip()]
+        earlier = load_findings(args.keep_review)
+        keep = earlier is not None and keep_review(paths, earlier)
+        print("keep the earlier review" if keep else "review again: no earlier findings" if earlier is None
+              else "review again: a changed file is not low or is named by a finding")
+        sys.exit(0 if keep else 1)
     elif args.table:
         print(findings_table(load_findings(args.table) or []), end="")
     elif args.check_review:
@@ -195,9 +216,12 @@ def main():
         rows = [tuple(line.split("\t", 2)) for line in diff.stdout.splitlines() if line.count("\t") >= 2]
         if diff.returncode:  # an empty diff would read as low and green; a diff we cannot see is the owner's
             args.failed_check.append(f"git diff {args.base}...HEAD")
+        rec = subprocess.run(["git", "diff", f"{args.base}...HEAD", "--", "BACKLOG.md", "STATE.md"], cwd=root,
+                             capture_output=True, text=True)
+        recorded = "" if rec.returncode else added_lines(rec.stdout)
         findings = load_findings(args.findings) if args.findings else None
         title, body = os.environ.get("PR_TITLE", ""), os.environ.get("PR_BODY", "")
-        lane, reasons = decide(rows, findings, args.round, args.failed_check, title, body)
+        lane, reasons = decide(rows, findings, args.round, args.failed_check, title, body, recorded)
         print(lane)
         print("\n".join(f"- {r}" for r in reasons))
         if args.comment:
