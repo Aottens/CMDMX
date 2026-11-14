@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls and show files are done; batch I, where CMDMX differs from Titan, has its Go guard and
-connected chase. Next: TTN-04, TTN-06, TTN-10, TTN-07, TTN-08, TTN-09 and TTN-01, then VS4-07 and VS4-03.
+Patch, profiles, controls and show files are done; batch I, where CMDMX differs from Titan, has its Go guard, connected
+chase and the cue list work. Next: TTN-07, TTN-08, TTN-09 and TTN-01, then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -188,7 +188,12 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   Record, so a list is built by making a look and tapping its handle. The current cue reads large and
   green, the next small and grey. Playback Options shows only what applies to the playback type. With the list's
   fader at 0 the Go block reads `fader 0 % · no output`. A second Go within half a second is ignored with a warning, so
-  a double press on Space never skips a cue (*Ignore a second Go within*, 0 for none).
+  a double press on Space never skips a cue (*Ignore a second Go within*, 0 for none). The Cue list window follows the
+  live cue, with a Follow toggle; a hand scroll lasts until the next Go.
+- A new playback or cue names itself after what it holds ("Front · Blauw": the group with exactly its fixtures and the
+  palettes it uses, else the fixture numbers), with a Legend softkey right after the store (*Automatic legends*).
+- Move or Copy a block of cues, a song of four for instance, to a number, after the last cue or into another list; a
+  cue in the way refuses the block instead of renumbering, and one Undo takes it back.
 - Chases at a BPM with crossfade and direction, Tap tempo, and BPM and Rate masters that drive
   several chases at once. The Go block sets tempo, crossfade and direction; Back runs a chase backward and Go forward
   again, as on a Titan, and an encoder bound to `speed`, `xfade` or `direction` does the same from a surface.
