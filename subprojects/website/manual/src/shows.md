@@ -28,14 +28,25 @@ holds every show in the shows folder; the open one is marked `open`.*
 - **Open**: select a show in the list, then click **Open**. The button asks once more
   (`Confirm open Rehearsal — output changes now`), because the stage changes to that show. Click
   it again to open it.
-- **New**: type a name and click **New**, then confirm. The new show is empty: no fixtures,
-  groups or playbacks, and the default settings and outputs.
-- **New, keeping the patch**: tick **Keep the patch** before you click **New**. The new show has the
-  fixtures of the open show, with their numbers, names, addresses, modes and parked state, and its
-  outputs and settings. Groups, palettes, playbacks and masters start empty, and so does Undo. The
-  button says what goes before you confirm. The old show stays as it was, so you can go back to it.
+- **Keep this Mac's output**: on by default, under **Open**. The show opens with the outputs that
+  are running now (the nodes of the **Output** screen), not the ones saved in the show, and the
+  show saves them from then on. This is what you want when a show comes from another Mac: the
+  church Mac keeps sending to its own USB interface. Untick it to use the outputs saved in the
+  show. The app remembers your choice.
+- **New**: type a name, choose what the new show keeps, and click **New**, then confirm.
+  - **Patch, groups and palettes** (the default): next week's show. The fixtures, groups and
+    palettes stay; playbacks, cue lists, masters and page names start empty, and so does Undo. The
+    button says so before you confirm (`New Kerk 16 nov — playbacks and cue lists start empty`).
+  - **The patch**: the fixtures with their numbers, names, addresses, modes and parked state, and
+    the settings. Groups, palettes, playbacks and masters start empty.
+  - **Empty**: no fixtures, groups or playbacks, and the default settings.
+
+  A new show always keeps the outputs that are running now, so it sends to the same interface at
+  once. The old show stays as it was, so you can go back to it.
 - **Save As**: type a name and click **Save As**. The show is saved under the new name and you go
   on working in the copy. Nothing on stage changes, so it does not ask.
+- **Save Copy**: type a name and click **Save Copy**. A copy is saved under that name and you stay
+  in the show you have open, with its Undo. Use it before you try something out.
 
 Before you switch, the current show is saved. A name that is taken, a show that does not exist or
 a show that is already open is refused with a message, and the current show keeps running.
@@ -95,17 +106,19 @@ CMDMX is running is safe, because the file is always complete.
 The file is readable JSON, written the same way every time: saving an unchanged show gives the same
 file byte for byte. In a git repository, a change shows up as a small, readable difference.
 
-Before a show that matters, use **Save As** to keep a copy of the version that worked (for
-example *Sunday service 2026-11-01*), and go on in the original.
+Before a show that matters, use **Save Copy** to keep a copy of the version that worked (for
+example *Sunday service 2026-11-01*); you go on in the original.
 
 ## Moving a show to another Mac
 
 1. In Finder, copy `<name>.cmdmx.json` from the shows folder to the same folder on the other Mac
    (`~/Documents/CMDMX/Shows/`). Make the folder if CMDMX has not run there yet.
-2. Open CMDMX on the other Mac, go to **Show**, select the show and click **Open**.
-3. Check the **Output** screen. Art-Net and sACN nodes come along as they were. A USB interface
-   that was chosen by its port shows `port not found` until you plug it in or choose its port again
-   (see [Connect output](getting-started.md#connect-output)).
+2. Open CMDMX on the other Mac, go to **Show**, select the show and click **Open**. Leave
+   **Keep this Mac's output** ticked to keep that Mac's outputs; untick it to bring the outputs of
+   the first Mac along.
+3. Check the **Output** screen. With the box unticked, Art-Net and sACN nodes come along as they
+   were, and a USB interface that was chosen by its port shows `port not found` until you plug it
+   in or choose its port again (see [Connect output](getting-started.md#connect-output)).
 4. If you use control surfaces, **Export** their mappings on the first Mac and **Import** them on
    the other one (see [Mappings](controls.md#mappings)), then tick **On** for each device.
 

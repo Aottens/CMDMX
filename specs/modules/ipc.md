@@ -221,8 +221,9 @@ the PAT-09 shape.
   A new message type, so `v` stays 1 (IPC-41).
 
 ### Show file (SHW-b)
-The show messages (snapshot `show`, `show` delta, `show.list/new/open/save_as`) are specified in
-`showfile.md` SHW-15. Wire details (SHW-b, within the approved criterion): `show.list` is
+The show messages (snapshot `show`, `show` delta, `show.list/new/open/save_as/save_copy`) are specified in
+`showfile.md` SHW-15, with `show.new {keep: "patch"|"looks"}` (SHW-19, SHW-20), `show.save_copy {name}` (SHW-21:
+written by the saver thread, no switch, no snapshot) and `show.open {name, output: "keep"}` (SHW-24). Wire details (SHW-b, within the approved criterion): `show.list` is
 answered by the client thread like `library.*`; `modified` is the file's modification time as
 ISO-8601 UTC; names are checked (SHW-09) and an Open is read from disk in the client thread, so
 the tick never waits on a show file; a switch (new, open, save as) reaches the tick as one event,
@@ -367,7 +368,7 @@ New keys and messages only: `v` stays 1 (IPC-41).
   - the tick, running playbacks, fades, chases, effects, output and autosave go on untouched.
   `lock.set` with `on:true` while locked is refused like any other change (the first code stays); `on:false`
   while unlocked changes nothing and says nothing. The refusal covers the requests a client thread answers
-  itself: `show.new/open/save_as`, `library.save_profile`, `library.save_channel_list`,
+  itself: `show.new/open/save_as/save_copy`, `library.save_profile`, `library.save_channel_list`,
   `library.import_gdtf`. A dropped surface input leaves device state alone: ports and decks come and go,
   a touch note still holds a motor and its release sends the motor back to the level, an OSC sender is
   still heard for feedback, a Stream Deck's key state still follows. At the unlock every surface gets its
@@ -417,7 +418,7 @@ Behaviour in `engine-merge.md` ENG-25, `group-masters.md` GRM-22..23 and `ui.md`
 
 ### Working on many at once (IDEA-35 batch D, P1-36; approved by owner 2026-11-07)
 Behaviour in `playbacks.md` PBK-50..52, `palettes.md` PAL-34, `programmer.md` PRG-98, `cuelists.md` CUE-63, `showfile.md` SHW-19.
-- **IPC-61** **List forms** (D1..D3). `playback.copy/move/delete` take `ids`, `palette.copy/move/delete` take `numbers`, `group.copy/move/delete` take `groups`, `cue.delete` takes `cues`, each in place of the single key: both, neither or an empty list → `error` (IPC-06). Copy and move take `layout` (`"retain"` or `"bunch"`, default `"retain"`) and move takes `swap` (bool, default false); an unknown layout → `error`. `playback.release` takes `scope` (`"all"`, `"page"`, `"other_pages"`), with `page` for the last two; `scope` with `id` → `error`. `show.new` takes `keep: "patch"`. Classes as the single forms: edit and refused while locked for copy, move and delete (IPC-50), the class of `playback.release` for a release, reset for `show.new`. New keys only, `v` stays (IPC-41). Test `ipc_61_…`: each form parsed, the errors above.
+- **IPC-61** **List forms** (D1..D3). `playback.copy/move/delete` take `ids`, `palette.copy/move/delete` take `numbers`, `group.copy/move/delete` take `groups`, `cue.delete` takes `cues`, each in place of the single key: both, neither or an empty list → `error` (IPC-06). Copy and move take `layout` (`"retain"` or `"bunch"`, default `"retain"`) and move takes `swap` (bool, default false); an unknown layout → `error`. `playback.release` takes `scope` (`"all"`, `"page"`, `"other_pages"`), with `page` for the last two; `scope` with `id` → `error`. `show.new` takes `keep: "patch"` (and `"looks"`, SHW-20). Classes as the single forms: edit and refused while locked for copy, move and delete (IPC-50), the class of `playback.release` for a release, reset for `show.new`. New keys only, `v` stays (IPC-41). Test `ipc_61_…`: each form parsed, the errors above.
 
 ### Patch and profiles (IDEA-35 batch E, P1-39; approved by owner 2026-11-08)
 Behaviour in `patch.md` PAT-37..47 and `fixture-library.md` LIB-41, 42.
