@@ -970,3 +970,32 @@ fn cue_66_go_on_a_forward_chase_still_takes_a_step_set_with_set_next() {
     assert_eq!(step(&e), Some(3.0));
     assert_eq!(direction(&e), Direction::Forward);
 }
+
+#[test]
+fn cue_66_a_new_direction_takes_the_very_next_step() {
+    // Found in the TTN-03 run: the step after the current one was chosen when the step started,
+    // so a chase turned by the direction button still took one step the old way.
+    let mut e = chase(4, opts(60.0, Direction::Forward, LoopAction::Loop));
+    act(&mut e, ListAction::Go, 0.0);
+    run(&mut e, 0.025, 1.0);
+    assert_eq!(step(&e), Some(2.0));
+    e.set_chase_direction(Some(1), Direction::Backward).unwrap();
+    let next = |e: &Engine| e.list_live(1).unwrap().next.map(CueNumber::as_f64);
+    assert_eq!(next(&e), Some(1.0));
+    run(&mut e, 1.025, 2.0);
+    assert_eq!(step(&e), Some(1.0));
+    // The Chase tab and the Go block's button send `playback.options`: the same.
+    let mut options = e.playback(1).unwrap().chase.clone();
+    options.direction = Direction::Forward;
+    e.change_playback(
+        1,
+        &PlaybackChange {
+            chase: Some(options),
+            ..PlaybackChange::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(next(&e), Some(2.0));
+    run(&mut e, 2.025, 3.0);
+    assert_eq!(step(&e), Some(2.0));
+}

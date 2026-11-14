@@ -3644,7 +3644,19 @@ impl Engine {
     ) -> Result<(), CoreError> {
         let id = self.chase_id(id)?;
         self.playback_mut(id)?.chase.direction = direction;
+        self.redirect_chase(id);
         Ok(())
+    }
+
+    /// CUE-66: a running chase takes the very next step in its new direction.
+    fn redirect_chase(&mut self, id: PlaybackId) {
+        let chase = self
+            .playbacks
+            .get(&id)
+            .filter(|p| p.kind == PlaybackKind::Chase);
+        if let (Some(playback), Some(state)) = (chase, self.states.get_mut(&id)) {
+            state.run.redirect(playback);
+        }
     }
 
     /// CUE-65: `id`, or the connected list, when it is a chase.
@@ -5533,7 +5545,9 @@ impl Engine {
         if let Some(v) = &change.list {
             playback.list = v.clone();
         }
+        let mut redirect = false;
         if let Some(v) = &change.chase {
+            redirect = playback.chase.direction != v.direction;
             playback.chase = v.clone();
         }
         if let Some(v) = &change.master {
@@ -5583,6 +5597,9 @@ impl Engine {
         let no_flash = matches!(&change.master, Some(Master::Group(m)) if !m.enabled || m.mode == GroupMode::TakeOver);
         if let (true, Some(state)) = (no_flash, self.states.get_mut(&id)) {
             (state.flash, state.swop, state.latched) = (false, false, false);
+        }
+        if redirect {
+            self.redirect_chase(id);
         }
         Ok(())
     }

@@ -443,6 +443,16 @@ impl ListRun {
         self.transition(cx, index, How::Run);
     }
 
+    /// CUE-66: the direction changed; the step after the current one is chosen again.
+    pub(crate) fn redirect(&mut self, playback: &Playback) {
+        let at = self
+            .current
+            .and_then(|cue| playback.cues.iter().position(|c| c.number == cue));
+        if let Some(at) = at {
+            self.next = self.chase_next(playback, at);
+        }
+    }
+
     /// CUE-30: the step after the one at `at`, none at the end of a `StopOnFinal` round.
     fn chase_next(&mut self, playback: &Playback, at: usize) -> Option<CueNumber> {
         let cues = &playback.cues;

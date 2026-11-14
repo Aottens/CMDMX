@@ -55,6 +55,9 @@ struct GoBlock: View {
                 HStack(spacing: 2) {
                     KeyButton(label: "Tap", spec: "Tap the tempo", height: 30, action: { ui.learnOrRun("tap", engine) { engine.tapPlayback(list.id) } })
                     BPMField(id: list.id, bpm: list.live.bpm ?? list.stored.chase.bpm)
+                }
+                // CUE-65, 66: a row of its own, so the tempo keeps its width ("128.5 BPM").
+                HStack(spacing: 2) {
                     // CUE-66: the direction; a click cycles Forward, Backward, Bounce, Random.
                     let dirs = ["Forward", "Backward", "Bounce", "Random"]
                     let dir = list.stored.chase.direction
@@ -62,8 +65,8 @@ struct GoBlock: View {
                     KeyButton(label: ["Forward": "\u{2192}", "Backward": "\u{2190}", "Bounce": "\u{2194}", "Random": "Rnd"][dir] ?? dir,
                               spec: "Direction: \(dir) (click for \(next))", height: 30,
                               action: { engine.setPlaybackOptions(list.id, ["chase": ["direction": next]]) })
-                    // CUE-65: the crossfade beside the tempo, same field.
-                    BPMField(id: list.id, bpm: list.stored.chase.crossfade, unit: "%", range: 0...100, whole: true,
+                    // CUE-65: the crossfade, the same field as the tempo.
+                    BPMField(id: list.id, bpm: list.stored.chase.crossfade, unit: "% xfade", range: 0...100, whole: true,
                              help: "Crossfade: scroll to adjust, type a number and Return to set",
                              set: { engine, id, n in engine.setPlaybackOptions(id, ["chase": ["crossfade": n]]) })
                 }
@@ -191,7 +194,7 @@ private struct BPMField: View {
             TextField("", text: $text).textFieldStyle(.plain).multilineTextAlignment(.trailing)
                 .font(Typo.mono(Typo.large)).focused($focused).onSubmit(send)
                 .onChange(of: focused) { _, now in if !now { if ui.fieldEscaped { text = shown } else { send() } } }   // UI-44
-            Text(unit).font(Typo.mono(Typo.small)).foregroundStyle(t.fg2)
+            Text(unit).font(Typo.mono(Typo.small)).foregroundStyle(t.fg2).lineLimit(1).fixedSize()
         }
         .padding(.horizontal, 6).frame(maxWidth: .infinity).frame(height: 30)
         .background(RoundedRectangle(cornerRadius: radius).fill(t.surf2))
