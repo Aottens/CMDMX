@@ -39,6 +39,7 @@ Programming and small checks:
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
 
 ## Owner to decide
+- Approve ARV-12..14 and ARV-18 (`specs/modules/autoreview.md`): every lane records its findings (ARB-05).
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).
