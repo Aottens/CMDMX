@@ -103,9 +103,9 @@ stays readable afterwards (sources in IDEA-57).
   criteria that exist and need no spec. At most three rows per build, in its own session, branch and PR, through the
   same review and gate. It starts none while another fix block's PR is open. A `plausible` row is first checked
   against the code; one that is no defect is closed `done (<date>, not a defect)` without a change.
-- **ARV-15** After an auto-merged PR that changes the app or the engine, Claude pushes the patch tag (`0.x.y`) within
-  the hour, with release notes as WEB-37 asks, and checks that the release has its DMG. A sub-release (`0.x.0`,
-  REL-26) and its gap review stay with the owner.
+- **ARV-15** *(withdrawn 2026-11-14, owner: releases go by milestone, REL-26)* An auto-merge pushes no tag. A release,
+  patch or sub-release, goes out only on the owner's word (REL-26). *(Was: Claude pushes the patch tag within the hour
+  after an auto-merged PR that changes the app or the engine.)*
 
 ## Calibration
 - **ARV-16** `AUTOMERGE` stays off until five PRs have gone through the gate in shadow. A run file lists for each the
@@ -129,5 +129,6 @@ Answered by the owner 2026-11-13: every recommendation accepted ("ja, alle vijf"
 2. **How many fix rounds before the owner?** Recommended: two. Each round is a full review on the owner's plan.
 3. **Size limit?** Recommended: 600 changed lines. Larger diffs are where a review misses most.
 4. **A patch tag without asking after an auto-merge?** Recommended: yes (ARV-15). A sub-release stays the owner's.
+   *Withdrawn 2026-11-14: no tag without the owner's word (REL-26).*
 5. **Which token?** Recommended: the owner's subscription (`claude setup-token`), not an API key: no separate bill,
    but every review counts against the plan's usage.

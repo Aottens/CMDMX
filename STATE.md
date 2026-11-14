@@ -12,9 +12,9 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. Batch G is done: cut its sub-release, then its gap review with the app running, from a new angle. Then batches
-   I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. P1-31 (Blind and
-   Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net) needs a criterion.
+1. Batches I and J in the owner's order (`docs/research/everyday-gaps.md`), each spec approved first. No tag after
+   a batch: the next release is the one the first service runs on, and the gap review follows it (REL-26).
+   P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send Demo on Art-Net) needs a criterion.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
    in shadow; a finding a PR leaves unfixed must be recorded first. After five PRs through the gate, ARB-03 lets

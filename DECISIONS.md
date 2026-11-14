@@ -5,6 +5,27 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-14 — Releases go by milestone, 1.0.0 is the first service (owner; amends 2026-11-02 and 2026-11-13)
+
+**Decision:** a release goes out only when there is something to install, not after each batch: 15 tags in 12 days (v0.3.0
+to v0.9.0) were too many to follow. The next sub-release is **1.0.0**, the release the first Sunday service runs on
+(VS4-03, the finish line of phase 1); until then batches land on `main` without a tag. A patch (`0.9.y`, later `1.0.y`)
+goes out only for a defect that hits someone on an installed release (the church Mac, the owner's Mac); every other fix
+waits for the next release. Claude cuts no release without the owner's word, and pushes no patch tag after an auto-merge
+(ARV-15 is withdrawn). The gap review follows a milestone release, so the next one comes after 1.0.0 and the first
+service, as the fifth review already said. v0.9.0 (batch G) was cut by Claude on 2026-11-14 against the 2026-11-13 rule
+that sub-releases are the owner's; it stays out, as the last release before this rule.
+
+**Alternatives considered:** a fixed rhythm (every two weeks or monthly); a sub-release per two or three batches; no
+patch releases at all; a patch after every fix (as before); 1.0.0 only at the end of phase 1, with 0.10, 0.11 … before it.
+
+**Why:** a release is for someone who installs it. The church Mac gets one DMG before the first service, and a show saved
+with a newer schema does not open on an older release, so many releases make the installed one fall behind faster.
+
+**Reversal trigger:** after 1.0.0, when real use asks for fixes faster than milestones come.
+
+---
+
 ## 2026-11-14 — A file changed outside: show.list only tells; the saver checks against the stamp at hand-over (FIL-05)
 
 **Decision:** SHW-23's check on `show.list` warns once per change ("… Open Kerk to load it, or the next save keeps it
