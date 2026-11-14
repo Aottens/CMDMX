@@ -37,8 +37,9 @@ stays readable afterwards (sources in IDEA-57).
   not run its reviewers must not read as a clean review (owner, 2026-11-13, found on #298).
 - **ARV-04** A push that changes only `low` files keeps the earlier review: no new review runs, and the gate reads the
   last `findings.json` of the PR. So rewriting `STATE.md` or adding backlog rows does not start another round. A push
-  that changes a file a finding of the last review names is reviewed again, whatever its impact, so a fixed finding
-  does not stay on the PR.
+  that changes a file a finding of the last review names, other than `BACKLOG.md` and `STATE.md`, is reviewed again,
+  whatever its impact, so a fixed finding does not stay on the PR. A finding in those two files that the PR fixes is
+  recorded as a `FIX-nn` row that is already `done`, so recording never starts a round.
 
 ## The gate
 - **ARV-05** `scripts/risk-gate.py` gives each changed file an impact from one table at the top of the script; the
