@@ -285,7 +285,8 @@ docs/screenshots/   README images
 Every feature starts as a spec with numbered acceptance criteria, then come failing tests, then
 code, and the owner reviews every pull request. Claude also reviews every pull request on GitHub, and a tested
 risk gate ([`risk-gate.py`](scripts/risk-gate.py)) labels it `risk: green`, `risk: amber` or `risk: owner` from the
-findings and the paths it touches; for now it only advises ([`autoreview.md`](specs/modules/autoreview.md)).
+findings and the paths it touches, and holds a green PR at amber until the findings it leaves are recorded in the
+backlog; for now it only advises ([`autoreview.md`](specs/modules/autoreview.md)).
 Anything that touches hardware also gets a checklist that the owner runs on the real gear. Details are in
 [`CLAUDE.md`](CLAUDE.md).
 

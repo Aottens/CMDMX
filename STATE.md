@@ -17,7 +17,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
    needs a criterion.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
-   in shadow. ARB-05 next (unrecorded findings make green amber); after five PRs through the gate, ARB-03 lets
+   in shadow; a finding a PR leaves unfixed must be recorded first. After five PRs through the gate, ARB-03 lets
    green PRs merge by themselves.
 
 ## Waiting on the owner
