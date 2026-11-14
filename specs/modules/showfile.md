@@ -129,8 +129,10 @@ Checks behind these criteria: `tests/manual/runs/2026-11-12-G-checks.md`. Titan 
   `shw_20_…`.
 - **SHW-21** **A copy that leaves you where you are** (G3, P1-41 decision 3). `show.save_copy {name}` writes the current show
   under a new name, as `show.save_as` would, and the open show stays open: its name, autosave, undo history and output do not
-  change. An existing or invalid name is refused (SHW-09, SHW-15). The Show screen gains *Save Copy* beside *Save As*, on the same
-  name field; neither changes what is on stage, so neither asks twice. Test `shw_21_…`.
+  change. An existing or invalid name is refused (SHW-09, SHW-15). When the copy is written, every client gets the notice "Saved a
+  copy as <name>" (IPC-49) and the new `show.list`, so the Show screen lists it at once (found in the FIL-02 run, 2026-11-14). The
+  Show screen gains *Save Copy* beside *Save As*, on the same name field; neither changes what is on stage, so neither asks twice.
+  Test `shw_21_…`.
 - **SHW-22** **Rename, delete and reveal a show** (G1; amends the out-of-scope list, P1-41 decision 4).
   `show.rename {name, to}` renames the file and its `.bak` (SHW-12); `to` follows SHW-09 and an existing name is refused.
   Renaming the open show first writes it (SHW-11), then renames, updates `state.json` and sends the `show` delta, so the open

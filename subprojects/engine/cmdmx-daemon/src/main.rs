@@ -358,6 +358,7 @@ fn main() {
                         path: shows.path(&name),
                         json: show.to_json(),
                         show,
+                        copy: true,
                     };
                     hand_off(Some(job), &jobs, &mut autosave, &mut clients);
                     Ok(())
@@ -539,8 +540,14 @@ fn main() {
         }
         // SHW-11/13: the saver does the disk work; the tick only hands over a copy.
         while let Ok(done) = saved.try_recv() {
+            // SHW-21: a copy on disk is told to every client, with the new list.
+            let copied = (done.copy && done.result.is_ok()).then(|| done.show.meta.name.clone());
             if let Some(w) = autosave.finished(done) {
                 warn(&mut clients, &w);
+            }
+            if let Some(name) = copied {
+                clients.notice(&format!("Saved a copy as {name}"));
+                clients.broadcast(&ipc::answer_show_list(&shows));
             }
         }
         hand_off(
@@ -744,6 +751,7 @@ fn hand_off(
             show: e.0.show,
             result: Err("the saver thread has stopped".into()),
             at: String::new(),
+            copy: false,
         };
         if let Some(w) = autosave.finished(done) {
             warn(clients, &w);

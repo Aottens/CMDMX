@@ -284,6 +284,18 @@ fn shw_21_save_copy_writes_a_copy_and_stays_in_the_open_show() {
         &mut app,
         json!({"cmd": "show.save_copy", "name": "Demo kopie"}),
     );
+    // Every client hears that it is there and gets the new list, unasked.
+    let n = until(&mut app, "the notice", |m| m["type"] == "notice");
+    assert_eq!(n["message"], "Saved a copy as Demo kopie", "{n}");
+    let list = until(&mut app, "the new list", |m| m["type"] == "show.list");
+    assert!(
+        list["shows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["name"] == "Demo kopie"),
+        "{list}"
+    );
     // The copy holds the change.
     let path = shows.join("Demo kopie.cmdmx.json");
     let deadline = Instant::now() + Duration::from_secs(5);

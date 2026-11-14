@@ -325,6 +325,8 @@ pub struct Job {
     pub path: PathBuf,
     pub json: String,
     pub show: Show,
+    /// SHW-21: a Save Copy job; its client notice and fresh list follow the write.
+    pub copy: bool,
 }
 
 /// SHW-11/13: the saver's answer to one [`Job`]; `at` is when the write ended.
@@ -332,6 +334,8 @@ pub struct Done {
     pub show: Show,
     pub result: Result<(), String>,
     pub at: String,
+    /// SHW-21: copied from the [`Job`].
+    pub copy: bool,
 }
 
 /// SHW-11/13: decides when the open show needs writing; the tick owns it, the saver writes.
@@ -373,6 +377,7 @@ impl Autosave {
             path: self.path.clone(),
             json: show.to_json(),
             show,
+            copy: false,
         })
     }
 
@@ -442,6 +447,7 @@ pub fn spawn_saver() -> io::Result<(Sender<Job>, Receiver<Done>)> {
                         show: job.show,
                         result,
                         at,
+                        copy: job.copy,
                     })
                     .is_err()
                 {
@@ -712,7 +718,8 @@ mod tests {
             .finished(Done {
                 show: job.show,
                 result: Ok(()),
-                at: WALL.into()
+                at: WALL.into(),
+                copy: false
             })
             .is_none());
         assert!(a.poll(&e, 10.0, WALL).is_none());
@@ -799,6 +806,7 @@ mod tests {
                 show: job.show,
                 result: Err("disk full".into()),
                 at: WALL.into(),
+                copy: false,
             })
         };
         let job = a.poll(&e, 5.0, WALL).unwrap();
@@ -812,6 +820,7 @@ mod tests {
             show: job.show,
             result: Ok(()),
             at: WALL.into(),
+            copy: false,
         });
         assert!(
             back.unwrap().contains("works again"),
