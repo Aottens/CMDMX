@@ -175,6 +175,8 @@ Spec'd as P1-42 (approved by the owner 2026-11-14): PRG-102, 103, CUE-65..69, PB
 8. No "why is this lit": no view or IPC field gives the owner of an attribute or channel.
 9. The app cannot show why the engine died: a panic goes to `daemon.log`, and the app cannot reveal it.
 
+Spec'd as P1-43 (2026-11-15, awaiting the owner): PRG-104, IPC-63..66, CTL-72..74, UI-82..88, REL-30, with K3 and the rest of K2; J8 was batch C. Beside it, DEF-06 (UNDO-21) and TST-01 (OUT-43).
+
 # Third review, 2026-11-04 (at v0.4.0)
 
 New angle: one operator's evening. From an empty show, patch a small rig, make groups and palettes, record a list, run it with

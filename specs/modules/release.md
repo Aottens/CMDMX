@@ -132,6 +132,16 @@ that Mac. Quitting the app frees the Eurolite for Lightkey (the fallback).
   run: a bundle whose `cmdmx-daemon` is `exit 1`: the waits, the steady line, no "back", the sheet; then
   a real daemon in its place: connected, the "back" line, gone at the next command.
 
+- **REL-30** **Why the engine stopped** (J9; IDEA-35 batch J, P1-43 question 1; proposed 2026-11-15, waits for the owner; our own
+  choice, Titan has no separate engine). When an engine this app started or adopted ends without the app asking (REL-13), the
+  app reads what was added to `~/Library/Logs/CMDMX/daemon.log` since that engine started (the app notes the log's size when it
+  starts or adopts one) and puts one line in the Messages sheet (UI-39): the first line holding `panicked at`, else the last
+  line that is not empty, cut at 200 characters: "Engine stopped (code 101): panicked at cmdmx-core/src/engine.rs:812: …". An
+  adopted engine has no exit code, so its line reads "(code unknown)". The Messages sheet gets **Show engine log**, which shows
+  `daemon.log` in Finder whether or not an engine died, and the Console menu (UI-86) has the same item. The restart and its note
+  stay as REL-24, REL-25 and REL-28 say. Manual run: a bundle whose `cmdmx-daemon` is a script that prints a panic line and
+  exits 101, as REL-28's run uses `exit 1`: the line, the button, Finder.
+
 ### First launch on a Mac
 - **REL-15** (amended by REL-22) The release notes and `tests/hardware/release.md` give the install steps for an
   app that is not notarised: open the DMG, drag CMDMX to Applications, eject; then the

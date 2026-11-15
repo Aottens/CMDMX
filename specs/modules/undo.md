@@ -102,6 +102,18 @@ start.
 - **UNDO-15** There is one history for the daemon, shared by every client: an Undo from any
   client undoes the newest step, whoever made it (there is one programmer, `programmer.md`).
 
+### A running list after an undo (DEF-06; IDEA-35 batch J, P1-43 question 9; proposed 2026-11-15, waits for the owner)
+Found in the TTN-04, 06, 10 run (`tests/manual/runs/2026-11-14-TTN-04-06-10.md`): a renumber or a block Move (CUE-69) undone
+left a running list on a cue number no cue had, and Go did nothing, without a message.
+- **UNDO-21** (amends UNDO-10) After an undo or redo, a running list or chase whose current cue number no longer exists:
+  - stays on its cue when the step only gave that cue another number (a renumber or a Move undone or redone): the current cue
+    becomes that cue under its restored number, as CUE-08 has the current cue follow a renumber;
+  - otherwise (a cue the step takes away) stays on the nearest cue below that number, or the first cue when none is below.
+  The next cue is then worked out again as after a renumber (CUE-08). Nothing on stage changes until the next Go, as when the live
+  cue is deleted (CUE-07); the Go block and the Cue list window show the new current cue at once. A list that is off is not
+  touched. Tests `undo_21_…`: a renumber undone and redone on the live cue, a block Move undone, a cue Copy undone while that
+  copy is live, then Go in each case.
+
 ### Determinism and safety
 - **UNDO-16** `cmdmx-core::undo` takes no time and no randomness: the same command sequence
   gives the same history, labels and restored state. Scenario tests drive it.

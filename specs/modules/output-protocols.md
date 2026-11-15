@@ -107,6 +107,14 @@ does that.
   the OUT-30 log lines, the status-bar detail and the warnings, a node with a name reads `Kerk Eurolite (serial #3)`, and one without
   stays `serial #3`. Tests `out_42_…`.
 
+### Tests never send DMX (TST-01; IDEA-35 batch J, P1-43 question 1; proposed 2026-11-15, waits for the owner)
+Found in the FIL-01..03 run: daemon tests that start the Demo show with Art-Net on put Demo values on the owner's network,
+where real lamps may listen (the Demo show's fixtures on 9–150 light real lamps, `STATE.md`).
+- **OUT-43** Every test that starts `cmdmx-daemon` passes `--no-artnet --no-sacn --no-serial`. One test,
+  `out_43_tests_send_no_dmx`, reads every file in `cmdmx-daemon/tests/` and fails when a daemon start there lacks one of the
+  three flags, naming the file and line. Today `client_loss`, `lock`, `message_history` and
+  `remote` start the Demo with Art-Net on, and `message_history` with serial on too.
+
 ## Hardware checklist
 `tests/hardware/output.md` covers OUT-03/04/06/09/20..23 on the owner's network and Eurolite MK2. P1-18 adds lines for OUT-29/31: a fixture on universe 2 seen on Art-Net and sACN universe 2 in a monitor while universe 1 keeps going, a node disabled and enabled without the others dropping a frame, and the Eurolite chosen on the Output screen surviving a daemon restart.
 

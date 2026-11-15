@@ -13,6 +13,7 @@ UI-33a, UI-33b (Fan and Pattern keep the selection keys, SEL-09): **approved by 
 UI-26 (console mode) quit, UI-19 message zone, UI-22 level bars, Lock in the Main context, and UI-35..40:
 approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
 UI-42..48 (IDEA-35 batch H, P1-27): owner's answers 2026-11-03; approved when the spec PR merges.
+UI-82..88 (IDEA-35 batch J, P1-43): proposed 2026-11-15, waits for the owner.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -655,10 +656,100 @@ F3 holds already (UI-42: an armed function on an effect palette tile is refused)
   with Groups + Palettes on show, an accessibility search for "wave" finds nothing; background presses on Group 2 and on a fixture
   tile select that group and that fixture.
 
+### Input paths (IDEA-35 batch J, P1-43; proposed 2026-11-15, waits for the owner)
+From `docs/research/everyday-gaps.md` J (J8 went into batch C) and K3, with what was left of K2; checked in
+`tests/manual/runs/2026-11-15-J-checks.md`. Titan pages used: *Changing Fixture Attributes*, *Front Panel Buttons*, *Using the
+Select Buttons and Wheels*, *MIDI, DMX or Audio Triggering*. What a page does not say is marked as our own choice. The rest of
+batch J is PRG-104, IPC-63..66, CTL-72..74 and REL-30; the questions are below, *Owner questions (P1-43)*.
+
+- **UI-82** **Type a value, then click the wheel** (J1, PRG-104; P1-43 question 2; Titan: a value, then the attribute's softkey).
+  While the command line holds exactly one number (digits with at most one `.`, typed on the keypad, the Mac keys or a surface), a
+  single click on a wheel's name sends `programmer.type {attribute, value}` (IPC-63) and empties the line; each wheel name shows
+  the number as a hint ("Pan = 50") so the click can be found. The second click of a double-click within the system's interval
+  is then ignored, so it never also sends Off (UI-26's double-click on a name stays as it is with any other line). With any other
+  line a single click on a name does nothing, as now. With Record or a function armed it is refused as a tile tap is (UI-42).
+  Checked by hand on Art-Net: Pan 50, a gobo slot, Hue 240, a refused slot.
+- **UI-83** **A range with the mouse** (J2; P1-43 question 3; Titan: a box drawn over the touch buttons, or hold the first Select
+  and press the last). In the Fixtures window, unfolded cells included (UI-29):
+  - ⇧-click on a tile selects the tiles from the last tile tapped or ⇧-clicked to this one, in window order (row by row, left to
+    right), and backwards when this tile comes first, as `5 Thro 1` reads;
+  - a drag of more than 4 pt over the tiles draws a box, and on release the tiles it touches are selected in window order;
+  - both send one `programmer.select` per tile, in that order, and skip a tile already selected, so a range never takes one out
+    (PRG-01); after an attribute change the first one starts a new selection as a tap does (PRG-03);
+  - with Record or a function armed a range is refused as a tile tap is (UI-42); Move's tile tap (UI-77) is unchanged.
+  The window order and the box are our own choice: the manual does not say in which order a box selects. Checked by hand with
+  Fan, so the order shows on stage.
+- **UI-84** **Surface keys in the app** (J4, J5, IPC-64, CTL-72; P1-43 question 4). The app follows surfaces whenever it is
+  connected. A surface's keypad token goes into the app's one command line as the screen keypad's key does, and while the line holds
+  a token from a surface the line names it ("BCF2000 › 1 Thro 4 @"); the Mac keys and the screen keypad add to the same line,
+  as Titan has one line. A programming key arms as the function button would (UI-42..46), from any screen the button works on, and
+  `keypad Exit` is the keypad's Exit. A tap event is a tap on that handle's legend, group cell or palette cell (UI-42's table),
+  whether or not its window is on show. The app sends `surface.armed` on every arm and disarm, Menu Latch included (UI-65).
+  While the Lock prompt is up, surface keys are dropped, so a surface never types the code. Checked by hand with the BCF2000
+  and the on-screen deck: Record, a handle, Exit; `1 Thro 4 @ 50` from the surface; a half line ended by Exit.
+- **UI-85** **Save the lock code** (CTL-73, IPC-65; P1-43 question 5; Titan: *Set Saved Password*). The Lock prompt (UI-38) gains
+  the checkbox *Save as this console's code* (off): Enter with it on sends `lock.save_code`, then locks. While `lock_code_saved`,
+  the prompt says "A code is saved for surfaces" with a *Forget* button (`{"code":null}`). The manual (`running.md`) says a surface
+  locks with the saved code and that the master code still unlocks. Checked by hand.
+- **UI-86** **Titan's keys on ⌥** (J3, the rest of K2; P1-43 question 6; Titan PC: Alt and a letter, *Front Panel Buttons*).
+  Whatever Keys says, with no text field focused and no sheet or lock cover up: ⌥C Clear, ⌥R Record, ⌥⇧U Update, ⌥I Include,
+  ⌥D Delete, ⌥⇧C Copy, ⌥M Move, ⌥⇧R Release, ⌥U Unfold, ⌥L Locate, ⌥G Go on the connected list, ⌥1 to ⌥7 softkeys A to G (those
+  the context shows), ⌥← and ⌥→ Fix −1 and +1, ⌥↑ All, ⌥↓ Highlight; and our own, as Titan PC lists none: Page Up and Page Down
+  the previous and next page, refused at the ends as `page.set` is. Each does what its screen button does, arming and refusals
+  included; a key held down counts once. With Keys live, the numeric keypad's `/` is Thro and `*` is `@` too (`-` stays Thro,
+  `+` And). A **Console** menu in the menu bar lists every one of them with its key, disabled where the screen would refuse it,
+  so they can be found. ⌘ shortcuts stay as they are. `programming.md` and `running.md` list the keys. Checked by hand with
+  Keys off: Record, a handle; Clear; Page Down; ⌥2 on a softkey.
+- **UI-87** **Pages that run something** (J7; Titan documents no mark on its page buttons, so our own choice). A page button
+  carries a green bar along its bottom edge while a playback on that page is not `off` (PBK-40), the page on show included, so
+  page 2 says that 1.1 runs on page 1. A tap still only changes the page. Checked by hand with a list on page 1 and page 2 on show.
+- **UI-88** **Groups beside the fixtures** (K3; P1-43 question 8). The Fixtures window's title row gets a switch **Fixtures |
+  Groups**; Groups shows the Groups window (UI-12) in that place, with every tap, armed function and Record that window has. The
+  app remembers the switch per workspace, Fixtures by default, so Colour and Playbacks reach a group without leaving. Checked by
+  hand on Colour and Playbacks: a group taken, Record onto a group.
+
 ## Out of scope (this spec)
 Palette, cue and playback behaviour (their own specs fill in the disabled controls), Blind, undo
 (P1-10), freely configurable workspaces, legends and halos, picture legends, a remote/touch layout
 (IDEA-06), and the narrow single-column layout of the sketch (below 900 px). Not in batch C (P1-33): editing values in the Grid, Titan's *View If* and *Frozen* filters, the DMX View's input column, a fixture's position on a rig plan (IDEA-25). Not in batch D (P1-36): Unfold of a cue list or chase onto faders and a linked playback copy (owner decisions 3 and 4: IDEA-46, IDEA-47), copying or moving several cues, Titan's *Copy Legends* option and *Unassign*, the Release Priority setting and *Release all Masters*.
+
+## Owner questions (P1-43, batch J, 2026-11-15)
+1. **What is in batch J:** J1 (PRG-104, IPC-63, UI-82), J2 (UI-83), J3 with the rest of K2 (UI-86), J4 and J5 (IPC-64,
+   CTL-72, UI-84) with the surface lock (IPC-65, CTL-73, UI-85), J6 (IPC-66, CTL-74), J7 (UI-87), J9 (REL-30) and K3 (UI-88);
+   no schema change (`showfile.md`)? And beside it, as two builds of their own, DEF-06 (UNDO-21) and TST-01 (OUT-43)?
+   Recommended: yes. J8 was batch C (ENG-25, IPC-60, UI-57). Not chosen: Keys on by default (the owner kept it off on
+   2026-11-04, and UI-86 works with Keys off); DEF-06 and TST-01 inside a batch J build (they share nothing with it).
+2. **Typed values (PRG-104, UI-82):** a number on the command line, then a click on the wheel's name, read in the wheel's own
+   unit (%, Hue in degrees, Kelvin) and as the slot number on a slot wheel? Recommended: yes; it is Titan's order (value, then
+   the attribute's softkey) and needs no new key. Not chosen: a grammar such as `Pan 50 Enter` (no attribute keys exist on the
+   keypad, and more to type), or a value field on a double-click (the double-click is Off already, UI-26).
+3. **A range with the mouse (UI-83):** ⇧-click from the last tile, and a box dragged over the tiles, both selecting in window
+   order? Recommended: yes; ⇧ is the Mac's range and the box is Titan's. Not chosen: the box in drag direction (a box has no
+   order a hand can see), or ⇧-click only.
+4. **Programming from a surface (IPC-64, CTL-72, UI-84):** with the app open, a surface's keypad goes into the app's one command
+   line, named, and its Record, Update, Delete, Copy, Move, Legend, Include, Options, Release and Exit arm the app's functions;
+   while one is armed a surface's handle, group or palette press is the target? Recommended: yes; it gives Titan's one line and
+   one set of keys, J5's invisible line goes, and it is the way for the desk of phase 10. Not chosen: the daemon's own line made
+   visible with an Exit, and Record only on the Mac (two lines, and J4 stays open); arming and the command line moved into the
+   engine for every client (an L or XL of its own, and the phone does not need it).
+5. **Lock from a surface (IPC-65, CTL-73, UI-85):** `key lock` locks with a code saved on this Mac, set by a checkbox in the Lock
+   prompt; only the Mac unlocks? Recommended: yes, as Titan's *Set Saved Password*. Not chosen: a surface typing the code on
+   its keypad (the code would pass through every following app's line), or no lock key.
+6. **The Mac keys (UI-86):** Titan PC's Alt shortcuts on ⌥ (⌥C Clear, ⌥R Record, ⌥⇧U Update, …), working whatever Keys says,
+   with Page Up and Down for pages and a Console menu that lists them? Recommended: yes; a Titan operator's hands know them, ⌥
+   types nothing outside a text field, and K2's "the keyboard does nothing" ends for these keys. Not chosen: ⌘ chords (⌘C, ⌘H,
+   ⌘M and ⌘R are the Mac's own), or plain letters with Keys live (F, G, L and P type on the command line already).
+7. **A control on a moved or deleted object (IPC-66, CTL-74):** never rewritten, but named in the delete confirmation and after a
+   Move, and marked amber on the Control screen? Recommended: yes; mappings live per Mac and serve every show on it, and Undo
+   could not take a rewrite back. Not chosen: bindings follow a Move (right for one show, wrong for the next show opened on the
+   same Mac).
+8. **Groups in Colour and Playbacks (UI-88):** a Fixtures | Groups switch in the Fixtures window, remembered per workspace?
+   Recommended: yes; the Fixtures window is in both, and nothing else on screen moves. Not chosen: Groups in place of the
+   Programmer window (Colour and Playbacks need it), or workspaces laid out by the operator as on Titan (an idea of its own,
+   out of scope in this spec).
+9. **DEF-06 (UNDO-21):** after an Undo or Redo a running list stays on its cue when the step only renumbered or moved it, and
+   otherwise on the nearest cue below, with the stage as it was until the next Go? Recommended: yes; Go then goes on from where
+   the operator is. Not chosen: back to the first cue (the next Go would jump the service back), or a warning only.
 
 ## Owner decisions (P1-40, batch F, 2026-11-10: every recommendation accepted)
 1. **What is in batch F:** F1 and F4 (CTL-69..71, OUT-42), F2 (UI-77), F5 (UI-78), F6 (PRG-100, PRG-101), F7's two manual fixes, L7 and

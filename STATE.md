@@ -12,10 +12,9 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch J: its spec first, for the owner's approval (`docs/research/everyday-gaps.md`). No tag after a batch:
-   the next release is the one the first service runs on, and the gap review follows it (REL-26). P1-31 (Blind and
-   Edit) stays apart. TST-01 (daemon tests that send Demo on Art-Net) and DEF-06 (an Undo that leaves a running list
-   on a cue that is gone, so Go does nothing) need a criterion.
+1. IDEA-35 batch J, input paths: its spec (P1-43) waits for the owner, then builds INP-01..09, the Mac keys (INP-03)
+   first; DEF-06 (UNDO-21) and TST-01 (OUT-43) are built apart, beside it. No tag after a batch: the next release is the
+   one the first service runs on, and the gap review follows it (REL-26). P1-31 (Blind and Edit) stays apart.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
    in shadow; a finding a PR leaves unfixed must be recorded first. After five PRs through the gate, ARB-03 lets
@@ -44,6 +43,7 @@ Programming and small checks:
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
 
 ## Owner to decide
+- Batch J's spec (P1-43): approve it and answer its nine questions (`specs/modules/ui.md`, *Owner questions (P1-43)*).
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).
