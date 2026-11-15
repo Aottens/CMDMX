@@ -62,17 +62,18 @@ def execution(*tools):
     return messages + [{"type": "result", "result": '{"findings":[]}'}]
 
 
-FULL = [agent("Check PR eligibility"), agent("List CLAUDE.md files"), agent("Summarize PR"),
+FULL = [agent("List CLAUDE.md files"), agent("Summarize PR"),
         agent("CLAUDE.md compliance A"), agent("CLAUDE.md compliance B"), agent("Opus bug scan diff"),
         {"type": "tool_use", "name": "Task", "input": {"description": "Opus bug scan logic"}}]
 
 
 def test_arv_03_review_without_its_agents_is_not_reviewed():
     bash = {"type": "tool_use", "name": "Bash", "input": {"command": "gh pr diff 298"}}
-    assert gate.agents_launched(execution(*FULL, bash)) == 7
+    assert gate.agents_launched(execution(*FULL, bash)) == 6
     assert gate.review_ran(execution(*FULL, bash))
     # Round 3 of #298: it prepared, then read the diff itself and returned no findings.
-    assert not gate.review_ran(execution(*FULL[:3], bash, bash))
+    assert not gate.review_ran(execution(*FULL[:2], bash, bash))
+    assert not gate.review_ran(execution(*FULL[:5]))
     assert not gate.review_ran([])
 
 
@@ -82,10 +83,10 @@ def test_arv_03_cli_checks_the_review():
     with tempfile.TemporaryDirectory() as tmp:
         full, short = Path(tmp) / "full.json", Path(tmp) / "short.json"
         full.write_text(json.dumps(execution(*FULL)))
-        short.write_text(json.dumps(execution(*FULL[:3])))
+        short.write_text(json.dumps(execution(*FULL[:2])))
         assert run("--check-review", str(full)).returncode == 0
         done = run("--check-review", str(short))
-        assert done.returncode == 1 and "3" in done.stdout and "7" in done.stdout
+        assert done.returncode == 1 and "2" in done.stdout and "6" in done.stdout
         assert run("--check-review", str(Path(tmp) / "missing.json")).returncode == 1
 
 
@@ -129,13 +130,16 @@ def test_arv_05_path_table():
     high = ["subprojects/engine/cmdmx-core/src/lib.rs", "subprojects/engine/cmdmx-protocols/src/a.rs",
             "subprojects/engine/cmdmx-daemon/src/main.rs", "subprojects/engine/Cargo.lock",
             "subprojects/app/scripts/bundle-app.sh", ".github/workflows/ci.yml", "scripts/risk-gate.py",
-            "scripts/test_risk_gate.py", "CLAUDE.md", "DECISIONS.md", "specs/modules/autoreview.md",
-            "tests/hardware/church.md", "shows/kerk.json", "somewhere/new.txt", "subprojects/engine/Cargo.toml"]
+            "scripts/test_risk_gate.py", "CLAUDE.md", "tests/hardware/church.md", "tests/hardware/runs/x.md",
+            "shows/kerk.json", "somewhere/new.txt", "subprojects/engine/Cargo.toml", ".claude/commands/x.md",
+            ".github/review-prompt.md"]
     medium = ["subprojects/app/Sources/App/Main.swift", "subprojects/engine/cmdmx-control/src/lib.rs",
               "subprojects/engine/profiles/par.json", "touchosc/generate.py", "scripts/check-tracking.py",
-              "scripts/dashboard.py"]
+              "scripts/dashboard.py", "DECISIONS.md", "subprojects/engine/INTERFACE.md",
+              "subprojects/app/INTERFACE.md", "specs/modules/autoreview.md", "specs/PRD.md"]
     low = ["README.md", "STATE.md", "BACKLOG.md", "IDEAS.md", "subprojects/engine/STATE.md",
-           "subprojects/website/manual/src/patch.md", "docs/research/x.md", "tests/manual/app-patch.md"]
+           "subprojects/website/manual/src/patch.md", "docs/research/x.md", "tests/manual/app-patch.md",
+           "tests/fixtures/shows/church-demo.cmdmx.json", "tests/scenarios/eng-01-htp.json"]
     for path in high:
         assert gate.impact(path) == "high", path
     for path in medium:
@@ -143,6 +147,45 @@ def test_arv_05_path_table():
     for path in low:
         assert gate.impact(path) == "low", path
     assert gate.worst_impact(["README.md", "touchosc/generate.py", "CLAUDE.md"]) == "high"
+
+
+SPEC = """# Module spec: x (XYZ)
+
+Status: proposed.
+
+## Criteria
+- **XYZ-01** The first rule,
+  wrapped onto a second line.
+- **XYZ-02** The second rule.
+
+## Owner questions
+1. **A question?** Recommended: yes.
+"""
+
+
+def test_arv_05_criterion_change_in_specs_is_high():
+    edit = lambda old, new: SPEC.replace(old, new)
+    assert gate.criteria(SPEC) == {"XYZ-01": "- **XYZ-01** The first rule,\n  wrapped onto a second line.",
+                                   "XYZ-02": "- **XYZ-02** The second rule."}
+    # A criterion added, removed, changed on its first line or on a wrapped line: the owner's (gate 1).
+    for new in (SPEC + "- **XYZ-03** A third rule.\n", edit("- **XYZ-02** The second rule.\n", ""),
+                edit("The second rule.", "The second rule, changed."), edit("wrapped onto", "folded onto"),
+                ""):
+        assert gate.changes_criteria(SPEC, new), new
+    # A status line, an owner answer or a criterion that only moves: medium.
+    for new in (edit("Status: proposed.", "Status: approved 2026-11-15."), edit("yes.", "yes. Accepted."), SPEC,
+                edit("- **XYZ-01** The first rule,\n  wrapped onto a second line.\n", "")
+                + "- **XYZ-01** The first rule,\n  wrapped onto a second line.\n"):
+        assert not gate.changes_criteria(SPEC, new), new
+    assert gate.changes_criteria("", SPEC)  # a new spec file brings criteria
+    # A criterion that holds a table after a blank line, as ARV-06 does: the table is part of it.
+    table = "- **XYZ-05** The lane:\n\n  | a | b |\n  | --- | --- |\n  | x | y |\n\n## Next\n"
+    assert gate.criteria(table)["XYZ-05"].endswith("| x | y |")
+    assert gate.changes_criteria(table, table.replace("| x | y |", "| x | z |"))
+    spec = files("specs/modules/x.md", "README.md")
+    assert gate.decide(spec, [])[0] == "green"
+    lane, reasons = gate.decide(spec, [], criteria_changed=["specs/modules/x.md"])
+    assert lane == "red" and any("specs/modules/x.md" in r for r in reasons), reasons
 
 
 def test_arv_06_matrix():
@@ -174,17 +217,36 @@ def test_arv_07_failed_check_is_red():
     assert lane == "red" and any("engine (Rust)" in r for r in reasons)
 
 
+APP = "subprojects/app/Sources/CMDMX/A.swift"
+
+
 def test_arv_07_more_than_600_lines_is_red():
-    assert gate.decide([(600, 0, "README.md")], [])[0] == "green"
-    lane, reasons = gate.decide([(400, 201, "README.md")], [])
+    assert gate.decide([(600, 0, APP)], [])[0] == "green"
+    lane, reasons = gate.decide([(400, 201, APP)], [])
     assert lane == "red" and any("601" in r for r in reasons)
 
 
 def test_arv_07_lock_file_and_touchosc_output_not_counted():
-    rows = [(590, 0, "README.md"), (5000, 4000, "subprojects/engine/Cargo.lock"),
+    rows = [(590, 0, APP), (5000, 4000, "subprojects/engine/Cargo.lock"),
             (900, 0, "touchosc/CMDMX.touchosc"), (300, 0, "touchosc/addresses.txt")]
     assert gate.count_lines(rows) == 590
-    assert gate.count_lines([("-", "-", "docs/a.png"), (3, 2, "README.md")]) == 5
+    assert gate.count_lines([("-", "-", "docs/a.png"), (3, 2, APP)]) == 5
+
+
+def test_arv_07_tests_and_docs_not_counted():
+    rows = [(300, 200, "subprojects/engine/cmdmx-control/src/action.rs"),
+            (260, 0, "subprojects/engine/cmdmx-core/tests/chases.rs"),
+            (100, 7, "subprojects/engine/cmdmx-daemon/src/control/tests.rs"),
+            (3, 0, "subprojects/engine/cmdmx-daemon/src/control/osc_tests.rs"),
+            (40, 0, "tests/scenarios/eng-01-htp.json"), (2, 0, "tests/fixtures/shows/a.cmdmx.json"),
+            (400, 0, "specs/modules/cuelists.md"), (12, 0, "subprojects/website/manual/src/cuelists.md"),
+            (10, 0, "README.md")]
+    assert gate.count_lines(rows) == 500
+    # A source file that only looks like a test is code.
+    assert gate.count_lines([(5, 0, "subprojects/engine/cmdmx-core/src/contests.rs"),
+                             (5, 0, "subprojects/engine/cmdmx-core/src/test_util.rs")]) == 10
+    assert gate.decide(rows, [])[0] == "red"  # still high: core and daemon
+    assert not any("lines" in r for r in gate.decide(rows, [])[1])
 
 
 def test_arv_07_fix_rounds_used_up_is_red():
@@ -198,18 +260,42 @@ def test_arv_07_fix_rounds_used_up_is_red():
 
 def test_arv_07_sub_release_is_red():
     low = files("README.md")
-    for title, body in (("release: v0.4.0", ""), ("docs: notes", "This is the 0.5.0 sub-release."),
-                        ("docs: notes", "Cut the sub-release now")):
-        lane, reasons = gate.decide(low, [], title=title, body=body)
-        assert lane == "red", (title, body)
+    for title in ("release: v0.4.0", "docs: notes for 1.0.0", "Cut the sub-release now"):
+        lane, reasons = gate.decide(low, [], title=title)
+        assert lane == "red", title
         assert any("sub-release" in r for r in reasons)
     for title in ("release: v0.4.1", "ci: pin claude-code-action v1.0.275", "docs: 10.0 percent"):
         assert gate.decide(low, [], title=title)[0] == "green", title
+    # Only the title counts: a body that mentions the next sub-release is no release (#304, #305).
+    for body in ("With FIL-06, batch G is complete: next is its sub-release.", "v0.9.0 was cut by Claude.",
+                 "**1.0.0 = the first service**: the next sub-release."):
+        assert gate.decide(low, [], title="tracking: FIL-06 done", body=body)[0] == "green", body
 
 
 def test_arv_07_every_reason_is_listed():
     lane, reasons = gate.decide([(700, 0, "CLAUDE.md")], [f("blocker")], failed_checks=["tracking"])
     assert lane == "red" and len(reasons) >= 3
+
+
+def test_arv_01_review_follows_the_repo_prompt():
+    workflow = (ROOT / ".github/workflows/review.yml").read_text()
+    prompt = (ROOT / ".github/review-prompt.md").read_text()
+    assert "review-prompt.md" in workflow
+    assert "plugins: code-review" not in workflow and "/code-review:code-review" not in workflow
+    assert "claude-plugins-official" in prompt and "9780cf4" in prompt and "Apache" in prompt
+    # The plugin's steps: two agents to prepare, four to review, one per issue to validate, inline comments.
+    for step in ("CLAUDE.md files", "summary of the changes", "Launch 4 agents in parallel", "validate",
+                 "mcp__github_inline_comment__create_inline_comment"):
+        assert step in prompt, step
+    # Not its first step: no stop for an automated, trivial or already-reviewed PR (#305..#307).
+    for stop in ("does not need code review", "automated PR", "already commented", "haiku agent to check"):
+        assert stop not in prompt, stop
+    assert gate.MIN_AGENTS == 6
+
+
+def test_arv_03_review_execution_is_kept():
+    workflow = (ROOT / ".github/workflows/review.yml").read_text()
+    assert "name: review-execution" in workflow and "retention-days: 7" in workflow
 
 
 def test_arv_08_stdlib_only():
