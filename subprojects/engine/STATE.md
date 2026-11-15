@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-15 (INP-05, INP-06)_
+_Last updated: 2026-11-15 (DEF-06)_
 
 ## Current step
+DEF-06 (2026-11-15, UNDO-21): `ListRun::restored(old, new)` runs from `restore_edit_state` for every list or chase that stays; with a current cue whose number is gone it follows the cue the step renumbered (a cue of `new` that `old` did not have, equal but for its number), else `cue_before`, else the first; next keeps an existing cue, follows, else `cue_after` (a chase: `redirect`), never the current one. Fades and output are untouched. Tests `undo_21_…` in `cmdmx-core/tests/undo.rs`. Run: `tests/manual/runs/2026-11-15-DEF-06.md`.
+
 INP-05 (2026-11-15, IPC-65, CTL-73): `Lock` loads and saves `lock_code` in `state.json` (`Lock::load`, `save`); `lock.set` without `code` locks with it. `Key::Lock` becomes `LockSet {code: None}`, which `main.rs` applies through `set_lock`, the same path as the IPC command; `Surface::armed(locked)` adds `lock` for its lamp. INP-06 (2026-11-15, IPC-66, CTL-74): `Control::controls` lists the bindings that name a group, palette or playback (id, or a page.slot that holds it) for `usage`; `mapping_reply` adds `nothing` (`names_nothing`); `resolve` of a playback id the engine lacks is `None`, and a group or palette press on nothing is dropped. Run: `tests/manual/runs/2026-11-15-INP-05-06.md`.
 
 INP-04 (2026-11-15, IPC-64, CTL-72): `Key` gains the nine programming keys (`is_programming`) and `KeypadToken::Exit`. `control.rs` keeps the keypad line in `Surface` with the following clients (`surface.follow`, one per connection; `serve_client`'s `StopFollowing` guard ends it however the thread returns) and what each has armed (`surface.armed`). `Surface::intercept` runs before the CTL-05 table: with a follower a keypad token or programming key goes to every follower as `{type:"surface"}`, and while one is armed an `upper`/`lower` press (Slot → the tick's page, or page.slot), `group` or `palette` press goes as `tap`/`group`/`palette`; the release of a diverted press is dropped, any other release runs. With none a programming key is a warning (`refusals` into `messages`) and `keypad Exit` empties the line. `state_of` takes the armed names for a programming key's lamp. Run: `tests/manual/runs/2026-11-15-INP-04.md`.
