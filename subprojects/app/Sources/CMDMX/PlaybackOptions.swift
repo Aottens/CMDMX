@@ -691,6 +691,9 @@ private struct SettingsTab: View {
             OptionRow(label: "Automatic legends", note: "A new playback or cue is named after its group and palettes, else its fixture numbers.") {
                 Choice(options: yesNo(true), selected: s.autoLegend) { engine.setPlaybackSettings(["auto_legend": $0]) }
             }
+            OptionRow(label: "Swop stops", note: "While a Swop is held, the shapes of the other playbacks stop: all of them, or only those on intensity.") {
+                Choice(options: [("All shapes", "All"), ("Dimmer shapes", "Intensity")], selected: s.swopShapes) { engine.setPlaybackSettings(["swop_shapes": $0]) }
+            }
             OptionRow(label: "Handle buttons", note: "Best practice: Go on lists, Tap on chases. Titan: Swop / Flash everywhere. Custom: a pair per kind.") {
                 Choice(options: [("Best practice", "BestPractice"), ("Titan", "Titan"), ("Custom", "Custom")], selected: s.handleButtons.mode) { mode in
                     engine.setPlaybackSettings(["handle_buttons": mode == "Custom" ? ["Custom": s.handleButtons.custom] : mode])

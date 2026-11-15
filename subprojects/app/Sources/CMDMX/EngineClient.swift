@@ -473,10 +473,12 @@ struct PlaybackSettings: Decodable, Equatable {
     let goGuard: Double
     /// PBK-54: a cue a record creates gets an automatic legend.
     let autoLegend: Bool
+    /// FX-47: which shapes a held Swop stops, "All" or "Intensity".
+    let swopShapes: String
 
     private enum CodingKeys: String, CodingKey {
         case delay, overlap
-        case goGuard = "go_guard", autoLegend = "auto_legend"
+        case goGuard = "go_guard", autoLegend = "auto_legend", swopShapes = "swop_shapes"
         case recordBy = "record_by", fadeIn = "fade_in", fadeOut = "fade_out"
         case releaseMask = "release_mask", releaseTime = "release_time"
         case autoConnect = "auto_connect", cueListFader = "cue_list_fader"
@@ -502,6 +504,7 @@ struct PlaybackSettings: Decodable, Equatable {
         handleButtons = (try? c.decode(HandleButtons.self, forKey: .handleButtons)) ?? HandleButtons()
         goGuard = (try? c.decode(Double.self, forKey: .goGuard)) ?? 0.5
         autoLegend = (try? c.decode(Bool.self, forKey: .autoLegend)) ?? true
+        swopShapes = (try? c.decode(String.self, forKey: .swopShapes)) ?? "All"
     }
 }
 

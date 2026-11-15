@@ -37,8 +37,8 @@ use cmdmx_core::playback::{
     AddCue, BlockTo, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Layout, Link,
     ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
-    PlaybackId, PlaybackRecord, Priority, ShapeSize, SpeedSource, Track, UpdateMode, UpdateTarget,
-    Values, PAGES,
+    PlaybackId, PlaybackRecord, Priority, ShapeSize, SpeedSource, SwopShapes, Track, UpdateMode,
+    UpdateTarget, Values, PAGES,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
@@ -2047,6 +2047,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             go_guard: opt_f32(&v, "go_guard")?,
             auto_connect: opt_field(&v, "auto_connect", "true or false")?,
             auto_legend: opt_field(&v, "auto_legend", "true or false")?,
+            swop_shapes: opt_field(&v, "swop_shapes", "All or Intensity")?,
             cue_list_fader: opt_field(&v, "cue_list_fader", "KillWithOff or KillAtZero")?,
             update_mode: opt_field(&v, "update_mode", "Forwards, CueOnly, Backwards or Both")?,
             handle_buttons: opt_field(
@@ -2439,6 +2440,7 @@ struct PlaybackSettingsInfo {
     handle_buttons: HandleButtons,
     go_guard: f32,
     auto_legend: bool,
+    swop_shapes: SwopShapes,
 }
 
 fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
@@ -2460,6 +2462,7 @@ fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
         handle_buttons: s.handle_buttons.clone(),
         go_guard: s.go_guard,
         auto_legend: s.auto_legend,
+        swop_shapes: s.swop_shapes,
     }
 }
 
@@ -7415,7 +7418,7 @@ mod tests {
             json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,"fade_out_as_in":true,"delay_out_as_in":true,
                    "overlap":100.0,"release_mask":[],"release_time":2.0,
                    "auto_connect":true,"cue_list_fader":"KillWithOff","update_mode":"Forwards",
-                   "handle_buttons":"BestPractice","go_guard":0.5,"auto_legend":true})
+                   "handle_buttons":"BestPractice","go_guard":0.5,"auto_legend":true,"swop_shapes":"All"})
         );
     }
 
@@ -8870,6 +8873,20 @@ mod tests {
         );
         assert!(
             parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"shape_size":"Big"}"#).is_err()
+        );
+    }
+
+    #[test]
+    fn fx_47_swop_shapes_parses() {
+        use cmdmx_core::playback::SwopShapes;
+        let set = parse_command(r#"{"v":1,"cmd":"settings.playback","swop_shapes":"Intensity"}"#)
+            .unwrap();
+        let Command::SettingsPlayback(change) = set else {
+            panic!("{set:?}")
+        };
+        assert_eq!(change.swop_shapes, Some(SwopShapes::Intensity));
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"settings.playback","swop_shapes":"Some"}"#).is_err()
         );
     }
 

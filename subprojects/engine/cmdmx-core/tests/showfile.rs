@@ -1259,6 +1259,27 @@ fn shw_26_shape_size_is_left_out_at_its_default_and_saved_otherwise() {
 }
 
 #[test]
+fn shw_26_swop_shapes_is_left_out_at_its_default_and_saved_otherwise() {
+    use cmdmx_core::playback::SwopShapes;
+    let mut e = rig();
+    let v = as_json(&e.to_show(meta()));
+    assert!(
+        v["settings"].get("swop_shapes").is_none(),
+        "All is the default"
+    );
+    e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+        swop_shapes: Some(SwopShapes::Intensity),
+        ..Default::default()
+    })
+    .unwrap();
+    let v = as_json(&e.to_show(meta()));
+    assert_eq!(v["settings"]["swop_shapes"], json!("Intensity"));
+    let (loaded, warnings) = load(&v);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(loaded.settings().swop_shapes, SwopShapes::Intensity);
+}
+
+#[test]
 fn shw_26_a_schema_14_show_loads_with_every_default() {
     let mut v = as_json(&rig().to_show(meta()));
     v["schema_version"] = json!(14);
@@ -1269,6 +1290,10 @@ fn shw_26_a_schema_14_show_loads_with_every_default() {
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(e.settings().go_guard, 0.5);
     assert!(e.settings().auto_legend);
+    assert_eq!(
+        e.settings().swop_shapes,
+        cmdmx_core::playback::SwopShapes::All
+    );
     assert_eq!(
         e.playback(1).unwrap().shape_size,
         cmdmx_core::playback::ShapeSize::Fader

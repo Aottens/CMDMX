@@ -137,6 +137,11 @@ default. *Fixed* keeps every shape at the size it was recorded with, whatever th
 *Dimmer shapes on fader* lets only the shapes on intensity follow the fader; the others stay fixed.
 The playback still ends its shapes when the fader is down and the playback is released.
 
+While you hold the Swop of another playback, the shapes of the playbacks you do not hold stop and
+their attributes show their base. The playback setting *Swop stops* (Playback Options) chooses
+*All shapes* (the default, as Titan) or *Dimmer shapes*, which stops only the shapes on intensity.
+The programmer's shapes never stop. When you let go the shapes carry on where their clocks are.
+
 ## Effect palettes
 
 Recording a palette while an effect runs in its attribute groups stores the effect too, without

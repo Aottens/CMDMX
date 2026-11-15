@@ -1748,7 +1748,7 @@ fn pbk_48_a_member_leaves_the_entry_it_ran_in_the_programmer() {
 //   `Playback.mask_shapes: Vec<AttributeGroup>` (default empty), both in `PlaybackChange`.
 // - `Settings.swop_shapes: SwopShapes` (`All` default, `Intensity`), in `PlaybackSettingsChange`.
 
-use cmdmx_core::playback::ShapeSize;
+use cmdmx_core::playback::{ShapeSize, SwopShapes};
 
 /// A memory on 1.1 with a ramp on par 201 (DMX 21) and a relative line on spot 311 (Pan 0.5,
 /// DMX 49): Pan = 0.5 + 0.1 · sin 2πθ.
@@ -1796,4 +1796,76 @@ fn fx_46_htp_fader_scales_only_the_dimmer_shapes() {
     let (dimmer, pan) = half_fader(ShapeSize::HtpFader);
     assert!(dimmer.abs_diff(32) <= 1, "{dimmer}");
     assert!(pan.abs_diff(153) <= 1, "{pan}");
+}
+
+/// 1.1 ramps 201 (DMX 21) and runs a line on 311 (DMX 49), both up at 0; 1.3 ramps 202 (DMX 22)
+/// and its Swop is held from 1.0 to 2.0. Returns (21, 49, 22) at 1.25 and (21, 49) at 2.25.
+fn swop_run(setting: Option<SwopShapes>) -> ((u8, u8, u8), (u8, u8)) {
+    let mut e = rig();
+    if let Some(s) = setting {
+        e.set_playback_settings(&cmdmx_core::engine::PlaybackSettingsChange {
+            swop_shapes: Some(s),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    let pb = ramp_and_line(&mut e);
+    ramp(&mut e, &[202]);
+    let owner = record(&mut e, 1, 3);
+    clear(&mut e);
+    e.set_fader(pb, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    tick_to(&mut e, 0.0, 1.0);
+    e.set_swop(owner, true, 1.0).unwrap();
+    e.tick(1.0);
+    tick_to(&mut e, 1.0, 1.25);
+    let held = (dmx(&e, 21), dmx(&e, 49), dmx(&e, 22));
+    tick_to(&mut e, 1.25, 2.0);
+    e.set_swop(owner, false, 2.0).unwrap();
+    e.tick(2.0);
+    tick_to(&mut e, 2.0, 2.25);
+    (held, (dmx(&e, 21), dmx(&e, 49)))
+}
+
+#[test]
+fn fx_47_swop_stops_every_shape_of_the_others_by_default() {
+    let ((dimmer, pan, own), _) = swop_run(None);
+    assert_eq!(dimmer, 0, "the dimmer shape stops");
+    // The base, 0.5.
+    assert!(pan.abs_diff(128) <= 1, "the position shape stops: {pan}");
+    // The owner's own shape runs: θ = 0.25 since 1.0.
+    assert!(own.abs_diff(64) <= 1, "{own}");
+}
+
+#[test]
+fn fx_47_swop_stops_only_dimmer_shapes_with_intensity() {
+    let ((dimmer, pan, own), _) = swop_run(Some(SwopShapes::Intensity));
+    assert_eq!(dimmer, 0);
+    assert!(pan.abs_diff(153) <= 1, "the position shape runs: {pan}");
+    assert!(own.abs_diff(64) <= 1, "{own}");
+}
+
+#[test]
+fn fx_47_released_the_shapes_continue_on_their_clocks() {
+    for setting in [None, Some(SwopShapes::Intensity)] {
+        let (_, (dimmer, pan)) = swop_run(setting);
+        // θ = 2.25: frac 0.25; 0.5 + 0.1.
+        assert!(dimmer.abs_diff(64) <= 1, "{setting:?}: {dimmer}");
+        assert!(pan.abs_diff(153) <= 1, "{setting:?}: {pan}");
+    }
+}
+
+#[test]
+fn fx_47_the_programmer_shapes_never_stop() {
+    let mut e = rig();
+    ramp(&mut e, &[202]);
+    let owner = record(&mut e, 1, 3);
+    clear(&mut e);
+    // A programmer ramp on 201.
+    ramp(&mut e, &[201]);
+    e.tick(0.0);
+    e.set_swop(owner, true, 0.0).unwrap();
+    e.tick(0.0);
+    tick_to(&mut e, 0.0, 0.5);
+    assert!(dmx(&e, 21) > 100, "{}", dmx(&e, 21));
 }

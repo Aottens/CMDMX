@@ -101,6 +101,20 @@ pub enum ShapeSize {
     HtpFader,
 }
 
+/// FX-47: which other playbacks' shapes a held Swop stops.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SwopShapes {
+    /// All of them.
+    #[default]
+    All,
+    /// Only those on `Htp` attributes.
+    Intensity,
+}
+
+pub(crate) fn is_default_swop_shapes(v: &SwopShapes) -> bool {
+    *v == SwopShapes::default()
+}
+
 fn is_default_shape_size(v: &ShapeSize) -> bool {
     *v == ShapeSize::default()
 }

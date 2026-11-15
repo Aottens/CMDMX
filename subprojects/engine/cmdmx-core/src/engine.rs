@@ -41,7 +41,7 @@ use crate::playback::{
     Direction, FaderMode, GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons,
     KillPoint, Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master,
     MasterKind, Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord,
-    PlaybackState, Priority, Release, ShapeSize, SpeedSource, UpdateMode, UpdateTarget,
+    PlaybackState, Priority, Release, ShapeSize, SpeedSource, SwopShapes, UpdateMode, UpdateTarget,
     UpdateTargets, Values, GROUP_SCALES, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
@@ -200,6 +200,8 @@ pub struct Settings {
     pub go_guard: f32,
     /// PBK-54: a cue a record creates gets an automatic legend.
     pub auto_legend: bool,
+    /// FX-47.
+    pub swop_shapes: SwopShapes,
 }
 
 /// CUE-68: the Go guard's default and upper limit, in seconds.
@@ -226,6 +228,8 @@ pub struct PlaybackSettingsChange {
     pub go_guard: Option<f32>,
     /// PBK-54.
     pub auto_legend: Option<bool>,
+    /// FX-47.
+    pub swop_shapes: Option<SwopShapes>,
 }
 
 /// PBK-09: the default record mask, every group.
@@ -269,6 +273,7 @@ impl Default for Settings {
             lowlight_level: default_lowlight(),
             go_guard: DEFAULT_GO_GUARD,
             auto_legend: true,
+            swop_shapes: SwopShapes::default(),
         }
     }
 }
@@ -2650,6 +2655,7 @@ impl Engine {
                 lowlight_level: s.lowlight_level,
                 go_guard: s.go_guard,
                 auto_legend: s.auto_legend,
+                swop_shapes: s.swop_shapes,
             },
             profiles: self
                 .profiles
@@ -2784,6 +2790,7 @@ impl Engine {
             lowlight_level: s.lowlight_level,
             go_guard: s.go_guard,
             auto_legend: s.auto_legend,
+            swop_shapes: s.swop_shapes,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
@@ -4239,6 +4246,9 @@ impl Engine {
         }
         if let Some(v) = change.auto_legend {
             s.auto_legend = v;
+        }
+        if let Some(v) = change.swop_shapes {
+            s.swop_shapes = v;
         }
         Ok(())
     }
@@ -9230,6 +9240,8 @@ impl Engine {
             playbacks: &self.playbacks,
             states: &self.states,
             cue_fx: &self.cue_fx,
+            swop_owner: self.swop_owner,
+            swop_shapes: self.settings.swop_shapes,
         };
         let pass = Pass {
             sources: &sources,
@@ -9496,6 +9508,8 @@ impl Engine {
             playbacks: &self.playbacks,
             states: &self.states,
             cue_fx: &self.cue_fx,
+            swop_owner: self.swop_owner,
+            swop_shapes: self.settings.swop_shapes,
         };
         let pass = Pass {
             sources: &sources,
@@ -10440,6 +10454,9 @@ struct EffectSources<'a> {
     playbacks: &'a BTreeMap<PlaybackId, Playback>,
     states: &'a BTreeMap<PlaybackId, PlaybackState>,
     cue_fx: &'a BTreeMap<PlaybackId, CueFx>,
+    /// FX-47: the playback whose Swop is held, and what that stops.
+    swop_owner: Option<PlaybackId>,
+    swop_shapes: SwopShapes,
 }
 
 /// ENG-14..16: `base` with the effect on `item`'s `attribute`, `None` when none acts: at most
@@ -10465,6 +10482,10 @@ fn with_effect(
         let Some(activated) = state.activated else {
             continue;
         };
+        // FX-47: a held Swop stops the others' shapes (all, or those on Htp attributes).
+        if src.swop_owner.is_some_and(|o| o != *id) && (src.swop_shapes == SwopShapes::All || htp) {
+            continue;
+        }
         let key = (playback.priority, activated);
         let drives = fx.runs.iter().any(|r| r.index(item, attribute).is_some());
         if drives && best.as_ref().is_none_or(|b| key > b.0) {
