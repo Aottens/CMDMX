@@ -499,7 +499,7 @@ Builds: HWB-10 alone (it needs the screen, not the PCBs, so it goes ahead of HWB
 | HWB-07 | Enclosure: the chosen form engineered (DECISIONS 2026-11-15): printed body with walnut frame on an inner frame, laser-cut top plate on a printed under-panel, screen flap with strut and rack, rear panel connectors, power and UPS (CAD native + STEP/DXF); checklist on the built body. Needs HWB-02..06. | HW-01, 04, 34, 36, 50, 51, 53 | L | todo |
 | HWB-08 | Flight case drawings (outer dimensions, foam plan, standard hardware). Needs HWB-07. | HW-52 | S | todo |
 | HWB-09 | Build guide, BOM with dated prices, licence files (CERN-OHL-S v2, CC BY-SA 4.0). | HW-02, 03, 35, 55 | M | todo |
-| HWB-10 | Screen flap: printed flap shell, glass clamp and back cover for the HW-54 module, hinge, fold-out strut and sawtooth rack on a printed test base, cable path with strain relief (CAD native + STEP + STL); checklist `tests/hardware/flap.md` on a printed flap with the real screen. | HW-53, 54, 56, 57, 58 | M | todo |
+| HWB-10 | Screen flap: printed flap shell, glass clamp and back cover for the HW-54 module, hinge, fold-out strut and sawtooth rack on a printed test base, cable path with strain relief (CAD native + STEP + STL); checklist `tests/hardware/flap.md` on a printed flap with the real screen. | HW-53, 54, 56, 57, 58 | M | gate3: `tests/hardware/flap.md` |
 
 ## Phase 2 — the FX generator (IDEA-18, flagship)
 The owner picked the effect generator as the first phase-2 feature (2026-10-29). Spec P2-01
