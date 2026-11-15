@@ -190,6 +190,22 @@ Every proof of concept is tested on the owner's Mac with today's app.
   Penn Elcom / Adam Hall hardware, so a case maker or a maker can build it.
 - **HW-53** CAD is published as native files plus open exchange formats (STEP for parts, DXF for
   laser-cut plates); PCBs in KiCad.
+- **HW-54** Screen flap: the reference screen is a bare 15.6" 1080p PCAP module with its own cover
+  glass, 12 V supply, HDMI and USB touch, and brightness set over DDC/CI; the reference module is
+  the Waveshare 15.6" HDMI LCD (H) (lens 378.8 x 224.8 mm, at most 20 mm deep). The flap is a
+  printed shell at most 25 mm thick with walnut sides; the glass sits flush with the flap face
+  (±0.5 mm) and is clamped on its border from behind, never glued, so the module can be swapped
+  with a screwdriver only.
+- **HW-56** Flap stand: the flap hinges at the back edge of the deck; a fold-out strut drops into a
+  sawtooth rack at 15, 25, 35 and 45°. At every step a 20 N push at the top centre of the screen
+  moves the flap's top edge by at most 2 mm and does not change the step. Folded, the flap lies
+  flat on the deck with the strut against its underside.
+- **HW-57** Flap cables: HDMI, USB touch and 12 V run from the module through the hinge line into
+  the body, with strain relief on both sides of the hinge; moving the flap 50 times from folded to
+  45° and back puts no pull on any connector. The module's driver board is reached by taking off
+  the flap's back cover.
+- **HW-58** The flap is printable on a 256 x 256 mm bed: the shell is split into pieces that join
+  by screws or keys, and the joins are not visible from the front.
 
 ### Licence
 - **HW-55** PCBs, enclosure and case CAD and the BOM are licensed **CERN-OHL-S v2**; the build
@@ -207,6 +223,9 @@ Every proof of concept is tested on the owner's Mac with today's app.
   5. **DMX board** PCB and firmware.
   6. **Programmer panel** PCB (keypad, keys, four wheels).
   7. **Enclosure** and front plates, then the **flight case**.
+
+  The **screen flap** (HW-54, 56..58) needs the screen, not the PCBs, so it may be built ahead of
+  step 2 (owner, 2026-11-15).
 - **HW-61** The USB-MIDI box: one Pico 2 (RP2350) with two plain faders, four RGB keys and one
   optical encoder, enumerating as `CMDMX Desk` with the HW-20 wire map for those controls, HW-14
   deadband, HW-18 boot rule, HW-30 watchdog and HW-32 disconnected pattern. Bound with Learn on
