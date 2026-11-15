@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17, ARV-18). Run: scripts/test_risk_gate.py"""
+"""Tests for the risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17..19). Run: scripts/test_risk_gate.py"""
 import ast
 import importlib.util
 import subprocess
@@ -55,10 +55,22 @@ def agent(description):
     return {"type": "tool_use", "name": "Agent", "input": {"description": description, "prompt": "..."}}
 
 
-def execution(*tools):
-    """An execution file of claude-code-action: one assistant message per tool call, then the result."""
+def execution(*tools, background=(), reported=()):
+    """An execution file of claude-code-action: per tool call an assistant message and its result, then the result.
+
+    A foreground agent reports in its tool result. An agent whose index is in `background` gets the tool result
+    "Async agent launched" and reports only with a completed task_notification, given when its index is in `reported`.
+    """
     messages = [{"type": "system", "subtype": "init"}]
-    messages += [{"type": "assistant", "message": {"content": [{"type": "text", "text": "ok"}, t]}} for t in tools]
+    for i, tool in enumerate(tools):
+        tool = {**tool, "id": f"toolu_{i}"}
+        messages.append({"type": "assistant", "message": {"content": [{"type": "text", "text": "ok"}, tool]}})
+        text = "Async agent launched successfully.\nagentId: a1" if i in background else "issues: none"
+        messages.append({"type": "user", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": f"toolu_{i}", "content": [{"type": "text", "text": text}]}]}})
+    for i in reported:
+        messages.append({"type": "system", "subtype": "task_notification", "tool_use_id": f"toolu_{i}",
+                         "status": "completed"})
     return messages + [{"type": "result", "result": '{"findings":[]}'}]
 
 
@@ -75,6 +87,38 @@ def test_arv_03_review_without_its_agents_is_not_reviewed():
     assert not gate.review_ran(execution(*FULL[:2], bash, bash))
     assert not gate.review_ran(execution(*FULL[:5]))
     assert not gate.review_ran([])
+
+
+def test_arv_03_review_before_its_agents_reported_is_not_reviewed():
+    # #309..#317: six agents launched in the background, the four reviewers had not reported when it returned.
+    assert not gate.review_ran(execution(*FULL, background=range(6), reported=(0, 1)))
+    assert gate.agents_reported(execution(*FULL, background=range(6), reported=(0, 1))) == 2
+    # Background agents that all completed before it returned did report.
+    assert gate.review_ran(execution(*FULL, background=range(6), reported=range(6)))
+    # A validator of step 4 that had not reported fails the review too.
+    assert not gate.review_ran(execution(*FULL, agent("Validate issue"), background=(6,)))
+    # A failed agent did not report.
+    failed = execution(*FULL)
+    failed[-2]["message"]["content"][0]["is_error"] = True
+    assert not gate.review_ran(failed)
+
+
+def test_arv_03_cli_says_how_many_reported():
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "early.json"
+        path.write_text(json.dumps(execution(*FULL, background=range(6), reported=(0, 1))))
+        done = run("--check-review", str(path))
+    assert done.returncode == 1
+    assert "6" in done.stdout and "2 reported" in done.stdout, done.stdout
+
+
+def test_arv_03_prompt_launches_agents_in_the_foreground():
+    prompt = (ROOT / ".github/review-prompt.md").read_text()
+    workflow = (ROOT / ".github/workflows/review.yml").read_text()
+    assert "run_in_background" in prompt and "foreground" in prompt
+    assert "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS" in workflow
 
 
 def test_arv_03_cli_checks_the_review():
@@ -111,6 +155,15 @@ def test_arv_04_recording_never_starts_a_round():
     assert gate.keep_review(["BACKLOG.md", "STATE.md"], found)
     # A subproject's STATE.md is not where findings are recorded: a finding on it is reviewed again.
     assert not gate.keep_review(["subprojects/app/STATE.md"], [f("minor", file="subprojects/app/STATE.md")])
+
+
+def test_arv_04_review_with_a_finding_outside_the_diff_is_not_kept():
+    placeholder = [f("minor", "plausible", file="N/A", line=0)]
+    assert not gate.keep_review(["STATE.md"], placeholder)
+    assert not gate.keep_review(["STATE.md"], [f("minor", file="x.rs", line=0)])
+    # With the PR's files known, a finding on a file the PR does not change is outside the diff too.
+    assert not gate.keep_review(["STATE.md"], [f("minor", file="y.rs", line=3)], pr_paths=["x.rs", "STATE.md"])
+    assert gate.keep_review(["STATE.md"], [f("minor", file="x.rs", line=3)], pr_paths=["x.rs", "STATE.md"])
 
 
 def test_arv_04_cli_keeps_or_reviews_again():
@@ -198,8 +251,8 @@ def test_arv_06_matrix():
     paths = {"low": "README.md", "medium": "subprojects/app/Sources/A.swift", "high": "CLAUDE.md"}
     for severity, lanes in expected.items():
         for impact, want in zip(("low", "medium", "high"), lanes):
-            found = [f(severity)] if severity else []
-            lane, reasons = gate.decide(files(paths[impact]), found, recorded=RECORDED)
+            found = [f(severity, file=paths[impact])] if severity else []
+            lane, reasons = gate.decide(files(paths[impact]), found, recorded=f"`{paths[impact]}:1`")
             assert lane == want, (severity, impact, lane, reasons)
 
 
@@ -208,8 +261,8 @@ def test_arv_06_plausible_counts_one_lower():
     assert gate.worst_finding([f("major", "plausible")]) == "minor"
     assert gate.worst_finding([f("minor", "plausible")]) is None
     assert gate.worst_finding([f("minor", "plausible"), f("major")]) == "major"
-    assert gate.decide(files("subprojects/app/Sources/A.swift"), [f("minor", "plausible")],
-                       recorded=RECORDED)[0] == "green"
+    swift = "subprojects/app/Sources/A.swift"
+    assert gate.decide(files(swift), [f("minor", "plausible", file=swift)], recorded=f"`{swift}:1`")[0] == "green"
 
 
 def test_arv_07_failed_check_is_red():
@@ -250,9 +303,9 @@ def test_arv_07_tests_and_docs_not_counted():
 
 
 def test_arv_07_fix_rounds_used_up_is_red():
-    found = [f("minor")]
+    found = [f("minor", file="README.md")]
     low = files("README.md")
-    assert gate.decide(low, found, review_round=2, recorded=RECORDED)[0] == "green"
+    assert gate.decide(low, found, review_round=2, recorded="`README.md:1`")[0] == "green"
     lane, reasons = gate.decide(low, found, review_round=3)
     assert lane == "red" and any("round" in r for r in reasons)
     assert gate.decide(low, [], review_round=3)[0] == "green"
@@ -310,7 +363,7 @@ def test_arv_08_stdlib_only():
 
 
 def test_arv_08_same_input_same_lane():
-    args = (files("subprojects/app/Sources/A.swift"), [f("minor")])
+    args = (files("subprojects/app/Sources/A.swift"), [f("minor", file="subprojects/app/Sources/A.swift")])
     assert gate.decide(*args) == gate.decide(*args) == ("amber", gate.decide(*args)[1])
 
 
@@ -322,46 +375,50 @@ def test_arv_08_cli_prints_lane_then_reasons():
     assert any(line.startswith("- ") and "not reviewed" in line for line in lines[1:])
 
 
+# Low files the PR changes, so a finding on them is in the diff (ARV-19).
+DOCS = files("README.md", "docs/x.md", "docs/a.md", "docs/b.md", "docs/c.md", "docs/sub/x.md")
+
+
 def test_arv_18_unrecorded_finding_makes_green_amber():
-    lane, reasons = gate.decide(files("README.md"), [f("minor", file="x.rs", line=7)])
+    lane, reasons = gate.decide(DOCS, [f("minor", file="docs/x.md", line=7)])
     assert lane == "amber", reasons
-    assert "not recorded: x.rs:7" in reasons
+    assert "not recorded: docs/x.md:7" in reasons
     # A plausible minor counts as none, but it is still a finding to record.
-    lane, reasons = gate.decide(files("README.md"), [f("minor", "plausible", file="x.rs", line=7)])
-    assert lane == "amber" and "not recorded: x.rs:7" in reasons
+    lane, reasons = gate.decide(DOCS, [f("minor", "plausible", file="docs/x.md", line=7)])
+    assert lane == "amber" and "not recorded: docs/x.md:7" in reasons
 
 
 def test_arv_18_recorded_finding_stays_green():
-    row = "+| FIX-03 | off by one | `subprojects/x.rs:7` | ENG-01 | #300 | todo |"
-    lane, reasons = gate.decide(files("README.md"), [f("minor", file="subprojects/x.rs", line=7)], recorded=row)
+    row = "+| FIX-03 | off by one | `docs/sub/x.md:7` | ENG-01 | #300 | todo |"
+    lane, reasons = gate.decide(DOCS, [f("minor", file="docs/sub/x.md", line=7)], recorded=row)
     assert lane == "green", reasons
     assert not any(r.startswith("not recorded") for r in reasons)
 
 
 def test_arv_18_file_and_line_match_exactly():
-    found = [f("minor", file="x.rs", line=7)]
-    for text in ("`x.rs:70`", "`x.rs:17`", "`lib/x.rs:7`", "`xx.rs:7`", "x.rs line 7"):
-        lane, reasons = gate.decide(files("README.md"), found, recorded=text)
-        assert lane == "amber" and "not recorded: x.rs:7" in reasons, text
-    for text in ("`x.rs:7`", "x.rs:7, x.rs:9", "(x.rs:7)"):
-        assert gate.decide(files("README.md"), found, recorded=text)[0] == "green", text
+    found = [f("minor", file="docs/x.md", line=7)]
+    for text in ("`docs/x.md:70`", "`docs/x.md:17`", "`lib/docs/x.md:7`", "`docs/xx.md:7`", "docs/x.md line 7"):
+        lane, reasons = gate.decide(DOCS, found, recorded=text)
+        assert lane == "amber" and "not recorded: docs/x.md:7" in reasons, text
+    for text in ("`docs/x.md:7`", "docs/x.md:7, docs/x.md:9", "(docs/x.md:7)"):
+        assert gate.decide(DOCS, found, recorded=text)[0] == "green", text
 
 
 def test_arv_18_every_unrecorded_finding_is_named():
-    found = [f("minor", file="a.rs", line=1), f("minor", file="b.rs", line=2), f("minor", file="c.rs", line=3)]
-    lane, reasons = gate.decide(files("README.md"), found, recorded="`b.rs:2`")
+    found = [f("minor", file=f"docs/{n}.md", line=i) for i, n in enumerate("abc", 1)]
+    lane, reasons = gate.decide(DOCS, found, recorded="`docs/b.md:2`")
     assert lane == "amber"
-    assert "not recorded: a.rs:1" in reasons and "not recorded: c.rs:3" in reasons
-    assert "not recorded: b.rs:2" not in reasons
+    assert "not recorded: docs/a.md:1" in reasons and "not recorded: docs/c.md:3" in reasons
+    assert "not recorded: docs/b.md:2" not in reasons
 
 
 def test_arv_18_red_stays_red_and_shows_what_to_record():
-    lane, reasons = gate.decide(files("README.md"), [f("blocker", file="x.rs", line=7)])
-    assert lane == "red" and "not recorded: x.rs:7" in reasons
-    lane, reasons = gate.decide(files("CLAUDE.md"), [f("minor", file="x.rs", line=7)])
-    assert lane == "red" and "not recorded: x.rs:7" in reasons
-    lane, reasons = gate.decide(files("README.md"), [f("major", file="x.rs", line=7)])
-    assert lane == "amber" and "not recorded: x.rs:7" in reasons
+    lane, reasons = gate.decide(DOCS, [f("blocker", file="docs/x.md", line=7)])
+    assert lane == "red" and "not recorded: docs/x.md:7" in reasons
+    lane, reasons = gate.decide(files("CLAUDE.md", "docs/x.md"), [f("minor", file="docs/x.md", line=7)])
+    assert lane == "red" and "not recorded: docs/x.md:7" in reasons
+    lane, reasons = gate.decide(DOCS, [f("major", file="docs/x.md", line=7)])
+    assert lane == "amber" and "not recorded: docs/x.md:7" in reasons
 
 
 def test_arv_18_not_reviewed_or_clean_names_nothing():
@@ -385,17 +442,77 @@ def test_arv_18_only_added_lines_record():
     assert "k.rs:1" not in text and "g.rs:2" not in text and "b/BACKLOG.md" not in text
 
 
-def test_arv_18_cli_reads_the_findings():
+def gate_in_repo(tmp, findings, changed="docs/x.md"):
+    """Run the gate CLI in a throwaway repo whose last commit changes `changed`, against HEAD~1."""
     import json
+    import shutil
+    repo = Path(tmp) / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    shutil.copy(SCRIPT, repo / "scripts/risk-gate.py")
+    git = lambda *a: subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *a], cwd=repo,
+                                    capture_output=True, text=True, check=True)
+    git("init", "-q")
+    git("add", ".")
+    git("commit", "-qm", "base")
+    (repo / changed).parent.mkdir(parents=True, exist_ok=True)
+    (repo / changed).write_text("x\n")
+    git("add", ".")
+    git("commit", "-qm", "change")
+    path = Path(tmp) / "findings.json"
+    path.write_text(json.dumps(findings))
+    return subprocess.run([sys.executable, repo / "scripts/risk-gate.py", "--base", "HEAD~1", "--findings", str(path)],
+                          capture_output=True, text=True, cwd=repo)
+
+
+def test_arv_18_cli_reads_the_findings():
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
-        path = Path(tmp) / "findings.json"
-        path.write_text(json.dumps([f("minor", file="nowhere/x.rs", line=7)]))
-        done = run("--base", "HEAD", "--findings", str(path))
+        done = gate_in_repo(tmp, [f("minor", file="docs/x.md", line=7)])
     assert done.returncode == 0, done.stderr
     lines = done.stdout.splitlines()
     assert lines[0] == "amber", lines
-    assert "- not recorded: nowhere/x.rs:7" in lines
+    assert "- not recorded: docs/x.md:7" in lines
+
+
+PR_317 = {"file": "N/A", "line": 0, "severity": "minor", "verdict": "plausible",
+          "summary": "Review incomplete, not a code finding: the four reviewers of PR #317 had not reported when "
+                     "output was forced, so nothing was validated or posted. Re-run the review; do not treat this "
+                     "PR as clean."}
+
+
+def test_arv_19_pr_317_placeholder_is_not_reviewed():
+    lane, reasons = gate.decide(files("subprojects/app/Sources/A.swift"), [PR_317])
+    assert lane == "red", reasons
+    assert "not reviewed: finding outside the diff (N/A:0), re-run the review" in reasons
+    assert not any(r.startswith("not recorded") for r in reasons), reasons
+
+
+def test_arv_19_line_below_1_or_unchanged_file_is_outside_the_diff():
+    rows = files("a.rs", "README.md")
+    for finding in (f("minor", file="a.rs", line=0), f("minor", file="b.rs", line=4)):
+        lane, reasons = gate.decide(rows, [finding], recorded="")
+        where = f"{finding['file']}:{finding['line']}"
+        assert lane == "red" and f"not reviewed: finding outside the diff ({where}), re-run the review" in reasons
+        assert f"not recorded: {where}" not in reasons
+    # A finding in the diff is a finding as before.
+    lane, reasons = gate.decide(files("README.md"), [f("minor", file="README.md", line=4)])
+    assert lane == "amber" and "not recorded: README.md:4" in reasons
+
+
+def test_arv_19_real_findings_beside_a_placeholder_still_need_recording():
+    lane, reasons = gate.decide(files("a.rs"), [PR_317, f("major", file="a.rs", line=3)])
+    assert lane == "red"
+    assert "not recorded: a.rs:3" in reasons and "not recorded: N/A:0" not in reasons
+
+
+def test_arv_19_cli_pr_317_is_red():
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        done = gate_in_repo(tmp, [PR_317])
+    assert done.returncode == 0, done.stderr
+    lines = done.stdout.splitlines()
+    assert lines[0] == "red", lines
+    assert "- not reviewed: finding outside the diff (N/A:0), re-run the review" in lines
 
 
 def test_arv_09_labels():
@@ -406,7 +523,7 @@ def test_arv_09_labels():
 
 
 def test_arv_09_comment():
-    lane, reasons = gate.decide(files("subprojects/app/Sources/A.swift"), [f("minor")])
+    lane, reasons = gate.decide(files("subprojects/app/Sources/A.swift"), [f("minor", file="subprojects/app/Sources/A.swift")])
     text = gate.comment(lane, reasons, impact="medium", worst="minor")
     assert text.startswith(gate.MARKER)
     assert "| minor | green | **amber** | red |" in text

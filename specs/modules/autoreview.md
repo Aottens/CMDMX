@@ -7,7 +7,9 @@ gewoon zo gaan doen, ook voor dit project"). **ARV-01..17 approved by the owner 
 answer to every question under *Owner questions*. ARV-04, ARV-09, ARV-11..14 amended and ARV-18 added 2026-11-14 (owner: "bij oranje en
 rood de problemen teruggeven aan het project, zodat het harnas ze bij een volgende stap meeneemt"), **approved by
 the owner 2026-11-14**. ARV-01, ARV-03, ARV-05 and ARV-07 amended 2026-11-15 after eight PRs that were all red, some
-for the wrong reasons (owner: "ja, alle vier"), **approved by the owner 2026-11-15**.
+for the wrong reasons (owner: "ja, alle vier"), **approved by the owner 2026-11-15**. ARV-03 and ARV-04 amended and ARV-19
+added 2026-11-15 after #317, whose reviewers had not reported when the review returned (owner: "ja, bouwen"), **approved by the
+owner 2026-11-15**.
 
 The owner reviews and merges every PR (gate 2) but cannot catch a defect by reading a diff (DECISIONS 2026-10-24).
 A reviewer on GitHub that did not write the code, and a fixed rule that decides from its findings and the paths,
@@ -36,16 +38,22 @@ stays readable afterwards (sources in IDEA-57).
   the criteria the PR names, not for style, and gives every finding a severity and a verdict.
 - **ARV-03** The review job writes its findings as `findings.json` (a list of finding objects) to the job's artifacts
   and a table of them to the job summary. Without the secret, or when the review fails, it writes no file and the
-  summary says why; the gate then reads *not reviewed*. A review that launched fewer agents than the prompt's steps
-  name (two to prepare, four to review) has failed too, whatever it returned: an empty list from a review that did
-  not run its reviewers must not read as a clean review (owner, 2026-11-13, found on #298). The review's execution
+  summary says why; the gate then reads *not reviewed*. A review has failed too, whatever it returned, when fewer
+  agents reported back to it than the prompt's steps name (two to prepare, four to review), or when any agent it
+  launched had not reported by the time it returned: an empty list from a review that did not hear its reviewers
+  must not read as a clean review (owner, 2026-11-13, found on #298). An agent reports when its result comes back to
+  the review; one launched in the background reports only when its task completes. The prompt launches every agent
+  in the foreground and returns only after all of them have reported (amended 2026-11-15: from #309 to #317, nine of
+  the ten reviews still kept launched their reviewers in the background and returned before four of them had
+  reported; #317's first round returned a placeholder finding, the others `[]`). The review's execution
   file is kept as the artifact `review-execution` for 7 days, so a review that stopped early can be read afterwards
   (amended 2026-11-15).
 - **ARV-04** A push that changes only `low` files keeps the earlier review: no new review runs, and the gate reads the
   last `findings.json` of the PR. So rewriting `STATE.md` or adding backlog rows does not start another round. A push
   that changes a file a finding of the last review names, other than `BACKLOG.md` and `STATE.md`, is reviewed again,
   whatever its impact, so a fixed finding does not stay on the PR. A finding in those two files that the PR fixes is
-  recorded as a `FIX-nn` row that is already `done`, so recording never starts a round.
+  recorded as a `FIX-nn` row that is already `done`, so recording never starts a round. A review with a finding outside
+  the diff (ARV-19) is never kept: the next push is reviewed again.
 
 ## The gate
 - **ARV-05** `scripts/risk-gate.py` gives each changed file an impact from one table at the top of the script; the
@@ -87,6 +95,11 @@ stays readable afterwards (sources in IDEA-57).
 - **ARV-18** The gate names every finding of the last review whose `file:line` the PR's own changes to `BACKLOG.md`
   and `STATE.md` do not contain, as the reason `not recorded: <file:line>`. A green PR with such a finding is amber,
   so the harness records it (ARV-13) before it merges; on red the comment shows what is still to be recorded.
+- **ARV-19** A finding with no place in the PR's diff, a line below 1 or a file the PR does not change, is no defect
+  but a review that did not finish (on #317 it was `N/A:0`, "review incomplete, re-run the review"). The PR is *not
+  reviewed* and red, with the reason `not reviewed: finding outside the diff (<file:line>), re-run the review`; such a
+  finding is never `not recorded` (ARV-18) and is not recorded (ARV-13). The harness re-runs the review
+  (`gh run rerun`) instead of recording it.
 
 ## Acting on the lane
 - **ARV-10** Green: when the repository variable `AUTOMERGE` is `on`, auto-merge is switched on and GitHub merges once

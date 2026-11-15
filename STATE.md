@@ -18,8 +18,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
    (Blind and Edit) stays apart.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
-   in shadow; a finding a PR leaves unfixed must be recorded first. After five PRs through the gate, ARB-03 lets
-   green PRs merge by themselves.
+   in shadow; a finding a PR leaves unfixed must be recorded first. Nine of the ten reviews up to #317 returned
+   before their reviewers reported, so the five PRs through the gate that ARB-03 waits for count from this fix on.
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):

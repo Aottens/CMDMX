@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17..18): paths, findings, checks and round give a lane.
+"""The risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17..19): paths, findings, checks and round give a lane.
 
 A spec file is medium, high when the PR changes a criterion line (ARV-05). Tests and .md files are not counted
 in the 600 lines, and only the PR title can name a sub-release (ARV-07).
@@ -7,14 +7,17 @@ in the 600 lines, and only the PR title can name a sub-release (ARV-07).
 Standard library only, no model, no network: the same input always gives the same lane (ARV-08).
 
 Usage:
-  risk-gate.py --keep-review FINDINGS < paths   exit 0 when the earlier review is kept (ARV-04)
+  risk-gate.py --keep-review FINDINGS [--pr-files FILE] < paths
+      Exit 0 when the earlier review is kept (ARV-04); FILE lists the PR's files, one per line (ARV-19).
   risk-gate.py --table findings.json        findings as a Markdown table for the job summary (ARV-03)
   risk-gate.py --check-review execution.json
-      Counts the agents the review launched; exit 0 when it ran its reviewers, 1 when not (ARV-03).
+      Counts the agents the review launched and how many reported; exit 0 when it ran its reviewers and
+      every agent reported, 1 when not (ARV-03).
       Used by .github/workflows/review.yml before it writes findings.json.
   risk-gate.py --base origin/main [--findings findings.json] [--round N] [--failed-check NAME]...
                [--comment out.md] [--body-out body.md]
       Decides from `git diff --numstat <base>...HEAD`; PR_TITLE and PR_BODY come from the environment.
+      A finding outside the diff (line < 1, or a file the PR does not change) is not reviewed: red (ARV-19).
       Findings whose file:line the PR's added BACKLOG.md/STATE.md lines lack make a green lane amber (ARV-18).
       Prints the lane, then one "- reason" line per reason. Always exits 0; the workflow acts on the lane.
 """
@@ -91,10 +94,17 @@ def worst_impact(paths):
     return max((impact(p) for p in paths), key=ORDER.index, default="low")
 
 
-def keep_review(paths, findings):
+def outside_diff(finding, paths):
+    # ARV-19: a finding without a line, or on a file the PR does not change, is no review of this diff
+    return finding["line"] < 1 or (paths is not None and finding["file"] not in paths)
+
+
+def keep_review(paths, findings, pr_paths=None):
     # ARV-04: only low files changed, and none is named by a finding (BACKLOG.md and STATE.md excepted)
+    # ARV-19: and no earlier finding is outside the diff
     named = {f.get("file") for f in findings if isinstance(f, dict)} - {"BACKLOG.md", "STATE.md"}
-    return worst_impact(paths) == "low" and not named.intersection(paths)
+    return (worst_impact(paths) == "low" and not named.intersection(paths)
+            and not any(outside_diff(f, pr_paths) for f in findings))
 
 
 def worst_finding(findings):
@@ -136,6 +146,9 @@ def changes_criteria(old_text, new_text):
 
 
 def decide(rows, findings, review_round=1, failed_checks=(), title="", body="", recorded="", criteria_changed=()):
+    paths = [path for _, _, path in rows]
+    outside = [x for x in findings or [] if outside_diff(x, paths)]
+    findings = [x for x in findings if x not in outside] if findings is not None else None
     worst = worst_finding(findings or [])
     level = worst_impact([path for _, _, path in rows])
     if criteria_changed:
@@ -146,6 +159,7 @@ def decide(rows, findings, review_round=1, failed_checks=(), title="", body="", 
     red = [f"required check failed: {name}" for name in failed_checks]
     if findings is None:
         red.append("not reviewed: no findings.json")
+    red += [f"not reviewed: finding outside the diff ({x['file']}:{x['line']}), re-run the review" for x in outside]
     lines = count_lines(rows)
     if lines > MAX_LINES:
         red.append(f"{lines} changed lines, more than {MAX_LINES}")
@@ -216,13 +230,38 @@ def agents_launched(messages):
     return count
 
 
+def agents_reported(messages):
+    """Launched agents that reported: a tool result that is no error and no "Async agent launched", or a completed
+    task_notification (a background agent reports there, later)."""
+    launched, done = set(), set()
+    for m in messages if isinstance(messages, list) else []:
+        if not isinstance(m, dict):
+            continue
+        body = m.get("message")
+        content = body.get("content") if isinstance(body, dict) else None
+        for block in content if isinstance(content, list) else []:
+            if not isinstance(block, dict):
+                continue
+            kind = (m.get("type"), block.get("type"))
+            if kind == ("assistant", "tool_use") and block.get("name") in ("Agent", "Task"):
+                launched.add(block.get("id"))
+            elif kind == ("user", "tool_result") and not block.get("is_error") \
+                    and "Async agent launched" not in json.dumps(block.get("content")):
+                done.add(block.get("tool_use_id"))
+        if m.get("type") == "system" and m.get("subtype") == "task_notification" and m.get("status") == "completed":
+            done.add(m.get("tool_use_id"))
+    return len(launched & done)
+
+
 def review_ran(messages):
-    return agents_launched(messages) >= MIN_AGENTS
+    n = agents_launched(messages)
+    return n >= MIN_AGENTS and agents_reported(messages) >= n
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--keep-review")
+    ap.add_argument("--pr-files")
     ap.add_argument("--table")
     ap.add_argument("--check-review")
     ap.add_argument("--base")
@@ -235,7 +274,11 @@ def main():
     if args.keep_review:
         paths = [p for p in sys.stdin.read().splitlines() if p.strip()]
         earlier = load_findings(args.keep_review)
-        keep = earlier is not None and keep_review(paths, earlier)
+        try:
+            pr_paths = open(args.pr_files).read().splitlines() if args.pr_files else None
+        except OSError:
+            pr_paths = None
+        keep = earlier is not None and keep_review(paths, earlier, pr_paths)
         print("keep the earlier review" if keep else "review again: no earlier findings" if earlier is None
               else "review again: a changed file is not low or is named by a finding")
         sys.exit(0 if keep else 1)
@@ -245,7 +288,9 @@ def main():
         messages = load_findings(args.check_review) or []
         n = agents_launched(messages)
         ok = review_ran(messages)
-        print(f"review ran {n} agents" + ("" if ok else f", the prompt's steps need {MIN_AGENTS}"))
+        got = agents_reported(messages)
+        print(f"review ran {n} agents, {got} reported"
+              + ("" if ok else f"; the prompt's steps need {MIN_AGENTS}, all must report"))
         sys.exit(0 if ok else 1)
     elif args.base:
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
