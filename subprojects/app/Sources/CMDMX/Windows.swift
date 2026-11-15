@@ -219,7 +219,29 @@ private struct CellScroll<Content: View>: View {
 
 // MARK: - Fixtures (UI-11)
 
+/// UI-88: the Fixtures | Groups switch in the title row (true = Groups).
+private struct WindowSwitch: View {
+    @Binding var groups: Bool
+    var body: some View {
+        HStack(spacing: 2) {
+            Button("Fixtures") { groups = false }.buttonStyle(FlatButton(fill: groups ? nil : .blue, compact: true))
+            Button("Groups") { groups = true }.buttonStyle(FlatButton(fill: groups ? .blue : nil, compact: true))
+        }
+    }
+}
+
+/// UI-88: the Fixtures window's place in a workspace; the switch is remembered per workspace.
+struct FixturesSlot: View {
+    @AppStorage private var groups: Bool
+    init(workspace: String) { _groups = AppStorage(wrappedValue: false, "fixturesShowsGroups.\(workspace)") }
+    var body: some View {
+        if groups { GroupsWindow(switcher: $groups) } else { FixturesWindow(switcher: $groups) }
+    }
+}
+
 struct FixturesWindow: View {
+    /// UI-88: nil = no switch.
+    var switcher: Binding<Bool>?
     /// A tile of the grid: a fixture or one of its cells, or the empty handle slot (UI-77).
     fileprivate enum Tile: Hashable { case item(Item), empty(Int) }
 
@@ -367,6 +389,7 @@ struct FixturesWindow: View {
                 : onShown == programmer.selection.count ? "\(programmer.selection.count) selected · order shown"
                 : "\(programmer.selection.count) selected · \(onShown) on page \(shown + 1)",
             accessory: {
+                if let switcher { WindowSwitch(groups: switcher) }
                 TextField("Find", text: $find).textFieldStyle(.plain).font(Typo.mono(Typo.small))
                     .frame(width: 110).focused($findFocused)
                     .onSubmit { selectMatches(sorted) }
@@ -526,6 +549,8 @@ extension FixturesWindow {
 // MARK: - Groups (UI-12)
 
 struct GroupsWindow: View {
+    /// UI-88: nil = no switch.
+    var switcher: Binding<Bool>?
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
 
@@ -538,7 +563,7 @@ struct GroupsWindow: View {
         PanelWindow(
             title: "Groups",
             info: "\(engine.groups.count) groups",
-            accessory: { EmptyView() }   // Record is a function button now (UI-16)
+            accessory: { if let switcher { WindowSwitch(groups: switcher) } }   // Record is a function button now (UI-16)
         ) {
             CellScroll {
                 ForEach(1...cells, id: \.self) { id in
@@ -631,10 +656,10 @@ enum WindowKind {
         }
     }
 
-    @ViewBuilder var view: some View {
+    @ViewBuilder func view(workspace: String) -> some View {
         switch self {
         case .groups: GroupsWindow()
-        case .fixtures: FixturesWindow()
+        case .fixtures: FixturesSlot(workspace: workspace)
         case .colours: PaletteWindow(kind: .colours)
         case .positions: PaletteWindow(kind: .positions)
         case .beams: PaletteWindow(kind: .beams)
@@ -685,7 +710,7 @@ struct WindowGrid: View {
 
     @ViewBuilder private func cell(_ i: Int, _ w: CGFloat, _ h: CGFloat) -> some View {
         if let kind = workspace.windows[safe: i] {
-            kind.view.frame(width: max(0, w), height: max(0, h)).clipped()
+            kind.view(workspace: workspace.name).frame(width: max(0, w), height: max(0, h)).clipped()
         }
     }
 }
