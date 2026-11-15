@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-15 — The flap's hinge: a €2 black piano hinge instead of the Pinet stainless one (owner, HWB-10)
+
+**Decision:** The screen flap hinges on a Duovorm black zinc-plated steel piano hinge, 480 x 25 x 0.7 mm (meubelbeslagonline.nl, €2.32), used uncut at X 72..552 and let 0.7 mm into the walnut and the deck. It replaces the Pinet stainless 25 x 1.0 hinge from RS. Record: `subprojects/hardware/cad/klep/README.md`.
+
+**Alternatives considered:** the Pinet hinge (RS 328-9666); a Hettich stainless matt hinge, 1200 x 32 mm (Hornbach, about €7.55), whose 16 mm leaves are wider than the 12.3 mm walnut bar; a brass-plated Hettich of 20 mm.
+
+**Reasoning:** The owner found the RS hinge too dear. The hinge carries at most about 100 N spread over 480 mm, it has the right width for the walnut bar, and black suits the anthracite and walnut.
+
+**Reversal trigger:** the gate-3 run shows play in the hinge that counts toward the 2 mm of HW-56, or the black finish wears off where it shows.
+
+---
+
 ## 2026-11-15 — The screen flap: a walnut frame all round, a 0.38 mm lip, a 95 mm strut on grooves sunk in the deck (owner, HWB-10; amends HW-54)
 
 **Decision:** The flap gets walnut on all four edges, not only on its sides: top and bottom bars of 570 x 12.3 x 24, so the only print joins on the face sit behind the glass and the walnut (HW-58). The glass sits 0.38 mm under the face. A 0.38 mm lip on the printed side fields holds it forward, and clamp strips press it from behind through 1 mm foam, with no glue. The hinge is a Pinet stainless piano hinge, 25 x 1.0 mm (RS 328-9666). The strut pivots 9 mm inside the flap, its foot rod drops into four grooves sunk 5 mm into the deck, and so it is 95 mm long instead of the massing's 85 (grooves at y 454.0, 493.2, 520.8 and 540.2). The cables run 40 mm along the hinge axis, so folding twists them by 45° instead of bending them. Record: `subprojects/hardware/cad/klep/README.md`.

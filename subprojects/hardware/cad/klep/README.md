@@ -33,8 +33,8 @@ Desk coordinates: the hinge axis runs along x at (y 345, z 13), and the deck fac
 - **Back cover (HW-57).** Cover A (78..330) lies over the driver board, with vents under it and 2 mm thin under the
   plugs. Cover B covers the rest. Each cover has a tongue in a groove of the walnut bottom bar, and is screwed at the
   top into the walnut and at the side into a block. The cable lid on the left block is separate.
-- **Hinge.** A stainless piano hinge, 25 mm wide and 1.0 mm thick, cut to 508 mm (X 58..566). Its leaves are let
-  1 mm into the walnut bottom bar and into the base, and the knuckle sits in a cove on the axis.
+- **Hinge.** A black piano hinge, 480 x 25 x 0.7 mm, used uncut (X 72..552). Its leaves are let 0.7 mm into the
+  walnut bottom bar and into the base, and the knuckle sits in a cove on the axis.
 - **Strut and rack (HW-56).** Each side block takes a 6 mm stainless pivot pin, 115 mm along the flap and 9 mm
   inside it. On the pin an aluminium arm of 15 x 5 swings, 95 mm between centres, on an iglidur sleeve. An 8 mm
   stainless foot rod joins the two arms. The rod drops into four sawtooth grooves sunk 5 mm into the deck, with the
@@ -58,14 +58,14 @@ Desk coordinates: the hinge axis runs along x at (y 345, z 13), and the deck fac
 
 | Part | Spec | Source |
 |---|---|---|
-| Piano hinge | Pinet stainless steel, barrel pin, 1020 x 25 x 1.0 mm; cut 508 mm (one bar gives two). | RS Components Netherlands, RS 328-9666 (Pinet 42-2-4060, made in France). Ships from RS's EU warehouse: delivered (DDP), Dutch VAT on the invoice, no import duty within the EU. Check the hole pitch on arrival. If it misses the walnut, drill 3.0 mm countersunk holes at 50 mm. |
+| Piano hinge | Duovorm black zinc-plated steel, 480 x 25 x 0.7 mm (SKU DV13343), uncut; €2.32 incl. VAT (owner's pick, 2026-11-15: the Pinet stainless hinge from RS was too dear for this). The hinge carries at most about 100 N along its length. | meubelbeslagonline.nl, a Dutch shop: ships within NL, VAT included, no import; free delivery from €199, so add it to a larger order. Check the hole pitch on arrival. If it misses the walnut, drill 2.5 mm countersunk holes. |
 | Walnut | American black walnut, planed: 2 x 250 x 24 x 12, 2 x 570 x 24 x 12.3. Rebates 5 x 3 on the inner back edge of the sides and the top bar. A 3 x 2.4 groove (Z 3.3..5.7) along the inner face of the bottom bar from X 95.3 to 474.7. The 1 mm hinge mortise, the R 2.4 knuckle cove, the R 6.5 cable channel and the notch at X 40..54, all as in the STEP. Corners: butt joints, two 6 x 30 beech dowels and PVA each (the frame is glued; the glass never is). | The same timber source as the desk's frame (HWB-07). |
 | Clamp bar | Aluminium flat bar EN AW-6060, 15 x 5, 396 mm, no holes. | Any EU metal stockist that cuts to length (e.g. a German online cut-to-size shop: ships from Germany, delivered, VAT incl.). |
 | Strut arms | 2 x aluminium flat bar 15 x 5, 110 mm, ends rounded R 7.5, two Ø 8.0 holes 95.0 mm apart. An M4 grub screw (DIN 916, A2) through each arm's foot end onto a flat on the rod. | As above. |
 | Pivot pins | 2 x dowel pin ISO 2338 6 m6 x 45, stainless A1; a printed hole is reamed to 6.0 and the pin is pressed in. Retained by M3 x 6 with a DIN 9021 washer. | Any EU fastener shop. |
-| Arm sleeves | 2 x igus iglidur G flange bearing GFM-0608-05 (6 bore, 8 outer, 5 long: the arm's thickness), pressed into the arms' pivot holes. | RS Components Netherlands, RS 272-4546, in the same order as the hinge (EU warehouse, DDP, Dutch VAT, no import duty); or igus GmbH directly (ships from Cologne, DE). |
+| Arm sleeves | 2 x igus iglidur G flange bearing GFM-0608-05 (6 bore, 8 outer, 5 long: the arm's thickness), pressed into the arms' pivot holes. | igus GmbH (igus.eu, ships from Cologne, DE: delivered, VAT incl., no import), or RS Components Netherlands, RS 272-4546 (EU warehouse, DDP, Dutch VAT). |
 | Foot rod | Stainless 1.4301 round bar Ø 8 h9, 450 mm, with two flats for the grub screws. | As the flat bar. |
-| Inserts and screws | Heat-set inserts M3 x 4 (hole 4.0, 34 pcs); ISO 14583 A2 Torx pan head M3 x 8 (30) and M3 x 10 (12), so a T10 screwdriver does the whole swap; stainless wood screws 3.0 x 16 pan head (15) and 3.0 x 12 countersunk for the hinge. | Ruthex inserts (ships from Germany, VAT incl.); screws from any EU fastener shop. |
+| Inserts and screws | Heat-set inserts M3 x 4 (hole 4.0, 34 pcs); ISO 14583 A2 Torx pan head M3 x 8 (30) and M3 x 10 (12), so a T10 screwdriver does the whole swap; stainless wood screws 3.0 x 16 pan head (15) and 2.5 x 12 countersunk for the hinge. | Ruthex inserts (ships from Germany, VAT incl.); screws from any EU fastener shop. |
 | Foam | Closed-cell silicone or EPDM sponge, 1.0 mm, 10 mm strip, adhesive on one side: it sticks to the clamp, never to the glass. About 1.2 m. | Any EU rubber supplier. |
 | Cables | Slim HDMI (OD ≤ 4.5 mm, overmould ≤ 21 x 11 mm), micro-USB B to A, 12 V DC 3.5 x 1.35 mm, each about 0.6 m. | Buy with the screen. |
 
