@@ -187,6 +187,8 @@ struct ConsoleCommands: Commands {
                     .keyboardShortcut(key.shortcut)
                     .disabled(!key.enabled(ui))
             }
+            Divider()
+            Button("Show engine log") { DaemonLauncher.shared.revealLog() }   // REL-30
         }
     }
 }

@@ -1680,6 +1680,7 @@ final class EngineClient: ObservableObject {
     @Published private(set) var unseenMessages = 0
     private static let messageCap = 500
     private var launcherNotes: AnyCancellable?
+    private var launcherStops: AnyCancellable?
     /// IPC-31: what Undo / Redo would do now; nil when there is nothing.
     @Published private(set) var undoLabel: String?
     /// UI-79: this app has sent an edit of its own; until then the undo history may hold earlier work.
@@ -1788,6 +1789,8 @@ final class EngineClient: ObservableObject {
         // UI-39: the launcher's notes (REL-12, 24..28); the sheet gets a line per change of text, not per attempt (REL-28).
         launcherNotes = DaemonLauncher.shared.$note.removeDuplicates().compactMap { $0 }
             .sink { [weak self] in self?.addMessage(level: "warning", message: $0, at: Date()) }
+        launcherStops = DaemonLauncher.shared.stopLine.removeDuplicates()   // REL-30: an engine that keeps failing alike, one line (REL-28)
+            .sink { [weak self] in self?.addMessage(level: "error", message: $0, at: Date()) }
         Task { await connectForever() }
     }
 

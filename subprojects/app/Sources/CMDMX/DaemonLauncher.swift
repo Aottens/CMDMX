@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Darwin
 import Foundation
 
@@ -12,6 +13,10 @@ final class DaemonLauncher: ObservableObject {
 
     /// Shown in the status bar next to the engine state; nil when all is well.
     @Published private(set) var note: String?
+    /// REL-30: one line for the Messages sheet when an engine ends without the app asking.
+    let stopLine = PassthroughSubject<String, Never>()
+    /// REL-30: size of daemon.log when the running engine started or was adopted.
+    private var logOffset: UInt64 = 0
 
     private let daemonURL = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/cmdmx-daemon")
     private let fm = FileManager.default
@@ -32,6 +37,43 @@ final class DaemonLauncher: ObservableObject {
     private(set) var ownsEngine = false
 
     private var logDir: URL { fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/CMDMX") }
+    private var logURL: URL { logDir.appendingPathComponent("daemon.log") }
+
+    /// REL-30: show daemon.log in Finder; the folder when there is no log yet.
+    func revealLog() {
+        if fm.fileExists(atPath: logURL.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([logURL])
+        } else if fm.fileExists(atPath: logDir.path) {
+            NSWorkspace.shared.open(logDir)
+        }
+    }
+
+    private func logSize() -> UInt64 {
+        ((try? fm.attributesOfItem(atPath: logURL.path))?[.size] as? NSNumber)?.uint64Value ?? 0
+    }
+
+    /// REL-30: what was added since the engine started, as one line; nil when nothing was added.
+    private func stopSummary() -> String? {
+        guard let h = try? FileHandle(forReadingFrom: logURL) else { return nil }
+        defer { try? h.close() }
+        guard let end = try? h.seekToEnd() else { return nil }
+        let from = end < logOffset ? 0 : max(logOffset, end > 262_144 ? end - 262_144 : 0)   // rotated: from 0; cap 256 KB
+        guard (try? h.seek(toOffset: from)) != nil, let data = try? h.readToEnd() else { return nil }
+        let lines = String(decoding: data, as: UTF8.self).split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        // Rust's panic hook puts the message on the line after `panicked at <file>:<line>:<col>:`; it joins them.
+        if let i = lines.firstIndex(where: { $0.contains("panicked at") }) {
+            let next = lines[safe: i + 1].flatMap { lines[i].hasSuffix(":") ? " \($0)" : nil } ?? ""
+            return String((lines[i] + next).prefix(200))
+        }
+        return lines.last.map { String($0.prefix(200)) }
+    }
+
+    private func reportStop(code: Int32?) {
+        let c = code.map { "code \($0)" } ?? "code unknown"
+        // ponytail: nothing added to the log gives the code alone.
+        stopLine.send("Engine stopped (\(c))" + (stopSummary().map { ": \($0)" } ?? ""))
+    }
     private var pidFile: URL {
         fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/CMDMX/daemon.pid")
     }
@@ -40,7 +82,7 @@ final class DaemonLauncher: ObservableObject {
     func start() {
         guard fm.isExecutableFile(atPath: daemonURL.path) else { return }
         ownsEngine = true
-        if let pid = adoptablePid() { adopted = pid; watch(pid); return }
+        if let pid = adoptablePid() { adopted = pid; logOffset = logSize(); watch(pid); return }
         launch()
     }
 
@@ -70,11 +112,13 @@ final class DaemonLauncher: ObservableObject {
         adoptedWatch?.cancel()
         adoptedWatch = nil
         guard !stopping else { return }
+        reportStop(code: nil)
         failed("Engine exited, restarting", code: nil)
     }
 
     private func launch() {
         let log = openLog()
+        logOffset = logSize()
         let p = Process()
         p.executableURL = daemonURL
         p.arguments = ["--qlcplus-dir", Bundle.main.bundleURL
@@ -103,7 +147,7 @@ final class DaemonLauncher: ObservableObject {
     /// REL-12: append to daemon.log; a log over 10 MB is moved to daemon.log.1 at app launch.
     private func openLog() -> FileHandle? {
         try? fm.createDirectory(at: logDir, withIntermediateDirectories: true)
-        let url = logDir.appendingPathComponent("daemon.log")
+        let url = logURL
         if child == nil, adopted == nil,
            let size = (try? fm.attributesOfItem(atPath: url.path))?[.size] as? Int, size > 10_000_000 {
             let old = logDir.appendingPathComponent("daemon.log.1")
@@ -127,6 +171,7 @@ final class DaemonLauncher: ObservableObject {
             return
         }
         if let t = startedAt, Date().timeIntervalSince(t) >= 60 { failures = 0 }
+        reportStop(code: code)
         failed("Engine exited (code \(code)), restarting", code: code)
     }
 

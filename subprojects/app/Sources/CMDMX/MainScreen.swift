@@ -924,7 +924,7 @@ private struct MessagesSheet: View {
                     }
                 }
             }
-            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }
+            HStack { Button("Show engine log") { DaemonLauncher.shared.revealLog() }; Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }
         }
         // Escape closes like Done; zero-size rather than .hidden(), which disables the shortcut.
         .background(Button("") { dismiss() }.keyboardShortcut(.cancelAction).frame(width: 0, height: 0).opacity(0))

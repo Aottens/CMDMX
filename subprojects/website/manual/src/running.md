@@ -243,6 +243,8 @@ CMDMX is built to keep the light on.
   after 2 seconds, also after you reopened the app following a crash. Once the engine is really back it says "Engine restarted: Demo is back,
   nothing is running", with the name of your show: the saved show is loaded, but no playback runs and the stage has changed, so start your look again.
   The line goes at your next command and stays in [Messages](reference.md).
+  Messages also gets a red line that says why: "Engine stopped (code 101): …" with the engine's own last words from
+  its log, the panic line when it panicked. Send that line along when you report the problem.
 - **The engine keeps failing:** the app waits longer each time, up to 30 seconds, and never gives up while it is open.
   From the third failure in a row the status bar says "Engine does not start (code N), trying every 30 s", with the place of the log.
 - **The Mac stays awake:** while the engine runs, with or without the app, the Mac does not go to sleep
