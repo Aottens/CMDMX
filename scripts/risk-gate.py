@@ -9,6 +9,8 @@ Standard library only, no model, no network: the same input always gives the sam
 Usage:
   risk-gate.py --keep-review FINDINGS [--pr-files FILE] < paths
       Exit 0 when the earlier review is kept (ARV-04); FILE lists the PR's files, one per line (ARV-19).
+  risk-gate.py --check-findings FINDINGS [--pr-files FILE]
+      Exit 1 when a finding is outside the diff: the review is not reviewed and uses no fix round (FIX-01, ARV-19).
   risk-gate.py --table findings.json        findings as a Markdown table for the job summary (ARV-03)
   risk-gate.py --check-review execution.json
       Counts the agents the review launched and how many reported; exit 0 when it ran its reviewers and
@@ -258,10 +260,18 @@ def review_ran(messages):
     return n >= MIN_AGENTS and agents_reported(messages) >= n
 
 
+def read_pr_paths(path):
+    try:
+        return open(path).read().splitlines() if path else None
+    except OSError:
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--keep-review")
     ap.add_argument("--pr-files")
+    ap.add_argument("--check-findings")
     ap.add_argument("--table")
     ap.add_argument("--check-review")
     ap.add_argument("--base")
@@ -274,14 +284,16 @@ def main():
     if args.keep_review:
         paths = [p for p in sys.stdin.read().splitlines() if p.strip()]
         earlier = load_findings(args.keep_review)
-        try:
-            pr_paths = open(args.pr_files).read().splitlines() if args.pr_files else None
-        except OSError:
-            pr_paths = None
-        keep = earlier is not None and keep_review(paths, earlier, pr_paths)
+        keep = earlier is not None and keep_review(paths, earlier, read_pr_paths(args.pr_files))
         print("keep the earlier review" if keep else "review again: no earlier findings" if earlier is None
               else "review again: a changed file is not low or is named by a finding")
         sys.exit(0 if keep else 1)
+    elif args.check_findings:
+        found = load_findings(args.check_findings)
+        pr_paths = read_pr_paths(args.pr_files)
+        out = [f"{f['file']}:{f['line']}" for f in found or [] if outside_diff(f, pr_paths)]
+        print(f"finding outside the diff ({', '.join(out)})" if out else "findings in the diff")
+        sys.exit(1 if found is None or out else 0)
     elif args.table:
         print(findings_table(load_findings(args.table) or []), end="")
     elif args.check_review:

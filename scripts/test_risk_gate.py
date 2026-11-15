@@ -505,6 +505,29 @@ def test_arv_19_real_findings_beside_a_placeholder_still_need_recording():
     assert "not recorded: a.rs:3" in reasons and "not recorded: N/A:0" not in reasons
 
 
+
+def test_arv_19_placeholder_review_uses_no_fix_round():
+    # FIX-01 (review of #318): a review with a finding outside the diff is not reviewed, so the review job writes
+    # no findings.json and no round.txt; the re-run is round 1 again.
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        found, pr = Path(tmp) / "findings.json", Path(tmp) / "pr-files.txt"
+        pr.write_text("a.rs\nREADME.md\n")
+        found.write_text(json.dumps([PR_317]))
+        done = run("--check-findings", str(found), "--pr-files", str(pr))
+        assert done.returncode == 1 and "outside the diff (N/A:0)" in done.stdout, done.stdout
+        found.write_text(json.dumps([f("minor", file="b.rs", line=4)]))
+        assert run("--check-findings", str(found), "--pr-files", str(pr)).returncode == 1
+        # Without the PR's files only the line can tell.
+        assert run("--check-findings", str(found)).returncode == 0
+        for ok in ([], [f("minor", file="a.rs", line=4)]):
+            found.write_text(json.dumps(ok))
+            assert run("--check-findings", str(found), "--pr-files", str(pr)).returncode == 0
+    workflow = (ROOT / ".github/workflows/review.yml").read_text()
+    write = workflow[workflow.index("write findings and summary"):]
+    assert write.index("--check-findings") < write.index("> findings/round.txt")
+
 def test_arv_19_cli_pr_317_is_red():
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:

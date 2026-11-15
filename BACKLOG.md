@@ -481,6 +481,13 @@ ARB-07 alone (found on #317 after its merge; gate, prompt and review workflow on
 | ARB-06 | The gate after eight red PRs: `specs/` is high only when a criterion line changes, `DECISIONS.md` and `INTERFACE.md` medium, `tests/` low except `tests/hardware/`; 600 lines counts code only; a sub-release only in the title; the review follows `.github/review-prompt.md` (the plugin's steps without its automated/trivial stop) and keeps its execution file. Owner, 2026-11-15. | ARV-01, ARV-03, ARV-05, ARV-07 | S | done (2026-11-15, #309) |
 | ARB-07 | A review whose agents had not all reported when it returned (they ran in the background), or with a finding outside the diff (`N/A:0` on #317), reads as *not reviewed* and red with "re-run the review", never as a finding to record or a clean review; the prompt launches its agents in the foreground. Owner, 2026-11-15. | ARV-03, ARV-04, ARV-19 | S | done (2026-11-15, #318) |
 
+### Fixes from reviews (ARV-13, ARV-14)
+Builds: FIX-01 alone (the first; review workflow and gate only, in shadow).
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| FIX-01 | A review with a finding outside the diff writes no `findings.json`, so it uses no fix round: on #318 a placeholder such as `N/A:0` still wrote one and counted as round 1, and the re-run's round 2 left one round too few (`.github/workflows/review.yml:55`, review of #318). | ARV-19, ARV-11 | S | doing |
+
 ## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions
 and PRs, no changes under `subprojects/engine` or `subprojects/app`, never ahead of a phase-1 task.

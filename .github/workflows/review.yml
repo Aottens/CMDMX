@@ -107,6 +107,15 @@ jobs:
                 | "\(.name) \(.input.command // .input.description // "" | tostring | .[0:150])"' "$EXECUTION"
               echo '```'; echo "</details>"; } >> "$GITHUB_STEP_SUMMARY"
           }
+          # Without the PR's files only a missing line can tell (ARV-19).
+          outside_diff() {
+            printf '%s' "$OUTPUT" | jq '.findings' > out.json
+            if gh pr diff "${{ github.event.pull_request.number }}" --name-only > pr-files.txt 2> /dev/null; then
+              scripts/risk-gate.py --check-findings out.json --pr-files pr-files.txt
+            else
+              scripts/risk-gate.py --check-findings out.json
+            fi
+          }
           mkdir findings
           if [ "$KEEP" = true ]; then
             cp earlier/findings.json earlier/round.txt findings/
@@ -122,6 +131,11 @@ jobs:
           elif ! ran=$(scripts/risk-gate.py --check-review "$EXECUTION"); then
             # An empty list from a review that skipped its reviewers is no clean review (ARV-03).
             echo "Not reviewed: $ran." >> "$GITHUB_STEP_SUMMARY"
+            trace
+            exit 0
+          elif ! out=$(outside_diff); then
+            # A finding outside the diff is no review, so it uses no fix round (FIX-01, ARV-19).
+            echo "Not reviewed: $out, re-run the review (ARV-19)." >> "$GITHUB_STEP_SUMMARY"
             trace
             exit 0
           else
