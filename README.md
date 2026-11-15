@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch, profiles, controls, show files and batches I and J are done: J brought the Mac keys, typed values, programming
-and locking from a surface. Next: DEF-06 and TST-01 beside batch J, then VS4-07 and VS4-03.
+and locking from a surface. Next: TST-01 beside batch J, then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap waits for a test print (HWB-10). Progress: [`STATE.md`](STATE.md), the plan: [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -259,6 +259,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   playbacks with their cues and times, on A4 or as PDF.
 - Undo and redo of every edit, 100 steps, while live playing (Go, faders, Flash) is never
   touched; ⌘Z and ⇧⌘Z. A step from before the app opened reads *Undo (earlier)* and asks a second press.
+  An undo that renumbers or takes away the cue a running list stands on keeps the list on that cue or the one below,
+  so Go goes on.
 - The app runs full screen with a status bar (engine, outputs, control devices, show), four
   workspaces, Patch, Output, Control and Show screens, and a dark and a day theme. The playback strips stay whole on
   a MacBook, full screen or in a window with the Dock: the rail scrolls and the side column keys shrink instead.

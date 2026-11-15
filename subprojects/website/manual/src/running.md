@@ -222,6 +222,11 @@ will undo. Recording, editing, deleting and patching can all be undone (see
 [Undo](programming.md#undo)). Running the show cannot: Go, Back, faders, Flash, the page, the GM
 and DBO are not undo steps, so an undo during a show never changes what is running.
 
+An undo can still take away or renumber the cue a running list stands on, for example a Renumber or a
+Move of cues undone. The list then stays on that cue under its old number, or, when the cue is gone, on
+the nearest cue below it. The stage does not change, the Go block shows the new current cue, and Go
+goes on from there.
+
 The engine keeps the last 100 steps. The history is shared by everything connected to the engine
 and is gone when the engine restarts.
 
