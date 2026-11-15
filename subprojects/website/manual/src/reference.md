@@ -197,7 +197,8 @@ open a screen; a warning or an error stays until the next command. A click on th
 on the amber count next to it, opens **Messages**: the history, newest first, with the time and the level
 (warning, notice or error) of each line. Close it with **Done** or Esc. The count is the number of warnings
 and errors since you last opened it, and it stays when the line clears. With a full screen open (Output,
-Patch, Show) the count waits until you are back on a workspace.
+Patch, Show) the count waits until you are back on a workspace. **Show engine log** in Messages, and in the **Console**
+menu, shows the engine's log file in Finder.
 
 The list holds the engine's last 200 warnings and notices, which survive a restart of the app, and the app's
 own lines: the engine going offline and connecting, the engine restarting ("Engine restarted: Demo is

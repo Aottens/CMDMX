@@ -12,6 +12,9 @@ is highlighted, and the strips show its handles.
 
 - Changing the page never changes what is running. A playback that is up on page 1 keeps running
   while you look at page 2, and shows its level again when you go back.
+- A green bar along the bottom of a page button says that a playback on that page is running or still
+  releasing, so from page 2 you see that something on page 1 is up. Page Up and Page Down on the Mac keyboard go to
+  the previous and next page.
 - **Set Legend**, then a click on a page button, names the page (up to 32 characters). The name
   is shown next to the number.
 
@@ -150,6 +153,23 @@ and **Shift+Space** is Back on the connected list. While it is off, Space does n
 key never runs a cue. Space never acts while you are typing in a text field. Command-1 to
 Command-5 switch workspaces whether Keys is on or not.
 
+Titan's PC shortcuts work on the Option key (⌥) whether Keys is on or not, as long as you are not typing in a text
+field and no sheet or lock is up. Each does what its button on the screen does, and a key held down counts once:
+
+| Key | Does | Key | Does |
+|---|---|---|---|
+| ⌥C | Clear | ⌥⇧C | Copy |
+| ⌥R | Record | ⌥⇧R | Release |
+| ⌥U | Unfold | ⌥⇧U | Update |
+| ⌥I | Include | ⌥D | Delete |
+| ⌥M | Move | ⌥L | Locate |
+| ⌥G | Go on the connected list | ⌥1 to ⌥7 | softkeys A to G |
+| ⌥← and ⌥→ | Fix −1 and Fix +1 | ⌥↑ | All |
+| ⌥↓ | Highlight | Page Up and Page Down | the previous and next page |
+
+The **Console** menu in the menu bar lists them all with their keys, greyed where the screen has no such button
+(on Patch or Show, say), so you can also pick them there. The softkey items carry what the softkey says now.
+
 **Keypad** in the status bar shows or hides the keypad. On a window narrower than 1440 points, such as a
 laptop screen, there is no room for both: the keypad then takes the place of the softkeys, and turning
 **Keypad** off brings the softkeys back.
@@ -223,6 +243,8 @@ CMDMX is built to keep the light on.
   after 2 seconds, also after you reopened the app following a crash. Once the engine is really back it says "Engine restarted: Demo is back,
   nothing is running", with the name of your show: the saved show is loaded, but no playback runs and the stage has changed, so start your look again.
   The line goes at your next command and stays in [Messages](reference.md).
+  Messages also gets a red line that says why: "Engine stopped (code 101): …" with the engine's own last words from
+  its log, the panic line when it panicked. Send that line along when you report the problem.
 - **The engine keeps failing:** the app waits longer each time, up to 30 seconds, and never gives up while it is open.
   From the third failure in a row the status bar says "Engine does not start (code N), trying every 30 s", with the place of the log.
 - **The Mac stays awake:** while the engine runs, with or without the app, the Mac does not go to sleep

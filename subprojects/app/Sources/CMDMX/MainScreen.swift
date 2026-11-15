@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 // The main screen (UI-01): six zones, flush, separated by 1 px hairlines. Only the window grid
@@ -104,6 +105,10 @@ final class UIState: ObservableObject {
     enum Screen { case patch, views, output, control, show, remote, options }
 
     @Published var workspace = 0
+    /// UI-86: what softkeys A...G show now (nil = empty or disabled); set by the Softkeys view, read by the Console menu.
+    @Published var softkeyNames: [String?] = []
+    /// UI-86: ⌥1...⌥7 and the menu press a softkey through the view that holds its context.
+    let softkeyPress = PassthroughSubject<Int, Never>()
     /// UI-39: the Messages sheet.
     @Published var messagesOpen = false
     /// UI-38: the Lock prompt, and the digits typed into it or into the cover.
@@ -488,13 +493,8 @@ final class UIState: ObservableObject {
 struct MainScreen: View {
     @AppStorage("dayTheme") private var day = false
     @AppStorage("consoleMode") private var console = true
-    @StateObject private var ui = UIState()
-    @StateObject private var line = TokenLine()
-
     var body: some View {
         Frame()
-            .environmentObject(ui)
-            .environmentObject(line)
             .environment(\.theme, day ? .day : .dark)
             .preferredColorScheme(day ? .light : .dark)   // native controls follow the app, not macOS
             .background(WindowConfigurator(console: console))
@@ -641,6 +641,9 @@ private struct Workspaces: View {
                 WindowGrid(workspace: workspace)
                     .opacity(visible ? 1 : 0)
                     .allowsHitTesting(visible)
+                    // UI-86: a text field in a hidden workspace (Fixtures' Find) must not hold the keyboard, or Keys
+                    // and the ⌥ keys type into it; disabled, it can neither take focus at launch nor keep it.
+                    .disabled(!visible)
                     .accessibilityElement(children: visible ? .contain : .ignore)
                     .accessibilityHidden(!visible)
             }
@@ -924,7 +927,7 @@ private struct MessagesSheet: View {
                     }
                 }
             }
-            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }
+            HStack { Button("Show engine log") { DaemonLauncher.shared.revealLog() }; Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }
         }
         // Escape closes like Done; zero-size rather than .hidden(), which disables the shortcut.
         .background(Button("") { dismiss() }.keyboardShortcut(.cancelAction).frame(width: 0, height: 0).opacity(0))

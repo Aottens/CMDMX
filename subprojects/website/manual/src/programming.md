@@ -81,12 +81,14 @@ with a message next to it, and nothing changes. A click on the message opens the
 [Messages](reference.md#messages)).
 
 With **Keys** on in the status bar, the Mac keyboard types into the line as well: the digits, `-`
-for Thro, `+` for And (right after `@` they type `-` and `+`, for a relative level), `@` (twice for full), `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter.
+for Thro, `+` for And (right after `@` they type `-` and `+`, for a relative level), `@` (twice for full), `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. On the numeric keypad `/` is Thro and `*` is `@` as well. Return is Enter.
 Escape is Exit too, also with **Keys** off, and with nothing to exit it goes one level up (see the
 [reference](reference.md)).
 With **Keys** off, which is how the app starts the first time, those keys do nothing, and they or a click on the line
 say so in the message zone: use the keypad, or turn **Keys** on. On a narrow window the keypad shows
 while **Keypad** is on in the status bar, in the place of the softkeys (see [Running a show](running.md#the-keyboard)).
+Clear, Record, Update and the other function keys have Option shortcuts that work with **Keys** off too, such as
+⌥C for Clear and ⌥R for Record; [Running a show](running.md#the-keyboard) lists them, and so does the **Console** menu.
 
 ### Stepping and patterns
 
