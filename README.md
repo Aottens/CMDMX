@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch, profiles, controls, show files and batches I and J are done: J brought the Mac keys, typed values, programming
-and locking from a surface. Next: TST-01 beside batch J, then VS4-07 and VS4-03.
+and locking from a surface. Next: VS4-07 and VS4-03, the first service.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap waits for a test print (HWB-10). Progress: [`STATE.md`](STATE.md), the plan: [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -323,6 +323,8 @@ risk gate ([`risk-gate.py`](scripts/risk-gate.py)) labels it `risk: green`, `ris
 findings and the paths it touches, and holds a green PR at amber until the findings it leaves are recorded in the
 backlog. A review that did not hear all its reviewers counts as not reviewed and goes to the owner;
 for now the gate only advises ([`autoreview.md`](specs/modules/autoreview.md)).
+The engine's tests never send DMX off the Mac: a test checks that every daemon start turns Art-Net, sACN and serial
+off, or sends only to 127.0.0.1 (OUT-43).
 Anything that touches hardware also gets a checklist that the owner runs on the real gear. Details are in
 [`CLAUDE.md`](CLAUDE.md).
 

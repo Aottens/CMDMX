@@ -1,5 +1,7 @@
 //! The console lock on the real tick (IPC-50): `specs/modules/ipc.md`. Runs the real binary on a
-//! temp `HOME` and `--show-dir`; the surfaces' side is in `src/control/*tests.rs`.
+//! temp `HOME` and `--show-dir`; the surfaces' side is in `src/control/*tests.rs`. Every start has
+//! all outputs off (OUT-43) but the fade test, which starts twice: first with every output off, to
+//! save the Art-Net node's target `127.0.0.1`, then with only Art-Net on, so no frame leaves loopback.
 
 #![cfg(unix)]
 #![allow(
@@ -56,6 +58,28 @@ fn daemon(dir: &Path, port: u16) -> Daemon {
     Daemon(
         Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
             .env("HOME", dir)
+            .args([
+                "--no-artnet",
+                "--no-sacn",
+                "--no-serial",
+                "--ipc-port",
+                &port.to_string(),
+            ])
+            .arg("--show-dir")
+            .arg(dir.join("Shows"))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    )
+}
+
+/// The second start of the fade test: only Art-Net on, on the show the first start saved (OUT-43).
+fn daemon_artnet_only(dir: &Path, port: u16) -> Daemon {
+    Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            // OUT-43: loopback
+            .env("HOME", dir)
             .args(["--no-sacn", "--no-serial", "--ipc-port", &port.to_string()])
             .arg("--show-dir")
             .arg(dir.join("Shows"))
@@ -64,6 +88,38 @@ fn daemon(dir: &Path, port: u16) -> Daemon {
             .spawn()
             .unwrap(),
     )
+}
+
+/// SIGTERM, then wait for the exit: REL-14 writes the show file on the way out.
+fn sigterm_and_wait(daemon: &mut Child) {
+    // SAFETY: kill(2) on our own child's pid.
+    let pid = i32::try_from(daemon.id()).unwrap();
+    assert_eq!(unsafe { libc::kill(pid, libc::SIGTERM) }, 0);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(s) = daemon.try_wait().unwrap() {
+            assert!(s.success(), "daemon exit: {s}");
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "daemon did not exit within 5 s of SIGTERM"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// Every node of the shows folder after the first run, checked before the second start: a show
+/// that did not save, or a second node of the kind, can never send off the Mac (OUT-43).
+fn saved_nodes(shows: &std::path::Path) -> Vec<Value> {
+    std::fs::read_dir(shows)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.to_string_lossy().ends_with(".cmdmx.json"))
+        .map(|p| serde_json::from_str::<Value>(&std::fs::read_to_string(p).unwrap()).unwrap())
+        .filter_map(|show| show.pointer("/output/nodes")?.as_array().cloned())
+        .flatten()
+        .collect()
 }
 
 fn connect(port: u16) -> WebSocket<TcpStream> {
@@ -306,9 +362,10 @@ fn ipc_50_a_fade_finishes_on_the_wire_while_locked() {
         .set_read_timeout(Some(Duration::from_millis(500)))
         .unwrap();
     let port = free_port();
-    let _daemon = daemon(&dir, port);
-    let mut app = connect(port);
-    let snapshot = recv(&mut app);
+    // First start, every output off: save the node's target as 127.0.0.1 (OUT-43).
+    let mut first = daemon(&dir, port);
+    let mut setup = connect(port);
+    let snapshot = recv(&mut setup);
     let node = snapshot["outputs"]
         .as_array()
         .unwrap()
@@ -317,9 +374,42 @@ fn ipc_50_a_fade_finishes_on_the_wire_while_locked() {
         .unwrap()["id"]
         .clone();
     send(
-        &mut app,
+        &mut setup,
         json!({"cmd": "output.edit", "id": node, "target": "127.0.0.1"}),
     );
+    until(&mut setup, "the node on 127.0.0.1", |m| {
+        m["outputs"].as_array().is_some_and(|o| {
+            o.iter()
+                .any(|n| n["id"] == node && n["target"] == "127.0.0.1")
+        })
+    });
+    sigterm_and_wait(&mut first.0);
+    let saved = saved_nodes(&dir.join("Shows"));
+    assert!(
+        saved
+            .iter()
+            .any(|n| n["id"] == node && n["target"] == "127.0.0.1"),
+        "{saved:?}"
+    );
+    for n in saved
+        .iter()
+        .filter(|n| n["kind"] == "artnet" && n["enabled"] == true)
+    {
+        assert_eq!(n["target"], "127.0.0.1", "{n}");
+    }
+
+    // Second start, only Art-Net on: the show reopens with the node on 127.0.0.1.
+    let port = free_port();
+    let _daemon = daemon_artnet_only(&dir, port);
+    let mut app = connect(port);
+    let snapshot = recv(&mut app);
+    let reopened = snapshot["outputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["id"] == node)
+        .unwrap_or_else(|| panic!("node {node} gone from {}", snapshot["outputs"]));
+    assert_eq!(reopened["target"], "127.0.0.1", "{reopened}");
 
     // A one-cue list on page 9 slot 1 (free in the demo show): dimmer 4 to full in 3 s.
     send(&mut app, json!({"cmd": "programmer.select", "fixture": 4}));

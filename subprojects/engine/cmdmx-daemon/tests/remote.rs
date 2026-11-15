@@ -58,7 +58,13 @@ fn daemon(dir: &Path, port: u16) -> Daemon {
     Daemon(
         Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
             .env("HOME", dir)
-            .args(["--no-sacn", "--no-serial", "--ipc-port", &port.to_string()])
+            .args([
+                "--no-artnet",
+                "--no-sacn",
+                "--no-serial",
+                "--ipc-port",
+                &port.to_string(),
+            ])
             .arg("--show-dir")
             .arg(dir.join("Shows"))
             .stdout(Stdio::null())
