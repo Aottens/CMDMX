@@ -74,4 +74,9 @@ Setup: two terminals and a fresh shows folder so the real one stays untouched.
 - [ ] **Stop FX** on the selected fixtures stops their effect; Undo brings it back.
 - [ ] Clear with a time (`3` then Clear on the keypad): the effects shrink to nothing over 3 s, no jump.
 
+## Shapes on playbacks (FX-46..48)
+- [ ] [Jij] A playback with a circle at 50 %, Handle tab *Shape size*: Fader shows half the circle, Fixed the whole circle, Dimmer shapes on fader the whole circle and a dimmer chase at half.
+- [ ] [Jij] Another playback's Swop held: every other playback's shape stops at its base; with *Swop stops* Dimmer shapes only the dimmer shapes stop. Released, they carry on.
+- [ ] [Jij] A static position cue with *Mask shapes* P, fired after a playback that runs a circle on the same fixtures: they stand still, the others keep turning; fire the circle again and it runs again.
+
 ## Open points

@@ -328,9 +328,9 @@ so it can be reverted alone if keypad habits disagree).
 | TTN-04 | App: the Cue list window follows the live cue, with a Follow toggle; manual and run on a list of 40 cues. | CUE-67 | S | done (2026-11-14, #308; run `tests/manual/runs/2026-11-14-TTN-04-06-10.md`) |
 | TTN-05 | Core, daemon and app: a second Go within `go_guard` (default 0.5 s) is ignored with a warning; `cue_68_…`, `shw_26_…`; manual and run with two Space presses. | CUE-68, SHW-26 | S | done (2026-11-14, #307; run `tests/manual/runs/2026-11-14-TTN-05-02-03.md`) |
 | TTN-06 | Core and app: an automatic legend for a new playback or cue from its group and palettes, and a Legend softkey after a store; `pbk_54_…`, `shw_26_…`; manual and run. | PBK-54, SHW-26 | S | done (2026-11-14, #308; run `tests/manual/runs/2026-11-14-TTN-04-06-10.md`) |
-| TTN-07 | Core and app: the playback option Shape size (Fader, Fixed, HTP Fader); `fx_46_…`, `shw_26_…`; manual and run on Art-Net. | FX-46, SHW-26 | S | todo |
-| TTN-08 | Core and app: a held Swop stops other playbacks' shapes, all or dimmer only by the setting Swop stops; `fx_47_…`, `shw_26_…`; manual and run on Art-Net. | FX-47, SHW-26 | S | todo |
-| TTN-09 | Core and app: the playback option Mask shapes per attribute group; `fx_48_…`, `shw_26_…`; manual and run on Art-Net. | FX-48, SHW-26 | S | todo |
+| TTN-07 | Core and app: the playback option Shape size (Fader, Fixed, HTP Fader); `fx_46_…`, `shw_26_…`; manual and run on Art-Net. | FX-46, SHW-26 | S | done (2026-11-15, #312; run `tests/manual/runs/2026-11-15-TTN-07-08-09.md`) |
+| TTN-08 | Core and app: a held Swop stops other playbacks' shapes, all or dimmer only by the setting Swop stops; `fx_47_…`, `shw_26_…`; manual and run on Art-Net. | FX-47, SHW-26 | S | done (2026-11-15, #312; run `tests/manual/runs/2026-11-15-TTN-07-08-09.md`) |
+| TTN-09 | Core and app: the playback option Mask shapes per attribute group; `fx_48_…`, `shw_26_…`; manual and run on Art-Net. | FX-48, SHW-26 | S | done (2026-11-15, #312; run `tests/manual/runs/2026-11-15-TTN-07-08-09.md`) |
 | TTN-10 | Core, daemon and app: move or copy a block of cues to a number, the end or another list; `cue_69_…`; manual and run. | CUE-69 | M | done (2026-11-14, #308; run `tests/manual/runs/2026-11-14-TTN-04-06-10.md`) |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)

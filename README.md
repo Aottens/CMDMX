@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch, profiles, controls and show files are done; batch I, where CMDMX differs from Titan, has its Go guard, connected
-chase and the cue list work. Next: TTN-07, TTN-08, TTN-09 and TTN-01, then VS4-07 and VS4-03.
+chase, cue list work and shapes on playbacks. Next: TTN-01, then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it.
 Progress is in [`STATE.md`](STATE.md), the plan in [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -162,6 +162,9 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   the Dimmer), FX brings the effect wheels; an effect on dark fixtures says so.
 - Effects record into cues (a timed Go carries a circle on or crossfades to the next effect, the
   fader scales them) and into palettes ("circle around the pulpit" on any selection).
+- Per playback, *Shape size* keeps shapes at their recorded size or lets only dimmer shapes follow the fader, and *Mask
+  shapes* holds an earlier playback's circle still on the fixtures of a later cue. A held Swop stops the other
+  playbacks' shapes, all of them or only the dimmer shapes (*Swop stops*).
 
 **Playbacks, cue lists and chases**
 - Record the programmer onto a handle; Replace/Merge/Update, Copy/Move/Delete, Titan paging
