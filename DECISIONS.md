@@ -5,6 +5,18 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-15 — The screen flap: a walnut frame all round, a 0.38 mm lip, a 95 mm strut on grooves sunk in the deck (owner, HWB-10; amends HW-54)
+
+**Decision:** The flap gets walnut on all four edges, not only on its sides: top and bottom bars of 570 x 12.3 x 24, so the only print joins on the face sit behind the glass and the walnut (HW-58). The glass sits 0.38 mm under the face. A 0.38 mm lip on the printed side fields holds it forward, and clamp strips press it from behind through 1 mm foam, with no glue. The hinge is a Pinet stainless piano hinge, 25 x 1.0 mm (RS 328-9666). The strut pivots 9 mm inside the flap, its foot rod drops into four grooves sunk 5 mm into the deck, and so it is 95 mm long instead of the massing's 85 (grooves at y 454.0, 493.2, 520.8 and 540.2). The cables run 40 mm along the hinge axis, so folding twists them by 45° instead of bending them. Record: `subprojects/hardware/cad/klep/README.md`.
+
+**Alternatives considered:** a printed rim above and below the glass with keyed joins, which would show hairlines; one laser-cut face plate, which waits on the test strips and would set the glass 2 mm deep; black aluminium strips over the joins; true zero-gap flush glass, which needs glue; a rack standing proud of the deck, which hits the folded rod; a cable loop across the hinge line.
+
+**Reasoning:** The owner chose walnut all round from the four options (2026-11-15). It echoes the desk's own walnut frame, protects the glass edges and gives the hinge screws hardwood. Nothing holds glass forward except something in front of it or glue, and a two-layer lip stays within the ±0.5 mm of HW-54.
+
+**Reversal trigger:** the gate-3 run (`tests/hardware/flap.md`) shows the lip breaking off, the glass more than 0.5 mm off the face, more than 2 mm of movement under 20 N, or a cable pulling at its plug.
+
+---
+
 ## 2026-11-15 — The desk's form: a flat printed body with a walnut frame, a screen flap on a strut, a laser-cut top plate (owner; amends HW-05, HW-50)
 
 **Decision:** The desk (phase 10) is a flat anthracite body, 594 x 573 mm and 92 mm high at the front, with a 12 mm walnut frame round the top edge and front and side walls receding 16 mm toward the foot. The screen sits on a flap with walnut sides, hinged at the back of the deck and held by a fold-out aluminium strut whose foot drops into a sawtooth rack: 15, 25, 35 and 45°. Keycaps dark grey, fader knobs off-white, the GM knob red; the deck black with white legends. The top skin is one laser-cut plate screwed with M3 button heads into heat-set inserts in a printed under-panel; 1.5 mm black/white engraving plate (EUR 42.56 for the whole plate in one piece at Laserlokaal) or 2 mm black cast acrylic, chosen after the test strips. The preset faders are 60 mm (Bourns PTA6043), the playback faders and GM stay 100 mm. Record: `subprojects/hardware/cad/console/ontwerp/ontwerpblad.html`.

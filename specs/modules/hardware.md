@@ -193,7 +193,7 @@ Every proof of concept is tested on the owner's Mac with today's app.
 - **HW-54** Screen flap: the reference screen is a bare 15.6" 1080p PCAP module with its own cover
   glass, 12 V supply, HDMI and USB touch, and brightness set over DDC/CI; the reference module is
   the Waveshare 15.6" HDMI LCD (H) (lens 378.8 x 224.8 mm, at most 20 mm deep). The flap is a
-  printed shell at most 25 mm thick with walnut sides; the glass sits flush with the flap face
+  printed shell at most 25 mm thick in a walnut frame; the glass sits flush with the flap face
   (±0.5 mm) and is clamped on its border from behind, never glued, so the module can be swapped
   with a screwdriver only.
 - **HW-56** Flap stand: the flap hinges at the back edge of the deck; a fold-out strut drops into a
