@@ -503,11 +503,11 @@ private struct HandleTab: View {
             }
             OptionRow(label: "Mask shapes", note: "Holds the shapes of earlier playbacks still on its fixtures, in these groups.") {
                 HStack(spacing: 2) {
-                    ForEach(attributeGroupOrder, id: \.self) { group in
+                    ForEach(Array(attributeGroupOrder.prefix(7)), id: \.self) { group in
                         let mask = playback.stored.options.maskShapes
                         let on = mask.contains(group)
                         Button(group) {
-                            let next = attributeGroupOrder.filter { $0 == group ? !on : mask.contains($0) }
+                            let next = attributeGroupOrder.prefix(7).filter { $0 == group ? !on : mask.contains($0) }
                             engine.setPlaybackOptions(playback.id, ["mask_shapes": next])
                         }
                         .buttonStyle(FlatButton(fill: on ? .blue : nil))
