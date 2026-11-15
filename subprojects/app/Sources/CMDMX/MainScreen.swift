@@ -641,6 +641,9 @@ private struct Workspaces: View {
                 WindowGrid(workspace: workspace)
                     .opacity(visible ? 1 : 0)
                     .allowsHitTesting(visible)
+                    // UI-86: a text field in a hidden workspace (Fixtures' Find) must not hold the keyboard, or Keys
+                    // and the ⌥ keys type into it; disabled, it can neither take focus at launch nor keep it.
+                    .disabled(!visible)
                     .accessibilityElement(children: visible ? .contain : .ignore)
                     .accessibilityHidden(!visible)
             }
