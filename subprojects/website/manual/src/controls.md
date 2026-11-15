@@ -148,6 +148,21 @@ Actions that follow the page (`fader 3`, `upper 3`) are the usual choice: the su
 whatever page you are on, and motor faders and lights follow when you change page. An empty slot
 sends its fader to zero and its lights off.
 
+### A binding to a group, palette or playback that moved or went
+
+A binding names a group, palette or playback by number (`group 5`, `palette 12`, `go playback 4`, `fader 2.3`), and
+it keeps that number: a Move or Delete never rewrites it. Mappings belong to this Mac and serve every show opened on it,
+so a binding that is wrong for one show may be right for the next. CMDMX says so instead:
+
+- A Delete names the controls before you confirm: "BCF2000 Note 32 ch 1 and deck key 1/3 say group 5 and will do
+  nothing."
+- After a Move of a group or a playback: "Group 5 is now 9. BCF2000 Note 32 ch 1 still says group 5." A palette keeps
+  its number when it moves, so its bindings go with it. A playback moved to another handle keeps its id, so
+  `playback 4 level` follows it; `fader 2.3` does not.
+- On the Control screen a binding whose group, palette or playback does not exist, or whose `page.slot` is empty, is
+  amber and reads "nothing at group 5", for MIDI, OSC and Stream Deck keys alike. Pressing it does nothing, with no
+  warning, as on an empty slot. Learn or edit it to put it right.
+
 ## Programming from a surface
 
 While the CMDMX app is open, a surface programs the way the screen does, on the same command line:

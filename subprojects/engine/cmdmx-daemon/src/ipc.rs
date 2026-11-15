@@ -69,6 +69,9 @@ pub const PROTOCOL: u64 = 1;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Usage {
     Palette(u32),
+    /// IPC-66: a group or a playback, answered with the controls that name it.
+    Group(u32),
+    Playback(PlaybackId),
     Fixtures(Vec<FixtureId>),
     /// IPC-60: one fixture, with the cues, palettes and groups listed instead of counted.
     Detail(FixtureId),
@@ -2258,10 +2261,21 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             _ => Err("\"function\" is a string or null".into()),
         },
         Some("usage") => match (v.get("palette"), v.get("fixtures")) {
-            (Some(_), None) if v.get("detail").is_none() => {
+            (None, None) if v.get("group").is_some() != v.get("playback").is_some() => {
+                Ok(Command::Usage(if v.get("group").is_some() {
+                    Usage::Group(uint(&v, "group")?)
+                } else {
+                    Usage::Playback(uint(&v, "playback")?)
+                }))
+            }
+            (Some(_), None)
+                if v.get("detail").is_none()
+                    && v.get("group").is_none()
+                    && v.get("playback").is_none() =>
+            {
                 Ok(Command::Usage(Usage::Palette(uint(&v, "palette")?)))
             }
-            (None, Some(f)) => {
+            (None, Some(f)) if v.get("group").is_none() && v.get("playback").is_none() => {
                 let ids: Vec<FixtureId> = f
                     .as_array()
                     .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
@@ -2274,7 +2288,10 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                     (Some(None), _) => Err("invalid \"detail\" (expected true or false)".into()),
                 }
             }
-            _ => Err("expected exactly one of \"palette\" and \"fixtures\"".into()),
+            _ => Err(
+                "expected exactly one of \"palette\", \"fixtures\", \"group\" and \"playback\""
+                    .into(),
+            ),
         },
         Some("update.targets") => Ok(Command::UpdateTargets),
         Some("update") => Ok(Command::Update {
@@ -3443,12 +3460,26 @@ pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<Strin
 }
 
 /// IPC-54: the answer to `usage`, counted by the core.
-pub fn usage(engine: &Engine, query: &Usage) -> Result<String, CoreError> {
+pub fn usage(
+    engine: &Engine,
+    query: &Usage,
+    controls: Vec<serde_json::Value>,
+) -> Result<String, CoreError> {
     Ok(to_json(&match query {
         Usage::Palette(n) => {
             let u = engine.palette_usage(*n)?;
             serde_json::json!({"v": PROTOCOL, "type": "usage", "palette": n,
-                "cues": u.cues, "playbacks": u.playbacks})
+                "cues": u.cues, "playbacks": u.playbacks, "controls": controls})
+        }
+        Usage::Group(n) => {
+            engine.group(*n).ok_or(CoreError::UnknownGroup(*n))?;
+            serde_json::json!({"v": PROTOCOL, "type": "usage", "group": n, "controls": controls})
+        }
+        Usage::Playback(id) => {
+            (engine.playbacks().any(|p| p.id == *id))
+                .then_some(())
+                .ok_or(CoreError::UnknownPlayback(*id))?;
+            serde_json::json!({"v": PROTOCOL, "type": "usage", "playback": id, "controls": controls})
         }
         Usage::Fixtures(ids) => {
             let u = engine.fixture_usage(ids);
@@ -8540,13 +8571,13 @@ mod tests {
     #[test]
     fn ipc_54_the_messages() {
         let e = engine_with_palettes();
-        let v = parse(&usage(&e, &Usage::Palette(5)).unwrap());
+        let v = parse(&usage(&e, &Usage::Palette(5), vec![]).unwrap());
         assert_eq!(
             v,
-            json!({"v":1,"type":"usage","palette":5,"cues":0,"playbacks":0})
+            json!({"v":1,"type":"usage","palette":5,"cues":0,"playbacks":0,"controls":[]})
         );
-        assert!(usage(&e, &Usage::Palette(77)).is_err());
-        let v = parse(&usage(&e, &Usage::Fixtures(vec![999, 998])).unwrap());
+        assert!(usage(&e, &Usage::Palette(77), vec![]).is_err());
+        let v = parse(&usage(&e, &Usage::Fixtures(vec![999, 998]), vec![]).unwrap());
         assert_eq!(
             v,
             json!({"v":1,"type":"usage","fixtures":[999,998],"groups":0,"cues":0,"playbacks":0,
@@ -8561,7 +8592,7 @@ mod tests {
         e.execute_command(&["9", ".", "2", "@", "50", "Enter"])
             .unwrap();
         e.record_playback(&PlaybackRecord::at(1, 2)).unwrap();
-        let v = parse(&usage(&e, &Usage::Fixtures(vec![9])).unwrap());
+        let v = parse(&usage(&e, &Usage::Fixtures(vec![9]), vec![]).unwrap());
         assert_eq!(
             (&v["cues"], &v["playbacks"], &v["empty_cues"]),
             (&json!(1), &json!(1), &json!(1)),
@@ -8713,7 +8744,7 @@ mod tests {
         e.record_group(3).unwrap();
         e.set_group_legend(3, "Fresnels").unwrap();
         e.clear_selection();
-        let v = parse(&usage(&e, &Usage::Detail(2)).unwrap());
+        let v = parse(&usage(&e, &Usage::Detail(2), vec![]).unwrap());
         assert_eq!(v["type"], "usage");
         assert_eq!(v["fixtures"], json!([2]));
         assert_eq!(
@@ -8723,7 +8754,7 @@ mod tests {
         assert_eq!(v["groups"], json!([{"id":3,"legend":"Fresnels"}]));
         assert_eq!(v["palettes"], json!([]));
         assert_eq!(v["playbacks"], 1);
-        assert!(usage(&e, &Usage::Detail(999)).is_err());
+        assert!(usage(&e, &Usage::Detail(999), vec![]).is_err());
     }
 
     #[test]

@@ -828,3 +828,54 @@ fn ctl_73_key_lock_from_osc_locks_with_the_saved_code_or_is_refused() {
     lock_set(&mut app, false, "4321");
     saw_locked(&mut app, false);
 }
+
+// --- IPC-66, CTL-74 controls on a group, palette or playback ----------------------
+
+#[test]
+fn ipc_66_usage_names_the_controls_and_ctl_74_the_mapping_marks_nothing() {
+    let dir = folder("ipc66-usage");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    let snap = recv(&mut app);
+    let groups: Vec<u64> = (snap["groups"].as_array().unwrap().iter())
+        .map(|g| g["id"].as_u64().unwrap())
+        .collect();
+    assert!(
+        groups.contains(&2) && !groups.contains(&77),
+        "the demo show: {groups:?}"
+    );
+    let mapping = json!({"name": "nano", "device": "nano*", "bindings": [
+        {"input": {"kind": "note", "channel": 1, "number": 62}, "action": "group 2"},
+        {"input": {"kind": "note", "channel": 1, "number": 64}, "action": "group 77"},
+        {"input": {"kind": "note", "channel": 1, "number": 65}, "action": "go playback 9"}
+    ]});
+    send(
+        &mut app,
+        json!({"cmd": "control.mapping_import", "json": mapping.to_string()}),
+    );
+    until(&mut app, "the imported mapping", |m| {
+        m["type"] == "control" && m.to_string().contains("\"nano\"")
+    });
+
+    send(&mut app, json!({"cmd": "usage", "group": 2}));
+    let answer = until(&mut app, "the group's usage", |m| m["type"] == "usage");
+    assert_eq!(answer["group"], 2);
+    assert_eq!(
+        answer["controls"],
+        json!([{"mapping": "nano", "control": "Note 62 ch 1", "action": "group 2"}])
+    );
+    send(&mut app, json!({"cmd": "usage", "playback": 9}));
+    let answer = until(&mut app, "the playback's usage", |m| m["type"] == "usage");
+    assert_eq!(answer["playback"], 9);
+    assert_eq!(answer["controls"][0]["action"], "go playback 9");
+    // An unknown group is the warning a delete gives; ill-typed is an error.
+    send(&mut app, json!({"cmd": "usage", "group": 77}));
+    saw_warning(&mut app, "unknown group id 77");
+    send(&mut app, json!({"cmd": "usage", "playback": "x"}));
+    until(&mut app, "the error", |m| m["type"] == "error");
+
+    send(&mut app, json!({"cmd": "control.mapping", "name": "nano"}));
+    let reply = until(&mut app, "the mapping", |m| m["type"] == "control.mapping");
+    assert_eq!(reply["nothing"], json!([1]), "group 77");
+}

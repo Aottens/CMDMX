@@ -396,7 +396,40 @@ fn resolve(engine: &Engine, t: Target) -> Option<PlaybackId> {
             .playbacks()
             .find(|p| (p.page, p.slot) == (page, slot))
             .map(|p| p.id),
-        Target::Playback(id) => Some(id),
+        Target::Playback(id) => engine.playback(id).map(|p| p.id),
+    }
+}
+
+/// The target an action names, if it has one.
+fn target_of(a: Action) -> Option<Target> {
+    match a {
+        Action::Fader(t)
+        | Action::Upper(t)
+        | Action::Lower(t)
+        | Action::Go(t)
+        | Action::Back(t)
+        | Action::Stop(t)
+        | Action::Release(t)
+        | Action::Tap(t)
+        | Action::Speed(t)
+        | Action::Xfade(t)
+        | Action::Direction(_, t) => Some(t),
+        _ => None,
+    }
+}
+
+/// CTL-74: an action that names an object the engine lacks. `Slot` and `Connected` follow
+/// the page and the connection, so they never name nothing.
+fn names_nothing(engine: &Engine, a: Action) -> bool {
+    match a {
+        Action::Group(n) => engine.group(n).is_none(),
+        Action::Palette(n) => engine.palette(n).is_none(),
+        a => match target_of(a) {
+            Some(t @ (Target::Playback(_) | Target::PageSlot { .. })) => {
+                resolve(engine, t).is_none()
+            }
+            _ => false,
+        },
     }
 }
 
@@ -697,6 +730,8 @@ impl Tick<'_> {
             Action::AttributeGroup(g) => Some(Command::AttributeGroup {
                 group: core_group(g),
             }),
+            // CTL-74: an object that is gone is nothing to do, with no warning.
+            Action::Group(_) | Action::Palette(_) if names_nothing(engine, action) => None,
             Action::Group(group) => Some(Command::SelectGroup { group }),
             Action::Palette(number) => Some(Command::PaletteApply {
                 number,
@@ -1616,14 +1651,51 @@ impl Control {
     }
 
     /// The answer to `control.mapping {name}`, for the asking client only.
-    pub fn mapping_reply(&self, name: &str) -> String {
-        match self.mappings.get(name).map(serde_json::to_value) {
-            Some(Ok(mapping)) => {
-                json!({"v": crate::ipc::PROTOCOL, "type": "control.mapping", "name": name, "mapping": mapping})
-                    .to_string()
+    pub fn mapping_reply(&self, engine: &Engine, name: &str) -> String {
+        match self
+            .mappings
+            .get(name)
+            .map(|m| (m, serde_json::to_value(m)))
+        {
+            Some((m, Ok(mapping))) => {
+                // CTL-74: the bindings that name an object that does not exist.
+                let nothing: Vec<usize> = (m.bindings.iter().enumerate())
+                    .filter(|(_, b)| names_nothing(engine, b.action))
+                    .map(|(i, _)| i)
+                    .collect();
+                json!({"v": crate::ipc::PROTOCOL, "type": "control.mapping", "name": name,
+                    "mapping": mapping, "nothing": nothing})
+                .to_string()
             }
             _ => ipc::error(&format!("unknown mapping '{name}'")),
         }
+    }
+
+    /// IPC-66: every binding of every mapping that names the group, palette or playback.
+    pub fn controls(&self, engine: &Engine, query: &ipc::Usage) -> Vec<Value> {
+        let names = |a: Action| match query {
+            ipc::Usage::Group(n) => a == Action::Group(*n),
+            ipc::Usage::Palette(n) => a == Action::Palette(*n),
+            ipc::Usage::Playback(id) => matches!(
+                target_of(a),
+                Some(t @ (Target::Playback(_) | Target::PageSlot { .. }))
+                    if resolve(engine, t) == Some(*id)
+            ),
+            _ => false,
+        };
+        let mut out = Vec::new();
+        for (name, m) in &self.mappings {
+            for b in m.bindings.iter().filter(|b| names(b.action)) {
+                let mut e = json!({"mapping": name, "control": input_text(&b.input),
+                    "action": b.action.to_string()});
+                if let (Input::Deck(d), Some(o)) = (&b.input, e.as_object_mut()) {
+                    o.insert("deck_page".into(), b.deck_page.into());
+                    o.insert("key".into(), d.number.into());
+                }
+                out.push(e);
+            }
+        }
+        out
     }
 
     /// Texts for the message zone since the last call (`BCF2000 disconnected`, `Learned: …`).

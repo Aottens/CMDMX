@@ -303,7 +303,7 @@ fn main() {
                     continue;
                 }
                 ipc::Event::ControlMapping { name, reply } => {
-                    drop(reply.try_send(control.mapping_reply(&name)));
+                    drop(reply.try_send(control.mapping_reply(&engine, &name)));
                     Ok(())
                 }
                 // IPC-24: to the asking client only; a full queue drops the answer (IPC-07).
@@ -312,7 +312,8 @@ fn main() {
                 }
                 // IPC-54: counted by the core; an unknown palette is a warning like the delete's.
                 ipc::Event::Usage { query, reply } => {
-                    ipc::usage(&engine, &query).map(|msg| drop(reply.try_send(msg)))
+                    ipc::usage(&engine, &query, control.controls(&engine, &query))
+                        .map(|msg| drop(reply.try_send(msg)))
                 }
                 // IPC-60: to the asking client only; an unknown fixture is a warning.
                 ipc::Event::Why { fixture, reply } => {

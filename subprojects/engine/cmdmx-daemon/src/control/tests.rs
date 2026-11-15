@@ -23,7 +23,7 @@ const NANO: &str = r#"{"name":"nano","device":"nano*","bindings":[
   {"input":{"kind":"cc","channel":1,"number":7},"action":"fader 1","pickup":false},
   {"input":{"kind":"note","channel":1,"number":60},"action":"upper 1"},
   {"input":{"kind":"note","channel":1,"number":61},"action":"page 2"},
-  {"input":{"kind":"note","channel":1,"number":62},"action":"group 99"},
+  {"input":{"kind":"note","channel":1,"number":62},"action":"key redo"},
   {"input":{"kind":"note","channel":1,"number":70},"action":"keypad Group"},
   {"input":{"kind":"note","channel":1,"number":71},"action":"keypad 1"},
   {"input":{"kind":"note","channel":1,"number":72},"action":"keypad Enter"}
@@ -357,7 +357,7 @@ fn ctl_23_a_bad_binding_in_a_file_is_one_warning_the_rest_loads() {
     fs::write(dir.join("control/broken.json"), "{not json").unwrap();
     let (c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
     assert_eq!(warnings.len(), 2, "{warnings:?}");
-    assert!(c.mapping_reply("m").contains("gm"));
+    assert!(c.mapping_reply(&engine(), "m").contains("gm"));
 }
 
 // --- CTL-14 never blocking, coalesced ------------------------------------
@@ -641,7 +641,7 @@ fn ctl_25_a_note_press_learns_at_once_and_replaces_with_a_message() {
         msgs.contains(&"Note 61 ch 1 was page 2".to_string()),
         "{msgs:?}"
     );
-    assert!(c.mapping_reply("nano").contains("back"));
+    assert!(c.mapping_reply(&engine(), "nano").contains("back"));
 }
 
 #[test]
@@ -785,7 +785,7 @@ fn ctl_40_mapping_edits_and_their_refusals() {
         r#"{"v":1,"cmd":"control.binding","mapping":"nano","input":{"kind":"cc","channel":1,"number":7},"invert":true}"#,
     )
     .unwrap();
-    let reply: Value = serde_json::from_str(&c.mapping_reply("nano")).unwrap();
+    let reply: Value = serde_json::from_str(&c.mapping_reply(&engine(), "nano")).unwrap();
     assert_eq!(reply["type"], "control.mapping");
     let b = reply["mapping"]["bindings"]
         .as_array()
@@ -807,7 +807,7 @@ fn ctl_40_mapping_edits_and_their_refusals() {
         r#"{"v":1,"cmd":"control.unbind","mapping":"nano","input":{"kind":"cc","channel":1,"number":7}}"#,
     )
     .unwrap();
-    assert!(!c.mapping_reply("nano").contains("fader 1"));
+    assert!(!c.mapping_reply(&engine(), "nano").contains("fader 1"));
     // New, rename (the device follows), delete.
     req(
         &mut c,
@@ -1086,7 +1086,7 @@ fn ctl_30_the_profile_ships_read_only_and_is_listed() {
             .contains(&json!({"name": MC, "profile": true})),
         "{mappings}"
     );
-    assert!(c.mapping_reply(MC).contains("fader 1"));
+    assert!(c.mapping_reply(&engine(), MC).contains("fader 1"));
     ports(&mut c, &[port("BCF2000", true)]);
     req(
         &mut c,
@@ -1132,7 +1132,7 @@ fn ctl_30_editing_the_profile_saves_a_user_copy_that_hides_it() {
     let (mut again, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(listed(&again), [json!({"name": MC, "profile": false})]);
-    assert!(again.mapping_reply(MC).contains("step_prev"));
+    assert!(again.mapping_reply(&engine(), MC).contains("step_prev"));
     // Deleting the copy brings the shipped profile back.
     req(
         &mut again,
@@ -1140,7 +1140,7 @@ fn ctl_30_editing_the_profile_saves_a_user_copy_that_hides_it() {
     )
     .unwrap();
     assert_eq!(listed(&again), [json!({"name": MC, "profile": true})]);
-    assert!(!again.mapping_reply(MC).contains("step_prev"));
+    assert!(!again.mapping_reply(&engine(), MC).contains("step_prev"));
     // The profile itself cannot be deleted or renamed.
     assert!(req(
         &mut again,
@@ -2063,7 +2063,7 @@ fn ctl_70_duplicate_copies_bindings_and_device_and_refuses_a_name_in_use() {
     // The copy survives a restart.
     let (again, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
     assert!(warnings.is_empty(), "{warnings:?}");
-    assert!(again.mapping_reply("copy").contains("fader 1"));
+    assert!(again.mapping_reply(&engine(), "copy").contains("fader 1"));
 }
 
 #[test]
@@ -2079,7 +2079,7 @@ fn ctl_70_a_profile_duplicates_but_its_device_pattern_does_not_change() {
     assert_eq!(profile_flag(&c, MC), Some(json!(true)));
     assert!(!dir.join("control/Mackie Control.json").exists());
     let copy = file(&dir, "MC mine");
-    let shipped: Value = serde_json::from_str(&c.mapping_reply(MC)).unwrap();
+    let shipped: Value = serde_json::from_str(&c.mapping_reply(&engine(), MC)).unwrap();
     assert_eq!(copy["device"], shipped["mapping"]["device"]);
     assert_eq!(copy["bindings"], shipped["mapping"]["bindings"]);
     // A profile's device pattern refuses; the copy's changes.
@@ -2108,7 +2108,7 @@ fn ctl_70_mapping_device_changes_the_pattern_and_writes_the_file() {
     let nano = file(&dir, "nano");
     assert_eq!(nano["device"], "*nano*|*Launchpad*");
     assert_eq!(nano["bindings"].as_array().unwrap().len(), 7);
-    let reply: Value = serde_json::from_str(&c.mapping_reply("nano")).unwrap();
+    let reply: Value = serde_json::from_str(&c.mapping_reply(&engine(), "nano")).unwrap();
     assert_eq!(reply["mapping"]["device"], "*nano*|*Launchpad*");
     // The new pattern is the one CTL-24 matches: a Launchpad seen for the first time gets `nano`.
     ports(&mut c, &[port("Launchpad X", true)]);
@@ -2447,7 +2447,11 @@ fn ctl_72_a_programming_key_is_lit_while_the_app_has_its_function_armed() {
 #[test]
 fn ipc_64_two_clients_one_armed_is_enough_and_both_get_the_tap() {
     let mut c = prog("ipc64-two");
-    let e = engine();
+    let mut e = engine();
+    // Group 5 exists: a press on a group that does not does nothing (CTL-74).
+    e.select_fixture(101).unwrap();
+    e.record_group(5).unwrap();
+    e.clear_selection();
     let (tx1, rx1) = std::sync::mpsc::sync_channel(64);
     let (tx2, rx2) = std::sync::mpsc::sync_channel(64);
     c.surface_follow(1, Some(tx1));
@@ -2523,4 +2527,129 @@ fn ctl_73_key_lock_asks_the_tick_to_lock_with_the_saved_code_and_is_lit_while_lo
     assert!(c.take_messages().is_empty());
     c.set_locked(false);
     assert!(c.feedback(&e).contains(&note_out(82, 0)));
+}
+
+// --- IPC-66, CTL-74 controls on a group, palette or playback ----------------------
+
+const NAMES: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"cc","channel":1,"number":7},"action":"fader 1","pickup":false},
+  {"input":{"kind":"cc","channel":1,"number":8},"action":"fader 2.1","pickup":false},
+  {"input":{"kind":"cc","channel":1,"number":9},"action":"playback 9 level","pickup":false},
+  {"input":{"kind":"note","channel":1,"number":60},"action":"upper 2.1"},
+  {"input":{"kind":"note","channel":1,"number":61},"action":"go playback 9"},
+  {"input":{"kind":"note","channel":1,"number":62},"action":"group 2"},
+  {"input":{"kind":"note","channel":1,"number":63},"action":"palette 12"},
+  {"input":{"kind":"note","channel":1,"number":64},"action":"group 77"},
+  {"input":{"kind":"note","channel":1,"number":65},"action":"go playback 999"},
+  {"input":{"kind":"note","channel":1,"number":66},"action":"lower 3.4"},
+  {"input":{"kind":"note","channel":1,"number":67},"action":"palette 13"}
+]}"#;
+
+const DECK_NAMES: &str = r#"{"name":"Deck","device":"Stream Deck*","bindings":[
+  {"input":{"kind":"key","number":3},"deck_page":2,"action":"group 2"}
+]}"#;
+
+/// `nano` with bindings on objects that exist and on objects that do not, and a deck mapping.
+fn names(test: &str) -> Control {
+    let dir = tmp(test);
+    fs::write(dir.join("control/nano.json"), NAMES).unwrap();
+    fs::write(dir.join("control/deck.json"), DECK_NAMES).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    let _ = c.take_messages();
+    c
+}
+
+/// The demo show (groups 1 to 4, playback 9 on 2.1) with palette 12.
+fn engine_with_palette() -> Engine {
+    use cmdmx_core::attribute::AttributeGroup;
+    use cmdmx_core::palette::{Cell, Record, Window};
+    let mut e = engine();
+    e.select_fixture(101).unwrap();
+    e.set_programmer_value(101, "Dimmer", 0.5).unwrap();
+    e.record_palette(&Record {
+        number: Some(12),
+        mask: Some(vec![AttributeGroup::I]),
+        ..Record::at(Cell::new(Window::Colours, 1))
+    })
+    .unwrap();
+    e.clear_selection();
+    e.clear();
+    e
+}
+
+#[test]
+fn ipc_66_controls_name_every_binding_on_a_group_palette_or_playback() {
+    let c = names("ipc66-controls");
+    let e = engine_with_palette();
+    assert_eq!(slot(&e, 2, 1), 9, "the demo's washes");
+    assert_eq!(
+        c.controls(&e, &ipc::Usage::Group(2)),
+        [
+            json!({"mapping":"Deck","control":"key 3","deck_page":2,"key":3,"action":"group 2"}),
+            json!({"mapping":"nano","control":"Note 62 ch 1","action":"group 2"}),
+        ]
+    );
+    assert_eq!(
+        c.controls(&e, &ipc::Usage::Palette(12)),
+        [json!({"mapping":"nano","control":"Note 63 ch 1","action":"palette 12"})]
+    );
+    // By id, or by a page.slot that holds it; `fader 1` follows the page shown and never counts.
+    let on_9: Vec<Value> = (c.controls(&e, &ipc::Usage::Playback(9)).iter())
+        .map(|v| v["action"].clone())
+        .collect();
+    assert_eq!(
+        on_9,
+        [
+            json!("fader 2.1"),
+            json!("playback 9 level"),
+            json!("upper 2.1"),
+            json!("go playback 9")
+        ]
+    );
+    assert!(c.controls(&e, &ipc::Usage::Group(3)).is_empty());
+}
+
+#[test]
+fn ctl_74_a_binding_to_nothing_is_marked_in_the_mapping_and_a_press_does_nothing() {
+    let mut c = names("ctl74-nothing");
+    let e = engine_with_palette();
+    let reply = |c: &Control, e: &Engine, name: &str| -> Value {
+        serde_json::from_str(&c.mapping_reply(e, name)).unwrap()
+    };
+    let nano = reply(&c, &e, "nano");
+    assert_eq!(nano["type"], "control.mapping");
+    assert_eq!(
+        nano["nothing"],
+        json!([7, 8, 9, 10]),
+        "group 77, playback 999, 3.4 and palette 13, by binding index"
+    );
+    assert_eq!(
+        reply(&c, &engine(), "nano")["nothing"],
+        json!([6, 7, 8, 9, 10]),
+        "without palette 12"
+    );
+    assert_eq!(reply(&c, &e, "Deck")["nothing"], json!([]));
+    // Never rewritten: the binding still says what it said.
+    assert_eq!(nano["mapping"]["bindings"][7]["action"], "group 77");
+    // A press on it does nothing, with no warning, as on an empty slot (CTL-05).
+    for n in [64, 65, 66, 67] {
+        press(&mut c, "nano", n);
+    }
+    assert!(c.commands(&e, 0.0).is_empty());
+    assert!(c.take_messages().is_empty());
+    // One that exists still runs.
+    press(&mut c, "nano", 62);
+    let cmds = c.commands(&e, 0.0);
+    assert!(
+        cmds.iter()
+            .any(|(_, c)| matches!(c, Command::SelectGroup { group: 2 })),
+        "{cmds:?}"
+    );
 }
