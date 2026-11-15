@@ -15,6 +15,9 @@ Design-phase CAD for the open-hardware desk. Nothing here is final engineering y
 
 ## Running the Fusion scripts
 
+The models they build are saved in the owner's Fusion hub as *CMDMX desk vorm (M1 SB K1 D2)* (Default Project).
+
+
 The scripts are Fusion API scripts with a `run(context)` entry. They are run through the Fusion MCP
 server by a two-line wrapper that execs the file with its globals set:
 
