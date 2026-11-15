@@ -39,6 +39,8 @@ Programming and small checks:
   saved with a newer schema does not open on an older one.
 - Tick the two open lines in `tests/manual/selection-orders.md`; the next *Import GDTF* run in
   `tests/manual/app-patch.md` also checks the sheet fixes.
+- The desk's top plate: order the two test strips in `subprojects/hardware/cad/acryl-proef/` at Laserlokaal (1.5 mm
+  engraving plate, 2 mm black cast acrylic) and say which MX hole clips and which legends read.
 
 ## Blocked
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.

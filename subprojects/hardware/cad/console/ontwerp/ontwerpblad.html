@@ -1,0 +1,526 @@
+<title>CMDMX Desk Silhouetten</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: a drawing sheet. Brief on top, then eight side profiles at one scale, two per row on desktop. */
+:root {
+  --bg: #eef0f2;
+  --sheet: #ffffff;
+  --ink: #1b1d21;
+  --muted: #5d636c;
+  --rule: #d5d9de;
+  --grid: #e7eaee;
+  --wood: #7a5235;
+  --wood-grain: #5f3e27;
+  --print: #1d1f23;
+  --base: #4a4f57;
+  --edge: #1d1f23;
+  --accent: #b5562a;
+  --light: #d7d5d0;
+  --alu: #aeb2b7;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171a; --sheet: #1d2024; --ink: #e8eaed; --muted: #a2a8b1; --rule: #33373d; --grid: #262a2f;
+    --wood: #9a6a45; --wood-grain: #7c5233; --print: #0b0c0e; --base: #4d535c; --edge: #8b929c; --accent: #e07a48;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171a; --sheet: #1d2024; --ink: #e8eaed; --muted: #a2a8b1; --rule: #33373d; --grid: #262a2f;
+  --wood: #9a6a45; --wood-grain: #7c5233; --print: #0b0c0e; --base: #4d535c; --edge: #8b929c; --accent: #e07a48;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 32px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 800 clamp(30px, 5vw, 46px)/1.05 var(--display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h2 { font: 600 20px/1.2 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; }
+.lead { color: var(--muted); font-size: 16px; }
+.brief { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 24px; display: grid; gap: 20px; }
+.brief-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+.brief-grid > div { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.brief h3 { font: 600 13px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.words { display: flex; flex-wrap: wrap; gap: 8px; }
+.word { font: 600 18px/1 var(--display); padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 3px; }
+.word.q { border-style: dashed; color: var(--muted); border-color: var(--muted); }
+ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--muted); align-items: center; }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 2px; vertical-align: -2px; margin-right: 6px; border: 1px solid var(--edge); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 500px), 1fr)); gap: 20px; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 18px 20px; display: grid; gap: 12px; min-width: 0; }
+.card-head { display: flex; align-items: baseline; gap: 12px; }
+.letter { font: 800 30px/1 var(--display); color: var(--accent); min-width: 28px; }
+.card svg { width: 100%; height: auto; display: block; }
+.dims { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 400 12.5px/1.4 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.dims b { color: var(--ink); font-weight: 500; }
+.pro-con { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13.5px; }
+.pro-con h4 { margin: 0 0 4px; font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 520px) { .pro-con { grid-template-columns: 1fr; } }
+footer { color: var(--muted); font-size: 13.5px; display: grid; gap: 6px; }
+.mass { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 24px; display: grid; gap: 16px; }
+.mass-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 24px; }
+.mass-card { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.mass-card ul { font-size: 14px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+figure { margin: 0; display: grid; gap: 4px; }
+figure img { width: 100%; height: auto; border-radius: 4px; background: #2e3440; display: block; }
+figcaption { font: 400 12px/1.3 var(--mono); color: var(--muted); }
+.rules { display: grid; gap: 8px; border-top: 1px solid var(--rule); padding-top: 16px; }
+.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; max-width: 90ch; }
+.fit { font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 7px; border-radius: 3px;
+  border: 1px solid var(--accent); color: var(--accent); margin-left: auto; white-space: nowrap; }
+.cmf { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 24px; display: grid; gap: 18px; }
+.cmf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+.cmf-opt { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.chips { display: flex; height: 64px; border-radius: 4px; overflow: hidden; border: 1px solid var(--rule); }
+.chips span { flex: 1; }
+.chips .acc { flex: .35; }
+.cmf-opt h3 { font: 600 17px/1.2 var(--display); margin: 0; }
+.cmf-opt p { font-size: 13.5px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">CMDMX hardware · ontwerpproces · 14 november 2026</div>
+    <h1>Vorm van de desk</h1>
+    <p class="lead">Elf silhouetten op dezelfde schaal (1 hokje = 50 mm). De operator zit links. Het label Rams / TE staat bij de vormen die bij Braun en Teenage Engineering passen; I, J en K zijn daarvoor nieuw getekend. Kies er twee, en een kleurrichting onderaan.</p>
+  </header>
+
+  <section class="mass" aria-labelledby="final-h">
+    <div class="eyebrow">Gekozen vorm · 15 november 2026</div>
+    <h2 id="final-h">M1 · SB · K1 · D2</h2>
+    <p class="lead">Platte G-romp met schermklep, uitklapsteun met tandlat, antraciet met walnoot, lijst 12 mm en een voet die 16 mm terugloopt. De vorm is af; hierna komt het technische ontwerp. Het bovenpaneel wacht op de proefstroken (graveerplaat of acryl).</p>
+    <div class="mass-grid">
+      <article class="mass-card">
+        <figure><img src="gekozen-voor.png" alt="De gekozen desk schuin van voren: antraciet romp, walnoten lijst, zwart dek met witte opschriften, scherm op 25 graden"><figcaption>scherm op 25°</figcaption></figure>
+        <div class="dims"><span>breed <b>594 mm</b></span><span>diep <b>573 mm</b></span><span>voorkant <b>92 mm</b></span><span>scherm <b>15° · 25° · 35° · 45°</b></span></div>
+        <ul>
+          <li>Romp: antraciet, rondom een walnoten lijst van 12 mm, voor- en zijwanden 16 mm terug naar de voet.</li>
+          <li>Dek: zwart met witte opschriften; donkergrijze toetsen, gebroken witte faderknoppen, rode GM.</li>
+          <li>Scherm: klep met walnoten zijkanten op een uitklapsteun met zaagtand-lat, vier standen.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="mass" aria-labelledby="det5-h">
+    <div class="eyebrow">Stap 5 · details · jouw keuze K1</div>
+    <h2 id="det5-h">Hoe dik de walnoten lijst, hoe ver de voet terug</h2>
+    <p class="lead">De bovenkant van de lijst blijft op dezelfde hoogte, net boven het dek. Wat wisselt is hoe ver het hout naar beneden loopt en hoe ver de voorwand en zijwanden naar de voet teruglopen.</p>
+    <div class="mass-grid">
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">D1</span><h2>Lijst 8 mm, terugloop 8 mm</h2></div>
+        <figure><img src="d1-hoek.png" alt="Hoek van de desk met een dunne walnoten lijst en een kleine terugloop"><figcaption>schuin van voren</figcaption></figure>
+        <div class="pair"><figure><img src="d1-zij.png" alt="Zijaanzicht D1"><figcaption>zijaanzicht</figcaption></figure></div>
+        <ul>
+          <li>Een dunne houten rand; de romp is vooral een zwart blok.</li>
+          <li>De terugloop is net zichtbaar, als een schaduwlijn onderaan.</li>
+        </ul>
+      </article>
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">D2</span><h2>Lijst 12 mm, terugloop 16 mm</h2></div>
+        <figure><img src="d2-hoek.png" alt="Hoek van de desk met een middelbrede walnoten lijst en een duidelijke terugloop"><figcaption>schuin van voren</figcaption></figure>
+        <div class="pair"><figure><img src="d2-zij.png" alt="Zijaanzicht D2"><figcaption>zijaanzicht</figcaption></figure></div>
+        <ul>
+          <li>De lijst van G zoals je hem mooi vond, met de voet wat verder terug.</li>
+          <li>De romp lijkt lichter: hij zweeft een beetje boven de tafel.</li>
+        </ul>
+      </article>
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">D3</span><h2>Lijst 20 mm, terugloop 26 mm</h2></div>
+        <figure><img src="d3-hoek.png" alt="Hoek van de desk met een brede walnoten lijst en een sterke terugloop"><figcaption>schuin van voren</figcaption></figure>
+        <div class="pair"><figure><img src="d3-zij.png" alt="Zijaanzicht D3"><figcaption>zijaanzicht</figcaption></figure></div>
+        <ul>
+          <li>Het hout wordt een echte band rondom; meer meubel, warmer.</li>
+          <li>De sterke terugloop maakt de voorkant een schuin vlak, zoals bij oude Braun-radio's.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="mass" aria-labelledby="cmf4-h">
+    <div class="eyebrow">Stap 4 · kleur en materiaal · M1 met SB</div>
+    <h2 id="cmf4-h">Drie kleurrichtingen op dezelfde desk</h2>
+    <p class="lead">Het dek is in alle drie zwart met witte opschriften, zoals de graveerplaat het zou geven. Romp, lijst, toetskappen en faderknoppen wisselen. Eén accentkleur per variant: de GM-fader en de rij I P C G B E S FX.</p>
+    <div class="mass-grid">
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">K1</span><h2>Antraciet en walnoot</h2></div>
+        <figure><img src="k1.png" alt="Desk in antraciet met walnoten lijst, donkere toetsen, witte faderknoppen en een rode GM-knop"><figcaption>donkere toetsen, witte faderknoppen, rode GM</figcaption></figure>
+        <ul>
+          <li>Rustig en studio-achtig; de desk verdwijnt in een donkere regieruimte.</li>
+          <li>Witte faderknoppen zie je in het donker het best, en de toetsen zijn meer verlicht dan van kleur.</li>
+        </ul>
+      </article>
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">K2</span><h2>Braun-grijs en walnoot</h2></div>
+        <figure><img src="k2.png" alt="Desk in licht warmgrijs met walnoten lijst, witte toetsen en groene accenten"><figcaption>lichte romp, witte toetsen, groen accent</figcaption></figure>
+        <ul>
+          <li>Naar de Braun SK4: licht metaal en hout, één groene knop als accent.</li>
+          <li>Het meest huiselijk en het meest Rams; in een kerkzaal valt hij op als meubel, niet als apparaat.</li>
+        </ul>
+      </article>
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">K3</span><h2>Aluminium en oranje</h2></div>
+        <figure><img src="k3.png" alt="Desk in geborsteld aluminium met zwarte lijst, lichtgrijze toetsen en oranje accenten"><figcaption>aluminium romp, zwarte lijst, oranje accent</figcaption></figure>
+        <ul>
+          <li>Teenage Engineering: technisch en speels, zonder hout.</li>
+          <li>Een aluminium romp is in deze vorm lastiger te maken dan een geprinte of houten; het kan ook geprint in zilvergrijs.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="mass" aria-labelledby="sb2-h">
+    <div class="eyebrow">Stap 3b · jouw keuze SB · uitgewerkt</div>
+    <h2 id="sb2-h">De uitklapsteun in vier standen</h2>
+    <p class="lead">De eerste schets zette de lage standen bijna op dezelfde tand. Nu scharniert de steun 115 mm achter het klepscharnier, is hij 85 mm lang en leunt hij naar achteren. De vier tanden liggen daardoor 15 tot 34 mm uit elkaar.</p>
+    <div class="mass-grid">
+      <article class="mass-card">
+        <div class="pair">
+          <figure><img src="sb2-15.png" alt="Klep op 15 graden, steun bijna plat"><figcaption>15°</figcaption></figure>
+          <figure><img src="sb2-25.png" alt="Klep op 25 graden"><figcaption>25°</figcaption></figure>
+          <figure><img src="sb2-35.png" alt="Klep op 35 graden"><figcaption>35°</figcaption></figure>
+          <figure><img src="sb2-45.png" alt="Klep op 45 graden, steun bijna rechtop"><figcaption>45°</figcaption></figure>
+        </div>
+        <div class="dims"><span>tanden op <b>466 · 499 · 523 · 538 mm</b> van de voorkant</span><span>steun <b>85 × 400 mm</b></span></div>
+        <ul>
+          <li>De tandlat is een zaagtand: elke tand heeft zijn steile kant achter de voet, zodat een duw op het scherm de voet tegen de tand drukt en niet eruit.</li>
+          <li>Een vinger van 20 N bovenaan het scherm geeft hooguit zo'n 75 N in de steun (op 15°, waar hij het vlakst staat): licht werk voor aluminium.</li>
+          <li>Ingeklapt valt de steun plat tegen de onderkant van de klep, die dan op het dek ligt.</li>
+          <li>Nog uit te werken: de tandlat vrij van het scherm, de klep stil houden tijdens het verstellen (lichte frictie in het scharnier) en een rubber neus op de voet.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="mass" aria-labelledby="stand-h">
+    <div class="eyebrow">Stap 3 · jouw keuze M1 · schermsteun</div>
+    <h2 id="stand-h">Een steun die het scherm vasthoudt als je erop drukt</h2>
+    <p class="lead">Frictiescharnieren alleen geven mee onder een vinger. Twee manieren om de klep vast te zetten, allebei op 25° getekend.</p>
+    <div class="mass-grid">
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">SA</span><h2>Kwadrant met knop</h2></div>
+        <figure><img src="sa-zij.png" alt="M1 van opzij met een aluminium kwadrant en knop"><figcaption>zijaanzicht</figcaption></figure>
+        <div class="pair">
+          <figure><img src="sa-achter.png" alt="M1 schuin van achteren met de kwadranten aan beide kanten"><figcaption>schuin van achteren</figcaption></figure>
+        </div>
+        <ul>
+          <li>Aan elke kant een geborsteld aluminium kwadrant aan de klep, met een sleuf in een boog om het scharnier.</li>
+          <li>Een zwarte knop in de zijwand klemt het vast: traploos van 10° tot 40°.</li>
+          <li>Zichtbaar en eerlijk, zoals een Braun-apparaat laat zien hoe het werkt. Verstellen kost twee handen (twee knoppen).</li>
+        </ul>
+      </article>
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">SB</span><h2>Uitklapsteun met tandlat</h2></div>
+        <figure><img src="sb-zij.png" alt="M1 van opzij, steun onder de klep"><figcaption>zijaanzicht</figcaption></figure>
+        <div class="pair">
+          <figure><img src="sb-achter.png" alt="M1 schuin van achteren, steun en tandlat onder de klep"><figcaption>schuin van achteren</figcaption></figure>
+        </div>
+        <ul>
+          <li>Een brede aluminium steun scharniert onder de klep en zakt met zijn voet in een tandlat op het dek.</li>
+          <li>Vaste standen (bijvoorbeeld 15°, 25°, 35°, 45°): de steun duwt recht tegen, er kan niets slippen.</li>
+          <li>Van voren en opzij bijna onzichtbaar; verstellen gaat met één hand, zoals een ligstoel.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="mass" aria-labelledby="mix-h">
+    <div class="eyebrow">Stap 2b · mengvormen van G en B</div>
+    <h2 id="mix-h">G met een kantelbaar scherm, op twee manieren</h2>
+    <p class="lead">Beide houden de romp van G: zwart, smalle walnoten lijst, voorwand die naar de voet terugloopt. Ze verschillen in hoe het scherm kantelt.</p>
+    <div class="mass-grid">
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">M1</span><h2>Platte G-romp met schermklep</h2></div>
+        <figure><img src="m1-voor.png" alt="M1 van voren, scherm op 25 graden"><figcaption>klep op 25°</figcaption></figure>
+        <div class="pair">
+          <figure><img src="m1-zij.png" alt="M1 van opzij"><figcaption>zijaanzicht</figcaption></figure>
+        </div>
+        <div class="dims"><span>voorkant <b>92 mm</b></span><span>diepte <b>573 mm</b></span><span>hoogte <b>213 mm</b> bij 25°, <b>280 mm</b> bij 45°</span></div>
+        <ul>
+          <li>De romp is één platte doos; de walnoten lijst loopt rondom op één hoogte, ook achter.</li>
+          <li>Het scherm is de klep van B, met walnoten zijkanten, op frictiescharnieren van ongeveer 10° tot 45°.</li>
+          <li>Ingeklapt is de desk een platte koffer: past het makkelijkst in een flightcase.</li>
+        </ul>
+      </article>
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">M2</span><h2>G, met kantelend schermdeel</h2></div>
+        <figure><img src="m2-voor-20.png" alt="M2 van voren, scherm op 20 graden"><figcaption>op 20°: precies G</figcaption></figure>
+        <div class="pair">
+          <figure><img src="m2-voor-40.png" alt="M2 van voren, scherm op 40 graden"><figcaption>op 40°</figcaption></figure>
+          <figure><img src="m2-zij-40.png" alt="M2 van opzij, scherm op 40 graden"><figcaption>zijaanzicht op 40°</figcaption></figure>
+        </div>
+        <div class="dims"><span>voorkant <b>92 mm</b></span><span>diepte <b>573 mm</b></span><span>hoogte <b>179 mm</b> bij 20°, <b>255 mm</b> bij 40°</span></div>
+        <ul>
+          <li>Op de normale stand is het G, met de doorlopende lijst van voor tot achter.</li>
+          <li>Het hele schermdeel, met zijwangen en lijst, scharniert aan de achterrand van het dek omhoog.</li>
+          <li>Gekanteld zie je een wigvormig zijvlak en een kier; dat is eerlijk, maar minder rustig dan M1.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="mass" aria-labelledby="mass-h">
+    <div class="eyebrow">Stap 2 · volumes · jouw keuze B en G</div>
+    <h2 id="mass-h">B en G als 3D-volume</h2>
+    <p class="lead">Beide met het echte geprinte dek, antraciet en walnoot, gerenderd vanuit dezelfde camera's. Geen details, alleen de hoofdvorm.</p>
+    <div class="mass-grid">
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">B</span><h2>Zwevende plaat, kantelbaar scherm</h2></div>
+        <figure><img src="b-voor-25.png" alt="B van voren, scherm op 25 graden"><figcaption>scherm op 25°</figcaption></figure>
+        <div class="pair">
+          <figure><img src="b-voor-45.png" alt="B van voren, scherm op 45 graden"><figcaption>scherm op 45°</figcaption></figure>
+          <figure><img src="b-zij.png" alt="B van opzij"><figcaption>zijaanzicht</figcaption></figure>
+        </div>
+        <div class="dims"><span>voorkant <b>99 mm</b></span><span>diepte <b>585 mm</b></span><span>hoogte <b>222 mm</b> bij 25°, <b>289 mm</b> bij 45°</span></div>
+        <ul>
+          <li>Eén plaat met walnoten rand van 12 mm rondom; de voorrand is 45 mm diep en dient als polssteun.</li>
+          <li>Het onderstel ligt 40 mm terug aan de voorkant en 10–25 mm aan de zijkanten en achter; de schaduw laat de plaat zweven.</li>
+          <li>Het scherm is een klep op een scharnier achter het dek, met frictiescharnieren van ongeveer 10° tot 45°.</li>
+          <li>De computer en de voeding zitten in het onderstel (72 mm hoog binnen).</li>
+        </ul>
+      </article>
+      <article class="mass-card">
+        <div class="card-head"><span class="letter">G</span><h2>Houten lijst, teruglopende voorkant</h2></div>
+        <figure><img src="g-voor.png" alt="G van voren"><figcaption>scherm vast op 20°</figcaption></figure>
+        <div class="pair">
+          <figure><img src="g-zij.png" alt="G van opzij"><figcaption>zijaanzicht</figcaption></figure>
+        </div>
+        <div class="dims"><span>voorkant <b>92 mm</b></span><span>diepte <b>573 mm</b></span><span>hoogte achter <b>179 mm</b></span></div>
+        <ul>
+          <li>Zwarte romp met een walnoten lijst van 12 mm langs de bovenrand en over de voorkant.</li>
+          <li>De voorwand loopt naar de voet toe 8 mm terug, dus de desk lijkt aan de voorkant lichter.</li>
+          <li>Het scherm staat vast. Kantelbaar kan alleen als een klep zoals bij B, en dan breekt de doorlopende lijn.</li>
+          <li>Compacter en robuuster in een flightcase dan B.</li>
+        </ul>
+      </article>
+    </div>
+    <p>Een mengvorm kan ook: B met de teruglopende voorkant van G op het onderstel, of G met de klep van B.</p>
+  </section>
+
+  <section class="brief" aria-labelledby="brief-h">
+    <h2 id="brief-h">Brief (concept, vul aan)</h2>
+    <div class="brief-grid">
+      <div>
+        <h3>Karakter (voorstel)</h3>
+        <div class="words"><span class="word">nuchter</span><span class="word">precies</span><span class="word">speels</span></div>
+        <p>Nuchter en precies van Dieter Rams bij Braun, speels van Teenage Engineering. Klopt dit niet, vervang gerust een woord.</p>
+      </div>
+      <div>
+        <h3>Ligt vast</h3>
+        <ul>
+          <li>Geprint dek 570 × 325, voorste rij 100 mm-faders, achter 60 mm</li>
+          <li>15,6″ touchscreen onder 15–25°</li>
+          <li>Hout mag, maar hoeft niet meer</li>
+          <li>Onder het dek ≥ 45 mm voor faders en printplaten, onder het scherm ruimte voor een Mac mini</li>
+          <li>Past in een flightcase; een mens tilt hem alleen</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Open vragen</h3>
+        <ul>
+          <li>Dek plat of licht schuin (5–10°) naar je toe?</li>
+          <li>Polssteun vast deel van de vorm, of los?</li>
+          <li>Mag de desk achter hoog zijn, of liever laag zodat je erover kijkt?</li>
+          <li>Licht (Braun-grijs) of donker? In een donkere kerk weerkaatst een lichte desk meer.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rules">
+      <h3>Vormregels uit Rams en Teenage Engineering</h3>
+      <ol>
+        <li><b>Eén hoofdvorm.</b> Geen sierlijsten of decoratie; de vorm volgt uit faders, toetsen en scherm.</li>
+        <li><b>Eén vaste radius</b> overal, klein (bijvoorbeeld 3 mm), en rechte vlakken.</li>
+        <li><b>Raster.</b> Alles op het 33 mm faderraster en het 19,05 mm toetsraster; dat heeft het dek al.</li>
+        <li><b>Kleur alleen met een functie.</b> Eén accentkleur, bijvoorbeeld voor Go en de grand master; de rest grijs of zwart.</li>
+        <li><b>Technische typografie.</b> Klein, kleine letters, monospace of grotesk, overal dezelfde maat.</li>
+        <li><b>Eerlijk materiaal.</b> Print mag print zijn, hout is massief en plat, schroeven zichtbaar en netjes in het raster.</li>
+      </ol>
+    </div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wood)"></span>hout</span>
+      <span><span class="sw" style="background:var(--print)"></span>geprint zwart</span>
+      <span><span class="sw" style="background:var(--base)"></span>terugliggend donker deel</span>
+      <span><span class="sw" style="background:var(--accent);border-color:var(--accent)"></span>scherm</span>
+    </div>
+  </section>
+
+  <section class="grid" id="grid" aria-label="Silhouetten"></section>
+
+  <section class="cmf" aria-labelledby="cmf-h">
+    <h2 id="cmf-h">Kleur en materiaal: drie richtingen</h2>
+    <div class="cmf-grid">
+      <div class="cmf-opt">
+        <div class="chips"><span style="background:#d7d5d0"></span><span style="background:#2b2c2e"></span><span style="background:#6e4a31"></span><span class="acc" style="background:#3f8a52"></span></div>
+        <h3>Braun-grijs</h3>
+        <p>Licht warmgrijze romp, zwarte bediening, dunne houten wangen, één groene of oranje accenttoets. Opdruk zwart op grijs. Het meest Rams, maar licht in een donkere zaal.</p>
+      </div>
+      <div class="cmf-opt">
+        <div class="chips"><span style="background:#aeb2b7"></span><span style="background:#161718"></span><span style="background:#e9eaeb"></span><span class="acc" style="background:#ff5a1f"></span></div>
+        <h3>Aluminium en oranje</h3>
+        <p>Zilvergrijs, zwart en wit met fel oranje voor Go en de grand master. Het meest Teenage Engineering. Zilver-PETG print mooi, hout valt weg of wordt heel klein.</p>
+      </div>
+      <div class="cmf-opt">
+        <div class="chips"><span style="background:#2a2c30"></span><span style="background:#6e4a31"></span><span style="background:#e8e6e1"></span><span class="acc" style="background:#ff8a1f"></span></div>
+        <h3>Antraciet en walnoot</h3>
+        <p>De huidige richting, maar strakker: antraciet print, platte walnoten wangen, witte opdruk, één oranje accent. Het best in een donkere kerk.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Maten zijn schetsmaten: dekhoogte en voorhoogte gemeten vanaf de tafel, inclusief voetjes. Wat je kiest, toets ik daarna aan de echte onderdelen.</p>
+  </footer>
+</div>
+
+<script>
+const H = 250;                       // svg y = H - z
+const pt = (y, z) => `${y.toFixed(1)},${(H - z).toFixed(1)}`;
+const T20 = Math.tan(20 * Math.PI / 180);
+
+// polygon with per-corner radii (quadratic corners)
+function rpoly(pts, radii) {
+  const n = pts.length, r = i => Array.isArray(radii) ? (radii[i] || 0) : (radii || 0);
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const [y, z] = pts[i], [py, pz] = pts[(i - 1 + n) % n], [ny, nz] = pts[(i + 1) % n];
+    const ri = r(i);
+    if (!ri) { d += (i ? ' L' : 'M') + pt(y, z); continue; }
+    const l1 = Math.hypot(py - y, pz - z), l2 = Math.hypot(ny - y, nz - z), k = Math.min(ri, l1 / 2, l2 / 2);
+    const a = [y + (py - y) * k / l1, z + (pz - z) * k / l1], b = [y + (ny - y) * k / l2, z + (nz - z) * k / l2];
+    d += (i ? ' L' : 'M') + pt(...a) + ' Q' + pt(y, z) + ' ' + pt(...b);
+  }
+  return d + ' Z';
+}
+// thick band below a polyline (side view of a plate), vertical thickness t
+function band(line, t, r = 0) {
+  const pts = line.concat(line.slice().reverse().map(([y, z]) => [y, z - t]));
+  return rpoly(pts, r);
+}
+const feet = (y1, y2) => [['print', rpoly([[y1, 0], [y1 + 30, 0], [y1 + 30, 8], [y1, 8]], 2)], ['print', rpoly([[y2 - 30, 0], [y2, 0], [y2, 8], [y2 - 30, 8]], 2)]];
+const screenLine = (y1, z1, y2, z2) => ['screen', `M${pt(y1, z1)} L${pt(y2, z2)}`];
+
+const V = [
+  { k: 'A', name: 'Huidig ontwerp', what: 'Het model van vandaag: platte wang, armsteun als blok, scherm onder 20°, rechte achterkant.',
+    pro: 'Eenvoudig te zagen, veel binnenruimte.', con: 'Oogt als een kist; de wang heeft geen eigen lijn.',
+    deckH: 105, shapes: () => [
+      ['wood', rpoly([[0, 8], [0, 109], [45, 109], [45, 100], [370, 100], [608, 100 + 238 * T20], [608, 8]], [3, 14, 4, 0, 0, 6, 3])],
+      screenLine(400, 103 + 30 * T20, 590, 103 + 220 * T20), ...feet(15, 595)] },
+  { k: 'B', name: 'Zwevende plaat', what: 'Dek en scherm als één dunne plaat met walnoten rand, die zweeft boven een donker, terugliggend onderstel.',
+    pro: 'Licht en modern; de schaduwvoeg maakt hem slank.', con: 'Plaat moet heel stijf zijn; onderstel apart maken.',
+    deckH: 98, shapes: () => [
+      ['base', rpoly([[50, 8], [50, 76], [372, 76], [560, 76 + 188 * T20], [560, 8]], [3, 3, 0, 3, 3])],
+      ['wood', band([[0, 98], [372, 98], [600, 98 + 228 * T20]], 18, [9, 0, 4, 4, 0, 9])],
+      ['print', band([[2, 98], [372, 98], [598, 98 + 226 * T20]], 3)],
+      screenLine(400, 101 + 28 * T20, 585, 101 + 213 * T20), ...feet(60, 550)] },
+  { k: 'C', name: 'Doorlopende curve', what: 'Eén vloeiende lijn van polssteun tot achterkant, zoals een vleugel of een klassieke synth met houten wangen.',
+    pro: 'Meest meubelachtig en warm; geen harde knikken.', con: 'Wang uit een dikke plank of verlijmd; frezen of mallen nodig.',
+    deckH: 100, shapes: () => [
+      ['wood', `M${pt(0, 8)} L${pt(0, 64)} C${pt(0, 100)} ${pt(12, 110)} ${pt(52, 104)} L${pt(360, 100)} C${pt(430, 100)} ${pt(520, 150)} ${pt(588, 180)} C${pt(622, 196)} ${pt(648, 178)} ${pt(648, 140)} L${pt(648, 8)} Z`],
+      screenLine(405, 104 + 25 * T20, 585, 104 + 205 * T20), ...feet(20, 630)] },
+  { k: 'D', name: 'Schermtoren', what: 'Twee delen: een lage, licht schuine bedieningssectie en daarachter een losse schermtoren, met een smalle voeg ertussen.',
+    pro: 'Duidelijke hiërarchie; dek 7° schuin is prettig reiken.', con: 'Twee kasten om te maken; toren maakt hem hoger.',
+    deckH: 96, shapes: () => [
+      ['wood', rpoly([[0, 8], [0, 100], [40, 100], [40, 94], [372, 94 + 332 * Math.tan(7 * Math.PI / 180)], [372, 8]], [3, 12, 3, 0, 4, 3])],
+      ['print', rpoly([[384, 8], [384, 142], [604, 142 + 220 * Math.tan(18 * Math.PI / 180)], [618, 142 + 220 * Math.tan(18 * Math.PI / 180)], [618, 8]], [3, 6, 4, 6, 3])],
+      screenLine(400, 147, 595, 147 + 195 * Math.tan(18 * Math.PI / 180)), ...feet(15, 605)] },
+  { k: 'E', name: 'Trapezium', what: 'Voor- en achterkant wijken onder naar binnen, met ruime radius aan de voorrand. Rustige Duitse vormtaal.',
+    pro: 'Compact en strak; de schuine voorkant laat hem lichter lijken.', con: 'Schuine zaagsneden en een gebogen voorrand in hout.',
+    deckH: 98, shapes: () => [
+      ['wood', rpoly([[30, 8], [0, 92], [0, 98], [365, 98], [592, 98 + 227 * T20], [566, 8]], [3, 6, 14, 0, 8, 3])],
+      screenLine(395, 101 + 30 * T20, 575, 101 + 210 * T20), ...feet(40, 556)] },
+  { k: 'F', name: 'Lage slab met vleugel', what: 'Een laag blok voor de bediening; het scherm hangt als dunne vleugel op twee armen erachter.',
+    pro: 'Laagste voorkant, je kijkt over het scherm heen de zaal in.', con: 'Armen en scharnier uitwerken; minder plek voor de computer.',
+    deckH: 72, shapes: () => [
+      ['wood', rpoly([[0, 8], [0, 76], [400, 76], [400, 8]], [3, 10, 4, 3])],
+      ['base', rpoly([[388, 76], [398, 76], [430, 118], [420, 118]], 1)],
+      ['print', band([[400, 112], [600, 112 + 200 * T20]], 14, [5, 3, 3, 5])],
+      screenLine(410, 110 + 10 * T20, 590, 110 + 190 * T20), ...feet(15, 385)] },
+  { k: 'G', name: 'Houten lijst', what: 'De romp is zwart; hout loopt alleen als smalle lijst langs de bovenrand, als een fotolijst om het bedieningsvlak.',
+    pro: 'Hout als accent, minder hout nodig; zwart oogt professioneel.', con: 'Lijst moet precies passen; minder warm dan hele wangen.',
+    deckH: 98, shapes: () => [
+      ['print', rpoly([[6, 8], [0, 98], [372, 98], [605, 98 + 233 * T20], [605, 8]], [3, 12, 0, 6, 3])],
+      ['wood', band([[0, 101], [372, 101], [605, 101 + 233 * T20]], 12, [8, 0, 5, 5, 0, 8])],
+      screenLine(400, 101 + 28 * T20, 590, 101 + 218 * T20), ...feet(20, 590)] },
+  { k: 'H', name: 'Synthwig', what: 'Klassieke wigvorm: dek 8° schuin, scherm 25°, houten wangen die net boven het vlak uitsteken.',
+    pro: 'Herkenbaar instrument; alles binnen bereik.', con: 'Hoogste achterkant; minder een meubel, meer een synth.',
+    deckH: 86, shapes: () => {
+      const t8 = Math.tan(8 * Math.PI / 180), t25 = Math.tan(25 * Math.PI / 180);
+      const zd = 86 + 330 * t8;
+      return [
+        ['wood', rpoly([[0, 8], [0, 86], [12, 92], [342, 92 + 330 * t8], [550, 92 + 330 * t8 + 208 * t25], [562, 92 + 330 * t8 + 208 * t25], [562, 8]], [3, 4, 2, 0, 2, 3, 3])],
+        screenLine(365, zd + 22 * t25, 540, zd + 197 * t25), ...feet(15, 547)];
+    } },
+  { k: 'I', fit: true, name: 'Kist met dunne wangen', what: 'Rechte, dunne houten zijkanten tegen een lichte romp, zoals de Braun-radio\'s met houten wangen. Geen polsbalk, wel een lage voorkant.',
+    pro: 'Hout blijft, maar strak en plat; makkelijk te zagen.', con: 'Een lichte romp vraagt de Braun-grijze kleurrichting.',
+    deckH: 88, shapes: () => {
+      const t15 = Math.tan(15 * Math.PI / 180);
+      return [
+        ['wood', rpoly([[0, 8], [0, 91], [362, 91], [596, 91 + 234 * t15], [596, 8]], 3)],
+        ['light', rpoly([[-2, 30], [-2, 84], [6, 84], [6, 30]], 1)],
+        screenLine(385, 92 + 23 * t15, 585, 92 + 223 * t15), ...feet(15, 581)];
+    } },
+  { k: 'J', fit: true, name: 'Veldslab', what: 'Een dunne slab van 34 mm die 6° naar je toe helt op een achterste voetbalk, met het scherm als losse tablet op een eigen standaard.',
+    pro: 'De dunste en laagste; het meest Teenage Engineering.', con: 'Geen plek voor de computer onder het scherm: die gaat in een aparte doos.',
+    deckH: 50, shapes: () => {
+      const t6 = Math.tan(6 * Math.PI / 180), t25 = Math.tan(25 * Math.PI / 180);
+      return [
+        ['alu', band([[0, 46], [390, 46 + 390 * t6]], 34, [6, 4, 4, 6])],
+        ['print', rpoly([[350, 8], [390, 8], [390, 46 + 390 * t6 - 34], [350, 46 + 350 * t6 - 34]], 2)],
+        ['base', rpoly([[520, 8], [534, 8], [568, 118], [556, 120]], 1)],
+        ['alu', band([[425, 62], [605, 62 + 180 * t25]], 12, [4, 3, 3, 4])],
+        screenLine(435, 63 + 10 * t25, 595, 63 + 170 * t25), ['print', rpoly([[8, 0], [30, 0], [30, 12], [8, 12]], 2)]];
+    } },
+  { k: 'K', fit: true, name: 'Lessenaar', what: 'Eén doorlopend vlak onder 12°: faders, toetsen en scherm liggen in hetzelfde vlak, met smalle wangen eromheen.',
+    pro: 'De rustigste vorm die er is: één vlak, één lijn.', con: 'Scherm maar 12° (meer weerkaatsing); achteraan hoog en verder weg.',
+    deckH: 74, shapes: () => {
+      const t12 = Math.tan(12 * Math.PI / 180);
+      return [
+        ['wood', rpoly([[0, 8], [0, 74], [606, 74 + 606 * t12], [606, 8]], 3)],
+        screenLine(400, 71 + 400 * t12, 592, 71 + 592 * t12), ...feet(15, 591)];
+    } },
+];
+for (const k of 'BEFG') V.find(v => v.k === k).fit = true;
+
+const FILL = { wood: 'var(--wood)', print: 'var(--print)', base: 'var(--base)', light: 'var(--light)', alu: 'var(--alu)' };
+const grid = document.getElementById('grid');
+for (const v of V) {
+  const shapes = v.shapes();
+  // extents from the path coordinates
+  let ymax = 0, zmax = 0, zfront = 0;
+  for (const [, d] of shapes) for (const m of d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)) {
+    const y = +m[1], z = H - +m[2];
+    ymax = Math.max(ymax, y); zmax = Math.max(zmax, z);
+    if (y < 1) zfront = Math.max(zfront, z);
+  }
+  let g = '';
+  for (let x = -50; x <= 700; x += 50) g += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="var(--grid)" stroke-width="1"/>`;
+  for (let z = 0; z <= 250; z += 50) g += `<line x1="-50" y1="${H - z}" x2="700" y2="${H - z}" stroke="var(--grid)" stroke-width="1"/>`;
+  g += `<line x1="-50" y1="${H}" x2="700" y2="${H}" stroke="var(--muted)" stroke-width="1.5"/>`;
+  for (const [kind, d] of shapes) {
+    if (kind === 'screen') g += `<path d="${d}" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" fill="none"/>`;
+    else g += `<path d="${d}" fill="${FILL[kind]}" stroke="var(--edge)" stroke-width="${kind === 'print' ? 1 : 0.6}" stroke-linejoin="round"/>`;
+  }
+  // operator's hand position
+  g += `<g transform="translate(-28 ${H - v.deckH - 6})" fill="none" stroke="var(--muted)" stroke-width="1.2"><path d="M0,0 l22,-4" stroke-dasharray="3 3"/><text x="-20" y="-8" fill="var(--muted)" stroke="none" font-family="IBM Plex Mono, monospace" font-size="11">hand</text></g>`;
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-head"><span class="letter">${v.k}</span><h2>${v.name}</h2>${v.fit ? '<span class="fit">Rams / TE</span>' : ''}</div>
+    <svg viewBox="-60 -10 770 ${H + 18}" role="img" aria-label="Zijaanzicht ${v.k}: ${v.name}">${g}</svg>
+    <div class="dims"><span>diepte <b>${Math.round(ymax)} mm</b></span><span>hoogte achter <b>${Math.round(zmax)} mm</b></span><span>voorkant <b>${Math.round(zfront)} mm</b></span></div>
+    <p>${v.what}</p>
+    <div class="pro-con"><div><h4>Sterk</h4>${v.pro}</div><div><h4>Lastig</h4>${v.con}</div></div>`;
+  grid.appendChild(card);
+}
+</script>
