@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47); IPC-47 approved by owner 2026-10-28 (P1-23); IPC-14 amended 2026-10-29 (FXB-08)**; **IPC-48 (selection orders, P2-02) approved by owner 2026-10-29**; IPC-63..66 proposed 2026-11-15 (IDEA-35 batch J, P1-43). References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47); IPC-47 approved by owner 2026-10-28 (P1-23); IPC-14 amended 2026-10-29 (FXB-08)**; **IPC-48 (selection orders, P2-02) approved by owner 2026-10-29**; IPC-63..66 approved by owner 2026-11-15 (IDEA-35 batch J, P1-43). References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -438,8 +438,8 @@ Behaviour in `patch.md` PAT-37..47 and `fixture-library.md` LIB-41, 42.
   `patch.behaviour {ids, attribute, invert?, low?, high?, offset?}`, `patch.behaviour_reset {ids}`, `patch.swap_pan_tilt {ids, swapped}`,
   and `auto_groups` on `patch.add`. `library.delete_profile` (reply `library.deleted {manufacturer, model}`) and `library.duplicate_profile` reply to the asking client only. Tests `ipc_62_…`.
 
-### Input paths (IDEA-35 batch J, P1-43; proposed 2026-11-15, waits for the owner)
-Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Questions in `ui.md`, *Owner questions (P1-43)*.
+### Input paths (IDEA-35 batch J, P1-43; approved by owner 2026-11-15)
+Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Questions in `ui.md`, *Owner decisions (P1-43)*.
 - **IPC-63** **A typed value** (PRG-104, UI-82). `programmer.type {"attribute":"Gobo 1","value":3}`: class edit, coalesced with
   nothing, refused while locked (IPC-50); a refusal is PRG-104's `warning`. The selection and the `wheels` delta follow as after a
   wheel move. Tests `ipc_63_…`.

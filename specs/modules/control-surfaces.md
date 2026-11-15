@@ -3,7 +3,7 @@
 Owner: `cmdmx-control` (pure: MIDI and OSC decode/encode, mappings, pickup, feedback, learn) and
 `cmdmx-daemon` (CoreMIDI ports, the OSC socket, Stream Decks over USB HID, mapping files, IPC). Status: **CTL-05..43
 approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions); **CTL-44..58 (Stream Deck) approved
-by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04); **CTL-58 details and CTL-67 approved by owner 2026-10-25** (VS7-07); **CTL-58a/b approved by owner 2026-10-25** (VS7-09); CTL-72..74 proposed 2026-11-15 (IDEA-35 batch J, P1-43). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
+by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04); **CTL-58 details and CTL-67 approved by owner 2026-10-25** (VS7-07); **CTL-58a/b approved by owner 2026-10-25** (VS7-09); CTL-72..74 approved by owner 2026-11-15 (IDEA-35 batch J, P1-43). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
 and already tested in `cmdmx-control/src/mcu.rs`; they now belong to the Mackie Control profile.
 Scope set by the owner on 2026-10-23 (DECISIONS): a **general MIDI and OSC control layer**; named
 hardware (the BCF2000) and named clients (the church TouchOSC remote) are profiles and clients on
@@ -527,9 +527,9 @@ From `docs/research/everyday-gaps.md` F1 and F4; checked in `tests/manual/runs/2
   the page selector's menu gets **Clear page**, two-step: "Clear page 2? It holds 9 keys." The key menu's **Remove** becomes two-step
   as in the bindings table (CTL-41). Tests `ctl_71_…` for `deck_clear`; the app checked by hand.
 
-### Programming from a surface (IDEA-35 batch J, P1-43; proposed 2026-11-15, waits for the owner)
+### Programming from a surface (IDEA-35 batch J, P1-43; approved by owner 2026-11-15)
 Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Titan: *MIDI, DMX or Audio Triggering* (a *Hardware* trigger presses a
-console button as its key profile says). Questions in `ui.md`, *Owner questions (P1-43)*.
+console button as its key profile says). Questions in `ui.md`, *Owner decisions (P1-43)*.
 - **CTL-72** **Programming keys and Exit** (J4, J5; adds to CTL-05; P1-43 question 4). The vocabulary gains
   `key record|update|include|delete|copy|move|legend|options|release` (button, on press) and the keypad token `Exit`. With the app
   following surfaces (IPC-64) each reaches the app as the function button or the keypad's key does there (UI-84); a key's

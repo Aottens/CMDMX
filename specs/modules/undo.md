@@ -102,7 +102,7 @@ start.
 - **UNDO-15** There is one history for the daemon, shared by every client: an Undo from any
   client undoes the newest step, whoever made it (there is one programmer, `programmer.md`).
 
-### A running list after an undo (DEF-06; IDEA-35 batch J, P1-43 question 9; proposed 2026-11-15, waits for the owner)
+### A running list after an undo (DEF-06; IDEA-35 batch J, P1-43 question 9; approved by owner 2026-11-15)
 Found in the TTN-04, 06, 10 run (`tests/manual/runs/2026-11-14-TTN-04-06-10.md`): a renumber or a block Move (CUE-69) undone
 left a running list on a cue number no cue had, and Go did nothing, without a message.
 - **UNDO-21** (amends UNDO-10) After an undo or redo, a running list or chase whose current cue number no longer exists:

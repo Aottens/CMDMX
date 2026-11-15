@@ -13,7 +13,7 @@ UI-33a, UI-33b (Fan and Pattern keep the selection keys, SEL-09): **approved by 
 UI-26 (console mode) quit, UI-19 message zone, UI-22 level bars, Lock in the Main context, and UI-35..40:
 approved by owner 2026-11-01 (IDEA-35 batch A, P1-25).
 UI-42..48 (IDEA-35 batch H, P1-27): owner's answers 2026-11-03; approved when the spec PR merges.
-UI-82..88 (IDEA-35 batch J, P1-43): proposed 2026-11-15, waits for the owner.
+UI-82..88 (IDEA-35 batch J, P1-43): approved by owner 2026-11-15.
 Behavioural and visual reference: UI v0.1, `specs/ux/main-screen.html` (DECISIONS 2026-10-17),
 background in `specs/ux/research.md` ("Design brief for iteration 2"). Titan is the reference for
 names and behaviour.
@@ -656,11 +656,11 @@ F3 holds already (UI-42: an armed function on an effect palette tile is refused)
   with Groups + Palettes on show, an accessibility search for "wave" finds nothing; background presses on Group 2 and on a fixture
   tile select that group and that fixture.
 
-### Input paths (IDEA-35 batch J, P1-43; proposed 2026-11-15, waits for the owner)
+### Input paths (IDEA-35 batch J, P1-43; approved by owner 2026-11-15)
 From `docs/research/everyday-gaps.md` J (J8 went into batch C) and K3, with what was left of K2; checked in
 `tests/manual/runs/2026-11-15-J-checks.md`. Titan pages used: *Changing Fixture Attributes*, *Front Panel Buttons*, *Using the
 Select Buttons and Wheels*, *MIDI, DMX or Audio Triggering*. What a page does not say is marked as our own choice. The rest of
-batch J is PRG-104, IPC-63..66, CTL-72..74 and REL-30; the questions are below, *Owner questions (P1-43)*.
+batch J is PRG-104, IPC-63..66, CTL-72..74 and REL-30; the questions are below, *Owner decisions (P1-43)*.
 
 - **UI-82** **Type a value, then click the wheel** (J1, PRG-104; P1-43 question 2; Titan: a value, then the attribute's softkey).
   While the command line holds exactly one number (digits with at most one `.`, typed on the keypad, the Mac keys or a surface), a
@@ -713,7 +713,7 @@ Palette, cue and playback behaviour (their own specs fill in the disabled contro
 (P1-10), freely configurable workspaces, legends and halos, picture legends, a remote/touch layout
 (IDEA-06), and the narrow single-column layout of the sketch (below 900 px). Not in batch C (P1-33): editing values in the Grid, Titan's *View If* and *Frozen* filters, the DMX View's input column, a fixture's position on a rig plan (IDEA-25). Not in batch D (P1-36): Unfold of a cue list or chase onto faders and a linked playback copy (owner decisions 3 and 4: IDEA-46, IDEA-47), copying or moving several cues, Titan's *Copy Legends* option and *Unassign*, the Release Priority setting and *Release all Masters*.
 
-## Owner questions (P1-43, batch J, 2026-11-15)
+## Owner decisions (P1-43, batch J, 2026-11-15: every recommendation accepted)
 1. **What is in batch J:** J1 (PRG-104, IPC-63, UI-82), J2 (UI-83), J3 with the rest of K2 (UI-86), J4 and J5 (IPC-64,
    CTL-72, UI-84) with the surface lock (IPC-65, CTL-73, UI-85), J6 (IPC-66, CTL-74), J7 (UI-87), J9 (REL-30) and K3 (UI-88);
    no schema change (`showfile.md`)? And beside it, as two builds of their own, DEF-06 (UNDO-21) and TST-01 (OUT-43)?

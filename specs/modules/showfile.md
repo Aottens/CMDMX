@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::show` (schema, (de)serialisation, migrations; pure) and `cmdmx-daemon`
 (shows folder, autosave, recovery, IPC), Show screen in `subprojects/app`.
-Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41); SHW-26 approved by owner 2026-11-14 (P1-42); batch J (P1-43, proposed 2026-11-15) changes no schema. Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
+Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41); SHW-26 approved by owner 2026-11-14 (P1-42); batch J (P1-43, approved by owner 2026-11-15) changes no schema. Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
 decision 5 (a show embeds its profiles).
 Behavioural reference: Titan *Shows* (new/load/save, the show carries its personalities), macOS
 autosave in place.
@@ -184,7 +184,7 @@ Checks behind these criteria: `tests/manual/runs/2026-11-12-G-checks.md`. Titan 
   to 15; the later builds add their keys to 15, as long as no release has shipped 15. An older engine refuses schema 15 (SHW-04).
   Test `shw_26_…`, extended by each build.
 
-### Batch J (IDEA-35 batch J, P1-43; proposed 2026-11-15, waits for the owner)
+### Batch J (IDEA-35 batch J, P1-43; approved by owner 2026-11-15)
 Batch J adds nothing to the show file: the schema stays 15. The saved lock code (IPC-65) goes in this Mac's `state.json`
 (SHW-09), beside the mapping each device uses; the Fixtures | Groups switch (UI-88) is an app preference; the new control
 actions (CTL-72, 73) live in the mapping files (CTL-23), which are not show data, as batch I's `speed` and `direction` do.
