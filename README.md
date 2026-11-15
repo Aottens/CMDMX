@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls, show files and batch I are done; batch J has the Mac keys, the page marks, the mouse
-range, typed values and programming from a surface. Next: the rest of batch J (INP-05, INP-06), then VS4-07 and VS4-03.
+Patch, profiles, controls, show files and batches I and J are done: J brought the Mac keys, typed values, programming
+and locking from a surface. Next: DEF-06 and TST-01 beside batch J, then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap waits for a test print (HWB-10). Progress: [`STATE.md`](STATE.md), the plan: [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -71,7 +71,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   tried less often, down to every 30 s, under one steady line, for as long as the app is open.
 - **Lock** in the status bar, ⌘L or the softkey covers the console with a code keypad: DMX, running playbacks and autosave go on, every
   control and surface input stops, and quitting refuses until the unlock. A Flash or Swop held when the lock comes still
-  ends when you let go. An operational control, not show-file protection.
+  ends when you let go. An operational control, not show-file protection. A code saved on this Mac lets a surface's
+  `key lock` lock at once; only the Mac unlocks.
 
 **Patch and fixtures**
 - A plain dimmer (`Generic` / `Dimmer`, 8-bit and 16-bit) is always in the library, also without the QLC+ set.
@@ -232,6 +233,8 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - Programming from a surface: with the app open, a surface's keypad types into the app's one command line
   (`BCF2000 › 1 Thro 4 @`), its Record, Update, Copy, Move, Delete and other function keys arm the app's buttons,
   and while one is armed a handle, group or palette press on the surface is the target.
+- Bindings keep their numbers: deleting or moving a group, palette or playback names the controls that point at it, and
+  the Control screen marks a binding to nothing in amber.
 
 **Show, undo and app**
 - A delete says what it does before you confirm: how many cues on how many playbacks use a palette, a running playback's output ending, the live cue; under Patch's Confirm remove, where a fixture is used and what ends up empty.
