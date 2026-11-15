@@ -166,7 +166,7 @@ private struct FunctionKey: View {
 
 // MARK: - Keypad (UI-17)
 
-private struct Keypad: View {
+struct Keypad: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
@@ -224,7 +224,11 @@ private struct Keypad: View {
         ui.learnOrRun(Self.learnActions[label] ?? (label.count == 1 && label.first?.isNumber == true ? "keypad \(label)" : nil), engine) { run(label) }
     }
 
-    private func run(_ label: String) {
+    private func run(_ label: String) { Self.run(label, ui: ui, line: line, engine: engine) }
+
+    /// One keypad key, for the screen and for a surface (UI-84, which adds `device`).
+    static func run(_ label: String, ui: UIState, line: TokenLine, engine: EngineClient, device: String? = nil) {
+        func add() { if let device { line.add(label, from: device) } else { line.add(label) } }
         switch label {
         case "Back": line.back()
         case "Exit": line.clear(); ui.cancelModes()   // also disarms Record and the function buttons (PBK-28)
@@ -233,8 +237,8 @@ private struct Keypad: View {
         case "Odd/Even": engine.pattern(2)
         case "Palette":
             if line.tokens.isEmpty { ui.paletteMenu = true }   // PAL-29: the Palette softkeys, until Cancel or Exit
-            line.add(label)
-        default: line.add(label)   // digits, ".", Fixture, Group, Thro, And, @
+            add()
+        default: add()   // digits, ".", Fixture, Group, Thro, And, @
         }
     }
 }

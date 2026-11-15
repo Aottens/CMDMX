@@ -2228,3 +2228,255 @@ fn cue_66_direction_keys_set_a_chases_direction() {
     assert_eq!(direction(991), Direction::Backward, "the connected chase");
     assert_eq!(direction(990), Direction::Random, "the chase on 9.1");
 }
+
+// --- IPC-64, CTL-72 surface keys reach the app -------------------------------
+
+const PROG: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"cc","channel":1,"number":7},"action":"fader 1","pickup":false},
+  {"input":{"kind":"note","channel":1,"number":60},"action":"upper 1"},
+  {"input":{"kind":"note","channel":1,"number":62},"action":"group 5"},
+  {"input":{"kind":"note","channel":1,"number":63},"action":"palette 12"},
+  {"input":{"kind":"note","channel":1,"number":64},"action":"go"},
+  {"input":{"kind":"note","channel":1,"number":70},"action":"keypad Group"},
+  {"input":{"kind":"note","channel":1,"number":71},"action":"keypad 1"},
+  {"input":{"kind":"note","channel":1,"number":72},"action":"keypad Enter"},
+  {"input":{"kind":"note","channel":1,"number":73},"action":"keypad Exit"},
+  {"input":{"kind":"note","channel":1,"number":74},"action":"keypad 4"},
+  {"input":{"kind":"note","channel":1,"number":80},"action":"key record"},
+  {"input":{"kind":"note","channel":1,"number":81},"action":"key copy"}
+]}"#;
+
+/// `nano` with the programming mapping, connected with an output and enabled.
+fn prog(test: &str) -> Control {
+    let dir = tmp(test);
+    fs::write(dir.join("control/nano.json"), PROG).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    let _ = c.take_messages();
+    c
+}
+
+/// What a following client was sent since the last look, parsed.
+fn sent(rx: &std::sync::mpsc::Receiver<String>) -> Vec<Value> {
+    rx.try_iter()
+        .map(|s| serde_json::from_str(&s).unwrap())
+        .collect()
+}
+
+/// The tokens of the one `Line` command among `cmds`.
+fn line_of(cmds: &[(String, Command)]) -> Vec<String> {
+    let lines: Vec<_> = cmds
+        .iter()
+        .filter_map(|(_, c)| match c {
+            Command::Line { tokens } => Some(tokens.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(lines.len(), 1, "{cmds:?}");
+    lines[0].clone()
+}
+
+#[test]
+fn ctl_72_with_no_app_a_programming_key_is_refused_and_exit_empties_the_line() {
+    let mut c = prog("ctl72-no-app");
+    let e = engine();
+    press(&mut c, "nano", 80);
+    assert!(c.commands(&e, 0.0).is_empty(), "Record runs nowhere");
+    assert_eq!(
+        c.take_messages(),
+        ["Record on nano needs the CMDMX app"],
+        "a warning (IPC-64)"
+    );
+    press(&mut c, "nano", 81);
+    assert!(c.commands(&e, 0.0).is_empty());
+    assert_eq!(c.take_messages(), ["Copy on nano needs the CMDMX app"]);
+    // A half line, Exit, then a line of its own: only the new line is sent.
+    for n in [70, 73, 71, 72] {
+        press(&mut c, "nano", n);
+    }
+    let cmds = c.commands(&e, 0.0);
+    assert_eq!(line_of(&cmds), ["1", "Enter"]);
+}
+
+#[test]
+fn ipc_64_a_following_client_gets_the_keypad_and_the_keys_and_the_line_starts_empty() {
+    let mut c = prog("ipc64-follow");
+    let e = engine();
+    // A token typed before the app follows is gone once it does.
+    press(&mut c, "nano", 70);
+    assert!(c.commands(&e, 0.0).is_empty());
+    let (tx, rx) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(7, Some(tx));
+    for n in [74, 72, 80] {
+        press(&mut c, "nano", n);
+    }
+    assert!(c.commands(&e, 0.0).is_empty(), "nothing runs in the daemon");
+    assert!(c.take_messages().is_empty(), "no refusal while followed");
+    let got = sent(&rx);
+    assert_eq!(got.len(), 3, "{got:?}");
+    for m in &got {
+        assert_eq!(m["type"], "surface");
+        assert_eq!(m["device"], "nano");
+    }
+    assert_eq!(got[0]["keypad"], "4");
+    assert_eq!(got[1]["keypad"], "Enter");
+    assert_eq!(got[2]["key"], "record");
+    // Faders, Go and handle presses stay live while nothing is armed.
+    packet(&mut c, "nano", &cc7(127));
+    press(&mut c, "nano", 64);
+    press(&mut c, "nano", 60);
+    let cmds = c.commands(&e, 0.0);
+    assert!(cmds
+        .iter()
+        .any(|(_, c)| matches!(c, Command::FaderSet { .. })));
+    assert!(cmds
+        .iter()
+        .any(|(_, c)| matches!(c, Command::CuelistAction { .. })));
+    assert!(cmds
+        .iter()
+        .any(|(_, c)| matches!(c, Command::PlaybackButton { .. })));
+    assert!(sent(&rx).is_empty());
+    // The client stops following: the daemon's line is back, and it was emptied.
+    c.surface_follow(7, None);
+    for n in [71, 72] {
+        press(&mut c, "nano", n);
+    }
+    let cmds = c.commands(&e, 0.0);
+    assert_eq!(
+        line_of(&cmds),
+        ["1", "Enter"],
+        "Group went when the app followed"
+    );
+    press(&mut c, "nano", 80);
+    assert!(c.commands(&e, 0.0).is_empty());
+    assert_eq!(c.take_messages(), ["Record on nano needs the CMDMX app"]);
+}
+
+#[test]
+fn ipc_64_while_armed_a_handle_group_or_palette_press_is_a_tap_for_the_app() {
+    let mut c = prog("ipc64-armed");
+    let mut e = engine();
+    e.set_page(2).unwrap();
+    let (tx, rx) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(7, Some(tx));
+    c.surface_armed(7, Some("record".into()));
+    for n in [60, 62, 63] {
+        press(&mut c, "nano", n);
+    }
+    assert!(
+        c.commands(&e, 0.0).is_empty(),
+        "the presses and releases do nothing"
+    );
+    let got = sent(&rx);
+    assert_eq!(got.len(), 3, "the releases are dropped: {got:?}");
+    assert_eq!(
+        got[0]["tap"],
+        json!({"page": 2, "slot": 1}),
+        "the page shown"
+    );
+    assert_eq!(got[1]["group"], 5);
+    assert_eq!(got[2]["palette"], 12);
+    assert!(got
+        .iter()
+        .all(|m| m["type"] == "surface" && m["device"] == "nano"));
+    // Faders and Go stay live while armed.
+    packet(&mut c, "nano", &cc7(127));
+    press(&mut c, "nano", 64);
+    let cmds = c.commands(&e, 0.0);
+    assert_eq!(cmds.len(), 2, "{cmds:?}");
+    // Disarmed: the handle is a handle again.
+    c.surface_armed(7, None);
+    press(&mut c, "nano", 60);
+    let cmds = c.commands(&e, 0.0);
+    assert!(cmds
+        .iter()
+        .any(|(_, c)| matches!(c, Command::PlaybackButton { on: true, .. })));
+    assert!(sent(&rx).is_empty());
+}
+
+#[test]
+fn ipc_64_a_handle_held_when_a_function_arms_still_lets_go() {
+    let mut c = prog("ipc64-held");
+    let e = engine();
+    let (tx, _rx) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(7, Some(tx));
+    packet(&mut c, "nano", &note(60, 127));
+    assert_eq!(c.commands(&e, 0.0).len(), 1, "the press runs");
+    c.surface_armed(7, Some("copy".into()));
+    packet(&mut c, "nano", &note(60, 0));
+    let cmds = c.commands(&e, 0.0);
+    assert!(
+        cmds.iter()
+            .any(|(_, c)| matches!(c, Command::PlaybackButton { on: false, .. })),
+        "the release of a press that ran is not dropped: {cmds:?}"
+    );
+}
+
+#[test]
+fn ctl_72_a_programming_key_is_lit_while_the_app_has_its_function_armed() {
+    let mut c = prog("ctl72-feedback");
+    let e = engine();
+    let (tx, _rx) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(7, Some(tx));
+    let out = c.feedback(&e);
+    assert!(out.contains(&note_out(80, 0)), "{out:?}");
+    c.surface_armed(7, Some("record".into()));
+    let out = c.feedback(&e);
+    assert!(out.contains(&note_out(80, 127)), "{out:?}");
+    assert!(
+        !out.iter().any(|o| o.bytes.get(1) == Some(&81)),
+        "Copy stays off"
+    );
+    c.surface_armed(7, Some("copy".into()));
+    let out = c.feedback(&e);
+    assert!(out.contains(&note_out(80, 0)), "{out:?}");
+    assert!(out.contains(&note_out(81, 127)), "{out:?}");
+    // A client that stops following stops being armed.
+    c.surface_follow(7, None);
+    assert!(c.feedback(&e).contains(&note_out(81, 0)));
+}
+
+#[test]
+fn ipc_64_two_clients_one_armed_is_enough_and_both_get_the_tap() {
+    let mut c = prog("ipc64-two");
+    let e = engine();
+    let (tx1, rx1) = std::sync::mpsc::sync_channel(64);
+    let (tx2, rx2) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(1, Some(tx1));
+    c.surface_follow(2, Some(tx2));
+    c.surface_armed(2, Some("delete".into()));
+    press(&mut c, "nano", 62);
+    assert!(c.commands(&e, 0.0).is_empty());
+    assert_eq!(sent(&rx1).len(), 1);
+    assert_eq!(sent(&rx2).len(), 1);
+    // The armed one goes: nothing is armed any more.
+    c.surface_follow(2, None);
+    press(&mut c, "nano", 62);
+    let cmds = c.commands(&e, 0.0);
+    assert!(cmds
+        .iter()
+        .any(|(_, c)| matches!(c, Command::SelectGroup { group: 5 })));
+}
+
+#[test]
+fn ipc_64_while_locked_a_surface_sends_nothing() {
+    let mut c = prog("ipc64-locked");
+    let e = engine();
+    let (tx, rx) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(7, Some(tx));
+    c.set_locked(true);
+    for n in [74, 80] {
+        press(&mut c, "nano", n);
+    }
+    assert!(c.commands(&e, 0.0).is_empty());
+    assert!(
+        sent(&rx).is_empty(),
+        "dropped as any surface event (IPC-50)"
+    );
+}

@@ -62,5 +62,15 @@ Setup: the deck on USB to the Mac (directly or through a hub), the Elgato Stream
       shown; the same by clicking the key in the Deck panel
 - [ ] The bindings table lists the deck bindings with their deck page
 
+## Programming from a surface (INP-04: UI-84, CTL-72)
+With the app open, on the Control screen right-click three keys and bind **Action ▸ Programming ▸** `key record`,
+`keypad Exit` and `key copy`; drag a playback handle onto a fourth key.
+- [ ] Record on the deck: the app's Record is armed and the deck's Record key lights; Exit on the deck: both go off
+- [ ] Record on the deck, then the handle key: it records onto that handle; the handle does not flash
+- [ ] Copy on the app's screen: the deck's Copy key lights while it is armed
+- [ ] The same Record and Exit from the BCF2000, with `key record` and `keypad Exit` learned onto two of its buttons: the
+      lamps follow as on the deck
+
+
 ## Open points
 - none

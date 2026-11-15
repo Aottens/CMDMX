@@ -1990,6 +1990,26 @@ final class EngineClient: ObservableObject {
         sendJSON("programmer.wheel", ["attribute": attribute, "steps": steps, "resolution": resolution.rawValue])
     }
 
+    /// UI-84, IPC-64: what a surface did, for the app to act on.
+    struct SurfaceEvent: Decodable {
+        struct Tap: Decodable { let page: Int; let slot: Int }
+        let device: String
+        let keypad: String?
+        let key: String?
+        let tap: Tap?
+        let group: Int?
+        let palette: Int?
+    }
+    let surfaceEvents = PassthroughSubject<SurfaceEvent, Never>()
+    private var armedSent: String?
+
+    /// UI-84: the armed function's name (or nil); sent when it changed, and again after each snapshot.
+    func surfaceArmed(_ name: String?) {
+        guard name != armedSent else { return }
+        armedSent = name
+        sendJSON("surface.armed", ["function": name as Any? ?? NSNull()])
+    }
+
     /// Sends the words plus `Enter` and clears the previous message (IPC-17).
     /// `end` is `Enter`, or `Locate` for a selection line that locates (UI-26).
     func command(words: [String], end: String = "Enter") {
@@ -2474,7 +2494,7 @@ final class EngineClient: ObservableObject {
     }
 
     /// The app's own reads, not the operator's commands (REL-27).
-    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "show.report", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "output.watch", "control.mapping", "effect.wheels"]
+    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "show.report", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "output.watch", "control.mapping", "effect.wheels", "surface.follow", "surface.armed"]
 
     private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
         guard let socket,
@@ -2615,6 +2635,9 @@ final class EngineClient: ObservableObject {
                 return
             }
             protocolMismatch = nil
+            // UI-84, IPC-64: follow surfaces on every (re)connect and tell the daemon what is armed.
+            sendJSON("surface.follow", ["on": true])
+            sendJSON("surface.armed", ["function": armedSent as Any? ?? NSNull()])
             releaseTasks.values.forEach { $0.cancel() }; releaseTasks = [:]
             heldFaders = [:]; settling = []; lastSent = [:]
             gmHeld = false; gmSettling = false; gmLastSent = nil; gmEngineLevel = nil
@@ -2799,6 +2822,8 @@ final class EngineClient: ObservableObject {
             if let state = try? JSONDecoder().decode(PlaybackSettings.self, from: data) { playbackSettings = state }
         case "locked":
             if let on = incoming.locked { locked = on }
+        case "surface":   // UI-84: not published state, so a surface key re-renders nothing by itself
+            if let event = try? JSONDecoder().decode(SurfaceEvent.self, from: data) { surfaceEvents.send(event) }
         case "grand_master":
             if let level = incoming.level {
                 if gmHeld { gmEngineLevel = level.clamped01; releaseGMIfEchoed() } else { grandMaster = level.clamped01 }

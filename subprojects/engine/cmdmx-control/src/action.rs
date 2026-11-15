@@ -38,9 +38,19 @@ pub enum Key {
     All,
     StepNext,
     StepPrev,
+    /// CTL-72: the programming keys; the app runs them.
+    Record,
+    Update,
+    Include,
+    Delete,
+    Copy,
+    Move,
+    Legend,
+    Options,
+    Release,
 }
 
-const KEYS: [(&str, Key); 9] = [
+const KEYS: [(&str, Key); 18] = [
     ("clear", Key::Clear),
     ("locate", Key::Locate),
     ("highlight", Key::Highlight),
@@ -50,11 +60,36 @@ const KEYS: [(&str, Key); 9] = [
     ("all", Key::All),
     ("step_next", Key::StepNext),
     ("step_prev", Key::StepPrev),
+    ("record", Key::Record),
+    ("update", Key::Update),
+    ("include", Key::Include),
+    ("delete", Key::Delete),
+    ("copy", Key::Copy),
+    ("move", Key::Move),
+    ("legend", Key::Legend),
+    ("options", Key::Options),
+    ("release", Key::Release),
 ];
 
 impl Key {
     pub fn from_name(s: &str) -> Option<Key> {
         KEYS.iter().find(|(n, _)| *n == s).map(|(_, k)| *k)
+    }
+
+    /// CTL-72: a key whose function the app runs (IPC-64).
+    pub fn is_programming(&self) -> bool {
+        matches!(
+            self,
+            Key::Record
+                | Key::Update
+                | Key::Include
+                | Key::Delete
+                | Key::Copy
+                | Key::Move
+                | Key::Legend
+                | Key::Options
+                | Key::Release
+        )
     }
 }
 
@@ -127,9 +162,10 @@ pub enum KeypadToken {
     Full,
     Enter,
     Backspace,
+    Exit,
 }
 
-const TOKENS: [(&str, KeypadToken); 11] = [
+const TOKENS: [(&str, KeypadToken); 12] = [
     (".", KeypadToken::Dot),
     ("@", KeypadToken::At),
     ("Thro", KeypadToken::Thro),
@@ -141,6 +177,7 @@ const TOKENS: [(&str, KeypadToken); 11] = [
     ("Full", KeypadToken::Full),
     ("Enter", KeypadToken::Enter),
     ("Backspace", KeypadToken::Backspace),
+    ("Exit", KeypadToken::Exit),
 ];
 
 impl KeypadToken {

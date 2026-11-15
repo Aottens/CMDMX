@@ -542,6 +542,13 @@ pub enum Command {
     Why(FixtureId),
     /// IPC-59: handed to the tick as `Event::Watch`, never applied.
     OutputWatch(Option<crate::live::View>),
+    /// IPC-64: handed to the tick as `Event::Surface`, never applied.
+    SurfaceFollow {
+        on: bool,
+    },
+    SurfaceArmed {
+        function: Option<String>,
+    },
     /// IPC-57: handed to the tick as `Event::UpdateTargets`, never applied.
     UpdateTargets,
     /// PBK-49, IPC-57: store into the ticked cues and palettes; both lists may be empty on the
@@ -831,6 +838,24 @@ pub enum LibraryRequest {
     },
 }
 
+pub enum SurfaceReq {
+    /// `Some` is the client's own queue; `None` stops following.
+    Follow(Option<SyncSender<String>>),
+    Armed(Option<String>),
+}
+
+/// IPC-64: tells the tick this client is gone, however its thread ends.
+struct StopFollowing<'a>(&'a Sender<Event>, u64);
+
+impl Drop for StopFollowing<'_> {
+    fn drop(&mut self) {
+        drop(self.0.send(Event::Surface {
+            client: self.1,
+            req: SurfaceReq::Follow(None),
+        }));
+    }
+}
+
 pub enum Event {
     Connected(SyncSender<String>),
     Command(Command),
@@ -859,6 +884,11 @@ pub enum Event {
         client: u64,
         view: Option<crate::live::View>,
         reply: SyncSender<String>,
+    },
+    /// IPC-64: what this client asks of the surface; sent on its own, and when it disconnects.
+    Surface {
+        client: u64,
+        req: SurfaceReq,
     },
     /// IPC-57: the answer goes to the asking client only.
     UpdateTargets {
@@ -2211,6 +2241,17 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             }
             _ => return Err("\"view\" is \"grid\", \"dmx\" or null".into()),
         })),
+        Some("surface.follow") => match v.get("on") {
+            Some(serde_json::Value::Bool(on)) => Ok(Command::SurfaceFollow { on: *on }),
+            _ => Err("\"on\" is true or false".into()),
+        },
+        Some("surface.armed") => match v.get("function") {
+            Some(serde_json::Value::Null) => Ok(Command::SurfaceArmed { function: None }),
+            Some(serde_json::Value::String(s)) => Ok(Command::SurfaceArmed {
+                function: Some(s.clone()),
+            }),
+            _ => Err("\"function\" is a string or null".into()),
+        },
         Some("usage") => match (v.get("palette"), v.get("fixtures")) {
             (Some(_), None) if v.get("detail").is_none() => {
                 Ok(Command::Usage(Usage::Palette(uint(&v, "palette")?)))
@@ -4282,6 +4323,7 @@ fn serve_client(
     // here would stop `out` from reporting that the tick dropped this client (IPC-07).
     let (reply, replies) = sync_channel::<String>(QUEUE);
     let client = CLIENTS.fetch_add(1, Ordering::Relaxed);
+    let _stop = StopFollowing(events, client);
     // After the handshake: short timeouts so one thread can both read and write.
     let tcp = ws.get_mut();
     if tcp
@@ -4404,6 +4446,18 @@ fn serve_client(
                         })
                         .is_err()
                     {
+                        return;
+                    }
+                }
+                Ok(Command::SurfaceFollow { on }) => {
+                    let req = SurfaceReq::Follow(on.then(|| reply.clone()));
+                    if events.send(Event::Surface { client, req }).is_err() {
+                        return;
+                    }
+                }
+                Ok(Command::SurfaceArmed { function }) => {
+                    let req = SurfaceReq::Armed(function);
+                    if events.send(Event::Surface { client, req }).is_err() {
                         return;
                     }
                 }

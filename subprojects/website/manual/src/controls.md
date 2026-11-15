@@ -130,7 +130,8 @@ An action is a short text. These are the actions you can bind:
 | `gm` | the Grand Master |
 | `dbo` | DBO while held (use **Toggle** mode to latch it) |
 | `key clear`, `key locate`, `key highlight`, `key rem_dim`, `key undo`, `key redo`, `key all`, `key step_next`, `key step_prev` | the programmer keys |
-| `keypad 1`, `keypad @`, `keypad Thro`, `keypad Enter`, … | a key of the on-screen keypad, into the command line |
+| `keypad 1`, `keypad @`, `keypad Thro`, `keypad Enter`, `keypad Exit`, … | a key of the on-screen keypad, into the app's command line (see [Programming from a surface](#programming-from-a-surface)) |
+| `key record`, `key update`, `key include`, `key delete`, `key copy`, `key move`, `key legend`, `key options`, `key release` | the function buttons Record, Update, Include, Delete, Copy, Move, Set Legend, Options and Release of the app; lit while that one is armed |
 | `wheel 2` | the second wheel of the attribute group that is open |
 | `speed`, `xfade` | an encoder that turns the connected chase's tempo (1 BPM per detent, to the BPM master it follows) or crossfade (1 % per detent); `speed 3` and `xfade playback 12` as with `go`. Refused on a cue list |
 | `direction forward`, `direction backward`, `direction bounce`, `direction random` | sets the connected chase's direction; `direction bounce 3` and `direction random playback 12` as with `go` |
@@ -145,6 +146,28 @@ An action that is not on this list is refused, for example `unknown action "fade
 Actions that follow the page (`fader 3`, `upper 3`) are the usual choice: the surface plays
 whatever page you are on, and motor faders and lights follow when you change page. An empty slot
 sends its fader to zero and its lights off.
+
+## Programming from a surface
+
+While the CMDMX app is open, a surface programs the way the screen does, on the same command line:
+
+- A `keypad` key goes into the app's command line, as the on-screen key would. While the line holds
+  a key from a surface it says where it came from: `BCF2000 › 1 Thro 4 @`. The Mac keys and the
+  on-screen keypad add to the same line, and **Enter** on any of them runs it. `keypad Exit` is the
+  keypad's **Exit**: it empties the line and disarms Record or a function.
+- A `key record`, `key copy`, … arms that function button in the app, as a click would. Its lamp
+  or deck key is lit while the function is armed, whoever armed it.
+- While Record or a function is armed, a surface's `upper`, `lower`, `group` or `palette` press is
+  the target: it is a tap on that handle, group or palette, whether or not its window is on show.
+  So **Record** on the surface, then a button of a fader strip, records onto that handle. Faders,
+  Go, Back, the GM and DBO keep working as always.
+
+Without the app open the surface works on its own: the keypad keys build a line in the engine
+that **Enter** runs and `keypad Exit` empties, and a function key is refused with a message such
+as `Record on BCF2000 needs the CMDMX app`. While the console is locked, surfaces do nothing.
+
+No profile binds these keys: bind them by Learn, or on a Stream Deck through the key's right-click
+menu, **Action ▸ Programming**.
 
 ## Mackie Control surfaces
 

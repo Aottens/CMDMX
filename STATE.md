@@ -12,8 +12,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch J, input paths: the builds left as `BACKLOG.md` groups them, INP-04 next, then
-   INP-05 with INP-06; DEF-06 (UNDO-21) and TST-01 (OUT-43) are built apart, beside it. No tag after a
+1. IDEA-35 batch J, input paths: the build left as `BACKLOG.md` groups it, INP-05 with INP-06; DEF-06
+   (UNDO-21) and TST-01 (OUT-43) are built apart, beside it. No tag after a
    batch: the next release is the one the first service runs on, and the gap review follows it (REL-26). P1-31
    (Blind and Edit) stays apart.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
@@ -37,6 +37,7 @@ Programming and small checks:
 - Program the service in *Kerk* at home on Art-Net as `tests/hardware/church.md` asks (steady looks, *Front band*,
   *Front spreker*), and say which fresnels are band and speaker. Use the release that goes on the church Mac: a show
   saved with a newer schema does not open on an older one.
+- With a Stream Deck or the BCF2000 on the desk, tick *Programming from a surface* in `tests/hardware/streamdeck.md`.
 - Tick the two open lines in `tests/manual/selection-orders.md`; the next *Import GDTF* run in
   `tests/manual/app-patch.md` also checks the sheet fixes.
 - The desk's top plate: the two test strips (`subprojects/hardware/cad/acryl-proef/`, 1.5 mm engraving plate and 2 mm

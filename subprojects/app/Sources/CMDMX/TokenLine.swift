@@ -12,6 +12,8 @@ private func isNumeric(_ token: String) -> Bool {
 @MainActor
 final class TokenLine: ObservableObject {
     @Published private(set) var tokens: [String] = []
+    /// UI-84: the surface that added a token to this line; the line names it until it is empty again.
+    @Published private(set) var surface: String?
     /// Sent lines as space-joined tokens, oldest first, kept in the app's preferences.
     private var history = UserDefaults.standard.stringArray(forKey: "commandHistory") ?? []
     /// Index into `history` while browsing with Up / Down; nil = a line of its own.
@@ -38,6 +40,12 @@ final class TokenLine: ObservableObject {
         }
     }
 
+    /// UI-84: a surface's token goes on the same line and names the surface.
+    func add(_ token: String, from device: String) {
+        add(token)
+        surface = device
+    }
+
     /// Last character of a number, else the last token.
     func back() {
         recall = nil
@@ -47,6 +55,7 @@ final class TokenLine: ObservableObject {
         } else {
             tokens.removeLast()
         }
+        if tokens.isEmpty { surface = nil }
     }
 
     /// Clear key (UI-26): a number alone on the line is the Clear time, and the line empties.
@@ -59,6 +68,7 @@ final class TokenLine: ObservableObject {
     func clear() {
         recall = nil
         tokens = []
+        surface = nil
     }
 
     /// Enter: sends the tokens, records the line unless it equals the newest entry, empties the line.
@@ -105,22 +115,30 @@ final class TokenLine: ObservableObject {
             return
         }
         if end == "Enter", tokens.count == 2, let n = Int(tokens[1]), n >= 1, tokens[0] == "Group" || tokens[0] == "Palette" {
-            if tokens[0] == "Group" {
-                guard ui.armedAllows(.group, engine) else { return }
-                finishTap(ui)
-                GroupTaps.tap(n, engine.groups.first { $0.id == n }, engine: engine, ui: ui)
-            } else {
-                guard let p = engine.palettes.first(where: { $0.number == n }) else {
-                    return engine.say(ui.refusal(on: .palette) ?? "Palette \(n) is empty: tap a cell in a palette window")
-                }
-                guard ui.armedAllows(.palette, engine) else { return }
-                finishTap(ui)
-                PaletteTaps.armed(window: p.window, handle: p.handle, p, engine: engine, ui: ui)
-            }
+            _ = Self.armedTap(tokens[0], n, engine: engine, ui: ui) { finishTap(ui) }
             return
         }
         let name = ui.recordArmed ? "Record" : (ui.function?.rawValue ?? "")
         engine.say("\(name): type Group n or Palette n, or tap a target.")
+    }
+
+    /// `Group n` / `Palette n` while armed: a tap on that cell (UI-46, UI-84). False = refused, nothing tapped.
+    @MainActor
+    static func armedTap(_ kind: String, _ n: Int, engine: EngineClient, ui: UIState, accepted: () -> Void = {}) -> Bool {
+        if kind == "Group" {
+            guard ui.armedAllows(.group, engine) else { return false }
+            accepted()
+            GroupTaps.tap(n, engine.groups.first { $0.id == n }, engine: engine, ui: ui)
+        } else {
+            guard let p = engine.palettes.first(where: { $0.number == n }) else {
+                engine.say(ui.refusal(on: .palette) ?? "Palette \(n) is empty: tap a cell in a palette window")
+                return false
+            }
+            guard ui.armedAllows(.palette, engine) else { return false }
+            accepted()
+            PaletteTaps.armed(window: p.window, handle: p.handle, p, engine: engine, ui: ui)
+        }
+        return true
     }
 
     private func finishTap(_ ui: UIState) {

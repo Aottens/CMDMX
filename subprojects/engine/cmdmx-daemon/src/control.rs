@@ -11,6 +11,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::mpsc::{SyncSender, TrySendError};
 
 use cmdmx_control::action::{
     Action, AttrGroup, FanArg, GridArg, Key, KeypadToken, OrderArg, Target, ValueKind,
@@ -290,8 +291,8 @@ pub struct Control {
     learn: Option<Learn>,
     last_input: Option<LastInput>,
     messages: Vec<String>,
-    /// Keypad tokens typed since the last Enter.
-    keypad: Vec<String>,
+    /// The keypad line and the app following the surface (IPC-64).
+    surface: Surface,
     /// Something but `last_input` changed since the last delta.
     dirty: bool,
     input_dirty: bool,
@@ -403,6 +404,93 @@ fn level_of(engine: &Engine, id: PlaybackId) -> f32 {
     engine.playback_state(id).map_or(0.0, |s| s.level)
 }
 
+/// An app that follows the surface (IPC-64): it gets the keys the daemon cannot run.
+struct Follower {
+    tx: SyncSender<String>,
+    /// The function the app has armed, as the programming key's name.
+    armed: Option<String>,
+}
+
+/// What the surfaces share: the keypad line, and the apps that follow them (IPC-64, CTL-72).
+#[derive(Default)]
+struct Surface {
+    /// Keypad tokens typed since the last Enter.
+    keypad: Vec<String>,
+    followers: BTreeMap<u64, Follower>,
+    /// Presses sent to the app as taps; their release is dropped.
+    diverted: Vec<(String, Action)>,
+    /// Warnings for keys that need the app and found none.
+    refusals: Vec<String>,
+}
+
+impl Surface {
+    fn armed(&self) -> Vec<String> {
+        (self.followers.values())
+            .filter_map(|f| f.armed.clone())
+            .collect()
+    }
+
+    /// To every follower; one that is gone is forgotten, one that is full misses the message.
+    fn send(&mut self, device: &str, mut body: Value) {
+        if let Value::Object(m) = &mut body {
+            m.insert("v".into(), json!(crate::ipc::PROTOCOL));
+            m.insert("type".into(), json!("surface"));
+            m.insert("device".into(), json!(device));
+        }
+        let text = body.to_string();
+        self.followers.retain(|_, f| {
+            !matches!(
+                f.tx.try_send(text.clone()),
+                Err(TrySendError::Disconnected(_))
+            )
+        });
+    }
+
+    /// IPC-64: true when the app has the value, so the daemon does not run it.
+    fn intercept(&mut self, device: &str, action: Action, v: &ActionValue, page: u16) -> bool {
+        let handle = matches!(action, Action::Upper(_) | Action::Lower(_));
+        if handle && matches!(v, ActionValue::Release) {
+            let at = (self.diverted.iter()).position(|(d, a)| d == device && *a == action);
+            return at.map(|i| self.diverted.remove(i)).is_some();
+        }
+        if !matches!(v, ActionValue::Press) {
+            return false;
+        }
+        if self.followers.is_empty() {
+            return match action {
+                Action::Key(k) if k.is_programming() => {
+                    let name = k.to_string();
+                    let (first, rest) = name.split_at(1);
+                    let title = first.to_uppercase() + rest;
+                    self.refusals
+                        .push(format!("{title} on {device} needs the CMDMX app"));
+                    true
+                }
+                _ => false,
+            };
+        }
+        let armed = self.followers.values().any(|f| f.armed.is_some());
+        let body = match action {
+            Action::Keypad(t) => json!({"keypad": t.to_string()}),
+            Action::Key(k) if k.is_programming() => json!({"key": k.to_string()}),
+            Action::Group(id) if armed => json!({"group": id}),
+            Action::Palette(n) if armed => json!({"palette": n}),
+            Action::Upper(t) | Action::Lower(t) if armed => {
+                let (page, slot) = match t {
+                    Target::Slot(slot) => (page, slot),
+                    Target::PageSlot { page, slot } => (page, slot),
+                    _ => return false,
+                };
+                self.diverted.push((device.to_string(), action));
+                json!({"tap": {"page": page, "slot": slot}})
+            }
+            _ => return false,
+        };
+        self.send(device, body);
+        true
+    }
+}
+
 /// What the actions of one `commands` call share (CTL-05).
 struct Tick<'a> {
     engine: &'a Engine,
@@ -418,11 +506,15 @@ impl Tick<'_> {
         &mut self,
         action: Action,
         values: &[ActionValue],
-        keypad: &mut Vec<String>,
+        device: &str,
+        surface: &mut Surface,
     ) -> Vec<Command> {
         let engine = self.engine;
         let mut out = Vec::new();
         for v in values {
+            if surface.intercept(device, action, v, self.page) {
+                continue;
+            }
             let pressed = matches!(v, ActionValue::Press);
             let cmd = match (action, v) {
                 (Action::Fader(t), ActionValue::Level(level)) => {
@@ -472,7 +564,7 @@ impl Tick<'_> {
                         _ => Command::ChaseXfade { id, steps },
                     })
                 }
-                (_, ActionValue::Press) => self.press(action, keypad),
+                (_, ActionValue::Press) => self.press(action, &mut surface.keypad),
                 _ => None,
             };
             out.extend(cmd);
@@ -574,7 +666,13 @@ impl Tick<'_> {
                 Key::All => Command::All,
                 Key::StepNext => Command::Step { forward: true },
                 Key::StepPrev => Command::Step { forward: false },
+                // CTL-72: the app runs these; `Surface::intercept` sent or refused them.
+                _ => return None,
             }),
+            Action::Keypad(KeypadToken::Exit) => {
+                keypad.clear();
+                None
+            }
             Action::Keypad(KeypadToken::Backspace) => {
                 keypad.pop();
                 None
@@ -612,7 +710,12 @@ enum Shown {
 }
 
 /// CTL-17: the state of `action`; `wheels` caches the wheel values for the call.
-fn state_of(engine: &Engine, action: Action, wheels: &mut Option<Vec<f32>>) -> Shown {
+fn state_of(
+    engine: &Engine,
+    action: Action,
+    wheels: &mut Option<Vec<f32>>,
+    armed: &[String],
+) -> Shown {
     let slot = |t: Target| resolve(engine, t).map(|id| level_of(engine, id));
     match action {
         Action::Fader(t) => Shown::Level(slot(t)),
@@ -635,6 +738,8 @@ fn state_of(engine: &Engine, action: Action, wheels: &mut Option<Vec<f32>>) -> S
         Action::Page(n) => Shown::On(engine.page() == n),
         Action::Dbo => Shown::On(engine.dbo()),
         Action::Key(Key::Highlight) => Shown::On(engine.highlight()),
+        // CTL-72: a programming key is lit while the app has its function armed.
+        Action::Key(k) if k.is_programming() => Shown::On(armed.contains(&k.to_string())),
         // `fan off` is lit while Fan is on, so the button shows there is something to turn off.
         Action::Fan(FanArg::Toggle | FanArg::Off) => Shown::On(engine.fan().is_some()),
         Action::Fan(c) => Shown::On(engine.fan() == fan_curve(c)),
@@ -665,6 +770,7 @@ fn shown(
     kind: Kind,
     win: Option<(Window, u16)>,
     wheels: &mut Option<Vec<f32>>,
+    armed: &[String],
 ) -> Option<u16> {
     let Some(action) = route(b.action, win, engine.settings().faders_per_page) else {
         return Some(if matches!(b.action, Action::Fader(_)) {
@@ -673,7 +779,7 @@ fn shown(
             b.off_value
         });
     };
-    Some(match state_of(engine, action, wheels) {
+    Some(match state_of(engine, action, wheels, armed) {
         Shown::Level(None) => 0,
         Shown::Level(Some(level)) => {
             let x = if b.invert { 1.0 - level } else { level };
@@ -769,7 +875,7 @@ impl Control {
             learn: None,
             last_input: None,
             messages: Vec::new(),
-            keypad: Vec::new(),
+            surface: Surface::default(),
             dirty: true,
             input_dirty: false,
             input_sent: f64::NEG_INFINITY,
@@ -1051,7 +1157,7 @@ impl Control {
                     }
                     continue;
                 }
-                let cmds = tick.commands(action, &values, &mut self.keypad);
+                let cmds = tick.commands(action, &values, name, &mut self.surface);
                 if cmds.is_empty() {
                     continue;
                 }
@@ -1069,13 +1175,34 @@ impl Control {
         }
         self.deck_commands(&mut tick, &mut out);
         out.extend(self.osc_commands(&mut tick));
+        self.messages.append(&mut self.surface.refusals);
         out
+    }
+
+    /// IPC-64: `Some` makes the client follow the surface, `None` stops it (also on disconnect).
+    pub fn surface_follow(&mut self, client: u64, queue: Option<SyncSender<String>>) {
+        let Some(tx) = queue else {
+            self.surface.followers.remove(&client);
+            return;
+        };
+        if self.surface.followers.is_empty() {
+            self.surface.keypad.clear();
+        }
+        (self.surface.followers).insert(client, Follower { tx, armed: None });
+    }
+
+    /// IPC-64, CTL-72: the function the client has armed, by key name; `None` disarms.
+    pub fn surface_armed(&mut self, client: u64, function: Option<String>) {
+        if let Some(f) = self.surface.followers.get_mut(&client) {
+            f.armed = function;
+        }
     }
 
     /// Feedback after the tick's frame (CTL-19..21).
     pub fn feedback(&mut self, engine: &Engine) -> Vec<MidiOut> {
         let units = self.mackie_units(engine);
         let mut wheels = None;
+        let armed = self.surface.armed();
         let mut out = Vec::new();
         for (name, dev) in &mut self.devices {
             let win = mackie_base(&units, name).map(|base| (self.window, base));
@@ -1093,7 +1220,10 @@ impl Control {
                     let Input::Midi(element) = b.feedback_to.as_ref().unwrap_or(&b.input) else {
                         return None;
                     };
-                    Some((*element, shown(engine, b, element.kind, win, &mut wheels)?))
+                    Some((
+                        *element,
+                        shown(engine, b, element.kind, win, &mut wheels, &armed)?,
+                    ))
                 });
             for (element, value) in dev.feedback.tick(wanted, &echo, &dev.touched) {
                 let bytes = midi::encode(&element, value);
@@ -1564,9 +1694,14 @@ fn playback_target(a: Action) -> Option<Target> {
 }
 
 /// What a key shows, from the engine (CTL-50, CTL-17).
-fn subject_of(engine: &Engine, b: &Binding, wheels: &mut Option<Vec<f32>>) -> Subject {
+fn subject_of(
+    engine: &Engine,
+    b: &Binding,
+    wheels: &mut Option<Vec<f32>>,
+    armed: &[String],
+) -> Subject {
     let other = |wheels: &mut Option<Vec<f32>>| {
-        let shown = state_of(engine, b.action, wheels);
+        let shown = state_of(engine, b.action, wheels, armed);
         Subject::Other {
             name: match b.action {
                 Action::Palette(n) => (engine.palette(n))
@@ -1937,7 +2072,7 @@ impl Control {
                     current,
                     Resolution::Normal,
                 );
-                let cmds = tick.commands(b.action, &values, &mut self.keypad);
+                let cmds = tick.commands(b.action, &values, name, &mut self.surface);
                 out.extend(cmds.into_iter().map(|c| (name.clone(), c)));
             }
         }
@@ -1947,6 +2082,7 @@ impl Control {
     pub fn deck_out(&mut self, engine: &Engine) -> Vec<DeckCmd> {
         self.follow_fpp(engine.settings().faders_per_page);
         let mut wheels = None;
+        let armed = self.surface.armed();
         let mut out = Vec::new();
         let mut changed = false;
         for (name, dev) in &mut self.devices {
@@ -1976,7 +2112,7 @@ impl Control {
                                 })
                     });
                     let Some(b) = b else { return KeyLook::black() };
-                    let subject = subject_of(engine, b, &mut wheels);
+                    let subject = subject_of(engine, b, &mut wheels, &armed);
                     let mut look = key_look(Some(b), &subject);
                     // CTL-52: the level bar is `key_px` wide; only a moved bar changes the key.
                     look.level = look.level.map(|l| (l * px).round() / px);

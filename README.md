@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch, profiles, controls, show files and batch I are done; batch J has the Mac keys, the page marks, the mouse
-range and typed values. Next: the rest of batch J (INP-04, INP-05 and INP-06), then VS4-07 and VS4-03.
+range, typed values and programming from a surface. Next: the rest of batch J (INP-05, INP-06), then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap waits for a test print (HWB-10). Progress: [`STATE.md`](STATE.md), the plan: [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -229,6 +229,9 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   playback, Go, a page or the GM onto a key, by right-click or by Learn; a deck has its own pages. Keys copy and move
   to any page, and a page clears in one go.
 - Mappings can be renamed and duplicated, a profile too, and their device pattern changed on the Control screen.
+- Programming from a surface: with the app open, a surface's keypad types into the app's one command line
+  (`BCF2000 › 1 Thro 4 @`), its Record, Update, Copy, Move, Delete and other function keys arm the app's buttons,
+  and while one is armed a handle, group or palette press on the surface is the target.
 
 **Show, undo and app**
 - A delete says what it does before you confirm: how many cues on how many playbacks use a palette, a running playback's output ending, the live cue; under Patch's Confirm remove, where a fixture is used and what ends up empty.
