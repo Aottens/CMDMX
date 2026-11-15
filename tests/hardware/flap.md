@@ -7,7 +7,7 @@ Needs the Waveshare 15.6" HDMI LCD (H) (STATE.md, *Owner to decide*).
 ## Parts and print
 - [ ] Waveshare 15.6" HDMI LCD (H) on the desk; it shows the Mac's screen over HDMI and touch works over USB
       before it goes into the flap
-- [ ] Pinet piano hinge 25 x 1.0 (RS 328-9666) cut to 508 mm, and two igus GFM-0608-05 (RS 272-4546)
+- [ ] Black piano hinge 480 x 25 x 0.7 (Duovorm DV13343, meubelbeslagonline.nl), and two igus GFM-0608-05
 - [ ] Walnut frame (4 bars) glued and dowelled square: diagonals within 1 mm of each other
 - [ ] Aluminium: clamp bar 15 x 5 x 396, two arms 15 x 5 x 110 (holes 95.0 apart), foot rod Ø 8 x 450
 - [ ] Two 6 x 45 dowel pins, M3 inserts and screws, wood screws, 1 mm foam strip, slim HDMI, micro-USB and 12 V cables

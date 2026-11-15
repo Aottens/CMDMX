@@ -10,7 +10,7 @@ FILE_DESCRIPTION(
 
 FILE_NAME(
 /* name */ 'cmdmx-klep-strut.step',
-/* time_stamp */ '2026-11-15T10:14:05+01:00',
+/* time_stamp */ '2026-11-15T17:38:46+01:00',
 /* author */ (''),
 /* organization */ (''),
 /* preprocessor_version */ 'ST-DEVELOPER v20.2',
@@ -610,7 +610,7 @@ SOLID_ANGLE_UNIT()
 #558=PRODUCT_DEFINITION_SHAPE('',$,#561);
 #559=SHAPE_REPRESENTATION('',(#329),#551);
 #560=PRODUCT_DEFINITION_CONTEXT('part definition',#565,'design');
-#561=PRODUCT_DEFINITION('2026-11-15-10-14-05-621','S strut',#562,#560);
+#561=PRODUCT_DEFINITION('2026-11-15-17-38-46-613','S strut',#562,#560);
 #562=PRODUCT_DEFINITION_FORMATION('',$,#567);
 #563=PRODUCT_RELATED_PRODUCT_CATEGORY('S strut','S strut',(#567));
 #564=APPLICATION_PROTOCOL_DEFINITION('international standard',
@@ -618,7 +618,7 @@ SOLID_ANGLE_UNIT()
 #565=APPLICATION_CONTEXT(
 'Core Data for Automotive Mechanical Design Process');
 #566=PRODUCT_CONTEXT('part definition',#565,'mechanical');
-#567=PRODUCT('2026-11-15-10-14-05-621','S strut',$,(#566));
+#567=PRODUCT('2026-11-15-17-38-46-613','S strut',$,(#566));
 #568=PRESENTATION_STYLE_ASSIGNMENT((#570));
 #569=PRESENTATION_STYLE_ASSIGNMENT((#571));
 #570=SURFACE_STYLE_USAGE(.BOTH.,#572);

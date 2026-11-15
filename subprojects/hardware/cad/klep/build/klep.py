@@ -32,6 +32,7 @@ PIN = (115.0, 9.0)                     # strut pivot in the flap frame (Y, Z)
 ROD_FOLD = 210.0                       # folded, the foot rod lies at Y 210
 ARM_X = ((66.0, 71.0), (499.0, 504.0))
 INSERT_R, CLEAR_R = 2.0, 1.7           # M3 heat-set insert hole 4.0, clearance 3.4
+HX0, HX1, LEAF = 72.0, 552.0, 0.7      # Duovorm black piano hinge 480 x 25 x 0.7, uncut
 
 
 def p(x, y, z):
@@ -143,8 +144,8 @@ def run(_context: str):
     add(K, 'K walnut top (walnut)', S(box(0, W, TOP, H, 0, TH), box(0, W, TOP, TOP + 5, 0, 3)))
     add(K, 'K walnut bottom (walnut)', S(box(0, W, 0, BOT, 0, TH),
                                          box(95.3, 474.7, BOT - 3, BOT, 3.3, 5.7),   # groove for the covers' tongue
-                                         box(58, 566, 0, BOT, 0, 1),                 # hinge leaf mortise
-                                         cylx(58, 566, 0, 0, 2.4),                   # knuckle cove
+                                         box(HX0, HX1, 0, BOT, 0, LEAF),             # hinge leaf mortise
+                                         cylx(HX0, HX1, 0, 0, 2.4),                  # knuckle cove
                                          cylx(14, 54, 0, 0, 6.5),                    # cables run along the axis
                                          box(40, 54, 0, BOT, 0, 9)))                 # and drop in from the block
 
@@ -226,7 +227,7 @@ def run(_context: str):
     add(K, 'K keeper R (print)', S(box(W - 95.3, W - 78, 231.2, 237.4, 3, 5.8), cylz(W - 83.5, 234.3, 2, 7, CLEAR_R)))
     add(K, 'K pivot pin L (steel)', cylx(50.3, 95.3, PIN[0], PIN[1], 3.0))
     add(K, 'K pivot pin R (steel)', cylx(W - 95.3, W - 50.3, PIN[0], PIN[1], 3.0))
-    add(K, 'K hinge leaf + knuckle (steel)', U(box(58, 566, 2.0, BOT, 0, 1), cylx(58, 566, 0, 0, 2.0)))
+    add(K, 'K hinge leaf + knuckle (steel)', U(box(HX0, HX1, 1.6, BOT, 0, LEAF), cylx(HX0, HX1, 0, 0, 1.6)))
 
     r = math.radians(angle)
     flap = adsk.core.Matrix3D.create()
@@ -262,7 +263,7 @@ def run(_context: str):
     t_occ = comp('T testvoet')
     TC = t_occ.component
     base = box(0, W, 320, 551, 0, 13)
-    S(base, box(58, 566, 332.7, 345, 12, 13.1), cylx(58, 566, 345, 13, 2.4),            # hinge leaf, knuckle
+    S(base, box(HX0, HX1, 332.7, 345, 13 - LEAF, 13.1), cylx(HX0, HX1, 345, 13, 2.4),    # hinge leaf, knuckle
       cylx(14, 54, 345, 13, 6.5), box(14, 26, 339, 351, -1, 14),                         # cable run on the axis, slot down
       box(58, 77, 440, 552, 3, 14), box(W - 77, W - 58, 440, 552, 3, 14))                # arm channels
     for a in calc['STEPS']:
@@ -280,7 +281,7 @@ def run(_context: str):
         add(TC, 'T splice %d (print)' % x, S(box(x - 25, x + 25, 340, 540, -6, 0),
                                              *[cylz(x + dx, y, -7, 1, CLEAR_R) for dx in (-15, 15) for y in (360, 520)]))
     add(TC, 'T cable clamp (print)', S(box(6, 36, 356, 368, -5, 0), *[cylz(x, 362, -6, 1, CLEAR_R) for x in (10, 32)]))
-    add(TC, 'T hinge leaf (steel)', box(58, 566, 332.7, 343.0, 12, 13))
+    add(TC, 'T hinge leaf (steel)', box(HX0, HX1, 332.7, 343.4, 13 - LEAF, 13))
 
     # ------------------------------------------------------------------ checks
     def solids(occ):
