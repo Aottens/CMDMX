@@ -32,8 +32,11 @@ private struct PagesColumn: View {
     @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
+    @EnvironmentObject private var livePlaybacks: LivePlaybacks
 
     var body: some View {
+        // UI-87: pages with a playback that is not off (only the stored part and state, not per tick).
+        let running = Set(livePlaybacks.playbacks.filter(\.isRunning).map(\.stored.page))
         VStack(alignment: .leading, spacing: 2) {
             // Compact so all ten fit the 232 pt zone with the "per page" read-out.
             ForEach(1...max(1, engine.page.count), id: \.self) { number in
@@ -57,6 +60,11 @@ private struct PagesColumn: View {
                     .padding(.horizontal, 5).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: radius).fill(current ? t.fg : Color.clear))
                     .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ui.function == .legend ? t.red : t.line, lineWidth: 1))
+                    .overlay(alignment: .bottom) {
+                        if running.contains(number) {
+                            RoundedRectangle(cornerRadius: 1).fill(t.green).frame(height: 3).padding(.horizontal, 2).padding(.bottom, 1)
+                        }
+                    }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).frame(height: 16)

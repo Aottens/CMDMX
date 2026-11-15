@@ -12,6 +12,9 @@ is highlighted, and the strips show its handles.
 
 - Changing the page never changes what is running. A playback that is up on page 1 keeps running
   while you look at page 2, and shows its level again when you go back.
+- A green bar along the bottom of a page button says that a playback on that page is running or still
+  releasing, so from page 2 you see that something on page 1 is up. Page Up and Page Down on the Mac keyboard go to
+  the previous and next page.
 - **Set Legend**, then a click on a page button, names the page (up to 32 characters). The name
   is shown next to the number.
 
