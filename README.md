@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls, show files and batch I, where CMDMX differs from Titan, are done. Next: batch J, input
-paths (INP-01..09, INP-03 first), then VS4-07 and VS4-03.
+Patch, profiles, controls, show files and batch I are done; batch J has the Mac keys and the page marks. Next: the
+rest of batch J (INP-02 and INP-09, INP-01, INP-04, INP-05 and INP-06), then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap waits for a test print (HWB-10). Progress: [`STATE.md`](STATE.md), the plan: [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -172,6 +172,7 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   locks, fader modes with fades and kill point, Flash/Swop/Latch, legends with icons, and DBO. Release fades
   intensity too, over the release time. Release twice releases everything; Release and a page button releases that page
   or all but that page.
+- A green bar on a page button says a playback on that page runs, so page 2 tells you something on page 1 is up.
 - Copy, Move and Delete take several playbacks, palettes or groups at once, keeping the gaps (Retain Layout) or
   closing them (Bunch Up), and a Move can swap what is in the way; Delete takes several cues of a list. One refused
   item refuses it all, and it is one undo step. In the app you pick them with ⇧ for a range, ⌘ to add or drop one and
@@ -226,6 +227,9 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 **Show, undo and app**
 - A delete says what it does before you confirm: how many cues on how many playbacks use a palette, a running playback's output ending, the live cue; under Patch's Confirm remove, where a fixture is used and what ends up empty.
 - Esc goes one level up on every screen, whatever Keys says, and never changes the stage; opening a screen disarms.
+- Titan's PC keys on ⌥ whatever Keys says (⌥C Clear, ⌥R Record, ⌥⇧U Update, ⌥1–⌥7 the softkeys, …), Page Up and Down
+  for pages, and a *Console* menu that lists them all; with Keys on the numeric `/` and `*` are Thro and `@`.
+- When the engine stops unasked, Messages says why with its panic line from the log; *Show engine log* opens it.
 - With Keys off, a Mac key or a click on the command line says how to turn Keys on. An armed function's own message goes when it disarms; a warning stays until the next command.
 - An armed function or Record never does the normal action: every tap does what the table in the manual says or is refused with where it works, also a Flash or Swop; `Group 3 Enter` and `Palette 12 Enter` reach it from the command line, and Enter confirms a waiting Delete.
 - The show is one readable JSON file in `~/Documents/CMDMX/Shows/`, autosaved within

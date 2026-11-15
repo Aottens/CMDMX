@@ -347,12 +347,12 @@ DEF-06 alone and TST-01 alone, beside these.
 |---|---|---|---|---|
 | INP-01 | Core, daemon and app: a number on the command line, then a click on a wheel's name, sets that attribute in the wheel's unit or as a slot number; `prg_104_…`, `ipc_63_…`; manual and run on Art-Net. | PRG-104, IPC-63, UI-82 | M | todo |
 | INP-02 | App: ⇧-click and a box drawn over the tiles select a range of fixtures in window order; manual and run on Art-Net with Fan. | UI-83 | S | todo |
-| INP-03 | App: Titan's Alt keys on ⌥ whatever Keys says, Page Up and Down, the numeric `/` and `*`, and a Console menu that lists them; manual and run. | UI-86 | M | todo |
+| INP-03 | App: Titan's Alt keys on ⌥ whatever Keys says, Page Up and Down, the numeric `/` and `*`, and a Console menu that lists them; manual and run. | UI-86 | M | done (2026-11-15, #317; run `tests/manual/runs/2026-11-15-INP-03-07-08.md`) |
 | INP-04 | Daemon and app: with the app open, a surface's keypad goes into the app's one command line and its programming keys arm the app's functions, a surface press being the target; `ipc_64_…`, `ctl_72_…`; manual and run with the on-screen deck and a virtual MIDI port. | IPC-64, CTL-72, UI-84 | L | todo |
 | INP-05 | Daemon and app: `key lock` locks with a code saved on this Mac from the Lock prompt; `ipc_65_…`, `ctl_73_…`; manual and run. | IPC-65, CTL-73, UI-85 | S | todo |
 | INP-06 | Daemon and app: `usage` names the controls on a group, palette or playback, a delete or Move says so, and the Control screen marks a binding to nothing; `ipc_66_…`, `ctl_74_…`; manual and run. | IPC-66, CTL-74 | M | todo |
-| INP-07 | App: a page button shows a green bar while a playback on that page runs; manual and run on Art-Net. | UI-87 | S | todo |
-| INP-08 | App: when the engine stops, its panic line from `daemon.log` in the Messages sheet, and Show engine log; manual and run with a bundle whose engine panics. | REL-30 | S | todo |
+| INP-07 | App: a page button shows a green bar while a playback on that page runs; manual and run on Art-Net. | UI-87 | S | done (2026-11-15, #317; run `tests/manual/runs/2026-11-15-INP-03-07-08.md`) |
+| INP-08 | App: when the engine stops, its panic line from `daemon.log` in the Messages sheet, and Show engine log; manual and run with a bundle whose engine panics. | REL-30 | S | done (2026-11-15, #317; run `tests/manual/runs/2026-11-15-INP-03-07-08.md`) |
 | INP-09 | App: a switch between Fixtures and Groups in the Fixtures window, remembered per workspace; manual and run on Colour and Playbacks. | UI-88 | S | todo |
 
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
