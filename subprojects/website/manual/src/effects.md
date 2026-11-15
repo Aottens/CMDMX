@@ -142,6 +142,12 @@ their attributes show their base. The playback setting *Swop stops* (Playback Op
 *All shapes* (the default, as Titan) or *Dimmer shapes*, which stops only the shapes on intensity.
 The programmer's shapes never stop. When you let go the shapes carry on where their clocks are.
 
+*Mask shapes* (Playback Options, Handle tab) lets a cue hold still while an earlier playback runs a
+circle on the same fixtures. Switch on the groups (I P C G B E S) the playback holds still: while it
+is active, the shapes of playbacks fired before it, at its priority or lower, stop on those groups
+of the fixtures its current cue holds values or shapes for. Its own shapes, the programmer's and
+those of a playback fired later keep running. Fire the other playback again and it runs again.
+
 ## Effect palettes
 
 Recording a palette while an effect runs in its attribute groups stores the effect too, without

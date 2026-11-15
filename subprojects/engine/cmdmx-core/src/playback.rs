@@ -816,6 +816,9 @@ pub struct Playback {
     pub kill_point: KillPoint,
     #[serde(default, skip_serializing_if = "is_default_shape_size")]
     pub shape_size: ShapeSize,
+    /// FX-48: the groups whose earlier, same-or-lower priority shapes this playback holds still.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mask_shapes: Vec<AttributeGroup>,
     /// `None` = the global setting (PBK-20).
     pub release_mask: Option<Vec<AttributeGroup>>,
     pub release_time: Option<f32>,
@@ -849,6 +852,7 @@ impl Playback {
             fader_mode: FaderMode::Mode0,
             kill_point: KillPoint::default(),
             shape_size: ShapeSize::default(),
+            mask_shapes: Vec::new(),
             release_mask: None,
             release_time: None,
             paging: Paging::default(),
@@ -1048,6 +1052,7 @@ pub struct PlaybackChange {
     pub fader_mode: Option<FaderMode>,
     pub kill_point: Option<KillPoint>,
     pub shape_size: Option<ShapeSize>,
+    pub mask_shapes: Option<Vec<AttributeGroup>>,
     pub release_mask: Option<Option<Vec<AttributeGroup>>>,
     pub release_time: Option<Option<f32>>,
     pub paging: Option<Paging>,

@@ -5753,6 +5753,9 @@ impl Engine {
         if let Some(v) = change.shape_size {
             playback.shape_size = v;
         }
+        if let Some(v) = &change.mask_shapes {
+            playback.mask_shapes = v.clone();
+        }
         if let Some(v) = &change.release_mask {
             playback.release_mask = v.clone();
         }
@@ -10304,7 +10307,15 @@ impl Pass<'_> {
         let effected = std::cell::Cell::new(false);
         let fx = |base: Value| {
             let htp = l.kind == AttributeKind::Htp;
-            let v = with_effect(self.effects, item, l.name, htp, base, round, self.now);
+            let v = with_effect(
+                self.effects,
+                item,
+                (l.name, l.group),
+                htp,
+                base,
+                round,
+                self.now,
+            );
             effected.set(v.is_some());
             v.unwrap_or(base)
         };
@@ -10459,6 +10470,27 @@ struct EffectSources<'a> {
     swop_shapes: SwopShapes,
 }
 
+impl EffectSources<'_> {
+    /// FX-48: does the current cue of playback `id` hold a value or an effect entry for `fixture`?
+    fn holds(&self, id: PlaybackId, fixture: FixtureId) -> bool {
+        let (Some(p), Some(s)) = (self.playbacks.get(&id), self.states.get(&id)) else {
+            return false;
+        };
+        let values = if is_list(p) {
+            s.run.holds(fixture)
+        } else {
+            p.values()
+                .is_some_and(|v| v.keys().any(|i| i.fixture == fixture))
+        };
+        values
+            || self.cue_fx.get(&id).is_some_and(|fx| {
+                fx.runs
+                    .iter()
+                    .any(|r| r.entry.members.iter().any(|m| m.fixture == fixture))
+            })
+    }
+}
+
 /// ENG-14..16: `base` with the effect on `item`'s `attribute`, `None` when none acts: at most
 /// one source acts (ENG-15): the highest priority, then the latest activation; the programmer
 /// sits at `Priority::Programmer`. The programmer's fades out while a timed Clear runs (FX-19). A
@@ -10468,7 +10500,7 @@ struct EffectSources<'a> {
 fn with_effect(
     src: &EffectSources,
     item: Item,
-    attribute: &str,
+    (attribute, group): (&str, AttributeGroup),
     htp: bool,
     base: Value,
     round: f32,
@@ -10488,7 +10520,20 @@ fn with_effect(
         }
         let key = (playback.priority, activated);
         let drives = fx.runs.iter().any(|r| r.index(item, attribute).is_some());
-        if drives && best.as_ref().is_none_or(|b| key > b.0) {
+        // FX-48: a later playback of the same or higher priority holds this group still.
+        // ponytail: O(playbacks) per candidate that would win; index the maskers per tick if needed.
+        let masked = || {
+            src.playbacks.iter().any(|(pid, p)| {
+                pid != id
+                    && p.mask_shapes.contains(&group)
+                    && p.priority >= playback.priority
+                    && (src.states.get(pid))
+                        .and_then(|s| s.activated)
+                        .is_some_and(|a| a > activated)
+                    && src.holds(*pid, item.fixture)
+            })
+        };
+        if drives && best.as_ref().is_none_or(|b| key > b.0) && !masked() {
             // FX-46: the size the master gives this playback's shapes.
             let m = match playback.shape_size {
                 ShapeSize::Fader => state.master,

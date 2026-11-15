@@ -65,6 +65,8 @@ pub enum Request {
 }
 
 /// From a phone's thread to the tick.
+// ponytail: one short-lived event per phone command; box `Command` if it grows again.
+#[allow(clippy::large_enum_variant)]
 pub enum RemoteEvent {
     /// A phone logged in; the tick queues the snapshot first (RMT-06).
     Connected(SyncSender<String>),

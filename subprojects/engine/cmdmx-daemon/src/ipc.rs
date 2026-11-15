@@ -1154,6 +1154,11 @@ fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
         },
         kill_point: opt_field::<KillPoint>(v, "kill_point", "FadeOutComplete or FaderAtZero")?,
         shape_size: opt_field::<ShapeSize>(v, "shape_size", "Fader, Fixed or HtpFader")?,
+        mask_shapes: opt_field::<Vec<AttributeGroup>>(
+            v,
+            "mask_shapes",
+            "an array of attribute groups",
+        )?,
         release_mask: nullable(v, "release_mask", "an array of attribute groups or null")?,
         release_time: nullable(v, "release_time", "a number or null")?,
         paging: opt_field::<Paging>(v, "paging", "Unlocked, Locked or TransparentLock")?,
@@ -2357,6 +2362,7 @@ struct OptionsInfo {
     fader_mode: FaderMode,
     kill_point: KillPoint,
     shape_size: ShapeSize,
+    mask_shapes: Vec<AttributeGroup>,
     release_mask: Option<Vec<AttributeGroup>>,
     release_time: Option<f32>,
     paging: Paging,
@@ -2513,6 +2519,7 @@ fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
                     fader_mode: p.fader_mode,
                     kill_point: p.kill_point,
                     shape_size: p.shape_size,
+                    mask_shapes: p.mask_shapes.clone(),
                     release_mask: p.release_mask.clone(),
                     release_time: p.release_time,
                     paging: p.paging,
@@ -7346,7 +7353,7 @@ mod tests {
                "auto_icon":{"value":{"attribute":"Dimmer","value":1.0}},"halo":null,
                "level":0.0,"state":"off","flash":false,"latched":false,"fired":null,
                "groups":["I"],
-               "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete","shape_size":"Fader",
+               "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete","shape_size":"Fader","mask_shapes":[],
                           "release_mask":null,"release_time":null,"paging":"Unlocked","group":null},
                "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,
                           "fade_out_as_in":true,"delay_out_as_in":true,"overlap":100.0},
@@ -8857,9 +8864,9 @@ mod tests {
     }
 
     #[test]
-    fn fx_46_shape_size_parses() {
+    fn fx_46_48_shape_size_and_mask_shapes_parse() {
         use cmdmx_core::playback::ShapeSize;
-        let c = parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"shape_size":"Fixed"}"#)
+        let c = parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"shape_size":"Fixed","mask_shapes":["P","G"]}"#)
             .unwrap();
         assert_eq!(
             c,
@@ -8867,12 +8874,16 @@ mod tests {
                 id: 3,
                 change: PlaybackChange {
                     shape_size: Some(ShapeSize::Fixed),
+                    mask_shapes: Some(vec![AttributeGroup::P, AttributeGroup::G]),
                     ..PlaybackChange::default()
                 }
             }
         );
         assert!(
             parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"shape_size":"Big"}"#).is_err()
+        );
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"mask_shapes":"P"}"#).is_err()
         );
     }
 

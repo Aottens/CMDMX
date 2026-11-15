@@ -1259,6 +1259,29 @@ fn shw_26_shape_size_is_left_out_at_its_default_and_saved_otherwise() {
 }
 
 #[test]
+fn shw_26_mask_shapes_is_left_out_at_its_default_and_saved_otherwise() {
+    use cmdmx_core::playback::PlaybackChange;
+    let mut e = rig();
+    let v = as_json(&e.to_show(meta()));
+    let first = &v["playbacks"]["playbacks"][0];
+    assert!(first.get("mask_shapes").is_none(), "none is the default");
+    let change = PlaybackChange {
+        mask_shapes: Some(vec![AttributeGroup::P, AttributeGroup::C]),
+        ..Default::default()
+    };
+    e.change_playback(1, &change).unwrap();
+    let v = as_json(&e.to_show(meta()));
+    assert_eq!(
+        v["playbacks"]["playbacks"][0]["mask_shapes"],
+        json!(["P", "C"])
+    );
+    let (loaded, warnings) = load(&v);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    let p = loaded.playback(1).unwrap();
+    assert_eq!(p.mask_shapes, vec![AttributeGroup::P, AttributeGroup::C]);
+}
+
+#[test]
 fn shw_26_swop_shapes_is_left_out_at_its_default_and_saved_otherwise() {
     use cmdmx_core::playback::SwopShapes;
     let mut e = rig();
@@ -1298,6 +1321,7 @@ fn shw_26_a_schema_14_show_loads_with_every_default() {
         e.playback(1).unwrap().shape_size,
         cmdmx_core::playback::ShapeSize::Fader
     );
+    assert!(e.playback(1).unwrap().mask_shapes.is_empty());
     assert_eq!(
         as_json(&e.to_show(meta())),
         as_json(&rig().to_show(meta())),

@@ -1777,6 +1777,7 @@ fn half_fader(size: ShapeSize) -> (u8, u8) {
 fn fx_46_fader_is_the_default_and_scales_every_shape() {
     let p = cmdmx_core::playback::Playback::new(9, 1, 9, Default::default());
     assert_eq!(p.shape_size, ShapeSize::Fader);
+    assert!(p.mask_shapes.is_empty());
     let (dimmer, pan) = half_fader(ShapeSize::Fader);
     // 0.25 · 0.5; 0.5 + 0.5 · 0.1.
     assert!(dimmer.abs_diff(32) <= 1, "{dimmer}");
@@ -1868,4 +1869,82 @@ fn fx_47_the_programmer_shapes_never_stop() {
     e.tick(0.0);
     tick_to(&mut e, 0.0, 0.5);
     assert!(dmx(&e, 21) > 100, "{}", dmx(&e, 21));
+}
+
+/// Spot 312 @51 next to 311. 1.1 holds Pan 0.5 on 311 and 312 with a line on both and a ramp on
+/// 201, up at 0; 1.2 holds a static Pan 0.3 on 311 only, with `mask` and `priority`, up at 0.5.
+fn mask_rig(mask: &[AttributeGroup], priority: Priority) -> (Engine, u32, u32) {
+    let mut e = rig();
+    patch(&mut e, 312, "spot", 51);
+    ramp(&mut e, &[201]);
+    select(&mut e, &[311, 312]);
+    e.set_programmer_value(311, "Pan", 0.5).unwrap();
+    e.set_programmer_value(312, "Pan", 0.5).unwrap();
+    line_pan(&mut e, &[311, 312]);
+    let chase = record(&mut e, 1, 1);
+    clear(&mut e);
+    select(&mut e, &[311]);
+    e.set_programmer_value(311, "Pan", 0.3).unwrap();
+    let masker = record(&mut e, 1, 2);
+    clear(&mut e);
+    edit_playback(&mut e, masker, |p| p.mask_shapes = mask.to_vec());
+    edit_playback(&mut e, chase, |p| p.priority = priority);
+    e.set_fader(chase, 1.0, 0.0).unwrap();
+    e.tick(0.0);
+    tick_to(&mut e, 0.0, 0.5);
+    e.set_fader(masker, 1.0, 0.5).unwrap();
+    e.tick(0.5);
+    tick_to(&mut e, 0.5, 1.25);
+    (e, chase, masker)
+}
+
+#[test]
+fn fx_48_a_static_cue_masks_an_earlier_position_shape_on_its_fixtures() {
+    let (e, ..) = mask_rig(&[AttributeGroup::P], Priority::Normal);
+    // 311: 1.2's Pan 0.3 without 1.1's line.
+    assert!(dmx(&e, 49).abs_diff(77) <= 1, "{}", dmx(&e, 49));
+    // 312 is not in 1.2's cue: its line runs, 0.5 + 0.1.
+    assert!(dmx(&e, 51).abs_diff(153) <= 1, "{}", dmx(&e, 51));
+    // The dimmer shape of 1.1 is untouched: θ = 1.25.
+    assert!(dmx(&e, 21).abs_diff(64) <= 1, "{}", dmx(&e, 21));
+}
+
+#[test]
+fn fx_48_without_the_group_in_the_mask_the_shape_runs_around_the_new_base() {
+    let (e, ..) = mask_rig(&[AttributeGroup::C], Priority::Normal);
+    // 0.3 + 0.1.
+    assert!(dmx(&e, 49).abs_diff(102) <= 1, "{}", dmx(&e, 49));
+}
+
+#[test]
+fn fx_48_a_higher_priority_playback_is_not_masked() {
+    let (e, ..) = mask_rig(&[AttributeGroup::P], Priority::High);
+    assert!(
+        dmx(&e, 49).abs_diff(77) > 5,
+        "the line acts: {}",
+        dmx(&e, 49)
+    );
+}
+
+#[test]
+fn fx_48_the_mask_ends_with_the_masking_playback() {
+    let (mut e, _, masker) = mask_rig(&[AttributeGroup::P], Priority::Normal);
+    e.set_fader(masker, 0.0, 1.25).unwrap();
+    e.tick(1.25);
+    tick_to(&mut e, 1.25, 2.25);
+    // 1.1's Pan 0.5 and its line again: θ = 2.25.
+    assert!(dmx(&e, 49).abs_diff(153) <= 1, "{}", dmx(&e, 49));
+}
+
+#[test]
+fn fx_48_the_shape_fired_again_after_the_mask_runs_again() {
+    let (mut e, chase, _) = mask_rig(&[AttributeGroup::P], Priority::Normal);
+    tick_to(&mut e, 1.25, 2.0);
+    e.set_fader(chase, 0.0, 2.0).unwrap();
+    e.tick(2.0);
+    e.set_fader(chase, 1.0, 2.0).unwrap();
+    e.tick(2.0);
+    tick_to(&mut e, 2.0, 2.25);
+    // Activated after 1.2: its Pan 0.5 wins (LTP) and its line is not masked, θ = 0.25.
+    assert!(dmx(&e, 49).abs_diff(153) <= 1, "{}", dmx(&e, 49));
 }
