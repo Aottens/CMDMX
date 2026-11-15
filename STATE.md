@@ -12,8 +12,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch I, behaviour that differs from Titan: the other builds as `BACKLOG.md` groups them, TTN-07 + TTN-08 +
-   TTN-09 next, then TTN-01; they add their keys to schema 15. Then batch J, its spec approved first
+1. IDEA-35 batch I, behaviour that differs from Titan: its last build, TTN-01 (the command line, apart so it can be
+   reverted alone), adds its key to schema 15. Then batch J, its spec approved first
    (`docs/research/everyday-gaps.md`). No tag after a batch: the next release is the one the first service runs on, and
    the gap review follows it (REL-26). P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send
    Demo on Art-Net) and DEF-06 (an Undo that leaves a running list on a cue that is gone, so Go does nothing) need a

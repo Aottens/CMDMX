@@ -14,7 +14,9 @@ use crate::effect::Entry;
 use crate::output::{Node, NodeId, NodeKind};
 use crate::palette::{Palette, PaletteId, RecordBy};
 use crate::patch::{Fixture, FixtureId};
-use crate::playback::{HandleButtons, ListFader, Playback, PlaybackId, UpdateMode};
+use crate::playback::{
+    is_default_swop_shapes, HandleButtons, ListFader, Playback, PlaybackId, SwopShapes, UpdateMode,
+};
 use crate::profile::Profile;
 use crate::programmer::Grid;
 use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId, Item};
@@ -108,6 +110,9 @@ pub struct ShowSettings {
     /// PBK-54, SHW-26: left out while on.
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub auto_legend: bool,
+    /// FX-47, SHW-26: left out while All.
+    #[serde(default, skip_serializing_if = "is_default_swop_shapes")]
+    pub swop_shapes: SwopShapes,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

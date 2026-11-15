@@ -286,9 +286,10 @@ The cue-list messages are specified in `cuelists.md` as CUE-40 (snapshot `playba
 - **IPC-27** `playback.record` `mode` takes `Replace`, `Merge`, `Update` (PBK-36), `Append` and
   `Insert` (CUE-03, 05); `cue` is a number (CUE-04, not together with `Append`/`Insert`) and
   `update_mode` one of `Forwards`, `CueOnly`, `Backwards`, `Both` (CUE-52). `playback.options`
-  takes `kind` (`Cues`/`Chase`), and `list`, `chase` and `master` as objects whose fields are each
-  optional: a missing field keeps its stored value, and the merged whole is checked as CUE-29/35
-  say before anything changes.
+  takes `shape_size` (`Fader`, `Fixed` or `HtpFader`, FX-46), `mask_shapes` (an array of
+  attribute groups, FX-48) and `kind` (`Cues`/`Chase`), and
+  `list`, `chase` and `master` as objects whose fields are each optional: a missing field keeps
+  its stored value, and the merged whole is checked as CUE-29/35 say before anything changes.
 - **IPC-28** Entry shape (VS3-05): `list` and `chase` are always present, `master` is `null` except on
   masters; the live part gains `cue` (`null` except on lists) and `bpm` (the effective BPM of a
   chase or BPM master, else `null`), so CUE-40's `effective_bpm` is this live `bpm`, and

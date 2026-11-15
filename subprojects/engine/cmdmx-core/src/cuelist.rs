@@ -240,6 +240,11 @@ impl ListRun {
         Some((fade.value(self.clock(now), resolve), fade.order))
     }
 
+    /// FX-48: does the list have a fade for any item of `fixture`?
+    pub(crate) fn holds(&self, fixture: FixtureId) -> bool {
+        self.fades.keys().any(|i| i.fixture == fixture)
+    }
+
     /// The items the list has a fade for (the tick finds the cells it must merge on their own).
     pub(crate) fn items(&self) -> impl Iterator<Item = Item> + '_ {
         self.fades.keys().copied()

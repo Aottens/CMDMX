@@ -37,8 +37,8 @@ use cmdmx_core::playback::{
     AddCue, BlockTo, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Layout, Link,
     ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
-    PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, UpdateTarget, Values,
-    PAGES,
+    PlaybackId, PlaybackRecord, Priority, ShapeSize, SpeedSource, SwopShapes, Track, UpdateMode,
+    UpdateTarget, Values, PAGES,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
@@ -1153,6 +1153,12 @@ fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
             }),
         },
         kill_point: opt_field::<KillPoint>(v, "kill_point", "FadeOutComplete or FaderAtZero")?,
+        shape_size: opt_field::<ShapeSize>(v, "shape_size", "Fader, Fixed or HtpFader")?,
+        mask_shapes: opt_field::<Vec<AttributeGroup>>(
+            v,
+            "mask_shapes",
+            "an array of attribute groups",
+        )?,
         release_mask: nullable(v, "release_mask", "an array of attribute groups or null")?,
         release_time: nullable(v, "release_time", "a number or null")?,
         paging: opt_field::<Paging>(v, "paging", "Unlocked, Locked or TransparentLock")?,
@@ -2046,6 +2052,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             go_guard: opt_f32(&v, "go_guard")?,
             auto_connect: opt_field(&v, "auto_connect", "true or false")?,
             auto_legend: opt_field(&v, "auto_legend", "true or false")?,
+            swop_shapes: opt_field(&v, "swop_shapes", "All or Intensity")?,
             cue_list_fader: opt_field(&v, "cue_list_fader", "KillWithOff or KillAtZero")?,
             update_mode: opt_field(&v, "update_mode", "Forwards, CueOnly, Backwards or Both")?,
             handle_buttons: opt_field(
@@ -2354,6 +2361,8 @@ struct OptionsInfo {
     priority: Priority,
     fader_mode: FaderMode,
     kill_point: KillPoint,
+    shape_size: ShapeSize,
+    mask_shapes: Vec<AttributeGroup>,
     release_mask: Option<Vec<AttributeGroup>>,
     release_time: Option<f32>,
     paging: Paging,
@@ -2437,6 +2446,7 @@ struct PlaybackSettingsInfo {
     handle_buttons: HandleButtons,
     go_guard: f32,
     auto_legend: bool,
+    swop_shapes: SwopShapes,
 }
 
 fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
@@ -2458,6 +2468,7 @@ fn playback_settings(engine: &Engine) -> PlaybackSettingsInfo {
         handle_buttons: s.handle_buttons.clone(),
         go_guard: s.go_guard,
         auto_legend: s.auto_legend,
+        swop_shapes: s.swop_shapes,
     }
 }
 
@@ -2507,6 +2518,8 @@ fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
                     priority: p.priority,
                     fader_mode: p.fader_mode,
                     kill_point: p.kill_point,
+                    shape_size: p.shape_size,
+                    mask_shapes: p.mask_shapes.clone(),
                     release_mask: p.release_mask.clone(),
                     release_time: p.release_time,
                     paging: p.paging,
@@ -7340,7 +7353,7 @@ mod tests {
                "auto_icon":{"value":{"attribute":"Dimmer","value":1.0}},"halo":null,
                "level":0.0,"state":"off","flash":false,"latched":false,"fired":null,
                "groups":["I"],
-               "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete",
+               "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete","shape_size":"Fader","mask_shapes":[],
                           "release_mask":null,"release_time":null,"paging":"Unlocked","group":null},
                "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,
                           "fade_out_as_in":true,"delay_out_as_in":true,"overlap":100.0},
@@ -7412,7 +7425,7 @@ mod tests {
             json!({"record_by":"Channel","delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,"fade_out_as_in":true,"delay_out_as_in":true,
                    "overlap":100.0,"release_mask":[],"release_time":2.0,
                    "auto_connect":true,"cue_list_fader":"KillWithOff","update_mode":"Forwards",
-                   "handle_buttons":"BestPractice","go_guard":0.5,"auto_legend":true})
+                   "handle_buttons":"BestPractice","go_guard":0.5,"auto_legend":true,"swop_shapes":"All"})
         );
     }
 
@@ -8848,6 +8861,44 @@ mod tests {
         assert_ne!(stamp(button.clone(), 1.5), button);
         let connect = parse_command(r#"{"v":1,"cmd":"cuelist.connect","id":2}"#).unwrap();
         assert_eq!(stamp(connect.clone(), 1.5), connect);
+    }
+
+    #[test]
+    fn fx_46_48_shape_size_and_mask_shapes_parse() {
+        use cmdmx_core::playback::ShapeSize;
+        let c = parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"shape_size":"Fixed","mask_shapes":["P","G"]}"#)
+            .unwrap();
+        assert_eq!(
+            c,
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange {
+                    shape_size: Some(ShapeSize::Fixed),
+                    mask_shapes: Some(vec![AttributeGroup::P, AttributeGroup::G]),
+                    ..PlaybackChange::default()
+                }
+            }
+        );
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"shape_size":"Big"}"#).is_err()
+        );
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"mask_shapes":"P"}"#).is_err()
+        );
+    }
+
+    #[test]
+    fn fx_47_swop_shapes_parses() {
+        use cmdmx_core::playback::SwopShapes;
+        let set = parse_command(r#"{"v":1,"cmd":"settings.playback","swop_shapes":"Intensity"}"#)
+            .unwrap();
+        let Command::SettingsPlayback(change) = set else {
+            panic!("{set:?}")
+        };
+        assert_eq!(change.swop_shapes, Some(SwopShapes::Intensity));
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"settings.playback","swop_shapes":"Some"}"#).is_err()
+        );
     }
 
     #[test]

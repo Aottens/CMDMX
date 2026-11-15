@@ -492,6 +492,29 @@ private struct HandleTab: View {
             Choice(options: [("Unlocked", "Unlocked"), ("Transparent lock", "TransparentLock"), ("Locked", "Locked")],
                    selected: playback.stored.options.paging) { engine.setPlaybackOptions(playback.id, ["paging": $0]) }
         }
+        if !playback.stored.isMaster {
+            OptionRow(label: "Shape size", note: [
+                "Fader": "The fader scales the size of the shapes.",
+                "Fixed": "The shapes keep the size they were recorded with.",
+                "HtpFader": "The fader scales shapes on intensity; the others keep their size.",
+            ][playback.stored.options.shapeSize] ?? "") {
+                Choice(options: [("Fader", "Fader"), ("Fixed", "Fixed"), ("Dimmer shapes on fader", "HtpFader")],
+                       selected: playback.stored.options.shapeSize) { engine.setPlaybackOptions(playback.id, ["shape_size": $0]) }
+            }
+            OptionRow(label: "Mask shapes", note: "Holds the shapes of earlier playbacks still on its fixtures, in these groups.") {
+                HStack(spacing: 2) {
+                    ForEach(Array(attributeGroupOrder.prefix(7)), id: \.self) { group in
+                        let mask = playback.stored.options.maskShapes
+                        let on = mask.contains(group)
+                        Button(group) {
+                            let next = attributeGroupOrder.prefix(7).filter { $0 == group ? !on : mask.contains($0) }
+                            engine.setPlaybackOptions(playback.id, ["mask_shapes": next])
+                        }
+                        .buttonStyle(FlatButton(fill: on ? .blue : nil))
+                    }
+                }
+            }
+        }
         Text("Home handle \(playback.homeHandle).").font(Typo.ui(11)).foregroundStyle(.secondary)
     }
 }
@@ -680,6 +703,9 @@ private struct SettingsTab: View {
             }
             OptionRow(label: "Automatic legends", note: "A new playback or cue is named after its group and palettes, else its fixture numbers.") {
                 Choice(options: yesNo(true), selected: s.autoLegend) { engine.setPlaybackSettings(["auto_legend": $0]) }
+            }
+            OptionRow(label: "Swop stops", note: "While a Swop is held, the shapes of the other playbacks stop: all of them, or only those on intensity.") {
+                Choice(options: [("All shapes", "All"), ("Dimmer shapes", "Intensity")], selected: s.swopShapes) { engine.setPlaybackSettings(["swop_shapes": $0]) }
             }
             OptionRow(label: "Handle buttons", note: "Best practice: Go on lists, Tap on chases. Titan: Swop / Flash everywhere. Custom: a pair per kind.") {
                 Choice(options: [("Best practice", "BestPractice"), ("Titan", "Titan"), ("Custom", "Custom")], selected: s.handleButtons.mode) { mode in

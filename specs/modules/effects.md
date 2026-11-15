@@ -337,8 +337,8 @@ Checks: `tests/manual/runs/2026-11-14-I-checks.md`. Titan: *Playback Options* (E
   of another playback that was activated before it, at its priority or lower, acts on the attributes of those groups of the
   fixtures its current cue holds values or entries for; its own effects and the programmer's are not masked, and a playback
   activated later is not masked either (LTP, ENG-15). Playback Options show it on the Handle tab as one toggle per group,
-  *Mask shapes*. Tests `fx_48_…`: a position chase on 1.1 masked by a static position cue on 1.2 for G, the dimmer chase of 1.1
-  untouched, 1.1 fired again after 1.2 runs its chase again.
+  *Mask shapes*. Tests `fx_48_…`: a position shape on 1.1 masked by a static position cue on 1.2 for P, the dimmer shape of 1.1
+  untouched, 1.1 fired again after 1.2 runs its shape again.
 
 ## Scenario test format
 Scenario files `tests/scenarios/FX-nn-*.json` (format of `engine-merge.md`) gain an `effect`

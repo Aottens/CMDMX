@@ -41,8 +41,8 @@ use crate::playback::{
     Direction, FaderMode, GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons,
     KillPoint, Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master,
     MasterKind, Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord,
-    PlaybackState, Priority, Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values,
-    GROUP_SCALES, PAGES,
+    PlaybackState, Priority, Release, ShapeSize, SpeedSource, SwopShapes, UpdateMode, UpdateTarget,
+    UpdateTargets, Values, GROUP_SCALES, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -200,6 +200,8 @@ pub struct Settings {
     pub go_guard: f32,
     /// PBK-54: a cue a record creates gets an automatic legend.
     pub auto_legend: bool,
+    /// FX-47.
+    pub swop_shapes: SwopShapes,
 }
 
 /// CUE-68: the Go guard's default and upper limit, in seconds.
@@ -226,6 +228,8 @@ pub struct PlaybackSettingsChange {
     pub go_guard: Option<f32>,
     /// PBK-54.
     pub auto_legend: Option<bool>,
+    /// FX-47.
+    pub swop_shapes: Option<SwopShapes>,
 }
 
 /// PBK-09: the default record mask, every group.
@@ -269,6 +273,7 @@ impl Default for Settings {
             lowlight_level: default_lowlight(),
             go_guard: DEFAULT_GO_GUARD,
             auto_legend: true,
+            swop_shapes: SwopShapes::default(),
         }
     }
 }
@@ -2650,6 +2655,7 @@ impl Engine {
                 lowlight_level: s.lowlight_level,
                 go_guard: s.go_guard,
                 auto_legend: s.auto_legend,
+                swop_shapes: s.swop_shapes,
             },
             profiles: self
                 .profiles
@@ -2784,6 +2790,7 @@ impl Engine {
             lowlight_level: s.lowlight_level,
             go_guard: s.go_guard,
             auto_legend: s.auto_legend,
+            swop_shapes: s.swop_shapes,
         });
         engine.colour_model = s.colour_model;
         let mut warnings = Vec::new();
@@ -4239,6 +4246,9 @@ impl Engine {
         }
         if let Some(v) = change.auto_legend {
             s.auto_legend = v;
+        }
+        if let Some(v) = change.swop_shapes {
+            s.swop_shapes = v;
         }
         Ok(())
     }
@@ -5739,6 +5749,12 @@ impl Engine {
         }
         if let Some(v) = change.kill_point {
             playback.kill_point = v;
+        }
+        if let Some(v) = change.shape_size {
+            playback.shape_size = v;
+        }
+        if let Some(v) = &change.mask_shapes {
+            playback.mask_shapes = v.clone();
         }
         if let Some(v) = &change.release_mask {
             playback.release_mask = v.clone();
@@ -9227,6 +9243,8 @@ impl Engine {
             playbacks: &self.playbacks,
             states: &self.states,
             cue_fx: &self.cue_fx,
+            swop_owner: self.swop_owner,
+            swop_shapes: self.settings.swop_shapes,
         };
         let pass = Pass {
             sources: &sources,
@@ -9493,6 +9511,8 @@ impl Engine {
             playbacks: &self.playbacks,
             states: &self.states,
             cue_fx: &self.cue_fx,
+            swop_owner: self.swop_owner,
+            swop_shapes: self.settings.swop_shapes,
         };
         let pass = Pass {
             sources: &sources,
@@ -10287,7 +10307,15 @@ impl Pass<'_> {
         let effected = std::cell::Cell::new(false);
         let fx = |base: Value| {
             let htp = l.kind == AttributeKind::Htp;
-            let v = with_effect(self.effects, item, l.name, htp, base, round, self.now);
+            let v = with_effect(
+                self.effects,
+                item,
+                (l.name, l.group),
+                htp,
+                base,
+                round,
+                self.now,
+            );
             effected.set(v.is_some());
             v.unwrap_or(base)
         };
@@ -10437,6 +10465,30 @@ struct EffectSources<'a> {
     playbacks: &'a BTreeMap<PlaybackId, Playback>,
     states: &'a BTreeMap<PlaybackId, PlaybackState>,
     cue_fx: &'a BTreeMap<PlaybackId, CueFx>,
+    /// FX-47: the playback whose Swop is held, and what that stops.
+    swop_owner: Option<PlaybackId>,
+    swop_shapes: SwopShapes,
+}
+
+impl EffectSources<'_> {
+    /// FX-48: does the current cue of playback `id` hold a value or an effect entry for `fixture`?
+    fn holds(&self, id: PlaybackId, fixture: FixtureId) -> bool {
+        let (Some(p), Some(s)) = (self.playbacks.get(&id), self.states.get(&id)) else {
+            return false;
+        };
+        let values = if is_list(p) {
+            s.run.holds(fixture)
+        } else {
+            p.values()
+                .is_some_and(|v| v.keys().any(|i| i.fixture == fixture))
+        };
+        values
+            || self.cue_fx.get(&id).is_some_and(|fx| {
+                fx.runs
+                    .iter()
+                    .any(|r| r.entry.members.iter().any(|m| m.fixture == fixture))
+            })
+    }
 }
 
 /// ENG-14..16: `base` with the effect on `item`'s `attribute`, `None` when none acts: at most
@@ -10448,7 +10500,7 @@ struct EffectSources<'a> {
 fn with_effect(
     src: &EffectSources,
     item: Item,
-    attribute: &str,
+    (attribute, group): (&str, AttributeGroup),
     htp: bool,
     base: Value,
     round: f32,
@@ -10462,10 +10514,33 @@ fn with_effect(
         let Some(activated) = state.activated else {
             continue;
         };
+        // FX-47: a held Swop stops the others' shapes (all, or those on Htp attributes).
+        if src.swop_owner.is_some_and(|o| o != *id) && (src.swop_shapes == SwopShapes::All || htp) {
+            continue;
+        }
         let key = (playback.priority, activated);
         let drives = fx.runs.iter().any(|r| r.index(item, attribute).is_some());
-        if drives && best.as_ref().is_none_or(|b| key > b.0) {
-            best = Some((key, fx, state.master));
+        // FX-48: a later playback of the same or higher priority holds this group still.
+        // ponytail: O(playbacks) per candidate that would win; index the maskers per tick if needed.
+        let masked = || {
+            src.playbacks.iter().any(|(pid, p)| {
+                pid != id
+                    && p.mask_shapes.contains(&group)
+                    && p.priority >= playback.priority
+                    && (src.states.get(pid))
+                        .and_then(|s| s.activated)
+                        .is_some_and(|a| a > activated)
+                    && src.holds(*pid, item.fixture)
+            })
+        };
+        if drives && best.as_ref().is_none_or(|b| key > b.0) && !masked() {
+            // FX-46: the size the master gives this playback's shapes.
+            let m = match playback.shape_size {
+                ShapeSize::Fader => state.master,
+                ShapeSize::HtpFader if htp => state.master,
+                _ => 1.0,
+            };
+            best = Some((key, fx, m));
         }
     }
     let found = src.programmer.iter().find_map(|e| {
