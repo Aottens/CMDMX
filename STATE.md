@@ -7,17 +7,15 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Now
 - Phase 1: a well-working general DMX console. Its finish line is a real Sunday service on CMDMX (VS4-03).
 - The church keeps running on Lightkey until Christmas, then on CMDMX (owner, 2026-11-06).
-- IDEA-35 batches D (working on many at once), E (patch and profiles), F (controls and small things) and G (show files)
-  are complete.
+- IDEA-35 batches D (working on many at once), E (patch and profiles), F (controls and small things), G (show files)
+  and I (behaviour that differs from Titan) are complete; schema 15 holds batch I's keys.
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch I, behaviour that differs from Titan: its last build, TTN-01 (the command line, apart so it can be
-   reverted alone), adds its key to schema 15. Then batch J, its spec approved first
-   (`docs/research/everyday-gaps.md`). No tag after a batch: the next release is the one the first service runs on, and
-   the gap review follows it (REL-26). P1-31 (Blind and Edit) stays apart from them. TST-01 (daemon tests that send
-   Demo on Art-Net) and DEF-06 (an Undo that leaves a running list on a cue that is gone, so Go does nothing) need a
-   criterion.
+1. IDEA-35 batch J: its spec first, for the owner's approval (`docs/research/everyday-gaps.md`). No tag after a batch:
+   the next release is the one the first service runs on, and the gap review follows it (REL-26). P1-31 (Blind and
+   Edit) stays apart. TST-01 (daemon tests that send Demo on Art-Net) and DEF-06 (an Undo that leaves a running list
+   on a cue that is gone, so Go does nothing) need a criterion.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
    in shadow; a finding a PR leaves unfixed must be recorded first. After five PRs through the gate, ARB-03 lets
