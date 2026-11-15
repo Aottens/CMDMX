@@ -7634,6 +7634,91 @@ impl Engine {
         Ok(())
     }
 
+    /// PRG-104: put a typed value on `attribute` of every target that has it: a colour wheel in
+    /// its own unit, a slotted attribute as a slot number, anything else in percent. Everything
+    /// is checked first; a refusal changes nothing.
+    pub fn type_value(&mut self, attribute: &str, typed: f32) -> Result<(), CoreError> {
+        let targets = self.programmer.target_items();
+        if targets.is_empty() {
+            return Err(CoreError::EmptySelection);
+        }
+        let colour_wheel = self.colour_model.wheels().contains(&attribute);
+        let name = if colour_wheel { COLOUR } else { attribute };
+        let (lo, hi, unit) = match attribute {
+            "Hue" if colour_wheel => (0.0, 360.0, "0–360°"),
+            "Kelvin" if colour_wheel => (1800.0, 10000.0, "1800–10000 K"),
+            _ => (0.0, 100.0, "0–100 %"),
+        };
+        // Per target: its slot count (0 = none) when it has the attribute.
+        let mut with: Vec<(Item, usize)> = Vec::new();
+        for item in targets {
+            let Some(mode) = self.mode_of(item.fixture) else {
+                continue;
+            };
+            if mode.item_logical(item.cell, name).is_none() {
+                continue;
+            }
+            let def = match item.cell {
+                None => mode.attribute(name),
+                Some(c) => mode.cell(c).and_then(|c| c.attribute(name)),
+            };
+            with.push((item, def.map_or(0, |d| d.slots.len())));
+        }
+        if with.is_empty() {
+            return Err(CoreError::AttributeNotInTargets(attribute.to_string()));
+        }
+        let fewest = with.iter().map(|w| w.1).filter(|n| *n > 0).min();
+        let slotted = !colour_wheel && fewest.is_some();
+        if slotted {
+            let ok =
+                typed.fract() == 0.0 && typed >= 1.0 && fewest.is_some_and(|n| typed <= n as f32);
+            if !ok {
+                return Err(CoreError::ValueRefused(format!(
+                    "{attribute} has {} slots",
+                    fewest.unwrap_or(0)
+                )));
+            }
+        } else if !(lo..=hi).contains(&typed) {
+            return Err(CoreError::ValueRefused(format!("{attribute} takes {unit}")));
+        }
+        let mut new = Vec::new();
+        for (item, _) in with {
+            let Some(mode) = self.mode_of(item.fixture) else {
+                continue;
+            };
+            let Some(l) = mode.item_logical(item.cell, name) else {
+                continue;
+            };
+            let value = if colour_wheel {
+                match self.start_value(item, &l) {
+                    Value::Colour(c) => self
+                        .colour_model
+                        .set(attribute, c, typed)
+                        .map(Value::Colour),
+                    _ => None,
+                }
+            } else {
+                let def = match item.cell {
+                    None => mode.attribute(name),
+                    Some(c) => mode.cell(c).and_then(|c| c.attribute(name)),
+                };
+                match def.map(|d| d.slots.as_slice()) {
+                    Some([_, ..]) if slotted => def
+                        .and_then(|d| d.slots.get(typed as usize - 1))
+                        .map(|s| Value::Level((f32::from(s.from) + f32::from(s.to)) / 2.0 / 255.0)),
+                    _ => Some(Value::Level(typed / 100.0)),
+                }
+            };
+            if let Some(v) = value {
+                new.push((item, v));
+            }
+        }
+        for (item, v) in new {
+            self.set_item_value(item, name, v)?;
+        }
+        Ok(())
+    }
+
     /// IPC-23: set Colour of every target that has it to `hue`/`saturation` (0.0-1.0), keeping
     /// each one's brightest component like the HSI wheels (PRG-31, PRG-32).
     pub fn set_colour(&mut self, hue: f32, saturation: f32) -> Result<(), CoreError> {
