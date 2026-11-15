@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """The risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17..18): paths, findings, checks and round give a lane.
 
+A spec file is medium, high when the PR changes a criterion line (ARV-05). Tests and .md files are not counted
+in the 600 lines, and only the PR title can name a sub-release (ARV-07).
+
 Standard library only, no model, no network: the same input always gives the same lane (ARV-08).
 
 Usage:
@@ -28,6 +31,8 @@ PATHS = [
     ("scripts/risk-gate.py", "high"),
     ("scripts/test_risk_gate.py", "high"),
     ("scripts/", "medium"),
+    ("DECISIONS.md", "medium"),
+    ("specs/", "medium"),  # high when a criterion changes: see changes_criteria
     ("subprojects/engine/cmdmx-core/", "high"),
     ("subprojects/engine/cmdmx-protocols/", "high"),
     ("subprojects/engine/cmdmx-daemon/", "high"),
@@ -37,19 +42,20 @@ PATHS = [
     ("subprojects/app/Sources/", "medium"),
     ("subprojects/website/", "low"),
     ("touchosc/", "medium"),
+    ("tests/hardware/", "high"),  # gate 3 is the owner's
     ("README.md", "low"),
     ("STATE.md", "low"),
     ("BACKLOG.md", "low"),
     ("IDEAS.md", "low"),
     ("docs/", "low"),
-    ("tests/manual/", "low"),
+    ("tests/", "low"),
 ]
 ORDER = ["low", "medium", "high"]
 SEVERITIES = ["minor", "major", "blocker"]
-# ARV-03: the code-review plugin's steps launch three agents to prepare and four to review; a review that
+# ARV-03: .github/review-prompt.md launches two agents to prepare and four to review; a review that
 # launched fewer did not run its reviewers.
 # ponytail: counts launches, not what the agents did; read their results if that ever proves too little.
-MIN_AGENTS = 7
+MIN_AGENTS = 6
 MAX_LINES = 600
 MAX_FIX_ROUNDS = 2
 NOT_COUNTED = ("Cargo.lock", "touchosc/CMDMX.touchosc", "touchosc/addresses.txt")
@@ -73,6 +79,8 @@ def impact(path):
         return "low"
     if is_cargo_lock(path):
         return "high"
+    if re.fullmatch(r"subprojects/[^/]+/INTERFACE\.md", path):
+        return "medium"
     for prefix, level in PATHS:
         if path == prefix or (prefix.endswith("/") and path.startswith(prefix)):
             return level
@@ -95,16 +103,46 @@ def worst_finding(findings):
     return SEVERITIES[max(levels)] if levels and max(levels) >= 0 else None
 
 
+def is_test_or_doc(path):
+    parts = path.split("/")
+    name = parts[-1]
+    return "tests" in parts[:-1] or name == "tests.rs" or name.endswith("_tests.rs") or name.endswith(".md")
+
+
 def count_lines(rows):
     n = lambda v: 0 if v == "-" else int(v)
-    return sum(n(a) + n(d) for a, d, path in rows if not is_cargo_lock(path) and path not in NOT_COUNTED)
+    return sum(n(a) + n(d) for a, d, path in rows
+               if not is_cargo_lock(path) and path not in NOT_COUNTED and not is_test_or_doc(path))
 
 
-def decide(rows, findings, review_round=1, failed_checks=(), title="", body="", recorded=""):
+def criteria(text):
+    """Criterion id -> its lines: a `- **XYZ-nn**` line and the lines indented under it, blank lines included
+    (ARV-06 holds a table after one), up to the next line that is not indented (ARV-05)."""
+    found, current = {}, None
+    for line in text.splitlines():
+        m = re.match(r"- \*\*([A-Z][A-Z0-9]*-\d+)\*\*", line)
+        if m:
+            current = m.group(1)
+            found[current] = [line.rstrip()]
+        elif current and (line.startswith("  ") or not line.strip()):
+            found[current].append(line.rstrip())
+        else:
+            current = None
+    return {k: "\n".join(v).rstrip("\n") for k, v in found.items()}
+
+
+def changes_criteria(old_text, new_text):
+    return criteria(old_text) != criteria(new_text)
+
+
+def decide(rows, findings, review_round=1, failed_checks=(), title="", body="", recorded="", criteria_changed=()):
     worst = worst_finding(findings or [])
     level = worst_impact([path for _, _, path in rows])
+    if criteria_changed:
+        level = "high"
     lane = MATRIX[worst or "none"][ORDER.index(level)]
     reasons = [f"impact {level}, worst finding {worst or 'none'} → {lane}"]
+    reasons += [f"changes a criterion: {p}" for p in criteria_changed]
     red = [f"required check failed: {name}" for name in failed_checks]
     if findings is None:
         red.append("not reviewed: no findings.json")
@@ -113,7 +151,7 @@ def decide(rows, findings, review_round=1, failed_checks=(), title="", body="", 
         red.append(f"{lines} changed lines, more than {MAX_LINES}")
     if review_round > MAX_FIX_ROUNDS and findings:
         red.append(f"fix rounds used up: review round {review_round} still has findings")
-    if re.search(r"sub-release|(?<![\w.])v?\d+\.\d+\.0(?![\w.])", f"{title}\n{body}"):
+    if re.search(r"sub-release|(?<![\w.])v?\d+\.\d+\.0(?![\w.])", title):
         red.append("names a sub-release")
     # ARV-18: every finding must be recorded by file:line in the PR's added BACKLOG.md/STATE.md lines.
     where = [f"{x['file']}:{x['line']}" for x in findings or []]
@@ -207,7 +245,7 @@ def main():
         messages = load_findings(args.check_review) or []
         n = agents_launched(messages)
         ok = review_ran(messages)
-        print(f"review ran {n} agents" + ("" if ok else f", the plugin's steps need {MIN_AGENTS}"))
+        print(f"review ran {n} agents" + ("" if ok else f", the prompt's steps need {MIN_AGENTS}"))
         sys.exit(0 if ok else 1)
     elif args.base:
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -221,12 +259,18 @@ def main():
         recorded = "" if rec.returncode else added_lines(rec.stdout)
         findings = load_findings(args.findings) if args.findings else None
         title, body = os.environ.get("PR_TITLE", ""), os.environ.get("PR_BODY", "")
-        lane, reasons = decide(rows, findings, args.round, args.failed_check, title, body, recorded)
+        changed = [r[2] for r in rows if r[2].startswith("specs/")]
+        old_base = subprocess.run(["git", "merge-base", args.base, "HEAD"], cwd=root, capture_output=True,
+                                  text=True).stdout.strip() or args.base
+        show = lambda rev, path: subprocess.run(["git", "show", f"{rev}:{path}"], cwd=root, capture_output=True,
+                                                text=True).stdout
+        criteria_changed = [p for p in changed if changes_criteria(show(old_base, p), show("HEAD", p))]
+        lane, reasons = decide(rows, findings, args.round, args.failed_check, title, body, recorded, criteria_changed)
         print(lane)
         print("\n".join(f"- {r}" for r in reasons))
         if args.comment:
             with open(args.comment, "w") as handle:
-                handle.write(comment(lane, reasons, worst_impact([r[2] for r in rows]), worst_finding(findings or [])))
+                handle.write(comment(lane, reasons, "high" if criteria_changed else worst_impact([r[2] for r in rows]), worst_finding(findings or [])))
         if args.body_out:
             with open(args.body_out, "w") as handle:
                 handle.write(with_lane(body, lane))

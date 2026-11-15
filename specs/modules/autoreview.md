@@ -6,7 +6,8 @@ Status: asked for by the owner 2026-11-13 (IDEA-57: "zoveel mogelijk handwerk au
 gewoon zo gaan doen, ook voor dit project"). **ARV-01..17 approved by the owner 2026-11-13**, with the recommended
 answer to every question under *Owner questions*. ARV-04, ARV-09, ARV-11..14 amended and ARV-18 added 2026-11-14 (owner: "bij oranje en
 rood de problemen teruggeven aan het project, zodat het harnas ze bij een volgende stap meeneemt"), **approved by
-the owner 2026-11-14**.
+the owner 2026-11-14**. ARV-01, ARV-03, ARV-05 and ARV-07 amended 2026-11-15 after eight PRs that were all red, some
+for the wrong reasons (owner: "ja, alle vier"), **approved by the owner 2026-11-15**.
 
 The owner reviews and merges every PR (gate 2) but cannot catch a defect by reading a diff (DECISIONS 2026-10-24).
 A reviewer on GitHub that did not write the code, and a fixed rule that decides from its findings and the paths,
@@ -25,16 +26,21 @@ stays readable afterwards (sources in IDEA-57).
 
 ## Review on GitHub
 - **ARV-01** Every PR from a branch of this repo gets a review by Claude on GitHub when it opens, at every push and
-  when it leaves draft; a draft gets none. `anthropics/claude-code-action`, pinned to a commit SHA, runs the
-  code-review plugin with `--comment`, so findings are inline comments on the lines concerned. It authenticates with
-  the owner's `CLAUDE_CODE_OAUTH_TOKEN` secret.
+  when it leaves draft; a draft gets none. `anthropics/claude-code-action`, pinned to a commit SHA, follows
+  `.github/review-prompt.md`: the steps of the code-review plugin's command (claude-plugins-official 9780cf4, v1.0.1,
+  Apache 2.0) with `--comment`, so findings are inline comments on the lines concerned. The copy drops the plugin's
+  first step, an agent that stops the review for a PR that is "automated", "trivial" or already commented on by
+  Claude: here every PR is written by Claude and reviewed at every push, and that stop left #305..#307 not reviewed
+  (amended 2026-11-15). It authenticates with the owner's `CLAUDE_CODE_OAUTH_TOKEN` secret.
 - **ARV-02** The review looks for correctness against `CLAUDE.md` (show-proof rules, architecture constraints) and
   the criteria the PR names, not for style, and gives every finding a severity and a verdict.
 - **ARV-03** The review job writes its findings as `findings.json` (a list of finding objects) to the job's artifacts
   and a table of them to the job summary. Without the secret, or when the review fails, it writes no file and the
-  summary says why; the gate then reads *not reviewed*. A review that launched fewer agents than the plugin's steps
-  name (three to prepare, four to review) has failed too, whatever it returned: an empty list from a review that did
-  not run its reviewers must not read as a clean review (owner, 2026-11-13, found on #298).
+  summary says why; the gate then reads *not reviewed*. A review that launched fewer agents than the prompt's steps
+  name (two to prepare, four to review) has failed too, whatever it returned: an empty list from a review that did
+  not run its reviewers must not read as a clean review (owner, 2026-11-13, found on #298). The review's execution
+  file is kept as the artifact `review-execution` for 7 days, so a review that stopped early can be read afterwards
+  (amended 2026-11-15).
 - **ARV-04** A push that changes only `low` files keeps the earlier review: no new review runs, and the gate reads the
   last `findings.json` of the PR. So rewriting `STATE.md` or adding backlog rows does not start another round. A push
   that changes a file a finding of the last review names, other than `BACKLOG.md` and `STATE.md`, is reviewed again,
@@ -45,13 +51,16 @@ stays readable afterwards (sources in IDEA-57).
 - **ARV-05** `scripts/risk-gate.py` gives each changed file an impact from one table at the top of the script; the
   highest impact of any changed file counts:
   - `high`: `subprojects/engine/cmdmx-core/`, `cmdmx-protocols/`, `cmdmx-daemon/`, `Cargo.lock`,
-    `subprojects/app/scripts/`, `.github/`, `scripts/risk-gate.py` and its test, `CLAUDE.md`, `DECISIONS.md`,
-    `specs/` (gate 1 is the owner's), `tests/hardware/` (gate 3 is the owner's), `shows/`, and any path the table
-    does not name.
+    `subprojects/app/scripts/`, `.github/`, `scripts/risk-gate.py` and its test, `CLAUDE.md`, `tests/hardware/`
+    (gate 3 is the owner's), `shows/`, any path the table does not name, and a file in `specs/` when the PR adds,
+    removes or changes a criterion line (a line that starts `- **XYZ-nn**`): gate 1 is the owner's.
   - `medium`: `subprojects/app/Sources/`, `subprojects/engine/cmdmx-control/`, `subprojects/engine/profiles/`,
-    `touchosc/`, the other files in `scripts/`.
+    `touchosc/`, the other files in `scripts/`, `DECISIONS.md`, a subproject's `INTERFACE.md`, and a file in `specs/`
+    whose criterion lines the PR leaves as they are (a status line, an owner decision).
   - `low`: `README.md`, `STATE.md`, `BACKLOG.md`, `IDEAS.md`, a subproject's `STATE.md`, `subprojects/website/`,
-    `docs/`, `tests/manual/`.
+    `docs/`, `tests/` other than `tests/hardware/` (manual runs, fixtures, scenarios).
+  Amended 2026-11-15: `DECISIONS.md`, `INTERFACE.md` and `specs/` were always `high`, and every build updates them, so
+  no PR of this project could be green.
 - **ARV-06** The lane follows from the worst finding that is `confirmed` and the impact; a `plausible` finding counts
   one severity lower:
 
@@ -63,8 +72,11 @@ stays readable afterwards (sources in IDEA-57).
   | blocker | red | red | red |
 
 - **ARV-07** The lane is red, whatever the table says, when: a required check fails; the PR is *not reviewed*; it
-  changes more than 600 lines (`Cargo.lock` and `touchosc/` output not counted); the fix rounds are used up (ARV-11);
-  or its title or body names a sub-release.
+  changes more than 600 lines of code; the fix rounds are used up (ARV-11); or its title names a sub-release (a
+  version `x.y.0` or the word). Not counted as code: tests (a path with a `tests` directory, a file `tests.rs` or
+  `*_tests.rs`), `.md` files, `Cargo.lock` and `touchosc/` output. Amended 2026-11-15: tests and docs made every build
+  of two or three tasks red (#307: 1300 lines, about 700 of them tests), and a body that merely mentioned the next
+  sub-release made #304 red.
 - **ARV-08** The gate is Python standard library only, with no model and no network: the same paths, line count,
   findings, checks and round always give the same lane. It prints the lane and one line per reason. Every rule above
   has a test in `scripts/test_risk_gate.py` that carries its id.
@@ -115,7 +127,7 @@ stays readable afterwards (sources in IDEA-57).
   what it records.
 
 ## Not now
-- Claude's managed Code Review: Team and Enterprise plans only. The workflow of ARV-01 runs the same plugin.
+- Claude's managed Code Review: Team and Enterprise plans only. The workflow of ARV-01 runs the same plugin's steps.
 - A reviewer that approves: GitHub can let Copilot's approval count toward a merge; here the review never approves,
   the gate decides.
 - PRs from forks get no secrets on a public repo, so they are *not reviewed* and red.
