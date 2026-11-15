@@ -46,8 +46,8 @@ use crate::playback::{
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
-    default_lowlight, fan_factors, AttributeGroupState, ClearLtp, ClearPrecedence, ColourView,
-    EditPart, EffectView, Fade, FanCurve, FixtureValues, Grid, GridShortcut, GroupId,
+    default_lowlight, fan_factors, AttributeGroupState, ChannelLevels, ClearLtp, ClearPrecedence,
+    ColourView, EditPart, EffectView, Fade, FanCurve, FixtureValues, Grid, GridShortcut, GroupId,
     GroupRecordMode, Item, Order, PaletteUse, Programmer, ProgrammerSettingsChange, ProgrammerView,
     Resolution, WheelState,
 };
@@ -196,6 +196,8 @@ pub struct Settings {
     pub clear_precedence: ClearPrecedence,
     pub clear_ltp: ClearLtp,
     pub lowlight_level: f32,
+    /// PRG-103.
+    pub channel_levels: ChannelLevels,
     /// CUE-68: seconds a Go on a list is ignored after the last Go it accepted (0 = no guard).
     pub go_guard: f32,
     /// PBK-54: a cue a record creates gets an automatic legend.
@@ -271,6 +273,7 @@ impl Default for Settings {
             clear_precedence: ClearPrecedence::default(),
             clear_ltp: ClearLtp::default(),
             lowlight_level: default_lowlight(),
+            channel_levels: ChannelLevels::default(),
             go_guard: DEFAULT_GO_GUARD,
             auto_legend: true,
             swop_shapes: SwopShapes::default(),
@@ -2653,6 +2656,7 @@ impl Engine {
                 clear_precedence: s.clear_precedence,
                 clear_ltp: s.clear_ltp,
                 lowlight_level: s.lowlight_level,
+                channel_levels: s.channel_levels,
                 go_guard: s.go_guard,
                 auto_legend: s.auto_legend,
                 swop_shapes: s.swop_shapes,
@@ -2788,6 +2792,7 @@ impl Engine {
             clear_precedence: s.clear_precedence,
             clear_ltp: s.clear_ltp,
             lowlight_level: s.lowlight_level,
+            channel_levels: s.channel_levels,
             go_guard: s.go_guard,
             auto_legend: s.auto_legend,
             swop_shapes: s.swop_shapes,
@@ -6241,6 +6246,7 @@ impl Engine {
         s.clear_precedence = change.clear_precedence.unwrap_or(s.clear_precedence);
         s.clear_ltp = change.clear_ltp.unwrap_or(s.clear_ltp);
         s.lowlight_level = change.lowlight_level.unwrap_or(s.lowlight_level);
+        s.channel_levels = change.channel_levels.unwrap_or(s.channel_levels);
         Ok(())
     }
 
@@ -8131,7 +8137,12 @@ impl Engine {
             return self.locate(&ALL_GROUPS);
         }
         let mut touched = Vec::new();
-        let level = cmd.level.map(|v| v / 100.0);
+        let ten = if cmd.one_digit && self.settings.channel_levels == ChannelLevels::SingleDigit {
+            10.0
+        } else {
+            1.0
+        };
+        let level = cmd.level.map(|v| v * ten / 100.0);
         if level.is_some() {
             let targets = typed
                 .clone()

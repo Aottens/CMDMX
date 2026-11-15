@@ -50,6 +50,8 @@ pub struct Command {
     pub gel: Option<u32>,
     /// A selection ended with `Locate` instead of `Enter` (PRG-10).
     pub locate: bool,
+    /// PRG-103: the level was typed as one digit, which SingleDigit reads as ten times it.
+    pub one_digit: bool,
 }
 
 fn number(token: Option<&&str>) -> Option<u32> {
@@ -190,6 +192,7 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
             palette: None,
             gel: None,
             locate: true,
+            one_digit: false,
         });
     }
     if last != "Enter" {
@@ -214,9 +217,11 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
             palette: (!lee).then_some(number),
             gel: lee.then_some(number),
             locate: false,
+            one_digit: false,
         });
     }
     let mut relative = false;
+    let mut one_digit = false;
     let (sel, level) = match body.iter().position(|&t| t == "@") {
         Some(at) => {
             let (sel, rest) = body.split_at(at);
@@ -228,6 +233,7 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
                     relative = true;
                     signed(s, v)?
                 }
+                [_, "@"] => 100.0,
                 [_, v] => match v.split_at_checked(1) {
                     Some((s @ ("+" | "-"), n)) => {
                         relative = true;
@@ -237,6 +243,9 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
                 },
                 _ => return None,
             };
+            if let [_, v] = rest {
+                one_digit = !relative && v.len() == 1 && v.chars().all(|c| c.is_ascii_digit());
+            }
             (sel, Some(value))
         }
         None => (body, None),
@@ -255,6 +264,7 @@ fn parse_inner(tokens: &[&str]) -> Option<Command> {
         palette: None,
         gel: None,
         locate: false,
+        one_digit,
     })
 }
 

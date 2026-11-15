@@ -19,7 +19,9 @@ use crate::playback::{
 };
 use crate::profile::Profile;
 use crate::programmer::Grid;
-use crate::programmer::{default_lowlight, ClearLtp, ClearPrecedence, GroupId, Item};
+use crate::programmer::{
+    default_lowlight, ChannelLevels, ClearLtp, ClearPrecedence, GroupId, Item,
+};
 use crate::{CoreError, UniverseId};
 
 /// SHW-04: every change to the schema raises this and comes with a step in [`migrate`].
@@ -96,6 +98,9 @@ pub struct ShowSettings {
     pub clear_precedence: ClearPrecedence,
     #[serde(default, skip_serializing_if = "is_default")]
     pub clear_ltp: ClearLtp,
+    /// PRG-103, SHW-26: left out while TwoDigit.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub channel_levels: ChannelLevels,
     #[serde(
         default = "default_lowlight",
         skip_serializing_if = "is_default_lowlight"

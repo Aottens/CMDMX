@@ -579,6 +579,7 @@ fn prg_42_settings_default_change_refuse_and_save() {
         clear_precedence: Some(ClearPrecedence::ProgrammerThenSelection),
         clear_ltp: Some(ClearLtp::Freeze),
         lowlight_level: Some(0.1),
+        ..Default::default()
     })
     .unwrap();
     let json = e.to_show(meta()).to_json();

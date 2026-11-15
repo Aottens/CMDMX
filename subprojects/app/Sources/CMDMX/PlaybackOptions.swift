@@ -775,6 +775,11 @@ private struct SettingsTab: View {
                     engine.setProgrammerSettings(["lowlight_level": min(max($0, 0), 100) / 100])
                 }
             }
+            OptionRow(label: "Channel levels", note: "One digit: @ 5 is 50 %. Two or more digits, @ @ and @ + n are the same in both.") {
+                Choice(options: [("Two digits", "TwoDigit"), ("One digit", "SingleDigit")], selected: p.channelLevels) {
+                    engine.setProgrammerSettings(["channel_levels": $0])
+                }
+            }
         }
     }
 }
