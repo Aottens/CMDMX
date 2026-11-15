@@ -333,6 +333,28 @@ so it can be reverted alone if keypad habits disagree).
 | TTN-09 | Core and app: the playback option Mask shapes per attribute group; `fx_48_…`, `shw_26_…`; manual and run on Art-Net. | FX-48, SHW-26 | S | done (2026-11-15, #312; run `tests/manual/runs/2026-11-15-TTN-07-08-09.md`) |
 | TTN-10 | Core, daemon and app: move or copy a block of cues to a number, the end or another list; `cue_69_…`; manual and run. | CUE-69 | M | done (2026-11-14, #308; run `tests/manual/runs/2026-11-14-TTN-04-06-10.md`) |
 
+### Input paths and what you can see (IDEA-35 batch J, spec P1-43)
+Approved by the owner 2026-11-15, every recommendation accepted (`ui.md`, *Owner decisions (P1-43)*). J8 was batch
+C; K3 joins, and K2's rest goes with J3. No schema change. DEF-06 and TST-01 (below, under the supporting specs) get their
+criteria in the same spec and are built apart from J, as they share nothing with it.
+Builds: INP-03 + INP-07 + INP-08 (the menu bar and the pages: the Console menu with its keys and Show engine log, Page keys
+and the page marks; the one M; first, as K2 and J3 are daily); INP-02 + INP-09 (the Fixtures window: a range by mouse and the
+Groups switch); INP-01 (alone: core, IPC and the wheels, the M, reverted alone if typing habits disagree); INP-04 (the L,
+alone); INP-05 + INP-06 (the control layer's keys and bindings: the saved-code lock and bindings to nothing; the M).
+DEF-06 alone and TST-01 alone, beside these.
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| INP-01 | Core, daemon and app: a number on the command line, then a click on a wheel's name, sets that attribute in the wheel's unit or as a slot number; `prg_104_…`, `ipc_63_…`; manual and run on Art-Net. | PRG-104, IPC-63, UI-82 | M | todo |
+| INP-02 | App: ⇧-click and a box drawn over the tiles select a range of fixtures in window order; manual and run on Art-Net with Fan. | UI-83 | S | todo |
+| INP-03 | App: Titan's Alt keys on ⌥ whatever Keys says, Page Up and Down, the numeric `/` and `*`, and a Console menu that lists them; manual and run. | UI-86 | M | todo |
+| INP-04 | Daemon and app: with the app open, a surface's keypad goes into the app's one command line and its programming keys arm the app's functions, a surface press being the target; `ipc_64_…`, `ctl_72_…`; manual and run with the on-screen deck and a virtual MIDI port. | IPC-64, CTL-72, UI-84 | L | todo |
+| INP-05 | Daemon and app: `key lock` locks with a code saved on this Mac from the Lock prompt; `ipc_65_…`, `ctl_73_…`; manual and run. | IPC-65, CTL-73, UI-85 | S | todo |
+| INP-06 | Daemon and app: `usage` names the controls on a group, palette or playback, a delete or Move says so, and the Control screen marks a binding to nothing; `ipc_66_…`, `ctl_74_…`; manual and run. | IPC-66, CTL-74 | M | todo |
+| INP-07 | App: a page button shows a green bar while a playback on that page runs; manual and run on Art-Net. | UI-87 | S | todo |
+| INP-08 | App: when the engine stops, its panic line from `daemon.log` in the Messages sheet, and Show engine log; manual and run with a bundle whose engine panics. | REL-30 | S | todo |
+| INP-09 | App: a switch between Fixtures and Groups in the Fixtures window, remembered per workspace; manual and run on Colour and Playbacks. | UI-88 | S | todo |
+
 ### The phone patch page and parking (IDEA-42, IDEA-43; specs P1-34, P1-35)
 Both before Christmas, when the church runs on CMDMX (owner, 2026-11-06). The phone page first, then parking; the
 park buttons on the phone come with PRK-02.
@@ -426,10 +448,11 @@ after VS8-03, in any order.
 | P1-40 | Spec IDEA-35 batch F, controls and small things (F1, F2, F4..F7, K9, K12, L7, L8, M5, M6; F3 and IDEA-39 hold already), as CTL-69..71, OUT-42, PRG-99..101, PAL-35, PBK-53, CUE-64, UI-77..80; checks in `tests/manual/runs/2026-11-10-F-checks.md`; build tasks CTR-01..09; approved by the owner 2026-11-10, every recommendation accepted (`ui.md`). | CTL, OUT, PRG, PAL, PBK, CUE, UI | S | done (2026-11-10, #290) |
 | P1-41 | Spec IDEA-35 batch G, show files (M1, G1..G5; G4's second half holds already), as SHW-20..25; checks in `tests/manual/runs/2026-11-12-G-checks.md`; build tasks FIL-01..06; approved by the owner 2026-11-12, every recommendation accepted (`showfile.md`). | SHW, IPC, UI | S | done (2026-11-12, #296) |
 | P1-42 | Spec IDEA-35 batch I, behaviour that differs from Titan (I2, I4, I5, I7, I8, I9, K4, K5, L4, M4; I1, I3, I6, K6 were batch B), as PRG-102, 103, CUE-65..69, PBK-54, FX-46..48, SHW-26; checks in `tests/manual/runs/2026-11-14-I-checks.md`; build tasks TTN-01..10; approved by the owner 2026-11-14, every recommendation accepted (`cuelists.md`). | PRG, CUE, PBK, FX, SHW | S | done (2026-11-14, #306) |
+| P1-43 | Spec IDEA-35 batch J, input paths and what you can see (J1..J7, J9, K3 and the rest of K2; J8 was batch C), as PRG-104, IPC-63..66, CTL-72..74, UI-82..88, REL-30, with DEF-06 (UNDO-21) and TST-01 (OUT-43) beside it; checks in `tests/manual/runs/2026-11-15-J-checks.md`; build tasks INP-01..09; approved by the owner 2026-11-15, every recommendation accepted (`ui.md`). | PRG, IPC, CTL, UI, REL, UNDO, OUT | S | done (2026-11-15, #315) |
 | P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show; find Titan's page first; numbered criteria and build tasks; owner approves. | SHW, UI | S | todo |
 | P1-38 | Measure the engine's load in a release build on a rig of about 260 fixtures (M7, fifth gap review; owner 2026-11-08): the debug build took 78 % of a core against 10 % with 38 fixtures; write the result in a run file, and a budget like UI-70 only if it is too high. | ENG | S | todo |
-| TST-01 | Daemon tests never send DMX: every test that starts the daemon passes `--no-artnet --no-sacn --no-serial` (`client_loss`, `lock`, `message_history`, `remote` start Demo with Art-Net on, `message_history` with serial on), checked by one test over `tests/*.rs`; needs a criterion first (found in the FIL-01..03 run). | — | S | todo |
-| DEF-06 | Core: an Undo or Redo that takes away a running list's current or next cue (a Renumber or a block Move undone) leaves the list on a cue that exists, so Go goes on; needs a criterion first, amending UNDO-10 (found in the TTN-04, 06, 10 run: Go did nothing, without a message). | — | S | todo |
+| TST-01 | Daemon tests never send DMX: every test that starts the daemon passes `--no-artnet --no-sacn --no-serial` (`client_loss`, `lock`, `message_history`, `remote` start Demo with Art-Net on, `message_history` with serial on), checked by `out_43_…` over `tests/*.rs` (found in the FIL-01..03 run; criterion in P1-43). | OUT-43 | S | todo |
+| DEF-06 | Core: an Undo or Redo that takes away a running list's current cue (a Renumber or a block Move undone) leaves the list on its cue or the nearest one below, so Go goes on; `undo_21_…` (found in the TTN-04, 06, 10 run: Go did nothing, without a message; criterion in P1-43). | UNDO-21 | S | todo |
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ### Tracking: the state stays true (spec `tracking.md`)

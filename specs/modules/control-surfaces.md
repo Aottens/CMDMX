@@ -3,7 +3,7 @@
 Owner: `cmdmx-control` (pure: MIDI and OSC decode/encode, mappings, pickup, feedback, learn) and
 `cmdmx-daemon` (CoreMIDI ports, the OSC socket, Stream Decks over USB HID, mapping files, IPC). Status: **CTL-05..43
 approved by owner 2026-10-23** (P1-05; the ten questions answered, see Owner decisions); **CTL-44..58 (Stream Deck) approved
-by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04); **CTL-58 details and CTL-67 approved by owner 2026-10-25** (VS7-07); **CTL-58a/b approved by owner 2026-10-25** (VS7-09). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
+by owner 2026-10-25** (P1-19; the nine questions as recommended); **CTL-59 (Fan) approved by owner 2026-10-25** (P1-20); **CTL-60..66 (TouchOSC layout) approved by owner 2026-10-25** (VS4-04); **CTL-58 details and CTL-67 approved by owner 2026-10-25** (VS7-07); **CTL-58a/b approved by owner 2026-10-25** (VS7-09); CTL-72..74 approved by owner 2026-11-15 (IDEA-35 batch J, P1-43). CTL-01..04 (the Mackie Control wire format) are kept from slice 1
 and already tested in `cmdmx-control/src/mcu.rs`; they now belong to the Mackie Control profile.
 Scope set by the owner on 2026-10-23 (DECISIONS): a **general MIDI and OSC control layer**; named
 hardware (the BCF2000) and named clients (the church TouchOSC remote) are profiles and clients on
@@ -526,6 +526,28 @@ From `docs/research/everyday-gaps.md` F1 and F4; checked in `tests/manual/runs/2
   ("key 5 is in use"). Esc disarms. `control.deck_clear {mapping, deck_page}` removes every binding of one page in one file write;
   the page selector's menu gets **Clear page**, two-step: "Clear page 2? It holds 9 keys." The key menu's **Remove** becomes two-step
   as in the bindings table (CTL-41). Tests `ctl_71_…` for `deck_clear`; the app checked by hand.
+
+### Programming from a surface (IDEA-35 batch J, P1-43; approved by owner 2026-11-15)
+Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Titan: *MIDI, DMX or Audio Triggering* (a *Hardware* trigger presses a
+console button as its key profile says). Questions in `ui.md`, *Owner decisions (P1-43)*.
+- **CTL-72** **Programming keys and Exit** (J4, J5; adds to CTL-05; P1-43 question 4). The vocabulary gains
+  `key record|update|include|delete|copy|move|legend|options|release` (button, on press) and the keypad token `Exit`. With the app
+  following surfaces (IPC-64) each reaches the app as the function button or the keypad's key does there (UI-84); a key's
+  feedback is on while the app has that function armed (`surface.armed`). With no app, `keypad Exit` empties the daemon's
+  keypad line and the programming keys are refused as IPC-64 says. The Control screen's action list and the Stream Deck's drag
+  menu (CTL-58) offer the new keys; no default mapping binds them. Tests `ctl_72_…` for parsing, the refusal and Exit.
+- **CTL-73** **Lock from a surface** (J4; UI-48's note; P1-43 question 5; Titan: *Set Saved Password*, then Avo+Lock locks at
+  once). `key lock` (button, on press) locks with this Mac's saved code (IPC-65); with none it is refused with IPC-65's warning.
+  Its feedback is on while locked. A surface never unlocks: while locked its presses are dropped (IPC-50), so the code is typed
+  on the Mac. Test `ctl_73_…`.
+- **CTL-74** **A control that names a moved or deleted object** (J6; P1-43 question 7; Titan documents nothing, so our own
+  choice). Bindings are never rewritten: a Move or Delete of a group, palette or playback leaves `group 5` on group 5. What
+  changes is that it is said:
+  - the app's delete confirmation (UI-47) adds the controls `usage` gives (IPC-66): "BCF2000 note 32 and deck key 1/3 say group
+    5 and will do nothing.", and a Move's own message after it is done: "Group 5 is now 9. BCF2000 note 32 still says group 5.";
+  - the Control screen marks a binding whose object does not exist in amber with "nothing at group 5", for MIDI, OSC and deck
+    keys alike; its Learn or edit puts it right. A press on it does nothing, as on an empty slot (CTL-05), with no warning.
+  Tests `ctl_74_…` for the empty-object state the Control screen reads; the messages by hand.
 
 ## Where the code lives
 - `cmdmx-control` (pure, no ports, no clock): MIDI decode (CTL-09..12), mapping model and JSON

@@ -1,6 +1,6 @@
 # Module spec: ipc (IPC)
 
-Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47); IPC-47 approved by owner 2026-10-28 (P1-23); IPC-14 amended 2026-10-29 (FXB-08)**; **IPC-48 (selection orders, P2-02) approved by owner 2026-10-29**. References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
+Owner: `cmdmx-daemon` (server) and `subprojects/app` (client). Status: **IPC-01..09 approved by owner 2026-10-17 (VS1-05); IPC-10..17 approved by owner 2026-10-17 (VS2-07); IPC-14 amended and IPC-18..19 approved by owner 2026-10-17 (VS2-14); IPC-35..39 approved by owner 2026-10-23 (P1-14); IPC-41 approved by owner 2026-10-25 (P1-06); IPC-42 approved by owner 2026-10-25 (P1-13); IPC-43 approved by owner 2026-10-25 (P1-20); IPC-44 and the IPC-08 amendment approved by owner 2026-10-25 (VS1-08); IPC-45 approved by owner 2026-10-27 (P1-12); IPC-14 amended 2026-10-28 (VS2-47); IPC-47 approved by owner 2026-10-28 (P1-23); IPC-14 amended 2026-10-29 (FXB-08)**; **IPC-48 (selection orders, P2-02) approved by owner 2026-10-29**; IPC-63..66 approved by owner 2026-11-15 (IDEA-35 batch J, P1-43). References: ADR-002 (engine as separate process), DECISIONS 2026-10-17 (WebSocket), RFC 6455.
 
 ## Purpose
 The app (and later remotes, IDEA-06) sees engine state and sends commands over one versioned JSON contract. The daemon owns all state; a client only renders what the daemon reports. No client can ever slow down or stop the tick.
@@ -437,6 +437,37 @@ Behaviour in `patch.md` PAT-37..47 and `fixture-library.md` LIB-41, 42.
   `patch.add`), `patch.copy {ids, number?}`, `patch.swap_addresses {ids, with}`, `patch.update_profile {profile}` (fetched the same way),
   `patch.behaviour {ids, attribute, invert?, low?, high?, offset?}`, `patch.behaviour_reset {ids}`, `patch.swap_pan_tilt {ids, swapped}`,
   and `auto_groups` on `patch.add`. `library.delete_profile` (reply `library.deleted {manufacturer, model}`) and `library.duplicate_profile` reply to the asking client only. Tests `ipc_62_…`.
+
+### Input paths (IDEA-35 batch J, P1-43; approved by owner 2026-11-15)
+Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Questions in `ui.md`, *Owner decisions (P1-43)*.
+- **IPC-63** **A typed value** (PRG-104, UI-82). `programmer.type {"attribute":"Gobo 1","value":3}`: class edit, coalesced with
+  nothing, refused while locked (IPC-50); a refusal is PRG-104's `warning`. The selection and the `wheels` delta follow as after a
+  wheel move. Tests `ipc_63_…`.
+- **IPC-64** **Surface keys reach the app** (J4, J5; CTL-72; P1-43 question 4). An app client sends `surface.follow {"on":true}`
+  after its snapshot; the phone and other clients never do. While at least one following client is connected:
+  - a surface's `keypad <token>` is not added to the daemon's keypad line but sent to every following client as
+    `{"type":"surface","device":"BCF2000","keypad":"4"}`, and a programming key (CTL-72) as `{"type":"surface","device":…,
+    "key":"record"}`; the app handles them as its own keypad and function buttons (UI-84). The daemon's line is emptied when the
+    first client follows;
+  - the app sends `surface.armed {"function":"record"}` while Record or a function is armed (UI-42), naming it, and
+    `{"function":null}` when it ends. While any following client has one armed, a surface's `upper`, `lower`, `group` and `palette` press is not done but sent as
+    `{"type":"surface","device":…,"tap":{"page":1,"slot":3}}`, `{"…","group":5}` or `{"…","palette":12}`, and its release
+    is dropped, since nothing started; faders, Go, Back, GM and DBO stay live. A client that disconnects stops following and
+    stops being armed.
+  With no following client a surface works as now (CTL-05), and a programming key is refused with the warning
+  "Record on BCF2000 needs the CMDMX app". `surface` events are not in the message history; while locked they are dropped as any
+  surface event is (IPC-50). Tests `ipc_64_…` with two clients, one following.
+- **IPC-65** **A saved lock code** (CTL-73, UI-85; P1-43 question 5). `lock.save_code {"code":"1234"}` saves the code in this
+  Mac's `state.json` (SHW-09), not in the show; `{"code":null}` forgets it. The snapshot gains `lock_code_saved` (bool, never the
+  code), with a delta to every client. Refused while locked. `lock.set {"on":true}` without `code` locks with the saved code and
+  is refused when there is none ("Save a lock code first: Lock, then Save as this console's code"). Unlocking stays as IPC-50:
+  the code, or the master code. Tests `ipc_65_…`.
+- **IPC-66** **Controls in `usage`** (J6, CTL-74; amends IPC-54; P1-43 question 7). `usage` gains the forms `{"group":5}` and
+  `{"playback":4}`, and every answer for a palette, group or playback gains `controls`: one entry per binding of any mapping on
+  this Mac whose action names that object by number, `[{"mapping":"BCF2000","control":"note 32","action":"group 5"}]`, a deck
+  key with its `deck_page` and key. A playback counts for `playback <id> level` and for `fader`, `upper` and `lower` with a
+  `page.slot` that holds it; a slot without a page follows the page shown and never counts. The daemon adds `controls`, the core
+  counts the rest. Tests `ipc_66_…`.
 
 ## Owner decision (P1-26, 2026-11-02: the recommendation accepted)
 1. **IPC-53, a Flash or Swop held when the lock comes:** it stays, and letting go ends it. The stage does not change by

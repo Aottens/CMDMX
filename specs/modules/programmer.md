@@ -1,6 +1,6 @@
 # Module spec: programmer (PRG)
 
-Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; **PRG-85..95 (group handle actions, P1-24) approved by owner 2026-11-01**; **PRG-96 (GRP-04) approved by owner 2026-11-01**. PRG-102, 103 approved by owner 2026-11-14 (IDEA-35 batch I, P1-42).
+Owner: `cmdmx-core::programmer`. Status: **PRG-01..37 approved by owner 2026-10-17 (P1-02); PRG-38..44 approved 2026-10-22 (VS2-05), PRG-45 approved 2026-10-22 (VS5-04); PRG-46..55 approved 2026-10-25 (P1-13); PRG-56..62 approved 2026-10-25 (P1-20); PRG-63..66 approved 2026-10-28 (P1-22); PRG-67..70 approved 2026-10-28 (P1-23)**; **PRG-71..84 (selection orders, P2-02) and the PRG-05/06 amendments approved by owner 2026-10-29**; **PRG-85..95 (group handle actions, P1-24) approved by owner 2026-11-01**; **PRG-96 (GRP-04) approved by owner 2026-11-01**. PRG-102, 103 approved by owner 2026-11-14 (IDEA-35 batch I, P1-42). PRG-104 approved by owner 2026-11-15 (IDEA-35 batch J, P1-43).
 Behavioural reference: Avolites Titan v19 manual, *Controlling Fixtures* (Selecting Fixtures,
 Changing Fixture Attributes) — https://manual.avolites.com/docs/controlling-fixtures. UI
 reference: UI v0.1 (`specs/ux/main-screen.html`: fixtures and groups windows, attribute bar,
@@ -639,6 +639,23 @@ Checks: `tests/manual/runs/2026-11-14-I-checks.md`. Titan: *Titan Commands Quick
   `TwoDigit` (our own choice: the manual says only what one digit does). `settings.programmer` gains it; the Programmer settings
   show it as *Channel levels: two digits / one digit*. It is saved with the show (SHW-26) and reaches every client's command line,
   surfaces and the phone included, since the engine parses the line. Tests `prg_103_…`.
+
+### Typed attribute values (IDEA-35 batch J, P1-43; approved by owner 2026-11-15)
+Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Titan: *Changing Fixture Attributes*. The rest of batch J is IPC-63..66
+(`ipc.md`), UI-82..88 (`ui.md`), CTL-72..74 (`control-surfaces.md`) and REL-30 (`release.md`); the questions are in `ui.md`,
+*Owner decisions (P1-43)*.
+- **PRG-104** **Type a value for an attribute** (J1; P1-43 question 2; Titan: in the Program menu, a value on the keypad, then
+  the attribute's softkey). `type_value(attribute, typed)` sets the attribute to an absolute value on every target that has it,
+  as a wheel reaches every target (PRG-19), and touches it (PRG-12). `typed` is read in the unit the attribute's wheel shows:
+  - a continuous attribute: percent of its range, 0–100 (`50` on Pan is the middle of the fixture's pan range); Hue in degrees,
+    0–360; the Kelvin wheel (PRG-63) in kelvin, set as PRG-64 sets it;
+  - an attribute whose profile lists slots (a colour wheel, a gobo, a prism): the slot's number, 1 = the first slot as the wheel
+    lists it, set to the slot's own value as a step onto it would; a fixture whose slots differ takes its own n-th slot (Titan's
+    range index);
+  - a value out of range, a slot past the last one, or an attribute no target has refuses it all with a warning that names the
+    limit ("Gobo 1 has 7 slots", "Pan takes 0–100 %"), and nothing changes.
+  It is one edit, as a wheel move is (UNDO-04), and does not change the active attribute group. Tests `prg_104_…`: Pan 50 on two
+  movers with different ranges, Hue 240, Kelvin 3200, gobo slot 3, slot 9 of 7 refused, an attribute nobody has refused.
 
 ## Out of scope (phase 1 unless noted)
 - Fan beyond PRG-56..62 (phase 2): Titan's Pull Middle, Pull Ends and Pull End curves, Fan parts
