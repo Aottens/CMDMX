@@ -8,6 +8,9 @@ import SwiftUI
 struct CMDMXApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var engine = EngineClient.shared
+    // Here, not in MainScreen, so the Console menu (UI-86) reaches the same state.
+    @StateObject private var ui = UIState()
+    @StateObject private var line = TokenLine()
 
     init() {
         // Console mode is on by default (UI-26); the theme starts dark (UI-02).
@@ -22,12 +25,15 @@ struct CMDMXApp: App {
         // One window only: the main screen.
         Window("CMDMX", id: "main") {
             MainScreen()
+                .environmentObject(ui)
+                .environmentObject(line)
                 .environmentObject(engine)
                 .environmentObject(engine.live)
                 .environmentObject(engine.livePlaybacks)
                 .frame(minWidth: 1280, minHeight: 800)
         }
         .commands {
+            ConsoleCommands(ui: ui, line: line, engine: engine)
             // UI-55: replaces the default "CMDMX Help".
             CommandGroup(replacing: .help) {
                 Button("CMDMX Manual") { engine.openManual() }.keyboardShortcut("?", modifiers: .command)

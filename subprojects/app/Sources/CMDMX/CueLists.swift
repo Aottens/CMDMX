@@ -143,7 +143,7 @@ struct GoBlock: View {
         let next = live?.next
         let enabled = (list != nil && next != nil) || ui.learnMode
         let running = live.map { $0.current != nil && $0.progress > 0 && $0.progress < 1 } == true
-        return Button { ui.learnOrRun("go", engine) { engine.cuelist("go") } } label: {
+        return Button { ConsoleKey.runGo(ui: ui, engine: engine) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 Text("GO").font(Typo.legend(24, .semibold)).tracking(2.9).foregroundStyle(t.green)
                 if let list {

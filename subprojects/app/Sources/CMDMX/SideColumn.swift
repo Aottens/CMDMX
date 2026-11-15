@@ -84,19 +84,6 @@ private struct FunctionButtons: View {
     @EnvironmentObject private var ui: UIState
     @EnvironmentObject private var engine: EngineClient
 
-    /// What an armed palette function waits for (the sketch's MODE_HINT).
-    private static let hints = [
-        "Update": "Update: tick targets on the softkeys and Store, or tap the palette, playback handle or cue to update with what is in the programmer.",
-        "Include": "Include: tap a palette, playback handle or cue; its values go into the programmer.",
-        "Delete": "Delete: tap the group, palette, playback handle or cue to delete (⇧ range, ⌘ add one). You confirm on softkey A.",
-        "Copy": "Copy: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
-        "Move": "Move: tap the source group, palette, playback handle or fixture (⇧ range, ⌘ add one), then an empty cell, handle or fixture button; or tap a cue.",
-        "Release": "Release: tap a handle or an active row to release it, Release again for all, or a page button for a page.",
-        "Options": "Options: tap a playback handle or cue to open its options.",
-        "Unfold": "Unfold: tap a fixture to unfold or fold its cells.",
-        "Latch": "Latch: now press Flash on a handle to latch it.",
-    ]
-
     // Titan's order, two columns. An empty spec = live; otherwise the spec the key waits for.
     private static let keys: [(String, String)] = [
         ("Record", ""), ("Update", ""),
@@ -136,26 +123,13 @@ private struct FunctionButtons: View {
 
     private func press(_ label: String) {
         switch label {
-        case "Record":
-            // The next group or palette tap records. In the Mask softkeys, Record steps back first.
-            if ui.maskMenu { ui.maskMenu = false } else if ui.recordArmed { ui.recordArmed = false } else {
-                ui.cancelModes(); engine.endArmedMessage()   // UI-50
-                ui.recordArmed = true
-            }
+        case "Record": ConsoleKey.press(function: label, ui: ui, engine: engine)
         case "Patch": ui.screen = .patch
         case "Fan": ui.learnOrRun("fan", engine) { engine.fanToggle() }   // CTL-59
         case "Off": engine.programmerOff()   // UI-26: the active attribute group, as Titan's Off
         case "Disk": ui.screen = .show
         case "Help": engine.openManual()   // UI-55: no target, what is armed stays armed
-        default:
-            if let function = PaletteFunction(rawValue: label) {   // PAL-29
-                if function == .release, ui.function == .release {   // UI-66: Release twice releases all
-                    engine.releaseScope("all"); ui.cancelModes(); return
-                }
-                engine.endArmedMessage()   // UI-50: the old function's hint goes, the new one is said below
-                ui.arm(function)
-                if ui.function != nil, let hint = Self.hints[label] { engine.say(hint) }
-            }
+        default: ConsoleKey.press(function: label, ui: ui, engine: engine)   // PAL-29
         }
     }
 }
@@ -238,12 +212,15 @@ private struct Keypad: View {
 
     /// CTL-42: the action a key arms in Learn mode (CTL-05); nil = the key has none and just runs.
     private static let learnActions = [
-        "Clear": "key clear", "Locate": "key locate", "Highlight": "key highlight", "Fix -1": "key step_prev", "Fix +1": "key step_next",
         "Back": "keypad Backspace", "Enter": "keypad Enter", "Thro": "keypad Thro", "And": "keypad And", "@": "keypad @",
         "Fixture": "keypad Fixture", "Group": "keypad Group", "Palette": "keypad Palette", ".": "keypad .",
     ]
 
+    /// The keys that also have a ⌥ key (UI-86): one code for both.
+    private static let consoleKeys: [String: ConsoleKey] = ["Clear": .clear, "Locate": .locate, "Highlight": .highlight, "Fix -1": .fixPrev, "Fix +1": .fixNext]
+
     private func press(_ label: String) {
+        if let key = Self.consoleKeys[label] { return key.perform(ui: ui, line: line, engine: engine) }
         ui.learnOrRun(Self.learnActions[label] ?? (label.count == 1 && label.first?.isNumber == true ? "keypad \(label)" : nil), engine) { run(label) }
     }
 
@@ -252,14 +229,7 @@ private struct Keypad: View {
         case "Back": line.back()
         case "Exit": line.clear(); ui.cancelModes()   // also disarms Record and the function buttons (PBK-28)
         case "Enter": line.enter(engine, ui: ui)   // UI-46
-        case "Locate":   // UI-26: an empty line locates everything, else the line ends in Locate
-            if line.tokens.isEmpty { engine.locate() } else { line.enter(engine, ui: ui, end: "Locate") }
-            ui.paletteMenu = false
-        case "Highlight": engine.setHighlight(!engine.programmer.highlight)
-        case "Clear": line.clearProgrammer(engine); if ui.building == nil { ui.cancelModes() }; ui.pendingOverlap = nil
         case "Set": ui.arm(.legend)   // Set Legend, as the softkey
-        case "Fix -1": engine.step(-1)
-        case "Fix +1": engine.step(1)
         case "Odd/Even": engine.pattern(2)
         case "Palette":
             if line.tokens.isEmpty { ui.paletteMenu = true }   // PAL-29: the Palette softkeys, until Cancel or Exit
@@ -415,7 +385,7 @@ private struct Softkeys: View {
     }
 
     private var allKey: Softkey {
-        Softkey(name: "All", sub: "whole selection", action: { ui.learnOrRun("key all", engine) { engine.selectAll() } })
+        Softkey(name: "All", sub: "whole selection", action: { ConsoleKey.all.perform(ui: ui, line: line, engine: engine) })
     }
 
     private var orderKey: Softkey {
@@ -882,6 +852,9 @@ private struct Softkeys: View {
         ])
     }
 
+    /// UI-86: what A...G do now (nil = nothing), for the Console menu and the ⌥1...⌥7 keys.
+    private var names: [String?] { context.keys.prefix(7).map { $0?.action != nil ? $0?.name : nil } }
+
     var body: some View {
         let context = context
         VStack(spacing: 0) {
@@ -919,5 +892,11 @@ private struct Softkeys: View {
         .onChange(of: engine.programmer.selection.isEmpty) { _, empty in if empty { ui.selectionMenu = nil } }
         .onChange(of: engine.programmer.selection) { _, _ in ui.storedMark = nil }   // PBK-54: a new look ends Legend
         .onChange(of: ui.function) { _, f in if f == .update { engine.askUpdateTargets() } }
+        .onAppear { ui.softkeyNames = names }
+        .onChange(of: names) { _, n in ui.softkeyNames = n }
+        .onDisappear { ui.softkeyNames = [] }
+        .onReceive(ui.softkeyPress) { i in
+            if let key = self.context.keys[safe: i], let action = key?.action { action() }
+        }
     }
 }

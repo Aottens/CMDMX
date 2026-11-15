@@ -150,6 +150,23 @@ and **Shift+Space** is Back on the connected list. While it is off, Space does n
 key never runs a cue. Space never acts while you are typing in a text field. Command-1 to
 Command-5 switch workspaces whether Keys is on or not.
 
+Titan's PC shortcuts work on the Option key (⌥) whether Keys is on or not, as long as you are not typing in a text
+field and no sheet or lock is up. Each does what its button on the screen does, and a key held down counts once:
+
+| Key | Does | Key | Does |
+|---|---|---|---|
+| ⌥C | Clear | ⌥⇧C | Copy |
+| ⌥R | Record | ⌥⇧R | Release |
+| ⌥U | Unfold | ⌥⇧U | Update |
+| ⌥I | Include | ⌥D | Delete |
+| ⌥M | Move | ⌥L | Locate |
+| ⌥G | Go on the connected list | ⌥1 to ⌥7 | softkeys A to G |
+| ⌥← and ⌥→ | Fix −1 and Fix +1 | ⌥↑ | All |
+| ⌥↓ | Highlight | Page Up and Page Down | the previous and next page |
+
+The **Console** menu in the menu bar lists them all with their keys, greyed where the screen has no such button
+(on Patch or Show, say), so you can also pick them there. The softkey items carry what the softkey says now.
+
 **Keypad** in the status bar shows or hides the keypad. On a window narrower than 1440 points, such as a
 laptop screen, there is no room for both: the keypad then takes the place of the softkeys, and turning
 **Keypad** off brings the softkeys back.

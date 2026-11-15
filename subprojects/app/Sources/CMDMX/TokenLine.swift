@@ -174,9 +174,11 @@ enum MacKeys {
     }
 
     /// The command-line token a character types, or nil when Keys ignores it (UI-49: one list for typing and for the Keys-off hint).
-    private static func token(for c: String) -> String? {
+    private static func token(for c: String, numeric: Bool = false) -> String? {
         guard c.count == 1 else { return nil }
         switch c {
+        case "/" where numeric: return "Thro"   // UI-86: the numeric pad's / and *
+        case "*" where numeric: return "@"
         case "0"..."9", ".", "@": return c
         case "-": return "Thro"
         case "+", "=": return "And"
@@ -193,7 +195,7 @@ enum MacKeys {
         if workspaceKeys.contains(event.keyCode) || event.keyCode == 49 { return true }
         guard workspace else { return false }
         if [36, 76, 51, 126, 125].contains(event.keyCode) { return true }
-        return event.characters.flatMap { token(for: $0.lowercased()) } != nil
+        return event.characters.flatMap { token(for: $0.lowercased(), numeric: event.modifierFlags.contains(.numericPad)) } != nil
     }
 
     @MainActor
@@ -232,6 +234,14 @@ enum MacKeys {
             return true
         }
         if event.keyCode == 53, chord.isEmpty { return escape(event, ui: ui, line: line, engine: engine) }
+        // UI-86: Titan's keys on ⌥ and Page Up / Down, whatever the Keys toggle says. A text field gets the key itself
+        // (⌥C types ç) and the menu never sees it, so its key equivalent cannot fire; a sheet is guarded in `fire`.
+        if let key = ConsoleKey.matching(event) {
+            if let text = NSApp.keyWindow?.firstResponder as? NSText { text.interpretKeyEvents([event]); return true }
+            guard NSApp.keyWindow?.isMainWindow == true else { return false }
+            if !event.isARepeat { key.fire(ui: ui, line: line, engine: engine) }
+            return true
+        }
         // A shortcut chord, or a text field (Patch, Show) with focus: not ours.
         guard event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
               !(NSApp.keyWindow?.firstResponder is NSText)
@@ -262,7 +272,7 @@ enum MacKeys {
         case 126: line.older()              // Up
         case 125: line.newer()              // Down
         default:
-            guard let c = event.characters?.lowercased(), var token = token(for: c) else { return false }
+            guard let c = event.characters?.lowercased(), var token = token(for: c, numeric: event.modifierFlags.contains(.numericPad)) else { return false }
             // PRG-100: after `@`, + and - are a sign (`@ + 10`), not And / Thro.
             if line.tokens.last == "@", c == "+" || c == "=" || c == "-" { token = c == "-" ? "-" : "+" }
             if c == "p", line.tokens.isEmpty { ui.paletteMenu = true }
