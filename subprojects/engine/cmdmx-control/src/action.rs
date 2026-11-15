@@ -38,6 +38,8 @@ pub enum Key {
     All,
     StepNext,
     StepPrev,
+    /// CTL-73: the daemon locks with the saved code.
+    Lock,
     /// CTL-72: the programming keys; the app runs them.
     Record,
     Update,
@@ -50,7 +52,7 @@ pub enum Key {
     Release,
 }
 
-const KEYS: [(&str, Key); 18] = [
+const KEYS: [(&str, Key); 19] = [
     ("clear", Key::Clear),
     ("locate", Key::Locate),
     ("highlight", Key::Highlight),
@@ -60,6 +62,7 @@ const KEYS: [(&str, Key); 18] = [
     ("all", Key::All),
     ("step_next", Key::StepNext),
     ("step_prev", Key::StepPrev),
+    ("lock", Key::Lock),
     ("record", Key::Record),
     ("update", Key::Update),
     ("include", Key::Include),

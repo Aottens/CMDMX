@@ -553,5 +553,14 @@ fn ctl_72_programming_keys_and_exit_parse_and_round_trip() {
     assert_ne!(parse("key release"), parse("release"));
     assert_eq!(parse("keypad Exit"), Action::Keypad(KeypadToken::Exit));
     assert_eq!(parse("keypad Exit").to_string(), "keypad Exit");
-    assert!("key lock".parse::<Action>().is_err(), "CTL-73 is INP-05");
+}
+
+// --- CTL-73 lock from a surface ----------------------------------------------
+
+#[test]
+fn ctl_73_key_lock_parses_as_a_button_that_the_daemon_runs() {
+    assert_eq!(parse("key lock"), Action::Key(Key::Lock));
+    assert_eq!(parse("key lock").to_string(), "key lock");
+    assert_eq!(parse("key lock").value_kind(), ValueKind::Button);
+    assert!(!Key::Lock.is_programming(), "the daemon locks, not the app");
 }

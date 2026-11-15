@@ -310,6 +310,8 @@ choice, also after a restart; a new install starts on Fixtures.
   order and legend. A group master stays on the original.
 - **Move:** press **Move**, tap the group, then tap an empty cell. Its group masters follow it to
   the new number, so nothing changes on stage. There is no separate renumber: Move is the renumber.
+  A surface binding to the old number does not follow; the message says so (see
+  [Control surfaces](controls.md#a-binding-to-a-group-palette-or-playback-that-moved-or-went)).
 - **Delete:** press **Delete**, tap the group, then confirm on softkey A. Cues, palettes and the
   selection hold fixtures rather than groups, so they do not change. A group that a group master
   uses is not deleted: the message line names the handle, and you delete the master first.

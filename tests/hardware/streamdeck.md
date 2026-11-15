@@ -71,6 +71,11 @@ With the app open, on the Control screen right-click three keys and bind **Actio
 - [ ] The same Record and Exit from the BCF2000, with `key record` and `keypad Exit` learned onto two of its buttons: the
       lamps follow as on the deck
 
+## Lock from a surface (INP-05: CTL-73)
+With a code saved from the Lock prompt (**Save as this console's code**), bind **Action ▸ Programming ▸** `key lock` to a
+deck key.
+- [ ] The deck's Lock key locks the console at once and lights; its other keys then do nothing; the Mac's code unlocks and
+      the key goes off
 
 ## Open points
 - none

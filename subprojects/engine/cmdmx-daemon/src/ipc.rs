@@ -69,6 +69,9 @@ pub const PROTOCOL: u64 = 1;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Usage {
     Palette(u32),
+    /// IPC-66: a group or a playback, answered with the controls that name it.
+    Group(u32),
+    Playback(PlaybackId),
     Fixtures(Vec<FixtureId>),
     /// IPC-60: one fixture, with the cues, palettes and groups listed instead of counted.
     Detail(FixtureId),
@@ -92,7 +95,12 @@ pub enum Command {
     /// IPC-50: lock or unlock the console; handled on the tick, never by the engine.
     LockSet {
         on: bool,
-        code: String,
+        /// `None`: the saved code (IPC-65).
+        code: Option<String>,
+    },
+    /// IPC-65: keep (`Some`) or forget (`None`) this console's lock code; refused while locked.
+    LockSaveCode {
+        code: Option<String>,
     },
     /// CTL-40: handled by the control layer on the tick, never by the engine.
     Control(ControlRequest),
@@ -2253,10 +2261,21 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             _ => Err("\"function\" is a string or null".into()),
         },
         Some("usage") => match (v.get("palette"), v.get("fixtures")) {
-            (Some(_), None) if v.get("detail").is_none() => {
+            (None, None) if v.get("group").is_some() != v.get("playback").is_some() => {
+                Ok(Command::Usage(if v.get("group").is_some() {
+                    Usage::Group(uint(&v, "group")?)
+                } else {
+                    Usage::Playback(uint(&v, "playback")?)
+                }))
+            }
+            (Some(_), None)
+                if v.get("detail").is_none()
+                    && v.get("group").is_none()
+                    && v.get("playback").is_none() =>
+            {
                 Ok(Command::Usage(Usage::Palette(uint(&v, "palette")?)))
             }
-            (None, Some(f)) => {
+            (None, Some(f)) if v.get("group").is_none() && v.get("playback").is_none() => {
                 let ids: Vec<FixtureId> = f
                     .as_array()
                     .and_then(|a| a.iter().map(|n| n.as_u64()?.try_into().ok()).collect())
@@ -2269,7 +2288,10 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                     (Some(None), _) => Err("invalid \"detail\" (expected true or false)".into()),
                 }
             }
-            _ => Err("expected exactly one of \"palette\" and \"fixtures\"".into()),
+            _ => Err(
+                "expected exactly one of \"palette\", \"fixtures\", \"group\" and \"playback\""
+                    .into(),
+            ),
         },
         Some("update.targets") => Ok(Command::UpdateTargets),
         Some("update") => Ok(Command::Update {
@@ -2352,7 +2374,14 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         // IPC-50
         Some("lock.set") => Ok(Command::LockSet {
             on: boolean(&v, "on")?,
-            code: string(&v, "code")?,
+            code: opt_string(&v, "code")?,
+        }),
+        // IPC-65: a string or null.
+        Some("lock.save_code") => Ok(Command::LockSaveCode {
+            code: match v.get("code") {
+                None | Some(serde_json::Value::Null) => None,
+                Some(_) => Some(string(&v, "code")?),
+            },
         }),
         Some("control.mapping") => Ok(Command::ControlMapping {
             name: string(&v, "name")?,
@@ -2889,6 +2918,8 @@ struct Snapshot<'a> {
     messages: &'a [HistoryMessage],
     /// IPC-50
     locked: bool,
+    /// IPC-65: whether a code is saved; never the code.
+    lock_code_saved: bool,
     /// RMT-02: `Remote::info`; never the salt, the hash or the password.
     remote: &'a serde_json::Value,
 }
@@ -3112,30 +3143,68 @@ pub const LOCKED: &str = "Console is locked";
 const MASTER_CODE: &str = "68340";
 
 /// IPC-50: the lock. `code` is `Some` while locked; `flag` mirrors it for the client threads.
+/// IPC-65: `saved` is this console's own code, kept in `state_file` and never in a show.
 #[derive(Default)]
 pub struct Lock {
     code: Option<String>,
     flag: Arc<AtomicBool>,
+    saved: Option<String>,
+    state_file: Option<std::path::PathBuf>,
 }
 
 impl Lock {
+    /// Reads the saved code from `state_file` (key `lock_code`).
+    pub fn load(state_file: &std::path::Path) -> Lock {
+        let saved = std::fs::read_to_string(state_file)
+            .ok()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+            .and_then(|v| v.get("lock_code")?.as_str().map(String::from));
+        Lock {
+            saved,
+            state_file: Some(state_file.to_path_buf()),
+            ..Lock::default()
+        }
+    }
+
     /// Whether the lock changed. A second lock is refused, an unlock while unlocked is a no-op.
-    pub fn set(&mut self, on: bool, code: &str) -> Result<bool, &'static str> {
+    /// `code` `None` locks with the saved code (IPC-65); an unlock without a code is wrong.
+    pub fn set(&mut self, on: bool, code: Option<&str>) -> Result<bool, &'static str> {
         match (&self.code, on) {
             (Some(_), true) => Err(LOCKED),
             (None, true) => {
+                let Some(code) = code.or(self.saved.as_deref()) else {
+                    return Err("Save a lock code first: Lock, then Save as this console's code");
+                };
                 self.code = Some(code.to_string());
                 self.flag.store(true, Ordering::Relaxed);
                 Ok(true)
             }
             (None, false) => Ok(false),
-            (Some(c), false) if code == c || code == MASTER_CODE => {
+            (Some(c), false) if code == Some(c.as_str()) || code == Some(MASTER_CODE) => {
                 self.code = None;
                 self.flag.store(false, Ordering::Relaxed);
                 Ok(true)
             }
             (Some(_), false) => Err("Wrong code"),
         }
+    }
+
+    /// IPC-65: keep or forget the code. A write error is a warning; the code then lasts this run.
+    pub fn save(&mut self, code: Option<String>) -> Result<(), String> {
+        self.saved = code;
+        let Some(path) = &self.state_file else {
+            return Ok(());
+        };
+        let value = self
+            .saved
+            .clone()
+            .map_or(serde_json::Value::Null, Into::into);
+        crate::shows::update_state(path, "lock_code", value)
+            .map_err(|e| format!("cannot save the lock code: {e}"))
+    }
+
+    pub fn code_saved(&self) -> bool {
+        self.saved.is_some()
     }
 
     pub fn is_on(&self) -> bool {
@@ -3153,6 +3222,13 @@ pub fn locked_delta(on: bool) -> String {
     to_json(&serde_json::json!({"v": PROTOCOL, "type": "locked", "locked": on}))
 }
 
+/// IPC-65: the `lock_code_saved` delta to every client.
+pub fn lock_code_saved_delta(saved: bool) -> String {
+    to_json(
+        &serde_json::json!({"v": PROTOCOL, "type": "lock_code_saved", "lock_code_saved": saved}),
+    )
+}
+
 /// IPC-03/10/20: full state for a freshly connected client.
 #[allow(clippy::too_many_arguments)]
 pub fn snapshot(
@@ -3164,6 +3240,7 @@ pub fn snapshot(
     messages: &[HistoryMessage],
     locked: bool,
     remote: &serde_json::Value,
+    lock_code_saved: bool,
 ) -> String {
     let stored = stored_infos(engine);
     to_json(&Snapshot {
@@ -3191,6 +3268,7 @@ pub fn snapshot(
         control,
         messages,
         locked,
+        lock_code_saved,
         remote,
     })
 }
@@ -3382,12 +3460,26 @@ pub fn cue_view(engine: &Engine, id: PlaybackId, cue: CueNumber) -> Result<Strin
 }
 
 /// IPC-54: the answer to `usage`, counted by the core.
-pub fn usage(engine: &Engine, query: &Usage) -> Result<String, CoreError> {
+pub fn usage(
+    engine: &Engine,
+    query: &Usage,
+    controls: Vec<serde_json::Value>,
+) -> Result<String, CoreError> {
     Ok(to_json(&match query {
         Usage::Palette(n) => {
             let u = engine.palette_usage(*n)?;
             serde_json::json!({"v": PROTOCOL, "type": "usage", "palette": n,
-                "cues": u.cues, "playbacks": u.playbacks})
+                "cues": u.cues, "playbacks": u.playbacks, "controls": controls})
+        }
+        Usage::Group(n) => {
+            engine.group(*n).ok_or(CoreError::UnknownGroup(*n))?;
+            serde_json::json!({"v": PROTOCOL, "type": "usage", "group": n, "controls": controls})
+        }
+        Usage::Playback(id) => {
+            (engine.playbacks().any(|p| p.id == *id))
+                .then_some(())
+                .ok_or(CoreError::UnknownPlayback(*id))?;
+            serde_json::json!({"v": PROTOCOL, "type": "usage", "playback": id, "controls": controls})
         }
         Usage::Fixtures(ids) => {
             let u = engine.fixture_usage(ids);
@@ -4614,6 +4706,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(v["v"], 1);
         assert_eq!(v["type"], "snapshot");
@@ -4697,6 +4790,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["outputs"],
@@ -4727,6 +4821,7 @@ mod tests {
                 &[],
                 false,
                 &serde_json::Value::Null,
+                false,
             ))["outputs"],
             json!([])
         );
@@ -4888,6 +4983,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(v["outputs"][0]["name"], "Kerk Eurolite");
         assert!(v["outputs"][1].get("name").is_none(), "{}", v["outputs"]);
@@ -4992,6 +5088,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(v["fixtures"], json!([dimmer_entry()]));
         assert_eq!(v["groups"], json!([{"id":1,"fixtures":[1]}]));
@@ -5040,6 +5137,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["fixtures"],
@@ -5080,6 +5178,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let wash = &v["fixtures"][1];
         assert_eq!(wash["mode"], "24 Channel");
@@ -5175,6 +5274,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let mut entry = dimmer_entry();
         entry["parked"] = json!(true);
@@ -5200,6 +5300,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let mut entry = dimmer_entry();
         entry["behaviour"] = json!({"Dimmer":{"invert":true,"high":0.5}});
@@ -5575,6 +5676,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let c = &v["effect_catalogue"];
         let looks = c["looks"].as_array().unwrap();
@@ -5670,6 +5772,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["programmer"],
@@ -5692,6 +5795,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["programmer"]["wheels"],
@@ -6442,6 +6546,7 @@ mod tests {
             clients.messages(),
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let m = v["messages"].as_array().unwrap();
         assert_eq!(m.len(), 2);
@@ -6495,6 +6600,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ))
     }
 
@@ -6714,6 +6820,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ))
         .unwrap();
         let msg = ws.read().unwrap();
@@ -6785,6 +6892,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["show"],
@@ -6804,6 +6912,7 @@ mod tests {
                 &[],
                 false,
                 &serde_json::Value::Null,
+                false,
             ))["show"]["saved_at"],
             Value::Null
         );
@@ -7075,6 +7184,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let slots: Vec<Value> = (1..=8)
             .map(|s| json!({"slot": s, "playback": if s == 1 { json!(1) } else { Value::Null }}))
@@ -7173,6 +7283,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["palettes"],
@@ -7228,6 +7339,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["palette_settings"],
@@ -7257,6 +7369,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["programmer"]["palettes"],
@@ -7275,6 +7388,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ))["programmer"];
         assert_eq!(p["palettes"], json!({"in_use":[7],"relevant":[7]}));
         assert_eq!(
@@ -7463,6 +7577,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let mut want = playback_entry();
         want["legend"] = json!("Walk-in");
@@ -7484,6 +7599,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let pages: Vec<Value> = (1..=10)
             .map(|n| json!({"number": n, "legend": if n == 2 { "Service" } else { "" }}))
@@ -7556,6 +7672,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let fired = |i: usize| v["playbacks"][i]["fired"].as_u64().unwrap();
         assert!(fired(1) < fired(0), "playback 2 fired first");
@@ -7570,6 +7687,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert!(v["playbacks"][0]["fired"].is_null(), "off again");
     }
@@ -8082,6 +8200,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(v["v"], 1, "IPC-41: v stays");
         let pb = entry(&v, 2);
@@ -8117,6 +8236,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let p = entry(&v, 2);
         assert_eq!(p["kind"], json!("Cues"));
@@ -8152,6 +8272,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(v["connected"], json!(null));
     }
@@ -8229,6 +8350,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let chase = entry(&v, 3);
         assert_eq!(chase["kind"], json!("Chase"));
@@ -8277,6 +8399,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let m = entry(&v, u64::from(master));
         assert_eq!(
@@ -8448,13 +8571,13 @@ mod tests {
     #[test]
     fn ipc_54_the_messages() {
         let e = engine_with_palettes();
-        let v = parse(&usage(&e, &Usage::Palette(5)).unwrap());
+        let v = parse(&usage(&e, &Usage::Palette(5), vec![]).unwrap());
         assert_eq!(
             v,
-            json!({"v":1,"type":"usage","palette":5,"cues":0,"playbacks":0})
+            json!({"v":1,"type":"usage","palette":5,"cues":0,"playbacks":0,"controls":[]})
         );
-        assert!(usage(&e, &Usage::Palette(77)).is_err());
-        let v = parse(&usage(&e, &Usage::Fixtures(vec![999, 998])).unwrap());
+        assert!(usage(&e, &Usage::Palette(77), vec![]).is_err());
+        let v = parse(&usage(&e, &Usage::Fixtures(vec![999, 998]), vec![]).unwrap());
         assert_eq!(
             v,
             json!({"v":1,"type":"usage","fixtures":[999,998],"groups":0,"cues":0,"playbacks":0,
@@ -8469,7 +8592,7 @@ mod tests {
         e.execute_command(&["9", ".", "2", "@", "50", "Enter"])
             .unwrap();
         e.record_playback(&PlaybackRecord::at(1, 2)).unwrap();
-        let v = parse(&usage(&e, &Usage::Fixtures(vec![9])).unwrap());
+        let v = parse(&usage(&e, &Usage::Fixtures(vec![9]), vec![]).unwrap());
         assert_eq!(
             (&v["cues"], &v["playbacks"], &v["empty_cues"]),
             (&json!(1), &json!(1), &json!(1)),
@@ -8516,6 +8639,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["output"],
@@ -8620,7 +8744,7 @@ mod tests {
         e.record_group(3).unwrap();
         e.set_group_legend(3, "Fresnels").unwrap();
         e.clear_selection();
-        let v = parse(&usage(&e, &Usage::Detail(2)).unwrap());
+        let v = parse(&usage(&e, &Usage::Detail(2), vec![]).unwrap());
         assert_eq!(v["type"], "usage");
         assert_eq!(v["fixtures"], json!([2]));
         assert_eq!(
@@ -8630,7 +8754,7 @@ mod tests {
         assert_eq!(v["groups"], json!([{"id":3,"legend":"Fresnels"}]));
         assert_eq!(v["palettes"], json!([]));
         assert_eq!(v["playbacks"], 1);
-        assert!(usage(&e, &Usage::Detail(999)).is_err());
+        assert!(usage(&e, &Usage::Detail(999), vec![]).is_err());
     }
 
     #[test]
@@ -9016,6 +9140,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         let m = entry(&v, u64::from(id));
         assert_eq!(m["kind"], json!("GroupMaster"));
@@ -9074,6 +9199,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(entry(&v, u64::from(id))["master"]["level"], json!(0.5));
     }
@@ -9092,6 +9218,7 @@ mod tests {
                 &[],
                 false,
                 &serde_json::Value::Null,
+                false,
             ))
         };
         assert_eq!(entry(&snap(&e), u64::from(id))["holding"], json!(false));
@@ -9177,6 +9304,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(v["undo"], json!({"undo": null, "redo": null}));
         let some = UndoInfo {
@@ -9192,6 +9320,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(v["undo"], json!({"undo": "Clear", "redo": "Wheel Pan"}));
     }
@@ -9243,6 +9372,7 @@ mod tests {
             &[],
             false,
             &serde_json::Value::Null,
+            false,
         ));
         assert_eq!(
             v["programmer_settings"],
@@ -9498,6 +9628,7 @@ mod tests {
                 &[],
                 false,
                 &serde_json::Value::Null,
+                false,
             ))["programmer"]
                 .clone()
         };

@@ -163,7 +163,7 @@ fn main() {
     // IPC-01: a bound port that is already taken most likely means another daemon runs.
     let library: ipc::SharedLibrary = Default::default();
     // IPC-50: live state only, not saved and not touched by a show switch.
-    let mut lock = ipc::Lock::default();
+    let mut lock = ipc::Lock::load(shows.state_file());
     // The tick's clock; the client threads stamp taps and buttons on it (IPC-25).
     let started = Instant::now();
     let (events, ipc_addr) = match ipc::spawn_server_with(
@@ -233,13 +233,10 @@ fn main() {
             // IPC-50: the lock first; while it is on, everything that changes something is refused.
             match &event {
                 ipc::Event::Command(ipc::Command::LockSet { on, code }) => {
-                    match lock.set(*on, code) {
-                        Ok(true) => {
-                            control.set_locked(*on);
-                            clients.broadcast(&ipc::locked_delta(*on));
-                        }
-                        Ok(false) => {}
-                        Err(e) => warn(&mut clients, e),
+                    if let Err(e) =
+                        set_lock(&mut lock, &mut control, &mut clients, *on, code.as_deref())
+                    {
+                        warn(&mut clients, e);
                     }
                     continue;
                 }
@@ -270,6 +267,7 @@ fn main() {
                             clients.messages(),
                             lock.is_on(),
                             &remote.info(),
+                            lock.code_saved(),
                         ),
                     );
                     for w in std::mem::take(&mut pending) {
@@ -279,6 +277,15 @@ fn main() {
                 }
                 ipc::Event::Warning(e) => {
                     warn(&mut clients, &e);
+                    continue;
+                }
+                // IPC-65: the lock check above already refused it while locked.
+                ipc::Event::Command(ipc::Command::LockSaveCode { code }) => {
+                    match lock.save(code) {
+                        Ok(()) => {}
+                        Err(e) => warn(&mut clients, &e),
+                    }
+                    clients.broadcast(&ipc::lock_code_saved_delta(lock.code_saved()));
                     continue;
                 }
                 // RMT-01, 02: a refused start is a warning for the app.
@@ -296,7 +303,7 @@ fn main() {
                     continue;
                 }
                 ipc::Event::ControlMapping { name, reply } => {
-                    drop(reply.try_send(control.mapping_reply(&name)));
+                    drop(reply.try_send(control.mapping_reply(&engine, &name)));
                     Ok(())
                 }
                 // IPC-24: to the asking client only; a full queue drops the answer (IPC-07).
@@ -305,7 +312,8 @@ fn main() {
                 }
                 // IPC-54: counted by the core; an unknown palette is a warning like the delete's.
                 ipc::Event::Usage { query, reply } => {
-                    ipc::usage(&engine, &query).map(|msg| drop(reply.try_send(msg)))
+                    ipc::usage(&engine, &query, control.controls(&engine, &query))
+                        .map(|msg| drop(reply.try_send(msg)))
                 }
                 // IPC-60: to the asking client only; an unknown fixture is a warning.
                 ipc::Event::Why { fixture, reply } => {
@@ -543,6 +551,7 @@ fn main() {
                             clients.messages(),
                             lock.is_on(),
                             &remote.info(),
+                            lock.code_saved(),
                         ));
                         for w in &next.warnings {
                             warn(&mut clients, w);
@@ -604,7 +613,14 @@ fn main() {
             control.osc_event(event, now);
         }
         for (device, cmd) in control.commands(&engine, now) {
-            if let Err(e) = run_control(&mut engine, &mut history, &device, cmd, now) {
+            // CTL-73: `key lock` locks like the app's command (IPC-65).
+            if let ipc::Command::LockSet { on, code } = &cmd {
+                if let Err(e) =
+                    set_lock(&mut lock, &mut control, &mut clients, *on, code.as_deref())
+                {
+                    warn(&mut clients, &format!("{device}: {e}"));
+                }
+            } else if let Err(e) = run_control(&mut engine, &mut history, &device, cmd, now) {
                 warn(&mut clients, &e);
             }
         }
@@ -996,7 +1012,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         // Handled before `apply` (SHW-15).
         Show(_) => Ok(()),
         // Handled by the control layer on the tick (CTL-40).
-        Control(_) | LockSet { .. } | ControlMapping { .. } => Ok(()),
+        Control(_) | LockSet { .. } | LockSaveCode { .. } | ControlMapping { .. } => Ok(()),
         // RMT-01, 02: hashed and handled before the tick; they never get here.
         RemoteSetLogin { .. } | RemoteOff => Ok(()),
         // RMT-08: the phone's pick replaces the selection; `select_item` refuses a parked one (PAT-30).
@@ -1344,6 +1360,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | ShowReport
         | Control(_)
         | LockSet { .. }
+        | LockSaveCode { .. }
         | RemoteSetLogin { .. }
         | RemoteOff
         | ControlMapping { .. }
@@ -1673,6 +1690,21 @@ fn run(
         }
         (Class::Reset | Class::Neutral, _) => apply(engine, cmd, now),
     }
+}
+
+/// IPC-50, CTL-73: lock or unlock; every client and every surface hears of a change.
+fn set_lock(
+    lock: &mut ipc::Lock,
+    control: &mut control::Control,
+    clients: &mut ipc::Clients,
+    on: bool,
+    code: Option<&str>,
+) -> Result<(), &'static str> {
+    if lock.set(on, code)? {
+        control.set_locked(on);
+        clients.broadcast(&ipc::locked_delta(on));
+    }
+    Ok(())
 }
 
 /// CTL-06: a command from a control surface runs like one from the app; a refusal names the device.
@@ -3901,6 +3933,10 @@ mod tests {
             r#"{"v":1,"cmd":"lock.set","on":true,"code":"1"}"#,
             Class::Neutral,
         ),
+        (
+            r#"{"v":1,"cmd":"lock.save_code","code":null}"#,
+            Class::Neutral,
+        ),
     ];
 
     #[test]
@@ -5766,6 +5802,7 @@ mod tests {
                 &[],
                 false,
                 &serde_json::Value::Null,
+                false,
             );
             serde_json::from_str::<serde_json::Value>(&s).unwrap()["palettes"].clone()
         };

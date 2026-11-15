@@ -500,7 +500,7 @@ impl Control {
     /// What every client should show now: the built-in list (CTL-37) and the custom bindings.
     fn osc_wanted(&self, engine: &Engine) -> Vec<(String, OscArg)> {
         let mut wheels = None;
-        let armed = self.surface.armed();
+        let armed = self.surface.armed(self.locked);
         let plain = Binding::new(Input::Osc(String::new()), Action::Gm);
         let mut state = |a| {
             arg_of(&plain, state_of(engine, a, &mut wheels, &armed)).unwrap_or(OscArg::Float(0.0))

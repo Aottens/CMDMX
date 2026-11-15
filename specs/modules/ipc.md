@@ -465,8 +465,9 @@ Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Questions in `ui.md`, *Owner
 - **IPC-66** **Controls in `usage`** (J6, CTL-74; amends IPC-54; P1-43 question 7). `usage` gains the forms `{"group":5}` and
   `{"playback":4}`, and every answer for a palette, group or playback gains `controls`: one entry per binding of any mapping on
   this Mac whose action names that object by number, `[{"mapping":"BCF2000","control":"note 32","action":"group 5"}]`, a deck
-  key with its `deck_page` and key. A playback counts for `playback <id> level` and for `fader`, `upper` and `lower` with a
-  `page.slot` that holds it; a slot without a page follows the page shown and never counts. The daemon adds `controls`, the core
+  key with its `deck_page` and key. A playback counts for every action that names it by id (`playback <id> level`, `go playback
+  <id>`) and for one with a `page.slot` that holds it (`fader`, `upper`, `lower`, `go 2.1`); a slot without a page follows the
+  page shown and never counts. The daemon adds `controls`, the core
   counts the rest. Tests `ipc_66_…`.
 
 ## Owner decision (P1-26, 2026-11-02: the recommendation accepted)

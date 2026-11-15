@@ -660,18 +660,32 @@ struct UpdateTargetsAnswer: Decodable, Equatable {
 
 /// IPC-54: the answer to `usage` (this client only). The daemon counts; `patchText` only words it.
 struct UsageReply: Decodable, Equatable {
+    /// IPC-66: a binding of a mapping that names the object; a deck key has `deckPage` and `key`.
+    struct Control: Decodable, Equatable {
+        let mapping: String, control: String, action: String
+        var deckPage: Int?, key: Int?
+        private enum CodingKeys: String, CodingKey { case mapping, control, action, deckPage = "deck_page", key }
+        /// "BCF2000 Note 32 ch 1", or "deck key 1/3" (page/key).
+        var shown: String { deckPage.flatMap { p in key.map { "deck key \(p)/\($0)" } } ?? "\(mapping) \(control)" }
+    }
     var palette: Int?
+    var group: Int?
+    var playback: Int?
+    var controls: [Control] = []
     var fixtures: [Int]?
     var groups = 0, cues = 0, playbacks = 0, palettes = 0, emptyGroups = 0, emptyCues = 0
 
     private enum CodingKeys: String, CodingKey {
-        case palette, fixtures, groups, cues, playbacks, palettes
+        case palette, group, playback, controls, fixtures, groups, cues, playbacks, palettes
         case emptyGroups = "empty_groups", emptyCues = "empty_cues"
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         palette = try? c.decode(Int.self, forKey: .palette)
+        group = try? c.decode(Int.self, forKey: .group)
+        playback = try? c.decode(Int.self, forKey: .playback)
+        controls = (try? c.decode([Control].self, forKey: .controls)) ?? []
         fixtures = try? c.decode([Int].self, forKey: .fixtures)
         groups = (try? c.decode(Int.self, forKey: .groups)) ?? 0
         cues = (try? c.decode(Int.self, forKey: .cues)) ?? 0
@@ -1661,7 +1675,12 @@ final class EngineClient: ObservableObject {
     /// IPC-57: the answer to the last `update.targets` ask.
     @Published private(set) var updateTargets: UpdateTargetsAnswer?
     /// UI-47: the palette delete message still waiting for its count, and the text it showed.
-    private var pendingDelete: (palette: Int, shown: String)?
+    private var pendingDelete: (key: String, shown: String, named: String)?
+    /// IPC-66: a single group or playback being moved, with the controls that name it (once `usage` answers).
+    private var pendingMove: (group: Int?, playback: Int?, to: String, from: String, controls: [UsageReply.Control])?
+    /// CTL-74: the groups, palettes and playbacks the shown mapping was last asked against.
+    private var objectsKey = ""
+    private var objectsSeen = false
     @Published private(set) var storedRevision = 0
     /// Stored part and shown live part per playback id, so a page switch shows the right values at once.
     private var playbackStored: [Int: PlaybackStored] = [:]
@@ -1672,6 +1691,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var lastMessage: String?
     /// UI-38, IPC-50: the engine's lock; the cover follows it.
     @Published private(set) var locked = false
+    /// UI-85: whether the engine keeps a lock code for surfaces; never the code.
+    @Published private(set) var lockCodeSaved = false
     static let shared = EngineClient()
     /// UI-39: the Messages sheet's history, oldest first, at most `messageCap` lines. Merged from the
     /// engine's snapshot (IPC-51) plus the app's own lines; `unseenMessages` counts warnings and errors
@@ -1960,7 +1981,12 @@ final class EngineClient: ObservableObject {
     // UI-64: the list forms (IPC-61); the engine places, refuses and undoes as one step.
     func deleteGroups(_ groups: [Int]) { patch("group.delete", ["groups": groups]) }
     func copyGroups(_ groups: [Int], to: Int, layout: String) { patch("group.copy", ["groups": groups, "to": to, "layout": layout]) }
-    func moveGroups(_ groups: [Int], to: Int, layout: String, swap: Bool) { patch("group.move", ["groups": groups, "to": to, "layout": layout, "swap": swap]) }
+    func moveGroups(_ groups: [Int], to: Int, layout: String, swap: Bool) {
+        let one = groups.count == 1 ? groups.first : nil
+        if let one { sendJSON("usage", ["group": one]) }   // IPC-66: asked first, so the answer comes before the move's delta
+        patch("group.move", ["groups": groups, "to": to, "layout": layout, "swap": swap])
+        pendingMove = one.map { (group: $0, playback: nil, to: String(to), from: "group \($0)", controls: []) }
+    }
     func setGroupLegend(_ id: Int, legend: String) { patch("group.legend", ["group": id, "legend": legend]) }
     /// GRM-16, PRG-90: a group master without its own legend shows its group's.
     func shownLegend(_ p: PlaybackInfo) -> String {
@@ -2265,7 +2291,10 @@ final class EngineClient: ObservableObject {
         patch("playback.copy", ["ids": ids, "to": ["page": page, "slot": slot], "layout": layout])
     }
     func movePlaybacks(_ ids: [Int], page: Int, slot: Int, layout: String, swap: Bool) {
+        let one = ids.count == 1 ? ids.first : nil
+        if let one { sendJSON("usage", ["playback": one]) }   // IPC-66
         patch("playback.move", ["ids": ids, "to": ["page": page, "slot": slot], "layout": layout, "swap": swap])
+        pendingMove = one.flatMap { id in playback(id).map { (group: nil, playback: id, to: "\(page).\(slot)", from: $0.homeHandle, controls: []) } }
     }
     /// `playback.options` (PBK-36): only the given fields change; `NSNull()` clears a nullable one.
     func setPlaybackOptions(_ id: Int, _ fields: [String: Any]) { patch("playback.options", fields.merging(["id": id]) { a, _ in a }) }
@@ -2480,6 +2509,8 @@ final class EngineClient: ObservableObject {
     /// Hides the last engine message (e.g. when the operator selects another row).
     func clearMessage() { lastMessage = nil }
     /// UI-38: the engine checks the code; a wrong one comes back as a warning.
+    /// UI-85: keep (a string) or forget (nil) this console's lock code.
+    func saveLockCode(_ code: String?) { sendJSON("lock.save_code", ["code": code ?? NSNull()]) }
     func setLock(_ on: Bool, code: String) { lastMessage = nil; sendJSON("lock.set", ["on": on, "code": code]) }
 
     /// RMT-15: the engine validates (1-64 characters, port 1024-65535) and refuses with a message.
@@ -2581,6 +2612,7 @@ final class EngineClient: ObservableObject {
         let dbo: Bool?
         let on: Bool?
         let locked: Bool?
+        let lockCodeSaved: Bool?
         fileprivate let playbackSettings: Tolerant<PlaybackSettings>?
         let level: Double?
         let message: String?
@@ -2607,7 +2639,7 @@ final class EngineClient: ObservableObject {
         fileprivate let path: String?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
+            case type, v, page, pages, playbacks, dbo, on, locked, lockCodeSaved = "lock_code_saved", level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -2645,9 +2677,11 @@ final class EngineClient: ObservableObject {
             page = incoming.page?.value ?? PageState()
             playbackStored = [:]; playbackLive = [:]
             storePlaybackList(incoming.playbacks?.value)
+            objectsChanged()
             pages = incoming.pages?.value ?? []
             dbo = incoming.dbo ?? false
             locked = incoming.locked ?? false
+            lockCodeSaved = incoming.lockCodeSaved ?? false
             playbackSettings = incoming.playbackSettings?.value
             connected = incoming.connected?.value
             cueView = nil
@@ -2773,14 +2807,14 @@ final class EngineClient: ObservableObject {
                 gdtfImported = done
             }
         case "groups":
-            if let groups = incoming.groups?.value { self.groups = groups }
+            if let groups = incoming.groups?.value { self.groups = groups; objectsChanged() }
         case "palette_settings":
             // The delta carries the settings at top level.
             if let state = try? JSONDecoder().decode(PaletteSettings.self, from: data) { paletteSettings = state }
         case "programmer_settings":
             if let state = try? JSONDecoder().decode(ProgrammerSettings.self, from: data) { programmerSettings = state }
         case "palettes":
-            if let list = incoming.palettes?.value { palettes = list.compactMap(\.value) }
+            if let list = incoming.palettes?.value { palettes = list.compactMap(\.value); objectsChanged() }
         case "playback":
             // PBK-35: the small live delta; the stored part stays.
             if let delta = try? JSONDecoder().decode(PlaybackLiveDelta.self, from: data), playbackStored[delta.id] != nil {
@@ -2790,6 +2824,7 @@ final class EngineClient: ObservableObject {
         case "playbacks":
             // PBK-35: the whole list after a stored change; a playback that is gone disappears.
             storePlaybackList(incoming.playbacks?.value)
+            objectsChanged()   // IPC-66, CTL-74
         case "pages":
             if let list = incoming.pages?.value { pages = list }
         case "connected":
@@ -2805,12 +2840,22 @@ final class EngineClient: ObservableObject {
             if let detail = try? JSONDecoder().decode(UsageDetail.self, from: data) { usageDetail = detail; break }
             if let reply = try? JSONDecoder().decode(UsageReply.self, from: data) {
                 usage = reply
-                if let p = pendingDelete, p.palette == reply.palette {
+                if let m = pendingMove, m.group != nil && m.group == reply.group || m.playback != nil && m.playback == reply.playback {
+                    // Only a `page.slot` binding stops following a moved playback; an id binding follows it.
+                    pendingMove?.controls = reply.playback == nil ? reply.controls : reply.controls.filter { $0.action.hasSuffix(" " + m.from) }
+                    sayMoved()   // the move's delta may have come first
+                }
+                let key = reply.palette.map { "palette \($0)" } ?? reply.group.map { "group \($0)" } ?? reply.playback.map { "playback \($0)" }
+                if let p = pendingDelete, p.key == key {
                     if lastMessage == p.shown {
                         let what = p.shown.dropLast(" Confirm on softkey A.".count)
-                        let used = reply.cues == 0 ? "No cue uses it."
-                            : "\(reply.cues) \(reply.cues == 1 ? "cue" : "cues") on \(reply.playbacks) \(reply.playbacks == 1 ? "playback" : "playbacks") \(reply.cues == 1 ? "uses" : "use") it and \(reply.cues == 1 ? "keeps" : "keep") its values."
-                        lastMessage = "\(what) \(used) Confirm on softkey A."
+                        var said = what + ""
+                        if reply.palette != nil {
+                            said += reply.cues == 0 ? " No cue uses it."
+                                : " \(reply.cues) \(reply.cues == 1 ? "cue" : "cues") on \(reply.playbacks) \(reply.playbacks == 1 ? "playback" : "playbacks") \(reply.cues == 1 ? "uses" : "use") it and \(reply.cues == 1 ? "keeps" : "keep") its values."
+                        }
+                        if !reply.controls.isEmpty { said += " \(Self.names(reply.controls)) \(reply.controls.count == 1 ? "says" : "say") \(p.named) and will do nothing." }
+                        lastMessage = said + " Confirm on softkey A."
                         if armedMessage == p.shown { armedMessage = lastMessage }   // UI-50: still the function's own
                     }
                     pendingDelete = nil
@@ -2822,6 +2867,8 @@ final class EngineClient: ObservableObject {
             if let state = try? JSONDecoder().decode(PlaybackSettings.self, from: data) { playbackSettings = state }
         case "locked":
             if let on = incoming.locked { locked = on }
+        case "lock_code_saved":   // UI-85
+            if let on = incoming.lockCodeSaved { lockCodeSaved = on }
         case "surface":   // UI-84: not published state, so a surface key re-renders nothing by itself
             if let event = try? JSONDecoder().decode(SurfaceEvent.self, from: data) { surfaceEvents.send(event) }
         case "grand_master":
@@ -2905,8 +2952,50 @@ extension EngineClient {
     func sayDelete(palette p: PaletteInfo) {
         let shown = "Delete palette \(p.number)\(p.legend.isEmpty ? "" : " " + p.legend)? Confirm on softkey A."
         say(shown)
-        pendingDelete = (p.number, shown)
+        pendingDelete = ("palette \(p.number)", shown, "palette \(p.number)")
         sendJSON("usage", ["palette": p.number])
+    }
+
+    /// IPC-66, CTL-74: a delete names the controls that will then do nothing.
+    func sayDelete(group g: GroupInfo) {
+        let shown = "Delete \(g.title)? Confirm on softkey A."
+        say(shown)
+        pendingDelete = ("group \(g.id)", shown, "group \(g.id)")
+        sendJSON("usage", ["group": g.id])
+    }
+
+    /// "BCF2000 Note 32 ch 1 and deck key 1/3".
+    fileprivate static func names(_ controls: [UsageReply.Control]) -> String {
+        let list = controls.map(\.shown)
+        return list.count < 2 ? list.joined() : list.dropLast().joined(separator: ", ") + " and " + (list.last ?? "")
+    }
+
+    /// IPC-66: after a move, the controls that still say the old place.
+    private func sayMoved() {
+        guard let m = pendingMove, !m.controls.isEmpty else { return }
+        let moved: Bool
+        let text: String
+        if let g = m.group {
+            moved = !groups.contains { $0.id == g } && groups.contains { String($0.id) == m.to }
+            text = "Group \(g) is now \(m.to). "
+        } else {
+            moved = m.playback.flatMap { playback($0) }.map { $0.homeHandle != m.from } ?? false
+            text = "Playback \(m.from) is now \(m.to). "
+        }
+        guard moved else { return }
+        pendingMove = nil
+        // Not the armed function's own line: Move disarms right after and would take it away (UI-50).
+        lastMessage = text + "\(Self.names(m.controls)) still \(m.controls.count == 1 ? "says" : "say") \(m.group.map { "group \($0)" } ?? m.from)."
+        armedMessage = nil
+    }
+
+    /// CTL-74: the shown mapping marks bindings to nothing, so ask again when the objects change.
+    private func objectsChanged() {
+        sayMoved()
+        guard let name = shownMapping else { return }
+        let key = groups.map { String($0.id) }.joined(separator: ",") + "|" + palettes.map { String($0.number) }.joined(separator: ",")
+            + "|" + playbackStored.values.sorted { $0.id < $1.id }.map { "\($0.id):\($0.page).\($0.slot)" }.joined(separator: ",")
+        if key != objectsKey { objectsKey = key; if objectsSeen { sendJSON("control.mapping", ["name": name]) }; objectsSeen = true }
     }
 
     func sayDelete(playback info: PlaybackInfo) {
@@ -2914,6 +3003,8 @@ extension EngineClient {
         if info.isRunning { text += " It is running: its output ends at once." }
         if info.stored.cues.count > 1 { text += " \(info.stored.cues.count) cues go with it." }
         say(text + " Confirm on softkey A.")
+        pendingDelete = ("playback \(info.id)", text + " Confirm on softkey A.", "playback \(info.homeHandle)")
+        sendJSON("usage", ["playback": info.id])
     }
 
     func sayDelete(cue: StoredCue, of list: PlaybackInfo) {
@@ -2938,7 +3029,7 @@ extension EngineClient {
                 if del { sayDelete(palette: p) } else { say("\(name) palette \(first): tap an empty cell.") }
             case .group:
                 guard let g = groups.first(where: { $0.id == first }) else { return }
-                say(del ? "Delete \(g.title)? Confirm on softkey A." : "\(name) group \(first): tap an empty cell.")
+                if del { sayDelete(group: g) } else { say("\(name) group \(first): tap an empty cell.") }
             }
             return
         }

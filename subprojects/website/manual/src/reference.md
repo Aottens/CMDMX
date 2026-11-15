@@ -97,7 +97,7 @@ and release at once. `<slot>` follows the page shown; `<page>/<slot>` and `<id>`
 | `/cmdmx/page/next`, `/cmdmx/page/prev` | button | next or previous page |
 | `/cmdmx/gm` | 0.0 to 1.0 | Grand Master |
 | `/cmdmx/dbo` | 1 / 0 | DBO on while 1 |
-| `/cmdmx/key/<name>` | button | a programmer key: `clear`, `locate`, `highlight`, `rem_dim`, `undo`, `redo`, `all`, `step_next`, `step_prev`; or a function button of the app: `record`, `update`, `include`, `delete`, `copy`, `move`, `legend`, `options`, `release` |
+| `/cmdmx/key/<name>` | button | a programmer key: `clear`, `locate`, `highlight`, `rem_dim`, `undo`, `redo`, `all`, `step_next`, `step_prev`; or a function button of the app: `record`, `update`, `include`, `delete`, `copy`, `move`, `legend`, `options`, `release`; or `lock`, which locks with the code saved on this Mac |
 | `/cmdmx/keypad/<token>` | button | a keypad key: `0` to `9`, `.`, `@`, `Thro`, `And`, `Not`, `Fixture`, `Group`, `Palette`, `Full`, `Enter`, `Backspace`, `Exit` |
 | `/cmdmx/wheel/<n>` | steps | turns wheel `<n>` of the open attribute group |
 | `/cmdmx/attribute_group/<g>` | button | opens group `I`, `P`, `C`, `G`, `B`, `E`, `S` or `FX` |

@@ -196,6 +196,13 @@ The status bar stays so you can read the state of the outputs, but its buttons d
 
 To unlock, type the code and press **Enter**. A wrong code shows "Wrong code" and the console stays locked.
 
+**Locking from a surface.** A `key lock` on a MIDI or OSC surface or a Stream Deck locks at once, without a
+prompt, with the code saved on this Mac (see [Control surfaces](controls.md#actions)). To save one, tick **Save as
+this console's code** in the Lock prompt before you press **Enter**: the console locks and the code is kept for the
+surfaces. While a code is saved the prompt says "A code is saved for surfaces", with **Forget** to remove it. Without a
+saved code the key is refused with "Save a lock code first". A surface never unlocks: type the code on the Mac, or
+the master code below. The saved code belongs to this Mac, not to the show, so it stays when you open another show.
+
 **The master code `68340` always unlocks**, so a forgotten code never ends a show. It is printed here on purpose, so
 anyone who reads this manual can unlock the console. The lock is an operational control against accidents and
 casual fingers. It does not protect the show file: anyone at the Mac can still copy or open the files in the

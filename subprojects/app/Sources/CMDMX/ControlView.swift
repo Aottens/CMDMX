@@ -336,7 +336,7 @@ private struct BindingsPanel: View {
                         }
                         .padding(.horizontal, 8).frame(height: 20)
                         ForEach(doc?.bindings ?? []) { binding in
-                            BindingRow(mapping: doc?.name ?? "", binding: binding, columns: Self.columns.map(\.1), client: engine)
+                            BindingRow(mapping: doc?.name ?? "", binding: binding, nothing: doc?.nothing.contains(binding.id) == true, columns: Self.columns.map(\.1), client: engine)
                         }
                     }
                 }
@@ -478,6 +478,8 @@ private struct BindingRow: View {
     @Environment(\.theme) private var t
     let mapping: String
     let binding: ControlBinding
+    /// CTL-74: the action names something that does not exist.
+    let nothing: Bool
     let columns: [CGFloat]
     let client: EngineClient
     @State private var confirmRemove = false
@@ -487,7 +489,11 @@ private struct BindingRow: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(binding.inputText).font(Typo.mono(Typo.body)).lineLimit(1).frame(width: columns[0], alignment: .leading)
-            CommitField(placeholder: "action", load: binding.action) { send(["action": $0]) }.frame(width: columns[1])
+            VStack(alignment: .leading, spacing: 0) {
+                CommitField(placeholder: "action", load: binding.action) { send(["action": $0]) }
+                if nothing { Text("nothing at \(binding.action)").font(Typo.ui(Typo.small)).foregroundStyle(t.amber).lineLimit(1) }
+            }
+            .frame(width: columns[1])
             HStack(spacing: 4) {
                 Button("Learn") { client.controlLearn(binding.action) }
                     .help("Arms Learn: the next input replaces this binding's input")

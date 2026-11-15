@@ -282,13 +282,17 @@ struct ControlMappingDoc {
     let name: String
     let raw: [String: Any]
     let bindings: [ControlBinding]
+    /// CTL-74: the ids of bindings that name a group, palette or playback that does not exist.
+    let nothing: Set<String>
 
     init?(_ data: Data) {
         guard let reply = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let name = reply["name"] as? String, let mapping = reply["mapping"] as? [String: Any] else { return nil }
         self.name = name
         raw = mapping
-        bindings = ((mapping["bindings"] as? [[String: Any]]) ?? []).map(ControlBinding.init)
+        let list = ((mapping["bindings"] as? [[String: Any]]) ?? []).map(ControlBinding.init)
+        bindings = list
+        nothing = Set(((reply["nothing"] as? [Int]) ?? []).compactMap { list.indices.contains($0) ? list[$0].id : nil })
     }
 
     /// Pretty JSON for a file.

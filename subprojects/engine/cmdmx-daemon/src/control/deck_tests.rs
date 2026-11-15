@@ -225,7 +225,10 @@ fn ctl_49_an_enabled_deck_gets_the_generated_profile() {
         .unwrap()
         .clone();
     assert_eq!(m["profile"], true);
-    let reply: Value = serde_json::from_str(&c.mapping_reply("Stream Deck Original")).unwrap();
+    let reply: Value = serde_json::from_str(
+        &c.mapping_reply(&crate::demo_engine().unwrap(), "Stream Deck Original"),
+    )
+    .unwrap();
     let bindings = reply["mapping"]["bindings"].as_array().unwrap();
     let action = |n: u16| {
         bindings
@@ -502,7 +505,8 @@ fn ctl_56_learning_on_deck_page_2_binds_on_page_2() {
         [format!("Learned: {DECK} key 5 → dbo")],
         "page 1's go is not replaced"
     );
-    let reply: Value = serde_json::from_str(&c.mapping_reply("mine")).unwrap();
+    let reply: Value =
+        serde_json::from_str(&c.mapping_reply(&crate::demo_engine().unwrap(), "mine")).unwrap();
     let five: Vec<&Value> = reply["mapping"]["bindings"]
         .as_array()
         .unwrap()
@@ -651,7 +655,8 @@ fn two_pages(test: &str, e: &Engine) -> (Control, PathBuf) {
 }
 
 fn bindings_of(c: &Control, key: u16) -> Vec<Value> {
-    let reply: Value = serde_json::from_str(&c.mapping_reply("mine")).unwrap();
+    let reply: Value =
+        serde_json::from_str(&c.mapping_reply(&crate::demo_engine().unwrap(), "mine")).unwrap();
     reply["mapping"]["bindings"]
         .as_array()
         .unwrap()
@@ -993,7 +998,8 @@ fn ctl_71_deck_clear_leaves_midi_and_osc_bindings_alone() {
         r#"{"v":1,"cmd":"control.deck_clear","mapping":"mixed","deck_page":1}"#,
     )
     .unwrap();
-    let reply: Value = serde_json::from_str(&c.mapping_reply("mixed")).unwrap();
+    let reply: Value =
+        serde_json::from_str(&c.mapping_reply(&crate::demo_engine().unwrap(), "mixed")).unwrap();
     let b = reply["mapping"]["bindings"].as_array().unwrap();
     assert_eq!(b.len(), 1, "{b:?}");
     assert_eq!(b[0]["action"], "fader 1");
