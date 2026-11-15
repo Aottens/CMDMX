@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls, show files and batch I are done; batch J has the Mac keys, the page marks and the mouse
-range. Next: the rest of batch J (INP-01, INP-04, INP-05 and INP-06), then VS4-07 and VS4-03.
+Patch, profiles, controls, show files and batch I are done; batch J has the Mac keys, the page marks, the mouse
+range and typed values. Next: the rest of batch J (INP-04, INP-05 and INP-06), then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap waits for a test print (HWB-10). Progress: [`STATE.md`](STATE.md), the plan: [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -150,6 +150,9 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
   Clear with a choice of what LTP attributes do; `3` then Clear fades the programmer out over 3 s.
 - `@ + 10` and `@ - 10` move the selection's level from where it is, in the programmer or on stage, clamped at 0 and
   100 %. A wheel goes from 0 to full in 255 points of drag. All with an empty programmer says so.
+- Type a value, then click a wheel's name: `50` on Pan is the middle of each fixture's range, `240` on Hue is blue,
+  `3200` on the K wheel is 3200 K, and `3` on a gobo or colour wheel is each fixture's own third slot; a slot past the
+  last is refused ("Gobo has 22 slots").
 - `@ @` is full; with *Channel levels* at one digit, `@ 5` is 50 % as on a Titan.
 
 **Palettes**

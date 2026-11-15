@@ -113,6 +113,9 @@ pub enum CoreError {
     InvalidCount(u32),
     #[error("fixture id {0} is already patched")]
     DuplicateFixture(u32),
+    /// PRG-104: a typed value outside the attribute's range, worded for the operator.
+    #[error("{0}")]
+    ValueRefused(String),
     #[error("invalid value {0} (expected 0.0..=1.0)")]
     InvalidLevel(f32),
     #[error("page {0} does not exist (pages are 1 to {max})", max = crate::playback::PAGES)]

@@ -1241,6 +1241,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
             .save_profile(&format!("{}/{}", p.manufacturer, p.model), p)
             .map(drop),
         ProgrammerSet { attribute, value } => engine.set_programmer_level(&attribute, value),
+        ProgrammerType { attribute, value } => engine.type_value(&attribute, value),
         CueRemove {
             id,
             cue,
@@ -1363,6 +1364,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | EffectStop { .. }
         | EffectRestart
         | ProgrammerSet { .. }
+        | ProgrammerType { .. }
         | ProfileSave(_)
         | Colour { .. }
         | CtStep { .. }
@@ -1510,6 +1512,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         ProgrammerSet { attribute, .. } => {
             (format!("Set {attribute}"), Some(format!("set:{attribute}")))
         }
+        ProgrammerType { attribute, .. } => (format!("Set {attribute}"), None),
         EffectApply(a) => (
             match a {
                 cmdmx_core::effect::EffectApply::Look(name) => format!("Effect {name}"),
@@ -3603,6 +3606,10 @@ mod tests {
             Class::Edit,
         ),
         (
+            r#"{"v":1,"cmd":"programmer.type","attribute":"Pan","value":50}"#,
+            Class::Edit,
+        ),
+        (
             r#"{"v":1,"cmd":"library.search","query":"par"}"#,
             Class::Neutral,
         ),
@@ -4424,6 +4431,44 @@ mod tests {
             "one undo takes the run back"
         );
         assert!(undo_run(&mut e, &mut h, &set(1.5)).is_err());
+    }
+
+    #[test]
+    fn ipc_63_programmer_type_is_one_edit_each_and_refuses_as_a_warning() {
+        use cmdmx_core::value::Value::Level;
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        undo_run(&mut e, &mut h, SELECT_101).unwrap();
+        let typed =
+            |v: &str| format!(r#"{{"v":1,"cmd":"programmer.type","attribute":"Pan","value":{v}}}"#);
+        undo_run(&mut e, &mut h, &typed("50")).unwrap();
+        undo_run(&mut e, &mut h, &typed("25")).unwrap();
+        // Coalesced with nothing: each typed value is its own step.
+        assert_eq!((h.len(), h.undo_label()), (3, Some("Set Pan")));
+        assert_eq!(e.programmer().value(101, "Pan"), Some(Level(0.25)));
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.programmer().value(101, "Pan"), Some(Level(0.5)));
+        // A refusal parses, then the engine refuses it with PRG-104's warning; no step is added.
+        assert!(ipc::parse_command(&typed("150")).is_ok());
+        let steps = h.len();
+        let err = undo_run(&mut e, &mut h, &typed("150")).unwrap_err();
+        assert_eq!(err.to_string(), "Pan takes 0–100 %");
+        assert_eq!(h.len(), steps);
+        assert_eq!(e.programmer().value(101, "Pan"), Some(Level(0.5)));
+        for bad in [
+            r#"{"v":1,"cmd":"programmer.type","value":50}"#,
+            r#"{"v":1,"cmd":"programmer.type","attribute":"Pan"}"#,
+            r#"{"v":1,"cmd":"programmer.type","attribute":"Pan","value":"50"}"#,
+        ] {
+            assert!(ipc::parse_command(bad).is_err(), "{bad}");
+        }
+        let cmd = ipc::parse_command(&typed("3")).unwrap();
+        assert_eq!(
+            class(&cmd),
+            Class::Edit,
+            "so IPC-50 refuses it while locked"
+        );
+        assert_eq!(label(&cmd).1, None, "coalesced with nothing");
     }
 
     // ---- VS6-02: OUT-34 ----------------------------------------------------------------

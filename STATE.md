@@ -12,7 +12,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. IDEA-35 batch J, input paths: the builds left as `BACKLOG.md` groups them, INP-01 next, then INP-04, and
+1. IDEA-35 batch J, input paths: the builds left as `BACKLOG.md` groups them, INP-04 next, then
    INP-05 with INP-06; DEF-06 (UNDO-21) and TST-01 (OUT-43) are built apart, beside it. No tag after a
    batch: the next release is the one the first service runs on, and the gap review follows it (REL-26). P1-31
    (Blind and Edit) stays apart.

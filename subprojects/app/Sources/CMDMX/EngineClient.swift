@@ -2079,6 +2079,11 @@ final class EngineClient: ObservableObject {
         sendJSON("programmer.set", ["attribute": attribute, "value": value])
     }
 
+    /// IPC-63: a typed value in the wheel's own unit (or a slot number) for the selected fixtures.
+    func programmerType(attribute: String, value: Double) {
+        sendJSON("programmer.type", ["attribute": attribute, "value": value])
+    }
+
     private func acceptEditorProfile(_ data: Data) {
         guard let ask = editorAsk else { return }
         guard let reply = try? JSONDecoder().decode(DocReply.self, from: data) else {

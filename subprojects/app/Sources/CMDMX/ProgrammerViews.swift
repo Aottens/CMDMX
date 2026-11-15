@@ -315,15 +315,16 @@ private struct WheelFace: View {
     /// The value comes from a palette: cyan (UI-03, PAL-30).
     var fromPalette = false
     let width: CGFloat
-    /// UI-26: double-click on the name only (never the wheel, so a drag cannot trigger it).
-    var onNameDoubleClick: (() -> Void)?
+    /// UI-26, UI-82: a click on the name only (never the wheel, so a drag cannot trigger it),
+    /// with its own click count (1 or 2).
+    var onNameClick: ((Int) -> Void)?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Text(name.uppercased()).font(Typo.legend(11)).tracking(0.6).foregroundStyle(t.fg2).lineLimit(1)
                 .padding(.leading, 6).padding(.top, 4)
                 .contentShape(Rectangle())
-                .onTapGesture(count: 2) { onNameDoubleClick?() }
+                .onTapGesture { onNameClick?(NSApp.currentEvent?.clickCount ?? 1) }
             Text(verbatim: "enc \(slot)").font(Typo.mono(9)).foregroundStyle(t.fg3)
                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 6).padding(.top, 4)
             if auto {
@@ -363,9 +364,13 @@ private struct WheelFace: View {
 /// One wheel: drag or scroll to send `programmer.wheel` (IPC-16).
 private struct WheelView: View {
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
+    @EnvironmentObject private var line: TokenLine
     let wheel: WheelState
     let slot: Int
     let width: CGFloat
+    /// UI-82: the first click of a double-click typed the number, so the second must not send Off.
+    @State private var typedAt: Date?
     /// Whole steps already sent during the current drag (remainder stays in the translation).
     @State private var sentSteps = 0
 
@@ -394,14 +399,33 @@ private struct WheelView: View {
         }
     }
 
+    /// UI-82: a click with a lone number on the line types it; UI-26: a double-click is Off. The click
+    /// count is not trusted for the typing click: clicks elsewhere just before (the keypad) can raise it.
+    /// Only a click right after a typing click on this name is that double-click's second half, and is dropped.
+    private func nameClick(_ count: Int) {
+        if typedAt.map({ Date().timeIntervalSince($0) <= NSEvent.doubleClickInterval }) ?? false {
+            typedAt = nil
+            return
+        }
+        if let n = line.onlyNumber {
+            typedAt = Date()
+            if ui.armedAllows(.fixture, engine) {
+                engine.programmerType(attribute: wheel.attribute, value: n)
+                line.clear()
+            }
+        } else if count == 2 {
+            engine.programmerOff(attribute: wheel.attribute)
+        }
+    }
+
     var body: some View {
-        WheelFace(name: wheel.attribute, slot: slot,
+        WheelFace(name: line.onlyNumber == nil ? wheel.attribute : "\(wheel.attribute) = \(line.tokens[0])", slot: slot,
                   text: effectText ?? (wheel.attribute == "Kelvin" ? kelvinText
                   : wheel.attribute == "Hue" ? String(format: "%.0f°", wheel.value * 360)
                   : wheel.sixteenBit && engine.fineUsed.contains(wheel.attribute)
                   ? String(format: "%.1f %%", wheel.value * 100) : percent(wheel.value)),
                   value: wheel.value, touched: wheel.touched, auto: wheel.auto, fromPalette: wheel.palette != nil, width: width,
-                  onNameDoubleClick: { engine.programmerOff(attribute: wheel.attribute) })
+                  onNameClick: nameClick)
         .background(ScrollCatcher { steps, flags in
             engine.wheel(attribute: wheel.attribute, steps: steps, resolution: resolution(flags))
         })

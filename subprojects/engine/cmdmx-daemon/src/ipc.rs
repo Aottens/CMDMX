@@ -203,6 +203,11 @@ pub enum Command {
         attribute: String,
         value: f32,
     },
+    /// IPC-63: a typed value in the wheel's own unit, or a slot number.
+    ProgrammerType {
+        attribute: String,
+        value: f32,
+    },
     /// IPC-23
     Colour {
         hue: f32,
@@ -1598,6 +1603,14 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             },
         }),
         Some("programmer.set") => Ok(Command::ProgrammerSet {
+            attribute: string(&v, "attribute")?,
+            value: v
+                .get("value")
+                .and_then(|n| n.as_f64())
+                .map(|n| n as f32)
+                .ok_or("missing or invalid \"value\"")?,
+        }),
+        Some("programmer.type") => Ok(Command::ProgrammerType {
             attribute: string(&v, "attribute")?,
             value: v
                 .get("value")

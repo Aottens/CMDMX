@@ -204,6 +204,25 @@ impl ColourModel {
     }
 }
 
+impl ColourModel {
+    /// PRG-104: set `wheel` to a typed value: Hue in degrees, Kelvin in kelvin, every other
+    /// wheel in percent. Brightness (and saturation for Hue) are kept like [`ColourModel::turn`].
+    /// `None` if it is not a wheel of this model.
+    pub fn set(self, wheel: &str, colour: TargetColour, typed: f32) -> Option<TargetColour> {
+        match (self, wheel) {
+            (ColourModel::Hsi, "Hue") => {
+                let (_, s, v) = colour.to_hsv();
+                Some(TargetColour::from_hsv(typed / 360.0, s, v))
+            }
+            (ColourModel::Kelvin, "Kelvin") => Some(planck(typed).scaled(max_or_one(colour))),
+            _ => {
+                let delta = typed / 100.0 - self.wheel_value(wheel, colour)?;
+                self.turn(wheel, colour, delta)
+            }
+        }
+    }
+}
+
 /// PRG-63: the Kelvin wheel runs 1800 K (0.0) to 10000 K (1.0), linear in mired.
 const MIRED_AT_0: f32 = 555.6;
 const MIRED_SPAN: f32 = 455.6;
