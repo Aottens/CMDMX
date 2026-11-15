@@ -345,7 +345,7 @@ DEF-06 alone and TST-01 alone, beside these.
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| INP-01 | Core, daemon and app: a number on the command line, then a click on a wheel's name, sets that attribute in the wheel's unit or as a slot number; `prg_104_…`, `ipc_63_…`; manual and run on Art-Net. | PRG-104, IPC-63, UI-82 | M | done (2026-11-15, #PR; run `tests/manual/runs/2026-11-15-INP-01.md`) |
+| INP-01 | Core, daemon and app: a number on the command line, then a click on a wheel's name, sets that attribute in the wheel's unit or as a slot number; `prg_104_…`, `ipc_63_…`; manual and run on Art-Net. | PRG-104, IPC-63, UI-82 | M | done (2026-11-15, #321; run `tests/manual/runs/2026-11-15-INP-01.md`) |
 | INP-02 | App: ⇧-click and a box drawn over the tiles select a range of fixtures in window order; manual and run on Art-Net with Fan. | UI-83 | S | done (2026-11-15, #320; run `tests/manual/runs/2026-11-15-INP-02-09.md`) |
 | INP-03 | App: Titan's Alt keys on ⌥ whatever Keys says, Page Up and Down, the numeric `/` and `*`, and a Console menu that lists them; manual and run. | UI-86 | M | done (2026-11-15, #317; run `tests/manual/runs/2026-11-15-INP-03-07-08.md`) |
 | INP-04 | Daemon and app: with the app open, a surface's keypad goes into the app's one command line and its programming keys arm the app's functions, a surface press being the target; `ipc_64_…`, `ctl_72_…`; manual and run with the on-screen deck and a virtual MIDI port. | IPC-64, CTL-72, UI-84 | L | todo |
