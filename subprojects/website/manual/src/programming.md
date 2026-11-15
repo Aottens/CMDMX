@@ -177,6 +177,23 @@ steps.
 show through again for just that group. To take out one attribute, double-click its name above
 the wheel.
 
+### Typing a value
+
+Type a number on the keypad or the Mac keys, then click a wheel's name: that attribute goes to the number on
+every target, as on Titan (a value, then the attribute's key). While a lone number is on the command line, each
+wheel's name shows it, for example `PAN = 50`. The number is read in the wheel's own unit:
+
+- a percentage of the range: `50` on Pan is the middle of each fixture's own pan range, whatever its degrees;
+- degrees on **Hue** (0–360), keeping each fixture's saturation and brightness;
+- kelvin on the **K** wheel (1800–10000);
+- on a wheel with slots, such as a gobo wheel, a colour wheel or a prism, the slot's number: `3` is the third
+  slot as the profile lists it, and each fixture takes its own third slot.
+
+A number out of range, or a slot past the last one, is refused with a message such as "Gobo 1 has 7 slots", and
+nothing changes. The click empties the line, so the second click of a double-click does not also take the
+attribute out. One Undo takes back one typed value. With Record or a function armed the click is refused, as a
+fixture tap is.
+
 ## The colour picker
 
 When the selection has fixtures that mix colour, the **C** group shows four buttons, **HSI**,
