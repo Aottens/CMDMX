@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-15 (DEF-06)_
+_Last updated: 2026-11-15 (TST-01)_
 
 ## Current step
+TST-01 (2026-11-15, OUT-43): `cmdmx-daemon/tests/no_dmx.rs` scans every daemon start in `tests/` for the three kill switches; `client_loss`, `late_tick`, `lock` (IPC-50) and `message_history` start twice, the first run all off to point the node at 127.0.0.1 (or disable the serial `auto` node), the second with one kind on and the `// OUT-43: loopback` marker.
+
 DEF-06 (2026-11-15, UNDO-21): `ListRun::restored(old, new)` runs from `restore_edit_state` for every list or chase that stays; with a current cue whose number is gone it follows the cue the step renumbered (a cue of `new` that `old` did not have, equal but for its number), else `cue_before`, else the first; next keeps an existing cue, follows, else `cue_after` (a chase: `redirect`), never the current one. Fades and output are untouched. Tests `undo_21_…` in `cmdmx-core/tests/undo.rs`. Run: `tests/manual/runs/2026-11-15-DEF-06.md`.
 
 INP-05 (2026-11-15, IPC-65, CTL-73): `Lock` loads and saves `lock_code` in `state.json` (`Lock::load`, `save`); `lock.set` without `code` locks with it. `Key::Lock` becomes `LockSet {code: None}`, which `main.rs` applies through `set_lock`, the same path as the IPC command; `Surface::armed(locked)` adds `lock` for its lamp. INP-06 (2026-11-15, IPC-66, CTL-74): `Control::controls` lists the bindings that name a group, palette or playback (id, or a page.slot that holds it) for `usage`; `mapping_reply` adds `nothing` (`names_nothing`); `resolve` of a playback id the engine lacks is `None`, and a group or palette press on nothing is dropped. Run: `tests/manual/runs/2026-11-15-INP-05-06.md`.

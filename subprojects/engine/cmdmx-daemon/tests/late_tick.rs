@@ -4,6 +4,8 @@
 //! unicast to `127.0.0.1`, stops it for 3 s with `SIGSTOP` and counts the packets after `SIGCONT`.
 //! The test binds `127.0.0.1:5568` with `SO_REUSEADDR`: a Mac running `olad` holds `*:5568`, and
 //! a socket on the exact address may share the port with it and gets the unicast packets.
+//! It starts twice (OUT-43): the first run has every output off and only saves the node's unicast
+//! `127.0.0.1`; the second, with only sACN on, reopens that show, so no packet can leave loopback.
 
 #![cfg(unix)]
 #![allow(
@@ -93,6 +95,38 @@ fn sacn_packet(socket: &UdpSocket) -> bool {
     }
 }
 
+/// SIGTERM, then wait for the exit: REL-14 writes the show file on the way out.
+fn sigterm_and_wait(daemon: &mut Child) {
+    // SAFETY: kill(2) on our own child's pid.
+    let pid = i32::try_from(daemon.id()).unwrap();
+    assert_eq!(unsafe { libc::kill(pid, libc::SIGTERM) }, 0);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(s) = daemon.try_wait().unwrap() {
+            assert!(s.success(), "daemon exit: {s}");
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "daemon did not exit within 5 s of SIGTERM"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// Every node of the shows folder after the first run, checked before the second start: a show
+/// that did not save, or a second node of the kind, can never send off the Mac (OUT-43).
+fn saved_nodes(shows: &std::path::Path) -> Vec<Value> {
+    std::fs::read_dir(shows)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.to_string_lossy().ends_with(".cmdmx.json"))
+        .map(|p| serde_json::from_str::<Value>(&std::fs::read_to_string(p).unwrap()).unwrap())
+        .filter_map(|show| show.pointer("/output/nodes")?.as_array().cloned())
+        .flatten()
+        .collect()
+}
+
 fn signal(daemon: &Daemon, sig: libc::c_int) {
     // SAFETY: `kill` on the pid of our own child, which `Daemon` has not reaped yet.
     let rc = unsafe { libc::kill(daemon.0.id() as libc::pid_t, sig) };
@@ -111,8 +145,68 @@ fn out_40_after_sigstop_the_daemon_sends_at_most_20_packets_per_250_ms() {
         .local_addr()
         .unwrap()
         .port();
+    // First run, every output off: save the sACN node's unicast as 127.0.0.1 (OUT-43).
+    let mut first = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            .env("HOME", &dir)
+            .args(["--no-artnet", "--no-sacn", "--no-serial"])
+            .args(["--ipc-port", &port.to_string()])
+            .arg("--show-dir")
+            .arg(dir.join("Shows"))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut setup = connect(port);
+    let outputs = snapshot(&mut setup)["outputs"].clone();
+    let node = outputs
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["kind"] == "sacn")
+        .unwrap_or_else(|| panic!("no sACN node in {outputs}"))["id"]
+        .clone();
+    let edit = json!({"v": 1, "cmd": "output.edit", "id": node, "unicast": "127.0.0.1"});
+    setup.send(Message::Text(edit.to_string().into())).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        assert!(Instant::now() < deadline, "the edit never came back");
+        if let Message::Text(t) = setup.read().unwrap() {
+            let m: Value = serde_json::from_str(&t).unwrap();
+            let outputs = m["outputs"].as_array();
+            if outputs.is_some_and(|o| {
+                o.iter()
+                    .any(|n| n["id"] == node && n["unicast"] == "127.0.0.1")
+            }) {
+                break;
+            }
+        }
+    }
+    sigterm_and_wait(&mut first.0);
+    let saved = saved_nodes(&dir.join("Shows"));
+    assert!(
+        saved
+            .iter()
+            .any(|n| n["id"] == node && n["unicast"] == "127.0.0.1"),
+        "{saved:?}"
+    );
+    for n in saved
+        .iter()
+        .filter(|n| n["kind"] == "sacn" && n["enabled"] == true)
+    {
+        assert_eq!(n["unicast"], "127.0.0.1", "{n}");
+    }
+
+    // Second run, only sACN on: the show reopens with the node on 127.0.0.1.
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
     let daemon = Daemon(
         Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            // OUT-43: loopback
             .env("HOME", &dir)
             .args([
                 "--no-artnet",
@@ -130,15 +224,13 @@ fn out_40_after_sigstop_the_daemon_sends_at_most_20_packets_per_250_ms() {
 
     let mut app = connect(port);
     let outputs = snapshot(&mut app)["outputs"].clone();
-    let node = outputs
+    let reopened = outputs
         .as_array()
         .unwrap()
         .iter()
-        .find(|n| n["kind"] == "sacn")
-        .unwrap_or_else(|| panic!("no sACN node in {outputs}"))["id"]
-        .clone();
-    let edit = json!({"v": 1, "cmd": "output.edit", "id": node, "unicast": "127.0.0.1"});
-    app.send(Message::Text(edit.to_string().into())).unwrap();
+        .find(|n| n["id"] == node)
+        .unwrap_or_else(|| panic!("node {node} gone from {outputs}"));
+    assert_eq!(reopened["unicast"], "127.0.0.1", "{reopened}");
 
     socket
         .set_read_timeout(Some(Duration::from_secs(5)))

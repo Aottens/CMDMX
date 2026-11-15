@@ -112,8 +112,14 @@ Found in the FIL-01..03 run: daemon tests that start the Demo show with Art-Net 
 where real lamps may listen (the Demo show's fixtures on 9–150 light real lamps, `STATE.md`).
 - **OUT-43** Every test that starts `cmdmx-daemon` passes `--no-artnet --no-sacn --no-serial`. One test,
   `out_43_tests_send_no_dmx`, reads every file in `cmdmx-daemon/tests/` and fails when a daemon start there lacks one of the
-  three flags, naming the file and line. Today `client_loss`, `lock`, `message_history` and
-  `remote` start the Demo with Art-Net on, and `message_history` with serial on too.
+  three flags, naming the file and line. Today `client_loss`, `lock`, `message_history`, `remote` and `surface` start the
+  Demo with Art-Net on, `message_history` with serial on too, and `late_tick` with sACN on.
+  *Loopback exception (owner, 2026-11-15, in the TST-01 build):* a test that must see real frames (IPC-44, IPC-50, OUT-40)
+  or a real node change (IPC-52) starts the daemon first with all three flags, points the node at a destination no lamp
+  can hear (127.0.0.1, or a serial port that does not exist; the Demo's serial `auto` node is disabled), ends that run
+  with SIGTERM (REL-14 writes the show), and starts again with only that one kind on. That second start carries the
+  comment `// OUT-43: loopback` inside its builder; the scan accepts it when it lacks exactly one flag and the same file
+  also has a start with all three, so no frame ever leaves the Mac.
 
 ## Hardware checklist
 `tests/hardware/output.md` covers OUT-03/04/06/09/20..23 on the owner's network and Eurolite MK2. P1-18 adds lines for OUT-29/31: a fixture on universe 2 seen on Art-Net and sACN universe 2 in a monitor while universe 1 keeps going, a node disabled and enabled without the others dropping a frame, and the Eurolite chosen on the Output screen surviving a daemon restart.

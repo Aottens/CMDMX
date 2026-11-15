@@ -12,8 +12,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
 
 ## Next
-1. TST-01 (OUT-43), batch J's last build apart, a build of its own. No tag after a batch: the next release is
-   the one the first service runs on, and the gap review follows it (REL-26). P1-31 (Blind and Edit) stays apart.
+1. The first service: VS4-07 and VS4-03 below. No tag after a batch: the next release is the one the first service
+   runs on, and the gap review follows it (REL-26). P1-31 (Blind and Edit) stays apart.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): Claude reviews every PR on GitHub and the risk gate labels it,
    in shadow; a finding a PR leaves unfixed must be recorded first. Nine of the ten reviews up to #317 returned

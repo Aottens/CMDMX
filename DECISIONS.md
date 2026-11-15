@@ -5,6 +5,21 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-15 — Tests that need real frames start twice, the second time on loopback only (owner, TST-01, OUT-43)
+
+**Decision:** A daemon test that must see real frames or a real node change first runs with `--no-artnet --no-sacn
+--no-serial`, points the node at 127.0.0.1 (or a serial port that does not exist), saves with SIGTERM, and restarts with
+only that kind on, marked `// OUT-43: loopback`; `out_43_tests_send_no_dmx` accepts only such a start.
+
+**Alternatives considered:** every start with all three flags, dropping the wire checks of IPC-44, IPC-50, OUT-40 and
+IPC-52; or pointing the node at loopback after a start with output on, which sends the Demo to the network until the edit.
+
+**Reasoning:** The FIL-01..03 run found Demo values on the owner's network, where the church rig and the desk's Eurolite
+listen. The restart keeps the wire coverage and never sends a frame off the Mac.
+
+**Reversal trigger:** the daemon gains a way to set a node's destination before the first tick (a test-only flag or a
+seeded show), which makes the restart unnecessary.
+
 ## 2026-11-15 — The flap's hinge: a €2 black piano hinge instead of the Pinet stainless one (owner, HWB-10)
 
 **Decision:** The screen flap hinges on a Duovorm black zinc-plated steel piano hinge, 480 x 25 x 0.7 mm (meubelbeslagonline.nl, €2.32), used uncut at X 72..552 and let 0.7 mm into the walnut and the deck. It replaces the Pinet stainless 25 x 1.0 hinge from RS. Record: `subprojects/hardware/cad/klep/README.md`.

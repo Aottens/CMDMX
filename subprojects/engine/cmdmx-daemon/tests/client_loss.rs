@@ -2,7 +2,9 @@
 //!
 //! Runs the real binary on a temp `HOME` and `--show-dir`, without sACN and serial, with the demo
 //! show's Art-Net node pointed at `127.0.0.1` (OUT-04: the daemon sends from an ephemeral port, so
-//! this test owns the protocol port on loopback). A client sets a live look, vanishes without a
+//! this test owns the protocol port on loopback). It starts twice (OUT-43): the first run has every
+//! output off and only saves the node's target `127.0.0.1`; the second, with only Art-Net on,
+//! reopens that show, so no frame can leave the loopback address. A client sets a live look, vanishes without a
 //! close handshake, and the frames must run on unchanged; a new client must see the look.
 
 #![cfg(unix)] // `libc` is a unix-only dependency
@@ -29,6 +31,38 @@ impl Drop for Daemon {
         let _ = self.0.kill();
         let _ = self.0.wait();
     }
+}
+
+/// SIGTERM, then wait for the exit: REL-14 writes the show file on the way out.
+fn sigterm_and_wait(daemon: &mut Child) {
+    // SAFETY: kill(2) on our own child's pid.
+    let pid = i32::try_from(daemon.id()).unwrap();
+    assert_eq!(unsafe { libc::kill(pid, libc::SIGTERM) }, 0);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(s) = daemon.try_wait().unwrap() {
+            assert!(s.success(), "daemon exit: {s}");
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "daemon did not exit within 5 s of SIGTERM"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// Every node of the shows folder after the first run, checked before the second start: a show
+/// that did not save, or a second node of the kind, can never send off the Mac (OUT-43).
+fn saved_nodes(shows: &std::path::Path) -> Vec<Value> {
+    std::fs::read_dir(shows)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.to_string_lossy().ends_with(".cmdmx.json"))
+        .map(|p| serde_json::from_str::<Value>(&std::fs::read_to_string(p).unwrap()).unwrap())
+        .filter_map(|show| show.pointer("/output/nodes")?.as_array().cloned())
+        .flatten()
+        .collect()
 }
 
 fn free_port() -> u16 {
@@ -83,6 +117,34 @@ fn until(ws: &mut WebSocket<TcpStream>, what: &str, pred: impl Fn(&Value) -> boo
             return m;
         }
     }
+}
+
+/// Points the demo's first node of `kind` at `127.0.0.1` through `field`, waits until the edit
+/// comes back, and returns the node's id. Called while every output is off (OUT-43).
+fn loopback_node(ws: &mut WebSocket<TcpStream>, kind: &str, field: &str) -> Value {
+    let snapshot = recv(ws);
+    assert_eq!(snapshot["type"], "snapshot");
+    let node = snapshot["outputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["kind"] == kind)
+        .unwrap_or_else(|| panic!("no {kind} node in {}", snapshot["outputs"]))["id"]
+        .clone();
+    send(
+        ws,
+        json!({"cmd": "output.edit", "id": node, field: "127.0.0.1"}),
+    );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        assert!(Instant::now() < deadline, "the edit never came back");
+        let m = recv(ws);
+        let outputs = m["outputs"].as_array();
+        if outputs.is_some_and(|o| o.iter().any(|n| n["id"] == node && n[field] == "127.0.0.1")) {
+            break;
+        }
+    }
+    node
 }
 
 /// One ArtDmx packet: (sequence, the 512 channels of universe 0:0:0).
@@ -157,9 +219,42 @@ fn ipc_44_killed_client_changes_nothing_and_a_new_client_sees_the_live_state() {
         .set_read_timeout(Some(Duration::from_millis(500)))
         .unwrap();
 
+    // First run, every output off: save the node's target as 127.0.0.1 (OUT-43).
+    let port = free_port();
+    let mut first = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            .env("HOME", &dir)
+            .args(["--no-artnet", "--no-sacn", "--no-serial"])
+            .args(["--ipc-port", &port.to_string()])
+            .arg("--show-dir")
+            .arg(dir.join("Shows"))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut setup = connect(port);
+    let node = loopback_node(&mut setup, "artnet", "target");
+    sigterm_and_wait(&mut first.0);
+    let saved = saved_nodes(&dir.join("Shows"));
+    assert!(
+        saved
+            .iter()
+            .any(|n| n["id"] == node && n["target"] == "127.0.0.1"),
+        "{saved:?}"
+    );
+    for n in saved
+        .iter()
+        .filter(|n| n["kind"] == "artnet" && n["enabled"] == true)
+    {
+        assert_eq!(n["target"], "127.0.0.1", "{n}");
+    }
+
+    // Second run, only Art-Net on: the show reopens with the node on 127.0.0.1.
     let port = free_port();
     let _daemon = Daemon(
         Command::new(env!("CARGO_BIN_EXE_cmdmx-daemon"))
+            // OUT-43: loopback
             .env("HOME", &dir)
             .args(["--no-sacn", "--no-serial", "--ipc-port", &port.to_string()])
             .arg("--show-dir")
@@ -170,21 +265,17 @@ fn ipc_44_killed_client_changes_nothing_and_a_new_client_sees_the_live_state() {
             .unwrap(),
     );
 
-    // The first client: points Art-Net at loopback and sets a live look.
+    // The first client: sets a live look.
     let mut app = connect(port);
     let snapshot = recv(&mut app);
     assert_eq!(snapshot["type"], "snapshot");
-    let node = snapshot["outputs"]
+    let reopened = snapshot["outputs"]
         .as_array()
         .unwrap()
         .iter()
-        .find(|n| n["kind"] == "artnet")
-        .unwrap_or_else(|| panic!("no Art-Net node in {}", snapshot["outputs"]))["id"]
-        .clone();
-    send(
-        &mut app,
-        json!({"cmd": "output.edit", "id": node, "target": "127.0.0.1"}),
-    );
+        .find(|n| n["id"] == node)
+        .unwrap_or_else(|| panic!("node {node} gone from {}", snapshot["outputs"]));
+    assert_eq!(reopened["target"], "127.0.0.1", "{reopened}");
     // A fader: playback 2 → dimmer 2 at channel 2 (IPC-09).
     send(
         &mut app,
