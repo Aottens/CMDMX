@@ -714,3 +714,117 @@ fn ipc_60_why_and_usage_detail_answer_the_sender_only_and_while_locked() {
     send(&mut app, json!({"cmd": "why", "fixture": "x"}));
     until(&mut app, "the error", |m| m["type"] == "error");
 }
+
+// --- IPC-65, CTL-73 the saved lock code -------------------------------------------
+
+const SAVE_FIRST: &str = "Save a lock code first: Lock, then Save as this console's code";
+
+fn save_code(ws: &mut WebSocket<TcpStream>, code: Value) {
+    send(ws, json!({"cmd": "lock.save_code", "code": code}));
+}
+
+fn saw_code_saved(ws: &mut WebSocket<TcpStream>, saved: bool) {
+    until(ws, "the lock_code_saved delta", |m| {
+        m["type"] == "lock_code_saved" && m["lock_code_saved"] == saved
+    });
+}
+
+#[test]
+fn ipc_65_a_saved_code_lives_in_state_json_and_locks_without_a_code() {
+    let dir = folder("ipc65-saved");
+    let port = free_port();
+    let first = daemon(&dir, port);
+    let mut app = connect(port);
+    let mut other = connect(port);
+    assert_eq!(recv(&mut app)["lock_code_saved"], false);
+    recv(&mut other);
+
+    // No saved code: a lock without a code is refused.
+    send(&mut app, json!({"cmd": "lock.set", "on": true}));
+    saw_warning(&mut app, SAVE_FIRST);
+    assert_eq!(fresh_snapshot(port)["locked"], false);
+
+    // Ill-typed: an error to the sender.
+    send(&mut app, json!({"cmd": "lock.save_code", "code": 5}));
+    until(&mut app, "the error", |m| m["type"] == "error");
+
+    save_code(&mut app, json!("4321"));
+    saw_code_saved(&mut app, true);
+    saw_code_saved(&mut other, true);
+    let snap = fresh_snapshot(port);
+    assert_eq!(snap["lock_code_saved"], true);
+    assert!(!snap.to_string().contains("4321"), "never the code");
+    let state = std::fs::read_to_string(dir.join("Shows/state.json")).unwrap();
+    assert!(state.contains("4321"), "this Mac's state.json: {state}");
+
+    // Locks with the saved code; saving is refused while locked; the code and the master unlock.
+    send(&mut other, json!({"cmd": "lock.set", "on": true}));
+    saw_locked(&mut app, true);
+    save_code(&mut app, json!(null));
+    saw_warning(&mut app, LOCKED);
+    lock_set(&mut app, false, "0000");
+    saw_warning(&mut app, "Wrong code");
+    lock_set(&mut app, false, "4321");
+    saw_locked(&mut app, false);
+    send(&mut app, json!({"cmd": "lock.set", "on": true}));
+    saw_locked(&mut app, true);
+    lock_set(&mut app, false, "68340");
+    saw_locked(&mut app, false);
+    drop(app);
+    drop(other);
+    drop(first);
+
+    // Kept over a restart, never in the show; `null` forgets it.
+    let _again = daemon(&dir, port);
+    let mut app = connect(port);
+    assert_eq!(recv(&mut app)["lock_code_saved"], true);
+    for entry in std::fs::read_dir(dir.join("Shows")).unwrap() {
+        let path = entry.unwrap().path();
+        if path.to_string_lossy().ends_with(".cmdmx.json") {
+            let text = std::fs::read_to_string(&path).unwrap_or_default();
+            assert!(!text.contains("4321"), "not in the show: {path:?}");
+        }
+    }
+    save_code(&mut app, json!(null));
+    saw_code_saved(&mut app, false);
+    let state = std::fs::read_to_string(dir.join("Shows/state.json")).unwrap();
+    assert!(!state.contains("4321"), "forgotten: {state}");
+    send(&mut app, json!({"cmd": "lock.set", "on": true}));
+    saw_warning(&mut app, SAVE_FIRST);
+}
+
+#[test]
+fn ctl_73_key_lock_from_osc_locks_with_the_saved_code_or_is_refused() {
+    let dir = folder("ctl73-osc");
+    let port = free_port();
+    let osc_port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    recv(&mut app);
+    send(
+        &mut app,
+        json!({"cmd": "control.osc", "enabled": true, "port": osc_port}),
+    );
+    std::thread::sleep(Duration::from_millis(500));
+    let key_lock = encode(&OscMessage {
+        address: "/cmdmx/key/lock".into(),
+        args: vec![OscArg::Float(1.0)],
+    });
+    let surface = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let daemon_at = ("127.0.0.1", osc_port);
+
+    surface.send_to(&key_lock, daemon_at).unwrap();
+    until(&mut app, "the refusal", |m| {
+        m["type"] == "warning"
+            && m["message"]
+                .as_str()
+                .is_some_and(|t| t.ends_with(SAVE_FIRST))
+    });
+
+    save_code(&mut app, json!("4321"));
+    saw_code_saved(&mut app, true);
+    surface.send_to(&key_lock, daemon_at).unwrap();
+    saw_locked(&mut app, true);
+    lock_set(&mut app, false, "4321");
+    saw_locked(&mut app, false);
+}

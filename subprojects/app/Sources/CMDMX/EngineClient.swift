@@ -1672,6 +1672,8 @@ final class EngineClient: ObservableObject {
     @Published private(set) var lastMessage: String?
     /// UI-38, IPC-50: the engine's lock; the cover follows it.
     @Published private(set) var locked = false
+    /// UI-85: whether the engine keeps a lock code for surfaces; never the code.
+    @Published private(set) var lockCodeSaved = false
     static let shared = EngineClient()
     /// UI-39: the Messages sheet's history, oldest first, at most `messageCap` lines. Merged from the
     /// engine's snapshot (IPC-51) plus the app's own lines; `unseenMessages` counts warnings and errors
@@ -2480,6 +2482,8 @@ final class EngineClient: ObservableObject {
     /// Hides the last engine message (e.g. when the operator selects another row).
     func clearMessage() { lastMessage = nil }
     /// UI-38: the engine checks the code; a wrong one comes back as a warning.
+    /// UI-85: keep (a string) or forget (nil) this console's lock code.
+    func saveLockCode(_ code: String?) { sendJSON("lock.save_code", ["code": code ?? NSNull()]) }
     func setLock(_ on: Bool, code: String) { lastMessage = nil; sendJSON("lock.set", ["on": on, "code": code]) }
 
     /// RMT-15: the engine validates (1-64 characters, port 1024-65535) and refuses with a message.
@@ -2581,6 +2585,7 @@ final class EngineClient: ObservableObject {
         let dbo: Bool?
         let on: Bool?
         let locked: Bool?
+        let lockCodeSaved: Bool?
         fileprivate let playbackSettings: Tolerant<PlaybackSettings>?
         let level: Double?
         let message: String?
@@ -2607,7 +2612,7 @@ final class EngineClient: ObservableObject {
         fileprivate let path: String?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, locked, level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
+            case type, v, page, pages, playbacks, dbo, on, locked, lockCodeSaved = "lock_code_saved", level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -2648,6 +2653,7 @@ final class EngineClient: ObservableObject {
             pages = incoming.pages?.value ?? []
             dbo = incoming.dbo ?? false
             locked = incoming.locked ?? false
+            lockCodeSaved = incoming.lockCodeSaved ?? false
             playbackSettings = incoming.playbackSettings?.value
             connected = incoming.connected?.value
             cueView = nil
@@ -2822,6 +2828,8 @@ final class EngineClient: ObservableObject {
             if let state = try? JSONDecoder().decode(PlaybackSettings.self, from: data) { playbackSettings = state }
         case "locked":
             if let on = incoming.locked { locked = on }
+        case "lock_code_saved":   // UI-85
+            if let on = incoming.lockCodeSaved { lockCodeSaved = on }
         case "surface":   // UI-84: not published state, so a surface key re-renders nothing by itself
             if let event = try? JSONDecoder().decode(SurfaceEvent.self, from: data) { surfaceEvents.send(event) }
         case "grand_master":

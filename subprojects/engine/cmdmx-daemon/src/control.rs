@@ -424,9 +424,11 @@ struct Surface {
 }
 
 impl Surface {
-    fn armed(&self) -> Vec<String> {
+    /// The armed functions; while locked `lock` is lit like one (CTL-73).
+    fn armed(&self, locked: bool) -> Vec<String> {
         (self.followers.values())
             .filter_map(|f| f.armed.clone())
+            .chain(locked.then(|| Key::Lock.to_string()))
             .collect()
     }
 
@@ -666,6 +668,11 @@ impl Tick<'_> {
                 Key::All => Command::All,
                 Key::StepNext => Command::Step { forward: true },
                 Key::StepPrev => Command::Step { forward: false },
+                // CTL-73: the saved code (IPC-65).
+                Key::Lock => Command::LockSet {
+                    on: true,
+                    code: None,
+                },
                 // CTL-72: the app runs these; `Surface::intercept` sent or refused them.
                 _ => return None,
             }),
@@ -738,6 +745,8 @@ fn state_of(
         Action::Page(n) => Shown::On(engine.page() == n),
         Action::Dbo => Shown::On(engine.dbo()),
         Action::Key(Key::Highlight) => Shown::On(engine.highlight()),
+        // CTL-73: lit while locked (`armed` carries it).
+        Action::Key(Key::Lock) => Shown::On(armed.iter().any(|a| a == "lock")),
         // CTL-72: a programming key is lit while the app has its function armed.
         Action::Key(k) if k.is_programming() => Shown::On(armed.contains(&k.to_string())),
         // `fan off` is lit while Fan is on, so the button shows there is something to turn off.
@@ -1202,7 +1211,7 @@ impl Control {
     pub fn feedback(&mut self, engine: &Engine) -> Vec<MidiOut> {
         let units = self.mackie_units(engine);
         let mut wheels = None;
-        let armed = self.surface.armed();
+        let armed = self.surface.armed(self.locked);
         let mut out = Vec::new();
         for (name, dev) in &mut self.devices {
             let win = mackie_base(&units, name).map(|base| (self.window, base));
@@ -2082,7 +2091,7 @@ impl Control {
     pub fn deck_out(&mut self, engine: &Engine) -> Vec<DeckCmd> {
         self.follow_fpp(engine.settings().faders_per_page);
         let mut wheels = None;
-        let armed = self.surface.armed();
+        let armed = self.surface.armed(self.locked);
         let mut out = Vec::new();
         let mut changed = false;
         for (name, dev) in &mut self.devices {

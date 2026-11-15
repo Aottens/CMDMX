@@ -724,6 +724,7 @@ fn ctl_39_snapshot_has_the_control_section() {
         &[],
         false,
         &serde_json::Value::Null,
+        false,
     ))
     .unwrap();
     let control = &s["control"];
@@ -2243,7 +2244,8 @@ const PROG: &str = r#"{"name":"nano","device":"nano*","bindings":[
   {"input":{"kind":"note","channel":1,"number":73},"action":"keypad Exit"},
   {"input":{"kind":"note","channel":1,"number":74},"action":"keypad 4"},
   {"input":{"kind":"note","channel":1,"number":80},"action":"key record"},
-  {"input":{"kind":"note","channel":1,"number":81},"action":"key copy"}
+  {"input":{"kind":"note","channel":1,"number":81},"action":"key copy"},
+  {"input":{"kind":"note","channel":1,"number":82},"action":"key lock"}
 ]}"#;
 
 /// `nano` with the programming mapping, connected with an output and enabled.
@@ -2479,4 +2481,46 @@ fn ipc_64_while_locked_a_surface_sends_nothing() {
         sent(&rx).is_empty(),
         "dropped as any surface event (IPC-50)"
     );
+}
+
+// --- CTL-73 lock from a surface -------------------------------------------------
+
+#[test]
+fn ctl_73_key_lock_asks_the_tick_to_lock_with_the_saved_code_and_is_lit_while_locked() {
+    let mut c = prog("ctl73-lock");
+    let e = engine();
+    // The daemon's own key: it goes to the tick even while an app follows.
+    let (tx, rx) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(7, Some(tx));
+    assert!(
+        c.feedback(&e).contains(&note_out(82, 0)),
+        "off while unlocked"
+    );
+    press(&mut c, "nano", 82);
+    let cmds = c.commands(&e, 0.0);
+    assert!(
+        matches!(
+            cmds.as_slice(),
+            [(
+                _,
+                Command::LockSet {
+                    on: true,
+                    code: None
+                }
+            )]
+        ),
+        "no code: the saved one (IPC-65): {cmds:?}"
+    );
+    assert!(sent(&rx).is_empty(), "not sent to the app");
+    c.set_locked(true);
+    assert!(
+        c.feedback(&e).contains(&note_out(82, 127)),
+        "lit while locked"
+    );
+    // A surface never unlocks: while locked the press is dropped (IPC-50).
+    press(&mut c, "nano", 82);
+    assert!(c.commands(&e, 0.0).is_empty());
+    assert!(c.take_messages().is_empty());
+    c.set_locked(false);
+    assert!(c.feedback(&e).contains(&note_out(82, 0)));
 }

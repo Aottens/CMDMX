@@ -114,15 +114,18 @@ final class UIState: ObservableObject {
     /// UI-38: the Lock prompt, and the digits typed into it or into the cover.
     @Published var lockPrompt = false
     @Published var lockCode = ""
+    /// UI-85: the prompt's "Save as this console's code" box; off each time it opens.
+    @Published var lockSave = false
     /// UI-38: Enter on the prompt locks, on the cover unlocks; the engine judges the code.
     func enterLockCode(_ engine: EngineClient) {
+        if !engine.locked && lockSave { engine.saveLockCode(lockCode) }   // UI-85
         engine.setLock(!engine.locked, code: lockCode)
         lockCode = ""; lockPrompt = false
     }
     /// UI-48: the Lock softkey and the status-bar Lock button (⌘L) both open the prompt; Learn ends first.
     func openLockPrompt(_ engine: EngineClient) {
         if learnMode { setLearnMode(false, engine) }
-        lockCode = ""; lockPrompt = true
+        lockCode = ""; lockSave = false; lockPrompt = true
     }
     /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
@@ -1008,6 +1011,13 @@ private struct LockPrompt: View {
             Text("Enter a code, or nothing for no code. Unlocking needs the same code.").foregroundStyle(t.fg2)
             CodeBox(text: ui.lockCode)
             CodeKeypad()
+            Toggle("Save as this console's code", isOn: $ui.lockSave)   // UI-85
+            if engine.lockCodeSaved {
+                HStack {
+                    Text("A code is saved for surfaces").foregroundStyle(t.fg2)
+                    Button("Forget") { engine.saveLockCode(nil) }
+                }
+            }
             Button("Cancel") { ui.lockPrompt = false; ui.lockCode = "" }.keyboardShortcut(.cancelAction)
         }
         .padding(16)

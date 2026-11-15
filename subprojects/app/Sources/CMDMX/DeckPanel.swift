@@ -242,7 +242,7 @@ struct DeckPanel: View {
             Divider()
             Menu("Programming") {   // CTL-72
                 ForEach(["key record", "key update", "key include", "key delete", "key copy", "key move", "key legend", "key options",
-                         "key release", "keypad Exit"], id: \.self) { a in Button(a) { setAction(key, a, bound: bound) } }
+                         "key release", "key lock", "keypad Exit"], id: \.self) { a in Button(a) { setAction(key, a, bound: bound) } }
             }
             Divider()
             Button("Edit action…") {

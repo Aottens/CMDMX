@@ -132,6 +132,7 @@ An action is a short text. These are the actions you can bind:
 | `key clear`, `key locate`, `key highlight`, `key rem_dim`, `key undo`, `key redo`, `key all`, `key step_next`, `key step_prev` | the programmer keys |
 | `keypad 1`, `keypad @`, `keypad Thro`, `keypad Enter`, `keypad Exit`, … | a key of the on-screen keypad, into the app's command line (see [Programming from a surface](#programming-from-a-surface)) |
 | `key record`, `key update`, `key include`, `key delete`, `key copy`, `key move`, `key legend`, `key options`, `key release` | the function buttons Record, Update, Include, Delete, Copy, Move, Set Legend, Options and Release of the app; lit while that one is armed |
+| `key lock` | locks the console with the code saved on this Mac (see [Locking the console](running.md#locking-the-console)); lit while locked. A surface never unlocks |
 | `wheel 2` | the second wheel of the attribute group that is open |
 | `speed`, `xfade` | an encoder that turns the connected chase's tempo (1 BPM per detent, to the BPM master it follows) or crossfade (1 % per detent); `speed 3` and `xfade playback 12` as with `go`. Refused on a cue list |
 | `direction forward`, `direction backward`, `direction bounce`, `direction random` | sets the connected chase's direction; `direction bounce 3` and `direction random playback 12` as with `go` |
