@@ -168,28 +168,92 @@ struct Cell: View {
 
 /// A scrolling area holding the 8-column cell grid with 2 pt gaps.
 private struct CellScroll<Content: View>: View {
+    @Environment(\.theme) private var t
+    /// UI-83: with `onBox`, a drag of more than 4 pt draws a box and reports the indices of the tiles it touches.
+    var tileCount = 0
+    var onBox: (([Int]) -> Void)?
     @ViewBuilder var content: Content
+    @State private var gridWidth: CGFloat = 0
+    @State private var boxStart: CGPoint?
+    @State private var boxEnd: CGPoint?
+
+    /// UI-83: tile i sits at row i/6, column i%6 (padding 3, gap 2, height 72); the width is measured once per resize.
+    private func touched(_ box: CGRect) -> [Int] {
+        let w = (gridWidth - 6 - 10) / 6
+        guard w > 0 else { return [] }
+        return (0..<tileCount).filter { i in
+            let frame = CGRect(x: 3 + CGFloat(i % 6) * (w + 2), y: 3 + CGFloat(i / 6) * 74, width: w, height: 72)
+            return frame.intersects(box)
+        }
+    }
+
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 6), spacing: 2) { content }
+            let grid = LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 6), spacing: 2) { content }
                 .padding(3)
+            if onBox == nil {
+                grid
+            } else {
+                grid
+                    .background(GeometryReader { g in Color.clear.onAppear { gridWidth = g.size.width }.onChange(of: g.size.width) { _, w in gridWidth = w } })
+                    .coordinateSpace(name: "cellGrid")
+                    .overlay(alignment: .topLeading) {
+                        if let a = boxStart, let b = boxEnd {
+                            Rectangle().fill(t.blue.opacity(0.12)).overlay(Rectangle().stroke(t.blue, lineWidth: 1))
+                                .frame(width: abs(b.x - a.x), height: abs(b.y - a.y))
+                                .offset(x: min(a.x, b.x), y: min(a.y, b.y)).allowsHitTesting(false)
+                        }
+                    }
+                    .simultaneousGesture(DragGesture(minimumDistance: 4, coordinateSpace: .named("cellGrid"))
+                        .onChanged { v in boxStart = v.startLocation; boxEnd = v.location }
+                        .onEnded { v in
+                            let box = CGRect(x: min(v.startLocation.x, v.location.x), y: min(v.startLocation.y, v.location.y),
+                                             width: abs(v.location.x - v.startLocation.x), height: abs(v.location.y - v.startLocation.y))
+                            boxStart = nil; boxEnd = nil
+                            onBox?(touched(box))
+                        })
+            }
         }
     }
 }
 
 // MARK: - Fixtures (UI-11)
 
+/// UI-88: the Fixtures | Groups switch in the title row (true = Groups).
+private struct WindowSwitch: View {
+    @Binding var groups: Bool
+    var body: some View {
+        HStack(spacing: 2) {
+            Button("Fixtures") { groups = false }.buttonStyle(FlatButton(fill: groups ? nil : .blue, compact: true))
+            Button("Groups") { groups = true }.buttonStyle(FlatButton(fill: groups ? .blue : nil, compact: true))
+        }
+    }
+}
+
+/// UI-88: the Fixtures window's place in a workspace; the switch is remembered per workspace.
+struct FixturesSlot: View {
+    @AppStorage private var groups: Bool
+    init(workspace: String) { _groups = AppStorage(wrappedValue: false, "fixturesShowsGroups.\(workspace)") }
+    var body: some View {
+        if groups { GroupsWindow(switcher: $groups) } else { FixturesWindow(switcher: $groups) }
+    }
+}
+
 struct FixturesWindow: View {
+    /// UI-88: nil = no switch.
+    var switcher: Binding<Bool>?
     /// A tile of the grid: a fixture or one of its cells, or the empty handle slot (UI-77).
-    private enum Tile: Hashable { case item(Item), empty(Int) }
+    fileprivate enum Tile: Hashable { case item(Item), empty(Int) }
 
     @EnvironmentObject private var engine: EngineClient
 
     @EnvironmentObject private var ui: UIState
     @State private var page = 0
     @Environment(\.theme) private var t
-    /// UI-58: the item a tap in this window last selected; the engine's reply arrives a moment later.
-    @State private var lastTap: Item?
+    /// UI-83: the anchor of a ⇧-range: the item last tapped or ⇧-clicked in this window.
+    @State private var anchor: Item?
+    /// UI-58, UI-83: the items this window itself sent (a tap or a range); the engine's reply arrives a moment later.
+    @State private var sent: Set<Item> = []
     @State private var scrollTarget: Item?
     /// UI-59: the find field.
     @State private var find = ""
@@ -227,7 +291,7 @@ struct FixturesWindow: View {
     }
 
     /// One tile with its fixture (nil for an empty slot) and its handle slot.
-    private struct Row { let tile: Tile; let fixture: FixtureInfo?; let slot: Int }
+    fileprivate struct Row { let tile: Tile; let fixture: FixtureInfo?; let slot: Int }
 
     /// UI-58, UI-77: what the window shows, worked out from the display-ordered fixtures.
     private struct Layout {
@@ -325,6 +389,7 @@ struct FixturesWindow: View {
                 : onShown == programmer.selection.count ? "\(programmer.selection.count) selected · order shown"
                 : "\(programmer.selection.count) selected · \(onShown) on page \(shown + 1)",
             accessory: {
+                if let switcher { WindowSwitch(groups: switcher) }
                 TextField("Find", text: $find).textFieldStyle(.plain).font(Typo.mono(Typo.small))
                     .frame(width: 110).focused($findFocused)
                     .onSubmit { selectMatches(sorted) }
@@ -346,7 +411,7 @@ struct FixturesWindow: View {
             }
         ) {
             ScrollViewReader { proxy in
-            CellScroll {
+            CellScroll(tileCount: rows.count, onBox: { boxSelect($0.compactMap { rows[safe: $0] }) }) {
                 // UI-29: one button per item, the cells of an unfolded fixture right after it. A flat
                 // list, so the lazy grid sees every button as its own element.
                 ForEach(rows, id: \.tile) { row in
@@ -354,7 +419,7 @@ struct FixturesWindow: View {
                     if case let .item(item) = row.tile, let fixture = row.fixture {
                         let o: Int? = order[item]
                         let isTaken: Bool = moving && ui.moveFixture == fixture.id && item.cell == nil   // UI-77
-                        fixtureTile(fixture, item, order: o, current: subSelection && targets.contains(item),
+                        fixtureTile(fixture, item, rows: rows, order: o, current: subSelection && targets.contains(item),
                                     dimmed: subSelection && o != nil && !targets.contains(item),
                                     inProgrammer: inProgrammer.contains(item), located: programmer.located[item] != nil, taken: isTaken)
                     } else {
@@ -368,7 +433,8 @@ struct FixturesWindow: View {
         // UI-58: a selection change that did not come from a tap here brings the first fixture into view.
         // A change of only the tapped item is that tap.
         .onChange(of: programmer.selection) { old, sel in
-            guard lastTap.map({ Set(old).symmetricDifference(sel) != [$0] }) ?? true, let first = sel.first, let p = pageOf[first.fixture] else { return }
+            let diff = Set(old).symmetricDifference(sel)
+            guard diff.isEmpty || !diff.isSubset(of: sent), let first = sel.first, let p = pageOf[first.fixture] else { return }
             page = p
             scrollTarget = Item(fixture: first.fixture)
         }
@@ -387,7 +453,7 @@ extension FixturesWindow {
     }
 
     /// One whole-fixture tile or one of its cells (UI-29).
-    fileprivate func fixtureTile(_ fixture: FixtureInfo, _ item: Item, order: Int?, current: Bool, dimmed: Bool,
+    fileprivate func fixtureTile(_ fixture: FixtureInfo, _ item: Item, rows: [Row], order: Int?, current: Bool, dimmed: Bool,
                                  inProgrammer: Bool, located: Bool, taken: Bool) -> some View {
         let model: String = item.cell == nil && !fixture.name.isEmpty ? Self.model(fixture) : ""   // UI-59
         let faded: Bool = !matches(fixture) || fixture.parked   // UI-59, PAT-35
@@ -407,16 +473,40 @@ extension FixturesWindow {
              faded: faded) {
             if fixture.parked && ui.function != .move {
                 return   // PAT-35: a parked fixture is not selectable (Move can take it, UI-77)
+            } else if NSApp.currentEvent?.modifierFlags.contains(.shift) == true, ui.function != .move, ui.function != .unfold,
+                      let a = anchor, let from = rows.firstIndex(where: { $0.tile == .item(a) }),
+                      let to = rows.firstIndex(where: { $0.tile == .item(item) }) {
+                // UI-83: ⇧-click selects from the anchor to this tile in window order, backwards when it comes first.
+                anchor = item
+                sendTiles(from <= to ? Array(rows[from...to]) : Array(rows[to...from].reversed()))
             } else if let n = item.cell {
-                lastTap = item
+                anchor = item; sent = [item]
                 if ui.armedAllows(.cell, engine) { engine.selectCell(fixture.id, cell: n) }
             } else {
-                lastTap = item
+                anchor = item; sent = [item]
                 tap(fixture)
             }
         }
         // UI-57: a right-click on a whole-fixture tile opens Fixture info.
         .overlay { if item.cell == nil { SecondaryClick { ui.fixtureInfo = FixtureRef(id: fixture.id) } } }
+    }
+
+    /// UI-83: a box selects the tiles it touches; with Move or Unfold armed it only passes the gate.
+    fileprivate func boxSelect(_ rows: [Row]) {
+        guard !rows.isEmpty, ui.armedAllows(.fixture, engine), ui.function != .move, ui.function != .unfold else { return }
+        sendTiles(rows, gated: false)
+    }
+
+    /// UI-83: one `programmer.select` per tile in the given order; a selected tile, an empty slot or a parked fixture is skipped.
+    fileprivate func sendTiles(_ rows: [Row], gated: Bool = true) {
+        guard !gated || ui.armedAllows(.fixture, engine) else { return }
+        let selected = Set(engine.programmer.selection)
+        sent = []
+        for row in rows {
+            guard case let .item(item) = row.tile, let f = row.fixture, !f.parked, !selected.contains(item) else { continue }
+            sent.insert(item)
+            if let n = item.cell { engine.selectCell(f.id, cell: n) } else { engine.selectFixture(f.id) }
+        }
     }
 
     /// UI-77: an empty handle slot reacts only while Move is armed.
@@ -459,6 +549,8 @@ extension FixturesWindow {
 // MARK: - Groups (UI-12)
 
 struct GroupsWindow: View {
+    /// UI-88: nil = no switch.
+    var switcher: Binding<Bool>?
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
 
@@ -471,7 +563,7 @@ struct GroupsWindow: View {
         PanelWindow(
             title: "Groups",
             info: "\(engine.groups.count) groups",
-            accessory: { EmptyView() }   // Record is a function button now (UI-16)
+            accessory: { if let switcher { WindowSwitch(groups: switcher) } }   // Record is a function button now (UI-16)
         ) {
             CellScroll {
                 ForEach(1...cells, id: \.self) { id in
@@ -564,10 +656,10 @@ enum WindowKind {
         }
     }
 
-    @ViewBuilder var view: some View {
+    @ViewBuilder func view(workspace: String) -> some View {
         switch self {
         case .groups: GroupsWindow()
-        case .fixtures: FixturesWindow()
+        case .fixtures: FixturesSlot(workspace: workspace)
         case .colours: PaletteWindow(kind: .colours)
         case .positions: PaletteWindow(kind: .positions)
         case .beams: PaletteWindow(kind: .beams)
@@ -618,7 +710,7 @@ struct WindowGrid: View {
 
     @ViewBuilder private func cell(_ i: Int, _ w: CGFloat, _ h: CGFloat) -> some View {
         if let kind = workspace.windows[safe: i] {
-            kind.view.frame(width: max(0, w), height: max(0, h)).clipped()
+            kind.view(workspace: workspace.name).frame(width: max(0, w), height: max(0, h)).clipped()
         }
     }
 }

@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls, show files and batch I are done; batch J has the Mac keys and the page marks. Next: the
-rest of batch J (INP-02 and INP-09, INP-01, INP-04, INP-05 and INP-06), then VS4-07 and VS4-03.
+Patch, profiles, controls, show files and batch I are done; batch J has the Mac keys, the page marks and the mouse
+range. Next: the rest of batch J (INP-01, INP-04, INP-05 and INP-06), then VS4-07 and VS4-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap waits for a test print (HWB-10). Progress: [`STATE.md`](STATE.md), the plan: [`BACKLOG.md`](BACKLOG.md);
 site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -118,7 +118,10 @@ site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX
 - The Fixtures window: a named button shows its model under the name, Find matches number, name and model and Return
   selects the matches, and a selection made elsewhere (a group, the command line) brings its page and fixtures into
   view, with a dot on each page tab that holds a selected fixture. Buttons keep their place (page and slot), and
-  Move takes a button to an empty slot, a new page, or swaps it with another.
+  Move takes a button to an empty slot, a new page, or swaps it with another. ⇧-click selects a range from the last
+  button tapped and a box dragged over the buttons selects what it touches, both in window order, so Fan follows it.
+  In Colour, Playbacks and Shapes a Fixtures | Groups switch in the title shows the Groups window there instead,
+  remembered per workspace.
 - Fixture info: a right-click on a fixture button shows its type, address, groups, cues and palettes, and for each
   attribute why it has its value ("Dienst Q2 gives 100 %, tracked from an earlier cue, Master Zaal (3.8) scales it to
   0 %"), live while open; a tap on a row goes to that playback's page.

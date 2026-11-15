@@ -52,6 +52,18 @@ Once you have changed a value, the next tap starts a new selection. The fixtures
 keep their values in the programmer. So you can select the washes, set them, then tap a par and
 carry on with just that par.
 
+### A range with the mouse
+
+Hold ⇧ and click a fixture button to select every button from the one you last tapped up to this one,
+in the window's order: row by row, left to right. When the clicked button comes first, the range runs
+backwards, as `5 Thro 1` does, so 306 then ⇧-click 302 selects 306, 305, 304, 303, 302 in that order.
+You can also drag over the buttons: a blue box follows the mouse, and when you let go, every button it
+touches is selected in the window's order. Either way a button that is already selected stays selected
+and keeps its place, and empty and parked buttons are left out; the cells of an unfolded fixture count
+as buttons. With Record or a function armed, a range is refused as a tap would be; with Move armed, a
+⇧-click is just Move's tap. Fan and stepping then follow the range's order. After a value change a range
+starts a new selection, as a tap does, from its first button that was not selected yet.
+
 ### The command line
 
 The keypad builds a line of commands under the attribute bar; **Enter** runs it. A typed
@@ -261,6 +273,11 @@ where they are). The Clear order (selection first, both at once, or programmer f
 
 A group is a saved selection, with its order. The Groups window shows each group with its legend
 ("Group 5" when it has none) and its number of fixtures.
+
+The **Colour**, **Playbacks** and **Shapes** workspaces have no Groups window of their own. The title
+row of their Fixtures window has a switch **Fixtures | Groups**: Groups shows the Groups window in that
+place, with all it does (tap, Record, Copy, Move, Delete, Set Legend). Each workspace remembers its
+choice, also after a restart; a new install starts on Fixtures.
 
 - **Record a group:** select fixtures in the order you want, press **Record**, then tap a group
   cell. An empty cell gets a new group. A used one asks on the softkeys: **Replace** stores the selection,
