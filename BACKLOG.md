@@ -471,7 +471,7 @@ are `HW-nn`), in the prototype order of HW-60; each ships a checklist in `tests/
 | HWB-04 | Preset strip: PCB (two plain faders, two RGB keys, RP2350, RS485) on the strip firmware; checklist. Needs HWB-03. | HW-10, 11, 14, 15, 18, 37 | M | todo |
 | HWB-05 | DMX board: PCB with four isolated DMX ports and firmware presenting four ENTTEC-Pro-compatible serial ports; checklist with a DMX monitor and a fixture through OUT-31 nodes. | HW-40..44 | L | todo |
 | HWB-06 | Programmer panel: PCB with keypad, programmer and group keys, macro keys and four optical wheels on RS485; checklist. Needs HWB-03. | HW-07, 08, 22, 37 | L | todo |
-| HWB-07 | Enclosure: parametric ply + 2020 body and laser-cut front plates (CAD native + STEP/DXF), rear panel connectors, power and UPS; checklist on the built body. Needs HWB-02..06. | HW-01, 04, 34, 36, 50, 51, 53 | L | todo |
+| HWB-07 | Enclosure: the chosen form engineered (DECISIONS 2026-11-15): printed body with walnut frame on an inner frame, laser-cut top plate on a printed under-panel, screen flap with strut and rack, rear panel connectors, power and UPS (CAD native + STEP/DXF); checklist on the built body. Needs HWB-02..06. | HW-01, 04, 34, 36, 50, 51, 53 | L | todo |
 | HWB-08 | Flight case drawings (outer dimensions, foam plan, standard hardware). Needs HWB-07. | HW-52 | S | todo |
 | HWB-09 | Build guide, BOM with dated prices, licence files (CERN-OHL-S v2, CC BY-SA 4.0). | HW-02, 03, 35, 55 | M | todo |
 

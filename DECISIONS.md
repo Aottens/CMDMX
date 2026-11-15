@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-15 — The desk's form: a flat printed body with a walnut frame, a screen flap on a strut, a laser-cut top plate (owner; amends HW-05, HW-50)
+
+**Decision:** The desk (phase 10) is a flat anthracite body, 594 x 573 mm and 92 mm high at the front, with a 12 mm walnut frame round the top edge and front and side walls receding 16 mm toward the foot. The screen sits on a flap with walnut sides, hinged at the back of the deck and held by a fold-out aluminium strut whose foot drops into a sawtooth rack: 15, 25, 35 and 45°. Keycaps dark grey, fader knobs off-white, the GM knob red; the deck black with white legends. The top skin is one laser-cut plate screwed with M3 button heads into heat-set inserts in a printed under-panel; 1.5 mm black/white engraving plate (EUR 42.56 for the whole plate in one piece at Laserlokaal) or 2 mm black cast acrylic, chosen after the test strips. The preset faders are 60 mm (Bourns PTA6043), the playback faders and GM stay 100 mm. Record: `subprojects/hardware/cad/console/ontwerp/ontwerpblad.html`.
+
+**Alternatives considered:** the first console (ply cheeks, printed bezel, 2020 frame), which the owner found not elegant; eleven side silhouettes, of which a floating slab (B) and a black body with a walnut frame (G); two mixes (M2 tilts the whole screen section); a quadrant with a clamping knob instead of the strut; Braun grey with walnut and aluminium with orange; frame bands of 8 and 20 mm; a printed top with AMS inlay legends (test panel 1: letters lifted from the PEI); bought-in aluminium plates.
+
+**Reasoning:** The owner chose each step from options side by side (brief: sober, precise, playful; Dieter Rams' Braun and Teenage Engineering as references). A strut on a rack cannot slip under a finger on a touch screen, where friction hinges give way. A laser-cut plate gives one seamless top with crisp legends for the price of a few prints, and a new layout is a new plate.
+
+**Reversal trigger:** the test strips show that neither material holds MX switches or reads well; the engineering of HWB-07 finds the flap or the printed body too weak.
+
 ## 2026-11-14 — Automatic legends: the lowest group with a legend, whole parts dropped, the softkey until the next look (TTN-06, PBK-54)
 
 **Decision:** PBK-54's group is the lowest-numbered group with a legend whose fixtures are exactly the cue's (a group without a legend is passed over, not a stop). A legend over 32 characters keeps whole parts and ends in "…" ("Voorzijde podium links · Preek…"); a first part that alone does not fit is cut to 31 characters. The Legend softkey after a store stays until the selection changes, Esc, Record or another function, and does not hide the Cue softkeys of a right-click.

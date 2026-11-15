@@ -55,7 +55,7 @@ Every proof of concept is tested on the owner's Mac with today's app.
 ### Layout
 - **HW-05** Playback section: 10 motorised playback faders, each with two RGB keys (bound to
   `upper` and `lower`, CTL-05), and a row of 10 plain preset faders, each with one RGB key. Fader
-  pitch 33 mm, 100 mm travel.
+  pitch 33 mm; playback faders 100 mm travel, preset faders 60 mm travel (Bourns PTA6043).
 - **HW-06** Grand master: one plain 100 mm fader, never motorised, with a DBO key next to it.
 - **HW-07** Programmer panel: four smooth (non-detented) optical encoder wheels, each with a push
   key; a numeric keypad with the CTL-05 keypad tokens; the CTL-05 programmer keys; eight
@@ -179,9 +179,11 @@ Every proof of concept is tested on the owner's Mac with today's app.
 - **HW-44** A port whose frames stop does not affect the other three ports.
 
 ### Enclosure and flight case
-- **HW-50** Desk body: birch ply sides and base with 2020 aluminium extrusion, 2–3 mm laser-cut
-  aluminium front plates with engraved or UV-printed legends, the screen section tilted 15–25°,
-  a removable bottom plate for service, and all rear connectors on one rear plate.
+- **HW-50** Desk body: a flat printed body with a 12 mm walnut frame round the top edge and front
+  and side walls receding 16 mm toward the foot, on an inner frame; the top is one laser-cut plate
+  with engraved legends, screwed into heat-set inserts in a printed under-panel; the screen on a
+  hinged flap held by a fold-out strut in a sawtooth rack at 15, 25, 35 and 45°; a removable
+  bottom plate for service, and all rear connectors on one rear plate.
 - **HW-51** The body is parametric in the number of strips, so a wider or narrower desk is a
   parameter change, not a redesign.
 - **HW-52** The flight case is published as drawings (outer dimensions, foam plan) using standard

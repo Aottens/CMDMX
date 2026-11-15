@@ -1,6 +1,6 @@
 # hardware — State
 
-_Last updated: 2026-11-01 (the hardware phase is now phase 10)_
+_Last updated: 2026-11-15 (the desk's form is chosen)_
 
 ## Current step
 `specs/modules/hardware.md` is approved (HW-01): a Tiger Touch II-size desk with one 15.6" touch
@@ -21,6 +21,12 @@ encoder GP6/7, SK6812 GP16, TB6612 GP9–15, touch GP20/21, watchdog 500 ms fed 
 `cargo test`, `cargo box`, `cargo flash` (picotool); CI job `firmware`. Wire map and palette:
 `firmware/wire-map.md`. Next after the run passes: HWB-02, the playback strip.
 
+The desk's form is chosen (DECISIONS 2026-11-15, HW-50 amended): a flat anthracite body with a 12 mm walnut
+frame, a screen flap on a strut and sawtooth rack, a laser-cut top plate on a printed under-panel; preset faders
+60 mm (HW-05 amended). `cad/` holds the design record (`cad/console/ontwerp/ontwerpblad.html`), the printed and
+the engraving-plate panel, the test strips and the Fusion scripts that rebuild them (`cad/README.md`). The top
+plate's material waits for the owner's test strips (`cad/acryl-proef/`); HWB-07 engineers the form.
+
 ## Build order (HW-60)
 HWB-01 box → HWB-02 playback strip → HWB-03 main controller → HWB-04 preset strip → HWB-05 DMX
 board → HWB-06 programmer panel → HWB-07 enclosure → HWB-08 flight case; HWB-09 build guide and BOM.
@@ -28,5 +34,5 @@ board → HWB-06 programmer panel → HWB-07 enclosure → HWB-08 flight case; H
 ## Tools
 - PCB: KiCad (not yet installed on the owner's Mac).
 - Firmware: Rust with embassy for the RP2350 (own cargo workspace under `firmware/`).
-- Enclosure and flight case: Fusion (its MCP server did not connect on 2026-10-25); publish STEP
-  and DXF next to the native files (HW-53).
+- Enclosure and flight case: Fusion, driven through its local MCP server (scripts in `cad/`); publish
+  STEP and DXF next to the native files (HW-53).
