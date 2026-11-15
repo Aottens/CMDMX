@@ -44,6 +44,8 @@ Programming and small checks:
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
 
 ## Owner to decide
+- Buy the screen for HWB-10, the desk's screen flap: Waveshare 15.6" HDMI LCD (H), about €170–240 from Eckstein or
+  Welectron (Germany, EU stock, VAT included, no import).
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
 - The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
 - The website's domain name. Find the Colourmotion logo (VS8-02).

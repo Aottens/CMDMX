@@ -1,6 +1,6 @@
 # hardware — State
 
-_Last updated: 2026-11-15 (the desk's form is chosen)_
+_Last updated: 2026-11-15 (the screen flap is specified, HWB-10)_
 
 ## Current step
 `specs/modules/hardware.md` is approved (HW-01): a Tiger Touch II-size desk with one 15.6" touch
@@ -25,7 +25,9 @@ The desk's form is chosen (DECISIONS 2026-11-15, HW-50 amended): a flat anthraci
 frame, a screen flap on a strut and sawtooth rack, a laser-cut top plate on a printed under-panel; preset faders
 60 mm (HW-05 amended). `cad/` holds the design record (`cad/console/ontwerp/ontwerpblad.html`), the printed and
 the engraving-plate panel, the test strips and the Fusion scripts that rebuild them (`cad/README.md`). The top
-plate's material waits for the owner's test strips (`cad/acryl-proef/`); HWB-07 engineers the form.
+plate's material waits for the owner's test strips (`cad/acryl-proef/`). Next in CAD: HWB-10, the screen flap
+(HW-54, 56..58) around the Waveshare 15.6" HDMI LCD (H), whose STEP is placed in the Fusion document
+*CMDMX desk vorm (M1 SB K1 D2)*; it goes ahead of the PCBs (HW-60). HWB-07 engineers the rest of the form.
 
 ## Build order (HW-60)
 HWB-01 box → HWB-02 playback strip → HWB-03 main controller → HWB-04 preset strip → HWB-05 DMX
