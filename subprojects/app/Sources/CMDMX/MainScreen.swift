@@ -616,6 +616,9 @@ private struct Frame: View {
         }
         // UI-50: a message said because a function was armed goes when the arming ends (Esc, Exit, a screen, a job done).
         .onChange(of: ui.modesOpen) { _, open in if !open { engine.endArmedMessage() } }
+        // UI-84: surfaces follow what is armed, and their keys come in here.
+        .onChange(of: SurfaceKeys.armedName(ui)) { _, name in engine.surfaceArmed(name) }
+        .onReceive(engine.surfaceEvents) { SurfaceKeys.handle($0, ui: ui, line: line, engine: engine) }
         .onAppear {
             engine.isArmed = { [ui] in MainActor.assumeIsolated { ui.modesOpen } }
             engine.onStore = { [ui] page, slot, before in MainActor.assumeIsolated { ui.storedMark = (page, slot, before) } }

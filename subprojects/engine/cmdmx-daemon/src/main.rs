@@ -323,6 +323,14 @@ fn main() {
                     }
                     continue;
                 }
+                // IPC-64: passes the lock; a gone client stops following.
+                ipc::Event::Surface { client, req } => {
+                    match req {
+                        ipc::SurfaceReq::Follow(queue) => control.surface_follow(client, queue),
+                        ipc::SurfaceReq::Armed(f) => control.surface_armed(client, f),
+                    }
+                    continue;
+                }
                 // IPC-57: to the asking client only.
                 ipc::Event::UpdateTargets { reply } => {
                     drop(reply.try_send(ipc::update_targets(&engine)));
@@ -1230,6 +1238,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         CueView { .. } => Ok(()),
         // Answered through `Event::Usage` (IPC-54).
         Usage(_) | Why(_) | OutputWatch(_) | UpdateTargets => Ok(()),
+        SurfaceFollow { .. } | SurfaceArmed { .. } => Ok(()),
         Update {
             playbacks,
             palettes,
@@ -1328,6 +1337,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | Usage(_)
         | Why(_)
         | OutputWatch(_)
+        | SurfaceFollow { .. }
+        | SurfaceArmed { .. }
         | UpdateTargets
         | PatchProfile { .. }
         | ShowReport
@@ -3587,6 +3598,14 @@ mod tests {
         (r#"{"v":1,"cmd":"why","fixture":1}"#, Class::Neutral),
         (
             r#"{"v":1,"cmd":"output.watch","view":"grid"}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":1,"cmd":"surface.follow","on":true}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":1,"cmd":"surface.armed","function":null}"#,
             Class::Neutral,
         ),
         (

@@ -168,7 +168,7 @@ struct AttributeBar: View {
             HStack(spacing: 8) {
                 Text("›").font(Typo.mono(13)).foregroundStyle(t.fg3)
                 // UI-19: tokens and a cursor; the keypad and the Mac keys fill the line.
-                Text(line.tokens.joined(separator: " ")).font(Typo.mono(13)).foregroundStyle(t.fg)
+                Text((line.surface.map { "\($0) › " } ?? "") + line.tokens.joined(separator: " ")).font(Typo.mono(13)).foregroundStyle(t.fg)
                     .lineLimit(1).truncationMode(.head)
                 BlinkingCursor()
                 Spacer(minLength: 0)

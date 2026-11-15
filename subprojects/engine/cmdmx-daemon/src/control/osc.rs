@@ -449,7 +449,7 @@ impl Control {
                 false => &mut fresh,
             };
             let values = state.apply(b, item.reading, None, Resolution::Normal);
-            let cmds = tick.commands(b.action, &values, &mut self.keypad);
+            let cmds = tick.commands(b.action, &values, "OSC", &mut self.surface);
             if cmds.is_empty() {
                 continue;
             }
@@ -500,9 +500,11 @@ impl Control {
     /// What every client should show now: the built-in list (CTL-37) and the custom bindings.
     fn osc_wanted(&self, engine: &Engine) -> Vec<(String, OscArg)> {
         let mut wheels = None;
+        let armed = self.surface.armed();
         let plain = Binding::new(Input::Osc(String::new()), Action::Gm);
-        let mut state =
-            |a| arg_of(&plain, state_of(engine, a, &mut wheels)).unwrap_or(OscArg::Float(0.0));
+        let mut state = |a| {
+            arg_of(&plain, state_of(engine, a, &mut wheels, &armed)).unwrap_or(OscArg::Float(0.0))
+        };
         let text = |s: &str| OscArg::Str(s.to_string());
         let mut out: Vec<(String, OscArg)> = Vec::new();
         for n in 1..=engine.settings().faders_per_page {
@@ -555,7 +557,7 @@ impl Control {
                 continue;
             };
             let mut wheels = None;
-            let shown = state_of(engine, b.action, &mut wheels);
+            let shown = state_of(engine, b.action, &mut wheels, &armed);
             out.extend(arg_of(b, shown).map(|arg| (address.clone(), arg)));
         }
         out

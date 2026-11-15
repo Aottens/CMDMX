@@ -30,9 +30,10 @@ enum HandleTaps {
     }
 
     /// A tap on the legend area of the strip for `slot` (1-based) on the current page.
-    static func tap(slot: Int, info: PlaybackInfo?, engine: EngineClient, ui: UIState, line: TokenLine) {
+    /// `page` is the shown page unless a surface taps another one (UI-84).
+    static func tap(slot: Int, info: PlaybackInfo?, engine: EngineClient, ui: UIState, line: TokenLine, page: Int? = nil) {
         guard ui.armedAllows(.handle, engine) else { return }   // UI-42
-        let page = engine.page.number
+        let page = page ?? engine.page.number
         let used = isUsed(info, page: page)
         if let info { ui.lastHandle = info.id }
 

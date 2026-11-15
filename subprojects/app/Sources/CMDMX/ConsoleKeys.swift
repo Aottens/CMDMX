@@ -192,3 +192,51 @@ struct ConsoleCommands: Commands {
         }
     }
 }
+
+/// UI-84, IPC-64: what a surface (BCF2000, ...) does in the app. Dropped under the Lock, the Lock prompt and a sheet.
+enum SurfaceKeys {
+    private static let functions = [
+        "record": "Record", "update": "Update", "include": "Include", "delete": "Delete", "copy": "Copy",
+        "move": "Move", "release": "Release", "legend": "Set Legend", "options": "Options",
+    ]
+
+    /// The name `surface.armed` carries: Record, else the armed function; Latch is not a surface key (nil).
+    @MainActor
+    static func armedName(_ ui: UIState) -> String? {
+        if ui.recordArmed { return "record" }
+        switch ui.function {
+        case .update: return "update"
+        case .include: return "include"
+        case .copy: return "copy"
+        case .move: return "move"
+        case .delete: return "delete"
+        case .legend: return "legend"
+        case .release: return "release"
+        case .options: return "options"
+        case .unfold: return "unfold"
+        case .latch, nil: return nil
+        }
+    }
+
+    @MainActor
+    static func handle(_ e: EngineClient.SurfaceEvent, ui: UIState, line: TokenLine, engine: EngineClient) {
+        guard !engine.locked, !ui.lockPrompt, NSApp.mainWindow?.attachedSheet == nil else { return }
+        if let token = e.keypad {
+            // Like the Mac keys: the line is on the workspace screens; Exit always clears and disarms.
+            guard ui.screen == nil || token == "Exit" else { return }
+            Keypad.run(token == "Backspace" ? "Back" : token, ui: ui, line: line, engine: engine, device: e.device)
+        } else if let name = e.key.flatMap({ functions[$0] }) {
+            guard ui.screen == nil else { return }
+            ConsoleKey.press(function: name, ui: ui, engine: engine)
+        } else if let tap = e.tap {
+            guard ui.recordArmed || ui.function != nil else { return }
+            // The playback stored there, else a Locked one of another page on that slot (PBK-07).
+            let info = engine.playbacks.first { $0.stored.slot == tap.slot && $0.stored.page == tap.page }
+                ?? engine.playbacks.first { $0.stored.slot == tap.slot && $0.stored.options.paging == "Locked" }
+            HandleTaps.tap(slot: tap.slot, info: info, engine: engine, ui: ui, line: line, page: tap.page)
+        } else if let n = e.group ?? e.palette {
+            guard ui.recordArmed || ui.function != nil else { return }
+            _ = TokenLine.armedTap(e.group != nil ? "Group" : "Palette", n, engine: engine, ui: ui)
+        }
+    }
+}

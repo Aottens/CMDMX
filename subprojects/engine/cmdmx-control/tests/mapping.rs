@@ -522,3 +522,36 @@ fn cue_66_direction_is_a_button_with_the_targets_of_tap() {
         assert!(bad.parse::<Action>().is_err(), "{bad}");
     }
 }
+
+// --- CTL-72 programming keys and Exit ----------------------------------------
+
+#[test]
+fn ctl_72_programming_keys_and_exit_parse_and_round_trip() {
+    let keys = [
+        ("record", Key::Record),
+        ("update", Key::Update),
+        ("include", Key::Include),
+        ("delete", Key::Delete),
+        ("copy", Key::Copy),
+        ("move", Key::Move),
+        ("legend", Key::Legend),
+        ("options", Key::Options),
+        ("release", Key::Release),
+    ];
+    for (name, key) in keys {
+        let text = format!("key {name}");
+        assert_eq!(parse(&text), Action::Key(key), "{text}");
+        assert_eq!(parse(&text).to_string(), text);
+        assert_eq!(parse(&text).value_kind(), ValueKind::Button, "{text}");
+        assert!(key.is_programming(), "{text}");
+    }
+    assert!(
+        !Key::Clear.is_programming(),
+        "the old keys run in the daemon"
+    );
+    // `key release` is the Release function, `release` the connected list's release (CTL-05).
+    assert_ne!(parse("key release"), parse("release"));
+    assert_eq!(parse("keypad Exit"), Action::Keypad(KeypadToken::Exit));
+    assert_eq!(parse("keypad Exit").to_string(), "keypad Exit");
+    assert!("key lock".parse::<Action>().is_err(), "CTL-73 is INP-05");
+}
