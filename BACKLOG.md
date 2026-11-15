@@ -486,7 +486,7 @@ Builds: FIX-01 alone (the first; review workflow and gate only, in shadow).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
-| FIX-01 | A review with a finding outside the diff writes no `findings.json`, so it uses no fix round: on #318 a placeholder such as `N/A:0` still wrote one and counted as round 1, and the re-run's round 2 left one round too few (`.github/workflows/review.yml:55`, review of #318). | ARV-19, ARV-11 | S | doing |
+| FIX-01 | A review with a finding outside the diff writes no `findings.json`, so it uses no fix round: on #318 a placeholder such as `N/A:0` still wrote one and counted as round 1, and the re-run's round 2 left one round too few (`.github/workflows/review.yml:55`, review of #318). | ARV-19, ARV-11 | S | done (2026-11-15, #319) |
 
 ## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions
