@@ -5,6 +5,16 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-14 — Automatic legends: the lowest group with a legend, whole parts dropped, the softkey until the next look (TTN-06, PBK-54)
+
+**Decision:** PBK-54's group is the lowest-numbered group with a legend whose fixtures are exactly the cue's (a group without a legend is passed over, not a stop). A legend over 32 characters keeps whole parts and ends in "…" ("Voorzijde podium links · Preek…"); a first part that alone does not fit is cut to 31 characters. The Legend softkey after a store stays until the selection changes, Esc, Record or another function, and does not hide the Cue softkeys of a right-click.
+
+**Alternatives considered:** the lowest exact group even when it has no legend (then no group part at all); the softkey only until the next tap anywhere.
+
+**Reasoning:** the spec left these open; a group without a legend says nothing, so the next one that does is the useful name. A softkey that vanishes on the first tap is gone before the operator looks.
+
+**Reversal trigger:** the owner reads PBK-54 the other way, or the softkey gets in the way while programming.
+
 ## 2026-11-14 — Go and Back turn a chase: the step is taken in the new direction (TTN-03, CUE-66)
 
 **Decision:** On a running Forward or Backward chase, Back starts step *n* − 1 and sets Backward, Go starts step *n* + 1 and sets Forward, whatever the direction was. A change of direction (Go, Back, the Go block's button, `direction`, the Chase tab) chooses the next step again at once. Go on a Forward chase keeps CUE-32's path, so a step set with Set next still counts. The Go guard (CUE-68) counts a Go from the time the daemon received it, not the tick.

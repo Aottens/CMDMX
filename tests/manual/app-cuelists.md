@@ -209,3 +209,8 @@ Claude listens to Art-Net; what goes on stage is read there.
 - [ ] [Claude] Another handle and a cue row: refused, still armed. One Clear, then a second: still armed; Append with the programmer empty is refused and stays armed.
 - [ ] [Claude] **Create Chase** on a list: refused, still armed. On an empty handle: a chase on the strip. Flash or Swop on the strip is the tap (UI-43).
 - [ ] [Claude] **Exit**, Esc and opening a screen each end it; each cue was one undo step.
+
+## Follow, automatic legends and blocks of cues (CUE-67, PBK-54, CUE-69)
+- [ ] [Jij] A list of 40 cues connected, Go to cue 30: the window shows Q30 and Q31; a hand scroll, then Go: back to the live cue. **Follow** off: a Go does not scroll.
+- [ ] [Jij] A group with a legend and a palette with a legend applied, Record on an empty handle: the strip reads "group · palette"; **Legend** on the softkeys opens its editor. Append: Legend opens the new cue's.
+- [ ] [Jij] **Move**, tap Q10, ⇧-tap Q13, **End**: Q10–Q13 come after the last cue; a number in the way is refused with its name; a tap on another list's handle before End moves them there. One Undo takes it back.

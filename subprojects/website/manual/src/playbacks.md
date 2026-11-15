@@ -47,6 +47,18 @@ you can go on from there.
 Palettes stay palettes: a colour you applied from a palette is stored as a reference to that
 palette (see [Palettes](palettes.md)). Change the palette later and the playback follows.
 
+A new playback, and every new cue, names itself after what it holds, so a strip reads "Front · Blauw" instead of
+"1.3":
+
+- the legend of the group that holds exactly these fixtures (the lowest-numbered group with a legend), then
+- the legends of the palettes the cue uses, in attribute-group order (I P C G B E S), each once;
+- with neither, the fixture numbers ("201, 205"), or the count when there are more than three ("8 fixtures").
+
+A legend longer than 32 characters loses whole parts from the end and ends in "…". Replace, Merge, Update and Copy
+never change a legend, and a legend you typed stays. Right after a store the softkeys show **Legend**, which opens
+the legend editor for what you just stored. Turn this off with **Automatic legends** on the Settings tab of
+[Playback Options](#playback-options); legends then stay empty.
+
 While Record is armed, the softkeys set what this one record takes:
 
 - **Mask** switches the attribute groups I P C G B E S on and off. For a playback it starts with

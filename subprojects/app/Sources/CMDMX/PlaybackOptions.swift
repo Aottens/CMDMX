@@ -678,6 +678,9 @@ private struct SettingsTab: View {
             OptionRow(label: "Ignore a second Go within", note: "0 to 2 s; 0 = no guard, as Titan. Space and a mouse repeat easily in the dark.") {
                 NumberField(value: s.goGuard, unit: "s") { engine.setPlaybackSettings(["go_guard": $0]) }
             }
+            OptionRow(label: "Automatic legends", note: "A new playback or cue is named after its group and palettes, else its fixture numbers.") {
+                Choice(options: yesNo(true), selected: s.autoLegend) { engine.setPlaybackSettings(["auto_legend": $0]) }
+            }
             OptionRow(label: "Handle buttons", note: "Best practice: Go on lists, Tap on chases. Titan: Swop / Flash everywhere. Custom: a pair per kind.") {
                 Choice(options: [("Best practice", "BestPractice"), ("Titan", "Titan"), ("Custom", "Custom")], selected: s.handleButtons.mode) { mode in
                     engine.setPlaybackSettings(["handle_buttons": mode == "Custom" ? ["Custom": s.handleButtons.custom] : mode])

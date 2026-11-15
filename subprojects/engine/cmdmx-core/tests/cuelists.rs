@@ -332,7 +332,7 @@ fn cue_03_append_adds_a_cue_after_the_last_whole_number() {
     assert_eq!(new.fade_in, 2.0, "times from the PBK-12 settings");
     assert_eq!(
         (new.legend.as_str(), new.link, new.track),
-        ("", Link::Wait, Track::Track)
+        ("204", Link::Wait, Track::Track)
     );
     program(&mut e, 205, "Dimmer", 0.7);
     e.record_playback(&append()).unwrap();
@@ -1378,4 +1378,266 @@ fn cue_62_appending_keeps_the_programmer_and_an_empty_one_is_refused() {
     let before = numbers(&e, id);
     assert!(e.record_playback(&append_as(Kind::Chase)).is_err());
     assert_eq!(numbers(&e, id), before);
+}
+
+// ---- CUE-69: move or copy a block of cues (TTN-10) -------------------------------------------
+//
+// API these tests fix: `cmdmx_core::playback::BlockTo::{Number(CueNumber), End}` and
+// `Engine::move_cues(id, &[CueNumber], BlockTo, target: Option<PlaybackId>)` /
+// `Engine::copy_cues(…)`, `Result<(), CoreError>`. The cues, in number order, become `to`,
+// `to` + 1, …; `End` starts at the first whole number after the target's last cue. A cue in the
+// way refuses the whole block with `CoreError::ListRefused("Q21 is in the way: renumber or pick
+// another number")` and changes nothing.
+
+use cmdmx_core::playback::BlockTo;
+
+/// Q1–Q5 walk-in, a song Q10–Q13, Q20.5 the end; each cue holds dimmer 200 + its number.
+fn songs() -> Engine {
+    let mut e = common::church();
+    let n = [1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 11.0, 12.0, 13.0, 20.5];
+    list(
+        &mut e,
+        n.iter()
+            .map(|&n| cue(n, dimmers(&[200 + n as u32], 0.5)))
+            .collect(),
+    );
+    e
+}
+
+/// The fixture a `songs()` cue holds.
+fn holds(e: &Engine, id: u32, n: f64) -> u32 {
+    cue_at(e, id, n).values.keys().next().unwrap().fixture
+}
+
+#[test]
+fn cue_69_a_song_of_four_cues_moves_after_the_last_cue() {
+    let mut e = songs();
+    let song = [q(10.0), q(11.0), q(12.0), q(13.0)];
+    e.move_cues(1, &song, BlockTo::End, None).unwrap();
+    assert_eq!(
+        numbers(&e, 1),
+        [1.0, 2.0, 3.0, 4.0, 5.0, 20.5, 21.0, 22.0, 23.0, 24.0],
+        "End starts at the first whole number after Q20.5"
+    );
+    assert_eq!(
+        [21.0, 22.0, 23.0, 24.0].map(|n| holds(&e, 1, n)),
+        [210, 211, 212, 213],
+        "each cue keeps what it holds"
+    );
+    let back = [q(24.0), q(21.0), q(22.0), q(23.0)];
+    e.move_cues(1, &back, BlockTo::Number(q(6.0)), None)
+        .unwrap();
+    assert_eq!(
+        numbers(&e, 1),
+        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 20.5]
+    );
+    assert_eq!(
+        [6.0, 7.0, 8.0, 9.0].map(|n| holds(&e, 1, n)),
+        [210, 211, 212, 213],
+        "in number order, whatever order they were named in"
+    );
+}
+
+#[test]
+fn cue_69_the_current_and_next_cue_follow_their_cue() {
+    let mut e = songs();
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.cuelist(
+        Some(1),
+        cmdmx_core::playback::ListAction::Goto(q(11.0)),
+        0.0,
+    )
+    .unwrap();
+    e.tick(0.0);
+    let live = e.list_live(1).unwrap();
+    assert_eq!((live.current, live.next), (Some(q(11.0)), Some(q(12.0))));
+    let song = [q(10.0), q(11.0), q(12.0), q(13.0)];
+    e.move_cues(1, &song, BlockTo::End, None).unwrap();
+    let live = e.list_live(1).unwrap();
+    assert_eq!((live.current, live.next), (Some(q(22.0)), Some(q(23.0))));
+}
+
+#[test]
+fn cue_69_a_block_in_the_way_changes_nothing() {
+    let mut e = common::church();
+    let n = [1.0, 2.0, 3.0, 4.0, 5.0, 21.0];
+    list(
+        &mut e,
+        n.iter()
+            .map(|&n| cue(n, dimmers(&[200 + n as u32], 0.5)))
+            .collect(),
+    );
+    let before = e.playback(1).unwrap().clone();
+    let refused = e
+        .move_cues(1, &[q(1.0), q(2.0)], BlockTo::Number(q(20.0)), None)
+        .unwrap_err();
+    assert_eq!(
+        refused.to_string(),
+        "Q21 is in the way: renumber or pick another number"
+    );
+    let refused = e
+        .move_cues(1, &[q(2.0), q(3.0), q(4.0)], BlockTo::Number(q(3.0)), None)
+        .unwrap_err();
+    assert_eq!(
+        refused.to_string(),
+        "Q5 is in the way: renumber or pick another number",
+        "Q3 and Q4 move themselves, Q5 does not"
+    );
+    let refused = e
+        .copy_cues(1, &[q(1.0)], BlockTo::Number(q(3.0)), None)
+        .unwrap_err();
+    assert_eq!(
+        refused.to_string(),
+        "Q3 is in the way: renumber or pick another number"
+    );
+    assert_eq!(
+        e.move_cues(1, &[q(1.0), q(9.0)], BlockTo::End, None),
+        Err(cmdmx_core::CoreError::UnknownCue(q(9.0)))
+    );
+    assert_eq!(
+        e.move_cues(1, &[q(1.0), q(2.0)], BlockTo::Number(q(9999.5)), None),
+        Err(cmdmx_core::CoreError::InvalidCueNumber),
+        "Q10000.5 is not a cue number"
+    );
+    assert_eq!(*e.playback(1).unwrap(), before, "nothing changed");
+    e.move_cues(1, &[q(3.0), q(4.0), q(5.0)], BlockTo::Number(q(4.0)), None)
+        .unwrap();
+    assert_eq!(numbers(&e, 1), [1.0, 2.0, 4.0, 5.0, 6.0, 21.0]);
+    assert_eq!([4.0, 5.0, 6.0].map(|n| holds(&e, 1, n)), [203, 204, 205]);
+}
+
+#[test]
+fn cue_69_a_copy_to_another_list_keeps_everything() {
+    let mut e = songs();
+    e.add_playback(Playback {
+        cues: vec![
+            cue(1.0, dimmers(&[301], 1.0)),
+            cue(2.0, dimmers(&[302], 1.0)),
+        ],
+        ..Playback::new(2, 1, 2, Values::new())
+    });
+    e.change_cue(
+        1,
+        q(11.0),
+        &CueChange {
+            legend: Some("Refrein".into()),
+            fade_in: Some(3.0),
+            track: Some(Track::Block),
+            ..CueChange::default()
+        },
+    )
+    .unwrap();
+    let source = e.playback(1).unwrap().clone();
+    e.copy_cues(1, &[q(10.0), q(11.0)], BlockTo::End, Some(2))
+        .unwrap();
+    assert_eq!(*e.playback(1).unwrap(), source, "a copy leaves the source");
+    assert_eq!(numbers(&e, 2), [1.0, 2.0, 3.0, 4.0]);
+    for (from, to) in [(10.0, 3.0), (11.0, 4.0)] {
+        assert_eq!(
+            Cue {
+                number: q(from),
+                ..cue_at(&e, 2, to).clone()
+            },
+            *cue_at(&e, 1, from),
+            "Q{from} copied whole to Q{to}"
+        );
+    }
+    e.copy_cues(1, &[q(1.0)], BlockTo::Number(q(7.5)), Some(2))
+        .unwrap();
+    assert_eq!(numbers(&e, 2), [1.0, 2.0, 3.0, 4.0, 7.5]);
+}
+
+#[test]
+fn cue_69_a_move_to_another_list() {
+    let mut e = songs();
+    e.add_playback(Playback {
+        cues: vec![
+            cue(1.0, dimmers(&[301], 1.0)),
+            cue(2.0, dimmers(&[302], 1.0)),
+        ],
+        ..Playback::new(2, 1, 2, Values::new())
+    });
+    e.move_cues(1, &[q(12.0), q(13.0)], BlockTo::Number(q(10.0)), Some(2))
+        .unwrap();
+    assert_eq!(numbers(&e, 1), [1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 11.0, 20.5]);
+    assert_eq!(numbers(&e, 2), [1.0, 2.0, 10.0, 11.0]);
+    assert_eq!([10.0, 11.0].map(|n| holds(&e, 2, n)), [212, 213]);
+}
+
+#[test]
+fn cue_69_what_a_moved_cue_tracks_follows_its_new_place() {
+    let mut e = common::church();
+    list(
+        &mut e,
+        vec![
+            cue(1.0, dimmers(&[201], 0.5)),
+            cue(2.0, dimmers(&[202], 0.7)),
+            cue(3.0, dimmers(&[201], 1.0)),
+        ],
+    );
+    assert!(e
+        .cue_view(1, q(2.0))
+        .unwrap()
+        .contains_key(&Item::fixture(201)));
+    e.move_cues(1, &[q(1.0)], BlockTo::Number(q(2.5)), None)
+        .unwrap();
+    let q2 = e.cue_view(1, q(2.0)).unwrap();
+    assert!(
+        !q2.contains_key(&Item::fixture(201)),
+        "Q2 is first now and tracks nothing of 201"
+    );
+    let moved = e.cue_view(1, q(2.5)).unwrap();
+    assert_eq!(
+        moved[&Item::fixture(202)]["Dimmer"].from,
+        q(2.0),
+        "the moved cue tracks 202 from Q2"
+    );
+    assert_eq!(
+        cue_at(&e, 1, 2.5).values,
+        dimmers(&[201], 0.5),
+        "hard values stay hard"
+    );
+}
+
+#[test]
+fn cue_69_refusals() {
+    let mut e = songs();
+    e.add_playback(Playback::new(2, 1, 2, dimmers(&[301], 1.0))); // a memory
+    let before = e.playback(1).unwrap().clone();
+    assert!(
+        e.copy_cues(1, &[q(1.0)], BlockTo::End, Some(2)).is_err(),
+        "a memory is no target"
+    );
+    assert!(
+        e.copy_cues(1, &[q(1.0)], BlockTo::End, Some(9)).is_err(),
+        "an unknown target"
+    );
+    e.add_playback(Playback {
+        cues: vec![
+            cue(1.0, dimmers(&[302], 1.0)),
+            cue(2.0, dimmers(&[303], 1.0)),
+        ],
+        ..Playback::new(3, 1, 3, Values::new())
+    });
+    let all: Vec<_> = before.cues.iter().map(|c| c.number).collect();
+    assert!(
+        e.move_cues(1, &all, BlockTo::End, Some(3)).is_err(),
+        "every cue out of a list"
+    );
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e.cuelist(Some(1), cmdmx_core::playback::ListAction::Goto(q(3.0)), 0.0)
+        .unwrap();
+    e.tick(0.0);
+    let refused = e
+        .move_cues(1, &[q(3.0), q(4.0)], BlockTo::End, Some(3))
+        .unwrap_err();
+    assert_eq!(refused.to_string(), "Q3 is live on 1.1");
+    assert_eq!(*e.playback(1).unwrap(), before);
+    e.move_cues(1, &[q(3.0), q(4.0)], BlockTo::Number(q(30.0)), None)
+        .unwrap();
+    assert_eq!(
+        e.list_live(1).unwrap().current,
+        Some(q(30.0)),
+        "the live cue may move within its own list"
+    );
 }

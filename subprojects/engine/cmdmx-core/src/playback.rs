@@ -1055,6 +1055,13 @@ pub enum AddCue {
     Insert,
 }
 
+/// CUE-69: where a block of cues goes: the first number, or after the target's last cue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlockTo {
+    Number(CueNumber),
+    End,
+}
+
 /// CUE-10..12, 18, 19, 27: what `cuelist.go/back/stop/goto/next` and `playback.release` ask.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ListAction {

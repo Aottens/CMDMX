@@ -245,6 +245,7 @@ private struct CueListWindow: View {
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var livePlaybacks: LivePlaybacks   // UI-69: shows live values
     @EnvironmentObject private var ui: UIState
+    @AppStorage("cueFollow") private var follow = true   // CUE-67: the window follows the current cue
 
     private static let widths: [CGFloat?] = [44, nil, 44, 56, 84, 36, 58, 62]
     private static let titles = ["Q", "Legend", "Delay", "Fade", "Link", "Track", "Groups", ""]
@@ -263,6 +264,11 @@ private struct CueListWindow: View {
         PanelWindow(title: memory.map { "Cue · \($0.homeHandle)" } ?? list.map { "Cue list · \($0.shownLegend)" } ?? "Cue list",
                     info: memory.map(\.shownLegend) ?? list.map { "\($0.homeHandle) · \($0.stored.cues.count) cues" } ?? "No cue list connected",
                     accessory: {
+                        if list != nil {
+                            Button("Follow") { follow.toggle() }   // CUE-67
+                                .buttonStyle(FlatButton(fill: follow ? .blue : nil, compact: true))
+                                .help("Follow: the window scrolls to the current cue on every change · a hand scroll does not turn it off")
+                        }
                         if list?.isChase != true && memory == nil {
                             Button("Times") { ui.cueTimesView.toggle(); ui.timeCells = nil }
                                 .buttonStyle(FlatButton(fill: ui.cueTimesView ? .blue : nil, compact: true))
@@ -279,9 +285,14 @@ private struct CueListWindow: View {
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 HLine()
                 if let list {
-                    ScrollView {
-                        VStack(spacing: 0) { ForEach(list.stored.cues) { if times { timesRow(list, $0) } else { row(list, $0) } } }
-                            .coordinateSpace(name: "cueTimes")
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(spacing: 0) { ForEach(list.stored.cues) { if times { timesRow(list, $0) } else { row(list, $0) } } }
+                                .coordinateSpace(name: "cueTimes")
+                        }
+                        // CUE-67: a changed current cue (or another list) brings it and the row after it into sight.
+                        .onChange(of: FollowKey(list: list.id, cue: list.live.cue?.current)) { _, _ in scrollToCurrent(list, proxy) }
+                        .onAppear { scrollToCurrent(list, proxy) }
                     }
                 } else {
                     Spacer(minLength: 0)
@@ -289,6 +300,17 @@ private struct CueListWindow: View {
             }
         }
     }
+
+    /// CUE-67: nil anchor scrolls the least: a row already in sight stays, the row above shows only when there is room.
+    private func scrollToCurrent(_ list: PlaybackInfo, _ proxy: ScrollViewProxy) {
+        guard follow, let current = list.live.cue?.current else { return }
+        let cues = list.stored.cues
+        guard let index = cues.firstIndex(where: { $0.number == current }) else { return }
+        proxy.scrollTo(cues[max(index - 1, 0)].id, anchor: nil)
+        proxy.scrollTo(cues[min(index + 1, cues.count - 1)].id, anchor: nil)
+    }
+
+    private struct FollowKey: Equatable { var list: Int; var cue: Double? }
 
     private func row(_ list: PlaybackInfo, _ cue: StoredCue) -> some View {
         let live = list.live.cue
@@ -354,7 +376,7 @@ private struct CueListWindow: View {
         .overlay(alignment: .leading) { if current { Rectangle().fill(t.green).frame(width: 3) } }
         .overlay { if next { Rectangle().strokeBorder(t.fg2, lineWidth: 1) } }
         .overlay(alignment: .bottom) { HLine() }
-        .overlay { if ui.cueDelete && ui.cueMenu?.playback == list.id && ui.cuePicks.contains(cue.number) { Rectangle().fill(t.red.opacity(0.18)).overlay(Rectangle().strokeBorder(t.red, lineWidth: 2)) } }   // UI-64
+        .overlay { if (ui.cueDelete || ui.cueBlockPicking) && ui.cueMenu?.playback == list.id && ui.cuePicks.contains(cue.number) { Rectangle().fill(t.red.opacity(0.18)).overlay(Rectangle().strokeBorder(t.red, lineWidth: 2)) } }   // UI-64
     }
 
     /// UI-51: a row of the Times view. A tap selects one time cell and never sets Next; armed, the whole row is the target (UI-42).
@@ -446,12 +468,24 @@ private struct CueListWindow: View {
         case .include:
             engine.includePlayback(list.id, cue: cue.number, mask: ui.orderedRecordMask)   // PBK-48
             ui.cancelModes()
-        case .copy:
-            openCueMenu()
-            engine.say("Copy cue \(plain(cue.number)): type the number, then Copy.")
-        case .move:
-            openCueMenu()
-            engine.say("Move cue \(plain(cue.number)): type the number, then Renumber.")
+        case .copy, .move:
+            // CUE-69: picks rows like Delete (⇧ a range, ⌘ one more); a number and Enter, Copy / Renumber or End sends them.
+            let name = ui.function?.rawValue ?? ""
+            let flags = NSApp.currentEvent?.modifierFlags ?? []
+            if flags.contains(.shift) || flags.contains(.command), ui.cueBlockPicking, ui.cueMenu?.playback == list.id {
+                ui.cuePicks = extended(ui.cuePicks, with: cue.number, in: list.stored.cues.map(\.number), range: flags.contains(.shift))
+                if let last = ui.cuePicks.last, !ui.cuePicks.contains(ui.cueMenu?.cue ?? -1) { ui.cueMenu = CueRef(playback: list.id, cue: last) }
+                if ui.cuePicks.isEmpty { ui.cueMenu = nil; ui.cueBlockTarget = nil; engine.say("\(name): nothing picked.") }
+            } else {
+                openCueMenu()
+                ui.cueBlockTarget = nil
+                ui.cuePicks = [cue.number]
+            }
+            let n = ui.cuePicks.count
+            if n > 0 {
+                engine.say(n == 1 ? "\(name) cue \(plain(cue.number)): type the first number, then Enter or \(name == "Copy" ? "Copy" : "Renumber"), End, or tap a list's handle."
+                                  : "\(name) \(n) cues: type the first number, then Enter or \(name == "Copy" ? "Copy" : "Renumber"), End, or tap a list's handle.")
+            }
         case .delete:
             // UI-64: ⇧ / ⌘ on a row while this list's Delete waits picks more cues.
             let flags = NSApp.currentEvent?.modifierFlags ?? []

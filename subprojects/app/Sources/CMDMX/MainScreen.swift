@@ -131,7 +131,7 @@ final class UIState: ObservableObject {
     var fieldEscaped = false
     /// Record armed with the Record function button (UI-16); the next group or palette tap records.
     /// Disarming forgets the record choices below (they hold for one record only, PAL-29).
-    @Published var recordArmed = false { didSet { if recordArmed { timeCells = nil } else { resetRecord() } } }
+    @Published var recordArmed = false { didSet { if recordArmed { timeCells = nil; storedMark = nil } else { resetRecord() } } }
     /// Record + tap on a used cell: waiting for Replace / Merge / Quick Merge (PAL-06).
     @Published var usedCell: UsedCell? { didSet { if usedCell != nil { usedCue = nil; usedGroup = nil } } }
     /// Record + tap on a used handle: waiting for Replace / Merge (PBK-38).
@@ -183,6 +183,8 @@ final class UIState: ObservableObject {
     /// mode (nil = the setting) and a master record armed ("Bpm" / "Rate").
     @Published var cueMenu: CueRef?
     @Published var cueDelete = false
+    /// CUE-69: the list or chase a Copy or Move of picked cues goes to; nil = the list they are in.
+    @Published var cueBlockTarget: Int?
     @Published var usedCue: CueRef? { didSet { if usedCue != nil { usedGroup = nil } } }
     @Published var updateMode: String?
     /// PBK-49: the Update softkeys; playback keys ("id/cue") unticked, palettes ticked, the softkey page.
@@ -212,6 +214,8 @@ final class UIState: ObservableObject {
     @Published var cueValue: CuePick?
     @Published var cueRemoveConfirm = false
     @Published var cueLegendEditing: CueRef?
+    /// PBK-54: what the last record may have created (page, slot, the cue numbers there before); the Legend softkey opens its editor.
+    @Published var storedMark: (page: Int, slot: Int, before: Set<Double>)?
     /// The cue the Times tab opens on (Edit Times on a row).
     @Published var optionsCue: Double?
     /// Set Overlap (PAL-29): the overlap in % for the next palette tap only.
@@ -291,8 +295,24 @@ final class UIState: ObservableObject {
             engine.say(message)
             return false
         }
-        if (recordArmed || function != nil), target != .cue { cueMenu = nil; cueDelete = false; cuePicks = [] }
+        // CUE-69: a handle tap while cues wait for Copy or Move picks the target list, so the picks stay.
+        if (recordArmed || function != nil), target != .cue, !(target == .handle && cueBlockPicking) {
+            cueMenu = nil; cueDelete = false; cuePicks = []; cueBlockTarget = nil
+        }
         return true
+    }
+
+    /// CUE-69: Copy or Move is armed and cue rows are picked.
+    var cueBlockPicking: Bool { (function == .copy || function == .move) && cueMenu != nil && !cuePicks.isEmpty }
+
+    /// CUE-69: sends the picked cues to `to` (nil = End); done like Delete's picks, kept when the engine refuses.
+    func sendCueBlock(_ engine: EngineClient, to: Double?) {
+        guard cueBlockPicking, let ref = cueMenu, let f = function else { return }
+        let cues = cuePicks, target = cueBlockTarget
+        sendPicks(engine) {
+            if f == .copy { engine.copyCues(ref.playback, cues: cues, to: to, target: target) }
+            else { engine.moveCues(ref.playback, cues: cues, to: to, target: target) }
+        }
     }
 
     func isPicked(_ kind: PickKind, _ item: Int) -> Bool { pickKind == kind && picks.contains(item) }
@@ -365,7 +385,7 @@ final class UIState: ObservableObject {
     /// UI-65: an action is done: Menu latch keeps Copy, Move or Delete armed with the picks cleared, else everything disarms.
     func endAction(_ engine: EngineClient) {
         if menuLatch, let f = function, [.copy, .move, .delete].contains(f) {
-            picks = []; pickKind = nil; cuePicks = []; cueMenu = nil; cueDelete = false; moveFixture = nil
+            picks = []; pickKind = nil; cuePicks = []; cueMenu = nil; cueDelete = false; cueBlockTarget = nil; moveFixture = nil
             engine.say("Menu latch: \(f.rawValue) stays armed, tap the next item.")
         } else {
             cancelModes()
@@ -412,10 +432,11 @@ final class UIState: ObservableObject {
 
     /// Disarms Record and every palette function.
     func cancelModes() {
+        storedMark = nil
         patchSwapFrom = nil
         recordArmed = false
         function = nil; pickKind = nil; picks = []; moveFixture = nil; cuePicks = []; swapIfRequired = false; releasePage = nil
-        cueMenu = nil; cueDelete = false; cueRemoveConfirm = false
+        cueMenu = nil; cueDelete = false; cueBlockTarget = nil; cueRemoveConfirm = false
         paletteMenu = false
         selectionMenu = nil
         recordMask = nil; maskMenu = false
@@ -597,6 +618,7 @@ private struct Frame: View {
         .onChange(of: ui.modesOpen) { _, open in if !open { engine.endArmedMessage() } }
         .onAppear {
             engine.isArmed = { [ui] in MainActor.assumeIsolated { ui.modesOpen } }
+            engine.onStore = { [ui] page, slot, before in MainActor.assumeIsolated { ui.storedMark = (page, slot, before) } }
             // Mac keys (UI-19): the monitor stays installed; the handler checks the Keys toggle.
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [ui, line, engine] event in
                 MainActor.assumeIsolated { MacKeys.handle(event, ui: ui, line: line, engine: engine) } ? nil : event

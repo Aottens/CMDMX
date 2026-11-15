@@ -333,7 +333,7 @@ fn pbk_09_record_onto_an_empty_handle_stores_the_whole_programmer() {
     );
     assert_eq!(
         (pb.legend.as_str(), pb.icon.clone(), pb.halo),
-        ("", None, None)
+        ("101, 102", None, None)
     );
     assert_eq!(e.page_slots()[0], Some(id));
     assert!(
@@ -1333,4 +1333,248 @@ fn pbk_46_cues_recorded_after_the_setting_take_its_times_an_earlier_cue_keeps_it
         );
         assert_eq!(times(&all[1]), new_times, "{name}: new cue");
     }
+}
+
+// ---- PBK-54: a new playback or cue says what it holds (TTN-06) ---------------------------------
+//
+// API these tests fix: `Settings::auto_legend: bool` (default true) and
+// `PlaybackSettingsChange::auto_legend: Option<bool>`. Each cue a record makes gets the automatic
+// legend (group, then palettes, else fixture numbers or a count), a new playback takes its first
+// cue's legend, and nothing else ever writes a legend.
+
+/// A palette numbered `number` on `cell` of `window` holding `attr` = `value` for `fixtures`.
+fn legend_palette(
+    e: &mut Engine,
+    (window, cell, number): (Window, u16, u32),
+    fixtures: &[u32],
+    (attr, value): (&str, Value),
+    legend: &str,
+) {
+    clear_all(e);
+    common::select(e, fixtures);
+    for &f in fixtures {
+        set(e, f, attr, value);
+    }
+    e.record_palette(&Record {
+        number: Some(number),
+        record_by: Some(RecordBy::Channel),
+        ..Record::at(Cell::new(window, cell))
+    })
+    .unwrap();
+    e.set_palette_legend(number, legend, None).unwrap();
+    clear_all(e);
+}
+
+fn legend_group(e: &mut Engine, id: u32, fixtures: &[u32], legend: &str) {
+    clear_all(e);
+    common::select(e, fixtures);
+    e.record_group(id).unwrap();
+    e.set_group_legend(id, legend).unwrap();
+    clear_all(e);
+}
+
+fn apply(e: &mut Engine, fixtures: &[u32], palettes: &[u32]) {
+    e.clear_selection();
+    common::select(e, fixtures);
+    for &p in palettes {
+        e.apply_palette(p, Timing::default()).unwrap();
+    }
+}
+
+fn level(e: &mut Engine, fixtures: &[u32], v: f32) {
+    for &f in fixtures {
+        set(e, f, "Dimmer", v);
+    }
+}
+
+fn cue_legend(e: &Engine, id: u32, at: usize) -> String {
+    e.playback(id).unwrap().cues[at].legend.clone()
+}
+
+fn q(n: f64) -> cmdmx_core::playback::CueNumber {
+    cmdmx_core::playback::CueNumber::new(n).unwrap()
+}
+
+#[test]
+fn pbk_54_automatic_legends_are_on_by_default() {
+    assert!(Settings::default().auto_legend);
+}
+
+#[test]
+fn pbk_54_a_new_playback_is_named_after_its_group_and_palettes() {
+    let mut e = rig();
+    legend_group(&mut e, 1, &[501, 502], "Front");
+    let blue = Value::Colour(rgb(0.0, 0.0, 1.0));
+    legend_palette(
+        &mut e,
+        (Window::Colours, 1, 1),
+        &[501, 502],
+        ("Colour", blue),
+        "Blauw",
+    );
+    apply(&mut e, &[501, 502], &[1]);
+    level(&mut e, &[501, 502], 0.6);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    assert_eq!(cue_legend(&e, id, 0), "Front · Blauw");
+    assert_eq!(e.playback(id).unwrap().legend, "Front · Blauw");
+}
+
+#[test]
+fn pbk_54_the_lowest_group_with_a_legend_and_exactly_these_fixtures() {
+    let mut e = rig();
+    legend_group(&mut e, 1, &[501], "Links");
+    legend_group(&mut e, 2, &[501, 502], "");
+    legend_group(&mut e, 3, &[502, 501], "Paren");
+    legend_group(&mut e, 4, &[501, 502], "Later");
+    legend_group(&mut e, 5, &[501, 502, 201], "Meer");
+    common::select(&mut e, &[501, 502]);
+    level(&mut e, &[501, 502], 1.0);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    assert_eq!(cue_legend(&e, id, 0), "Paren");
+}
+
+#[test]
+fn pbk_54_palettes_in_attribute_group_order_then_number_each_once() {
+    let mut e = rig();
+    let pan = ("Pan", Value::from(0.25));
+    legend_palette(
+        &mut e,
+        (Window::Positions, 1, 10),
+        &[101, 102],
+        pan,
+        "Preek",
+    );
+    let tilt = ("Tilt", Value::from(0.75));
+    legend_palette(&mut e, (Window::Positions, 2, 2), &[101, 102], tilt, "");
+    let zoom = ("Zoom", Value::from(0.1));
+    legend_palette(&mut e, (Window::Beams, 1, 1), &[101, 102], zoom, "Smal");
+    let red = ("Colour", Value::Colour(rgb(1.0, 0.0, 0.0)));
+    legend_palette(&mut e, (Window::Colours, 1, 3), &[501, 502], red, "Rood");
+    let blue = ("Colour", Value::Colour(rgb(0.0, 0.0, 1.0)));
+    legend_palette(&mut e, (Window::Colours, 2, 5), &[501, 502], blue, "Blauw");
+    apply(&mut e, &[101, 102], &[10, 2, 1]);
+    apply(&mut e, &[501], &[5]);
+    apply(&mut e, &[502], &[3]);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    assert_eq!(
+        cue_legend(&e, id, 0),
+        "Preek · Rood · Blauw · Smal",
+        "P before C before B, Rood (3) before Blauw (5), the empty legend of palette 2 skipped"
+    );
+}
+
+#[test]
+fn pbk_54_without_group_or_palettes_the_fixture_numbers_or_a_count() {
+    let mut e = rig();
+    common::select(&mut e, &[205, 201]);
+    level(&mut e, &[205, 201], 0.5);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    assert_eq!(cue_legend(&e, id, 0), "201, 205");
+    clear_all(&mut e);
+    let eight = [201, 202, 203, 204, 205, 206, 207, 208];
+    common::select(&mut e, &eight);
+    level(&mut e, &eight, 0.5);
+    e.record_playback(&PlaybackRecord {
+        add: Some(AddCue::Append),
+        ..PlaybackRecord::at(1, 1)
+    })
+    .unwrap();
+    assert_eq!(cue_legend(&e, id, 1), "8 fixtures", "Append");
+    clear_all(&mut e);
+    common::select(&mut e, &[221, 222, 223]);
+    level(&mut e, &[221, 222, 223], 0.5);
+    e.record_playback(&PlaybackRecord {
+        cue: Some(q(5.0)),
+        ..PlaybackRecord::at(1, 1)
+    })
+    .unwrap();
+    assert_eq!(cue_legend(&e, id, 2), "221, 222, 223", "a cue number");
+    assert_eq!(
+        e.playback(id).unwrap().legend,
+        "201, 205",
+        "a new cue leaves the playback's legend alone"
+    );
+}
+
+#[test]
+fn pbk_54_a_long_legend_drops_whole_parts_from_the_end() {
+    let mut e = rig();
+    legend_group(&mut e, 1, &[101, 102, 501, 502], "Voorzijde podium links");
+    let pan = ("Pan", Value::from(0.25));
+    legend_palette(
+        &mut e,
+        (Window::Positions, 1, 10),
+        &[101, 102],
+        pan,
+        "Preek",
+    );
+    let blue = ("Colour", Value::Colour(rgb(0.0, 0.0, 1.0)));
+    legend_palette(&mut e, (Window::Colours, 1, 5), &[501, 502], blue, "Blauw");
+    apply(&mut e, &[101, 102], &[10]);
+    apply(&mut e, &[501, 502], &[5]);
+    common::select(&mut e, &[101, 102, 501, 502]);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    let legend = cue_legend(&e, id, 0);
+    assert_eq!(legend, "Voorzijde podium links · Preek…");
+    assert!(legend.chars().count() <= 32);
+}
+
+#[test]
+fn pbk_54_only_a_new_cue_gets_a_legend() {
+    let mut e = rig();
+    common::select(&mut e, &[201]);
+    level(&mut e, &[201], 0.5);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    assert_eq!(cue_legend(&e, id, 0), "201");
+    let clear = cmdmx_core::playback::CueChange {
+        legend: Some(String::new()),
+        ..Default::default()
+    };
+    e.change_cue(id, q(1.0), &clear).unwrap();
+    for mode in [
+        RecordMode::Replace,
+        RecordMode::Merge,
+        RecordMode::QuickMerge,
+    ] {
+        e.record_playback(&PlaybackRecord {
+            mode: Some(mode),
+            ..PlaybackRecord::at(1, 1)
+        })
+        .unwrap();
+        assert_eq!(
+            cue_legend(&e, id, 0),
+            "",
+            "{mode:?} leaves the emptied legend"
+        );
+    }
+    e.copy_cue(id, q(1.0), q(2.0)).unwrap();
+    assert_eq!(cue_legend(&e, id, 1), "", "Copy keeps the legend it copies");
+    let mine = cmdmx_core::playback::CueChange {
+        legend: Some("Mine".into()),
+        ..Default::default()
+    };
+    e.change_cue(id, q(1.0), &mine).unwrap();
+    e.record_playback(&PlaybackRecord {
+        mode: Some(RecordMode::Replace),
+        cue: Some(q(1.0)),
+        ..PlaybackRecord::at(1, 1)
+    })
+    .unwrap();
+    assert_eq!(cue_legend(&e, id, 0), "Mine", "a typed legend stays");
+}
+
+#[test]
+fn pbk_54_off_leaves_legends_empty() {
+    let mut e = rig();
+    e.set_playback_settings(&PlaybackSettingsChange {
+        auto_legend: Some(false),
+        ..PlaybackSettingsChange::default()
+    })
+    .unwrap();
+    assert!(!e.settings().auto_legend);
+    common::select(&mut e, &[201]);
+    level(&mut e, &[201], 0.5);
+    let id = e.record_playback(&PlaybackRecord::at(1, 1)).unwrap();
+    assert_eq!(cue_legend(&e, id, 0), "");
+    assert_eq!(e.playback(id).unwrap().legend, "");
 }

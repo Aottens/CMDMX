@@ -36,6 +36,15 @@ enum HandleTaps {
         let used = isUsed(info, page: page)
         if let info { ui.lastHandle = info.id }
 
+        // CUE-69: while picked cues wait for Copy or Move, a list's or chase's handle is the target.
+        if ui.cueBlockPicking, let function = ui.function {
+            guard let info, used, info.hasCues, !info.isMemory else { return engine.say("\(function.rawValue): tap a cue list or chase handle, or type the first number.") }
+            ui.cueBlockTarget = info.id
+            let n = ui.cuePicks.count
+            engine.say("\(function.rawValue) \(n) cue\(n == 1 ? "" : "s") to \(info.homeHandle): type the first number, then Enter or End.")
+            return
+        }
+
         if ui.recordArmed {
             if let building = ui.building {
                 return build(building, page: page, slot: slot, info: info, used: used, engine: engine, ui: ui, line: line)

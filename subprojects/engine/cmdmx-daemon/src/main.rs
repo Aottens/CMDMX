@@ -1212,6 +1212,20 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         CueRenumber { id, cue, to } => engine.renumber_cue(id, cue, to),
         CueRenumberAll { id } => engine.renumber_cues(id),
         CueCopy { id, cue, to } => engine.copy_cue(id, cue, to),
+        CueBlock {
+            id,
+            cues,
+            to,
+            target,
+            copy: true,
+        } => engine.copy_cues(id, &cues, to, target),
+        CueBlock {
+            id,
+            cues,
+            to,
+            target,
+            copy: false,
+        } => engine.move_cues(id, &cues, to, target),
         // Answered through `Event::CueView` (IPC-24).
         CueView { .. } => Ok(()),
         // Answered through `Event::Usage` (IPC-54).
@@ -1403,6 +1417,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CueRenumber { .. }
         | CueRenumberAll { .. }
         | CueCopy { .. }
+        | CueBlock { .. }
         | CueRemove { .. }
         | CueOff { .. }
         | PlaybackInclude { .. }
@@ -1595,6 +1610,13 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         CueDelete { .. } => ("Delete cue".into(), None),
         CueRenumber { .. } | CueRenumberAll { .. } => ("Renumber cue".into(), None),
         CueCopy { .. } => ("Copy cue".into(), None),
+        CueBlock { cues, copy, .. } => {
+            let verb = if *copy { "Copy" } else { "Move" };
+            match cues.len() {
+                1 => (format!("{verb} cue"), None),
+                n => (format!("{verb} {n} cues"), None),
+            }
+        }
         CueRemove { .. } => ("Remove cue value".into(), None),
         CueOff { off: true, .. } => ("Cue value off".into(), None),
         CueOff { .. } => ("Cue value on".into(), None),
@@ -3795,6 +3817,10 @@ mod tests {
         (r#"{"v":1,"cmd":"cue.renumber_all","id":2}"#, Class::Edit),
         (
             r#"{"v":1,"cmd":"cue.copy","id":2,"cue":2,"to":7}"#,
+            Class::Edit,
+        ),
+        (
+            r#"{"v":1,"cmd":"cue.move","id":2,"cues":[2,3],"to":"end"}"#,
             Class::Edit,
         ),
         (
@@ -6123,5 +6149,73 @@ mod tests {
         )
         .unwrap();
         assert_eq!(h.undo_label(), Some("Delete cue"));
+    }
+
+    /// CUE-69: a block of cues moves or copies in one undo step; a block in the way leaves none.
+    #[test]
+    fn cue_69_move_and_copy_a_block_is_one_undo_step() {
+        use cmdmx_core::playback::{Cue, CueNumber};
+        let mut e = demo_engine().unwrap();
+        let mut h = History::default();
+        let mut pb = e.playback(1).unwrap().clone();
+        let first = pb.cues[0].clone();
+        pb.cues = (1..=5)
+            .map(|n| Cue {
+                number: CueNumber::new(f64::from(n)).unwrap(),
+                ..first.clone()
+            })
+            .collect();
+        e.add_playback(pb);
+        let numbers = |e: &Engine| -> Vec<f64> {
+            (e.playback(1).unwrap().cues.iter())
+                .map(|c| c.number.as_f64())
+                .collect()
+        };
+        let before = e.edit_state();
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"cue.move","id":1,"cues":[2,3,4],"to":"end"}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Move 3 cues"));
+        assert_eq!(numbers(&e), [1.0, 5.0, 6.0, 7.0, 8.0]);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        assert_eq!(e.edit_state(), before);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"cue.copy","id":1,"cues":[1,2],"to":10}"#,
+        )
+        .unwrap();
+        assert_eq!(h.undo_label(), Some("Copy 2 cues"));
+        assert_eq!(numbers(&e), [1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 11.0]);
+        undo_run(&mut e, &mut h, r#"{"v":1,"cmd":"undo"}"#).unwrap();
+        let steps = h.len();
+        let refused = undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"cue.move","id":1,"cues":[1,2],"to":4}"#,
+        );
+        assert!(refused.is_err(), "Q5 is in the way");
+        let refused = undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"cue.copy","id":1,"cues":[1],"to":"end","target":999}"#,
+        );
+        assert!(refused.is_err(), "an unknown target");
+        assert_eq!(h.len(), steps, "a refusal leaves no step");
+        assert_eq!(e.edit_state(), before);
+        undo_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"cue.copy","id":1,"cue":2,"to":7}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            numbers(&e),
+            [1.0, 2.0, 3.0, 4.0, 5.0, 7.0],
+            "CUE-08's one-cue copy stays"
+        );
     }
 }

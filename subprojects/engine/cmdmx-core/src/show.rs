@@ -43,6 +43,14 @@ fn is_default_go_guard(v: &f32) -> bool {
     *v == default_go_guard()
 }
 
+fn default_true() -> bool {
+    true
+}
+
+fn is_true(v: &bool) -> bool {
+    *v
+}
+
 fn is_default_lowlight(v: &f32) -> bool {
     *v == default_lowlight()
 }
@@ -97,6 +105,9 @@ pub struct ShowSettings {
         skip_serializing_if = "is_default_go_guard"
     )]
     pub go_guard: f32,
+    /// PBK-54, SHW-26: left out while on.
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub auto_legend: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
