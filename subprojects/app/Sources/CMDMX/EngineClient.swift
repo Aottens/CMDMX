@@ -2843,6 +2843,7 @@ final class EngineClient: ObservableObject {
                 if let m = pendingMove, m.group != nil && m.group == reply.group || m.playback != nil && m.playback == reply.playback {
                     // Only a `page.slot` binding stops following a moved playback; an id binding follows it.
                     pendingMove?.controls = reply.playback == nil ? reply.controls : reply.controls.filter { $0.action.hasSuffix(" " + m.from) }
+                    sayMoved()   // the move's delta may have come first
                 }
                 let key = reply.palette.map { "palette \($0)" } ?? reply.group.map { "group \($0)" } ?? reply.playback.map { "playback \($0)" }
                 if let p = pendingDelete, p.key == key {
@@ -2983,7 +2984,9 @@ extension EngineClient {
         }
         guard moved else { return }
         pendingMove = nil
-        say(text + "\(Self.names(m.controls)) still \(m.controls.count == 1 ? "says" : "say") \(m.group.map { "group \($0)" } ?? m.from).")
+        // Not the armed function's own line: Move disarms right after and would take it away (UI-50).
+        lastMessage = text + "\(Self.names(m.controls)) still \(m.controls.count == 1 ? "says" : "say") \(m.group.map { "group \($0)" } ?? m.from)."
+        armedMessage = nil
     }
 
     /// CTL-74: the shown mapping marks bindings to nothing, so ask again when the objects change.
