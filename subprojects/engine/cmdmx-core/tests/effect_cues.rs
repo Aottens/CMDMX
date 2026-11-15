@@ -1740,3 +1740,60 @@ fn pbk_48_a_member_leaves_the_entry_it_ran_in_the_programmer() {
     );
     assert_eq!(e.effects().len(), 3);
 }
+
+// ---------- FX-46..48: shapes on playbacks (TTN-07..09) ----------
+//
+// API under test:
+// - `Playback.shape_size: ShapeSize` (`Fader` default, `Fixed`, `HtpFader`) and
+//   `Playback.mask_shapes: Vec<AttributeGroup>` (default empty), both in `PlaybackChange`.
+// - `Settings.swop_shapes: SwopShapes` (`All` default, `Intensity`), in `PlaybackSettingsChange`.
+
+use cmdmx_core::playback::ShapeSize;
+
+/// A memory on 1.1 with a ramp on par 201 (DMX 21) and a relative line on spot 311 (Pan 0.5,
+/// DMX 49): Pan = 0.5 + 0.1 · sin 2πθ.
+fn ramp_and_line(e: &mut Engine) -> u32 {
+    ramp(e, &[201]);
+    select(e, &[311]);
+    e.set_programmer_value(311, "Pan", 0.5).unwrap();
+    line_pan(e, &[311]);
+    let pb = record(e, 1, 1);
+    clear(e);
+    pb
+}
+
+/// `ramp_and_line` with `size` at fader 0.5, sampled at θ = 1.25: (DMX 21, DMX 49).
+fn half_fader(size: ShapeSize) -> (u8, u8) {
+    let mut e = rig();
+    let pb = ramp_and_line(&mut e);
+    edit_playback(&mut e, pb, |p| p.shape_size = size);
+    e.set_fader(pb, 0.5, 0.0).unwrap();
+    e.tick(0.0);
+    tick_to(&mut e, 0.0, 1.25);
+    (dmx(&e, 21), dmx(&e, 49))
+}
+
+#[test]
+fn fx_46_fader_is_the_default_and_scales_every_shape() {
+    let p = cmdmx_core::playback::Playback::new(9, 1, 9, Default::default());
+    assert_eq!(p.shape_size, ShapeSize::Fader);
+    let (dimmer, pan) = half_fader(ShapeSize::Fader);
+    // 0.25 · 0.5; 0.5 + 0.5 · 0.1.
+    assert!(dimmer.abs_diff(32) <= 1, "{dimmer}");
+    assert!(pan.abs_diff(140) <= 1, "{pan}");
+}
+
+#[test]
+fn fx_46_fixed_keeps_every_shape_at_its_recorded_size() {
+    let (dimmer, pan) = half_fader(ShapeSize::Fixed);
+    // 0.25 at full; 0.5 + 0.1.
+    assert!(dimmer.abs_diff(64) <= 1, "{dimmer}");
+    assert!(pan.abs_diff(153) <= 1, "{pan}");
+}
+
+#[test]
+fn fx_46_htp_fader_scales_only_the_dimmer_shapes() {
+    let (dimmer, pan) = half_fader(ShapeSize::HtpFader);
+    assert!(dimmer.abs_diff(32) <= 1, "{dimmer}");
+    assert!(pan.abs_diff(153) <= 1, "{pan}");
+}

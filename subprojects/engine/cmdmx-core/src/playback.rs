@@ -89,6 +89,22 @@ pub enum KillPoint {
     FaderAtZero,
 }
 
+/// FX-46: whether the playback's master scales its effects.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ShapeSize {
+    /// FX-25: the master scales every effect.
+    #[default]
+    Fader,
+    /// No effect follows the master.
+    Fixed,
+    /// Only effects on `Htp` attributes follow the master.
+    HtpFader,
+}
+
+fn is_default_shape_size(v: &ShapeSize) -> bool {
+    *v == ShapeSize::default()
+}
+
 /// PBK-50: how a list of playbacks lands on its target handles.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -784,6 +800,8 @@ pub struct Playback {
     pub priority: Priority,
     pub fader_mode: FaderMode,
     pub kill_point: KillPoint,
+    #[serde(default, skip_serializing_if = "is_default_shape_size")]
+    pub shape_size: ShapeSize,
     /// `None` = the global setting (PBK-20).
     pub release_mask: Option<Vec<AttributeGroup>>,
     pub release_time: Option<f32>,
@@ -816,6 +834,7 @@ impl Playback {
             priority: Priority::Normal,
             fader_mode: FaderMode::Mode0,
             kill_point: KillPoint::default(),
+            shape_size: ShapeSize::default(),
             release_mask: None,
             release_time: None,
             paging: Paging::default(),
@@ -1014,6 +1033,7 @@ pub struct PlaybackChange {
     pub priority: Option<Priority>,
     pub fader_mode: Option<FaderMode>,
     pub kill_point: Option<KillPoint>,
+    pub shape_size: Option<ShapeSize>,
     pub release_mask: Option<Option<Vec<AttributeGroup>>>,
     pub release_time: Option<Option<f32>>,
     pub paging: Option<Paging>,

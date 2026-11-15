@@ -492,6 +492,16 @@ private struct HandleTab: View {
             Choice(options: [("Unlocked", "Unlocked"), ("Transparent lock", "TransparentLock"), ("Locked", "Locked")],
                    selected: playback.stored.options.paging) { engine.setPlaybackOptions(playback.id, ["paging": $0]) }
         }
+        if !playback.stored.isMaster {
+            OptionRow(label: "Shape size", note: [
+                "Fader": "The fader scales the size of the shapes.",
+                "Fixed": "The shapes keep the size they were recorded with.",
+                "HtpFader": "The fader scales shapes on intensity; the others keep their size.",
+            ][playback.stored.options.shapeSize] ?? "") {
+                Choice(options: [("Fader", "Fader"), ("Fixed", "Fixed"), ("Dimmer shapes on fader", "HtpFader")],
+                       selected: playback.stored.options.shapeSize) { engine.setPlaybackOptions(playback.id, ["shape_size": $0]) }
+            }
+        }
         Text("Home handle \(playback.homeHandle).").font(Typo.ui(11)).foregroundStyle(.secondary)
     }
 }

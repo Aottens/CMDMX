@@ -41,8 +41,8 @@ use crate::playback::{
     Direction, FaderMode, GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons,
     KillPoint, Kind as PlaybackKind, Layout, Link, ListAction, ListFader, ListLive, Master,
     MasterKind, Origin, Origins, Paging, Playback, PlaybackChange, PlaybackId, PlaybackRecord,
-    PlaybackState, Priority, Release, SpeedSource, UpdateMode, UpdateTarget, UpdateTargets, Values,
-    GROUP_SCALES, PAGES,
+    PlaybackState, Priority, Release, ShapeSize, SpeedSource, UpdateMode, UpdateTarget,
+    UpdateTargets, Values, GROUP_SCALES, PAGES,
 };
 use crate::profile::{ColourMixing, ColourSystem, LogicalAttribute, Mode, Profile, COLOUR, DIMMER};
 use crate::programmer::{
@@ -5740,6 +5740,9 @@ impl Engine {
         if let Some(v) = change.kill_point {
             playback.kill_point = v;
         }
+        if let Some(v) = change.shape_size {
+            playback.shape_size = v;
+        }
         if let Some(v) = &change.release_mask {
             playback.release_mask = v.clone();
         }
@@ -10465,7 +10468,13 @@ fn with_effect(
         let key = (playback.priority, activated);
         let drives = fx.runs.iter().any(|r| r.index(item, attribute).is_some());
         if drives && best.as_ref().is_none_or(|b| key > b.0) {
-            best = Some((key, fx, state.master));
+            // FX-46: the size the master gives this playback's shapes.
+            let m = match playback.shape_size {
+                ShapeSize::Fader => state.master,
+                ShapeSize::HtpFader if htp => state.master,
+                _ => 1.0,
+            };
+            best = Some((key, fx, m));
         }
     }
     let found = src.programmer.iter().find_map(|e| {

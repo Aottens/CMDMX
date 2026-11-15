@@ -132,6 +132,11 @@ it. On a cue list, a timed Go from a circle to another circle carries on smoothl
 size and speed; from one effect to another, or to no effect, it crossfades. The playback fader
 scales the effect: pulling it down makes a circle smaller and a chase dimmer.
 
+The playback option *Shape size* (Playback Options, Handle tab) changes this. *Fader* is the
+default. *Fixed* keeps every shape at the size it was recorded with, whatever the fader does.
+*Dimmer shapes on fader* lets only the shapes on intensity follow the fader; the others stay fixed.
+The playback still ends its shapes when the fader is down and the playback is released.
+
 ## Effect palettes
 
 Recording a palette while an effect runs in its attribute groups stores the effect too, without

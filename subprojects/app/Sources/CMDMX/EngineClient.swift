@@ -265,6 +265,7 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
         var priority = "Normal"
         var faderMode = 0
         var killPoint = "FadeOutComplete"
+        var shapeSize = "Fader"
         /// nil = the global release mask (PBK-20).
         var releaseMask: [String]?
         /// nil = the global release time.
@@ -276,7 +277,7 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
 
         private enum CodingKeys: String, CodingKey {
             case priority, paging, group
-            case faderMode = "fader_mode", killPoint = "kill_point"
+            case faderMode = "fader_mode", killPoint = "kill_point", shapeSize = "shape_size"
             case releaseMask = "release_mask", releaseTime = "release_time"
         }
 
@@ -285,6 +286,7 @@ struct PlaybackStored: Decodable, Identifiable, Equatable {
             priority = (try? c.decode(String.self, forKey: .priority)) ?? "Normal"
             faderMode = (try? c.decode(Int.self, forKey: .faderMode)) ?? 0
             killPoint = (try? c.decode(String.self, forKey: .killPoint)) ?? "FadeOutComplete"
+            shapeSize = (try? c.decode(String.self, forKey: .shapeSize)) ?? "Fader"
             releaseMask = try? c.decode([String].self, forKey: .releaseMask)
             releaseTime = try? c.decode(Double.self, forKey: .releaseTime)
             paging = (try? c.decode(String.self, forKey: .paging)) ?? "Unlocked"

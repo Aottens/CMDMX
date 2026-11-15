@@ -37,8 +37,8 @@ use cmdmx_core::playback::{
     AddCue, BlockTo, BpmFader, Button, ChaseOptions, CueChange, CueNumber, Direction, FaderMode,
     GroupMaster, GroupMode, GroupTime, HandleButton, HandleButtons, KillPoint, Kind, Layout, Link,
     ListAction, ListFader, ListOptions, LoopAction, Master, MasterKind, Paging, PlaybackChange,
-    PlaybackId, PlaybackRecord, Priority, SpeedSource, Track, UpdateMode, UpdateTarget, Values,
-    PAGES,
+    PlaybackId, PlaybackRecord, Priority, ShapeSize, SpeedSource, Track, UpdateMode, UpdateTarget,
+    Values, PAGES,
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
@@ -1153,6 +1153,7 @@ fn playback_change(v: &serde_json::Value) -> Result<PlaybackChange, String> {
             }),
         },
         kill_point: opt_field::<KillPoint>(v, "kill_point", "FadeOutComplete or FaderAtZero")?,
+        shape_size: opt_field::<ShapeSize>(v, "shape_size", "Fader, Fixed or HtpFader")?,
         release_mask: nullable(v, "release_mask", "an array of attribute groups or null")?,
         release_time: nullable(v, "release_time", "a number or null")?,
         paging: opt_field::<Paging>(v, "paging", "Unlocked, Locked or TransparentLock")?,
@@ -2354,6 +2355,7 @@ struct OptionsInfo {
     priority: Priority,
     fader_mode: FaderMode,
     kill_point: KillPoint,
+    shape_size: ShapeSize,
     release_mask: Option<Vec<AttributeGroup>>,
     release_time: Option<f32>,
     paging: Paging,
@@ -2507,6 +2509,7 @@ fn stored_infos(engine: &Engine) -> Vec<StoredInfo> {
                     priority: p.priority,
                     fader_mode: p.fader_mode,
                     kill_point: p.kill_point,
+                    shape_size: p.shape_size,
                     release_mask: p.release_mask.clone(),
                     release_time: p.release_time,
                     paging: p.paging,
@@ -7340,7 +7343,7 @@ mod tests {
                "auto_icon":{"value":{"attribute":"Dimmer","value":1.0}},"halo":null,
                "level":0.0,"state":"off","flash":false,"latched":false,"fired":null,
                "groups":["I"],
-               "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete",
+               "options":{"priority":"Normal","fader_mode":0,"kill_point":"FadeOutComplete","shape_size":"Fader",
                           "release_mask":null,"release_time":null,"paging":"Unlocked","group":null},
                "times":{"delay":0.0,"fade_in":0.0,"fade_out":0.0,"delay_out":0.0,
                           "fade_out_as_in":true,"delay_out_as_in":true,"overlap":100.0},
@@ -8848,6 +8851,26 @@ mod tests {
         assert_ne!(stamp(button.clone(), 1.5), button);
         let connect = parse_command(r#"{"v":1,"cmd":"cuelist.connect","id":2}"#).unwrap();
         assert_eq!(stamp(connect.clone(), 1.5), connect);
+    }
+
+    #[test]
+    fn fx_46_shape_size_parses() {
+        use cmdmx_core::playback::ShapeSize;
+        let c = parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"shape_size":"Fixed"}"#)
+            .unwrap();
+        assert_eq!(
+            c,
+            Command::PlaybackChange {
+                id: 3,
+                change: PlaybackChange {
+                    shape_size: Some(ShapeSize::Fixed),
+                    ..PlaybackChange::default()
+                }
+            }
+        );
+        assert!(
+            parse_command(r#"{"v":1,"cmd":"playback.options","id":3,"shape_size":"Big"}"#).is_err()
+        );
     }
 
     #[test]
