@@ -322,11 +322,11 @@ within GRM-15; IPC-29 approved by the owner 2026-10-22):
   `programmer.clear {"groups"?:["C"],"time"?:3.0}` (no field = PRG-29 by `clear_precedence`;
   `groups` = the masked Clear; `time` = ENG-10, emptying the programmer and leaving the
   selection; both together = a masked timed Clear) ·
-  `settings.programmer {"clear_precedence"?, "clear_ltp"?, "lowlight_level"?}` (PRG-42, all or
+  `settings.programmer {"clear_precedence"?, "clear_ltp"?, "lowlight_level"?, "channel_levels"?}` (PRG-42, PRG-103, all or
   nothing). The command line ends a selection with `Locate` (PRG-10).
 - **IPC-33** The programmer view (IPC-11) gains `located` (fixture id → sorted attribute names)
   and `highlight` (bool); the snapshot gains `programmer_settings {clear_precedence, clear_ltp,
-  lowlight_level}` with a `programmer_settings` delta when one changes (as `palette_settings`).
+  lowlight_level, channel_levels}` with a `programmer_settings` delta when one changes (as `palette_settings`).
 - **IPC-34** Command classes (UNDO-04, PRG-44): `programmer.highlight` is live; the other IPC-32
   commands are edits, labelled "Locate", "Off <group>" / "Off <attribute>", "Rem Dim", "Clear",
   "Settings".

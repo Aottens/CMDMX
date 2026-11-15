@@ -228,12 +228,23 @@ pub enum ClearLtp {
     Freeze,
 }
 
+/// PRG-103: how a one-digit level after `@` is read.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChannelLevels {
+    /// `@ 5` is 5 %.
+    #[default]
+    TwoDigit,
+    /// `@ 5` is 50 %: one digit means ten times it.
+    SingleDigit,
+}
+
 /// PRG-42 (`settings.programmer`): every field optional, applied all or nothing.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ProgrammerSettingsChange {
     pub clear_precedence: Option<ClearPrecedence>,
     pub clear_ltp: Option<ClearLtp>,
     pub lowlight_level: Option<f32>,
+    pub channel_levels: Option<ChannelLevels>,
 }
 
 /// PRG-42: the default lowlight level.

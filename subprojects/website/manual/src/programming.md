@@ -62,6 +62,11 @@ selection replaces the current one.
 - `Group 3 Enter` selects group 3.
 - `201 Thro 208 @ 50 Enter` selects them and sets their intensity to 50 %. With fixtures selected,
   `@ 80 Enter` sets the selection to 80 %.
+- `@ @ Enter` is full, as `@ 100 Enter` is: `Group 2 @ @ Enter`.
+- With *Channel levels* at **One digit**, a single digit is ten times itself, as on a Titan: `@ 5 Enter` is 50 %, `@ 0 Enter`
+  is 0 %. Two or more digits (`@ 05`, `@ 50`), `@ @` and `@ + 5` mean the same as with **Two digits**, the default. The
+  setting is in the show-wide part of the *Playback Options* screen, under *Programmer*, and counts for every keypad, the
+  phone's included.
 - `@ + 10 Enter` raises every target's intensity by 10 points, `@ - 10 Enter` lowers it. It starts from the level the
   programmer holds for a fixture, or from what is on stage when it holds none, and stops at 0 and 100 %.
 - Ending the line with **Locate** instead of Enter selects and locates in one go.
@@ -76,7 +81,7 @@ with a message next to it, and nothing changes. A click on the message opens the
 [Messages](reference.md#messages)).
 
 With **Keys** on in the status bar, the Mac keyboard types into the line as well: the digits, `-`
-for Thro, `+` for And (right after `@` they type `-` and `+`, for a relative level), `@`, `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter.
+for Thro, `+` for And (right after `@` they type `-` and `+`, for a relative level), `@` (twice for full), `f` for Fixture, `g` for Group, `p` for Palette and `l` for Lee. Return is Enter.
 Escape is Exit too, also with **Keys** off, and with nothing to exit it goes one level up (see the
 [reference](reference.md)).
 With **Keys** off, which is how the app starts the first time, those keys do nothing, and they or a click on the line
@@ -247,8 +252,8 @@ keeps the selection.
 
 What happens to colour, position and other LTP values when they leave the programmer is a setting:
 **Release** (they go back to what the playbacks or their defaults give) or **Freeze** (they stay
-where they are). The Clear order (selection first, both at once, or programmer first), this setting and the Rem Dim low level
-are in the show-wide part of the *Playback Options* screen, under *Programmer*.
+where they are). The Clear order (selection first, both at once, or programmer first), this setting, the Rem Dim low level and
+*Channel levels* are in the show-wide part of the *Playback Options* screen, under *Programmer*.
 
 ## Groups
 

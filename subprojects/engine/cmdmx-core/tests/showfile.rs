@@ -1303,6 +1303,27 @@ fn shw_26_swop_shapes_is_left_out_at_its_default_and_saved_otherwise() {
 }
 
 #[test]
+fn shw_26_channel_levels_is_left_out_at_its_default_and_saved_otherwise() {
+    use cmdmx_core::programmer::{ChannelLevels, ProgrammerSettingsChange};
+    let mut e = rig();
+    let v = as_json(&e.to_show(meta()));
+    assert!(
+        v["settings"].get("channel_levels").is_none(),
+        "TwoDigit is the default"
+    );
+    e.set_programmer_settings(ProgrammerSettingsChange {
+        channel_levels: Some(ChannelLevels::SingleDigit),
+        ..Default::default()
+    })
+    .unwrap();
+    let v = as_json(&e.to_show(meta()));
+    assert_eq!(v["settings"]["channel_levels"], json!("SingleDigit"));
+    let (loaded, warnings) = load(&v);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(loaded.settings().channel_levels, ChannelLevels::SingleDigit);
+}
+
+#[test]
 fn shw_26_a_schema_14_show_loads_with_every_default() {
     let mut v = as_json(&rig().to_show(meta()));
     v["schema_version"] = json!(14);
@@ -1313,6 +1334,10 @@ fn shw_26_a_schema_14_show_loads_with_every_default() {
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(e.settings().go_guard, 0.5);
     assert!(e.settings().auto_legend);
+    assert_eq!(
+        e.settings().channel_levels,
+        cmdmx_core::programmer::ChannelLevels::TwoDigit
+    );
     assert_eq!(
         e.settings().swop_shapes,
         cmdmx_core::playback::SwopShapes::All

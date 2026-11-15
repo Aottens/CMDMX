@@ -1421,9 +1421,19 @@ struct ProgrammerSettings: Decodable, Equatable {
     let clearPrecedence: String
     let clearLtp: String
     let lowlightLevel: Double
+    let channelLevels: String
 
     private enum CodingKeys: String, CodingKey {
         case clearPrecedence = "clear_precedence", clearLtp = "clear_ltp", lowlightLevel = "lowlight_level"
+        case channelLevels = "channel_levels"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        clearPrecedence = try c.decode(String.self, forKey: .clearPrecedence)
+        clearLtp = try c.decode(String.self, forKey: .clearLtp)
+        lowlightLevel = try c.decode(Double.self, forKey: .lowlightLevel)
+        channelLevels = try c.decodeIfPresent(String.self, forKey: .channelLevels) ?? "TwoDigit"
     }
 }
 

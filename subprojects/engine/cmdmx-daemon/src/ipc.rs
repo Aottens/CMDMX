@@ -42,8 +42,8 @@ use cmdmx_core::playback::{
 };
 use cmdmx_core::profile::Profile;
 use cmdmx_core::programmer::{
-    serialize_wire_item, serialize_wire_items, ClearLtp, ClearPrecedence, FanCurve, GroupId,
-    GroupRecordMode, Item, ProgrammerSettingsChange, ProgrammerView, Resolution,
+    serialize_wire_item, serialize_wire_items, ChannelLevels, ClearLtp, ClearPrecedence, FanCurve,
+    GroupId, GroupRecordMode, Item, ProgrammerSettingsChange, ProgrammerView, Resolution,
 };
 use cmdmx_core::value::{Stored, Value};
 use cmdmx_core::CoreError;
@@ -1552,6 +1552,7 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
             )?,
             clear_ltp: opt_field(&v, "clear_ltp", "Release or Freeze")?,
             lowlight_level: opt_f32(&v, "lowlight_level")?,
+            channel_levels: opt_field(&v, "channel_levels", "TwoDigit or SingleDigit")?,
         })),
         Some("programmer.attribute_group") => Ok(Command::AttributeGroup {
             group: v
@@ -2736,6 +2737,7 @@ struct ProgrammerSettings {
     clear_precedence: ClearPrecedence,
     clear_ltp: ClearLtp,
     lowlight_level: f32,
+    channel_levels: ChannelLevels,
 }
 
 fn programmer_settings(engine: &Engine) -> ProgrammerSettings {
@@ -2744,6 +2746,7 @@ fn programmer_settings(engine: &Engine) -> ProgrammerSettings {
         clear_precedence: s.clear_precedence,
         clear_ltp: s.clear_ltp,
         lowlight_level: s.lowlight_level,
+        channel_levels: s.channel_levels,
     }
 }
 
@@ -9176,7 +9179,7 @@ mod tests {
         ));
         assert_eq!(
             v["programmer_settings"],
-            json!({"clear_precedence":"SelectionThenProgrammer","clear_ltp":"Release","lowlight_level":0.25})
+            json!({"clear_precedence":"SelectionThenProgrammer","clear_ltp":"Release","lowlight_level":0.25,"channel_levels":"TwoDigit"})
         );
         assert_eq!(v["programmer"]["located"], json!({}));
         assert_eq!(v["programmer"]["highlight"], json!(false));

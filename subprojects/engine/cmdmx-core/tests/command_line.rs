@@ -259,3 +259,100 @@ fn prg_100_a_sign_without_a_number_is_refused_as_prg_11() {
     }
     assert!(near(dimmer(&e, 201), 0.5));
 }
+
+// ---- PRG-102: `@ @` is full -------------------------------------------------
+
+#[test]
+fn prg_102_at_at_is_full_with_a_selection_expression() {
+    let mut e = church();
+    run(&mut e, "201 Thro 205 @ @ Enter").unwrap();
+    for id in 201..=205 {
+        assert!(near(dimmer(&e, id), 1.0), "{id}");
+    }
+    select(&mut e, &[203, 201]);
+    e.record_group(2).unwrap();
+    e.clear_selection();
+    run(&mut e, "301 @ 20 Enter").unwrap();
+    run(&mut e, "Group 2 @ @ Enter").unwrap();
+    assert_eq!(selection(&e), vec![203, 201]);
+}
+
+#[test]
+fn prg_102_at_at_alone_uses_the_targets() {
+    let mut e = church();
+    run(&mut e, "201 Thro 202 @ 30 Enter").unwrap();
+    run(&mut e, "@ @ Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 1.0) && near(dimmer(&e, 202), 1.0));
+}
+
+#[test]
+fn prg_102_at_at_with_more_after_it_is_refused_as_prg_11() {
+    let mut e = church();
+    run(&mut e, "201 @ 50 Enter").unwrap();
+    for line in ["201 @ @ @ Enter", "201 @ @ 5 Enter", "201 @ @ + 5 Enter"] {
+        assert_eq!(
+            run(&mut e, line),
+            Err(CoreError::InvalidCommand(line.to_string())),
+            "{line}"
+        );
+    }
+    assert!(near(dimmer(&e, 201), 0.5));
+}
+
+// ---- PRG-103: single-digit levels -------------------------------------------
+
+fn channel_levels(e: &mut Engine, single: bool) {
+    use cmdmx_core::programmer::{ChannelLevels, ProgrammerSettingsChange};
+    let levels = if single {
+        ChannelLevels::SingleDigit
+    } else {
+        ChannelLevels::TwoDigit
+    };
+    e.set_programmer_settings(ProgrammerSettingsChange {
+        channel_levels: Some(levels),
+        ..Default::default()
+    })
+    .unwrap();
+}
+
+#[test]
+fn prg_103_two_digits_is_the_default() {
+    use cmdmx_core::programmer::ChannelLevels;
+    let mut e = church();
+    assert_eq!(e.settings().channel_levels, ChannelLevels::TwoDigit);
+    run(&mut e, "201 @ 5 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.05));
+}
+
+#[test]
+fn prg_103_one_digit_is_ten_times_that_digit() {
+    let mut e = church();
+    channel_levels(&mut e, true);
+    run(&mut e, "201 @ 5 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.5));
+    run(&mut e, "202 @ 0 Enter").unwrap();
+    assert!(near(dimmer(&e, 202), 0.0));
+    run(&mut e, "203 @ 9 Enter").unwrap();
+    assert!(near(dimmer(&e, 203), 0.9));
+    channel_levels(&mut e, false);
+    run(&mut e, "204 @ 5 Enter").unwrap();
+    assert!(near(dimmer(&e, 204), 0.05));
+}
+
+#[test]
+fn prg_103_two_or_more_digits_full_and_relative_keep_their_meaning() {
+    let mut e = church();
+    channel_levels(&mut e, true);
+    run(&mut e, "201 @ 50 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.5));
+    run(&mut e, "202 @ 05 Enter").unwrap();
+    assert!(near(dimmer(&e, 202), 0.05));
+    run(&mut e, "203 @ 100 Enter").unwrap();
+    assert!(near(dimmer(&e, 203), 1.0));
+    run(&mut e, "204 @ @ Enter").unwrap();
+    assert!(near(dimmer(&e, 204), 1.0));
+    run(&mut e, "201 @ + 5 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.55));
+    run(&mut e, "201 @ -5 Enter").unwrap();
+    assert!(near(dimmer(&e, 201), 0.5));
+}

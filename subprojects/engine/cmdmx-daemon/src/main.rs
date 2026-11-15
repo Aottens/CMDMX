@@ -4809,6 +4809,21 @@ mod tests {
             cmdmx_core::programmer::ClearLtp::Freeze
         );
         assert_eq!(e.settings().lowlight_level, 0.5);
+        // PRG-103.
+        json_run(
+            &mut e,
+            &mut h,
+            r#"{"v":1,"cmd":"settings.programmer","channel_levels":"SingleDigit"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            e.settings().channel_levels,
+            cmdmx_core::programmer::ChannelLevels::SingleDigit
+        );
+        assert!(ipc::parse_command(
+            r#"{"v":1,"cmd":"settings.programmer","channel_levels":"ThreeDigit"}"#
+        )
+        .is_err());
     }
 
     #[test]
