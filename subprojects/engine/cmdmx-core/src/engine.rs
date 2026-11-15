@@ -2578,7 +2578,12 @@ impl Engine {
             }
             let state = self.states.entry(pb.id).or_default();
             match old {
-                Some(o) => state.run.edited |= o != &*pb,
+                Some(o) => {
+                    state.run.edited |= o != &*pb;
+                    if is_list(pb) {
+                        state.run.restored(o, pb); // UNDO-21
+                    }
+                }
                 None => {
                     if let Some(Master::Group(m)) = &pb.master {
                         state.level = m.level;

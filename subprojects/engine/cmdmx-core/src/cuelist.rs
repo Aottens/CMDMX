@@ -15,7 +15,7 @@ use crate::engine::{resolve_mode, resolve_stored};
 use crate::palette::{Palette, PaletteId};
 use crate::patch::{Fixture, FixtureId};
 use crate::playback::{
-    fade_progress, stagger_ranks, CueNumber, Direction, Kind, Link, ListAction, ListLive,
+    fade_progress, stagger_ranks, Cue, CueNumber, Direction, Kind, Link, ListAction, ListLive,
     LoopAction, Origin, Origins, Playback,
 };
 use crate::profile::{Mode, Profile, DIMMER};
@@ -259,6 +259,44 @@ impl ListRun {
     pub(crate) fn renumbered(&mut self, map: impl Fn(CueNumber) -> CueNumber) {
         self.current = self.current.map(&map);
         self.next = self.next.map(&map);
+    }
+
+    /// UNDO-21: after an undo or redo the current cue that no longer exists is the cue the step
+    /// renumbered (found as the cue `new` holds that `old` did not, equal but for its number), else
+    /// the nearest below, else the first; the next cue is then worked out again.
+    pub(crate) fn restored(&mut self, old: &Playback, new: &Playback) {
+        let has = |n: CueNumber| new.cues.iter().any(|c| c.number == n);
+        let follow = |n: CueNumber| {
+            let was = old.cues.iter().find(|c| c.number == n)?;
+            (new.cues.iter())
+                .filter(|x| !old.cues.contains(x))
+                .find(|x| {
+                    Cue {
+                        number: x.number,
+                        ..was.clone()
+                    } == **x
+                })
+                .map(|x| x.number)
+        };
+        let Some(c) = self.current else { return };
+        let moved = !has(c);
+        if moved {
+            let first = new.cues.first().map(|c| c.number);
+            self.current = follow(c).or_else(|| new.cue_before(c)).or(first);
+        }
+        if !moved && self.next.is_none_or(has) {
+            return;
+        }
+        let next = self
+            .next
+            .filter(|&n| has(n))
+            .or_else(|| self.next.and_then(follow))
+            .filter(|&n| Some(n) != self.current);
+        match (new.kind == Kind::Chase, next) {
+            (_, Some(n)) => self.next = Some(n),
+            (true, None) => self.redirect(new),
+            (false, None) => self.next = self.current.and_then(|c| new.cue_after(c)),
+        }
     }
 
     /// CUE-12: is a fade, delay, stagger or link timer unfinished?

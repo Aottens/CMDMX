@@ -570,3 +570,156 @@ fn undo_17_ticks_never_touch_the_history() {
     assert_eq!((h.len(), h.redo_len()), (1, 0));
     assert_eq!(h.undo_label(), Some("201 @ 50 Enter"));
 }
+
+// ---- UNDO-21 ----------------------------------------------------------------
+
+use cmdmx_core::playback::{BlockTo, Cue, CueNumber, ListAction};
+
+fn q(n: f64) -> CueNumber {
+    CueNumber::new(n).unwrap()
+}
+
+/// List 1 on 1.1, fader up: each cue `(n, fixture)` holds that par at full, zero times.
+fn running_list(cues: &[(f64, u32)]) -> Engine {
+    let mut e = church();
+    let cues = cues
+        .iter()
+        .map(|&(n, f)| Cue {
+            number: q(n),
+            ..Cue::new(dimmer(f, 1.0))
+        })
+        .collect();
+    e.add_playback(Playback {
+        cues,
+        ..Playback::new(1, 1, 1, Values::new())
+    });
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    e
+}
+
+fn act(e: &mut Engine, action: ListAction, now: f64) {
+    e.cuelist(Some(1), action, now).unwrap();
+    e.tick(now);
+}
+
+/// (current, next) of list 1.
+fn on(e: &Engine) -> (Option<f64>, Option<f64>) {
+    let live = e.list_live(1).unwrap();
+    (
+        live.current.map(CueNumber::as_f64),
+        live.next.map(CueNumber::as_f64),
+    )
+}
+
+fn frame(e: &Engine) -> Vec<u8> {
+    e.frame(1).unwrap().slots().to_vec()
+}
+
+#[test]
+fn undo_21_a_renumber_of_the_live_cue_undone_and_redone_keeps_the_list_on_it() {
+    // Par 201 is DMX 21, 202 is 22 …
+    let mut e = running_list(&[(1.0, 201), (2.0, 202), (3.0, 203), (4.0, 204)]);
+    act(&mut e, ListAction::Go, 0.0);
+    act(&mut e, ListAction::Go, 1.0);
+    let mut h = History::default();
+    h.edit(&mut e, "Renumber Q2 to Q7", None, |e| {
+        e.renumber_cue(1, q(2.0), q(7.0))
+    })
+    .unwrap();
+    assert_eq!(on(&e), (Some(7.0), Some(3.0)), "CUE-08");
+    let out = frame(&e);
+    h.undo(&mut e).unwrap();
+    assert_eq!(
+        on(&e),
+        (Some(2.0), Some(3.0)),
+        "the cue under its restored number"
+    );
+    e.tick(1.5);
+    assert_eq!(frame(&e), out, "nothing on stage changes");
+    h.redo(&mut e).unwrap();
+    assert_eq!(on(&e), (Some(7.0), Some(3.0)), "as the renumber left it");
+    h.undo(&mut e).unwrap();
+    act(&mut e, ListAction::Go, 2.0);
+    assert_eq!(on(&e), (Some(3.0), Some(4.0)), "Go goes on");
+    assert_eq!(dmx(&e, 23), 255);
+}
+
+#[test]
+fn undo_21_a_block_move_undone_keeps_the_list_on_its_cue() {
+    // The TTN-04, 06, 10 run: a song moved to Q43.., Go to Q43, the move undone.
+    let mut e = running_list(&[
+        (1.0, 201),
+        (2.0, 202),
+        (10.0, 203),
+        (11.0, 204),
+        (12.0, 205),
+        (13.0, 206),
+    ]);
+    let song = [q(10.0), q(11.0), q(12.0), q(13.0)];
+    let mut h = History::default();
+    h.edit(&mut e, "Move 4 cues", None, |e| {
+        e.move_cues(1, &song, BlockTo::Number(q(43.0)), None)
+    })
+    .unwrap();
+    act(&mut e, ListAction::Goto(q(43.0)), 0.0);
+    assert_eq!(on(&e), (Some(43.0), Some(44.0)));
+    let out = frame(&e);
+    h.undo(&mut e).unwrap();
+    assert_eq!(on(&e), (Some(10.0), Some(11.0)));
+    e.tick(0.5);
+    assert_eq!(frame(&e), out, "nothing on stage changes");
+    act(&mut e, ListAction::Go, 1.0);
+    assert_eq!(on(&e), (Some(11.0), Some(12.0)), "Go goes on");
+    assert_eq!(dmx(&e, 24), 255);
+}
+
+#[test]
+fn undo_21_a_copy_undone_while_it_is_live_leaves_the_list_on_the_cue_below() {
+    let mut e = running_list(&[(1.0, 201), (2.0, 202), (3.0, 203), (4.0, 204)]);
+    let mut h = History::default();
+    h.edit(&mut e, "Copy Q1 to Q3.5", None, |e| {
+        e.copy_cue(1, q(1.0), q(3.5))
+    })
+    .unwrap();
+    act(&mut e, ListAction::Goto(q(3.5)), 0.0);
+    assert_eq!(on(&e), (Some(3.5), Some(4.0)));
+    let out = frame(&e);
+    h.undo(&mut e).unwrap();
+    assert_eq!(
+        on(&e),
+        (Some(3.0), Some(4.0)),
+        "the nearest cue below, not Q1 that holds the same"
+    );
+    e.tick(0.5);
+    assert_eq!(frame(&e), out, "nothing on stage changes");
+    act(&mut e, ListAction::Go, 1.0);
+    assert_eq!(on(&e), (Some(4.0), None), "Go goes on");
+    assert_eq!(dmx(&e, 24), 255);
+}
+
+#[test]
+fn undo_21_a_taken_cue_below_the_first_leaves_the_list_on_the_first() {
+    let mut e = running_list(&[(1.0, 201), (2.0, 202)]);
+    let mut h = History::default();
+    h.edit(&mut e, "Copy Q2 to Q0.5", None, |e| {
+        e.copy_cue(1, q(2.0), q(0.5))
+    })
+    .unwrap();
+    act(&mut e, ListAction::Goto(q(0.5)), 0.0);
+    h.undo(&mut e).unwrap();
+    assert_eq!(on(&e), (Some(1.0), Some(2.0)));
+    act(&mut e, ListAction::Go, 1.0);
+    assert_eq!(on(&e), (Some(2.0), None));
+}
+
+#[test]
+fn undo_21_a_list_that_is_off_is_not_touched() {
+    let mut e = running_list(&[(1.0, 201), (2.0, 202)]);
+    let mut h = History::default();
+    h.edit(&mut e, "Renumber Q1 to Q5", None, |e| {
+        e.renumber_cue(1, q(1.0), q(5.0))
+    })
+    .unwrap();
+    h.undo(&mut e).unwrap();
+    assert_eq!(on(&e), (None, Some(1.0)), "off: the first cue is next");
+}
