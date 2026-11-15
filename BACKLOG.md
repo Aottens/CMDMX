@@ -469,6 +469,7 @@ Builds: ARB-01 + ARB-02 (one behaviour, review then gate: the gate reads the rev
 gate 2, may have to be reverted alone, and waits for five PRs in shadow);
 ARB-04 alone (found on #298 after its merge); ARB-05 alone (gate and review workflow only, in shadow, before ARB-03).
 ARB-06 alone (the gate's rules after eight red PRs; gate and review workflow only, in shadow, before ARB-03).
+ARB-07 alone (found on #317 after its merge; gate, prompt and review workflow only, in shadow, before ARB-03).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
@@ -478,6 +479,7 @@ ARB-06 alone (the gate's rules after eight red PRs; gate and review workflow onl
 | ARB-04 | A review that launched fewer agents than the code-review plugin's steps name (three to prepare, four to review) reads as *not reviewed*, so an empty list from a review that skipped its reviewers is never a clean review. | ARV-03 | S | done (2026-11-13, #299) |
 | ARB-05 | The risk gate names every finding of the last review that the PR's own changes to `BACKLOG.md` and `STATE.md` do not record by `file:line`, and a green PR with one is amber; a push that changes a file a finding names, other than `BACKLOG.md` and `STATE.md`, is reviewed again, whatever its impact. | ARV-04, ARV-18 | S | done (2026-11-14, #302) |
 | ARB-06 | The gate after eight red PRs: `specs/` is high only when a criterion line changes, `DECISIONS.md` and `INTERFACE.md` medium, `tests/` low except `tests/hardware/`; 600 lines counts code only; a sub-release only in the title; the review follows `.github/review-prompt.md` (the plugin's steps without its automated/trivial stop) and keeps its execution file. Owner, 2026-11-15. | ARV-01, ARV-03, ARV-05, ARV-07 | S | done (2026-11-15, #309) |
+| ARB-07 | A review whose agents had not all reported when it returned (they ran in the background), or with a finding outside the diff (`N/A:0` on #317), reads as *not reviewed* and red with "re-run the review", never as a finding to record or a clean review; the prompt launches its agents in the foreground. Owner, 2026-11-15. | ARV-03, ARV-04, ARV-19 | S | done (2026-11-15, #318) |
 
 ## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions

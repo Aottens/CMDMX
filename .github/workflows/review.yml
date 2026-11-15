@@ -51,7 +51,8 @@ jobs:
         run: |
           # A failing compare (e.g. after a force-push) means: review normally.
           files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$AFTER" --jq '.files[].filename') || exit 0
-          printf '%s\n' "$files" | scripts/risk-gate.py --keep-review earlier/findings.json && echo "keep=true" >> "$GITHUB_OUTPUT"
+          gh pr diff "${{ github.event.pull_request.number }}" --name-only > pr-files.txt || exit 0
+          printf '%s\n' "$files" | scripts/risk-gate.py --keep-review earlier/findings.json --pr-files pr-files.txt && echo "keep=true" >> "$GITHUB_OUTPUT"
           exit 0
 
       - name: build the review prompt from .github/review-prompt.md (ARV-01)
@@ -71,6 +72,9 @@ jobs:
         id: claude
         if: steps.scope.outputs.keep != 'true' && env.HAS_TOKEN == 'true'
         continue-on-error: true
+        env:
+          # ARV-03: a background agent reports after the review has returned.
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1.0.275
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

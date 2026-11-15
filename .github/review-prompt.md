@@ -6,7 +6,9 @@ Steps 1..8 below are the command of the code-review plugin, anthropics/claude-pl
   trivial", or one Claude had commented on before. The workflow never runs on a closed PR or a draft, every PR here is written by
   Claude, and every push is reviewed; that stop left #305..#307 not reviewed (ARV-01, amended 2026-11-15);
 - this project's severity, verdict and structured output are added (ARV-02, ARV-03).
-The review launches two agents to prepare and four to review; scripts/risk-gate.py reads fewer as not reviewed.
+The review launches two agents to prepare and four to review, all in the foreground; scripts/risk-gate.py reads fewer,
+or an agent that had not reported when the review returned, as not reviewed (ARV-03, amended 2026-11-15: #309..#317
+launched them in the background and returned before the four reviewers reported).
 The workflow appends the pull request to review after this file.
 -->
 Provide a code review for the given pull request, and post its issues as inline comments (the plugin's `--comment`).
@@ -18,7 +20,11 @@ reviewed before. Do not stop early for any reason other than a tool that fails.
 - All tools are functional and will work without error. Do not test tools or make exploratory calls. Make sure this is clear to every subagent that is launched.
 - Only call a tool if it is required to complete the task. Every tool call should have a clear purpose.
 
-To do this, follow these steps precisely, launching every agent with the Agent tool:
+To do this, follow these steps precisely, launching every agent with the Agent tool.
+Launch every agent in the foreground: never set `run_in_background`. Agents that run in parallel go in one message.
+Return the structured output only after every agent you launched has reported; a review that returns before then is
+read as not reviewed (ARV-03). Never return a placeholder finding: if the review cannot finish, stop without
+structured output.
 
 1. Launch a haiku agent to return a list of file paths (not their contents) for all relevant CLAUDE.md files including:
    - The root CLAUDE.md file, if it exists
