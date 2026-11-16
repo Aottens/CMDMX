@@ -1,6 +1,6 @@
 # hardware — State
 
-_Last updated: 2026-11-15 (the screen flap is engineered and waits for its run, HWB-10)_
+_Last updated: 2026-11-16 (the flap's arm and a glass stand-in as DXF, HWB-10)_
 
 ## Current step
 `specs/modules/hardware.md` is approved (HW-01): a Tiger Touch II-size desk with one 15.6" touch
@@ -28,7 +28,8 @@ the engraving-plate panel, the test strips and the Fusion scripts that rebuild t
 plate's material waits for the owner's test strips (`cad/acryl-proef/`). The screen flap (HWB-10, HW-54, 56..58) is
 engineered in `cad/klep/` around the Waveshare 15.6" HDMI LCD (H): a walnut frame all round, printed side blocks
 with a 0.38 mm lip, glass clamped from behind, a 95 mm strut on grooves sunk in the deck, cables twisting along the
-hinge axis, and a printed test base. It waits for the owner's run (`tests/hardware/flap.md`), which needs the screen.
+hinge axis, and a printed test base. It waits for the owner's run (`tests/hardware/flap.md`); an acrylic stand-in for the glass lets the owner build it
+and test the stand before the screen is bought.
 HWB-07 engineers the rest of the form.
 
 ## Build order (HW-60)
