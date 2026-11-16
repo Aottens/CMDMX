@@ -12,7 +12,8 @@ state reads it from `main`.
 - **TRK-01** `STATE.md` has exactly the sections Now, Next, Waiting on the owner, Blocked, Owner to decide and Good
   to know, at most 70 lines of at most 120 characters, and no version number. CI fails otherwise.
 - **TRK-02** `STATE.md` names no BACKLOG task that is done, and *Next* names at least one that is open. CI fails
-  otherwise, so finishing a task named there forces the rewrite in the same PR.
+  otherwise, so finishing a task named there forces the rewrite in the same PR. An id inside a file name counts as
+  naming it: `tests/manual/runs/<date>-P1-38.md` names P1-38.
 - **TRK-03** Every `gate3` task is named under *Waiting on the owner* and every `blocked` task under *Blocked*; a
   task under *Blocked* has status `blocked`. CI fails otherwise.
 - **TRK-09** Every BACKLOG id is used by one row. CI fails otherwise (VS8-10 had two rows; one hid the other's `todo`).
