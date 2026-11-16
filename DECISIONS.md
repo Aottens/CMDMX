@@ -5,6 +5,24 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-16 — Gate 2 is the owner's only for what the risk gate does not call green (ARB-03; amends 2026-11-13)
+
+**Decision:** A PR the risk gate calls green merges by itself once the required checks pass, when the repository
+variable `AUTOMERGE` is `on`. Amber goes back to the build session for at most two fix rounds; red, and every PR while
+`AUTOMERGE` is not `on`, stays with the owner (gate 2 as before). The merge is enabled with the owner's token
+(`AUTOMERGE_TOKEN`), so the merge starts the workflows on `main`. The owner turns `AUTOMERGE` on and sets the repo's
+auto-merge and ruleset; the harness never does. Every finding a PR leaves is a `FIX` row before it merges, whatever its
+lane (the fix block in `CLAUDE.md`).
+
+**Alternatives considered:** the owner keeps merging every PR; auto-merge with the default `GITHUB_TOKEN` (its merge
+starts no workflow on `main`, so CI and the website would not run after it).
+
+**Why:** fifteen PRs went through the gate in shadow (`tests/manual/runs/2026-11-16-ARB-03.md`): every PR that needed a
+fix afterwards was red, and neither green needed one.
+
+**Reversal trigger:** as on 2026-11-13: an auto-merged PR has to be reverted, or a fix follows within a week on more
+than one of the first five greens: `AUTOMERGE` goes off.
+
 ## 2026-11-16 — The flap's foot rod is bonded into the arms, not held by grub screws (HWB-10)
 
 **Decision:** The 8 mm foot rod is bonded into both strut arms with Loctite 648, and the arms become plain flat parts

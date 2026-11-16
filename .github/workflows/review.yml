@@ -2,8 +2,8 @@ name: Review
 
 # Auto-review (specs/modules/autoreview.md). Job `review` lets Claude review the PR on every push
 # (ARV-01..04) and keeps its findings as an artifact; job `risk-gate` turns findings + changed paths
-# into a lane with scripts/risk-gate.py (ARV-05..09). Runs in shadow: nothing merges by itself here;
-# ARB-03 adds auto-merge behind the AUTOMERGE variable.
+# into a lane with scripts/risk-gate.py (ARV-05..09). Auto-merge (ARV-10) sits behind the AUTOMERGE
+# repository variable: off (shadow) unless it is `on`.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -196,6 +196,7 @@ jobs:
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          AUTOMERGE: ${{ vars.AUTOMERGE }}
         run: |
           # The event payload may be stale: ask for the current title and body.
           PR_TITLE=$(gh pr view "$PR" --json title --jq .title)
@@ -209,7 +210,7 @@ jobs:
             --jq '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | select(.name != "risk-gate") | .name')
           round=$(cat findings/round.txt 2>/dev/null || echo 1)
           scripts/risk-gate.py --base "origin/$BASE_REF" --findings findings/findings.json --round "$round" \
-            "${checks[@]}" --comment comment.md --body-out body.md | tee gate.txt
+            --automerge "$AUTOMERGE" "${checks[@]}" --comment comment.md --body-out body.md | tee gate.txt
           echo "lane=$(head -n 1 gate.txt)" >> "$GITHUB_OUTPUT"
           { echo "## risk-gate"; cat gate.txt; } >> "$GITHUB_STEP_SUMMARY"
 
@@ -240,10 +241,18 @@ jobs:
           done
           gh api -X POST "repos/$R/issues/$PR/labels" -f "labels[]=$want" > /dev/null
 
-          if [ "$LANE" = red ]; then gh pr merge "$PR" --disable-auto -R "$R" || true; fi
+          if [ "$LANE" != green ]; then gh pr merge "$PR" --disable-auto -R "$R" || true; fi
 
           # Edits by GITHUB_TOKEN start no workflow, so tracking.yml does not loop.
           gh api -X PATCH "repos/$R/pulls/$PR" -F body=@body.md > /dev/null
+
+      - name: green merges by itself (ARV-10)
+        if: steps.gate.outputs.lane == 'green' && vars.AUTOMERGE == 'on'
+        env:
+          # The owner's token: a merge by the default token starts no workflow on main (ARV-10).
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
+        # No `|| true`: a missing secret fails this step and the check, so nothing merges (fail-safe).
+        run: gh pr merge "$PR" --auto --merge -R "$R"
 
       - name: amber fails the check (ARV-09, ARV-11)
         env:

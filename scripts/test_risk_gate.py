@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Tests for the risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17..19). Run: scripts/test_risk_gate.py"""
+"""Tests for the risk gate (specs/modules/autoreview.md, ARV-03..14, ARV-16..19). Run: scripts/test_risk_gate.py"""
 import ast
 import importlib.util
 import subprocess
 import sysconfig
+import tempfile
 import sys
 from pathlib import Path
 
@@ -574,13 +575,86 @@ def test_arv_17_tracking_names_the_lane():
     assert gate.with_lane("", "green").strip().startswith("## Tracking")
 
 
+def test_arv_10_automerge_only_when_the_switch_is_on():
+    assert gate.automerge_on("on")
+    for value in ("", None, "off", "ON", "yes", "true", " on"):
+        assert not gate.automerge_on(value), value
+
+
+def test_arv_10_comment_says_merges_when_on_and_would_merge_in_shadow():
+    lane, reasons = gate.decide(files("README.md"), [])
+    on = gate.comment(lane, reasons, impact="low", worst=None, automerge=True)
+    off = gate.comment(lane, reasons, impact="low", worst=None)
+    assert "merges by itself" in on and "would merge" not in on and "shadow" not in on.lower()
+    assert "would merge" in off and "shadow" in off.lower()
+    amber, why = gate.decide(files("subprojects/app/Sources/A.swift"), [f("minor", file="subprojects/app/Sources/A.swift")])
+    assert "merge" not in gate.comment(amber, why, impact="medium", worst="minor", automerge=True).split("|")[-1]
+
+
+def test_arv_10_cli_reads_the_switch():
+    with tempfile.TemporaryDirectory() as tmp:
+        gate_in_repo(tmp, [])  # leaves a repo whose last commit changes only a low file
+        repo, found = Path(tmp) / "repo", Path(tmp) / "findings.json"
+        for value, says in (("on", "merges by itself"), ("off", "would merge"), ("", "would merge")):
+            out = subprocess.run([sys.executable, repo / "scripts/risk-gate.py", "--base", "HEAD~1", "--findings",
+                                  found, "--automerge", value, "--comment", Path(tmp) / "c.md"],
+                                 cwd=repo, capture_output=True, text=True)
+            assert out.returncode == 0 and out.stdout.startswith("green"), out.stderr
+            assert says in (Path(tmp) / "c.md").read_text(), value
+
+
+def test_arv_10_workflow_merges_green_behind_the_switch():
+    workflow = (ROOT / ".github/workflows/review.yml").read_text()
+    step = workflow[workflow.index("green merges by itself (ARV-10)"):]
+    step = step[:step.index("\n      - name:") if "\n      - name:" in step else len(step)]
+    assert "vars.AUTOMERGE == 'on'" in step and "lane == 'green'" in step
+    assert "gh pr merge" in step and "--auto" in step and "--merge" in step
+    # Not the default GITHUB_TOKEN: its merge starts no workflow on main.
+    assert "secrets.AUTOMERGE_TOKEN" in step and "github.token" not in step
+    assert '--automerge "$AUTOMERGE"' in workflow and "vars.AUTOMERGE" in workflow
+
+
+def test_arv_10_not_green_turns_auto_merge_off():
+    workflow = (ROOT / ".github/workflows/review.yml").read_text()
+    assert 'if [ "$LANE" != green ]; then gh pr merge "$PR" --disable-auto' in workflow
+
+
+def test_arv_11_two_fix_rounds_then_red():
+    found = [f("minor", file="subprojects/app/Sources/A.swift")]
+    app = files("subprojects/app/Sources/A.swift")
+    assert gate.MAX_FIX_ROUNDS == 2
+    assert gate.decide(app, found, review_round=1)[0] == "amber"
+    assert gate.decide(app, found, review_round=2)[0] == "amber"
+    assert gate.decide(app, found, review_round=3)[0] == "red"
+
+
+def test_arv_11_14_claude_md_has_the_fix_block():
+    text = (ROOT / "CLAUDE.md").read_text()
+    block = text[text.index("## Fixes from reviews"):]
+    for rule in ("ARV-11", "ARV-12", "ARV-13", "ARV-14", "ARV-19", "FIX-", "AUTOMERGE", "gh run rerun"):
+        assert rule in block, rule
+
+
+def test_arv_13_backlog_has_fixes_from_reviews():
+    assert "### Fixes from reviews (ARV-13, ARV-14)" in (ROOT / "BACKLOG.md").read_text()
+
+
+def test_arv_16_shadow_run_file_lists_five_prs():
+    run_file = ROOT / "tests/manual/runs/2026-11-16-ARB-03.md"
+    text = run_file.read_text()
+    for pr in ("#318", "#319", "#320", "#321", "#322"):
+        assert pr in text, pr
+    for column in ("lane", "owner", "fix"):
+        assert column in text.lower(), column
+
+
 if __name__ == "__main__":
     tests = [(n, t) for n, t in list(globals().items()) if n.startswith("test_arv_")]
     failed = 0
     for name, test in tests:
         try:
             test()
-        except AssertionError as error:
+        except (AssertionError, AttributeError, TypeError, OSError, ValueError) as error:
             failed += 1
             print(f"FAILED {name} {error!r}")
     print(f"{len(tests) - failed}/{len(tests)} passed")
