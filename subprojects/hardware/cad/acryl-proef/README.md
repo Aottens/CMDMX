@@ -18,3 +18,7 @@ M3 fixing holes (3.2). On 3 mm: key-cap windows, because MX switches cannot clip
 MX holes drawn 13.8 / 13.9 / 14.0 mm, because the 0.2 mm kerf decides which one clips.
 
 `acryl_strip.py` regenerates both files (`python3 acryl_strip.py <template.dxf> <out_dir>`, fontTools, Arial).
+
+`onderframe/` holds two printed backings for the 1.5 mm strip (HWB-11): an open rib lattice and a closed skin, with
+heat-set inserts, fader rails and MX pockets. They test whether a 1.5 mm plate on a printed frame is stiff enough for
+the desk's top (`tests/hardware/top-plate.md`).

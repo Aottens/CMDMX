@@ -39,8 +39,9 @@ Programming and small checks:
   `tests/hardware/streamdeck.md`.
 - Tick the two open lines in `tests/manual/selection-orders.md`; the next *Import GDTF* run in
   `tests/manual/app-patch.md` also checks the sheet fixes.
-- The desk's top plate: the two test strips (`subprojects/hardware/cad/acryl-proef/`, 1.5 mm engraving plate and 2 mm
-  black cast acrylic) are ordered at Laserlokaal; when they arrive, say which MX hole clips and which legends read.
+- HWB-11 the desk's top plate (`tests/hardware/top-plate.md`): the two test strips (1.5 mm engraving plate, 2 mm black
+  cast acrylic) are ordered at Laserlokaal. Print both backings in `acryl-proef/onderframe/` now; when the strips
+  arrive, screw the 1.5 mm one on, push, and say which backing is stiff enough, which MX hole clips, which legends read.
 
 ## Blocked
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
