@@ -17,8 +17,11 @@ Talk to the owner in **Dutch**; write code, comments, specs and commits in **Eng
    Sonnet subagent (`model: sonnet`) writes the smallest change that turns them green; the main
    session reviews the diff before it goes to the owner (owner preference, 2026-10-17). Run `cargo test` in
    `subprojects/engine` and `cargo clippy --all-targets -- -D warnings`.
-4. **Review.** One branch and one PR per build (see *Builds* below) on `github.com/Aottens/CMDMX`; the owner
-   reviews and merges (gate 2). Hardware-touching tasks ship with
+4. **Review.** One branch and one PR per build (see *Builds* below) on `github.com/Aottens/CMDMX`. Claude reviews it
+   on GitHub and the risk gate gives it a lane (`specs/modules/autoreview.md`): a green PR merges by itself once the
+   required checks pass, when the repository variable `AUTOMERGE` is `on` (the owner's switch); otherwise, and for
+   amber after its fix rounds and for red, the owner reviews and merges (gate 2; DECISIONS 2026-11-16). See *Fixes
+   from reviews* below. Hardware-touching tasks ship with
    a checklist in `tests/hardware/` that only the owner can tick (gate 3).
 5. **Close the loop.** Update the subproject `STATE.md`, root `STATE.md`, `BACKLOG.md` and
    `README.md` in the same PR. In the README, a new feature goes into its group under
@@ -69,6 +72,26 @@ reason too.
   each task's diff before the next subagent starts.
 - **Stop:** when a task turns out larger than its size or a review finds a real defect in the approach, ship what
   is done and move the rest to the next build, with the `Builds:` line changed in that PR.
+
+## Fixes from reviews
+
+What the session does with the risk gate's lane once its PR is open (`specs/modules/autoreview.md`):
+- **Green** merges by itself when `AUTOMERGE` is `on` (ARV-10); with it off, say in chat that it would have, and the
+  owner merges. Never turn `AUTOMERGE` on or change repo settings yourself.
+- **Amber** (ARV-11): fix the confirmed findings in the same PR, each fix with a test carrying the id of the criterion
+  it broke, and push; review and gate run again. At most two fix rounds; a third review with findings is red. A fix
+  that needs a criterion changed is not made: the PR goes red with that question for the owner. An amber whose only
+  reasons are `not recorded` is cleared by recording, not by a fix.
+- **Red** (ARV-12): record the findings first, then tell the owner in chat with the gate's reasons; the owner merges.
+- **Not reviewed** because a finding lies outside the diff (ARV-19): re-run the review (`gh run rerun <id>`), never
+  record it.
+- **Record** (ARV-13) every finding the PR does not fix, whatever its lane, before it merges: a `FIX-nn` row under
+  *Fixes from reviews* in `BACKLOG.md` with the finding, its `file:line`, the criterion, the PR, and `plausible` or
+  `blocker` when it is one; a finding whose fix needs a criterion changed goes under *Owner to decide* in `STATE.md`.
+  A finding the PR fixes in `BACKLOG.md` or `STATE.md` is a `FIX-nn` row already `done`.
+- **Fix block** (ARV-14): the harness may build open `FIX-nn` rows without asking the owner, at most three per build,
+  in its own session, branch and PR, through the same review and gate; none while another fix block's PR is open. A
+  `plausible` row is checked against the code first; one that is no defect closes `done (<date>, not a defect)`.
 
 ## Ideas intake
 

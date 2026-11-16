@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The risk gate (specs/modules/autoreview.md, ARV-03..09, ARV-17..19): paths, findings, checks and round give a lane.
+"""The risk gate (specs/modules/autoreview.md, ARV-03..10, ARV-17..19): paths, findings, checks and round give a lane.
 
 A spec file is medium, high when the PR changes a criterion line (ARV-05). Tests and .md files are not counted
 in the 600 lines, and only the PR title can name a sub-release (ARV-07).
@@ -11,6 +11,7 @@ Usage:
       Exit 0 when the earlier review is kept (ARV-04); FILE lists the PR's files, one per line (ARV-19).
   risk-gate.py --check-findings FINDINGS [--pr-files FILE]
       Exit 1 when a finding is outside the diff: the review is not reviewed and uses no fix round (FIX-01, ARV-19).
+  risk-gate.py ... [--automerge on]      (ARV-10: only the exact value `on` lets a green PR merge by itself)
   risk-gate.py --table findings.json        findings as a Markdown table for the job summary (ARV-03)
   risk-gate.py --check-review execution.json
       Counts the agents the review launched and how many reported; exit 0 when it ran its reviewers and
@@ -185,14 +186,23 @@ def label(lane):
     return LANES[lane]
 
 
-def comment(lane, reasons, impact, worst):
+def automerge_on(value):
+    return value == "on"  # ARV-10: anything but the exact string "on" is shadow
+
+
+def comment(lane, reasons, impact, worst, automerge=False):
     cells = lambda row: [f"**{c}**" if (row, i) == (worst or "none", ORDER.index(impact)) else c
                          for i, c in enumerate(MATRIX[row])]
     table = ["| worst finding \\ impact | low | medium | high |", "| --- | --- | --- | --- |"]
     table += [f"| {row} | " + " | ".join(cells(row)) + " |" for row in MATRIX]
-    tail = " This PR would merge by itself." if lane == "green" else ""
+    if automerge:  # ARV-10
+        last = {"green": "This PR merges by itself once the required checks pass (ARV-10).",
+                "amber": "Only a green lane goes in by itself; this one needs a fix first."}.get(lane, "The owner decides on this PR.")
+    else:
+        last = "The gate runs in shadow: AUTOMERGE is not `on`, so nothing merges by itself." + (
+            " This PR would merge by itself." if lane == "green" else "")
     return "\n".join([MARKER, f"Lane: **{lane}**", "", *[f"- {r}" for r in reasons], "", *table, "",
-                      "The gate runs in shadow: nothing merges by itself yet (ARB-03)." + tail, ""])
+                      last, ""])
 
 
 def findings_table(findings):
@@ -278,6 +288,7 @@ def main():
     ap.add_argument("--findings")
     ap.add_argument("--round", type=int, default=1)
     ap.add_argument("--failed-check", action="append", default=[])
+    ap.add_argument("--automerge", default="")
     ap.add_argument("--comment")
     ap.add_argument("--body-out")
     args = ap.parse_args()
@@ -327,7 +338,7 @@ def main():
         print("\n".join(f"- {r}" for r in reasons))
         if args.comment:
             with open(args.comment, "w") as handle:
-                handle.write(comment(lane, reasons, "high" if criteria_changed else worst_impact([r[2] for r in rows]), worst_finding(findings or [])))
+                handle.write(comment(lane, reasons, "high" if criteria_changed else worst_impact([r[2] for r in rows]), worst_finding(findings or []), automerge_on(args.automerge)))
         if args.body_out:
             with open(args.body_out, "w") as handle:
                 handle.write(with_lane(body, lane))
