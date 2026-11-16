@@ -15,7 +15,7 @@ first notarised tag instead; its prerequisites come first. The REL-15 part below
 - [x] The shows from `~/Documents/ColourmotionDMX/Shows` are on the Show screen, now in `~/Documents/CMDMX/Shows`, and the old folder has no `Shows` left (BRD-07/08) <!-- brand: old-name -->
   — 2026-11-16: on the owner's Mac both folders already existed (dev builds made the new one on 2026-10-18, the old
   0.1.0 app the old one again on 2026-11-11), so BRD-08's both-exist branch ran: nothing moved, the daemon log warns
-  "Old ColourmotionDMX folder left at …" for `Shows`, `control` and `state.json`, and *Kerk* opens from the new folder.
+  "Old … folder left at" for `Shows`, `control` and `state.json`, and *Kerk* opens from the new folder.
   The rename branch is covered by `brd_08_migrates_old_folders`. <!-- brand: old-name -->
 
 ## Install on the church Mac (REL-15)
