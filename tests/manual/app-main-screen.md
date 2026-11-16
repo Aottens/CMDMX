@@ -416,3 +416,6 @@ hold. Claude locks from a second client and listens to Art-Net; the owner holds 
 ## Live values on layers (UI-71, SNP-05)
 - [ ] With a cue list running a 5 s fade: the GO block shows the fade % and its progress bar fills, the current cue row in the Cue list window shows its progress line, Active playbacks shows the level; with its fader at 60 % the GO block says "fader 60 %".
 - [ ] The same in Day theme: colours as before.
+- [ ] Views screen (SNP-06), with a cue list running a palette and an effect: Intensity shows "=" for a tracked and "~"
+      for an effect fixture; Grid with Palettes on shows the legend in cyan and a colour swatch, with Sources the source;
+      Stage drops a fixture once it fades to 0 and brings it back when it rises.

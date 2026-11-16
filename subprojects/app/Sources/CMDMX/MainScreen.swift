@@ -130,7 +130,7 @@ final class UIState: ObservableObject {
     /// A full screen (Patch UI-10, Show SHW-17, Playback Options PBK-39) replaces the grid, side column and attribute bar;
     /// nil = the workspace windows. The screens exclude each other.
     /// UI-45: opening a screen disarms Record and every function, as hiding the keys must not leave one live.
-    @Published var screen: Screen? { didSet { if screen != nil { cancelModes() } } }
+    @Published var screen: Screen? = UserDefaults.standard.string(forKey: "screen") == "views" ? .views : nil { didSet { if screen != nil { cancelModes() } } }
     /// UI-75: the first range of an armed Swap addresses; a new selection and Confirm send it.
     @Published var patchSwapFrom: [Int]?
     /// UI-44: any armed mode or open menu that Esc cancels first.
