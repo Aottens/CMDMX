@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-15 (TST-01)_
+_Last updated: 2026-11-16 (P1-38)_
 
 ## Current step
+P1-38 (2026-11-16): measured only, no code. Release daemon on 266 fixtures (5 universes, shapes on 258): about 7 % of a core idle, 12 % busy, 13 % with Art-Net and sACN to 127.0.0.1 and a client connected, 40 Hz held; debug 36–49 % and only 18 frames/s per universe. No budget criterion. Run: `tests/manual/runs/2026-11-16-P1-38.md`.
+
 TST-01 (2026-11-15, OUT-43): `cmdmx-daemon/tests/no_dmx.rs` scans every daemon start in `tests/` for the three kill switches; `client_loss`, `late_tick`, `lock` (IPC-50) and `message_history` start twice, the first run all off to point the node at 127.0.0.1 (or disable the serial `auto` node), the second with one kind on and the `// OUT-43: loopback` marker.
 
 DEF-06 (2026-11-15, UNDO-21): `ListRun::restored(old, new)` runs from `restore_edit_state` for every list or chase that stays; with a current cue whose number is gone it follows the cue the step renumbered (a cue of `new` that `old` did not have, equal but for its number), else `cue_before`, else the first; next keeps an existing cue, follows, else `cue_after` (a chase: `redirect`), never the current one. Fades and output are untouched. Tests `undo_21_…` in `cmdmx-core/tests/undo.rs`. Run: `tests/manual/runs/2026-11-15-DEF-06.md`.
