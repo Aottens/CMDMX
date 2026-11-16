@@ -484,13 +484,13 @@ ARB-07 alone (found on #317 after its merge; gate, prompt and review workflow on
 
 ### Fixes from reviews (ARV-13, ARV-14)
 Builds: FIX-01 alone (the first; review workflow and gate only, in shadow). FIX-03..07 are fix blocks the harness may
-build without asking (ARV-14): FIX-08 alone first (review workflow, before auto-merge goes on, done); FIX-04 alone (core, done); FIX-03 alone (CAD docs); FIX-06 + FIX-07 (one checklist, the owner's run).
+build without asking (ARV-14): FIX-08 alone first (review workflow, before auto-merge goes on, done); FIX-04 alone (core, done); FIX-03 alone (CAD docs, done); FIX-06 + FIX-07 (one checklist, the owner's run).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
 | FIX-01 | A review with a finding outside the diff writes no `findings.json`, so it uses no fix round: on #318 a placeholder such as `N/A:0` still wrote one and counted as round 1, and the re-run's round 2 left one round too few (`.github/workflows/review.yml:55`, review of #318). | ARV-19, ARV-11 | S | done (2026-11-15, #319) |
 | FIX-02 | Root `STATE.md` named the finished P1-38 in a sentence and a run-file path; the handoff names no done task (`STATE.md:16`, review of #330). Fixed in #330. | TRK-02 | S | done (2026-11-16, #330) |
-| FIX-03 | The flap's parts list still asks the frame maker for a 1 mm hinge mortise; the hinge leaf is 0.7 mm, so the pocket comes out 0.3 mm too deep (`subprojects/hardware/cad/klep/README.md:62`, review of #323). | HWB-10 | S | todo |
+| FIX-03 | The flap's parts list still asks the frame maker for a 1 mm hinge mortise; the hinge leaf is 0.7 mm, so the pocket comes out 0.3 mm too deep (`subprojects/hardware/cad/klep/README.md:62`, review of #323). The model and STEP already cut 0.7 mm; only the README row was stale. | HWB-10 | S | done (2026-11-16, #339) |
 | FIX-04 | An Undo that takes away a running list's cue changes the stage at the next tick, not at the next Go: `ListRun::restored` moves the list onto the cue below and `snap()` puts its state on stage (Q1 100 %, Q2 50 %, Copy Q1 to Q3, Goto Q3, undo: DMX 21 goes from 255 to 128 with no Go) (`subprojects/engine/cmdmx-core/src/engine.rs:2584`, review of #325). | UNDO-21 | S | done (2026-11-16, #338) |
 | FIX-05 | Root `STATE.md` named a version (`The 1.0 release`); the handoff names none (`STATE.md:15`, review of #327). Fixed in #333. | TRK-01 | S | done (2026-11-16, #333) |
 | FIX-06 | VS8-01 is done and its migration box ticked, but the migration was never run: on the owner's Mac both folders existed, nothing moved (`tests/hardware/release.md:15`, `BACKLOG.md:392`, review of #329; the owner merged it as it is). | BRD-07, BRD-08 | S | todo |
