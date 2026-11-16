@@ -484,7 +484,7 @@ ARB-07 alone (found on #317 after its merge; gate, prompt and review workflow on
 
 ### Fixes from reviews (ARV-13, ARV-14)
 Builds: FIX-01 alone (the first; review workflow and gate only, in shadow). FIX-03..07 are fix blocks the harness may
-build without asking (ARV-14): FIX-08 alone first (review workflow, before auto-merge goes on); FIX-04 alone (core); FIX-03 alone (CAD docs); FIX-06 + FIX-07 (one checklist, the owner's run).
+build without asking (ARV-14): FIX-08 alone first (review workflow, before auto-merge goes on, done); FIX-04 alone (core); FIX-03 alone (CAD docs); FIX-06 + FIX-07 (one checklist, the owner's run).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
@@ -495,7 +495,7 @@ build without asking (ARV-14): FIX-08 alone first (review workflow, before auto-
 | FIX-05 | Root `STATE.md` named a version (`The 1.0 release`); the handoff names none (`STATE.md:15`, review of #327). Fixed in #333. | TRK-01 | S | done (2026-11-16, #333) |
 | FIX-06 | VS8-01 is done and its migration box ticked, but the migration was never run: on the owner's Mac both folders existed, nothing moved (`tests/hardware/release.md:15`, `BACKLOG.md:392`, review of #329; the owner merged it as it is). | BRD-07, BRD-08 | S | todo |
 | FIX-07 | The ticked About line of the release checklist asks for the window title CMDMX; the note records only the bundle name, version and copyright (`tests/hardware/release.md:14`, review of #329), plausible. | BRD-02 | S | todo |
-| FIX-08 | The ARV-10 merge step hands `secrets.AUTOMERGE_TOKEN` to a `pull_request` run, which runs the PR's own `review.yml` and `risk-gate.py`: a PR that changes the gate or the workflow decides its own lane, or uses the owner's token directly, whatever `AUTOMERGE` says; the lane and the merge must come from `main`'s code (`.github/workflows/review.yml:255`, review of #333). Until it is fixed the owner sets no `AUTOMERGE_TOKEN`. | ARV-10 | S | todo |
+| FIX-08 | The ARV-10 merge step hands `secrets.AUTOMERGE_TOKEN` to a `pull_request` run, which runs the PR's own `review.yml` and `risk-gate.py`: a PR that changes the gate or the workflow decides its own lane, or uses the owner's token directly, whatever `AUTOMERGE` says; the lane and the merge must come from `main`'s code (`.github/workflows/review.yml:255`, review of #333). Fixed: `automerge.yml` merges from `main` on `workflow_run`, the token in an environment only `main` may use. | ARV-10 | S | done (2026-11-16, FIX-08) |
 
 ## Phase 10 track — hardware (parallel to phase 1)
 The open-hardware desk (IDEA-23) runs beside phase 1 (owner, 2026-10-25, DECISIONS): own sessions

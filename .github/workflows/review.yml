@@ -3,7 +3,7 @@ name: Review
 # Auto-review (specs/modules/autoreview.md). Job `review` lets Claude review the PR on every push
 # (ARV-01..04) and keeps its findings as an artifact; job `risk-gate` turns findings + changed paths
 # into a lane with scripts/risk-gate.py (ARV-05..09). Auto-merge (ARV-10) sits behind the AUTOMERGE
-# repository variable: off (shadow) unless it is `on`.
+# repository variable: off (shadow) unless it is `on`. The merge itself is in automerge.yml (FIX-08).
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -245,14 +245,6 @@ jobs:
 
           # Edits by GITHUB_TOKEN start no workflow, so tracking.yml does not loop.
           gh api -X PATCH "repos/$R/pulls/$PR" -F body=@body.md > /dev/null
-
-      - name: green merges by itself (ARV-10)
-        if: steps.gate.outputs.lane == 'green' && vars.AUTOMERGE == 'on'
-        env:
-          # The owner's token: a merge by the default token starts no workflow on main (ARV-10).
-          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
-        # No `|| true`: a missing secret fails this step and the check, so nothing merges (fail-safe).
-        run: gh pr merge "$PR" --auto --merge -R "$R"
 
       - name: amber fails the check (ARV-09, ARV-11)
         env:

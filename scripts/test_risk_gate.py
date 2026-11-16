@@ -603,15 +603,31 @@ def test_arv_10_cli_reads_the_switch():
             assert says in (Path(tmp) / "c.md").read_text(), value
 
 
-def test_arv_10_workflow_merges_green_behind_the_switch():
-    workflow = (ROOT / ".github/workflows/review.yml").read_text()
-    step = workflow[workflow.index("green merges by itself (ARV-10)"):]
-    step = step[:step.index("\n      - name:") if "\n      - name:" in step else len(step)]
-    assert "vars.AUTOMERGE == 'on'" in step and "lane == 'green'" in step
-    assert "gh pr merge" in step and "--auto" in step and "--merge" in step
-    # Not the default GITHUB_TOKEN: its merge starts no workflow on main.
-    assert "secrets.AUTOMERGE_TOKEN" in step and "github.token" not in step
-    assert '--automerge "$AUTOMERGE"' in workflow and "vars.AUTOMERGE" in workflow
+def test_arv_10_fix_08_pr_runs_hold_no_merge_token():
+    # A pull_request run runs the PR's own workflow and gate: it must never see the owner's token (FIX-08).
+    review = (ROOT / ".github/workflows/review.yml").read_text()
+    assert "AUTOMERGE_TOKEN" not in review and "--auto " not in review
+    for workflow in (ROOT / ".github/workflows").glob("*.yml"):
+        if workflow.name != "automerge.yml":
+            assert "AUTOMERGE_TOKEN" not in workflow.read_text(), workflow.name
+
+
+def test_arv_10_fix_08_main_decides_and_merges():
+    text = (ROOT / ".github/workflows/automerge.yml").read_text()
+    on = text[text.index("\non:"):text.index("\njobs:")]
+    # workflow_run runs main's copy of this file, never the PR's.
+    assert "workflow_run:" in on and "workflows: [Review]" in on and "pull_request" not in on
+    assert "vars.AUTOMERGE == 'on'" in text and "workflow_run.conclusion == 'success'" in text
+    # The token lives in an environment that only main may use; no step but the merge sees it.
+    assert "environment: automerge" in text
+    assert text.count("secrets.AUTOMERGE_TOKEN") == 1
+    merge = text[text.index("secrets.AUTOMERGE_TOKEN"):]
+    assert "gh pr merge" in merge and "--auto" in merge and "--merge" in merge and "--match-head-commit" in merge
+    # main's gate decides the lane of the PR's commits, not the PR's copy of it.
+    assert "git show origin/main:scripts/risk-gate.py > scripts/risk-gate.py" in text
+    gate_at = text.index("git show origin/main:scripts/risk-gate.py")
+    assert text.index("scripts/risk-gate.py --base") > gate_at
+    assert "lane" in merge or "green" in text[gate_at:text.index("secrets.AUTOMERGE_TOKEN")]
 
 
 def test_arv_10_not_green_turns_auto_merge_off():
