@@ -10,17 +10,18 @@ typealias TickSubject = CurrentValueSubject<LiveTick, Never>
 private func cg(_ c: Color) -> CGColor { NSColor(c).cgColor }
 
 /// A layer view that never takes a click, so the SwiftUI gestures and buttons around it keep working.
-class LiveLayerView: NSView {
+/// SNP-06: generic over the subject's value (a tick, an output cell, a grid row, the DMX channels).
+class LiveLayerView<Value>: NSView {
     var sub: AnyCancellable?
     private var bound: ObjectIdentifier?
-    var onTick: (LiveTick) -> Void = { _ in }
+    var onTick: (Value) -> Void = { _ in }
 
     override init(frame: NSRect) { super.init(frame: frame); wantsLayer = true; layer?.masksToBounds = true }
     required init?(coder: NSCoder) { nil }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     /// Follows `subject` (once per subject; the latest value is applied at once).
-    func bind(_ subject: TickSubject?) {
+    func bind(_ subject: CurrentValueSubject<Value, Never>?) {
         let id = subject.map { ObjectIdentifier($0) }
         guard id != bound else { return }
         bound = id
@@ -35,30 +36,51 @@ class LiveLayerView: NSView {
     }
 }
 
-/// A text from the tick. `sample` is the widest text it can show; it fixes the size so SwiftUI never relayouts.
-struct LiveLabel: NSViewRepresentable {
-    let tick: TickSubject
-    let text: (LiveTick) -> String
+/// A text from the subject's value. `sample` is the widest text it can show; it fixes the size so SwiftUI never relayouts.
+/// SNP-06: `fillsWidth` takes the proposed width instead (truncating at the end), `attributed` draws colours inside the text.
+struct LiveLabel<Value>: NSViewRepresentable {
+    let tick: CurrentValueSubject<Value, Never>
+    /// A `String`, or an `NSAttributedString` that carries its own font and colours.
+    let render: (Value) -> Any
     var size: CGFloat = Typo.small
+    var ui = false
     let color: Color
     let sample: String
     var alignment = CATextLayerAlignmentMode.left
+    var fillsWidth = false
 
-    private var font: NSFont { NSFont.monospacedSystemFont(ofSize: size, weight: .regular) }
+    init(tick: CurrentValueSubject<Value, Never>, text: @escaping (Value) -> String, size: CGFloat = Typo.small, ui: Bool = false,
+         color: Color, sample: String, alignment: CATextLayerAlignmentMode = .left, fillsWidth: Bool = false) {
+        self.tick = tick; render = text; self.size = size; self.ui = ui; self.color = color
+        self.sample = sample; self.alignment = alignment; self.fillsWidth = fillsWidth
+    }
 
-    final class View: LiveLayerView {
+    init(tick: CurrentValueSubject<Value, Never>, attributed: @escaping (Value) -> NSAttributedString, size: CGFloat = Typo.small,
+         ui: Bool = false, sample: String, alignment: CATextLayerAlignmentMode = .left, fillsWidth: Bool = false) {
+        self.tick = tick; render = attributed; self.size = size; self.ui = ui; color = .primary
+        self.sample = sample; self.alignment = alignment; self.fillsWidth = fillsWidth
+    }
+
+    private var font: NSFont { ui ? NSFont.systemFont(ofSize: size) : NSFont.monospacedSystemFont(ofSize: size, weight: .regular) }
+
+    final class View: LiveLayerView<Value> {
         let label = CATextLayer()
-        var text: (LiveTick) -> String = { _ in "" }
+        var render: (Value) -> Any = { _ in "" }
+        private var last: Any?
         override init(frame: NSRect) {
             super.init(frame: frame)
             label.contentsScale = NSScreen.main?.backingScaleFactor ?? 2
             layer?.addSublayer(label)
-            onTick = { [weak self] t in
-                guard let self else { return }
-                self.plain { self.label.string = self.text(t) }
-            }
+            onTick = { [weak self] value in self?.show(value) }
         }
         required init?(coder: NSCoder) { nil }
+        /// Sets the text only when it differs (the 512 DMX values change rarely).
+        func show(_ value: Value, force: Bool = false) {
+            let new = render(value)
+            if !force, let last, (last as AnyObject).isEqual(new as AnyObject) { return }
+            last = new
+            plain { label.string = new }
+        }
         override func layout() { super.layout(); plain { label.frame = bounds } }
         override func viewDidChangeBackingProperties() {
             super.viewDidChangeBackingProperties()
@@ -70,19 +92,52 @@ struct LiveLabel: NSViewRepresentable {
 
     func updateNSView(_ v: View, context: Context) {
         v.plain {
-            v.text = text
+            v.render = render
             v.label.font = font
             v.label.fontSize = size
             v.label.foregroundColor = cg(color)
             v.label.alignmentMode = alignment
-            v.label.string = text(tick.value)
+            v.label.truncationMode = fillsWidth ? .end : .none
         }
+        v.show(tick.value, force: true)
         v.bind(tick)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: View, context: Context) -> CGSize? {
         let s = (sample as NSString).size(withAttributes: [.font: font])
-        return CGSize(width: ceil(s.width), height: ceil(s.height))
+        let proposed = proposal.width.flatMap { $0.isFinite ? $0 : nil }
+        return CGSize(width: fillsWidth ? (proposed ?? ceil(s.width)) : ceil(s.width), height: ceil(s.height))
+    }
+}
+
+/// SNP-06: a bar that is `fraction` of its width wide on a track, for a level that moves with the output.
+struct LiveFill<Value>: NSViewRepresentable {
+    let tick: CurrentValueSubject<Value, Never>
+    let fraction: (Value) -> Double
+    let track: Color
+    let fill: Color
+
+    final class View: LiveLayerView<Value> {
+        let bar = CALayer()
+        var fraction: (Value) -> Double = { _ in 0 }
+        private var amount = 0.0
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            layer?.addSublayer(bar)
+            onTick = { [weak self] v in self?.set(v) }
+        }
+        required init?(coder: NSCoder) { nil }
+        func set(_ v: Value) { amount = min(1, max(0, fraction(v))); place() }
+        override func layout() { super.layout(); place() }
+        func place() { plain { bar.frame = CGRect(x: 0, y: 0, width: bounds.width * amount, height: bounds.height) } }
+    }
+
+    func makeNSView(context: Context) -> View { View() }
+    func updateNSView(_ v: View, context: Context) {
+        v.plain { v.layer?.backgroundColor = cg(track); v.bar.backgroundColor = cg(fill) }
+        v.fraction = fraction
+        v.set(tick.value)
+        v.bind(tick)
     }
 }
 
@@ -91,7 +146,7 @@ struct LiveProgressLine: NSViewRepresentable {
     let tick: TickSubject
     let color: Color
 
-    final class View: LiveLayerView {
+    final class View: LiveLayerView<LiveTick> {
         let line = CALayer()
         var fraction = 0.0
         override init(frame: NSRect) {
@@ -125,7 +180,7 @@ struct LiveBar: NSViewRepresentable {
     let showsProgress: Bool
     let theme: Theme
 
-    final class View: LiveLayerView {
+    final class View: LiveLayerView<LiveTick> {
         let fill = CALayer(), cap = CALayer(), progress = CALayer(), text = CATextLayer()
         var level = 0.0, fraction = 0.0, showsProgress = false
         static let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)

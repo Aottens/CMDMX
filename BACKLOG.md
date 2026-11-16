@@ -248,7 +248,7 @@ Builds: SNP-01; SNP-03 + SNP-02 (the script first, so SNP-02 is measured with it
 | SNP-03 | Scripts: `scripts/app-cpu.sh` measures the app idle and with `--demo`; the budget (5 %, 15 %) in `DECISIONS.md` and in the PR template line of `CLAUDE.md`. | UI-70 | S | done (2026-11-08, #273) |
 | SNP-04 | App: find the fixed cost of a redraw with Instruments; experiments and the cause in the run file. | UI-70 | M | done (2026-11-08, #274) |
 | SNP-05 | App: live values drawn outside SwiftUI (tile stripes, strip level and progress, Active playbacks levels, cursor, clocks); `scripts/app-cpu.sh` within UI-70; run on Art-Net by eye. | UI-71, UI-70 | M | done (2026-11-08, #274) |
-| SNP-06 | App: the Views screen's live intensities and grid on layers as UI-71, measured with Views open. | UI-71 | S | todo |
+| SNP-06 | App: the Views screen's live intensities and grid on layers as UI-71, measured with Views open. | UI-71 | S | done (2026-11-16, #PR) |
 
 ### Working on many at once (IDEA-35 batch D, spec P1-36)
 Approved by the owner 2026-11-07, every recommendation accepted (`ui.md`). Unfold and the linked copy are IDEA-46 and IDEA-47.

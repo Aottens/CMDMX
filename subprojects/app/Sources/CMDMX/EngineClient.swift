@@ -927,9 +927,18 @@ private struct ProfileReply: Decodable {
 
 /// UI-68: live output (IPC-58) and the watched Views data (IPC-59) apart from EngineClient, so a delta redraws only its readers.
 final class LiveOutput: ObservableObject {
-    @Published var output: [Item: FixtureOutput] = [:]
-    @Published var grid: [Item: [String: GridValue]] = [:]
-    @Published var dmx: (line: Int, channels: [Int])?
+    // UI-71 / SNP-06: the moving values are plain (readable by press handlers) and reach the screen through the subjects;
+    // only the coarse structure below is published, and only when it changes.
+    private(set) var output: [Item: FixtureOutput] = [:]
+    private(set) var grid: [Item: [String: GridValue]] = [:]
+    private(set) var dmx: (line: Int, channels: [Int])?
+    /// The items with output above 0 (the Stage filter).
+    @Published private(set) var lit: Set<Item> = []
+    /// Per grid row: its attributes and the palette each refers to (the columns, UI-62's one-palette row).
+    @Published private(set) var gridShape: [Item: [String: Int?]] = [:]
+    /// The watched line's channels, with the line they belong to.
+    let dmxSubject = CurrentValueSubject<(line: Int, channels: [Int])?, Never>(nil)
+    private var gridRows: [Item: CurrentValueSubject<[String: GridValue]?, Never>] = [:]
 
     /// UI-68: one observable cell per item, so a tile stripe redraws only when its own output changes.
     private var cells: [Item: OutputCell] = [:]
@@ -937,14 +946,43 @@ final class LiveOutput: ObservableObject {
         if let c = cells[item] { return c }
         let c = OutputCell(); cells[item] = c; return c
     }
+    /// The live values of one grid row (nil: none yet).
+    func gridRow(_ item: Item) -> CurrentValueSubject<[String: GridValue]?, Never> {
+        if let s = gridRows[item] { return s }
+        let s = CurrentValueSubject<[String: GridValue]?, Never>(grid[item]); gridRows[item] = s; return s
+    }
     /// Sets `output` and the cells of the entries that differ.
     func set(_ entries: [FixtureOutput], replacing: Bool = false) {
+        var next = replacing ? [] : lit
         if replacing { output = [:]; for c in cells.values where c.value != nil { c.value = nil } }
         for e in entries {
             output[e.item] = e
+            if e.i > 0 { next.insert(e.item) } else { next.remove(e.item) }
             let c = cell(e.item)
             if c.value != e { c.value = e }
         }
+        if next != lit { lit = next }
+    }
+    /// IPC-59: rows come whole; the shape is published once, and only when a row's attributes or palettes changed.
+    func setGrid(_ rows: [(Item, [String: GridValue])]) {
+        var shape = gridShape
+        for (item, values) in rows {
+            grid[item] = values
+            gridRow(item).send(values)
+            shape[item] = values.mapValues { $0.palette }
+        }
+        if shape != gridShape { gridShape = shape }
+    }
+    func setDMX(line: Int, channels: [Int]) {
+        dmx = (line, channels)
+        dmxSubject.send((line, channels))
+    }
+    /// A new watch (or a lost connection): nothing of the old one stays.
+    func resetWatched() {
+        grid = [:]; dmx = nil
+        for s in gridRows.values where s.value != nil { s.send(nil) }
+        dmxSubject.send(nil)
+        if !gridShape.isEmpty { gridShape = [:] }
     }
 }
 
@@ -2078,7 +2116,7 @@ final class EngineClient: ObservableObject {
     /// UI-61, IPC-59: watch one view, or none (nil); the daemon forgets it with the connection, so views send it again once online.
     func watchOutput(_ view: OutputWatch?) {
         watching = view
-        live.grid = [:]; live.dmx = nil
+        live.resetWatched()
         switch view {
         case .grid?: sendJSON("output.watch", ["view": "grid"])
         case .dmx(let line)?: sendJSON("output.watch", ["view": "dmx", "line": line])
@@ -2574,7 +2612,7 @@ final class EngineClient: ObservableObject {
                 DaemonLauncher.shared.engineLost()   // REL-27
             }
             connection = .offline
-            outputs = []; live.grid = [:]; live.dmx = nil
+            outputs = []; live.resetWatched()
             control = ControlState(); controlMapping = nil; remote = RemoteState()
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
@@ -2737,9 +2775,9 @@ final class EngineClient: ObservableObject {
             for e in ((try? JSONDecoder().decode(OutputEntries.self, from: data))?.fixtures ?? []).compactMap(\.value) { live.set([e]) }
         case "output_grid":
             guard watching == .grid, let msg = try? JSONDecoder().decode(GridMessage.self, from: data) else { break }
-            for e in msg.fixtures.compactMap(\.value) { live.grid[e.id] = e.values.compactMapValues(\.value) }   // each changed row comes whole
+            live.setGrid(msg.fixtures.compactMap(\.value).map { ($0.id, $0.values.compactMapValues(\.value)) })   // each changed row comes whole
         case "output_dmx":
-            if let msg = try? JSONDecoder().decode(DMXMessage.self, from: data), watching == .dmx(msg.line) { live.dmx = (msg.line, msg.channels) }
+            if let msg = try? JSONDecoder().decode(DMXMessage.self, from: data), watching == .dmx(msg.line) { live.setDMX(line: msg.line, channels: msg.channels) }
         case "outputs":
             if let outputs = incoming.outputs?.value { self.outputs = outputs }
         case "control":
