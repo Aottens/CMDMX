@@ -24,8 +24,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 Runs only the owner can do (gate 3):
 - VS4-03 the first service on CMDMX, Lightkey as fallback: pick a Sunday. It needs VS4-07 first and the programming
   below (`tests/hardware/church.md`); the same run checks FIL-03 on the Eurolite (Open keeps this Mac's output).
-- VS4-07 the DMG on the church Mac, not in the week of a service; VS8-01 the DMG on the owner's own Mac, which still
-  has the app from before the rename (`tests/hardware/release.md`).
+- VS4-07 the service candidate's DMG on the church Mac, not in the week of a service (`tests/hardware/release.md`).
 - SPF-03 a real sleep during a running fade on the Eurolite and Art-Net (`tests/hardware/sleep.md`).
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
