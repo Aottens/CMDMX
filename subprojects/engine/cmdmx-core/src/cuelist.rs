@@ -263,7 +263,8 @@ impl ListRun {
 
     /// UNDO-21: after an undo or redo the current cue that no longer exists is the cue the step
     /// renumbered (found as the cue `new` holds that `old` did not, equal but for its number), else
-    /// the nearest below, else the first; the next cue is then worked out again.
+    /// the nearest below, else the first (the stage then stays as it is, as CUE-07); the next cue is
+    /// then worked out again.
     pub(crate) fn restored(&mut self, old: &Playback, new: &Playback) {
         let has = |n: CueNumber| new.cues.iter().any(|c| c.number == n);
         let follow = |n: CueNumber| {
@@ -282,7 +283,12 @@ impl ListRun {
         let moved = !has(c);
         if moved {
             let first = new.cues.first().map(|c| c.number);
-            self.current = follow(c).or_else(|| new.cue_before(c)).or(first);
+            let followed = follow(c);
+            // UNDO-21: a current cue taken away is not re-snapped; nothing changes until the next Go.
+            if followed.is_none() {
+                self.edited = false;
+            }
+            self.current = followed.or_else(|| new.cue_before(c)).or(first);
         }
         if !moved && self.next.is_none_or(has) {
             return;

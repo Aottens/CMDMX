@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-16 (P1-38)_
+_Last updated: 2026-11-16 (FIX-04)_
 
 ## Current step
+FIX-04 (2026-11-16, UNDO-21): `ListRun::restored` clears `edited` when the current cue is gone and was not renumbered, so the list moves to the cue below without `snap()`: the stage keeps the taken cue's look until the next Go, as CUE-07. Test `undo_21_a_copy_undone_while_it_is_live_changes_nothing_on_stage_until_go`.
+
 P1-38 (2026-11-16): measured only, no code. Release daemon on 266 fixtures (5 universes, shapes on 258): about 7 % of a core idle, 12 % busy, 13 % with Art-Net and sACN to 127.0.0.1 and a client connected, 40 Hz held; debug 36–49 % and only 18 frames/s per universe. No budget criterion. Run: `tests/manual/runs/2026-11-16-P1-38.md`.
 
 TST-01 (2026-11-15, OUT-43): `cmdmx-daemon/tests/no_dmx.rs` scans every daemon start in `tests/` for the three kill switches; `client_loss`, `late_tick`, `lock` (IPC-50) and `message_history` start twice, the first run all off to point the node at 127.0.0.1 (or disable the serial `auto` node), the second with one kind on and the `// OUT-43: loopback` marker.

@@ -484,7 +484,7 @@ ARB-07 alone (found on #317 after its merge; gate, prompt and review workflow on
 
 ### Fixes from reviews (ARV-13, ARV-14)
 Builds: FIX-01 alone (the first; review workflow and gate only, in shadow). FIX-03..07 are fix blocks the harness may
-build without asking (ARV-14): FIX-08 alone first (review workflow, before auto-merge goes on, done); FIX-04 alone (core); FIX-03 alone (CAD docs); FIX-06 + FIX-07 (one checklist, the owner's run).
+build without asking (ARV-14): FIX-08 alone first (review workflow, before auto-merge goes on, done); FIX-04 alone (core, done); FIX-03 alone (CAD docs); FIX-06 + FIX-07 (one checklist, the owner's run).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
