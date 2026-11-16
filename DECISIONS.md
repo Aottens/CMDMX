@@ -5,6 +5,27 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-16 — The top plate's test backing: ribs every 16.5 mm for 0.10 mm under 20 N, faders on 2.7 mm rails (HWB-11, HW-50)
+
+**Decision:** The 1.5 mm engraving plate may give at most 0.10 mm under a 20 N push between its supports. For the weakest
+reading of the plate (ABS core, E 2.0 GPa) that means open cells of at most 16.5 mm, half the 33 mm fader pitch. The
+test strip gets two printed backings that differ only in a 2 mm closed skin, so the owner's run compares exactly that.
+Faders hang under 2.7 mm rails with their screw heads sunk in the rail's top face, under the plate. That leaves 4.0 mm of
+the PSM's lever above the plate, against 5.7 mm on the printed panel. Record:
+`subprojects/hardware/cad/acryl-proef/onderframe/README.md`.
+
+**Alternatives considered:** a 33 mm lattice like the printed AMS panel (0.39 mm under 20 N on 1.5 mm plate); one
+backing only; thicker rails with more material under the screw heads (less lever above the plate).
+
+**Why:** a bought desk's 1.5 mm aluminium gives about 0.01 mm over 33 mm, and the plastic plate is 35 times less stiff,
+so only close support can make it feel solid. Two variants in one print run answer whether the open lattice is enough
+before HWB-07 commits to one.
+
+**Reversal trigger:** the run (`tests/hardware/top-plate.md`) shows the knob not seating on 4.0 mm of lever, or the
+plate feeling soft on the lattice although the numbers say 0.10 mm.
+
+---
+
 ## 2026-11-16 — Gate 2 is the owner's only for what the risk gate does not call green (ARB-03; amends 2026-11-13)
 
 **Decision:** A PR the risk gate calls green merges by itself once the required checks pass, when the repository

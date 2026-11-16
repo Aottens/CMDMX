@@ -503,7 +503,8 @@ and PRs, no changes under `subprojects/engine` or `subprojects/app`, never ahead
 Its contract with the software is the general control layer (CTL). Build tasks are `HWB-nn` (criteria
 are `HW-nn`), in the prototype order of HW-60; each ships a checklist in `tests/hardware/` (gate 3).
 
-Builds: HWB-10 alone (it needs the screen, not the PCBs, so it goes ahead of HWB-02..06; HW-60).
+Builds: HWB-10 alone (it needs the screen, not the PCBs, so it goes ahead of HWB-02..06; HW-60). HWB-11 alone (a test
+print that settles the top plate for HWB-07 while the strips are on their way).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 | --- | --- | --- | --- | --- |
@@ -518,6 +519,7 @@ Builds: HWB-10 alone (it needs the screen, not the PCBs, so it goes ahead of HWB
 | HWB-08 | Flight case drawings (outer dimensions, foam plan, standard hardware). Needs HWB-07. | HW-52 | S | todo |
 | HWB-09 | Build guide, BOM with dated prices, licence files (CERN-OHL-S v2, CC BY-SA 4.0). | HW-02, 03, 35, 55 | M | todo |
 | HWB-10 | Screen flap: printed flap shell, glass clamp and back cover for the HW-54 module, hinge, fold-out strut and sawtooth rack on a printed test base, cable path with strain relief (CAD native + STEP + STL); checklist `tests/hardware/flap.md` on a printed flap with the real screen. | HW-53, 54, 56, 57, 58 | M | gate3: `tests/hardware/flap.md` |
+| HWB-11 | Top plate test backing: two printed backings (open rib lattice, closed skin) for the 1.5 mm engraving-plate test strip, ribs every 16.5 mm by a 20 N deflection estimate, heat-set inserts, fader rails with hidden screws and MX pockets (CAD native + STEP + STL, `subprojects/hardware/cad/acryl-proef/onderframe/`); checklist `tests/hardware/top-plate.md` on the delivered strip. | HW-50, 53 | S | gate3: `tests/hardware/top-plate.md` |
 
 ## Phase 2 — the FX generator (IDEA-18, flagship)
 The owner picked the effect generator as the first phase-2 feature (2026-10-29). Spec P2-01
