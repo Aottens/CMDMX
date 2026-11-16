@@ -16,7 +16,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
    that went well, with its gap review's fixes (REL-26, DECISIONS 2026-11-16). P1-31 (Blind and Edit) stays apart.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): `AUTOMERGE` is on (owner, 2026-11-16), so a green PR merges
-   by itself; amber and red stay the owner's. Fix blocks: FIX-04 (core), FIX-03, FIX-06 + FIX-07.
+   by itself; amber and red stay the owner's. Fix blocks: FIX-03, then FIX-06 + FIX-07.
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):

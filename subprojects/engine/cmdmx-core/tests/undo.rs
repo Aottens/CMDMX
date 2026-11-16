@@ -723,3 +723,36 @@ fn undo_21_a_list_that_is_off_is_not_touched() {
     h.undo(&mut e).unwrap();
     assert_eq!(on(&e), (None, Some(1.0)), "off: the first cue is next");
 }
+
+#[test]
+fn undo_21_a_copy_undone_while_it_is_live_changes_nothing_on_stage_until_go() {
+    // FIX-04: Q1 holds 201 at full, Q2 at half; the copy of Q1 is live, its undo puts the list on
+    // Q2 but the stage keeps the copy's 255 until Go.
+    let mut e = church();
+    let cues = [(1.0, 201, 1.0), (2.0, 201, 0.5), (4.0, 202, 1.0)]
+        .iter()
+        .map(|&(n, f, l)| Cue {
+            number: q(n),
+            ..Cue::new(dimmer(f, l))
+        })
+        .collect();
+    e.add_playback(Playback {
+        cues,
+        ..Playback::new(1, 1, 1, Values::new())
+    });
+    e.set_fader(1, 1.0, 0.0).unwrap();
+    let mut h = History::default();
+    h.edit(&mut e, "Copy Q1 to Q3", None, |e| {
+        e.copy_cue(1, q(1.0), q(3.0))
+    })
+    .unwrap();
+    act(&mut e, ListAction::Goto(q(3.0)), 0.0);
+    assert_eq!(dmx(&e, 21), 255);
+    h.undo(&mut e).unwrap();
+    assert_eq!(on(&e), (Some(2.0), Some(4.0)), "the nearest cue below");
+    e.tick(0.5);
+    assert_eq!(dmx(&e, 21), 255, "nothing on stage changes until Go");
+    act(&mut e, ListAction::Go, 1.0);
+    assert_eq!(on(&e), (Some(4.0), None), "Go goes on");
+    assert_eq!((dmx(&e, 21), dmx(&e, 22)), (128, 255));
+}
