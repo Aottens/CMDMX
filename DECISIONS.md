@@ -5,6 +5,21 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-16 — The first service runs on 0.10.0; 1.0.0 follows a service that went well (owner; amends 2026-11-14)
+
+**Decision:** the release the first Sunday service runs on (VS4-03) is **0.10.0**, the service candidate. **1.0.0**
+is cut after that service has gone well on CMDMX, with the fixes of the gap review that follows it and P1-38 (the
+engine's load on about 260 fixtures in a release build) measured. Notarisation (VS8-08) and Blind and Edit (P1-31)
+are not conditions for 1.0.0. Patches before it are `0.10.y`. Everything else in the 2026-11-14 entry stands: a
+release only when there is something to install, on the owner's word, the gap review after a milestone release.
+
+**Alternatives considered:** 1.0.0 as the release the service runs on (2026-11-14); 1.0.0 only when notarised and with
+Blind and Edit as well.
+
+**Why:** 1.0 should say "it worked in the church", not promise it beforehand. The version number follows the proof.
+
+**Reversal trigger:** the first service keeps slipping while the software is ready, and the website's announcement needs a 1.0.
+
 ## 2026-11-15 — Tests that need real frames start twice, the second time on loopback only (owner, TST-01, OUT-43)
 
 **Decision:** A daemon test that must see real frames or a real node change first runs with `--no-artnet --no-sacn
