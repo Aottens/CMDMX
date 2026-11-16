@@ -112,6 +112,25 @@ for run in sorted(ROOT.glob("tests/*/runs/*.md")):
         if not ok:
             errors.append(f"{where}: open point needs `→ <BACKLOG id | IDEA id | `existing file`>`: {point[:60]}")
 
+
+def backlog_ids(text):
+    """The BACKLOG ids named in text, in order. TASK also takes a file suffix (`P1-38.md`) and trailing
+    punctuation, so a match drops `.<part>` from its end until it is an id; ids like UX-02.0 keep their dot."""
+    found = []
+    for i in re.findall(TASK, text):
+        i = i.rstrip(".,")
+        while i not in status and "." in i:
+            i = i.rsplit(".", 1)[0]
+        if i in status:
+            found.append(i)
+    return found
+
+
+def named(text):
+    """The BACKLOG ids named in text."""
+    return set(backlog_ids(text))
+
+
 readme = (ROOT / "README.md").read_text()
 status_lines = [line for line in status_text(readme).splitlines() if line.strip()]
 if len(status_lines) > STATUS_MAX_LINES:
@@ -122,17 +141,12 @@ for line in status_lines:
 status_blob = "\n".join(status_lines)
 if re.search(r"\bv?\d+\.\d+\.\d+\b", status_blob):
     errors.append("README.md: ## Status names a version number; link the latest release instead, a version there is stale once a tag is pushed")
-status_ids = [t for t in (i.rstrip(".,") for i in re.findall(TASK, status_blob)) if t in status]
+status_ids = backlog_ids(status_blob)
 if not status_ids:
     errors.append("README.md: ## Status names no BACKLOG id; name what is next")
 for task in dict.fromkeys(status_ids):
     if status[task] == "done":
         errors.append(f"README.md: ## Status names {task}, which is done; rewrite the status")
-
-
-def named(text):
-    """The BACKLOG ids named in text."""
-    return {t for t in (i.rstrip(".,") for i in re.findall(TASK, text)) if t in status}
 
 
 def state_section(text, title):

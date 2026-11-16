@@ -57,6 +57,10 @@ def trk_02_done_task_fails():
     assert "VS8-09" in check_with(lambda s: s + "- VS8-09 is done\n")
 
 
+def trk_02_done_task_in_path_fails():
+    assert "VS8-09" in check_with(lambda s: s + "- see `tests/manual/runs/2026-11-16-VS8-09.md`\n")
+
+
 def trk_02_next_without_open_task_fails():
     edit = lambda s: re.sub(r"## Next\n.*?(?=## Waiting)", "## Next\nNothing.\n\n", s, flags=re.S)
     assert "## Next names no open" in check_with(edit)

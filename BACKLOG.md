@@ -456,13 +456,14 @@ after VS8-03, in any order.
 | P1-06 | (re-scoped 2026-10-23: schema, snapshot/delta and reconnect grew per slice as IPC-01..34) Finish `ipc.md`: one versioning criterion (when `v` goes up, what the app and the daemon do when the other speaks another version) and bring the out-of-scope list up to date (pages, palettes, VS2-05 are in); owner approves. | IPC | S | done (2026-10-25, #100; IPC-41 approved as proposed; build task VS1-09) |
 
 ### Tracking: the state stays true (spec `tracking.md`)
-Builds: TRB-01 + TRB-02 (one question from the owner, how to see where the project stands).
+Builds: TRB-01 + TRB-02 (one question from the owner, how to see where the project stands). TRB-04 alone (a checker fix).
 
 | Id | Task (one sentence, verifiable) | Spec | Size | Status |
 |---|---|---|---|---|
 | TRB-01 | `STATE.md` is one screen; CI fails when it drifts from `BACKLOG.md`; every session start prints it from `main`; `scripts/test_tracking.py`. | TRK-01..04, TRK-09 | S | done (2026-11-05, #248) |
 | TRB-02 | `scripts/dashboard.py`: a local page that follows `origin/main` by itself, with search and filters; run in the browser. | TRK-05..08 | S | done (2026-11-05, #248) |
 | TRB-03 | `scripts/dashboard.py` moves its default port off 7320, the remote's port (RMT-01), and the LaunchAgent follows; owner picks the port. | TRK-05 | S | todo |
+| TRB-04 | `check-tracking.py` sees a BACKLOG id inside a file name, so `STATE.md` naming a run file such as `tests/manual/runs/<date>-P1-38.md` of a done task fails CI (found in the review of #330); `trk_02_done_task_in_path_fails`. | TRK-02 | S | doing |
 
 ### Auto-review: the harness merges what is safe (spec `autoreview.md`, IDEA-57; approved by the owner 2026-11-13)
 Builds: ARB-01 + ARB-02 (one behaviour, review then gate: the gate reads the review's findings); ARB-03 alone (it changes
