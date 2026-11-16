@@ -2,14 +2,16 @@
 
 Gate 3: only the owner ticks these. Copy to `tests/hardware/runs/<date>-HWB-10.md` for a run.
 CAD, parts and print settings: [`subprojects/hardware/cad/klep/README.md`](../../subprojects/hardware/cad/klep/README.md).
-Needs the Waveshare 15.6" HDMI LCD (H) (STATE.md, *Owner to decide*).
+Needs the Waveshare 15.6" HDMI LCD (H) (STATE.md, *Owner to decide*). Before it is bought, *Build* and *Stand* can run
+with the acrylic dummy (README, *Prototype without the screen*); tick them again with the screen in.
 
 ## Parts and print
 - [ ] Waveshare 15.6" HDMI LCD (H) on the desk; it shows the Mac's screen over HDMI and touch works over USB
       before it goes into the flap
 - [ ] Black piano hinge 480 x 25 x 0.7 (Duovorm DV13343, meubelbeslagonline.nl), and two igus GFM-0608-05
 - [ ] Walnut frame (4 bars) glued and dowelled square: diagonals within 1 mm of each other
-- [ ] Aluminium: clamp bar 15 x 5 x 396, two arms 15 x 5 x 110 (holes 95.0 apart), foot rod Ø 8 x 450
+- [ ] Aluminium: clamp bar 15 x 5 x 396, two arms (`cmdmx-klep-arm.dxf`, holes reamed 8.0 H7, 95.0 apart), foot rod
+      Ø 8 x 450 bonded into the arms with Loctite 648
 - [ ] Two 6 x 45 dowel pins, M3 inserts and screws, wood screws, 1 mm foam strip, slim HDMI, micro-USB and 12 V cables
 - [ ] Every STL printed on the 256 x 256 bed with no part split by the slicer (HW-58): blocks L/R, covers A/B, cable
       lid, cable clamp, four clamp strips, two keepers; base 1–3, two splices, base cable clamp

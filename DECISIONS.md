@@ -5,6 +5,20 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-16 — The flap's foot rod is bonded into the arms, not held by grub screws (HWB-10)
+
+**Decision:** The 8 mm foot rod is bonded into both strut arms with Loctite 648, and the arms become plain flat parts
+(DXF and STEP in `subprojects/hardware/cad/klep/`). The M4 grub screw in each arm's foot end is dropped.
+
+**Alternatives considered:** the M4 grub screw onto a flat on the rod; an M3 one; screws in the rod's ends with
+washers, which reach below the groove's floor; shaft collars, which are too big for the groove.
+
+**Reasoning:** An M4 tap hole in the 5 mm arm leaves 0.85 mm of wall either side, so it would split. A bonded rod
+makes the strut one rigid frame, which keeps the two arms in step, and the arm becomes a part any laser, waterjet or
+CNC shop can cut from the DXF.
+
+**Reversal trigger:** the strut must come apart without heat, or the bond lets go in the gate-3 pushes.
+
 ## 2026-11-15 — Tests that need real frames start twice, the second time on loopback only (owner, TST-01, OUT-43)
 
 **Decision:** A daemon test that must see real frames or a real node change first runs with `--no-artnet --no-sacn

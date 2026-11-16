@@ -29,7 +29,8 @@ Runs only the owner can do (gate 3):
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
 - HWB-10 the screen flap (`tests/hardware/flap.md`): print it, have the walnut frame made and buy the parts in
-  `subprojects/hardware/cad/klep/README.md` (the hinge is a €2 black one from a Dutch shop); needs the screen below.
+  `subprojects/hardware/cad/klep/README.md` (the hinge is a €2 black one from a Dutch shop). The stand can be tested
+  now with an acrylic stand-in for the glass; the rest needs the screen below.
 
 Programming and small checks:
 - Program the service in *Kerk* at home on Art-Net as `tests/hardware/church.md` asks (steady looks, *Front band*,
