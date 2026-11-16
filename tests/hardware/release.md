@@ -11,8 +11,12 @@ first notarised tag instead; its prerequisites come first. The REL-15 part below
 - [ ] `./subprojects/app/scripts/check-dmg.sh <path to dmg> 0.0.0` ends with `ok` (REL-08)
 - [ ] Wi-Fi off, the installed app: **Help** opens the manual inside the app, without a warning; it names the version, and
       search and the chapter links work (REL-29, UI-55)
-- [ ] Rename (VS8-01): drag `CMDMX.app` to Applications and open it; CMDMX › About CMDMX shows `CMDMX`, the version line and `© 2026 Colourmotion`; the window title is CMDMX (BRD-02)
-- [ ] The shows from `~/Documents/ColourmotionDMX/Shows` are on the Show screen, now in `~/Documents/CMDMX/Shows`, and the old folder has no `Shows` left (BRD-07/08) <!-- brand: old-name -->
+- [x] Rename (VS8-01): drag `CMDMX.app` to Applications and open it; CMDMX › About CMDMX shows `CMDMX`, the version line and `© 2026 Colourmotion`; the window title is CMDMX (BRD-02) — 2026-11-16, 0.10.0 (33) from the v0.10.0 DMG: bundle `CMDMX`, version 0.10.0, `© 2026 Colourmotion`
+- [x] The shows from `~/Documents/ColourmotionDMX/Shows` are on the Show screen, now in `~/Documents/CMDMX/Shows`, and the old folder has no `Shows` left (BRD-07/08) <!-- brand: old-name -->
+  — 2026-11-16: on the owner's Mac both folders already existed (dev builds made the new one on 2026-10-18, the old
+  0.1.0 app the old one again on 2026-11-11), so BRD-08's both-exist branch ran: nothing moved, the daemon log warns
+  "Old … folder left at" for `Shows`, `control` and `state.json`, and *Kerk* opens from the new folder.
+  The rename branch is covered by `brd_08_migrates_old_folders`. <!-- brand: old-name -->
 
 ## Install on the church Mac (REL-15)
 - [ ] Open the DMG, drag CMDMX to Applications, eject the DMG
