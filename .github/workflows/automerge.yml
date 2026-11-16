@@ -1,0 +1,71 @@
+name: Automerge
+
+# FIX-08 / ARV-10: green merges by itself, but the lane and the merge come from main's code.
+# A pull_request run executes the PR's own workflow and gate, so it must never hold the owner's token.
+# workflow_run runs main's copy of this file; AUTOMERGE_TOKEN lives in the `automerge` environment
+# (deployment branches = main only). Only main's risk-gate.py is run on the PR's commit.
+on:
+  workflow_run:
+    workflows: [Review]
+    types: [completed]
+
+jobs:
+  automerge:
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' && vars.AUTOMERGE == 'on'
+    runs-on: ubuntu-latest
+    environment: automerge
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      R: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: the open PR whose head is still the reviewed commit
+        id: pr
+        run: |
+          # HEAD_SHA is a hex commit sha from the event, safe to put in the filter.
+          n=$(gh api "repos/$R/commits/$HEAD_SHA/pulls" \
+            --jq "[.[] | select(.state == \"open\" and .head.sha == \"$HEAD_SHA\")][0].number // empty")
+          echo "number=$n" >> "$GITHUB_OUTPUT"
+
+      - name: main's gate on the PR's commits
+        id: gate
+        if: steps.pr.outputs.number != ''
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          git fetch origin "pull/$PR/head"
+          if [ "$(git rev-parse FETCH_HEAD)" != "$HEAD_SHA" ]; then echo "head moved, skip"; exit 0; fi
+          git checkout -q --detach "$HEAD_SHA"
+          git show origin/main:scripts/risk-gate.py > scripts/risk-gate.py
+          gh run download "$RUN_ID" -n findings -D findings || true
+          PR_TITLE=$(gh pr view "$PR" --json title --jq .title)
+          PR_BODY=$(gh pr view "$PR" --json body --jq .body)
+          export PR_TITLE PR_BODY
+          checks=()
+          while IFS= read -r name; do
+            [ -n "$name" ] && checks+=(--failed-check "$name")
+          done < <(gh api "repos/$R/commits/$HEAD_SHA/check-runs?per_page=100" \
+            --jq '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | select(.name != "risk-gate") | .name')
+          round=$(cat findings/round.txt 2>/dev/null || echo 1)
+          # -I: isolated mode, no import from the PR's scripts/ and no PYTHONPATH
+          python3 -I scripts/risk-gate.py --base origin/main --findings findings/findings.json --round "$round" "${checks[@]}" | tee gate.txt
+          echo "lane=$(head -n 1 gate.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: green merges by itself (ARV-10)
+        if: steps.pr.outputs.number != '' && steps.gate.outputs.lane == 'green'
+        env:
+          # The owner's token: a merge by the default token starts no workflow on main.
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
+          PR: ${{ steps.pr.outputs.number }}
+        # No `|| true`: a missing secret fails this step, so nothing merges (fail-safe).
+        run: gh pr merge "$PR" --auto --merge --match-head-commit "$HEAD_SHA" -R "$R"
