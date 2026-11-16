@@ -630,6 +630,14 @@ def test_arv_10_fix_08_main_decides_and_merges():
     assert "lane" in merge or "green" in text[gate_at:text.index("secrets.AUTOMERGE_TOKEN")]
 
 
+def test_arv_10_fix_08_mains_gate_imports_nothing_from_the_pr():
+    # `python3 scripts/x.py` puts the PR's scripts/ first on sys.path: a PR's scripts/json.py would run
+    # (review of #335). -I keeps the script's folder, PYTHONPATH and user site out.
+    text = (ROOT / ".github/workflows/automerge.yml").read_text()
+    calls = [l for l in text.splitlines() if "risk-gate.py --base" in l]
+    assert calls and all("python3 -I scripts/risk-gate.py" in l for l in calls), calls
+
+
 def test_arv_10_not_green_turns_auto_merge_off():
     workflow = (ROOT / ".github/workflows/review.yml").read_text()
     assert 'if [ "$LANE" != green ]; then gh pr merge "$PR" --disable-auto' in workflow
