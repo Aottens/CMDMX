@@ -15,8 +15,8 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 1. The first service: VS4-07 and VS4-03 below, on the service candidate. The first stable release follows a service
    that went well, with its gap review's fixes (REL-26, DECISIONS 2026-11-16). P1-31 (Blind and Edit) stays apart.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
-3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): green PRs can merge by themselves once the owner turns
-   `AUTOMERGE` on (below); until then the gate runs in shadow. Fix blocks: FIX-04 (core), FIX-03, FIX-06 + FIX-07.
+3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): `AUTOMERGE` is on (owner, 2026-11-16), so a green PR merges
+   by itself; amber and red stay the owner's. Fix blocks: FIX-04 (core), FIX-03, FIX-06 + FIX-07.
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
@@ -46,8 +46,6 @@ Programming and small checks:
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
 
 ## Owner to decide
-- Auto-merge: read the shadow run of fifteen PRs in #333, then turn it on with the steps in the PR that moved the merge
-  to `main` (auto-merge, an `automerge` environment with the token, a ruleset, `AUTOMERGE=on`), or wait.
 - REL-26 names no patch series for the release installed now, the one before the service candidate
   (`specs/modules/release.md:41`, review of #327): name one, or say it gets none.
 - Buy the screen for HWB-10's run, the desk's screen flap: Waveshare 15.6" HDMI LCD (H), about €170–240 from Eckstein or
