@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::show` (schema, (de)serialisation, migrations; pure) and `cmdmx-daemon`
 (shows folder, autosave, recovery, IPC), Show screen in `subprojects/app`.
-Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41); SHW-26 approved by owner 2026-11-14 (P1-42); batch J (P1-43, approved by owner 2026-11-15) changes no schema. Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
+Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41); SHW-26 approved by owner 2026-11-14 (P1-42); batch J (P1-43, approved by owner 2026-11-15) changes no schema; SHW-27..31 (merge, P1-37) draft for the owner's approval. Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
 decision 5 (a show embeds its profiles).
 Behavioural reference: Titan *Shows* (new/load/save, the show carries its personalities), macOS
 autosave in place.
@@ -189,6 +189,51 @@ Batch J adds nothing to the show file: the schema stays 15. The saved lock code 
 (SHW-09), beside the mapping each device uses; the Fixtures | Groups switch (UI-88) is an app preference; the new control
 actions (CTL-72, 73) live in the mapping files (CTL-23), which are not show data, as batch I's `speed` and `direction` do.
 
+### Merge from another show (M1 of the fifth gap review, P1-37; draft for the owner's approval)
+Titan reference: *Loading and saving shows › Import Show* and *Show Library* (manual.avolites.com/docs/titan-basics/…).
+On Titan, Disk › Import Show loads a second show into the Show Library beside the open one. The *Mapper* tab maps each of
+its fixtures by hand to one or more fixtures of the open show; then the operator picks palettes, groups, playbacks and so on
+from it and picks the handles they are stored on. The manual says nothing about fixtures left unmapped, palettes a cue uses,
+clashes or undo. Here the engine proposes the map and the places and shows them before anything changes; the operator only
+picks what to take. Where this differs from Titan, the criterion says so. None of this changes the schema.
+
+- **SHW-27** **Reading the other show** (P1-37 question 5). `show.merge.read {name}` reads a show from the shows folder
+  without opening it: an older schema is migrated in memory only (SHW-04) and its file is never written; a newer schema, a file
+  that is not a show, an unknown name or the open show's own name is refused with a warning (IPC-06) and nothing changes. The
+  answer goes to the asking client only: `{"type":"show.merge.contents","name", "fixtures":[{number, name, profile, mode,
+  "to"}], "groups":[{number, legend, items}], "palettes":[{number, window, legend}], "playbacks":[{page, slot, legend, kind,
+  cues}]}`, where `to` is the proposed map (SHW-28). Groups, palettes (effect palettes included) and playbacks (memories, cue
+  lists, chases and masters) are what can be taken; page legends, settings, profiles, patch and output never are.
+  Test `shw_27_…`.
+- **SHW-28** **The fixture map** (P1-37 questions 1 and 4; differs from Titan, which starts with an empty map and maps by
+  hand). Each fixture of the other show is proposed onto the fixture of the open show with the same number when both use the
+  same profile key; otherwise it is unmapped (`"to": null`). The operator may change any line: `map {"<number>": <number> |
+  null}`. A target must exist and use the same profile key (a different mode is fine: what that mode lacks is kept but silent,
+  PRG-53); each target takes at most one source. A map that breaks this is refused naming the first bad line. Values, group
+  items and effect members of an unmapped fixture are left out and counted (SHW-31). The merge never patches a fixture and
+  never adds a profile. Test `shw_28_…`.
+- **SHW-29** **Where things land: never on top** (P1-37 question 2; differs from Titan, where the operator picks the
+  handles). `show.merge {name, map, groups:[n…], palettes:[n…], playbacks:[{page, slot}…], "dry_run": bool}` takes the chosen
+  objects. A group keeps its number when it is free in the open show, else it takes the lowest free number. A palette keeps its
+  number and its cell in its window when both are free, else it takes the lowest free number and the first free cell of that
+  window. A playback keeps its page and slot when free, else it takes the first free slot on that page, then on the pages after
+  it. Nothing in the open show is overwritten. A request naming something the other show does not have, or that does not fit
+  (no free number, cell or slot left), is refused as a whole and nothing changes. Cue lists keep their cue numbers, times,
+  options and legends; every object keeps its legend and icon. Test `shw_29_…`.
+- **SHW-30** **Palettes and groups that a merged object uses** (P1-37 question 3; the Titan manual is silent). A cue,
+  memory or chase that refers to a palette (cues store palette ids, PAL) and a group master that masters a group bring that
+  palette or group along, even when it was not ticked, unless the open show already has an identical one: same window, number
+  and values after the map (a palette), or same number and items after the map (a group). Then the reference points to the open
+  show's own. Each palette or group taken this way is placed by SHW-29 once, and every reference to it points to its new id; a
+  reference never points to an unrelated palette that only shares a number. Test `shw_30_…`.
+- **SHW-31** **One step, nothing on stage changes** (UNDO-03). A merge is one undo step labelled "Merge from <name>", and the
+  autosave follows (SHW-11). Merged playbacks arrive off, at level 0; the programmer, selection, page and output do not change.
+  The lock refuses `show.merge` and not `show.merge.read` (IPC-50). The daemon answers the asking client with the plan, and
+  after a real merge every client gets the notice: `{"type":"show.merge.plan","dry_run", "placed":[{"kind","from","to",
+  "brought":bool}], "left_out":{"fixtures":[numbers],"values":n}}` and the notice "Merged from Kerk 9 nov: 2 playbacks, 5
+  palettes, 1 group; 3 fixtures not in this show, 12 values left out". A `dry_run` returns the same plan and changes nothing.
+  Test `shw_31_…`.
+
 ## Schema sketch (v1)
 
 ```json
@@ -230,8 +275,9 @@ lines and control surfaces each add their key the same way.
 ## Out of scope (this spec)
 Live state after a restart (owner decision 3; a later criterion if wanted), versions of a show (Titan keeps one per save;
 here a `.bak` and the Trash), importing other consoles' show files (the church patch comes in through the patch
-commands, PAT-11), merging part of one show into another (its own spec, P1-37), undo of show edits (P1-10, `undo.md`), two daemons
-on one shows folder.
+commands, PAT-11), undo of show edits (P1-10, `undo.md`), two daemons on one shows folder. Not in the merge (P1-37):
+patching the other show's fixtures, mapping one fixture onto several or onto another profile, page legends and settings, and
+merging from a show file outside the shows folder.
 
 ## Owner decisions (2026-10-18)
 1. Autosave in place, as macOS and Lightkey do: the show file is always current, there is no
@@ -263,3 +309,22 @@ on one shows folder.
 7. **The report's form (SHW-25):** one printable HTML file with four tables, opened in the browser? Recommended: yes; it prints and
    saves as PDF from there, with no PDF code in the engine. Not chosen: CSV per table (for a spreadsheet; a later idea if wanted), or
    Titan's choice of HTML, PDF, CSV and XML.
+
+## Questions for the owner (P1-37, merge from another show)
+1. **The fixture map (SHW-28):** propose each fixture onto the one with the same number and profile, and let the operator change
+   lines? Recommended: yes; the shows to merge from are the church's own, on the same rig, so the map is nearly always right
+   at once. Not chosen: Titan's empty map filled by hand (forty lines to click for the same rig), or mapping onto another
+   profile (attribute names and ranges can differ; a later idea if asked).
+2. **Clashes (SHW-29):** never overwrite, take the next free number, cell or slot, and show where everything lands before the
+   merge? Recommended: yes; nothing in the open show can be lost, and moving a playback afterwards is one Move (PBK). Not chosen:
+   Titan's own pick of handles for every object (a second screen of choices), or overwriting with a confirm.
+3. **Palettes and groups a cue uses (SHW-30):** bring them along unless an identical one is already there? Recommended: yes;
+   next week's show (SHW-20) already has last week's palettes, so pulling an old cue list then adds nothing twice, and a cue
+   never ends up pointing at a different look that only shares a number. Not chosen: turning those references into hard values
+   (the cue no longer follows its palette), or linking by number (a different colour behind the same number).
+4. **Fixtures not in the open show (SHW-28):** leave their values out and say how many? Recommended: yes; the merge only reads
+   the other show's patch, the patch screen stays where fixtures are added. Not chosen: patching them as well (addresses can
+   clash, and it changes the output).
+5. **What can be taken (SHW-27):** groups, palettes and playbacks, from a show in the shows folder? Recommended: yes; that is
+   P1-37's list, and a show from elsewhere is first copied into the folder in Finder. Not chosen: page legends and settings (they
+   belong to the open show), or a file picker for any folder (one more path to handle; a later idea if asked).
