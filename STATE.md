@@ -16,13 +16,15 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
    that went well, with its gap review's fixes (REL-26, DECISIONS 2026-11-16). P1-31 (Blind and Edit) stays apart.
 2. The other proposals of the third gap review wait for approval (same file, *Proposed changes to the batches*).
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): `AUTOMERGE` is on (owner, 2026-11-16), so a green PR merges
-   by itself; amber and red stay the owner's. Fix block next: FIX-06 + FIX-07.
+   by itself; amber and red stay the owner's. No fix rows are open.
 
 ## Waiting on the owner
 Runs only the owner can do (gate 3):
 - VS4-03 the first service on CMDMX, Lightkey as fallback: pick a Sunday. It needs VS4-07 first and the programming
   below (`tests/hardware/church.md`); the same run checks FIL-03 on the Eurolite (Open keeps this Mac's output).
 - VS4-07 the service candidate's DMG on the church Mac, not in the week of a service (`tests/hardware/release.md`).
+  VS8-01 rides along: there the shows must move from the old folder to `~/Documents/CMDMX/Shows` (BRD-08), the one
+  box of the rename this Mac could not check, as both folders already existed here.
 - SPF-03 a real sleep during a running fade on the Eurolite and Art-Net (`tests/hardware/sleep.md`).
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
 - HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
