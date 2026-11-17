@@ -51,7 +51,7 @@ holds every show in the shows folder; the open one is marked `open`.*
 Before you switch, the current show is saved. A name that is taken, a show that does not exist or
 a show that is already open is refused with a message, and the current show keeps running.
 
-A show selected in the list has three more buttons:
+A show selected in the list has four more buttons:
 
 - **Rename**: type the new name in the field next to it and click **Rename**. The file gets the new
   name, and so does its `.bak` if it has one. Renaming the open show first saves it; you go on
@@ -60,6 +60,37 @@ A show selected in the list has three more buttons:
   goes to the Trash, so you can still drag it back from there in Finder. The open show cannot be
   deleted: open another show first.
 - **Show in Finder**: opens the shows folder in Finder with the show's file selected.
+- **Merge…**: takes groups, palettes and playbacks from that show into the one you have open. See
+  below. It is off for the open show itself.
+
+## Merge from another show
+
+Use **Merge…** to bring looks from another show into this one: the cue list you made for Easter, the
+palettes of last year's show. Select that show in the list and click **Merge…**. The other show is
+read, not opened: nothing on stage changes and its file stays as it was.
+
+The sheet has four tabs:
+
+- **Groups**, **Palettes** and **Playbacks**: tick what you want to take. A playback can be a
+  memory, a cue list, a chase or a master.
+- **Fixtures**: each fixture of the other show and the fixture of this show it lands on. CMDMX
+  proposes the fixture with the same number when it is the same kind of lamp. Type another number to
+  change it, or clear the field to leave that fixture out. A fixture with no target is amber.
+
+Each time you tick something or change a target, the bottom of the sheet shows what the merge will
+do: where each group, palette and playback lands, which palettes and groups come along because a cue
+uses them (*brought along*), and which fixtures and how many values are left out. Nothing is ever
+put on top of what this show has: a number or handle that is taken moves to the first free one. A
+palette or group that this show already has, the same and on the same fixtures, is used as it is.
+
+Click **Merge** to do it. The sheet closes and a message says what came in, for example `Merged
+from Kerk 9 nov: 2 playbacks, 5 palettes, 1 group; 3 fixtures not in this show, 12 values left out`.
+Merged playbacks arrive off. One **Undo** takes the whole merge back. If CMDMX refuses (a target that
+is not the same kind of lamp, no free handle left, the console locked), the reason shows in the sheet
+and nothing changes.
+
+The merge never patches a fixture or adds a profile: patch the fixtures first if you want their
+values too.
 
 ## A report of the show
 

@@ -1670,6 +1670,59 @@ struct ShowEntry: Decodable, Identifiable, Equatable {
     }
 }
 
+/// UI-89, SHW-27: what another show offers to merge; `to` is the engine's proposed fixture map.
+struct MergeContents: Decodable, Equatable {
+    struct Fixture: Decodable, Equatable, Identifiable {
+        let number: Int, name: String, profile: String, mode: String?, to: Int?
+        var id: Int { number }
+    }
+    struct Group: Decodable, Equatable, Identifiable { let number: Int, legend: String; var id: Int { number } }
+    struct Palette: Decodable, Equatable, Identifiable { let number: Int, window: String, legend: String; var id: Int { number } }
+    struct Playback: Decodable, Equatable, Identifiable {
+        let page: Int, slot: Int, legend: String, kind: String, cues: Int
+        var id: String { "\(page).\(slot)" }
+    }
+    let name: String
+    var fixtures: [Fixture] = []
+    var groups: [Group] = []
+    var palettes: [Palette] = []
+    var playbacks: [Playback] = []
+
+    private enum CodingKeys: String, CodingKey { case name, fixtures, groups, palettes, playbacks }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        fixtures = (try? c.decode([Fixture].self, forKey: .fixtures)) ?? []
+        groups = (try? c.decode([Group].self, forKey: .groups)) ?? []
+        palettes = (try? c.decode([Palette].self, forKey: .palettes)) ?? []
+        playbacks = (try? c.decode([Playback].self, forKey: .playbacks)) ?? []
+    }
+}
+
+/// UI-89, SHW-28..31: where the engine would put (dry run) or put the ticked objects.
+struct MergePlan: Decodable, Equatable {
+    struct Placed: Decodable, Equatable, Identifiable {
+        let kind: String, from: String, to: String, brought: Bool
+        var id: String { kind + from }
+    }
+    var dryRun = true
+    var placed: [Placed] = []
+    var leftOutFixtures: [Int] = []
+    var leftOutValues = 0
+
+    private enum CodingKeys: String, CodingKey { case dryRun = "dry_run", placed, leftOut = "left_out" }
+    private enum LeftKeys: String, CodingKey { case fixtures, values }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        dryRun = (try? c.decode(Bool.self, forKey: .dryRun)) ?? true
+        placed = (try? c.decode([Placed].self, forKey: .placed)) ?? []
+        if let l = try? c.nestedContainer(keyedBy: LeftKeys.self, forKey: .leftOut) {
+            leftOutFixtures = (try? l.decode([Int].self, forKey: .fixtures)) ?? []
+            leftOutValues = (try? l.decode(Int.self, forKey: .values)) ?? 0
+        }
+    }
+}
+
 /// UI-39: one line of the Messages sheet; `level` is "warning", "notice" or "error".
 struct MessageLine: Identifiable {
     let id = UUID()
@@ -1805,6 +1858,9 @@ final class EngineClient: ObservableObject {
     /// last `show.list` (this client only).
     @Published private(set) var show = ShowState()
     @Published private(set) var shows: [ShowEntry] = []
+    /// UI-89: the merge sheet's contents of the other show and the latest plan (this client only).
+    @Published private(set) var mergeContents: MergeContents?
+    @Published private(set) var mergePlan: MergePlan?
     /// SHW-22: the shows folder's absolute path, from the last `show.list`.
     @Published private(set) var showsDir: String?
     /// RMT-15: the phone remote; default off until the snapshot says otherwise.
@@ -2546,6 +2602,24 @@ final class EngineClient: ObservableObject {
 
     /// Hides the last engine message (e.g. when the operator selects another row).
     func clearMessage() { lastMessage = nil }
+
+    /// UI-89, SHW-27: read what another show offers; a refusal lands in `lastMessage`.
+    func readMerge(_ name: String) {
+        mergeContents = nil; mergePlan = nil; lastMessage = nil
+        sendJSON("show.merge.read", ["name": name])
+    }
+
+    /// UI-89, SHW-28..31: `map` holds only the lines the operator changed (nil = leave out).
+    /// A dry run is an ask, not an edit (REL-27, UI-79).
+    func merge(_ name: String, map: [Int: Int?], groups: [Int], palettes: [Int], playbacks: [(page: Int, slot: Int)], dryRun: Bool) {
+        mergePlan = nil; lastMessage = nil
+        var m: [String: Any] = [:]
+        for (k, v) in map { m[String(k)] = v.map { $0 as Any } ?? NSNull() }
+        sendJSON("show.merge", [
+            "name": name, "map": m, "groups": groups, "palettes": palettes,
+            "playbacks": playbacks.map { ["page": $0.page, "slot": $0.slot] }, "dry_run": dryRun,
+        ], ask: dryRun)
+    }
     /// UI-38: the engine checks the code; a wrong one comes back as a warning.
     /// UI-85: keep (a string) or forget (nil) this console's lock code.
     func saveLockCode(_ code: String?) { sendJSON("lock.save_code", ["code": code ?? NSNull()]) }
@@ -2563,14 +2637,15 @@ final class EngineClient: ObservableObject {
     }
 
     /// The app's own reads, not the operator's commands (REL-27).
-    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "show.report", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "output.watch", "control.mapping", "effect.wheels", "surface.follow", "surface.armed"]
+    private static let asks: Set<String> = ["cue.view", "usage", "why", "update.targets", "show.list", "show.merge.read", "show.report", "library.manufacturers", "library.models", "library.profile", "library.gels", "patch.profile", "profile.emitter", "output.ports", "output.watch", "control.mapping", "effect.wheels", "surface.follow", "surface.armed"]
 
-    private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:]) {
+    private func sendJSON(_ cmd: String, _ fields: [String: Any] = [:], ask: Bool = false) {
+        let isAsk = ask || Self.asks.contains(cmd)
         guard let socket,
               let data = try? JSONSerialization.data(withJSONObject: fields.merging(["v": Self.protocolVersion, "cmd": cmd]) { a, _ in a }),
               let text = String(data: data, encoding: .utf8) else { return }
-        if !Self.asks.contains(cmd) && cmd != "undo" && cmd != "redo" { editSent = true; undoAsked = nil }   // UI-79
-        if !Self.asks.contains(cmd) { DaemonLauncher.shared.commandGiven() }   // REL-27
+        if !isAsk && cmd != "undo" && cmd != "redo" { editSent = true; undoAsked = nil }   // UI-79
+        if !isAsk { DaemonLauncher.shared.commandGiven() }   // REL-27
         socket.send(.string(text)) { error in
             if error != nil { socket.cancel(with: .goingAway, reason: nil) }
         }
@@ -2807,6 +2882,10 @@ final class EngineClient: ObservableObject {
         case "show.list":
             if let shows = incoming.shows?.value { self.shows = shows.compactMap(\.value) }
             showsDir = incoming.dir
+        case "show.merge.contents":
+            mergeContents = try? JSONDecoder().decode(MergeContents.self, from: data)
+        case "show.merge.plan":
+            mergePlan = try? JSONDecoder().decode(MergePlan.self, from: data)
         case "show.report":
             if let path = incoming.path, NSWorkspace.shared.open(URL(fileURLWithPath: path)) { break }
             say("The report could not be opened.")
