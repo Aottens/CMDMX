@@ -491,6 +491,8 @@ impl Surface {
         if !matches!(v, ActionValue::Press) {
             return false;
         }
+        // CTL-75: a following app runs Blind like a programming key.
+        let to_app = |k: Key| k.is_programming() || k == Key::Blind;
         if self.followers.is_empty() {
             return match action {
                 Action::Key(k) if k.is_programming() => {
@@ -507,7 +509,7 @@ impl Surface {
         let armed = self.followers.values().any(|f| f.armed.is_some());
         let body = match action {
             Action::Keypad(t) => json!({"keypad": t.to_string()}),
-            Action::Key(k) if k.is_programming() => json!({"key": k.to_string()}),
+            Action::Key(k) if to_app(k) => json!({"key": k.to_string()}),
             Action::Group(id) if armed => json!({"group": id}),
             Action::Palette(n) if armed => json!({"palette": n}),
             Action::Upper(t) | Action::Lower(t) if armed => {
@@ -599,7 +601,9 @@ impl Tick<'_> {
                         _ => Command::ChaseXfade { id, steps },
                     })
                 }
-                (_, ActionValue::Press) => self.press(action, &mut surface.keypad),
+                (_, ActionValue::Press) => {
+                    self.press(action, &mut surface.keypad, &mut surface.refusals)
+                }
                 _ => None,
             };
             out.extend(cmd);
@@ -608,7 +612,12 @@ impl Tick<'_> {
     }
 
     /// The actions that happen on a press.
-    fn press(&mut self, action: Action, keypad: &mut Vec<String>) -> Option<Command> {
+    fn press(
+        &mut self,
+        action: Action,
+        keypad: &mut Vec<String>,
+        refusals: &mut Vec<String>,
+    ) -> Option<Command> {
         let engine = self.engine;
         let list = |t, action| match t {
             Target::Connected => Some(Command::CuelistAction {
@@ -706,6 +715,35 @@ impl Tick<'_> {
                     on: true,
                     code: None,
                 },
+                // CTL-75: with no app, Blind in and out (out only when nothing would go on stage).
+                Key::Blind => {
+                    let p = engine.programmer();
+                    let on = if !engine.blind() {
+                        true
+                    } else if p.values().is_empty()
+                        && p.located().is_empty()
+                        && engine.effects().is_empty()
+                    {
+                        false
+                    } else {
+                        let n = p
+                            .values()
+                            .keys()
+                            .map(|i| i.fixture)
+                            .collect::<BTreeSet<_>>()
+                            .len();
+                        let s = if n == 1 { "" } else { "s" };
+                        refusals.push(format!(
+                            "Leave Blind on the Mac: {n} fixture{s} would go on stage"
+                        ));
+                        return None;
+                    };
+                    Command::Blind {
+                        on,
+                        fade: 0.0,
+                        clear: false,
+                    }
+                }
                 // CTL-72: the app runs these; `Surface::intercept` sent or refused them.
                 _ => return None,
             }),
@@ -782,6 +820,8 @@ fn state_of(
         Action::Key(Key::Highlight) => Shown::On(engine.highlight()),
         // CTL-73: lit while locked (`armed` carries it).
         Action::Key(Key::Lock) => Shown::On(armed.iter().any(|a| a == "lock")),
+        // CTL-75
+        Action::Key(Key::Blind) => Shown::On(engine.blind()),
         // CTL-72: a programming key is lit while the app has its function armed.
         Action::Key(k) if k.is_programming() => Shown::On(armed.contains(&k.to_string())),
         // `fan off` is lit while Fan is on, so the button shows there is something to turn off.

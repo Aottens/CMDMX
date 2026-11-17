@@ -98,6 +98,14 @@ pub enum Command {
         /// `None`: the saved code (IPC-65).
         code: Option<String>,
     },
+    /// IPC-67: Blind on or off; leaving fades the programmer onto the stage over `fade` seconds.
+    Blind {
+        on: bool,
+        fade: f32,
+        clear: bool,
+    },
+    /// IPC-67: `"confirm": true` on a stored change, so PRG-108 lets it through in Blind.
+    Confirmed(Box<Command>),
     /// IPC-65: keep (`Some`) or forget (`None`) this console's lock code; refused while locked.
     LockSaveCode {
         code: Option<String>,
@@ -1483,6 +1491,19 @@ pub fn stamp(cmd: Command, at: f64) -> Command {
 
 /// IPC-04/06/13: one JSON text frame to a command, or a human-readable error.
 pub fn parse_command(text: &str) -> Result<Command, String> {
+    let cmd = parse_unconfirmed(text)?;
+    let confirm = serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .and_then(|v| v.get("confirm").and_then(|c| c.as_bool()))
+        .unwrap_or(false);
+    Ok(if confirm {
+        Command::Confirmed(Box::new(cmd))
+    } else {
+        cmd
+    })
+}
+
+fn parse_unconfirmed(text: &str) -> Result<Command, String> {
     let v: serde_json::Value = serde_json::from_str(text).map_err(|e| format!("bad JSON: {e}"))?;
     match v.get("v").and_then(|n| n.as_u64()) {
         Some(PROTOCOL) => {}
@@ -1566,6 +1587,12 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
         }),
         Some("programmer.highlight") => Ok(Command::Highlight {
             on: boolean(&v, "on")?,
+        }),
+        // IPC-67
+        Some("programmer.blind") => Ok(Command::Blind {
+            on: boolean(&v, "on")?,
+            fade: opt_f32(&v, "fade")?.unwrap_or(0.0),
+            clear: opt_bool(&v, "clear")?,
         }),
         Some("effect.apply") => effect_apply(&v).map(Command::EffectApply),
         Some("effect.set") => {
@@ -2942,6 +2969,8 @@ struct Snapshot<'a> {
     messages: &'a [HistoryMessage],
     /// IPC-50
     locked: bool,
+    /// IPC-67
+    blind: bool,
     /// IPC-65: whether a code is saved; never the code.
     lock_code_saved: bool,
     /// RMT-02: `Remote::info`; never the salt, the hash or the password.
@@ -3246,6 +3275,16 @@ pub fn locked_delta(on: bool) -> String {
     to_json(&serde_json::json!({"v": PROTOCOL, "type": "locked", "locked": on}))
 }
 
+/// IPC-67: the `blind` delta to every client.
+pub fn blind_delta(on: bool) -> String {
+    to_json(&serde_json::json!({"v": PROTOCOL, "type": "blind", "blind": on}))
+}
+
+/// IPC-67: a refused stored change in Blind, to every client.
+pub fn on_stage(sentence: &str) -> String {
+    to_json(&serde_json::json!({"v": PROTOCOL, "type": "on_stage", "message": sentence}))
+}
+
 /// IPC-65: the `lock_code_saved` delta to every client.
 pub fn lock_code_saved_delta(saved: bool) -> String {
     to_json(
@@ -3292,6 +3331,7 @@ pub fn snapshot(
         control,
         messages,
         locked,
+        blind: engine.blind(),
         lock_code_saved,
         remote,
     })
@@ -4710,6 +4750,46 @@ fn serve_client(
 )]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ipc_67_programmer_blind_parses_with_defaults() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"programmer.blind","on":true}"#),
+            Command::Blind {
+                on: true,
+                fade: 0.0,
+                clear: false
+            }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"programmer.blind","on":false,"fade":2.5,"clear":true}"#),
+            Command::Blind {
+                on: false,
+                fade: 2.5,
+                clear: true
+            }
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"programmer.blind"}"#,
+            r#"{"v":1,"cmd":"programmer.blind","on":"yes"}"#,
+            r#"{"v":1,"cmd":"programmer.blind","on":true,"fade":"x"}"#,
+            r#"{"v":1,"cmd":"programmer.blind","on":true,"clear":1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_67_confirm_wraps_a_command_only_when_true() {
+        let plain = r#"{"v":1,"cmd":"playback.record","page":1,"slot":2"#;
+        let one = parse_command(&format!("{plain}}}")).unwrap();
+        assert!(!matches!(one, Command::Confirmed(_)));
+        let off = parse_command(&format!(r#"{plain},"confirm":false}}"#)).unwrap();
+        assert_eq!(off, one);
+        let yes = parse_command(&format!(r#"{plain},"confirm":true}}"#)).unwrap();
+        assert_eq!(yes, Command::Confirmed(Box::new(one)));
+    }
     use cmdmx_core::attribute::{AttributeDef, AttributeGroup, AttributeKind};
     use cmdmx_core::colour::ColourModel;
     use cmdmx_core::effect::{Shape, Wave};
