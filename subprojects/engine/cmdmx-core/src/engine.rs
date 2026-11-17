@@ -23,6 +23,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+mod merge;
+
 use crate::attribute::{AttributeDef, AttributeGroup, AttributeKind};
 use crate::colour::{self, ColourModel, CtStep, TargetColour};
 use crate::command::{self, Cells, Kind};

@@ -237,6 +237,20 @@ answered by the client thread like `library.*`; `modified` is the file's modific
 ISO-8601 UTC; names are checked (SHW-09) and an Open is read from disk in the client thread, so
 the tick never waits on a show file; a switch (new, open, save as) reaches the tick as one event,
 which flushes the current show (SHW-11), installs the new one and sends every client a snapshot.
+Merge from another show (SHW-27..31, wire details within the approved criteria): `show.merge.read {name}` and
+`show.merge {name, map, groups, palettes, playbacks, dry_run}` read the other show's file on the client thread (an
+autosave `.tmp` beside it is neither read nor touched; nothing is written) and reach the tick as one event with the
+show in memory. `map` keys are the other show's fixture numbers as strings, values the open show's number or `null`;
+it holds only the changed lines, the rest is the proposal. `groups` and `palettes` are numbers, `playbacks` home
+handles `{page, slot}`; each defaults to empty and a request with nothing in it is refused. `show.merge.contents` and
+`show.merge.plan` go to the asking client only; `from` and `to` in `placed` are a number (`"7"`) or a handle
+(`"1.2"`); a palette or group linked to an identical one is not in `placed`; `left_out.fixtures` are the other
+show's numbers of unmapped fixtures something taken referred to, and `values` counts the values, group items and
+effect members left out. A real merge is an edit (one undo step "Merge from <name>"), so the deltas and the autosave
+follow as for any edit, and every client gets the `notice` of SHW-31. The lock refuses `show.merge`, a dry run
+included, on the client thread like the other show requests; `show.merge.read` passes. A merged group master arrives at
+the level where it changes nothing (GRM-05). A speed master whose number the open show already uses does not fit
+(SHW-29). New message types and commands, so `v` stays 1 (IPC-41).
 
 ### Pages (VS1-06)
 The `page` object in the snapshot, the `page` delta and `page.set` are specified in

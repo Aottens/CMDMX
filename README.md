@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls, show files and batches I and J are done: J brought the Mac keys, typed values, programming
-and locking from a surface; green PRs now merge by themselves. Next: VS4-07 (with VS8-01), VS4-03.
+Patch, profiles, controls, show files and batches I and J are done; green PRs now merge by themselves. The engine
+merges from another show, its sheet in the app comes next. Next: VS4-07 (with VS8-01), VS4-03, MRG-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [`STATE.md`](STATE.md), the plan:
 [`BACKLOG.md`](BACKLOG.md); site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -249,6 +249,9 @@ its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [
 - New makes next week's show by default: the patch, groups and palettes stay, playbacks and cue lists start empty; or
   only the patch, or nothing. The old show stays as it was, and a new show sends to the outputs that are running.
 - **Save Copy** keeps a copy under a new name and leaves you in the open show, Undo and all.
+- The engine merges groups, palettes and playbacks from another show into the open one: fixtures map by number and
+  profile, nothing is overwritten, what they use comes along, a dry run shows the plan first and Undo takes it back
+  in one step (the app's sheet follows).
 - Open keeps this Mac's outputs (*Keep this Mac's output*, on by default and remembered), so a show from home plays on
   the church's interface at once and saves it from then on.
 - Rename, Delete (to the Trash, never the open show) and Show in Finder on the Show screen; the open show carries on

@@ -871,6 +871,21 @@ pub enum Event {
     ShowOpened(Box<Opened>),
     /// SHW-15: a refused show request, for every client (IPC-06).
     Warning(String),
+    /// SHW-27: another show, read by the client thread; the contents go to `reply` only.
+    MergeRead {
+        name: String,
+        show: Box<cmdmx_core::show::Show>,
+        reply: SyncSender<String>,
+    },
+    /// SHW-31: merge (or plan) from another show read by the client thread; the plan goes to
+    /// `reply`, and a real merge also tells every client.
+    Merge {
+        name: String,
+        show: Box<cmdmx_core::show::Show>,
+        request: cmdmx_core::merge::Request,
+        dry_run: bool,
+        reply: SyncSender<String>,
+    },
     /// IPC-24: the answer goes to `reply`, the asking client's own queue, and nowhere else.
     CueView {
         id: PlaybackId,
@@ -1790,6 +1805,15 @@ pub fn parse_command(text: &str) -> Result<Command, String> {
                 Some("keep") => true,
                 _ => return Err("invalid \"output\" (expected \"keep\")".into()),
             },
+        })),
+        Some("show.merge.read") => Ok(Command::Show(ShowRequest::MergeRead {
+            name: string(&v, "name")?,
+        })),
+        Some("show.merge") => Ok(Command::Show(ShowRequest::Merge {
+            name: string(&v, "name")?,
+            request: serde_json::from_value(v.clone())
+                .map_err(|e| format!("invalid merge: {e}"))?,
+            dry_run: opt_bool(&v, "dry_run")?,
         })),
         Some("show.save_copy") => Ok(Command::Show(ShowRequest::SaveCopy {
             name: string(&v, "name")?,
@@ -4229,8 +4253,54 @@ pub fn answer_show_list(shows: &Shows) -> String {
         .to_string()
 }
 
+/// SHW-27, SHW-31: a merge answer, the core's struct with `v`, `type` and a few more fields.
+pub fn merge_message<T: Serialize, const N: usize>(
+    kind: &str,
+    body: &T,
+    extra: [(&str, serde_json::Value); N],
+) -> String {
+    let mut fields = match serde_json::to_value(body) {
+        Ok(serde_json::Value::Object(m)) => m,
+        _ => serde_json::Map::new(),
+    };
+    fields.insert("v".into(), PROTOCOL.into());
+    fields.insert("type".into(), kind.into());
+    fields.extend(extra.into_iter().map(|(k, v)| (k.to_string(), v)));
+    serde_json::Value::Object(fields).to_string()
+}
+
 /// SHW-15: what a show request becomes. Names are checked here (SHW-09) and an Open is read
 /// here, so the tick only switches. A refusal is a warning for every client (IPC-06).
+fn client_show_event(shows: &Shows, req: ShowRequest, reply: &SyncSender<String>) -> Event {
+    match req {
+        // SHW-27, SHW-31: the file is read here; the tick gets the show in memory.
+        ShowRequest::MergeRead { name } => match shows.read_other(&name) {
+            Ok((name, show)) => Event::MergeRead {
+                name,
+                show: Box::new(show),
+                reply: reply.clone(),
+            },
+            Err(e) => Event::Warning(e),
+        },
+        ShowRequest::Merge {
+            name,
+            request,
+            dry_run,
+        } => match shows.read_other(&name) {
+            Ok((name, show)) => Event::Merge {
+                name,
+                show: Box::new(show),
+                request,
+                dry_run,
+                reply: reply.clone(),
+            },
+            Err(e) => Event::Warning(e),
+        },
+        req => show_event(shows, req),
+    }
+}
+
+/// The show requests that touch the shows folder or the open file.
 fn show_event(shows: &Shows, req: ShowRequest) -> Event {
     match &req {
         ShowRequest::Open { name, keep_output } => {
@@ -4278,7 +4348,9 @@ fn show_event(shows: &Shows, req: ShowRequest) -> Event {
             Ok(()) => Event::Command(Command::Show(req)),
             Err(e) => Event::Warning(e),
         },
-        ShowRequest::List => Event::Command(Command::Show(req)),
+        ShowRequest::List | ShowRequest::MergeRead { .. } | ShowRequest::Merge { .. } => {
+            Event::Command(Command::Show(req))
+        }
     }
 }
 
@@ -4443,7 +4515,8 @@ fn serve_client(
                         | ShowRequest::SaveAs { .. }
                         | ShowRequest::SaveCopy { .. }
                         | ShowRequest::Rename { .. }
-                        | ShowRequest::Delete { .. },
+                        | ShowRequest::Delete { .. }
+                        | ShowRequest::Merge { .. },
                     ),
                 ) if locked.load(Ordering::Relaxed) => {
                     if events.send(Event::Warning(LOCKED.into())).is_err() {
@@ -4488,7 +4561,7 @@ fn serve_client(
                     }
                 }
                 Ok(Command::Show(req)) => {
-                    if events.send(show_event(shows, req)).is_err() {
+                    if events.send(client_show_event(shows, req, &reply)).is_err() {
                         return;
                     }
                 }
@@ -7054,6 +7127,48 @@ mod tests {
         assert_eq!(v["shows"].as_array().unwrap().len(), 1);
         assert_eq!(v["shows"][0]["name"], "Kerk");
         assert!(v["shows"][0]["modified"].as_str().unwrap().ends_with('Z'));
+    }
+
+    #[test]
+    fn shw_27_merge_commands_parse() {
+        use crate::shows::ShowRequest;
+        assert_eq!(
+            parse_command(r#"{"v":1,"cmd":"show.merge.read","name":"Kerk"}"#),
+            Ok(Command::Show(ShowRequest::MergeRead {
+                name: "Kerk".into()
+            }))
+        );
+        let Ok(Command::Show(ShowRequest::Merge {
+            name,
+            request,
+            dry_run,
+        })) = parse_command(
+            r#"{"v":1,"cmd":"show.merge","name":"Kerk","map":{"3":null,"4":7},
+                "groups":[2],"palettes":[5],"playbacks":[{"page":1,"slot":2}],"dry_run":true}"#,
+        )
+        else {
+            panic!("did not parse");
+        };
+        assert_eq!(name, "Kerk");
+        assert!(dry_run);
+        assert_eq!(request.map.get(&3), Some(&None));
+        assert_eq!(request.map.get(&4), Some(&Some(7)));
+        assert_eq!(request.groups, vec![2]);
+        assert_eq!(request.palettes, vec![5]);
+        assert_eq!(request.playbacks.len(), 1);
+        // Everything but the name defaults.
+        assert!(matches!(
+            parse_command(r#"{"v":1,"cmd":"show.merge","name":"Kerk"}"#),
+            Ok(Command::Show(ShowRequest::Merge { dry_run: false, .. }))
+        ));
+        for bad in [
+            r#"{"v":1,"cmd":"show.merge.read"}"#,
+            r#"{"v":1,"cmd":"show.merge"}"#,
+            r#"{"v":1,"cmd":"show.merge","name":"K","groups":"x"}"#,
+            r#"{"v":1,"cmd":"show.merge","name":"K","dry_run":1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]
