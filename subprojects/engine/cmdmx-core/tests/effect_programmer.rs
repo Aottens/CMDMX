@@ -771,3 +771,21 @@ fn fx_06_a_colour_list_holds_two_to_eight_colours() {
     apply(&mut e, &[201], "Breathe");
     assert!(e.effect_set(EffectSet::Colours(three)).is_err());
 }
+
+// ---------- PRG-105: an effect in Blind ----------
+
+#[test]
+fn prg_105_a_timed_clear_in_blind_leaves_the_frozen_effect_running() {
+    let mut e = rig();
+    apply(&mut e, &[201, 202, 203, 204], "Dimmer chase");
+    e.tick(0.0);
+    e.enter_blind();
+    e.clear_timed(2.0, None).unwrap();
+    assert!(e.effects().is_empty(), "the programmer lets go of it");
+    e.tick(1.0);
+    e.tick(3.15); // θ = 0.3 a few beats on: the second par leads, at full
+    assert_eq!(
+        [dmx(&e, 21), dmx(&e, 22), dmx(&e, 23), dmx(&e, 24)],
+        [0, 255, 0, 0]
+    );
+}

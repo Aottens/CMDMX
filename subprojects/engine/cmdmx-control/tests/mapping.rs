@@ -564,3 +564,16 @@ fn ctl_73_key_lock_parses_as_a_button_that_the_daemon_runs() {
     assert_eq!(parse("key lock").value_kind(), ValueKind::Button);
     assert!(!Key::Lock.is_programming(), "the daemon locks, not the app");
 }
+
+// --- CTL-75 Blind from a surface ---------------------------------------------
+
+#[test]
+fn ctl_75_key_blind_parses_as_a_button_the_daemon_or_a_following_app_runs() {
+    assert_eq!(parse("key blind"), Action::Key(Key::Blind));
+    assert_eq!(parse("key blind").to_string(), "key blind");
+    assert_eq!(parse("key blind").value_kind(), ValueKind::Button);
+    assert!(
+        !Key::Blind.is_programming(),
+        "with no app the daemon runs it (CTL-75)"
+    );
+}

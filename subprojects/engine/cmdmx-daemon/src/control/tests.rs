@@ -2653,3 +2653,99 @@ fn ctl_74_a_binding_to_nothing_is_marked_in_the_mapping_and_a_press_does_nothing
         "{cmds:?}"
     );
 }
+
+// --- CTL-75 Blind from a surface (BLD-02) ------------------------------------
+
+const BLIND_MAP: &str = r#"{"name":"nano","device":"nano*","bindings":[
+  {"input":{"kind":"note","channel":1,"number":90},"action":"key blind"}
+]}"#;
+
+/// `nano` with `key blind` on note 90, connected with an output and enabled.
+fn blind_prog(test: &str) -> Control {
+    let dir = tmp(test);
+    fs::write(dir.join("control/nano.json"), BLIND_MAP).unwrap();
+    let (mut c, warnings) = Control::load(dir.join("control"), dir.join("state.json"));
+    assert!(warnings.is_empty(), "{warnings:?}");
+    ports(&mut c, &[port("nano", true)]);
+    req(
+        &mut c,
+        r#"{"v":1,"cmd":"control.enable","device":"nano","on":true}"#,
+    )
+    .unwrap();
+    let _ = c.take_messages();
+    c
+}
+
+#[test]
+fn ctl_75_with_no_app_key_blind_enters_and_leaves_an_empty_blind_in_the_daemon() {
+    let mut c = blind_prog("ctl75-no-app");
+    let mut e = engine();
+    let mut h = History::default();
+    press(&mut c, "nano", 90);
+    let cmds = c.commands(&e, 0.0);
+    assert!(
+        matches!(cmds.as_slice(), [(_, Command::Blind { on: true, .. })]),
+        "{cmds:?}"
+    );
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(e.blind());
+    assert!(h.is_empty(), "not an undo step");
+    // An empty programmer leaves with fade 0.
+    press(&mut c, "nano", 90);
+    let cmds = c.commands(&e, 0.0);
+    assert!(
+        matches!(cmds.as_slice(), [(_, Command::Blind { on: false, .. })]),
+        "{cmds:?}"
+    );
+    assert!(run_all(&mut e, &mut h, cmds).is_empty());
+    assert!(!e.blind());
+}
+
+#[test]
+fn ctl_75_with_no_app_key_blind_does_not_leave_with_values_in_the_programmer() {
+    let mut c = blind_prog("ctl75-refused");
+    let mut e = engine();
+    e.enter_blind();
+    let ids: Vec<u32> = e.fixtures().take(2).map(|f| f.id).collect();
+    for &id in &ids {
+        e.set_programmer_value(id, "Dimmer", 1.0).unwrap();
+    }
+    press(&mut c, "nano", 90);
+    assert!(c.commands(&e, 0.0).is_empty(), "nothing runs");
+    assert_eq!(
+        c.take_messages(),
+        ["Leave Blind on the Mac: 2 fixtures would go on stage"]
+    );
+    assert!(e.blind());
+}
+
+#[test]
+fn ctl_75_a_following_app_gets_key_blind_as_its_blind_button() {
+    let mut c = blind_prog("ctl75-follow");
+    let e = engine();
+    let (tx, rx) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(7, Some(tx));
+    press(&mut c, "nano", 90);
+    assert!(c.commands(&e, 0.0).is_empty(), "nothing runs in the daemon");
+    let got = sent(&rx);
+    assert_eq!(got.len(), 1, "{got:?}");
+    assert_eq!(got[0]["type"], "surface");
+    assert_eq!(got[0]["device"], "nano");
+    assert_eq!(got[0]["key"], "blind");
+}
+
+#[test]
+fn ctl_75_key_blind_is_lit_while_blind_with_or_without_an_app() {
+    let mut c = blind_prog("ctl75-feedback");
+    let mut e = engine();
+    assert!(c.feedback(&e).contains(&note_out(90, 0)));
+    e.enter_blind();
+    assert!(c.feedback(&e).contains(&note_out(90, 127)));
+    // With an app following, the lamp still follows Blind (feedback goes on change, CTL-21).
+    let (tx, _rx) = std::sync::mpsc::sync_channel(64);
+    c.surface_follow(7, Some(tx));
+    e.leave_blind(0.0, false).unwrap();
+    assert!(c.feedback(&e).contains(&note_out(90, 0)));
+    e.enter_blind();
+    assert!(c.feedback(&e).contains(&note_out(90, 127)));
+}

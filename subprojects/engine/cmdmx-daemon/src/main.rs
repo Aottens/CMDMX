@@ -224,6 +224,7 @@ fn main() {
     let mut tick: u64 = 0;
     let mut last_report = started;
     let mut last_printed: Vec<(u16, u8)> = Vec::new();
+    let mut last_blind = false;
 
     loop {
         let now = started.elapsed().as_secs_f64();
@@ -605,9 +606,14 @@ fn main() {
                 }
                 ipc::Event::Command(cmd) => run(&mut engine, &mut history, cmd, now),
             };
-            if let Err(e) = result {
-                eprintln!("warning: {e}");
-                clients.warning(&e.to_string());
+            match result {
+                // ponytail: every client gets it; a per-client reply if two Macs both ask.
+                Err(CoreError::OnStage(sentence)) => clients.broadcast(&ipc::on_stage(&sentence)),
+                Err(e) => {
+                    eprintln!("warning: {e}");
+                    clients.warning(&e.to_string());
+                }
+                Ok(()) => {}
             }
         }
         // RMT-04, 07: phones that logged in, and their commands; they run like the app's.
@@ -733,6 +739,11 @@ fn main() {
         }
         for n in engine.drain_notices() {
             clients.notice(&n);
+        }
+        // IPC-67: Blind ends with a New or Open too (PRG-109).
+        if engine.blind() != last_blind {
+            last_blind = engine.blind();
+            clients.broadcast(&ipc::blind_delta(last_blind));
         }
         // IPC-31: the undo delta goes before the others.
         if let Some(msg) = published.undo_delta(&undo_info(&history)) {
@@ -965,14 +976,7 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         PageSet { page } => engine.set_page(page),
         Select { fixture, cell } => engine.select_item(Item { fixture, cell }),
         SelectGroup { group } => engine.select_group(group),
-        Step { forward: true } => {
-            engine.next_fixture();
-            Ok(())
-        }
-        Step { forward: false } => {
-            engine.prev_fixture();
-            Ok(())
-        }
+        Step { forward } => engine.step_fixture(forward),
         Pattern { stages } => engine.select_pattern(stages),
         Order(tool) => engine.order(tool),
         Grid(grid) => engine.set_grid(grid),
@@ -1052,6 +1056,9 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         RemoteSetLogin { .. } | RemoteOff => Ok(()),
         // RMT-08: the phone's pick replaces the selection; `select_item` refuses a parked one (PAT-30).
         RemoteHighlight { id: Some(id) } => {
+            if engine.blind() {
+                return Err(CoreError::BlindHighlight); // PRG-106
+            }
             if engine.fixture(id).is_none() {
                 return Err(CoreError::UnknownFixture(id));
             }
@@ -1336,6 +1343,18 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         }
         // GRM-21
         MasterGroup { id, group } => engine.set_master_group(id, group),
+        // IPC-67: no undo step (class Live).
+        Blind { on: true, .. } => {
+            engine.enter_blind();
+            Ok(())
+        }
+        Blind {
+            on: false,
+            fade,
+            clear,
+        } => engine.leave_blind(fade, clear),
+        // `run` unwraps it; PRG-108 guards it there.
+        Confirmed(cmd) => apply(engine, *cmd, now),
         // Handled by `run`.
         Undo | Redo => Ok(()),
     }
@@ -1359,6 +1378,7 @@ fn class(cmd: &ipc::Command) -> Class {
     use ipc::Command::*;
     use shows::ShowRequest::{Delete, List, Merge, MergeRead, New, Open, Rename, SaveAs, SaveCopy};
     match cmd {
+        Confirmed(cmd) => class(cmd),
         FaderSet { .. }
         | GrandMasterSet { .. }
         | DboSet { .. }
@@ -1379,6 +1399,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | CuelistConnect { .. }
         | AttributeGroup { .. }
         | Highlight { .. }
+        | Blind { .. }
         | RemoteHighlight { .. }
         | Fan { .. }
         | ColourModel { .. } => Class::Live,
@@ -1711,6 +1732,11 @@ fn run(
     cmd: ipc::Command,
     now: f64,
 ) -> Result<(), CoreError> {
+    // IPC-67: `confirm` lets a stored change through PRG-108's guard in Blind.
+    let (confirm, cmd) = match cmd {
+        ipc::Command::Confirmed(c) => (true, *c),
+        c => (false, c),
+    };
     match (class(&cmd), &cmd) {
         (_, ipc::Command::Undo) => history.undo(engine).map(drop),
         (_, ipc::Command::Redo) => history.redo(engine).map(drop),
@@ -1725,7 +1751,9 @@ fn run(
             ) {
                 label = format!("Off {}", group_name(&engine.active_group())); // IPC-34
             }
-            history.edit(engine, &label, key.as_deref(), |e| apply(e, cmd, now))
+            history.edit(engine, &label, key.as_deref(), |e| {
+                e.guarded(confirm, |e| apply(e, cmd, now))
+            })
         }
         (Class::Live, _) => {
             history.live();

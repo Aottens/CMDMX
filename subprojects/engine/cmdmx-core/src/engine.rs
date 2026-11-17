@@ -342,6 +342,9 @@ pub struct Engine {
     connected: Option<PlaybackId>,
     /// PRG-26: Highlight. Live state, not in the show or the edit state.
     highlight: bool,
+    /// PRG-105: Blind. The programmer as the stage sees it, frozen when Blind began; `None` =
+    /// Live. Live state, not in the show or the edit state (PRG-109).
+    blind: Option<Programmer>,
     /// PRG-56: Fan mode and the last curve; live state, not undoable, not saved.
     fan: Option<FanCurve>,
     fan_curve: FanCurve,
@@ -733,6 +736,9 @@ pub enum Modifier {
     AutoMix,
 }
 
+/// PRG-108: the live cues and the palettes on stage, as they were.
+type OnStage = (Vec<(PlaybackId, CueNumber, Cue)>, Vec<(PaletteId, Palette)>);
+
 /// A programmer or located value that was taken out (Off, Clear), for PRG-43 and ENG-10.
 struct Gone {
     item: Item,
@@ -806,6 +812,7 @@ impl Engine {
             held: BTreeMap::new(),
             connected: None,
             highlight: false,
+            blind: None,
             fan: None,
             fan_curve: FanCurve::default(),
             effect_next_id: 1,
@@ -6139,7 +6146,9 @@ impl Engine {
         self.give_up(gone, time);
         // FX-19: the entries in `mask` go, at once or fading out over `time`.
         let hit = |e: &effect::Entry| mask.is_none_or(|m| m.contains(&e.group));
-        if time > 0.0 {
+        // PRG-105: in Blind the entries were never on stage, and a fade by entry id would also
+        // fade the frozen copy that is.
+        if time > 0.0 && self.blind.is_none() {
             for e in self.programmer.effects.iter().filter(|e| hit(e)) {
                 let fade = Fade {
                     from: Value::Level(0.0),
@@ -6294,8 +6303,181 @@ impl Engine {
             .collect()
     }
 
+    /// PRG-105: the programmer the output reads: the frozen one in Blind.
+    fn stage(&self) -> &Programmer {
+        self.blind.as_ref().unwrap_or(&self.programmer)
+    }
+
+    pub fn blind(&self) -> bool {
+        self.blind.is_some()
+    }
+
+    /// PRG-105: freeze what the programmer gives the stage; the programmer goes on as the
+    /// operator's. Again while Blind is a no-op.
+    pub fn enter_blind(&mut self) {
+        if self.blind.is_none() {
+            self.blind = Some(self.programmer.clone());
+        }
+    }
+
+    /// PRG-107: back to Live. What the programmer holds differently fades in from the stage's
+    /// output over `fade`, what it no longer holds fades out like a timed Clear; with `clear` the
+    /// programmer is emptied first (it was never on stage). Not an undo step. A no-op in Live.
+    pub fn leave_blind(&mut self, fade: f32, clear: bool) -> Result<(), CoreError> {
+        check_time(fade)?;
+        let Some(frozen) = self.blind.take() else {
+            return Ok(());
+        };
+        if clear {
+            self.programmer.clear_values();
+            self.programmer.effects.clear();
+            self.programmer.current = None;
+        }
+        // ponytail: located values and effect entries snap; only values fade.
+        if fade > 0.0 {
+            let mut fades = Vec::new();
+            for (&item, attrs) in self.programmer.values() {
+                let Some(mode) = self.mode_of(item.fixture) else {
+                    continue;
+                };
+                for (name, stored) in attrs {
+                    if frozen.stored_item(item, name) == Some(*stored) {
+                        continue;
+                    }
+                    let Some(l) = mode.item_logical(item.cell, name) else {
+                        continue;
+                    };
+                    let from = self.output_with(&frozen, item, &l);
+                    fades.push((item, name.clone(), from));
+                }
+            }
+            for (item, name, from) in fades {
+                let fade = Fade {
+                    from,
+                    delay: 0.0,
+                    duration: fade,
+                    start: None,
+                };
+                self.programmer.set_fade(item, &name, fade);
+            }
+        }
+        let mut gone = Vec::new();
+        for item in frozen.touched_items() {
+            let Some(mode) = self.mode_of(item.fixture) else {
+                continue;
+            };
+            let names: BTreeSet<&String> =
+                (frozen.values_of(item).into_iter().flat_map(|a| a.keys()))
+                    .chain(frozen.located_of(item).into_iter().flat_map(|a| a.keys()))
+                    .collect();
+            for name in names {
+                if self.programmer.stored_item(item, name).is_some()
+                    || self.programmer.located_value(item, name).is_some()
+                {
+                    continue;
+                }
+                let Some(l) = mode.item_logical(item.cell, name) else {
+                    continue;
+                };
+                let value = match frozen.stored_item(item, name) {
+                    Some(stored) => self.resolve_stored(item, name, stored),
+                    None => match frozen.located_value(item, name) {
+                        Some(v) => v,
+                        None => continue,
+                    },
+                };
+                gone.push(Gone {
+                    item,
+                    name: name.clone(),
+                    kind: l.kind,
+                    default: l.default,
+                    value,
+                });
+            }
+        }
+        self.give_up(gone, fade);
+        Ok(())
+    }
+
+    /// PRG-108: run `f`; in Blind without `confirm`, when it changes a cue live on a playback or
+    /// a palette something on stage references, undo it and say what would show.
+    pub fn guarded<T>(
+        &mut self,
+        confirm: bool,
+        f: impl FnOnce(&mut Engine) -> Result<T, CoreError>,
+    ) -> Result<T, CoreError> {
+        if confirm || self.blind.is_none() {
+            return f(self);
+        }
+        let before = self.edit_state();
+        let (cues, palettes) = self.on_stage();
+        let result = f(self)?;
+        let (mut cues, mut palettes) = (cues.into_iter(), palettes.into_iter());
+        let hit = cues
+            .find_map(|(playback, number, cue)| {
+                let now = (self.playbacks.get(&playback))
+                    .and_then(|p| p.cues.iter().find(|c| c.number == number));
+                (now != Some(&cue)).then(|| {
+                    format!("Cue {number} is live on playback {playback}: the change shows now")
+                })
+            })
+            .or_else(|| {
+                palettes.find_map(|(id, old)| {
+                    (self.palettes.get(&id) != Some(&old)).then(|| {
+                        let legend = old.legend.trim();
+                        let sep = if legend.is_empty() { "" } else { " " };
+                        format!(
+                            "Palette {}{sep}{legend} is on stage: the change shows now",
+                            old.number
+                        )
+                    })
+                })
+            });
+        match hit {
+            Some(sentence) => {
+                self.restore_edit_state(before);
+                Err(CoreError::OnStage(sentence))
+            }
+            None => Ok(result),
+        }
+    }
+
+    /// PRG-108: the cues live on a playback and the palettes they or the frozen programmer use.
+    fn on_stage(&self) -> OnStage {
+        let mut cues = Vec::new();
+        for (id, playback) in &self.playbacks {
+            let Some(state) = self.states.get(id).filter(|s| s.activated.is_some()) else {
+                continue;
+            };
+            let live = state.run.current.filter(|_| is_list(playback));
+            let cue = match live {
+                Some(n) => playback.cues.iter().find(|c| c.number == n),
+                None => playback.cues.first(),
+            };
+            if let Some(cue) = cue {
+                cues.push((*id, cue.number, cue.clone()));
+            }
+        }
+        let mut used = BTreeSet::new();
+        let stored = (cues.iter().flat_map(|(_, _, c)| c.values.values()))
+            .chain(self.blind.iter().flat_map(|b| b.values().values()))
+            .flat_map(|a| a.values());
+        for s in stored {
+            if let Stored::Reference(r) = s {
+                used.insert(r.palette);
+            }
+        }
+        let palettes = (used.into_iter())
+            .filter_map(|id| Some((id, self.palettes.get(&id)?.clone())))
+            .collect();
+        (cues, palettes)
+    }
+
     /// PRG-26, 39: Highlight; refused with nothing selected.
     pub fn set_highlight(&mut self, on: bool) -> Result<(), CoreError> {
+        if self.blind.is_some() {
+            return Err(CoreError::BlindHighlight); // PRG-106
+        }
         if on && self.programmer.items().is_empty() {
             return Err(CoreError::EmptySelection);
         }
@@ -6445,6 +6627,19 @@ impl Engine {
     pub fn prev_fixture(&mut self) {
         self.programmer.step(false);
         self.follow_active_group();
+    }
+
+    /// PRG-106: Fix ±1; in Blind with Highlight on it would change the stage.
+    pub fn step_fixture(&mut self, forward: bool) -> Result<(), CoreError> {
+        if self.blind.is_some() && self.highlight {
+            return Err(CoreError::BlindHighlight);
+        }
+        if forward {
+            self.next_fixture();
+        } else {
+            self.prev_fixture();
+        }
+        Ok(())
     }
 
     /// PRG-05: a pattern of `n` stages is the grid `{groups: n}`.
@@ -7362,8 +7557,16 @@ impl Engine {
     /// tick does not advance it), start the fades of a timed Clear and drop the finished ones.
     /// Allocates only when an entry gets its first clock.
     fn tick_effects(&mut self, now: Timestamp) {
-        for i in 0..self.programmer.effects.len() {
-            let Some(e) = self.programmer.effects.get(i) else {
+        // PRG-105: the frozen programmer's entries keep their clocks too.
+        let n = self.programmer.effects.len();
+        let frozen = |i: usize| {
+            self.blind
+                .as_ref()
+                .and_then(|b| b.effects.get(i.checked_sub(n)?))
+        };
+        let total = n + self.blind.as_ref().map_or(0, |b| b.effects.len());
+        for i in 0..total {
+            let Some(e) = self.programmer.effects.get(i).or_else(|| frozen(i)) else {
                 continue;
             };
             let (id, params) = (e.id, pointed(&self.palettes, e));
@@ -7390,8 +7593,9 @@ impl Engine {
             p.current = None;
         }
         let effects = &p.effects;
-        self.effect_live
-            .retain(|id, _| effects.iter().any(|e| e.id == *id));
+        let frozen = self.blind.iter().flat_map(|b| &b.effects);
+        let ids: BTreeSet<EntryId> = effects.iter().chain(frozen).map(|e| e.id).collect();
+        self.effect_live.retain(|id, _| ids.contains(id));
     }
 
     /// PAT-26: the runs of every playback follow the cue state as it is now (a fixture came or
@@ -7478,8 +7682,8 @@ impl Engine {
     /// PRG-18: after a selection change, leave a group no target has for the
     /// first one (I P C G B E S) some target has. Stored, not computed lazily.
     fn follow_active_group(&mut self) {
-        if self.programmer.items().is_empty() {
-            self.highlight = false; // PRG-26: deselecting stops Highlight
+        if self.programmer.items().is_empty() && self.blind.is_none() {
+            self.highlight = false; // PRG-26: deselecting stops Highlight (not in Blind, PRG-106)
         }
         let targets = self.programmer.target_items();
         let has = |g: AttributeGroup| {
@@ -7838,18 +8042,24 @@ impl Engine {
     /// PRG-20: programmer value, else what is on the output, else the held value. PRG-47: a
     /// cell reads its own merged output and held value; the virtual cell Dimmer starts full.
     fn start_value(&self, item: Item, l: &LogicalAttribute) -> Value {
-        let id = item.fixture;
         let own = match self.programmer.stored_item(item, l.name) {
             Some(Stored::Value(v)) => Some(v),
             _ => None,
         };
-        own.or_else(|| {
+        own.unwrap_or_else(|| self.output_with(&self.programmer, item, l))
+    }
+
+    /// What the merge gives the attribute with `programmer` as the programmer, else the held
+    /// value, else the default.
+    fn output_with(&self, programmer: &Programmer, item: Item, l: &LogicalAttribute) -> Value {
+        let id = item.fixture;
+        let merged = || {
             let (fixture, mode) = (self.fixtures.get(&id)?, self.mode_of(id)?);
             merge_attribute(
                 &MergeSources {
                     playbacks: &self.playbacks,
                     states: &self.states,
-                    programmer: &self.programmer,
+                    programmer,
                     palettes: &self.palettes,
                     swop_owner: self.swop_owner,
                 },
@@ -7861,13 +8071,14 @@ impl Engine {
                 None,
             )
             .map(|c| c.value)
-        })
-        .or_else(|| held_value(&self.held, item, l.name))
-        .unwrap_or(match l.kind {
-            AttributeKind::Htp if item.cell.is_some() => l.default,
-            AttributeKind::Htp => Value::Level(0.0),
-            AttributeKind::Ltp => l.default,
-        })
+        };
+        merged()
+            .or_else(|| held_value(&self.held, item, l.name))
+            .unwrap_or(match l.kind {
+                AttributeKind::Htp if item.cell.is_some() => l.default,
+                AttributeKind::Htp => Value::Level(0.0),
+                AttributeKind::Ltp => l.default,
+            })
     }
 
     /// PRG-35 / IPC-11: the programmer state for rendering.
@@ -9098,6 +9309,9 @@ impl Engine {
             .id;
         let gone = self.palettes.remove(&id);
         self.programmer.dereference(id);
+        if let Some(b) = &mut self.blind {
+            b.dereference(id); // PRG-105: the stage never references a missing palette
+        }
         // FX-23: an entry that pointed at it keeps the parameters it had.
         let release = |e: &mut effect::Entry| {
             if e.palette != Some(id) {
@@ -9314,13 +9528,18 @@ impl Engine {
     pub fn tick(&mut self, now: Timestamp) {
         self.last_tick = Some(now);
         self.programmer.start_fades(now);
+        if let Some(b) = &mut self.blind {
+            b.start_fades(now);
+        }
         self.update_playbacks(now);
         self.tick_effects(now);
         self.tick_cue_effects(now);
+        // PRG-105: in Blind the output reads the frozen programmer.
+        let stage = self.blind.as_ref().unwrap_or(&self.programmer);
         let sources = MergeSources {
             playbacks: &self.playbacks,
             states: &self.states,
-            programmer: &self.programmer,
+            programmer: stage,
             palettes: &self.palettes,
             swop_owner: self.swop_owner,
         };
@@ -9332,16 +9551,12 @@ impl Engine {
                 .values()
                 .any(|p| p.kind == PlaybackKind::GroupMaster),
         };
-        let highlight = Highlight::new(
-            self.highlight,
-            &self.programmer,
-            self.settings.lowlight_level,
-        );
+        let highlight = Highlight::new(self.highlight, stage, self.settings.lowlight_level);
         let cells = self.cells_in_play(&highlight);
         let effects = EffectSources {
-            programmer: &self.programmer.effects,
+            programmer: &stage.effects,
             live: &self.effect_live,
-            programmer_activated: self.programmer.activated(),
+            programmer_activated: stage.activated(),
             palettes: &self.palettes,
             playbacks: &self.playbacks,
             states: &self.states,
@@ -9491,6 +9706,9 @@ impl Engine {
         }
         self.follow_take_over(&pickups);
         self.programmer.drop_finished_fades(now);
+        if let Some(b) = &mut self.blind {
+            b.drop_finished_fades(now);
+        }
         for state in self.states.values_mut() {
             if state.release.as_ref().is_some_and(|r| r.finished(now)) {
                 state.release = None; // PBK-20: this tick was its last
@@ -9503,7 +9721,7 @@ impl Engine {
     /// value or a clear fade), Highlight, an active playback's cue or list fades, a release in
     /// progress. The tick merges those cells on their own.
     fn cells_in_play(&self, highlight: &Highlight) -> BTreeSet<Item> {
-        let mut items: BTreeSet<Item> = self.programmer.cell_items().collect();
+        let mut items: BTreeSet<Item> = self.stage().cell_items().collect();
         if highlight.on {
             items.extend(
                 highlight
@@ -9589,10 +9807,11 @@ impl Engine {
     pub fn explain(&self, id: FixtureId) -> Option<Vec<Explanation>> {
         let fixture = self.fixtures.get(&id)?;
         let mode = resolve_mode(&self.profiles, fixture)?;
+        let stage = self.stage();
         let sources = MergeSources {
             playbacks: &self.playbacks,
             states: &self.states,
-            programmer: &self.programmer,
+            programmer: stage,
             palettes: &self.palettes,
             swop_owner: self.swop_owner,
         };
@@ -9601,15 +9820,11 @@ impl Engine {
             groups: &self.groups,
             any: (self.playbacks.values()).any(|p| p.kind == PlaybackKind::GroupMaster),
         };
-        let highlight = Highlight::new(
-            self.highlight,
-            &self.programmer,
-            self.settings.lowlight_level,
-        );
+        let highlight = Highlight::new(self.highlight, stage, self.settings.lowlight_level);
         let effects = EffectSources {
-            programmer: &self.programmer.effects,
+            programmer: &stage.effects,
             live: &self.effect_live,
-            programmer_activated: self.programmer.activated(),
+            programmer_activated: stage.activated(),
             palettes: &self.palettes,
             playbacks: &self.playbacks,
             states: &self.states,
