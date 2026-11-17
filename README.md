@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch, profiles, controls, show files and batches I and J are done; green PRs now merge by themselves. Merging
-from another show works in the engine and the app. Next: VS4-07 (with VS8-01), VS4-03, Blind (BLD-01).
+from another show works; Blind works in the engine. Next: VS4-07 (with VS8-01), VS4-03, Blind in the app (BLD-03).
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [`STATE.md`](STATE.md), the plan:
 [`BACKLOG.md`](BACKLOG.md); site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -123,6 +123,9 @@ its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [
   button tapped and a box dragged over the buttons selects what it touches, both in window order, so Fan follows it.
   In Colour, Playbacks and Shapes a Fixtures | Groups switch in the title shows the Groups window there instead,
   remembered per workspace.
+- Blind in the engine: the stage keeps the programmer as it was while you go on programming, playbacks stay live,
+  Highlight waits, a stored change to a cue or palette on stage asks first, and leaving fades the changes in over a
+  time you choose. A `key blind` on a control surface works now; the app's Blind button follows (BLD-03).
 - Fixture info: a right-click on a fixture button shows its type, address, groups, cues and palettes, and for each
   attribute why it has its value ("Dienst Q2 gives 100 %, tracked from an earlier cue, Master Zaal (3.8) scales it to
   0 %"), live while open; a tap on a row goes to that playback's page.
