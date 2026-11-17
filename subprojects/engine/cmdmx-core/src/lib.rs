@@ -29,6 +29,7 @@ pub mod effect;
 pub mod engine;
 pub mod gel;
 pub mod library;
+pub mod merge;
 pub mod output;
 pub mod palette;
 pub mod patch;
