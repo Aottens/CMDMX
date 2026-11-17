@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-16 (FIX-04)_
+_Last updated: 2026-11-17 (MRG-01, MRG-02)_
 
 ## Current step
+MRG-01, MRG-02 (2026-11-17, SHW-27..31): `cmdmx_core::merge` holds the wire types (`Request`, `Plan`, `Contents`, `FixtureMap`), `proposed_map`, `contents` and `Plan::summary`; `Engine::merge(other, request, dry_run)` lives in the child module `engine/merge.rs` and plans everything from the open state before it changes anything (map by number and profile key, other id → open id; groups, palettes, playbacks placed in that order by source number; brought palettes and groups linked to identical ones; references remapped or turned into their fallback; merged effect entries get fresh ids; a group master arrives at its neutral level). Daemon: `Shows::read_other` reads and migrates on the client thread without writing; `Event::MergeRead`/`Event::Merge` carry the show to the tick, which answers the asker through `reply`, runs a real merge through `history.edit("Merge from <name>")` and sends `clients.notice(summary)`. The lock refuses `show.merge` on both sides; the read passes. Tests: `cmdmx-core/tests/merge.rs`, `cmdmx-daemon/tests/merge.rs`.
+
 FIX-04 (2026-11-16, UNDO-21): `ListRun::restored` clears `edited` when the current cue is gone and was not renumbered, so the list moves to the cue below without `snap()`: the stage keeps the taken cue's look until the next Go, as CUE-07. Test `undo_21_a_copy_undone_while_it_is_live_changes_nothing_on_stage_until_go`.
 
 P1-38 (2026-11-16): measured only, no code. Release daemon on 266 fixtures (5 universes, shapes on 258): about 7 % of a core idle, 12 % busy, 13 % with Art-Net and sACN to 127.0.0.1 and a client connected, 40 Hz held; debug 36–49 % and only 18 frames/s per universe. No budget criterion. Run: `tests/manual/runs/2026-11-16-P1-38.md`.

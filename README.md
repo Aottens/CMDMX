@@ -249,6 +249,9 @@ its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [
 - New makes next week's show by default: the patch, groups and palettes stay, playbacks and cue lists start empty; or
   only the patch, or nothing. The old show stays as it was, and a new show sends to the outputs that are running.
 - **Save Copy** keeps a copy under a new name and leaves you in the open show, Undo and all.
+- The engine merges groups, palettes and playbacks from another show into the open one: fixtures map by number and
+  profile, nothing is overwritten, what they use comes along, a dry run shows the plan first and Undo takes it back
+  in one step (the app's sheet follows).
 - Open keeps this Mac's outputs (*Keep this Mac's output*, on by default and remembered), so a show from home plays on
   the church's interface at once and saves it from then on.
 - Rename, Delete (to the Trash, never the open show) and Show in Finder on the Show screen; the open show carries on
