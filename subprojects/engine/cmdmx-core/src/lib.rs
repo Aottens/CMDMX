@@ -55,6 +55,12 @@ pub const UNIVERSE_SIZE: usize = 512;
 /// rejected action; the engine keeps ticking and keeps its previous frame.
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum CoreError {
+    /// PRG-106: Highlight would change the stage while Blind.
+    #[error("Blind: Highlight would change the stage")]
+    BlindHighlight,
+    /// PRG-108: a stored change would show on stage; the sentence says what.
+    #[error("{0}")]
+    OnStage(String),
     #[error("unknown fixture id {0}")]
     UnknownFixture(u32),
     #[error("fixture {fixture} has no cell {cell}")]
