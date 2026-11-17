@@ -2,7 +2,7 @@
 
 Owner: `cmdmx-core::show` (schema, (de)serialisation, migrations; pure) and `cmdmx-daemon`
 (shows folder, autosave, recovery, IPC), Show screen in `subprojects/app`.
-Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41); SHW-26 approved by owner 2026-11-14 (P1-42); batch J (P1-43, approved by owner 2026-11-15) changes no schema; SHW-27..31 (merge, P1-37) draft for the owner's approval. Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
+Status: **SHW-01..17 approved by owner 2026-10-18 (P1-09)**; SHW-20..25 approved by owner 2026-11-12 (P1-41); SHW-26 approved by owner 2026-11-14 (P1-42); batch J (P1-43, approved by owner 2026-11-15) changes no schema; SHW-27..31 (merge) approved by owner 2026-11-17 (P1-37). Builds on `patch.md` (PAT-08, PAT-12) and ADR-006
 decision 5 (a show embeds its profiles).
 Behavioural reference: Titan *Shows* (new/load/save, the show carries its personalities), macOS
 autosave in place.
@@ -189,7 +189,7 @@ Batch J adds nothing to the show file: the schema stays 15. The saved lock code 
 (SHW-09), beside the mapping each device uses; the Fixtures | Groups switch (UI-88) is an app preference; the new control
 actions (CTL-72, 73) live in the mapping files (CTL-23), which are not show data, as batch I's `speed` and `direction` do.
 
-### Merge from another show (M1 of the fifth gap review, P1-37; draft for the owner's approval)
+### Merge from another show (M1 of the fifth gap review, P1-37; approved by owner 2026-11-17)
 Titan reference: *Loading and saving shows › Import Show* and *Show Library* (manual.avolites.com/docs/titan-basics/…).
 On Titan, Disk › Import Show loads a second show into the Show Library beside the open one. The *Mapper* tab maps each of
 its fixtures by hand to one or more fixtures of the open show; then the operator picks palettes, groups, playbacks and so on
@@ -310,7 +310,7 @@ merging from a show file outside the shows folder.
    saves as PDF from there, with no PDF code in the engine. Not chosen: CSV per table (for a spreadsheet; a later idea if wanted), or
    Titan's choice of HTML, PDF, CSV and XML.
 
-## Questions for the owner (P1-37, merge from another show)
+## Owner decisions (P1-37, merge from another show, 2026-11-17: every recommendation accepted)
 1. **The fixture map (SHW-28):** propose each fixture onto the one with the same number and profile, and let the operator change
    lines? Recommended: yes; the shows to merge from are the church's own, on the same rig, so the map is nearly always right
    at once. Not chosen: Titan's empty map filled by hand (forty lines to click for the same rig), or mapping onto another

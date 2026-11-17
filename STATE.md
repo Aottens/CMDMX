@@ -14,7 +14,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Next
 1. The first service: VS4-07 and VS4-03 below, on the service candidate. The first stable release follows a service
    that went well, with its gap review's fixes (REL-26, DECISIONS 2026-11-16). P1-31 (Blind and Edit) stays apart.
-2. P1-37's merge spec waits for approval, as do the third gap review's other proposals (*Proposed changes*).
+2. The approved merge from another show: MRG-01 + MRG-02, then MRG-03. The third gap review's other proposals wait.
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): `AUTOMERGE` is on (owner, 2026-11-16), so a green PR merges
    by itself; amber and red stay the owner's. No fix rows are open.
 
@@ -48,7 +48,6 @@ Programming and small checks:
 - VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
 
 ## Owner to decide
-- Approve P1-37's merge spec (SHW-27..31, UI-89) and answer its five questions (`specs/modules/showfile.md`).
 - REL-26 names no patch series for the release installed now, the one before the service candidate
   (`specs/modules/release.md:41`, review of #327): name one, or say it gets none.
 - Buy the screen for HWB-10's run, the desk's screen flap: Waveshare 15.6" HDMI LCD (H), about €170–240 from Eckstein or
