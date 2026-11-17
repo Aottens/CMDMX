@@ -67,11 +67,13 @@ def trk_02_next_without_open_task_fails():
 
 
 def trk_03_gate3_missing_from_waiting_fails():
-    assert "SPF-03" in check_with(lambda s: re.sub(r"- SPF-03[^\n]*\n", "", s))
+    row = "| TST-98 | Run it | X | S | gate3: `tests/hardware/sleep.md` |\n"
+    assert "TST-98" in check_with(lambda s: s, lambda b: b + row)
 
 
 def trk_03_blocked_missing_fails():
-    assert "VS2-50" in check_with(lambda s: re.sub(r"- VS2-50[^\n]*\n", "- none\n", s))
+    row = "| TST-99 | Waits | X | S | blocked: waits for someone |\n"
+    assert "TST-99 is blocked in BACKLOG but not under ## Blocked" in check_with(lambda s: s, lambda b: b + row)
 
 
 def trk_03_open_task_under_blocked_fails():
