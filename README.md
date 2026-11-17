@@ -41,8 +41,8 @@ Phase 1, under active development, not yet trusted for a full service: the churc
 driven the real church rig through the Eurolite interface: fades comparable with Lightkey, replugging needs no
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
-Patch, profiles, controls, show files and batches I and J are done: J brought the Mac keys, typed values, programming
-and locking from a surface; green PRs now merge by themselves. Next: VS4-07 (with VS8-01), VS4-03.
+Patch, profiles, controls, show files and batches I and J are done; green PRs now merge by themselves. The engine
+merges from another show, its sheet in the app comes next. Next: VS4-07 (with VS8-01), VS4-03, MRG-03.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [`STATE.md`](STATE.md), the plan:
 [`BACKLOG.md`](BACKLOG.md); site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
