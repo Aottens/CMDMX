@@ -73,6 +73,8 @@ palette, and a chase. Note their numbers and handles.
 - [ ] Fixtures: clear the target of one fixture the cue list uses. Its row turns amber, and the footer counts it under
       left out with the values. Type a number of a fixture with another profile: the refusal shows in the sheet,
       naming the line. Put the first fixture back.
+- [ ] UI-89 (review of #344): with something ticked, clear a target and do not press Return: the footer says to press
+      Return and *Merge* is off. Press Return: the plan shows the change and *Merge* is on again.
 - [ ] *Merge*: the sheet closes and the message says "Merged from Bron: …". The cue list is on its new handle, off.
       Art-Net did not change.
 - [ ] Undo: "Undone: Merge from Bron", the merged playback is gone.

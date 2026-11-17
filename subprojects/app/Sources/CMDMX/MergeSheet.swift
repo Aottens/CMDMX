@@ -18,6 +18,13 @@ struct MergeSheet: View {
 
     private var contents: MergeContents? { engine.mergeContents?.name == name ? engine.mergeContents : nil }
     private var nothingTicked: Bool { groups.isEmpty && palettes.isEmpty && playbacks.isEmpty }
+    /// UI-89: a target typed but not yet sent (no Return) would make Merge send another map than the plan shows.
+    private var unsent: Bool {
+        (contents?.fixtures ?? []).contains { f in
+            let sent = map[f.number] ?? f.to
+            return Int((targets[f.number] ?? "").trimmingCharacters(in: .whitespaces)) != sent
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -31,6 +38,9 @@ struct MergeSheet: View {
                     .background(t.bg)
                 footer
             } else {
+                if unsent {
+                    Text("Press Return in the target field to update the plan").foregroundStyle(t.amber)
+                }
                 if let m = engine.lastMessage { Text(m).foregroundStyle(t.amber) } else { Text("Reading \(name)…").foregroundStyle(t.fg2) }
                 Spacer()
             }
@@ -38,7 +48,7 @@ struct MergeSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                 Button("Merge") { ask(dryRun: false) }
-                    .disabled(nothingTicked || engine.mergePlan?.dryRun != true)
+                    .disabled(nothingTicked || unsent || engine.mergePlan?.dryRun != true)
             }.buttonStyle(FlatButton())
         }
         .font(Typo.ui(11))
@@ -94,6 +104,9 @@ struct MergeSheet: View {
     private var footer: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 2) {
+                if unsent {
+                    Text("Press Return in the target field to update the plan").foregroundStyle(t.amber)
+                }
                 if let m = engine.lastMessage {
                     Text(m).foregroundStyle(t.amber)
                 } else if nothingTicked {
