@@ -11,7 +11,7 @@ first notarised tag instead; its prerequisites come first. The REL-15 part below
 - [ ] `./subprojects/app/scripts/check-dmg.sh <path to dmg> 0.0.0` ends with `ok` (REL-08)
 - [ ] Wi-Fi off, the installed app: **Help** opens the manual inside the app, without a warning; it names the version, and
       search and the chapter links work (REL-29, UI-55)
-- [x] Rename (VS8-01): drag `CMDMX.app` to Applications and open it; CMDMX › About CMDMX shows `CMDMX`, the version line and `© 2026 Colourmotion`; the window title is CMDMX (BRD-02) — 2026-11-16, 0.10.0 (33) from the v0.10.0 DMG: bundle `CMDMX`, version 0.10.0, `© 2026 Colourmotion`
+- [x] Rename (VS8-01): drag `CMDMX.app` to Applications and open it; CMDMX › About CMDMX shows `CMDMX`, the version line and `© 2026 Colourmotion`; the window title is CMDMX (BRD-02) — 2026-11-16, 0.10.0 (33) from the v0.10.0 DMG: bundle `CMDMX`, version 0.10.0, `© 2026 Colourmotion`; 2026-11-17, the same 0.10.0 app: its window list shows one window titled `CMDMX` (FIX-07)
 - [ ] The shows from `~/Documents/ColourmotionDMX/Shows` are on the Show screen, now in `~/Documents/CMDMX/Shows`, and the old folder has no `Shows` left (BRD-07/08). Run it where the old folder still holds the shows and the new one does not exist: the church Mac, when this DMG replaces 0.1.0 there (VS4-07) <!-- brand: old-name -->
   — 2026-11-16, owner's Mac: both folders already existed (dev builds made the new one on 2026-10-18, the old 0.1.0
   app the old one again on 2026-11-11), so BRD-08's both-exist branch ran: nothing moved, the daemon log warns
