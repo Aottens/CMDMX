@@ -312,6 +312,17 @@ shows folder's files); FIL-06 (the one M, apart).
 | FIL-05 | Daemon and app: a file changed outside CMDMX is kept aside, and Open of the open show reloads it; `shw_23_…`; manual and run. | SHW-23 | S | done (2026-11-14, #303; run `tests/manual/runs/2026-11-14-FIL-04-05.md`) |
 | FIL-06 | Core, daemon and app: a printable HTML report of fixtures, groups, palettes and playbacks; `shw_25_…`; manual and run. | SHW-25 | M | done (2026-11-14, #304; run `tests/manual/runs/2026-11-14-FIL-06.md`) |
 
+### Merge from another show (spec P1-37)
+Approved by the owner 2026-11-17, every recommendation accepted (`showfile.md`, SHW-27..31, UI-89). No schema change.
+Builds: MRG-01 + MRG-02 (one behaviour across core and daemon: the daemon only reads the file and runs the core's plan; MRG-01 is
+the one M); MRG-03 alone (the app's sheet, M, on the finished commands).
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| MRG-01 | Core: the merge plan from two shows (proposed and edited fixture map, places without overwriting, palettes and groups brought along or linked, values of unmapped fixtures left out) and applying it as one undo step; `shw_28_…` to `shw_31_…`. | SHW-28..31 | M | todo |
+| MRG-02 | Daemon: `show.merge.read` reads and migrates a show without writing it, `show.merge` with `dry_run`, the plan answer, the notice and the lock; `shw_27_…`, `shw_31_…`. Needs MRG-01. | SHW-27, 31 | S | todo |
+| MRG-03 | App: *Merge…* on the Show screen, a sheet with Groups, Palettes, Playbacks and Fixtures tabs that shows each dry run's plan; `tests/manual/app-show.md` amended and run on Art-Net. Needs MRG-02. | UI-89 | M | todo |
+
 ### Behaviour that differs from Titan (IDEA-35 batch I, spec P1-42)
 Approved by the owner 2026-11-14, every recommendation accepted (`cuelists.md`, *Owner decisions (P1-42)*). I1, I3, I6 and K6 went into
 batch B; the rest of I with K4, K5, L4 and M4. The first build that saves a new option raises the schema to 15 (SHW-26).
@@ -449,7 +460,7 @@ after VS8-03, in any order.
 | P1-41 | Spec IDEA-35 batch G, show files (M1, G1..G5; G4's second half holds already), as SHW-20..25; checks in `tests/manual/runs/2026-11-12-G-checks.md`; build tasks FIL-01..06; approved by the owner 2026-11-12, every recommendation accepted (`showfile.md`). | SHW, IPC, UI | S | done (2026-11-12, #296) |
 | P1-42 | Spec IDEA-35 batch I, behaviour that differs from Titan (I2, I4, I5, I7, I8, I9, K4, K5, L4, M4; I1, I3, I6, K6 were batch B), as PRG-102, 103, CUE-65..69, PBK-54, FX-46..48, SHW-26; checks in `tests/manual/runs/2026-11-14-I-checks.md`; build tasks TTN-01..10; approved by the owner 2026-11-14, every recommendation accepted (`cuelists.md`). | PRG, CUE, PBK, FX, SHW | S | done (2026-11-14, #306) |
 | P1-43 | Spec IDEA-35 batch J, input paths and what you can see (J1..J7, J9, K3 and the rest of K2; J8 was batch C), as PRG-104, IPC-63..66, CTL-72..74, UI-82..88, REL-30, with DEF-06 (UNDO-21) and TST-01 (OUT-43) beside it; checks in `tests/manual/runs/2026-11-15-J-checks.md`; build tasks INP-01..09; approved by the owner 2026-11-15, every recommendation accepted (`ui.md`). | PRG, IPC, CTL, UI, REL, UNDO, OUT | S | done (2026-11-15, #315) |
-| P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show; find Titan's page first; numbered criteria and build tasks; owner approves. | SHW, UI | S | todo |
+| P1-37 | Spec *Merge from another show* (M1, fifth gap review; owner 2026-11-08): take playbacks, cues, groups or palettes from a show file into the open show, as SHW-27..31 and UI-89 (Titan: *Import Show*); build tasks MRG-01..03; approved by the owner 2026-11-17, every recommendation accepted (`showfile.md`). | SHW, UI | S | done (2026-11-17, #341) |
 | P1-38 | Measure the engine's load in a release build on a rig of about 260 fixtures (M7, fifth gap review; owner 2026-11-08): the debug build took 78 % of a core against 10 % with 38 fixtures; write the result in a run file, and a budget like UI-70 only if it is too high. Release: about 13 % of a core with shapes, output and a client on 266 fixtures, so no budget (`tests/manual/runs/2026-11-16-P1-38.md`). | ENG | S | done (2026-11-16, #330) |
 | TST-01 | Daemon tests never send DMX: every test that starts the daemon passes `--no-artnet --no-sacn --no-serial` (`client_loss`, `lock`, `message_history`, `remote`, `surface` start Demo with Art-Net on, `message_history` with serial on, `late_tick` with sACN on), checked by `out_43_…` over `tests/*.rs`; tests that need real frames start twice, the second time on loopback only (owner, 2026-11-15) (found in the FIL-01..03 run; criterion in P1-43). | OUT-43 | S | done (2026-11-15, #326) |
 | DEF-06 | Core: an Undo or Redo that takes away a running list's current cue (a Renumber or a block Move undone) leaves the list on its cue or the nearest one below, so Go goes on; `undo_21_…` (found in the TTN-04, 06, 10 run: Go did nothing, without a message; criterion in P1-43). | UNDO-21 | S | done (2026-11-15, #325; run `tests/manual/runs/2026-11-15-DEF-06.md`) |

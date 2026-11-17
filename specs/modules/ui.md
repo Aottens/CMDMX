@@ -707,6 +707,13 @@ batch J is PRG-104, IPC-63..66, CTL-72..74 and REL-30; the questions are below, 
   Groups**; Groups shows the Groups window (UI-12) in that place, with every tap, armed function and Record that window has. The
   app remembers the switch per workspace, Fixtures by default, so Colour and Playbacks reach a group without leaving. Checked by
   hand on Colour and Playbacks: a group taken, Record onto a group.
+- **UI-89** **Merge from another show** (P1-37, approved by owner 2026-11-17; SHW-27..31; a sheet of our own, as Titan's Show Library is a window of its
+  own). On the Show screen a selected row other than the open show has *Merge…*. It opens a sheet with that show's contents
+  (`show.merge.read`) in four tabs: *Groups*, *Palettes* and *Playbacks* list its objects with a checkbox each; *Fixtures* lists
+  its fixtures with the proposed target number beside each, editable, an unmapped one in amber. Every change of a checkbox or a
+  target sends a `dry_run` and the sheet's footer shows the answer: where each object lands, what comes along (SHW-30) and what is
+  left out. *Merge* sends the real one in one press (it changes nothing on stage and is one undo step), closes the sheet and the
+  notice shows. A refusal stays in the sheet. The app computes no placement itself. Checked by hand in `tests/manual/app-show.md`.
 
 ## Out of scope (this spec)
 Palette, cue and playback behaviour (their own specs fill in the disabled controls), Blind, undo
