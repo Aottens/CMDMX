@@ -5,6 +5,23 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-17 — LEE's answer counts as permission: the full LEE table ships (VS2-50)
+
+**Decision:** LEE Filters support answered on 2026-11-17 that CMDMX is "most welcome to use the information which is
+publicly available"; the owner takes that as the written permission asked for on 2026-10-28. The full LEE colour range
+(number, name, tungsten x, y from leefilters.com) ships in `subprojects/engine/gels/lee.json`, with a `NOTICE` that
+credits LEE Filters and names the email, and the script that fetched it beside it.
+
+**Alternatives considered:** asking LEE once more for a plain "yes" to shipping the data in the software, as the answer
+names a website and "product name and descriptions" (a reply was drafted); a user-supplied gel file instead.
+
+**Why:** the owner judged the answer clear enough; the data are public, attributed, and limited to number, name and
+x, y.
+
+**Reversal trigger:** LEE or Panavision objects: then the table goes back to `[]` and a user-supplied gel file follows.
+
+---
+
 ## 2026-11-16 — The top plate's test backing: ribs every 16.5 mm for 0.10 mm under 20 N, faders on 2.7 mm rails (HWB-11, HW-50)
 
 **Decision:** The 1.5 mm engraving plate may give at most 0.10 mm under a 20 N push between its supports. For the weakest

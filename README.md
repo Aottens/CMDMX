@@ -144,7 +144,7 @@ its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [
   fixture order (who starts first on an overlap) is edited by tapping in Playback Options ▸ Times.
 - Colour as one value per fixture: HSI, RGB, CMY or Kelvin wheels or a colour picker with
   CTO/CTB correction steps and a LEE gel book (search by number or name, `Lee 201` on the command
-  line; the full LEE table ships once LEE gives permission). Extra emitters (White, Lime, …) are driven directly, or auto-mixed
+  line, LEE's whole colour range). Extra emitters (White, Lime, …) are driven directly, or auto-mixed
   from the picked colour on types where the profile editor switches it on (a white on an RGBW par
   comes from its White LED).
 - Locate, Highlight with lowlight, Off (per attribute group or one attribute), Rem Dim, and

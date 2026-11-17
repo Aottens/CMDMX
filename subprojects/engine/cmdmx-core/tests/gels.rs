@@ -43,7 +43,7 @@ const LEE_ROWS: &str = r#"[
   { "number": 218, "name": "Eighth C.T. Blue", "x": 0.411, "y": 0.395 },
   { "number": 106, "name": "Primary Red", "x": 0.693, "y": 0.305 },
   { "number": 181, "name": "Congo Blue", "x": 0.187, "y": 0.058 },
-  { "number": 79, "name": "Just Blue", "x": 0.145, "y": 0.072 }
+  { "number": 79, "name": "Just Blue", "x": 0.153, "y": 0.139 }
 ]"#;
 
 const RGBW: &str = r#"{ "manufacturer": "T", "model": "RGBW Par", "source": "channel-list", "modes": [ {
@@ -168,6 +168,42 @@ fn prg_67_bad_rows_are_refused() {
 fn prg_67_compiled_in_lee_table_parses() {
     GelTable::from_json(LEE_JSON).unwrap();
     assert_eq!(GelTable::lee().gels().len(), table_len(LEE_JSON));
+}
+
+/// VS2-50: the shipped table is LEE's full colour range, it agrees with the rows LEE_ROWS took
+/// from leefilters.com, it holds no diffusion or ND, and its NOTICE names source and permission.
+#[test]
+fn prg_67_lee_table_ships_every_colour_filter() {
+    let lee = GelTable::lee();
+    assert!(
+        lee.gels().len() >= 200,
+        "only {} rows shipped",
+        lee.gels().len()
+    );
+    for row in table().gels() {
+        let shipped = lee
+            .gels()
+            .iter()
+            .find(|g| g.number == row.number)
+            .unwrap_or_else(|| panic!("LEE {} is missing", row.number));
+        assert_eq!(shipped.name, row.name);
+        assert!(
+            (shipped.x - row.x).abs() < 0.0005 && (shipped.y - row.y).abs() < 0.0005,
+            "LEE {}: {shipped:?}",
+            row.number
+        );
+    }
+    for not_colour in [209, 210, 211, 216, 250, 251, 298, 299] {
+        assert!(
+            lee.colour(not_colour).is_none(),
+            "LEE {not_colour} is diffusion or ND"
+        );
+    }
+    let notice = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../gels/NOTICE"))
+        .expect("gels/NOTICE");
+    for needed in ["LEE Filters", "leefilters.com", "2026-11-17"] {
+        assert!(notice.contains(needed), "NOTICE lacks {needed}");
+    }
 }
 
 fn table_len(json: &str) -> usize {
