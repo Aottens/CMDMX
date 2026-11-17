@@ -323,6 +323,20 @@ the one M); MRG-03 alone (the app's sheet, M, on the finished commands).
 | MRG-02 | Daemon: `show.merge.read` reads and migrates a show without writing it, `show.merge` with `dry_run`, the plan answer, the notice and the lock; `shw_27_…`, `shw_31_…`. Needs MRG-01. | SHW-27, 31 | S | done (2026-11-17, #342) |
 | MRG-03 | App: *Merge…* on the Show screen, a sheet with Groups, Palettes, Playbacks and Fixtures tabs that shows each dry run's plan; `tests/manual/app-show.md` amended and run on Art-Net. Needs MRG-02. | UI-89 | M | done (2026-11-17, #344) |
 
+### Blind and Edit (IDEA-35 B7, spec P1-31)
+Approved by the owner 2026-11-17, every recommendation accepted: PRG-105..109, PAL-36, PAL-37, IPC-67, UI-90..92, CTL-75
+(`ui.md`, *Owner decisions (P1-31)*). No schema change: Blind and an edit are live state.
+Builds: BLD-01 + BLD-02 (one behaviour across core and daemon; BLD-01 is the one M); BLD-03 alone (the app, on the finished
+commands); BLD-04 + BLD-05 (Edit across the layers, after BLD-01: its save asks in Blind).
+
+| Id | Task (one sentence, verifiable) | Spec | Size | Status |
+|---|---|---|---|---|
+| BLD-01 | Core: Blind keeps a frozen copy of the programmer for the output, refuses Highlight, leaves with a fade or a clear, asks before a stored change reaches the stage, and ends on New and Open; `prg_105_…` to `prg_109_…`. | PRG-105..109 | M | todo |
+| BLD-02 | Daemon: `programmer.blind`, `confirm` and the `on_stage` reply, `blind` in snapshot and delta, `key blind` with its feedback; `ipc_67_…` (Blind part), `ctl_75_…` (Blind part). Needs BLD-01. | IPC-67, CTL-75 | S | todo |
+| BLD-03 | App: the Blind button, violet frame, BLIND tag and Programmer title, the leave sheet and the on-stage sheet; the manual's Blind section; checked by hand on Art-Net. Needs BLD-02. | UI-90, UI-92 | S | todo |
+| BLD-04 | Core and daemon: `palette.edit`, `edit_save` and `edit_cancel` with the programmer set aside and given back, the refusals while editing, `editing` in snapshot and delta, `key edit`; `pal_36_…`, `pal_37_…`, `ipc_67_…` (Edit part). Needs BLD-01. | PAL-36, 37, IPC-67, CTL-75 | S | todo |
+| BLD-05 | App: the Edit button, the EDIT tag, the outlined cell, the Save and Cancel softkeys; the manual's palette page; checked by hand. Needs BLD-04. | UI-91 | S | todo |
+
 ### Behaviour that differs from Titan (IDEA-35 batch I, spec P1-42)
 Approved by the owner 2026-11-14, every recommendation accepted (`cuelists.md`, *Owner decisions (P1-42)*). I1, I3, I6 and K6 went into
 batch B; the rest of I with K4, K5, L4 and M4. The first build that saves a new option raises the schema to 15 (SHW-26).
@@ -449,7 +463,7 @@ after VS8-03, in any order.
 | P1-28 | Gap review after v0.4.0 with the app running, one operator's evening (REL-26): third review in `docs/research/everyday-gaps.md`, run `tests/manual/runs/2026-11-04-gap-review.md`, proposals for B to G, I and J, and for IDEA-36..40. | REL-26 | S | done (2026-11-04, #237) |
 | P1-29 | Spec IDEA-35 batch B, changing what is recorded, with I1, I3 and what the owner approves from the third review, as CUE-56..62, PBK-47..49, PRG-97, GRM-21, IPC-55..57, UI-51..54; build tasks REC-01..12; approved by owner 2026-11-04, the five questions as recommended (`cuelists.md`). | PRG, CUE, PBK, GRM, IPC, UI | S | done (2026-11-04, #241) |
 | P1-30 | Spec the patch before batch B (owner, 2026-11-04): LIB-40, UI-49, UI-50, build tasks NEW-01..03; approved by owner 2026-11-04. | LIB, UI | S | done (2026-11-04, #237) |
-| P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. | PRG, UI | S | todo |
+| P1-31 | Spec Blind and Edit (IDEA-35 B7), apart from batch B (owner, 2026-11-04): find Titan's Blind page first; numbered criteria and build tasks; owner approves. Specified as PRG-105..109, PAL-36, 37, IPC-67, UI-90..92, CTL-75, build tasks BLD-01..05; approved by the owner 2026-11-17, every recommendation accepted (`ui.md`). | PRG, PAL, IPC, UI, CTL | S | done (2026-11-17, #345) |
 | P1-32 | Spec the Help patch (L6, F7; owner 2026-11-05): UI-55, REL-29, WEB-36, build tasks HLP-01..03; approved by the owner when this PR merges. | UI, REL, WEB | S | done (2026-11-05, #252) |
 | P1-33 | Spec IDEA-35 batch C, seeing what the rig does (L1, J8, L2, L3, L5, C1..C3, K8), as GRM-22..23, ENG-25, IPC-58..60, UI-56..62; build tasks SEE-01..10; approved by owner 2026-11-05, the five questions as recommended (`ui.md`). | GRM, ENG, IPC, UI | S | done (2026-11-05, #254) |
 | P1-34 | Spec the phone patch page (IDEA-42, owner 2026-11-06: phase 1, before Christmas): new `remote.md` with RMT criteria (LAN listener, login set in the console, the page, highlight while walking), build tasks; approved by the owner when this PR merges. | RMT, PAT, PRG, IPC | S | done (2026-11-06, #258) |

@@ -291,6 +291,25 @@ back from the colour (PRG-69), so it survives without being stored and the show 
   selected fixtures (PAL-05, PAL-09) and it is a Normal palette, the warning adds what to do: "Palette 1 Rood does not fit the
   selection. To add these fixtures, set them and Update the palette". Other refusals stay as they are. Tests `pal_35_…`.
 
+### Edit (IDEA-35 B7, P1-31; approved by owner 2026-11-17; reverses owner decision 4)
+Titan: *Editing Palettes* (manual.avolites.com/docs/palettes/editing-palettes/): Edit and a palette select its fixtures (a Normal
+palette its own, a Shared one its first fixture), "the state of the programmer will be preserved", and the *Update Palette*
+softkey saves and gives the programmer back. Titan names no Cancel and does not say whether the stage sees the edit. Blind is
+PRG-105..109; the questions are in `ui.md`, *Owner decisions (P1-31)*.
+- **PAL-36** **Edit a palette** (question 5). `palette.edit {number}` sets the programmer aside (selection, values, located values,
+  effects: the part an undo step saves, UNDO-10) and empties it, then selects the palette's fixtures and includes the palette into
+  them as PAL-12 does: a per-fixture palette selects its patched, unparked fixtures; a shared one the first patched fixture of
+  each type it holds; a global one keeps the selection that was set aside, and with none is refused ("Select fixtures to edit
+  Global palette 3 Rood"). The edit is on stage as any programmer change is: in Live it is, in Blind it is not; Edit does not
+  turn Blind on. One edit at a time: a second `palette.edit` is refused ("Editing palette 3 Rood: Save or Cancel first"), as are
+  Undo, Redo, and Record, Update, Copy, Move and Delete on any object while editing. New and Open cancel the edit. Tests
+  `pal_36_…`: the three levels, the refusal with no selection, the refusals while editing.
+- **PAL-37** **Save or Cancel** (question 6). `palette.edit_save` stores the programmer into the edited palette as PAL-06 `Merge`
+  does, with the mask a Record into the palette's window uses, as one undo step; PRG-108's confirm applies in Blind. Then the
+  programmer that was set aside comes back, and `palette.edit_cancel` brings it back without storing. Either way the edit's values
+  leave the programmer as a restored undo step lets go (PRG-45), and the set-aside programmer's fades do not come back. Tests
+  `pal_37_…`: a changed colour saved and the programmer back as before, Cancel stores nothing, Save is one undo step.
+
 ## Scenario test format
 Scenario files (`engine-merge.md`) gain an optional `palettes` list (palette entries as in
 PAL-23) and a `pal` action (`record` with the `palette.record` fields, `apply {number}`,
@@ -317,12 +336,11 @@ Recording, detection, resolving, Copy/Move/Delete and the show file are unit tes
 
 ## Out of scope (phase 1 unless noted)
 Nested palettes and *Fire Nested Palettes*, time palettes and palettes fired with their own
-times, effect and shape palettes (phase 2, `PROJECT.md`); *Blind to Live* (with Blind);
+times, effect and shape palettes (phase 2, `PROJECT.md`);
 *Release to quick palette* (Titan v19, with P1-04 release); applying a palette to all fixtures of
 a playback; the Palette View window with per-value Off (phase 2); halos (with P1-04, for every
-handle kind at once); the user icon folder (phase 2, IDEA-14); recording a palette from the command line (`Record Palette n`); **Edit** (Titan: set the
-programmer aside, edit, Update, get the programmer back; owner decision 4: Include + Record →
-Merge covers it, the Edit button stays disabled); undo (P1-10, `undo.md`).
+handle kind at once); the user icon folder (phase 2, IDEA-14); recording a palette from the command line (`Record Palette n`);
+renaming or renumbering from Edit (Titan's Edit does it; Set Legend does it here, PAL-29); undo (P1-10, `undo.md`).
 
 ## Owner decisions (2026-10-18)
 None open; all seven answered on 2026-10-18.
@@ -332,7 +350,7 @@ None open; all seven answered on 2026-10-18.
 2. Record By defaults to `Mixed`, with `Channel` as the option per record and as a setting.
 3. Market practice over the church: Global covers intensity, Pan, Tilt and Colour as on Titan;
    Pan/Tilt global in degrees via the physical ranges (PAL-04, PAL-07).
-4. No Edit in phase 1; Include + Record → Merge.
+4. No Edit in phase 1; Include + Record → Merge. (Reversed by the owner 2026-11-17, P1-31: PAL-36, PAL-37.)
 5. Icons: SF Symbols in the app, plus own glyphs where the lighting world needs them; the show
    stores only CMDMX ids (PAL-22).
 6. No number ranges per window: a palette lives where it was recorded and gets the next free

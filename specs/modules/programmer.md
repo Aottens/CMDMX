@@ -657,11 +657,44 @@ Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Titan: *Changing Fixture Att
   It is one edit, as a wheel move is (UNDO-04), and does not change the active attribute group. Tests `prg_104_…`: Pan 50 on two
   movers with different ranges, Hue 240, Kelvin 3200, gobo slot 3, slot 9 of 7 refused, an attribute nobody has refused.
 
+### Blind (IDEA-35 B7, P1-31; approved by owner 2026-11-17)
+Titan: *Useful functions* (manual.avolites.com/docs/running-the-show/) and the *Button reference*. Blind keeps console changes
+off stage while "active playbacks will continue"; a typed time and then Blind fades the blind state live; Blind on one playback
+sends it to the visualiser only. Titan does not say what Highlight, a stored change to a cue on stage or leaving with a full
+programmer do in Blind: those are our own choices, each an owner question in `ui.md`, *Owner decisions (P1-31)*. Edit is
+PAL-36 and PAL-37 (`palettes.md`); IPC-67 (`ipc.md`), UI-90..92 (`ui.md`) and CTL-75 (`control-surfaces.md`) carry both.
+- **PRG-105** **Blind freezes what the programmer gives the stage** (question 1). `programmer.blind {"on":true}` keeps, for the
+  output, the programmer as it is at that moment: its values, located values, cell values and effects, with fades already running
+  played to their end. Every change to the programmer after it (selection, wheels, keypad, palettes, Locate, Off, Rem Dim, Clear,
+  Include, effects, an undo or redo of programmer edits) changes the programmer the operator sees and records from, not the stage.
+  Playbacks, cue lists, chases, group masters, Swop, Flash, the grand master and DBO work as in Live, and a playback fired in Blind
+  is on stage. Entering Blind changes nothing on stage. Not an undo step. Tests `prg_105_…`: a wheel turn, a palette, Clear and an
+  undo in Blind leave the frame as it was; a cue fired in Blind is in the frame; a running palette fade finishes.
+- **PRG-106** **Highlight in Blind** (question 2). Highlight keeps what it lit when Blind began; turning Highlight on or off, and
+  stepping it (Fix ±1 while Highlight is on lights the next item in Live), is refused while Blind is on: "Blind: Highlight would
+  change the stage". The phone's highlight while walking (RMT) is refused the same way. Tests `prg_106_…`.
+- **PRG-107** **Leaving Blind** (question 4). `programmer.blind {"on":false, "fade":t, "clear":bool}`, `fade` 0 when left out:
+  the stage takes the programmer as it is now. Each attribute whose programmer value differs from the frozen one fades from its
+  current output to the new value over t, linearly as PAL-13 fades (colour per component in linear target RGB); one the frozen
+  programmer held and the programmer no longer holds is let go of as a Clear with time t lets go (ENG-10). t = 0 is on stage at
+  the next tick. `clear: true` empties the programmer first, so the stage goes back to what the playbacks give, over t. Not an
+  undo step. Tests `prg_107_…`: a level fades over 2 s from the frozen value, a colour fades in linear RGB, a value only the frozen
+  programmer held fades out, `clear` gives back the playbacks' state.
+- **PRG-108** **A stored change that reaches the stage asks in Blind** (question 3). A change to the stored values of a cue that
+  a playback or cue list has live (Record, Update, Merge, Remove, Off, an effect removed), or of a palette that something on stage
+  references (Record over it, Delete, an Edit save, PAL-37), changes the stage at the next tick (PBK-13). In Blind such an action without `confirm: true` is refused with a reply that names
+  what is on stage ("Cue 1.3 is live on playback 4: the change shows now") and changes nothing; sent again with `confirm: true`
+  it is done. In Live nothing changes. Tests `prg_108_…`: a Merge into the live cue is refused, then done with `confirm`; a Merge
+  into a cue not on stage needs none.
+- **PRG-109** **Blind is live state.** It is never saved in a show; an engine starts Live. New and Open (SHW-15, SHW-19) end
+  Blind, as they empty the programmer, and a merge from another show (SHW-27) leaves it as it is. While the console is locked
+  (IPC-50) a Blind press is dropped like any other. Test `prg_109_…`.
+
 ## Out of scope (phase 1 unless noted)
 - Fan beyond PRG-56..62 (phase 2): Titan's Pull Middle, Pull Ends and Pull End curves, Fan parts
   (hold Fan + a number), the group options Fan Within Group and Fan Group as Fixture, press-and-hold
   Fan as a setting, and a keypad fan (`@ 0 Thro 100`). Align
-  (phase 2, `PROJECT.md`) and Blind (no phase yet): greyed out in UI v0.1.
+  (phase 2, `PROJECT.md`). Blind on one playback (Titan sends it to the visualiser only; CMDMX has no visualiser yet).
 - Selection orders beyond PRG-71..84 (later): grandMA3's Width (several positions per step), Shift
   and X/Y/Z axes, From/To layers of fade, delay and phase over the grid, a MAtricks pool; Titan's
   2D Direction from a layout (needs IDEA-25); a keypad syntax for patterns (`2 In 6`), Invert
@@ -682,7 +715,7 @@ Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Titan: *Changing Fixture Att
 2. Locate removes existing programmer values of the located attributes (PRG-24), a deliberate
    deviation from Titan's default, so what you see is what you record.
 3. Fan and Blind stay out of phase 1; their buttons are greyed out in UI v0.1. (Fan: reversed
-   2026-10-25, IDEA-27; PRG-56..62.)
+   2026-10-25, IDEA-27; PRG-56..62. Blind: phase 1, owner 2026-11-17, P1-31; PRG-105..109.)
 4. Undo is a separate backlog item (P1-10), not part of PRG.
 5. A typed selection replaces the current selection; tapping adds (PRG-08 vs PRG-01).
 
