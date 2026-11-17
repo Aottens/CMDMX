@@ -18,6 +18,10 @@ struct ShowView: View {
     /// Which show-switching button has been clicked once. New and Open change what is on stage,
     /// so they need a second click (SHW-17, PAT-10); Save As does not.
     @State private var armed: Armed?
+    /// UI-89: the show whose merge sheet is open.
+    @State private var merging: MergeTarget?
+
+    private struct MergeTarget: Identifiable { let id: String }
 
     private enum Armed { case new, open, delete }
 
@@ -92,6 +96,7 @@ struct ShowView: View {
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
+        .sheet(item: $merging) { MergeSheet(name: $0.id).environmentObject(engine).environment(\.theme, t) }
         .onAppear { keep = "looks"; engine.listShows() }
         .onChange(of: selection) { _, _ in armed = nil; engine.clearMessage() }
         .onChange(of: newName) { _, _ in armed = nil }
@@ -112,6 +117,9 @@ struct ShowView: View {
                     .disabled(selection == nil || renameTo.isEmpty)
                 Button("Show in Finder") { reveal() }
                     .disabled(selection == nil || engine.showsDir == nil)
+                // UI-89: merge from another show; the open show cannot merge into itself.
+                Button("Merge…") { if let selection { merging = MergeTarget(id: selection) } }
+                    .disabled(selection == nil || selection == engine.show.name)
             }
             .buttonStyle(FlatButton())
             deleteButton

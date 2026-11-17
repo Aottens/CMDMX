@@ -1,4 +1,4 @@
-# App show checklist (SHW-16, SHW-17, WEB-36) — template
+# App show checklist (SHW-16, SHW-17, WEB-36, UI-89) — template
 
 No Swift test target exists (CLAUDE.md), so the status bar and Show screen of
 `specs/modules/showfile.md` SHW-16/17 are checked by hand. Copy to
@@ -58,6 +58,26 @@ Optional: an Art-Net monitor on universe 1.
       list loses it and it is in the Trash (`<show-dir>/Trash/` with `--show-dir`).
 - [ ] Delete the open show: refused, "<name> is open: open another show first".
 - [ ] *Show in Finder* opens the shows folder with the file selected.
+
+## Merge from another show (UI-89, SHW-27..31)
+Setup: Demo open, saved as `Kerk`. Save Copy `Bron`, then in Bron record a few things the merge can take, and open Kerk
+again: in Bron add group 1 *Alles* (if missing) and record a colour palette, a cue list of two cues that uses that
+palette, and a chase. Note their numbers and handles.
+- [ ] Select Kerk (the open show): *Merge…* is off. Select Bron: *Merge…* opens a sheet *Merge from Bron* with the tabs
+      Groups, Palettes, Playbacks and Fixtures. Nothing on stage changes (Art-Net steady).
+- [ ] Fixtures: every fixture is proposed onto the same number (the same show); none is amber.
+- [ ] Nothing ticked: the footer asks to tick something, *Merge* is off.
+- [ ] Tick the cue list. The footer shows where it lands (another free handle, as its own handle is taken in Kerk) and
+      the palette it uses: brought along only if Kerk has none identical, otherwise not listed.
+- [ ] Tick a group whose number Kerk uses: it lands on the lowest free number. Untick it.
+- [ ] Fixtures: clear the target of one fixture the cue list uses. Its row turns amber, and the footer counts it under
+      left out with the values. Type a number of a fixture with another profile: the refusal shows in the sheet,
+      naming the line. Put the first fixture back.
+- [ ] UI-89 (review of #344): with something ticked, clear a target and do not press Return: the footer says to press
+      Return and *Merge* is off. Press Return: the plan shows the change and *Merge* is on again.
+- [ ] *Merge*: the sheet closes and the message says "Merged from Bron: …". The cue list is on its new handle, off.
+      Art-Net did not change.
+- [ ] Undo: "Undone: Merge from Bron", the merged playback is gone.
 
 ## A file changed outside CMDMX (SHW-23)
 - [ ] With Kerk open, copy another show's file over `Kerk.cmdmx.json` in Finder or Terminal. Leave the Show screen and

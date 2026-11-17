@@ -321,7 +321,7 @@ the one M); MRG-03 alone (the app's sheet, M, on the finished commands).
 |---|---|---|---|---|
 | MRG-01 | Core: the merge plan from two shows (proposed and edited fixture map, places without overwriting, palettes and groups brought along or linked, values of unmapped fixtures left out) and applying it as one undo step; `shw_28_…` to `shw_31_…`. | SHW-28..31 | M | done (2026-11-17, #342) |
 | MRG-02 | Daemon: `show.merge.read` reads and migrates a show without writing it, `show.merge` with `dry_run`, the plan answer, the notice and the lock; `shw_27_…`, `shw_31_…`. Needs MRG-01. | SHW-27, 31 | S | done (2026-11-17, #342) |
-| MRG-03 | App: *Merge…* on the Show screen, a sheet with Groups, Palettes, Playbacks and Fixtures tabs that shows each dry run's plan; `tests/manual/app-show.md` amended and run on Art-Net. Needs MRG-02. | UI-89 | M | todo |
+| MRG-03 | App: *Merge…* on the Show screen, a sheet with Groups, Palettes, Playbacks and Fixtures tabs that shows each dry run's plan; `tests/manual/app-show.md` amended and run on Art-Net. Needs MRG-02. | UI-89 | M | done (2026-11-17, #344) |
 
 ### Behaviour that differs from Titan (IDEA-35 batch I, spec P1-42)
 Approved by the owner 2026-11-14, every recommendation accepted (`cuelists.md`, *Owner decisions (P1-42)*). I1, I3, I6 and K6 went into

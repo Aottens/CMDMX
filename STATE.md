@@ -14,8 +14,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 ## Next
 1. The first service: VS4-07 and VS4-03 below, on the service candidate. The first stable release follows a service
    that went well, with its gap review's fixes (REL-26, DECISIONS 2026-11-16). P1-31 (Blind and Edit) stays apart.
-2. Merge from another show: the engine and its commands are in; MRG-03 (the app's sheet) is next. The third gap
-   review's other proposals wait.
+2. The third gap review's other proposals wait to be planned.
 3. Auto-review (IDEA-57, `specs/modules/autoreview.md`): `AUTOMERGE` is on (owner, 2026-11-16), so a green PR merges
    by itself; amber and red stay the owner's. No fix rows are open.
 
