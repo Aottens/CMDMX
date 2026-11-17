@@ -1,8 +1,10 @@
 # engine — State
 
-_Last updated: 2026-11-17 (MRG-01, MRG-02)_
+_Last updated: 2026-11-17 (VS2-50)_
 
 ## Current step
+VS2-50 (2026-11-17, PRG-67): `gels/lee.json` holds LEE's colour range, 250 rows of number, name and tungsten x, y from leefilters.com, made by `gels/fetch-lee.py` (stdlib, about 4 minutes); `gels/NOTICE` credits LEE Filters and their permission of 2026-11-17. Left out: pages without a Tungsten block (diffusion, frosts, the 801–827 Zircon range), ND (209–211, 298, 299), the polariser 239, 770 Burnt Yellow (LEE prints x + y > 1) and five slugs without a number (414p, 439p, sc15, sc30, sc60). The test row for 79 Just Blue had LEE's daylight x, y and now has the tungsten one. Test `prg_67_lee_table_ships_every_colour_filter` in `cmdmx-core/tests/gels.rs`.
+
 MRG-01, MRG-02 (2026-11-17, SHW-27..31): `cmdmx_core::merge` holds the wire types (`Request`, `Plan`, `Contents`, `FixtureMap`), `proposed_map`, `contents` and `Plan::summary`; `Engine::merge(other, request, dry_run)` lives in the child module `engine/merge.rs` and plans everything from the open state before it changes anything (map by number and profile key, other id → open id; groups, palettes, playbacks placed in that order by source number; brought palettes and groups linked to identical ones; references remapped or turned into their fallback; merged effect entries get fresh ids; a group master arrives at its neutral level). Daemon: `Shows::read_other` reads and migrates on the client thread without writing; `Event::MergeRead`/`Event::Merge` carry the show to the tick, which answers the asker through `reply`, runs a real merge through `history.edit("Merge from <name>")` and sends `clients.notice(summary)`. The lock refuses `show.merge` on both sides; the read passes. Tests: `cmdmx-core/tests/merge.rs`, `cmdmx-daemon/tests/merge.rs`.
 
 FIX-04 (2026-11-16, UNDO-21): `ListRun::restored` clears `edited` when the current cue is gone and was not renumbered, so the list moves to the cue below without `snap()`: the stage keeps the taken cue's look until the next Go, as CUE-07. Test `undo_21_a_copy_undone_while_it_is_live_changes_nothing_on_stage_until_go`.

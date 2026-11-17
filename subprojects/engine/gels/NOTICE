@@ -1,0 +1,13 @@
+lee.json: LEE Filters colour range
+
+The names and the CIE x, y values in lee.json are LEE Filters' published tungsten
+(3200 K) chromaticity data, taken from https://leefilters.com (page of each filter
+under /colour/). (c) Panavision / LEE Filters. They are used with LEE Filters'
+permission, given by email on 2026-11-17: LEE Filters support wrote that we are
+welcome to use the publicly available information on leefilters.com.
+
+The data remain LEE Filters'. Diffusion, neutral-density and polariser filters are
+left out.
+
+The file was made by fetch-lee.py in this folder (python3 -I fetch-lee.py), which
+read leefilters.com on 2026-11-17.

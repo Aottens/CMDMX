@@ -46,7 +46,7 @@ Programming and small checks:
   arrive, screw the 1.5 mm one on, push, and say which backing is stiff enough, which MX hole clips, which legends read.
 
 ## Blocked
-- VS2-50 (the full LEE gel table): waits for LEE/Panavision's written permission, asked on 2026-10-28.
+- Nothing.
 
 ## Owner to decide
 - REL-26 names no patch series for the release installed now, the one before the service candidate

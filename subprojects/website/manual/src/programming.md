@@ -223,8 +223,9 @@ While the colour is exactly a gel's colour, its swatch is outlined and the picke
 above the field, for example "LEE 201 Full C.T. Blue". Turn any wheel and it is just a colour
 again. A Colours palette recorded from one gel takes its name as legend: "L201 Full C.T. Blue".
 
-The full LEE table ships once LEE Filters has given permission to use their data; until then the
-gel book is empty.
+The gel book holds LEE's whole colour range, with the names and tungsten values LEE publishes on
+leefilters.com, used with LEE Filters' permission. Diffusion and neutral density filters are not in
+it: they change no colour.
 
 When a fixture type *auto-mixes* its emitters (switched on in the profile editor), the engine
 uses White, Warm White, Amber or Lime to make the colour you pick, so a white on an RGBW par comes
