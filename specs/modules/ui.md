@@ -166,10 +166,9 @@ control sends an existing command (CLAUDE.md). Nothing in this spec adds lightin
     armed a group tap does not select, and Clear disarms it, as for Record.
   - Record, Update, Copy, Move, Delete, Release, Options, Latch and Set Legend work on playback
     handles as PBK-38/39 describe (VS2-22).
-  - Every other button is disabled with its spec in the tooltip: Edit "phase 2" (palettes
-    decision 4); Off from VS2-05 (UI-26); Help
-    opens the manual (UI-55); System later; Select If, Unfold, Blind and Shape "later" as in the
-    sketch; Fan from UI-30.
+  - Every other button is disabled with its spec in the tooltip: Off from VS2-05 (UI-26); Help
+    opens the manual (UI-55); System later; Select If, Unfold and Shape "later" as in the
+    sketch; Fan from UI-30. Blind and Edit come alive with UI-90 and UI-91.
 - **UI-17 [now]** The keypad has the sketch's 30 keys in its order. Keys that work now:
   - The digits, `.`, Fixture, Group, Thro, And and `@`, which add a token to the command line.
   - Enter, which sends the tokens as `programmer.command`.
@@ -715,10 +714,53 @@ batch J is PRG-104, IPC-63..66, CTL-72..74 and REL-30; the questions are below, 
   left out. *Merge* sends the real one in one press (it changes nothing on stage and is one undo step), closes the sheet and the
   notice shows. A refusal stays in the sheet. The app computes no placement itself. Checked by hand in `tests/manual/app-show.md`.
 
+### Blind and Edit (IDEA-35 B7, P1-31; approved by owner 2026-11-17)
+Titan: *Useful functions*, *Button reference* and *Editing Palettes*. Behaviour in PRG-105..109 (`programmer.md`) and PAL-36,
+PAL-37 (`palettes.md`); the wire in IPC-67, the surface key in CTL-75. The questions are below, *Owner decisions (P1-31)*.
+
+- **UI-90** **Blind on the screen** (PRG-105..107; question 4; amends UI-06 and UI-16). The Blind button is live and lit violet
+  while `blind`. In Blind the window gets a 3 pt violet frame on all four sides, the status bar the BLIND tag (UI-06) and the
+  Programmer window's title "Programmer · Blind", so Blind cannot be missed (`specs/ux/research.md` 13). Blind in Live turns it on.
+  Blind in Blind leaves it:
+  - with exactly one number on the command line (Titan: type a time, then Blind) that number is the fade in seconds and the line
+    empties; otherwise the fade is 0;
+  - with an empty programmer it leaves at once;
+  - with values in the programmer a sheet asks first: "Leave Blind: 12 fixtures in the programmer go on stage (over 2 s)", with
+    *Go live*, *Clear, then go live* (`clear: true`) and *Stay blind*; Esc is *Stay blind*.
+  The Console menu (UI-86) lists Blind. The manual (`programming.md`) gets a Blind section. Checked by hand on Art-Net: a colour
+  changed in Blind does not reach the stage, a cue fired does, leaving over 3 s fades, *Clear, then go live*.
+- **UI-91** **Edit on the screen** (PAL-36, PAL-37; question 5; amends UI-16). The Edit button is live and arms as UI-42 says, a
+  row in its table: a tap on a palette cell sends `palette.edit`, anything else is refused ("Edit works on palettes."). While
+  `editing`, the status bar shows the tag "EDIT 3 Rood" in cyan, the palette's cell is outlined, the Main softkeys are *Save
+  palette 3* and *Cancel*, and the function buttons the engine refuses while editing are disabled with "Editing palette 3 Rood:
+  Save or Cancel first" as their tooltip. Clear empties the programmer and does not end the edit. The manual (`palettes.md`)
+  replaces "Include, then Record → Merge" by Edit. Checked by hand: edit a colour palette in Live and in Blind, Save, Cancel.
+- **UI-92** **The question before a change reaches the stage** (PRG-108; question 3). An `on_stage` reply opens a sheet with its
+  sentence and *Change it now* and *Cancel*; *Change it now* sends the same command again with `confirm: true`, Esc cancels.
+  Only in Blind; in Live nothing asks. Checked by hand: Update into the live cue in Blind.
+
 ## Out of scope (this spec)
-Palette, cue and playback behaviour (their own specs fill in the disabled controls), Blind, undo
+Palette, cue and playback behaviour (their own specs fill in the disabled controls), undo
 (P1-10), freely configurable workspaces, legends and halos, picture legends, a remote/touch layout
 (IDEA-06), and the narrow single-column layout of the sketch (below 900 px). Not in batch C (P1-33): editing values in the Grid, Titan's *View If* and *Frozen* filters, the DMX View's input column, a fixture's position on a rig plan (IDEA-25). Not in batch D (P1-36): Unfold of a cue list or chase onto faders and a linked playback copy (owner decisions 3 and 4: IDEA-46, IDEA-47), copying or moving several cues, Titan's *Copy Legends* option and *Unassign*, the Release Priority setting and *Release all Masters*.
+
+## Owner decisions (P1-31, Blind and Edit, 2026-11-17: every recommendation accepted)
+Titan answers none of these on its pages, except where said.
+1. **Playbacks in Blind** (PRG-105). Recommended: they stay live and a playback fired in Blind is on stage, as Titan says
+   ("active playbacks will continue"), so the service goes on while a fix is made. Not chosen: Blind holds the whole stage.
+2. **Highlight in Blind** (PRG-106). Recommended: refused, since it would change the stage. Not chosen: allowed as the one
+   exception, to find a fixture on stage.
+3. **A stored change to what is on stage** (PRG-108, UI-92). Recommended: in Blind it asks first, as Update into the running cue
+   shows at once. Not chosen: it just happens, as on Titan.
+4. **Leaving Blind with a full programmer** (PRG-107, UI-90). Recommended: a sheet with *Go live*, *Clear, then go live* and
+   *Stay blind*. Not chosen: it goes live at once, as on Titan.
+5. **Edit and Blind** (PAL-36, UI-91). Recommended: Edit does not turn Blind on, as on Titan; Blind first when the stage must not
+   see it. Not chosen: Edit always edits blind.
+6. **What Save stores** (PAL-37). Recommended: Merge, so a fixture added during the edit is kept and nothing is lost. Not chosen:
+   Quick Merge (only what the palette held, Titan's double-tap Update) or Replace (a value left out of the edit is gone).
+
+Out of scope, with a reason: Blind on one playback (Titan sends it to the visualiser only; CMDMX has none yet); editing a cue or
+group with Edit (Include, then Record → Merge stays the way, PBK-48); renaming from Edit (Set Legend does it).
 
 ## Owner decisions (P1-43, batch J, 2026-11-15: every recommendation accepted)
 1. **What is in batch J:** J1 (PRG-104, IPC-63, UI-82), J2 (UI-83), J3 with the rest of K2 (UI-86), J4 and J5 (IPC-64,

@@ -5,6 +5,24 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-17 — Blind and Edit in phase 1, every recommendation accepted (P1-31)
+
+**Decision:** Blind keeps a frozen copy of the programmer on stage while playbacks stay live (PRG-105); Highlight is refused
+in Blind (PRG-106); in Blind a stored change to a cue or palette on stage asks first (PRG-108, UI-92); leaving Blind with a
+full programmer asks *Go live*, *Clear, then go live* or *Stay blind* (UI-90); Edit sets the programmer aside, loads one
+palette and gives the programmer back, does not turn Blind on, and saves as Merge (PAL-36, PAL-37). This reverses palettes
+owner decision 4 (no Edit in phase 1). Build tasks BLD-01..05.
+
+**Alternatives considered:** Blind holding the whole stage; Highlight allowed in Blind; Titan's silent stored change and
+direct go-live; Edit always blind; Save as Quick Merge or Replace; Blind on one playback (no visualiser to send it to).
+
+**Why:** Blind exists so a fix during a service never shows by surprise; the asks guard the two moments it otherwise would.
+Titan's behaviour is kept wherever its manual says what it is.
+
+**Reversal trigger:** the asks get in the way in real use, or a visualiser arrives and makes Blind on one playback useful.
+
+---
+
 ## 2026-11-17 — LEE's answer counts as permission: the full LEE table ships (VS2-50)
 
 **Decision:** LEE Filters support answered on 2026-11-17 that CMDMX is "most welcome to use the information which is

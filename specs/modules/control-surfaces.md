@@ -548,6 +548,12 @@ console button as its key profile says). Questions in `ui.md`, *Owner decisions 
   - the Control screen marks a binding whose object does not exist in amber with "nothing at group 5", for MIDI, OSC and deck
     keys alike; its Learn or edit puts it right. A press on it does nothing, as on an empty slot (CTL-05), with no warning.
   Tests `ctl_74_…` for the empty-object state the Control screen reads; the messages by hand.
+- **CTL-75** **Blind and Edit from a surface** (P1-31, approved by owner 2026-11-17; PRG-105..107, UI-90, UI-91). `key edit` joins CTL-72's
+  programming keys. `key blind` (button, on press) reaches a following app as its Blind button (UI-90, the sheet included). With no
+  app it is done in the daemon: in Live it turns Blind on; in Blind with an empty programmer it leaves with fade 0, and with values
+  in the programmer it is refused ("Leave Blind on the Mac: 12 fixtures would go on stage"), as only the Mac can ask. Its feedback
+  is on while `blind`, with or without an app. The Control screen's action list and the Stream Deck's drag menu offer both; no
+  default mapping binds them. Tests `ctl_75_…`: parsing, Blind with and without an app, the refusal, feedback.
 
 ## Where the code lives
 - `cmdmx-control` (pure, no ports, no clock): MIDI decode (CTL-09..12), mapping model and JSON
