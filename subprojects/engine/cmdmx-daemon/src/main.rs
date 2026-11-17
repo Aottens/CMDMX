@@ -247,6 +247,7 @@ fn main() {
                 ipc::Event::Command(_)
                 | ipc::Event::ProfileSave { .. }
                 | ipc::Event::ShowOpened(_)
+                | ipc::Event::Merge { .. }
                     if lock.is_on() =>
                 {
                     warn(&mut clients, ipc::LOCKED);
@@ -309,6 +310,40 @@ fn main() {
                 // IPC-24: to the asking client only; a full queue drops the answer (IPC-07).
                 ipc::Event::CueView { id, cue, reply } => {
                     ipc::cue_view(&engine, id, cue).map(|msg| drop(reply.try_send(msg)))
+                }
+                // SHW-27: to the asking client only; passes the lock (it changes nothing).
+                ipc::Event::MergeRead { name, show, reply } => {
+                    let contents = cmdmx_core::merge::contents(&engine, &show);
+                    let extra = [("name", name.into())];
+                    drop(reply.try_send(ipc::merge_message(
+                        "show.merge.contents",
+                        &contents,
+                        extra,
+                    )));
+                    Ok(())
+                }
+                // SHW-31: one undo step; the deltas and the autosave follow as for any edit.
+                ipc::Event::Merge {
+                    name,
+                    show,
+                    request,
+                    dry_run,
+                    reply,
+                } => {
+                    let plan = if dry_run {
+                        engine.merge(&show, &request, true)
+                    } else {
+                        history.edit(&mut engine, &format!("Merge from {name}"), None, |e| {
+                            e.merge(&show, &request, false)
+                        })
+                    };
+                    plan.map(|plan| {
+                        let extra = [("dry_run", dry_run.into())];
+                        drop(reply.try_send(ipc::merge_message("show.merge.plan", &plan, extra)));
+                        if !dry_run {
+                            clients.notice(&plan.summary(&name));
+                        }
+                    })
                 }
                 // IPC-54: counted by the core; an unknown palette is a warning like the delete's.
                 ipc::Event::Usage { query, reply } => {
@@ -1322,7 +1357,7 @@ enum Class {
 /// UNDO-04: no wildcard, so a new command must be classed here to compile.
 fn class(cmd: &ipc::Command) -> Class {
     use ipc::Command::*;
-    use shows::ShowRequest::{Delete, List, New, Open, Rename, SaveAs, SaveCopy};
+    use shows::ShowRequest::{Delete, List, Merge, MergeRead, New, Open, Rename, SaveAs, SaveCopy};
     match cmd {
         FaderSet { .. }
         | GrandMasterSet { .. }
@@ -1348,7 +1383,15 @@ fn class(cmd: &ipc::Command) -> Class {
         | Fan { .. }
         | ColourModel { .. } => Class::Live,
         Show(New { .. } | Open { .. }) => Class::Reset,
-        Show(List | SaveAs { .. } | SaveCopy { .. } | Rename { .. } | Delete { .. })
+        Show(
+            List
+            | SaveAs { .. }
+            | SaveCopy { .. }
+            | Rename { .. }
+            | Delete { .. }
+            | MergeRead { .. }
+            | Merge { .. },
+        )
         | CueView { .. }
         | Usage(_)
         | Why(_)
@@ -3593,6 +3636,14 @@ mod tests {
         (r#"{"v":1,"cmd":"show.open","name":"Kerk"}"#, Class::Reset),
         (r#"{"v":1,"cmd":"show.list"}"#, Class::Neutral),
         (r#"{"v":1,"cmd":"show.report"}"#, Class::Neutral),
+        (
+            r#"{"v":1,"cmd":"show.merge.read","name":"Kerk"}"#,
+            Class::Neutral,
+        ),
+        (
+            r#"{"v":1,"cmd":"show.merge","name":"Kerk"}"#,
+            Class::Neutral,
+        ),
         (
             r#"{"v":1,"cmd":"remote.set_login","username":"a","password":"b"}"#,
             Class::Neutral,

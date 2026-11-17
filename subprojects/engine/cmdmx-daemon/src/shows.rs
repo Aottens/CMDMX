@@ -414,6 +414,35 @@ impl Shows {
         self.list().iter().any(|e| e.name.to_lowercase() == name)
     }
 
+    /// SHW-27: read another show without opening it. An older schema is migrated in memory only;
+    /// nothing is written and a `.tmp` beside the file is left alone. Returns the name as the file
+    /// has it.
+    pub fn read_other(&self, name: &str) -> Result<(String, Show), String> {
+        valid_name(name)?;
+        if self.outside(name).is_some() {
+            return Err(format!("{name} is the open show; pick another one"));
+        }
+        let lower = name.to_lowercase();
+        let name = self
+            .list()
+            .into_iter()
+            .find(|e| e.name.to_lowercase() == lower)
+            .map_or_else(|| name.to_string(), |e| e.name);
+        let json = fs::read_to_string(self.path(&name)).map_err(|e| match e.kind() {
+            io::ErrorKind::NotFound => format!("there is no show named {name}"),
+            _ => format!("cannot read {name}: {e}"),
+        })?;
+        match Show::from_json(&json) {
+            Ok((show, _)) => Ok((name, show)),
+            Err(cmdmx_core::CoreError::ShowTooNew {
+                found, supported, ..
+            }) => Err(format!(
+                "{name} was made by a newer CMDMX (schema {found}; this one reads up to {supported})"
+            )),
+            Err(e) => Err(format!("{name}: {e}")),
+        }
+    }
+
     /// SHW-14 and SHW-04/07/12: settle a leftover `.tmp`, read the file, build the engine and
     /// keep the original as `.bak` when the load left something out or migrated.
     pub fn open(&self, name: &str) -> Result<Opened, String> {
@@ -567,6 +596,16 @@ pub enum ShowRequest {
     /// SHW-22: move a show to the Trash; the open one is refused.
     Delete {
         name: String,
+    },
+    /// SHW-27: read another show's contents; handed to the tick with the show in memory.
+    MergeRead {
+        name: String,
+    },
+    /// SHW-31: merge from another show (or only plan it).
+    Merge {
+        name: String,
+        request: cmdmx_core::merge::Request,
+        dry_run: bool,
     },
 }
 
