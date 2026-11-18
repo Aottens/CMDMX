@@ -283,6 +283,13 @@ impl Default for Settings {
     }
 }
 
+/// PAL-36: an edit of a palette in progress.
+#[derive(Debug)]
+struct Editing {
+    palette: PaletteId,
+    set_aside: EditPart,
+}
+
 /// The engine. Deterministic: the same sequence of calls yields the same frames.
 #[derive(Debug)]
 pub struct Engine {
@@ -345,6 +352,8 @@ pub struct Engine {
     /// PRG-105: Blind. The programmer as the stage sees it, frozen when Blind began; `None` =
     /// Live. Live state, not in the show or the edit state (PRG-109).
     blind: Option<Programmer>,
+    /// PAL-36: the palette being edited and the programmer set aside for it. Live state.
+    editing: Option<Editing>,
     /// PRG-56: Fan mode and the last curve; live state, not undoable, not saved.
     fan: Option<FanCurve>,
     fan_curve: FanCurve,
@@ -813,6 +822,7 @@ impl Engine {
             connected: None,
             highlight: false,
             blind: None,
+            editing: None,
             fan: None,
             fan_curve: FanCurve::default(),
             effect_next_id: 1,
@@ -2519,7 +2529,11 @@ impl Engine {
             group_legends: self.group_legends.clone(),
             palettes: self.palettes.clone(),
             nodes: self.nodes.clone(),
-            programmer: self.programmer.edit_part(),
+            // PAL-36: while editing, the programmer set aside is the operator's.
+            programmer: match &self.editing {
+                Some(e) => e.set_aside.clone(),
+                None => self.programmer.edit_part(),
+            },
         }
     }
 
@@ -2604,6 +2618,16 @@ impl Engine {
         if patched {
             self.follow_cue_effects(); // PAT-26: a fixture came, went or changed mode
         }
+        match &mut self.editing {
+            Some(e) => e.set_aside = s.programmer,
+            None => self.swap_programmer_part(s.programmer),
+        }
+        self.follow_active_group();
+    }
+
+    /// UNDO-12, PRG-45: put a saved programmer part back; an LTP value it no longer holds is let
+    /// go of as Clear does.
+    fn swap_programmer_part(&mut self, part: EditPart) {
         let p = &self.programmer;
         let mut held_before: Vec<(Item, String)> = Vec::new();
         for item in p.touched_items() {
@@ -2611,7 +2635,7 @@ impl Engine {
             let located = p.located_of(item).into_iter().flat_map(|a| a.keys());
             held_before.extend(values.chain(located).map(|n| (item, n.clone())));
         }
-        self.programmer.restore_edit_part(s.programmer);
+        self.programmer.restore_edit_part(part);
         let gone: Vec<Gone> = held_before
             .into_iter()
             .filter(|(i, n)| {
@@ -2630,7 +2654,6 @@ impl Engine {
             })
             .collect();
         self.give_up(gone, 0.0);
-        self.follow_active_group();
     }
 
     // ---- show file (SHW-01..08) --------------------------------------------
@@ -9011,6 +9034,112 @@ impl Engine {
         let (id, plan) = self.palette_plan(number, &self.programmer.target_items())?;
         self.put_palette(id, plan, false);
         Ok(())
+    }
+
+    /// PAL-36: the palette being edited.
+    pub fn editing(&self) -> Option<PaletteId> {
+        self.editing.as_ref().map(|e| e.palette)
+    }
+
+    /// PAL-36: "Editing palette 3 Rood" (no trailing space without a legend).
+    fn edit_name(&self, id: PaletteId, number: Option<u32>) -> String {
+        match self.palettes.get(&id) {
+            Some(p) => format!("{} {}", p.number, p.legend.trim())
+                .trim()
+                .to_string(),
+            None => number.map_or_else(|| id.to_string(), |n| n.to_string()),
+        }
+    }
+
+    /// PAL-36: while a palette is edited, Undo, Redo, a second Edit and every record, update,
+    /// copy, move and delete say so.
+    pub fn edit_refusal(&self) -> Result<(), CoreError> {
+        match &self.editing {
+            None => Ok(()),
+            Some(e) => Err(CoreError::EditRefused(format!(
+                "Editing palette {}: Save or Cancel first",
+                self.edit_name(e.palette, None)
+            ))),
+        }
+    }
+
+    /// PAL-36: set the programmer aside, select the palette's fixtures and include the palette.
+    /// Not an undo step, and Blind stays as it is.
+    pub fn edit_palette(&mut self, number: u32) -> Result<(), CoreError> {
+        self.edit_refusal()?;
+        let palette = self
+            .palette(number)
+            .ok_or(CoreError::UnknownPalette(number))?;
+        let id = palette.id;
+        let usable = |i: &Item| self.fixtures.get(&i.fixture).is_some_and(|f| !f.parked);
+        // The palette's level as PAL-07 reads it: a global value wins over a shared one.
+        let items: Vec<Item> = if palette.kind() == crate::palette::PaletteKind::Normal {
+            palette.fixtures.keys().copied().filter(usable).collect()
+        } else if palette.kind() == crate::palette::PaletteKind::Shared {
+            let mut first: BTreeMap<&str, (u32, FixtureId)> = BTreeMap::new();
+            for f in self.fixtures.values().filter(|f| !f.parked) {
+                let key = (f.number, f.id);
+                let slot = first.entry(f.profile.as_str()).or_insert(key);
+                *slot = (*slot).min(key);
+            }
+            let keys = palette.shared.keys().chain(palette.shared_cells.keys());
+            let mut items: Vec<Item> = keys
+                .filter_map(|k| first.get(k.as_str()))
+                .map(|&(_, id)| Item::fixture(id))
+                .collect();
+            items.sort();
+            items.dedup();
+            items
+        } else {
+            let selected = self.programmer.target_items();
+            if selected.is_empty() {
+                let name = self.edit_name(id, Some(number));
+                return Err(CoreError::EditRefused(format!(
+                    "Select fixtures to edit Global palette {name}"
+                )));
+            }
+            selected
+        };
+        let set_aside = self.programmer.edit_part();
+        self.programmer.clear_values();
+        self.programmer.effects.clear();
+        self.programmer.current = None;
+        self.fan = None; // PRG-56
+        self.programmer.start_selection(items);
+        self.follow_active_group();
+        self.select_entry_of_selection();
+        if let Err(e) = self.include_palette(number) {
+            self.swap_programmer_part(set_aside);
+            return Err(e);
+        }
+        self.editing = Some(Editing {
+            palette: id,
+            set_aside,
+        });
+        Ok(())
+    }
+
+    /// PAL-37: store the programmer into the edited palette as Merge with its window's mask;
+    /// the edit goes on.
+    pub fn store_palette_edit(&mut self) -> Result<(), CoreError> {
+        let id = self
+            .editing()
+            .ok_or_else(|| CoreError::EditRefused("No palette is being edited".to_string()))?;
+        let cell = (self.palettes.get(&id))
+            .ok_or_else(|| CoreError::EditRefused("The palette is gone".to_string()))?
+            .cell();
+        let mut record = Record::at(cell);
+        record.mode = Some(RecordMode::Merge);
+        self.record_palette(&record).map(drop)
+    }
+
+    /// PAL-37: give the programmer set aside back (Cancel, and after a Save); what the edit
+    /// held is let go of as an undone step lets go. Not an undo step. A no-op when not editing.
+    pub fn end_palette_edit(&mut self) {
+        if let Some(e) = self.editing.take() {
+            self.swap_programmer_part(e.set_aside);
+            self.follow_active_group();
+        }
     }
 
     /// PBK-48: put a cue's own (hard) values and effect entries in the programmer, with their

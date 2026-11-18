@@ -52,9 +52,10 @@ pub enum Key {
     Legend,
     Options,
     Release,
+    Edit,
 }
 
-const KEYS: [(&str, Key); 20] = [
+const KEYS: [(&str, Key); 21] = [
     ("clear", Key::Clear),
     ("locate", Key::Locate),
     ("highlight", Key::Highlight),
@@ -75,6 +76,7 @@ const KEYS: [(&str, Key); 20] = [
     ("legend", Key::Legend),
     ("options", Key::Options),
     ("release", Key::Release),
+    ("edit", Key::Edit),
 ];
 
 impl Key {
@@ -95,6 +97,7 @@ impl Key {
                 | Key::Legend
                 | Key::Options
                 | Key::Release
+                | Key::Edit
         )
     }
 }

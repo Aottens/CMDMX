@@ -577,3 +577,11 @@ fn ctl_75_key_blind_parses_as_a_button_the_daemon_or_a_following_app_runs() {
         "with no app the daemon runs it (CTL-75)"
     );
 }
+
+#[test]
+fn ctl_75_key_edit_is_a_programming_key() {
+    assert_eq!(parse("key edit"), Action::Key(Key::Edit));
+    assert_eq!(parse("key edit").to_string(), "key edit");
+    assert_eq!(parse("key edit").value_kind(), ValueKind::Button);
+    assert!(Key::Edit.is_programming(), "the app runs it (CTL-72)");
+}

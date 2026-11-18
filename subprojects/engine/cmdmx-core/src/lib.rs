@@ -61,6 +61,9 @@ pub enum CoreError {
     /// PRG-108: a stored change would show on stage; the sentence says what.
     #[error("{0}")]
     OnStage(String),
+    /// PAL-36: Edit is busy or has nothing to edit; the sentence says what.
+    #[error("{0}")]
+    EditRefused(String),
     #[error("unknown fixture id {0}")]
     UnknownFixture(u32),
     #[error("fixture {fixture} has no cell {cell}")]

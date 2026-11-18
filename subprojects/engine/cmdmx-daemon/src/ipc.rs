@@ -364,6 +364,12 @@ pub enum Command {
     },
     /// PAL-27: the palette commands name palettes by number and cells by window and handle.
     PaletteRecord(Record),
+    /// IPC-67 (BLD-04): edit palette `number`; Save and Cancel end it.
+    PaletteEdit {
+        number: u32,
+    },
+    PaletteEditSave,
+    PaletteEditCancel,
     PaletteApply {
         number: u32,
         timing: Timing,
@@ -1988,6 +1994,11 @@ fn parse_unconfirmed(text: &str) -> Result<Command, String> {
             number: uint(&v, "number")?,
             to: uint(&v, "to")?,
         }),
+        Some("palette.edit") => Ok(Command::PaletteEdit {
+            number: uint(&v, "number")?,
+        }),
+        Some("palette.edit_save") => Ok(Command::PaletteEditSave),
+        Some("palette.edit_cancel") => Ok(Command::PaletteEditCancel),
         Some("palette.delete") => Ok(Command::PaletteDelete {
             numbers: uint_list(&v, "number", "numbers")?,
         }),
@@ -2971,6 +2982,8 @@ struct Snapshot<'a> {
     locked: bool,
     /// IPC-67
     blind: bool,
+    /// IPC-67 (BLD-04): the palette being edited, or null.
+    editing: Option<EditingInfo>,
     /// IPC-65: whether a code is saved; never the code.
     lock_code_saved: bool,
     /// RMT-02: `Remote::info`; never the salt, the hash or the password.
@@ -3275,6 +3288,27 @@ pub fn locked_delta(on: bool) -> String {
     to_json(&serde_json::json!({"v": PROTOCOL, "type": "locked", "locked": on}))
 }
 
+/// IPC-67 (BLD-04): the palette being edited.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct EditingInfo {
+    pub number: u32,
+    pub legend: String,
+}
+
+pub fn editing_info(engine: &Engine) -> Option<EditingInfo> {
+    let id = engine.editing()?;
+    let p = engine.palettes().find(|p| p.id == id)?;
+    Some(EditingInfo {
+        number: p.number,
+        legend: p.legend.clone(),
+    })
+}
+
+/// IPC-67 (BLD-04): the `editing` delta to every client.
+pub fn editing_delta(editing: &Option<EditingInfo>) -> String {
+    to_json(&serde_json::json!({"v": PROTOCOL, "type": "editing", "editing": editing}))
+}
+
 /// IPC-67: the `blind` delta to every client.
 pub fn blind_delta(on: bool) -> String {
     to_json(&serde_json::json!({"v": PROTOCOL, "type": "blind", "blind": on}))
@@ -3332,6 +3366,7 @@ pub fn snapshot(
         messages,
         locked,
         blind: engine.blind(),
+        editing: editing_info(engine),
         lock_code_saved,
         remote,
     })
@@ -4775,6 +4810,33 @@ mod tests {
             r#"{"v":1,"cmd":"programmer.blind","on":"yes"}"#,
             r#"{"v":1,"cmd":"programmer.blind","on":true,"fade":"x"}"#,
             r#"{"v":1,"cmd":"programmer.blind","on":true,"clear":1}"#,
+        ] {
+            assert!(parse_command(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn ipc_67_palette_edit_save_and_cancel_parse() {
+        let ok = |s: &str| parse_command(s).unwrap();
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"palette.edit","number":3}"#),
+            Command::PaletteEdit { number: 3 }
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"palette.edit_save"}"#),
+            Command::PaletteEditSave
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"palette.edit_save","confirm":true}"#),
+            Command::Confirmed(Box::new(Command::PaletteEditSave))
+        );
+        assert_eq!(
+            ok(r#"{"v":1,"cmd":"palette.edit_cancel"}"#),
+            Command::PaletteEditCancel
+        );
+        for bad in [
+            r#"{"v":1,"cmd":"palette.edit"}"#,
+            r#"{"v":1,"cmd":"palette.edit","number":"3"}"#,
         ] {
             assert!(parse_command(bad).is_err(), "{bad}");
         }
