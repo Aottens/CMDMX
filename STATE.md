@@ -48,7 +48,6 @@ Programming and small checks:
 - Nothing.
 
 ## Owner to decide
-- PRG-108 lists 9 commands that ask in Blind; the daemon asks for any edit of a live cue (#347): widen PRG-108 to match?
 - REL-26 names no patch series for the release installed now, the one before the service candidate
   (`specs/modules/release.md:41`, review of #327): name one, or say it gets none.
 - Buy the screen for HWB-10's run, the desk's screen flap: Waveshare 15.6" HDMI LCD (H), about €170–240 from Eckstein or

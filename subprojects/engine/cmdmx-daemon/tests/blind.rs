@@ -246,6 +246,46 @@ fn ipc_67_a_stored_change_on_stage_gets_an_on_stage_reply_then_confirm_does_it()
     }
 }
 
+/// Cue 1's fade in on playback `id`, from a fresh snapshot.
+fn fade_in(port: u16, id: u64) -> Value {
+    let snap = fresh_snapshot(port);
+    let p = snap["playbacks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == id)
+        .unwrap()
+        .clone();
+    p["cues"][0]["fade_in"].clone()
+}
+
+#[test]
+fn prg_108_a_time_change_to_the_live_cue_asks_in_blind_too() {
+    let dir = folder("prg108-times");
+    let port = free_port();
+    let _daemon = daemon(&dir, port);
+    let mut app = connect(port);
+    recv(&mut app);
+    let id = live_cue(&mut app);
+    blind(&mut app, true);
+    saw_blind(&mut app, true);
+    let times = json!({"cmd": "cue.times", "id": id, "cue": 1, "fade_in": 4.0});
+    send(&mut app, times.clone());
+    let reply = until(&mut app, "the on_stage reply", |m| {
+        m["type"] == "on_stage" || m["type"] == "warning"
+    });
+    assert_eq!(reply["type"], "on_stage", "{reply}");
+    assert_ne!(fade_in(port, id), json!(4.0), "nothing changed");
+
+    let mut confirmed = times;
+    confirmed["confirm"] = json!(true);
+    send(&mut app, confirmed);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while fade_in(port, id) != json!(4.0) {
+        assert!(Instant::now() < deadline, "the confirmed time never landed");
+    }
+}
+
 #[test]
 fn ipc_67_blind_is_refused_while_locked() {
     let dir = folder("ipc67-locked");

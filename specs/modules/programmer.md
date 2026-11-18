@@ -680,9 +680,10 @@ PAL-36 and PAL-37 (`palettes.md`); IPC-67 (`ipc.md`), UI-90..92 (`ui.md`) and CT
   the next tick. `clear: true` empties the programmer first, so the stage goes back to what the playbacks give, over t. Not an
   undo step. Tests `prg_107_…`: a level fades over 2 s from the frozen value, a colour fades in linear RGB, a value only the frozen
   programmer held fades out, `clear` gives back the playbacks' state.
-- **PRG-108** **A stored change that reaches the stage asks in Blind** (question 3). A change to the stored values of a cue that
-  a playback or cue list has live (Record, Update, Merge, Remove, Off, an effect removed), or of a palette that something on stage
-  references (Record over it, Delete, an Edit save, PAL-37), changes the stage at the next tick (PBK-13). In Blind such an action without `confirm: true` is refused with a reply that names
+- **PRG-108** **A stored change that reaches the stage asks in Blind** (question 3). Any edit that changes a cue
+  a playback or cue list has live (its values: Record, Update, Merge, Remove, Off, an effect removed; and also its times, legend,
+  or deleting it), or a palette that something on stage references (Record over it, Delete, an Edit save, PAL-37), changes the
+  stage at the next tick (PBK-13); owner, 2026-11-18, review of #347. In Blind such an action without `confirm: true` is refused with a reply that names
   what is on stage ("Cue 1.3 is live on playback 4: the change shows now") and changes nothing; sent again with `confirm: true`
   it is done. In Live nothing changes. Tests `prg_108_…`: a Merge into the live cue is refused, then done with `confirm`; a Merge
   into a cue not on stage needs none.

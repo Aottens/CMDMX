@@ -5,6 +5,15 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-18 — In Blind, every edit of what is on stage asks first (PRG-108, IPC-67)
+
+**Decision:** in Blind, any edit that changes a live cue or an on-stage palette asks first: its values, and also its times,
+legend or a delete, as the daemon already does (`Engine::guarded`). The app asks for whatever the daemon refuses (UI-92).
+**Alternatives:** narrow the daemon to the nine value commands PRG-108 listed, so a time or legend change goes on stage
+without a question. **Why:** a changed fade time or a deleted live cue changes the stage too; the question is as useful there,
+and the code already does it. Owner, 2026-11-18, after the review of #347. **Reversal trigger:** the question gets in the way
+of routine fixes during a service.
+
 ## 2026-11-17 — Blind and Edit in phase 1, every recommendation accepted (P1-31)
 
 **Decision:** Blind keeps a frozen copy of the programmer on stage while playbacks stay live (PRG-105); Highlight is refused
