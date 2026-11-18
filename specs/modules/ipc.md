@@ -487,9 +487,9 @@ Checks: `tests/manual/runs/2026-11-15-J-checks.md`. Questions in `ui.md`, *Owner
 ### Blind and Edit (IDEA-35 B7, P1-31; approved by owner 2026-11-17)
 - **IPC-67** **Blind and Edit over the wire** (PRG-105..109, PAL-36, PAL-37). Actions, class edit, refused while locked (IPC-50):
   `programmer.blind {"on":true}` and `{"on":false,"fade":2.0,"clear":false}` (`fade` and `clear` optional); `palette.edit
-  {"number":3}`, `palette.edit_save {"confirm":false}` and `palette.edit_cancel`. Every command that changes the stored values of
-  a cue or palette (`playback.record`, `update`, `cue.record`, `cue.update`, `cue.remove`, `cue.off`, `cue.remove_effect`,
-  `palette.record`, `palette.delete`) gains an optional `confirm` (PRG-108); a refusal for want of it is a reply with
+  {"number":3}`, `palette.edit_save {"confirm":false}` and `palette.edit_cancel`. Every edit-class command gains an optional `confirm`:
+  one that would change a live cue or an on-stage palette (PRG-108; `playback.record`, `update`, `cue.record`, `cue.times`,
+  `cue.legend`, `cue.delete` and the others alike); a refusal for want of it is a reply with
   `on_stage` (the sentence PRG-108 gives), not a warning, so the app can ask. The snapshot gains `blind` (bool) and `editing`
   (`{"number":3,"legend":"Rood"}` or null), each with a delta to every client when it changes. Tests `ipc_67_…`: the deltas, the
   `on_stage` reply, the refusals while locked and while editing.
