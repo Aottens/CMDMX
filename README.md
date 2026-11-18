@@ -42,7 +42,7 @@ driven the real church rig through the Eurolite interface: fades comparable with
 restart, and killing the app with `kill -9` mid-show dropped no DMX frame.
 
 Patch, profiles, controls, show files and batches I and J are done; green PRs now merge by themselves. Merging
-from another show and Blind work. Next: VS4-07 (with VS8-01), VS4-03, and Edit for palettes (BLD-04, BLD-05).
+from another show, Blind and Edit for palettes work. Next: VS4-07 (with VS8-01) and VS4-03, the first service.
 Phase 2 features already work; the open-hardware desk ([`hardware.md`](specs/modules/hardware.md)) runs beside it:
 its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [`STATE.md`](STATE.md), the plan:
 [`BACKLOG.md`](BACKLOG.md); site and manual are at [aottens.github.io/CMDMX](https://aottens.github.io/CMDMX/).
@@ -126,6 +126,9 @@ its screen flap and top plate wait for test prints (HWB-10, HWB-11). Progress: [
 - Blind: the Blind button (or a surface key) keeps the stage as the programmer was while you go on programming,
   with a violet frame and a BLIND tag; playbacks stay live, Highlight waits, a stored change to a cue or palette on
   stage asks first, and leaving asks what to do with the programmer and can fade the changes in over a typed time.
+- Edit a palette: Edit, then tap the palette, sets the programmer aside and selects the palette's fixtures with its
+  values, with an EDIT tag and the cell outlined; *Save palette* merges the change in as one undo step and *Cancel*
+  drops it, and either gives the programmer back. In Blind the edit stays off stage.
 - Fixture info: a right-click on a fixture button shows its type, address, groups, cues and palettes, and for each
   attribute why it has its value ("Dienst Q2 gives 100 %, tracked from an earlier cue, Master Zaal (3.8) scales it to
   0 %"), live while open; a tap on a row goes to that playback's page.
