@@ -333,7 +333,7 @@ commands); BLD-04 + BLD-05 (Edit across the layers, after BLD-01: its save asks 
 |---|---|---|---|---|
 | BLD-01 | Core: Blind keeps a frozen copy of the programmer for the output, refuses Highlight, leaves with a fade or a clear, asks before a stored change reaches the stage, and ends on New and Open; `prg_105_…` to `prg_109_…`. | PRG-105..109 | M | done (2026-11-17, #346) |
 | BLD-02 | Daemon: `programmer.blind`, `confirm` and the `on_stage` reply, `blind` in snapshot and delta, `key blind` with its feedback; `ipc_67_…` (Blind part), `ctl_75_…` (Blind part). Needs BLD-01. | IPC-67, CTL-75 | S | done (2026-11-17, #346) |
-| BLD-03 | App: the Blind button, violet frame, BLIND tag and Programmer title, the leave sheet and the on-stage sheet; the manual's Blind section; checked by hand on Art-Net. Needs BLD-02. | UI-90, UI-92 | S | todo |
+| BLD-03 | App: the Blind button, violet frame, BLIND tag and Programmer title, the leave sheet and the on-stage sheet; the manual's Blind section; checked by hand on Art-Net. Needs BLD-02. | UI-90, UI-92 | S | done (2026-11-18, #347) |
 | BLD-04 | Core and daemon: `palette.edit`, `edit_save` and `edit_cancel` with the programmer set aside and given back, the refusals while editing, `editing` in snapshot and delta, `key edit`; `pal_36_…`, `pal_37_…`, `ipc_67_…` (Edit part). Needs BLD-01. | PAL-36, 37, IPC-67, CTL-75 | S | todo |
 | BLD-05 | App: the Edit button, the EDIT tag, the outlined cell, the Save and Cancel softkeys; the manual's palette page; checked by hand. Needs BLD-04. | UI-91 | S | todo |
 

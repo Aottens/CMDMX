@@ -287,6 +287,32 @@ What happens to colour, position and other LTP values when they leave the progra
 where they are). The Clear order (selection first, both at once, or programmer first), this setting, the Rem Dim low level and
 *Channel levels* are in the show-wide part of the *Playback Options* screen, under *Programmer*.
 
+## Blind
+
+**Blind** lets you program without the audience seeing it. Press Blind (or pick it in the *Console* menu,
+or press a surface key bound to Blind): the stage keeps what the programmer gave it at that moment, and
+everything you change in the programmer after that stays off the stage. Playbacks, cue lists, masters,
+Flash and the grand master keep working, so a cue fired in Blind is on stage and the service goes on.
+
+You cannot miss it: the window gets a violet frame, the status bar shows **BLIND**, the Blind button is
+lit violet and the Programmer window is titled *Programmer · Blind*. Highlight is refused in Blind, as it
+would change the stage.
+
+Press Blind again to leave. With an empty programmer it leaves at once. Otherwise a sheet asks first
+how many fixtures would go on stage, with three answers:
+
+- **Go live:** the stage takes the programmer as it is now.
+- **Clear, then go live:** the programmer is emptied first, so the stage goes back to what the playbacks give.
+- **Stay blind** (Esc): nothing changes.
+
+Type a time first to fade: `3` then **Blind** leaves over 3 seconds.
+
+In Blind, a change to a cue that is live on a playback, or to a palette that is on stage (Record, Update,
+Merge, Delete), would show at once. The console asks first ("Cue 1.3 is live on playback 4: the change
+shows now"): **Change it now** does it, **Cancel** (Esc) leaves it. In Live nothing asks.
+
+Blind is never saved in a show: the console always starts live, and New and Open end Blind.
+
 ## Groups
 
 A group is a saved selection, with its order. The Groups window shows each group with its legend

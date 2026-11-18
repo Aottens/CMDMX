@@ -140,6 +140,20 @@ enum ConsoleKey: Hashable {
         ui.learnOrRun("go", engine) { engine.cuelist("go") }
     }
 
+    /// UI-90: the Blind button. In Live it goes Blind; in Blind a lone number on the line is the fade, and a programmer
+    /// with values asks first (the sheet is in MainScreen).
+    @MainActor
+    static func pressBlind(ui: UIState, line: TokenLine, engine: EngineClient) {
+        guard engine.blind else { engine.blind(on: true); return }
+        let fade = line.onlyNumber ?? 0
+        if line.onlyNumber != nil { line.clear() }
+        // PRG-105: values, located values and effects all go on stage when Blind ends.
+        let p = engine.programmer
+        let fixtures = Set(p.contents.map(\.item.fixture) + p.located.keys.map(\.fixture)
+                           + p.effects.flatMap { $0.members.map(\.fixture) }).count
+        if fixtures == 0 { engine.blind(on: false, fade: fade) } else { ui.blindLeave = BlindLeave(fixtures: fixtures, fade: fade) }
+    }
+
     /// What an armed palette function waits for (the sketch's MODE_HINT).
     private static let hints = [
         "Update": "Update: tick targets on the softkeys and Store, or tap the palette, playback handle or cue to update with what is in the programmer.",
@@ -187,6 +201,8 @@ struct ConsoleCommands: Commands {
                     .keyboardShortcut(key.shortcut)
                     .disabled(!key.enabled(ui))
             }
+            Button("Blind") { ConsoleKey.pressBlind(ui: ui, line: line, engine: engine) }
+                .disabled(ui.screen != nil)
             Divider()
             Button("Show engine log") { DaemonLauncher.shared.revealLog() }   // REL-30
         }
@@ -225,6 +241,9 @@ enum SurfaceKeys {
             // Like the Mac keys: the line is on the workspace screens; Exit always clears and disarms.
             guard ui.screen == nil || token == "Exit" else { return }
             Keypad.run(token == "Backspace" ? "Back" : token, ui: ui, line: line, engine: engine, device: e.device)
+        } else if e.key == "blind" {
+            guard ui.screen == nil else { return }
+            ConsoleKey.pressBlind(ui: ui, line: line, engine: engine)
         } else if let name = e.key.flatMap({ functions[$0] }) {
             guard ui.screen == nil else { return }
             ConsoleKey.press(function: name, ui: ui, engine: engine)

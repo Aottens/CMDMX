@@ -148,7 +148,8 @@ private struct NumberField: View {
             Text(unit).font(Typo.ui(11)).foregroundStyle(t.fg2)
         }
         .onAppear { text = shown; held = shown }
-        .onChange(of: shown) { _, new in held = new; if !focused { text = new } }
+        // UI-92: a field still showing the engine's value follows it while focused too (Change it now after a refusal).
+        .onChange(of: shown) { old, new in held = new; if !focused || text == old { text = new } }
         .task(id: sent) {   // UI-52
             guard sent > 0 else { return }
             let typed = text

@@ -1782,6 +1782,14 @@ final class EngineClient: ObservableObject {
     @Published private(set) var lastMessage: String?
     /// UI-38, IPC-50: the engine's lock; the cover follows it.
     @Published private(set) var locked = false
+    /// UI-90, IPC-67: the programmer is Blind (frozen for the stage).
+    @Published private(set) var blind = false
+    /// UI-92: the engine's question before a change reaches the stage; the command to resend with `confirm`.
+    struct OnStageAsk: Identifiable { let id = UUID(); let message: String; let cmd: String; let fields: [String: Any] }
+    @Published var onStageAsk: OnStageAsk?
+    /// UI-92: this app's latest edit sent in Blind. The daemon guards every edit command (`Engine::guarded`), not only
+    /// IPC-67's list, so every one is kept and the newest wins.
+    private var lastGuarded: (cmd: String, fields: [String: Any], at: Date)?
     /// UI-85: whether the engine keeps a lock code for surfaces; never the code.
     @Published private(set) var lockCodeSaved = false
     static let shared = EngineClient()
@@ -2471,6 +2479,14 @@ final class EngineClient: ObservableObject {
     func setPageLegend(_ page: Int, legend: String) { patch("page.legend", ["page": page, "legend": legend]) }
     /// `dbo.set` (PBK-41); the engine's `dbo` delta shows the result.
     func setDBO(_ on: Bool) { sendJSON("dbo.set", ["on": on]) }
+    /// UI-90, IPC-67: Blind on, or off over `fade` seconds, optionally clearing the programmer first.
+    func blind(on: Bool, fade: Double = 0, clear: Bool = false) {
+        var f: [String: Any] = ["on": on]
+        if !on { f["fade"] = fade; if clear { f["clear"] = true } }
+        sendJSON("programmer.blind", f)
+    }
+    /// UI-92: resend the guarded command the engine asked about, now confirmed.
+    func confirmOnStage(_ ask: OnStageAsk) { sendJSON(ask.cmd, ask.fields.merging(["confirm": true]) { a, _ in a }) }
 
     // MARK: Outputs (OUT-33..35): the engine fills defaults and refuses bad edits with a warning.
     func addOutput(line: Int, kind: String) { patch("output.add", ["line": line, "kind": kind]) }
@@ -2646,6 +2662,7 @@ final class EngineClient: ObservableObject {
               let text = String(data: data, encoding: .utf8) else { return }
         if !isAsk && cmd != "undo" && cmd != "redo" { editSent = true; undoAsked = nil }   // UI-79
         if !isAsk { DaemonLauncher.shared.commandGiven() }   // REL-27
+        if blind, !isAsk { lastGuarded = (cmd, fields, Date()) }   // UI-92
         socket.send(.string(text)) { error in
             if error != nil { socket.cancel(with: .goingAway, reason: nil) }
         }
@@ -2725,6 +2742,7 @@ final class EngineClient: ObservableObject {
         let dbo: Bool?
         let on: Bool?
         let locked: Bool?
+        let blind: Bool?
         let lockCodeSaved: Bool?
         fileprivate let playbackSettings: Tolerant<PlaybackSettings>?
         let level: Double?
@@ -2752,7 +2770,7 @@ final class EngineClient: ObservableObject {
         fileprivate let path: String?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, locked, lockCodeSaved = "lock_code_saved", level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
+            case type, v, page, pages, playbacks, dbo, on, locked, blind, lockCodeSaved = "lock_code_saved", level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -2794,6 +2812,8 @@ final class EngineClient: ObservableObject {
             pages = incoming.pages?.value ?? []
             dbo = incoming.dbo ?? false
             locked = incoming.locked ?? false
+            blind = incoming.blind ?? false
+            onStageAsk = nil
             lockCodeSaved = incoming.lockCodeSaved ?? false
             playbackSettings = incoming.playbackSettings?.value
             connected = incoming.connected?.value
@@ -2982,6 +3002,14 @@ final class EngineClient: ObservableObject {
             if let on = incoming.on { dbo = on }
         case "playback_settings":
             if let state = try? JSONDecoder().decode(PlaybackSettings.self, from: data) { playbackSettings = state }
+        case "blind":
+            if let on = incoming.blind { blind = on }
+        case "on_stage":
+            // ponytail: the reply carries no command id and goes to every client, so match by time (2 s); upgrade if the daemon gets reply ids.
+            if let sent = lastGuarded, Date().timeIntervalSince(sent.at) < 2, let m = incoming.message {
+                onStageAsk = OnStageAsk(message: m, cmd: sent.cmd, fields: sent.fields)
+            }
+            lastGuarded = nil
         case "locked":
             if let on = incoming.locked { locked = on }
         case "lock_code_saved":   // UI-85
