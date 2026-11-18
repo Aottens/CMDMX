@@ -89,7 +89,7 @@ private struct FunctionButtons: View {
     // Titan's order, two columns. An empty spec = live; otherwise the spec the key waits for.
     private static let keys: [(String, String)] = [
         ("Record", ""), ("Update", ""),
-        ("Edit", "Palettes · phase 2"), ("Select If", "later"),
+        ("Edit", ""), ("Select If", "later"),
         ("Delete", ""), ("Unfold", ""),
         ("Copy", ""), ("Move", ""),
         ("Include", ""), ("Release", ""),
@@ -99,6 +99,9 @@ private struct FunctionButtons: View {
         ("Fan", ""), ("Options", ""),
         ("Latch", ""), ("Shape", "later"),
     ]
+
+    /// UI-91: what the engine refuses while a palette is edited.
+    private static let editRefused: Set<String> = ["Record", "Update", "Edit", "Copy", "Move", "Delete"]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -112,7 +115,8 @@ private struct FunctionButtons: View {
                                         ring: label == "Record" ? ui.recordArmed : ui.function?.rawValue == label,
                                         lit: (label == "Fan" && engine.programmer.fan != nil) || (label == "Blind" && engine.blind),
                                         litColor: label == "Blind" ? t.violet : nil,
-                                        tip: label == "Off" ? "Off: takes the active attribute group out of the programmer for the targets (PRG-27)" : "",
+                                        disabled: engine.editing != nil && Self.editRefused.contains(label),
+                                        tip: engine.editing != nil && Self.editRefused.contains(label) ? engine.editingTip ?? "" : label == "Off" ? "Off: takes the active attribute group out of the programmer for the targets (PRG-27)" : "",
                                         action: spec.isEmpty ? { press(label) } : nil)
                                 .frame(width: 68)
                         }
@@ -147,6 +151,7 @@ private struct FunctionKey: View {
     /// Switched on (Fan): amber.
     var lit = false
     var litColor: Color?
+    var disabled = false
     /// Tooltip of a live key.
     var tip = ""
     var action: (() -> Void)?
@@ -163,8 +168,8 @@ private struct FunctionKey: View {
         }
         .buttonStyle(.plain)
         .frame(minHeight: 34, maxHeight: 40)
-        .disabled(action == nil)
-        .opacity(action == nil ? t.disabled : 1)
+        .disabled(action == nil || disabled)
+        .opacity(action == nil || disabled ? t.disabled : 1)
         .help(spec.isEmpty ? tip : spec)
     }
 }
@@ -282,7 +287,7 @@ private struct Softkeys: View {
     @EnvironmentObject private var line: TokenLine
 
     /// The context follows the state: Record armed, an armed palette function, the Palette key,
-    /// else a selection, else Main (UI-18).
+    /// else a palette edit (UI-91), else a selection, else Main (UI-18).
     private var context: (name: String, keys: [Softkey?]) {
         if ui.recordArmed { return recordContext }
         // CUE-54: the Cue view's softkeys while its window is on show; CUE-43: the Cue softkeys of a right-click.
@@ -294,6 +299,12 @@ private struct Softkeys: View {
         if let cells = ui.liveTimeCells(engine) { return timesContext(cells) }
         if ui.paletteMenu { return paletteContext }
         if let mark = ui.storedMark { return storedContext(mark) }   // PBK-54: until the selection changes, Esc or a function
+        if let e = engine.editing {   // UI-91: an edit always has a selection, so it wins over the Selection softkeys
+            return ("Edit palette \(e.number)", [
+                Softkey(name: "Save palette \(e.number)", sub: "merge, then back", action: { engine.saveEdit() }),
+                Softkey(name: "Cancel", sub: "drop the edit", action: { engine.cancelEdit() }),
+            ])
+        }
         // UI-33a: Order and Pattern open from the Fan context too and win over it.
         if !engine.programmer.selection.isEmpty {
             if ui.selectionMenu == "Order" { return orderContext }
@@ -407,7 +418,8 @@ private struct Softkeys: View {
 
     /// UNDO-18: the IPC-31 label as the second line; no action while there is nothing to undo.
     private var undoKey: Softkey {
-        Softkey(name: "Undo", sub: engine.undoLabel.map { engine.undoEarlier ? "(earlier) \($0)" : $0 } ?? "nothing", spec: "Undo · ⌘Z",
+        if let tip = engine.editingTip { return Softkey(name: "Undo", sub: "waits", spec: tip) }   // UI-91
+        return Softkey(name: "Undo", sub: engine.undoLabel.map { engine.undoEarlier ? "(earlier) \($0)" : $0 } ?? "nothing", spec: "Undo · ⌘Z",
                 action: engine.undoLabel == nil && !ui.learnMode ? nil : { ui.learnOrRun("key undo", engine) { engine.undo() } })
     }
 

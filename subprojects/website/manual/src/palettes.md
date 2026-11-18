@@ -95,8 +95,8 @@ empty. Tap a colour palette with nothing selected and the whole rig takes that c
 ### Include
 
 **Include**, then tap a palette, puts the palette's values in the programmer as ordinary values
-instead of references. Use it to take a palette as a starting point, change it, and record it
-back.
+instead of references. Use it to take a palette as a starting point for something new. To change
+a palette itself, use [Edit](#changing-palettes).
 
 ## Fade time and overlap
 
@@ -128,6 +128,14 @@ from wherever the fade has got to.
   normal palette stays normal.
 - **Update**, then tap a palette: a Quick Merge with what is in the programmer. Or tick the palette on Update's softkeys
   and **Store**: see [Playbacks](playbacks.md).
+
+- **Edit**, then tap a palette. The programmer is set aside, the palette's fixtures are selected and
+  hold its values, and the status bar says **EDIT** with the palette. Change the values, then press
+  **Save palette n** on the softkeys, which merges them into the palette (one undo step), or
+  **Cancel**. Either gives the programmer back as it was. Edit does not turn Blind on: in Blind
+  nothing shows on stage, and a Save of a palette that is on stage asks first. While you edit,
+  Record, Update, Copy, Move, Delete, Undo and Redo wait. Clear empties the programmer and does
+  not end the edit.
 
 Every cue and playback that uses the palette follows the change straight away, without a fade.
 

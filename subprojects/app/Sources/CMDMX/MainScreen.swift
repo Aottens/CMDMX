@@ -23,7 +23,7 @@ func extended<T: Equatable>(_ picks: [T], with item: T, in order: [T], range: Bo
 /// A function button armed for palettes and playback handles (UI-16, PAL-29, PBK-38); the next
 /// palette or handle tap uses it. Release, Options and Latch only mean something on handles.
 enum PaletteFunction: String {
-    case update = "Update", include = "Include", copy = "Copy", move = "Move", delete = "Delete", legend = "Set Legend"
+    case update = "Update", edit = "Edit", include = "Include", copy = "Copy", move = "Move", delete = "Delete", legend = "Set Legend"
     case release = "Release", options = "Options", latch = "Latch", unfold = "Unfold"
 }
 
@@ -277,6 +277,7 @@ final class UIState: ObservableObject {
         let places: [ArmedTarget]
         switch function {
         case .update: places = [.palette, .handle, .cue]
+        case .edit: places = [.palette]   // UI-91
         case .include: places = [.palette, .handle, .cue]
         case .copy, .delete, .legend: places = [.group, .palette, .handle, .cue]
         case .move: places = [.group, .palette, .handle, .cue, .fixtureButton]   // UI-77
@@ -769,6 +770,13 @@ private struct StatusBar: View {
                 Text("DBO").font(Typo.ui(11, .semibold)).foregroundStyle(t.amber)
                     .padding(.horizontal, 7).padding(.vertical, 2)
                     .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.amber, lineWidth: 1))
+            }
+
+            // UI-91: a palette is being edited.
+            if let e = engine.editing {
+                Text("EDIT \(e.number)\(e.legend.flatMap { $0.isEmpty ? nil : " " + $0 } ?? "")").font(Typo.ui(11, .semibold)).foregroundStyle(t.cyan)
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.cyan, lineWidth: 1))
             }
 
             // UI-90: the programmer is Blind.

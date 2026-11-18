@@ -55,6 +55,7 @@ extension PaletteInfo {
 // MARK: - Window
 
 struct PaletteWindow: View {
+    @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
     @EnvironmentObject private var ui: UIState
     @EnvironmentObject private var line: TokenLine
@@ -88,6 +89,7 @@ struct PaletteWindow: View {
                                  mask: true, maskGroups: p.groups,
                                  faded: hasSelection && !relevant.contains(p.id),
                                  icon: AnyView(PaletteIconView(palette: p))) { tap(handle, p) }
+                                .overlay { if engine.editing?.number == p.number { RoundedRectangle(cornerRadius: radius).strokeBorder(t.cyan, lineWidth: 2).allowsHitTesting(false) } }   // UI-91
                         } else {
                             Cell(number: nil, empty: true, armed: ui.recordTargets) { tap(handle, nil) }
                         }
@@ -178,6 +180,9 @@ enum PaletteTaps {
                 ui.cancelModes()
             case .include:
                 engine.includePalette(p.number)
+                ui.cancelModes()
+            case .edit:   // UI-91
+                engine.editPalette(p.number)
                 ui.cancelModes()
             case .legend:
                 ui.legendEditing = PaletteRef(number: p.number)
