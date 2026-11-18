@@ -48,15 +48,16 @@ Programming and small checks:
 - Nothing.
 
 ## Owner to decide
+- PRG-108 lists 9 commands that ask in Blind; the daemon asks for any edit of a live cue (#347): widen PRG-108 to match?
 - REL-26 names no patch series for the release installed now, the one before the service candidate
   (`specs/modules/release.md:41`, review of #327): name one, or say it gets none.
 - Buy the screen for HWB-10's run, the desk's screen flap: Waveshare 15.6" HDMI LCD (H), about €170–240 from Eckstein or
   Welectron (Germany, EU stock, VAT included, no import).
 - Apple Developer Program: when, and as Colourmotion or as an individual; unlocks VS8-08 and VS8-10.
-- The dashboard's port: it shares 7320 with the phone remote's default (TRB-03).
-- The website's domain name. Find the Colourmotion logo (VS8-02).
-- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-45, IDEA-47, IDEA-48, IDEA-49 and IDEA-56.
-- Licence (`BACKLOG.md`, open questions; reopened by IDEA-21).
+- The dashboard's port: it shares 7320 with the phone remote's default (TRB-03). The website's domain name. Find the
+  Colourmotion logo (VS8-02).
+- Phases of IDEA-10, IDEA-24, IDEA-29, IDEA-30, IDEA-37, IDEA-45, IDEA-47, IDEA-48, IDEA-49 and IDEA-56. Licence
+  (`BACKLOG.md`, open questions; reopened by IDEA-21).
 
 ## Good to know
 - Never run the Demo show on the real rig: its demo fixtures on 9–150 light real lamps.

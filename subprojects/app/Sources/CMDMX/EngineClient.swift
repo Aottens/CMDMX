@@ -1787,7 +1787,8 @@ final class EngineClient: ObservableObject {
     /// UI-92: the engine's question before a change reaches the stage; the command to resend with `confirm`.
     struct OnStageAsk: Identifiable { let id = UUID(); let message: String; let cmd: String; let fields: [String: Any] }
     @Published var onStageAsk: OnStageAsk?
-    private static let guarded: Set<String> = ["playback.record", "update", "cue.record", "cue.update", "cue.remove", "cue.off", "cue.remove_effect", "palette.record", "palette.delete"]
+    /// UI-92: this app's latest edit sent in Blind. The daemon guards every edit command (`Engine::guarded`), not only
+    /// IPC-67's list, so every one is kept and the newest wins.
     private var lastGuarded: (cmd: String, fields: [String: Any], at: Date)?
     /// UI-85: whether the engine keeps a lock code for surfaces; never the code.
     @Published private(set) var lockCodeSaved = false
@@ -2661,7 +2662,7 @@ final class EngineClient: ObservableObject {
               let text = String(data: data, encoding: .utf8) else { return }
         if !isAsk && cmd != "undo" && cmd != "redo" { editSent = true; undoAsked = nil }   // UI-79
         if !isAsk { DaemonLauncher.shared.commandGiven() }   // REL-27
-        if blind, Self.guarded.contains(cmd) { lastGuarded = (cmd, fields, Date()) }
+        if blind, !isAsk { lastGuarded = (cmd, fields, Date()) }   // UI-92
         socket.send(.string(text)) { error in
             if error != nil { socket.cancel(with: .goingAway, reason: nil) }
         }
