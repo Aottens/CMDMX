@@ -125,7 +125,7 @@ enum HandleTaps {
                 } else {
                     ui.cancelModes()
                 }
-            case .copy, .move, .delete, .latch, .unfold:
+            case .copy, .move, .delete, .latch, .unfold, .edit:
                 break
             }
         }

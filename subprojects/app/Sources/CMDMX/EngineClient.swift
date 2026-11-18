@@ -1784,6 +1784,11 @@ final class EngineClient: ObservableObject {
     @Published private(set) var locked = false
     /// UI-90, IPC-67: the programmer is Blind (frozen for the stage).
     @Published private(set) var blind = false
+    /// UI-91, PAL-36: the palette being edited (the programmer is set aside), else nil.
+    struct Editing: Decodable, Equatable { let number: Int; let legend: String? }
+    @Published private(set) var editing: Editing?
+    /// UI-91: the engine's refusal text while editing; the function buttons it refuses carry it as their tooltip.
+    var editingTip: String? { editing.map { "Editing palette \($0.number)\($0.legend.flatMap { $0.isEmpty ? nil : " " + $0 } ?? ""): Save or Cancel first" } }
     /// UI-92: the engine's question before a change reaches the stage; the command to resend with `confirm`.
     struct OnStageAsk: Identifiable { let id = UUID(); let message: String; let cmd: String; let fields: [String: Any] }
     @Published var onStageAsk: OnStageAsk?
@@ -2485,6 +2490,10 @@ final class EngineClient: ObservableObject {
         if !on { f["fade"] = fade; if clear { f["clear"] = true } }
         sendJSON("programmer.blind", f)
     }
+    /// UI-91, PAL-36/37: Edit a palette; Save merges it back, Cancel drops the edit. The `editing` delta shows the result.
+    func editPalette(_ number: Int) { sendJSON("palette.edit", ["number": number]) }
+    func saveEdit() { sendJSON("palette.edit_save", [:]) }
+    func cancelEdit() { sendJSON("palette.edit_cancel", [:]) }
     /// UI-92: resend the guarded command the engine asked about, now confirmed.
     func confirmOnStage(_ ask: OnStageAsk) { sendJSON(ask.cmd, ask.fields.merging(["confirm": true]) { a, _ in a }) }
 
@@ -2743,6 +2752,7 @@ final class EngineClient: ObservableObject {
         let on: Bool?
         let locked: Bool?
         let blind: Bool?
+        let editing: Editing?
         let lockCodeSaved: Bool?
         fileprivate let playbackSettings: Tolerant<PlaybackSettings>?
         let level: Double?
@@ -2770,7 +2780,7 @@ final class EngineClient: ObservableObject {
         fileprivate let path: String?
 
         enum CodingKeys: String, CodingKey {
-            case type, v, page, pages, playbacks, dbo, on, locked, blind, lockCodeSaved = "lock_code_saved", level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
+            case type, v, page, pages, playbacks, dbo, on, locked, blind, editing, lockCodeSaved = "lock_code_saved", level, message, at, messages, fixtures, groups, connected, id, palettes, programmer, outputs, control, ports, show, shows, dir, path, remote
             case fadersPerPage = "faders_per_page"
             case grandMaster = "grand_master"
             case paletteSettings = "palette_settings"
@@ -2813,6 +2823,7 @@ final class EngineClient: ObservableObject {
             dbo = incoming.dbo ?? false
             locked = incoming.locked ?? false
             blind = incoming.blind ?? false
+            editing = incoming.editing
             onStageAsk = nil
             lockCodeSaved = incoming.lockCodeSaved ?? false
             playbackSettings = incoming.playbackSettings?.value
@@ -3004,6 +3015,8 @@ final class EngineClient: ObservableObject {
             if let state = try? JSONDecoder().decode(PlaybackSettings.self, from: data) { playbackSettings = state }
         case "blind":
             if let on = incoming.blind { blind = on }
+        case "editing":
+            editing = incoming.editing
         case "on_stage":
             // ponytail: the reply carries no command id and goes to every client, so match by time (2 s); upgrade if the daemon gets reply ids.
             if let sent = lastGuarded, Date().timeIntervalSince(sent.at) < 2, let m = incoming.message {

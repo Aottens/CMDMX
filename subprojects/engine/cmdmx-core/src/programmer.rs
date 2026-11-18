@@ -808,7 +808,7 @@ impl Programmer {
     }
 
     /// A new selection: its own select order, no grid, no stage.
-    fn start_selection(&mut self, selection: Vec<Item>) {
+    pub(crate) fn start_selection(&mut self, selection: Vec<Item>) {
         self.select_order = selection.clone();
         self.selection = selection;
         self.grid = Grid::default();

@@ -225,6 +225,7 @@ fn main() {
     let mut last_report = started;
     let mut last_printed: Vec<(u16, u8)> = Vec::new();
     let mut last_blind = false;
+    let mut last_editing: Option<ipc::EditingInfo> = None;
 
     loop {
         let now = started.elapsed().as_secs_f64();
@@ -745,6 +746,12 @@ fn main() {
             last_blind = engine.blind();
             clients.broadcast(&ipc::blind_delta(last_blind));
         }
+        // IPC-67: Edit ends with a New or Open too (PAL-36).
+        let editing = ipc::editing_info(&engine);
+        if editing != last_editing {
+            last_editing = editing;
+            clients.broadcast(&ipc::editing_delta(&last_editing));
+        }
         // IPC-31: the undo delta goes before the others.
         if let Some(msg) = published.undo_delta(&undo_info(&history)) {
             clients.broadcast(&msg);
@@ -1168,6 +1175,12 @@ fn apply(engine: &mut Engine, cmd: ipc::Command, now: f64) -> Result<(), CoreErr
         PatchSwapPanTilt { ids, swapped } => engine.patch_swap_pan_tilt(&ids, swapped),
         PatchHandle { id, handle } => engine.patch_handle(id, handle),
         PaletteRecord(record) => engine.record_palette(&record).map(drop),
+        PaletteEdit { number } => engine.edit_palette(number),
+        PaletteEditSave => engine.store_palette_edit(),
+        PaletteEditCancel => {
+            engine.end_palette_edit();
+            Ok(())
+        }
         PaletteApply { number, timing } => engine.apply_palette(number, timing),
         PaletteInclude { number } => engine.include_palette(number),
         PaletteCopy {
@@ -1432,6 +1445,8 @@ fn class(cmd: &ipc::Command) -> Class {
         | OutputPorts
         | ProfileEmitter { .. }
         | LibraryGels
+        | PaletteEdit { .. }
+        | PaletteEditCancel
         | Undo
         | Redo => Class::Neutral,
         Select { .. }
@@ -1487,6 +1502,7 @@ fn class(cmd: &ipc::Command) -> Class {
         | PatchSwapPanTilt { .. }
         | PatchHandle { .. }
         | PaletteRecord(_)
+        | PaletteEditSave
         | PaletteApply { .. }
         | PaletteInclude { .. }
         | PaletteCopy { .. }
@@ -1664,6 +1680,7 @@ fn label(cmd: &ipc::Command) -> (String, Option<String>) {
         PatchSwapPanTilt { ids, .. } => (park_label("Swap pan/tilt", ids), None),
         PatchHandle { id, .. } => (format!("Patch handle {id}"), None),
         PaletteRecord(_) => ("Record palette".into(), None),
+        PaletteEditSave => ("Save palette".into(), None),
         PaletteApply { number, .. } => (format!("Apply palette {number}"), None),
         PaletteInclude { number } => (format!("Include palette {number}"), None),
         PaletteCopy { numbers, to, .. } => (
@@ -1737,7 +1754,12 @@ fn run(
         ipc::Command::Confirmed(c) => (true, *c),
         c => (false, c),
     };
-    match (class(&cmd), &cmd) {
+    // PAL-36: while a palette is edited these say so and change nothing.
+    if blocked_by_edit(&cmd) {
+        engine.edit_refusal()?;
+    }
+    let save = matches!(cmd, ipc::Command::PaletteEditSave);
+    let result = match (class(&cmd), &cmd) {
         (_, ipc::Command::Undo) => history.undo(engine).map(drop),
         (_, ipc::Command::Redo) => history.redo(engine).map(drop),
         (Class::Edit, _) => {
@@ -1760,7 +1782,45 @@ fn run(
             apply(engine, cmd, now)
         }
         (Class::Reset | Class::Neutral, _) => apply(engine, cmd, now),
+    };
+    // PAL-37: a stored Save gives the programmer back (after the history step, which holds the
+    // programmer set aside either way).
+    if save && result.is_ok() {
+        engine.end_palette_edit();
     }
+    result
+}
+
+/// PAL-36: the commands that record, update, copy, move or delete something.
+fn blocked_by_edit(cmd: &ipc::Command) -> bool {
+    use ipc::Command::*;
+    matches!(
+        cmd,
+        PaletteRecord(_)
+            | PaletteCopy { .. }
+            | PaletteMove { .. }
+            | PaletteDelete { .. }
+            | PlaybackRecord(_)
+            | PlaybackCopy { .. }
+            | PlaybackMove { .. }
+            | PlaybackDelete { .. }
+            | CueCopy { .. }
+            | CueDelete { .. }
+            | CueBlock { .. }
+            | CueRemove { .. }
+            | CueRemoveEffect { .. }
+            | RecordGroup { .. }
+            | CopyGroup { .. }
+            | MoveGroup { .. }
+            | DeleteGroup { .. }
+            | MasterRecord { .. }
+            | GroupMasterRecord { .. }
+            | Update { .. }
+            | PatchCopy { .. }
+            | PatchMove { .. }
+            | PatchRemove { .. }
+            | OutputRemove { .. }
+    )
 }
 
 /// IPC-50, CTL-73: lock or unlock; every client and every surface hears of a change.

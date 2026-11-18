@@ -69,11 +69,13 @@ impl History {
 
     /// UNDO-06: put back the newest step's state; returns its label.
     pub fn undo(&mut self, engine: &mut Engine) -> Result<String, CoreError> {
+        engine.edit_refusal()?; // PAL-36
         let step = self.undo.pop_back().ok_or(CoreError::NothingToUndo)?;
         self.swap(engine, step, false)
     }
 
     pub fn redo(&mut self, engine: &mut Engine) -> Result<String, CoreError> {
+        engine.edit_refusal()?; // PAL-36
         let step = self.redo.pop_back().ok_or(CoreError::NothingToRedo)?;
         self.swap(engine, step, true)
     }

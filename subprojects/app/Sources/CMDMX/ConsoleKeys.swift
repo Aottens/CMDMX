@@ -157,6 +157,7 @@ enum ConsoleKey: Hashable {
     /// What an armed palette function waits for (the sketch's MODE_HINT).
     private static let hints = [
         "Update": "Update: tick targets on the softkeys and Store, or tap the palette, playback handle or cue to update with what is in the programmer.",
+        "Edit": "Edit: tap a palette to change it; Save palette or Cancel on the softkeys ends it.",
         "Include": "Include: tap a palette, playback handle or cue; its values go into the programmer.",
         "Delete": "Delete: tap the group, palette, playback handle or cue to delete (⇧ range, ⌘ add one). You confirm on softkey A.",
         "Copy": "Copy: tap the source group, palette or playback handle (⇧ range, ⌘ add one), then an empty cell or handle; or tap a cue.",
@@ -212,7 +213,7 @@ struct ConsoleCommands: Commands {
 /// UI-84, IPC-64: what a surface (BCF2000, ...) does in the app. Dropped under the Lock, the Lock prompt and a sheet.
 enum SurfaceKeys {
     private static let functions = [
-        "record": "Record", "update": "Update", "include": "Include", "delete": "Delete", "copy": "Copy",
+        "record": "Record", "update": "Update", "edit": "Edit", "include": "Include", "delete": "Delete", "copy": "Copy",
         "move": "Move", "release": "Release", "legend": "Set Legend", "options": "Options",
     ]
 
@@ -222,6 +223,7 @@ enum SurfaceKeys {
         if ui.recordArmed { return "record" }
         switch ui.function {
         case .update: return "update"
+        case .edit: return "edit"
         case .include: return "include"
         case .copy: return "copy"
         case .move: return "move"
