@@ -147,7 +147,10 @@ enum ConsoleKey: Hashable {
         guard engine.blind else { engine.blind(on: true); return }
         let fade = line.onlyNumber ?? 0
         if line.onlyNumber != nil { line.clear() }
-        let fixtures = Set(cellsAfterFixtures(engine.programmer.contents, engine.fixtures) { $0.item }.map(\.fixture)).count
+        // PRG-105: values, located values and effects all go on stage when Blind ends.
+        let p = engine.programmer
+        let fixtures = Set(p.contents.map(\.item.fixture) + p.located.keys.map(\.fixture)
+                           + p.effects.flatMap { $0.members.map(\.fixture) }).count
         if fixtures == 0 { engine.blind(on: false, fade: fade) } else { ui.blindLeave = BlindLeave(fixtures: fixtures, fade: fade) }
     }
 
