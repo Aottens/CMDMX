@@ -33,7 +33,7 @@ struct ProgrammerWindow: View {
         let rows = cellsAfterFixtures(engine.programmer.contents, engine.fixtures) { $0.item }
         let fixtures = Dictionary(engine.fixtures.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
-        PanelWindow(title: "Programmer", info: rows.isEmpty ? "empty" : "\(Set(rows.map(\.fixture)).count) fixtures", accessory: { EmptyView() }) {
+        PanelWindow(title: engine.blind ? "Programmer · Blind" : "Programmer", info: rows.isEmpty ? "empty" : "\(Set(rows.map(\.fixture)).count) fixtures", accessory: { EmptyView() }) {
             if rows.isEmpty {
                 NoteText(note: "Only attributes you touch land here, in red. Values from a palette show the palette name in cyan. Locate and Highlight never land here.")
             } else {

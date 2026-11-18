@@ -82,7 +82,9 @@ struct SideColumn: View {
 
 private struct FunctionButtons: View {
     @EnvironmentObject private var ui: UIState
+    @Environment(\.theme) private var t
     @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var line: TokenLine
 
     // Titan's order, two columns. An empty spec = live; otherwise the spec the key waits for.
     private static let keys: [(String, String)] = [
@@ -93,7 +95,7 @@ private struct FunctionButtons: View {
         ("Include", ""), ("Release", ""),
         ("Patch", ""), ("Disk", ""),
         ("Help", ""), ("System", "later"),
-        ("Blind", "later"), ("Off", ""),
+        ("Blind", ""), ("Off", ""),
         ("Fan", ""), ("Options", ""),
         ("Latch", ""), ("Shape", "later"),
     ]
@@ -108,7 +110,8 @@ private struct FunctionButtons: View {
                         ForEach(Self.keys.dropFirst(start).prefix(2), id: \.0) { label, spec in
                             FunctionKey(label: label, spec: spec,
                                         ring: label == "Record" ? ui.recordArmed : ui.function?.rawValue == label,
-                                        lit: label == "Fan" && engine.programmer.fan != nil,
+                                        lit: (label == "Fan" && engine.programmer.fan != nil) || (label == "Blind" && engine.blind),
+                                        litColor: label == "Blind" ? t.violet : nil,
                                         tip: label == "Off" ? "Off: takes the active attribute group out of the programmer for the targets (PRG-27)" : "",
                                         action: spec.isEmpty ? { press(label) } : nil)
                                 .frame(width: 68)
@@ -125,6 +128,7 @@ private struct FunctionButtons: View {
         switch label {
         case "Record": ConsoleKey.press(function: label, ui: ui, engine: engine)
         case "Patch": ui.screen = .patch
+        case "Blind": ConsoleKey.pressBlind(ui: ui, line: line, engine: engine)
         case "Fan": ui.learnOrRun("fan", engine) { engine.fanToggle() }   // CTL-59
         case "Off": engine.programmerOff()   // UI-26: the active attribute group, as Titan's Off
         case "Disk": ui.screen = .show
@@ -142,6 +146,7 @@ private struct FunctionKey: View {
     var ring = false
     /// Switched on (Fan): amber.
     var lit = false
+    var litColor: Color?
     /// Tooltip of a live key.
     var tip = ""
     var action: (() -> Void)?
@@ -151,7 +156,7 @@ private struct FunctionKey: View {
             Text(label).font(Typo.legend(13)).foregroundStyle(lit ? t.bg : t.fg)
                 .padding(.horizontal, 7)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: radius).fill(lit ? t.amber : t.surf))
+                .background(RoundedRectangle(cornerRadius: radius).fill(lit ? litColor ?? t.amber : t.surf))
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(ring ? t.red : t.line, lineWidth: ring ? 2 : 1))
                 .overlay(alignment: .bottom) { Rectangle().fill(t.line2).frame(height: 2).padding(.horizontal, 1) }
                 .contentShape(Rectangle())

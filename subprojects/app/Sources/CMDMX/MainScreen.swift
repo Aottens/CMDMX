@@ -111,6 +111,8 @@ final class UIState: ObservableObject {
     let softkeyPress = PassthroughSubject<Int, Never>()
     /// UI-39: the Messages sheet.
     @Published var messagesOpen = false
+    /// UI-90: the question before Blind is left with values in the programmer.
+    @Published var blindLeave: BlindLeave?
     /// UI-38: the Lock prompt, and the digits typed into it or into the cover.
     @Published var lockPrompt = false
     @Published var lockCode = ""
@@ -553,6 +555,7 @@ private struct Frame: View {
                 .disabled(engine.locked)   // UI-38: workspaces and shortcuts stop under the cover
                 .accessibilityHidden(engine.locked)
             }
+            .overlay { if engine.blind { Rectangle().strokeBorder(t.violet, lineWidth: 3).allowsHitTesting(false) } }   // UI-90
             .overlay { if engine.locked { LockCover().padding(.top, 27) } }   // status bar + hairline stay visible
         }
         .background(t.bg)
@@ -601,6 +604,18 @@ private struct Frame: View {
         .sheet(isPresented: $ui.messagesOpen) {
             MessagesSheet()
                 .environmentObject(engine).environmentObject(engine.livePlaybacks).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
+        .sheet(item: $ui.blindLeave) { ask in
+            BlindLeaveSheet(ask: ask)
+                .environmentObject(engine).environmentObject(ui)
+                .environment(\.theme, t)
+                .preferredColorScheme(day ? .light : .dark)
+        }
+        .sheet(item: $engine.onStageAsk) { ask in
+            OnStageSheet(ask: ask)
+                .environmentObject(engine)
                 .environment(\.theme, t)
                 .preferredColorScheme(day ? .light : .dark)
         }
@@ -754,6 +769,13 @@ private struct StatusBar: View {
                 Text("DBO").font(Typo.ui(11, .semibold)).foregroundStyle(t.amber)
                     .padding(.horizontal, 7).padding(.vertical, 2)
                     .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.amber, lineWidth: 1))
+            }
+
+            // UI-90: the programmer is Blind.
+            if engine.blind {
+                Text("BLIND").font(Typo.ui(11, .semibold)).foregroundStyle(t.violet)
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(t.violet, lineWidth: 1))
             }
 
             // UI-56: a group master holds its group; a click says which.
@@ -997,6 +1019,49 @@ private struct LockCover: View {
         .foregroundStyle(t.fg)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(t.bg)
+    }
+}
+
+/// UI-90: what leaving Blind asks when the programmer holds values.
+struct BlindLeave: Identifiable { let id = UUID(); let fixtures: Int; let fade: Double }
+
+private struct BlindLeaveSheet: View {
+    @EnvironmentObject private var engine: EngineClient
+    @EnvironmentObject private var ui: UIState
+    @Environment(\.dismiss) private var dismiss
+    let ask: BlindLeave
+
+    var body: some View {
+        let over = ask.fade > 0 ? " (over \(ask.fade.formatted()) s)" : ""
+        VStack(spacing: 12) {
+            Text("Leave Blind: \(ask.fixtures) \(ask.fixtures == 1 ? "fixture" : "fixtures") in the programmer \(ask.fixtures == 1 ? "goes" : "go") on stage\(over)").font(.headline)
+            HStack {
+                Button("Stay blind") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Clear, then go live") { engine.blind(on: false, fade: ask.fade, clear: true); dismiss() }
+                Button("Go live") { engine.blind(on: false, fade: ask.fade); dismiss() }
+            }
+        }
+        .padding(16)
+        .frame(width: 460)
+    }
+}
+
+/// UI-92: the engine says a change reaches the stage; Change it now resends the command with `confirm`.
+private struct OnStageSheet: View {
+    @EnvironmentObject private var engine: EngineClient
+    @Environment(\.dismiss) private var dismiss
+    let ask: EngineClient.OnStageAsk
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(ask.message).font(.headline)
+            HStack {
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Change it now") { engine.confirmOnStage(ask); dismiss() }
+            }
+        }
+        .padding(16)
+        .frame(width: 460)
     }
 }
 
