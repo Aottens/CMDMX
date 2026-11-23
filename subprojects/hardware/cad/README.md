@@ -10,7 +10,7 @@ Design-phase CAD for the open-hardware desk. Nothing here is final engineering y
 | `klep/` | The screen flap (HWB-10): walnut frame, printed side blocks, glass clamps, covers, strut, hinge and a printed test base; STEP, STL, native `.f3d` and `build/` (Fusion scripts, `calc.py`). |
 | `paneel-print/` | The 570 x 325 top panel as six printed pieces (3 mm skin, 10 mm ribs, AMS white inlay legends), 100 mm playback and 60 mm preset faders. `build/` rebuilds it. |
 | `paneel-graveerplaat/` | The same panel as one 1.5 mm black/white engraving plate for Laserlokaal: red = cut, blue = area engraving; 20 M3 holes for heat-set inserts in a printed under-panel. `paneel_plaat.py` regenerates it. |
-| `acryl-proef/` | Two 120 x 200 mm test strips (3 mm or 2 mm black acrylic, 1.5 mm engraving plate) to choose the top skin: legend sizes, line widths, fader slots, MX holes 13.8/13.9/14.0. `onderframe/` holds two printed backings for the 1.5 mm strip (HWB-11), to test whether a printed frame makes it stiff enough. |
+| `acryl-proef/` | Two 120 x 200 mm test strips (3 mm black acrylic, 1.5 mm engraving plate) that chose the top skin, the engraving plate (DECISIONS 2026-11-23): legend sizes, line widths, fader slots, MX holes 13.8/13.9/14.0. `onderframe/` holds two printed backings for the 1.5 mm strip (HWB-11), to test whether a printed frame makes it stiff enough. |
 | `proefstrip-print/` | The printed test strip (two faders, four keys) with inlay legends. |
 | `proefkap/`, `proefkap-flatpack/` | Early sheet-metal test hood and its flat-pack plates (DXF, STEP, JLC order zip). |
 

@@ -6,7 +6,9 @@ CAD, parts, print settings and the numbers behind the limits:
 
 The question is whether a 1.5 mm engraving plate on a printed frame is stiff enough to be the desk's top, and on
 which of the two backings: *ribben* (open lattice) or *dicht* (closed skin). Run every step on both. The strip moves
-from one backing to the other, and its switches stay clipped in.
+from one backing to the other, and its switches stay clipped in. The material is chosen (DECISIONS 2026-11-23); this
+run settles the backing. The first strip came with the acrylic's key windows: the steps without keys can run on it,
+the key steps need Laserlokaal's recut with the 13.8 / 13.9 / 14.0 holes.
 
 **20 N** is 2.0 kg on a kitchen scale. Put the strip, with its supports, on the scale, tare it, and push with one
 fingertip until the scale reads 2.0 kg. **0.10 mm** is a feeler gauge: stand a steel ruler on its edge across the
@@ -50,5 +52,5 @@ the ruler where it did not before, the plate gave more than the limit.
 
 ## Verdict
 - [ ] Which backing makes the 1.5 mm plate feel like a solid top: *ribben*, *dicht*, or neither. Tell Claude, so the
-      choice goes into DECISIONS.md and HWB-07. If neither does, the 2 mm cast acrylic is about four times stiffer at
-      the same rib spacing (README, *Numbers*)
+      choice goes into DECISIONS.md and HWB-07. If neither does, the next step is closer ribs or a screwed bottom skin
+      that makes the lattice a torsion box, not another material

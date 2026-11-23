@@ -1,6 +1,6 @@
 # hardware — State
 
-_Last updated: 2026-11-16 (printed backings for the 1.5 mm test strip, HWB-11)_
+_Last updated: 2026-11-23 (the top plate is the 1.5 mm engraving plate, HWB-11)_
 
 ## Current step
 `specs/modules/hardware.md` is approved (HW-01): a Tiger Touch II-size desk with one 15.6" touch
@@ -25,7 +25,8 @@ The desk's form is chosen (DECISIONS 2026-11-15, HW-50 amended): a flat anthraci
 frame, a screen flap on a strut and sawtooth rack, a laser-cut top plate on a printed under-panel; preset faders
 60 mm (HW-05 amended). `cad/` holds the design record (`cad/console/ontwerp/ontwerpblad.html`), the printed and
 the engraving-plate panel, the test strips and the Fusion scripts that rebuild them (`cad/README.md`). The top
-plate's material waits for the owner's test strips (`cad/acryl-proef/`). HWB-11 adds two printed backings for the
+plate is the 1.5 mm black/white engraving plate (owner, DECISIONS 2026-11-23, HW-50): on the test strips its legends
+read crisp white where the 3 mm acrylic engraved grey. HWB-11 adds two printed backings for the
 1.5 mm strip in `cad/acryl-proef/onderframe/` (an open rib lattice and a closed skin, ribs every 16.5 mm so the plate
 gives at most 0.10 mm under 20 N by `build/calc.py`); the owner's run (`tests/hardware/top-plate.md`) says which one,
 if either, makes the thin plate a top. The screen flap (HWB-10, HW-54, 56..58) is
