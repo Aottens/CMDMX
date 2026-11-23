@@ -5,6 +5,25 @@ Long-form records live in `specs/ADRs/`; this log is the index.
 
 ---
 
+## 2026-11-23 — The desk's top is the 1.5 mm black/white engraving plate (owner, HWB-11; amends HW-50, 2026-11-15)
+
+**Decision:** The top plate is one 1.5 mm black/white engraving plate from Laserlokaal, with white engraved legends and
+MX switches clipped straight into it. The 3 mm matte black cast acrylic is dropped.
+
+**Alternatives considered:** 3 mm matte black cast acrylic (the 2026-11-15 record said 2 mm; the strip that came is
+3 mm). Its legends engrave grey and shallow and read poorly, and an MX switch cannot clip into 3 mm, so every key would
+need a window and a second plate under it.
+
+**Why:** the two strips side by side (2026-11-23). On the engraving plate the legends are crisp white on black, down to
+the 2 mm "Go 2.0" and the 0.2 mm line, and the 1.5 mm plate takes MX switches directly. Laserlokaal cut this first
+strip with the acrylic's layout (key windows instead of MX holes) and is sending a recut. The owner chose on the look
+without waiting for it.
+
+**Reversal trigger:** the recut strip clips an MX switch in none of its 13.8 / 13.9 / 14.0 holes, or HWB-11's run finds
+the plate too soft on both backings and closer ribs or a bottom skin cannot fix it.
+
+---
+
 ## 2026-11-18 — In Blind, every edit of what is on stage asks first (PRG-108, IPC-67)
 
 **Decision:** in Blind, any edit that changes a live cue or an on-stage palette asks first: its values, and also its times,

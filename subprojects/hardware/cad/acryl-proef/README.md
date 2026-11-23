@@ -1,6 +1,8 @@
 # Acrylic test strip (Laserlokaal)
 
-Two 120 x 200 mm strips with the same layout, to choose the material for the desk's top skin.
+Two 120 x 200 mm strips with the same layout, to choose the material for the desk's top skin. **Outcome
+(2026-11-23):** the 1.5 mm engraving plate. Its legends read crisp white; on the 3 mm acrylic they engraved grey
+(DECISIONS 2026-11-23). Laserlokaal cut the first engraving-plate strip with the 3 mm file's key windows and sends a recut.
 
 | File | Material at Laserlokaal |
 |---|---|

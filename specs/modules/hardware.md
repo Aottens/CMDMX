@@ -180,9 +180,9 @@ Every proof of concept is tested on the owner's Mac with today's app.
 
 ### Enclosure and flight case
 - **HW-50** Desk body: a flat printed body with a 12 mm walnut frame round the top edge and front
-  and side walls receding 16 mm toward the foot, on an inner frame; the top is one laser-cut plate
-  with engraved legends, screwed into heat-set inserts in a printed under-panel; the screen on a
-  hinged flap held by a fold-out strut in a sawtooth rack at 15, 25, 35 and 45°; a removable
+  and side walls receding 16 mm toward the foot, on an inner frame; the top is one laser-cut 1.5 mm
+  black/white engraving plate with white engraved legends and the MX switches clipped into it,
+  screwed into heat-set inserts in a printed under-panel; the screen on a hinged flap held by a fold-out strut in a sawtooth rack at 15, 25, 35 and 45°; a removable
   bottom plate for service, and all rear connectors on one rear plate.
 - **HW-51** The body is parametric in the number of strips, so a wider or narrower desk is a
   parameter change, not a redesign.
