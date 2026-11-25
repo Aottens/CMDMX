@@ -5,7 +5,7 @@ Firmware: `subprojects/hardware/firmware/` (`box/`), wire map
 [`wire-map.md`](../../subprojects/hardware/firmware/wire-map.md). The box needs no software
 change: it is learned on the Mac (CTL-25).
 
-## Parts (DigiKey order placed by the owner on 2026-11-08, not yet on the desk)
+## Parts (DigiKey order placed by the owner on 2026-11-08, on the desk since 2026-11-25)
 One DigiKey order (digikey.nl, free shipping from €75), prices excl. VAT seen on 2026-11-08; the switches come from Amazon.nl,
 because no distributor carries the MX2A Honey (DECISIONS 2026-11-08). The owner has a bench supply, breadboards,
 jumper wires, through-hole resistors and a micro-USB data cable.
@@ -22,8 +22,47 @@ jumper wires, through-hole resistors and a micro-USB data cable.
       €14.99 incl. VAT, free delivery): four go in the box, including MX2A Honey. The desk's ~100 switches are
       ordered after the feel is chosen
 - [ ] From the drawer: 2 × 1 MΩ (touch), 2 × 10 kΩ and 2 × 20 kΩ (encoder divider), 330 Ω (LED data)
-- [ ] Solder short wires to the faders, the encoder and the driver carrier: their pins do not fit a breadboard
+- [ ] Amazon.nl: a few **Kailh MX hot-swap sockets** (a bag of about 10–30, a few euro): wires go on the socket,
+      the switch clicks in, so the feel test swaps switches without soldering them
 - [ ] Knobs come later with the front plate; the bare fader lever is the touch contact
+
+## Wiring
+Pin table in `box/src/main.rs`; Pico pin numbers are the physical pins. Datasheets: Bourns EM14 and PSM.
+- **Faders**: the PSM01-0**82**A has a snap-in connector (2.5 mm pitch): a 7-pin `3' 2' 1' T 1 2 3` and a 2-pin
+  motor `B A`. Female jumper wires push on; nothing to solder. Only `1 2 3` (line track), `T` and the motor are
+  used; the servo track `1' 2' 3'` stays open.
+- **Encoder**: pins on 1.27 mm pitch, marked `- A 1 2 + B` on the back. Solder thin (about 28 AWG) wires with
+  heat shrink to `-`, `A`, `+`, `B`; `1 2` is the push switch, absent on this `N` part.
+- **Keys**: wires on a hot-swap socket that clips onto the switch pins (a dot of hot glue holds it); no polarity.
+- **Driver carrier and level shifter**: solder the headers, then they sit in the breadboard.
+
+| From | To |
+| --- | --- |
+| Pico pin 40 VBUS (5 V) | +5 V rail: encoder `+`, LED stick 5V, 74AHCT125 pin 14 |
+| Pico pin 36 3V3(OUT) | +3V3 rail: fader pin `3` (both), TB6612 VCC, both 1 MΩ |
+| Pico pin 38 GND | GND rail, and the bench supply's minus |
+| Bench supply +10 V (limit about 1 A) | TB6612 VM **only**, never the Pico |
+| 470 µF | across the LED stick's 5V and GND (stripe to GND) |
+| Fader 1 / 2 pin `1` | Pico pin 33 AGND |
+| Fader 1 / 2 pin `2` (wiper) | GP26 (pin 31) / GP27 (pin 32) |
+| Fader 1 / 2 `T` | GP20 (pin 26) / GP21 (pin 27), each with 1 MΩ to +3V3 |
+| Fader 1 motor `A` / `B` | TB6612 AO1 / AO2 |
+| Fader 2 motor `A` / `B` | TB6612 BO1 / BO2 |
+| TB6612 PWMA / PWMB | GP10 (pin 14) / GP11 (pin 15) |
+| TB6612 AIN1 / AIN2 | GP12 (pin 16) / GP13 (pin 17) |
+| TB6612 BIN1 / BIN2 | GP14 (pin 19) / GP15 (pin 20) |
+| TB6612 STBY / GND | GP9 (pin 12) / GND |
+| Key 1–4 (other pin to GND) | GP2–GP5 (pins 4–7): upper 1, upper 2, lower 1, lower 2 |
+| Encoder `A` / `B` | 10 kΩ to GP6 (pin 9) / GP7 (pin 10); each GPIO 20 kΩ to GND (5 V to 3.3 V) |
+| Encoder `-` | GND |
+| 74AHCT125 pin 1 (1OE), 7, 5, 9, 12 | GND (enable, ground, unused inputs) |
+| 74AHCT125 pin 2 (1A) | GP16 (pin 21) |
+| 74AHCT125 pin 3 (1Y) | 330 Ω to the LED stick's DIN |
+
+Build it in layers and check each before the next: the Pico alone (flash, below), then LEDs, keys, the encoder,
+the faders as plain pots (no 10 V yet; 100 % at the bottom means swap fader pins `1` and `3`), touch, and the
+motors last. A motor that drives away from its target into the end stop: supply off, swap its `A` and `B`.
+- [ ] Wired as above; the 10 V reaches only VM, and the bench supply's minus is tied to the Pico's GND
 
 ## Build and flash
 - [ ] Once: `brew install picotool` and (in `subprojects/hardware/firmware`) `rustup target add

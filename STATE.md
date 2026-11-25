@@ -9,7 +9,7 @@ fails CI when this file drifts from `BACKLOG.md` (`specs/modules/tracking.md`).
 - The church keeps running on Lightkey until Christmas, then on CMDMX (owner, 2026-11-06).
 - IDEA-35 batches D (working on many at once), E (patch and profiles), F (controls and small things), G (show files),
   I (behaviour that differs from Titan) and J (input paths) are complete; schema 15 holds batch I's keys.
-- Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are ordered.
+- Phase 10, the open-hardware desk (IDEA-23), runs beside phase 1 in its own PRs; HWB-01's parts are on the desk.
 
 ## Next
 1. The first service: VS4-07 and VS4-03 below, on the service candidate. The first stable release follows a service
@@ -26,7 +26,7 @@ Runs only the owner can do (gate 3):
   box of the rename this Mac could not check, as both folders already existed here.
 - SPF-03 a real sleep during a running fade on the Eurolite and Art-Net (`tests/hardware/sleep.md`).
 - VS8-08 the notarised install (`tests/hardware/release.md`): needs the Apple Developer account first.
-- HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are ordered, run it when they arrive.
+- HWB-01 the USB-MIDI box (`tests/hardware/hw-box.md`): the parts are in; wire it as its Wiring section shows.
 - HWB-10 the screen flap (`tests/hardware/flap.md`): print it, have the walnut frame made and buy the parts in
   `subprojects/hardware/cad/klep/README.md` (the hinge is a €2 black one from a Dutch shop). The stand can be tested
   now with an acrylic stand-in for the glass; the rest needs the screen below.
