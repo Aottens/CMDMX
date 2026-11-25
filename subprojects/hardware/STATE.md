@@ -10,7 +10,7 @@ keypad, four isolated DMX ports on an own board, CERN-OHL-S v2. Firmware in Rust
 RP2350).
 
 HWB-01 (USB-MIDI box) is written and waits for the owner's run (gate 3, `tests/hardware/hw-box.md`;
-the parts are ordered at DigiKey (2026-11-08), the checklist lists them). Its faders are the
+the parts are on the desk since 2026-11-25; the checklist lists them and how to wire them). Its faders are the
 real motorised Bourns PSM on a TB6612FNG, with touch sense (HW-16, 17). `firmware/` is its own cargo
 workspace: `logic/` (`cmdmx-desk-logic`, `no_std`: `Fader` deadband 41 + end-snap + settle (HW-14,
 18), `Quadrature` + `Accumulator` (HW-22), `Debounce`, `Link` (HW-32), `Motor` P-control + 1 s stall
